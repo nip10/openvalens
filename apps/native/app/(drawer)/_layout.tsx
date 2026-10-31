@@ -155,12 +155,15 @@ const HEADER_TITLES: Readonly<Record<string, MessageDescriptor>> = {
   "/food-draft": msg`Describe a meal`,
   "/foods": msg`My foods`,
   "/workouts": msg`Training`,
+  "/training": msg`Training`,
   "/goals": msg`Goals`,
+  "/routines": msg`Routines`,
   "/exercise-library": msg`Exercise library`,
   "/exports": msg`Clinical export`,
   "/settings": msg`Settings`,
   "/settings/devices": msg`Devices`,
   "/settings/modules": msg`Modules`,
+  "/settings/telegram": msg`Daily reminders`,
   "/scores": msg`Scores`,
   "/invitations": msg`Invitations`,
   "/preventive-care": msg`Preventive care`,
@@ -341,6 +344,20 @@ function DrawerLayout() {
         />
         <Drawer.Screen
           name="body-map"
+          options={{
+            headerTitle,
+            drawerItemStyle: { display: "none" },
+          }}
+        />
+        <Drawer.Screen
+          name="goals"
+          options={{
+            headerTitle,
+            drawerItemStyle: { display: "none" },
+          }}
+        />
+        <Drawer.Screen
+          name="routines"
           options={{
             headerTitle,
             drawerItemStyle: { display: "none" },

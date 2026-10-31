@@ -46,8 +46,20 @@ Apple Health on iOS, Health Connect on Android.
 
 ## Screenshots
 
-Not done yet. They come from the polished app (#303) on the demo account (#301)
-once the Maestro suite (#302) captures them.
+Six screens per locale (Cockpit, Labs, Meal diary, Training, Sleep, Body) on the
+synthetic demo account (#301), light mode, captured by the Maestro suite (#302):
+
+| Store       | Files                                                                                     | Size                          |
+| ----------- | ----------------------------------------------------------------------------------------- | ----------------------------- |
+| App Store   | `apps/native/store/app-store/screenshots/<en-US\|pt-PT>/iphone-6.9/NN-screen.png`         | 1320×2868 (iPhone 17 Pro Max) |
+| Google Play | `apps/native/store/play/<en-US\|pt-PT>/images/phoneScreenshots/N.png` (fastlane `supply`) | 1080×2400 (Pixel 7 emulator)  |
+
+Regenerate them with `bun run e2e:ios -- --store` (on an iPhone Pro Max
+simulator) and `bun run e2e:android -- --store`; see
+[Mobile end-to-end tests](mobile/e2e.md#store-screenshots-307). They are plain
+app screenshots: no captions or device frames yet. `[CONFIRM]` whether to add
+captions in the Bloom look before submitting. Still missing: iPad 13" (only if
+`supportsTablet` stays on) and the Play feature graphic (1024×500).
 
 | Store       | Required                                                                                                                                 |
 | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
