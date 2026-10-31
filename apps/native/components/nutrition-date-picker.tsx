@@ -48,12 +48,13 @@ export function NutritionDatePicker({
   compact = false,
   locale,
 }: NutritionDatePickerProps) {
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const insets = useSafeAreaInsets();
   const selected = localDatePickerValue(value);
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(selected);
-  const displayValue = new Intl.DateTimeFormat(locale, {
+  // The app's language, not the phone's, so the date reads like the rest of the screen.
+  const displayValue = new Intl.DateTimeFormat(locale ?? i18n.locale, {
     dateStyle: compact ? "medium" : "full",
   }).format(selected);
 
@@ -104,7 +105,7 @@ export function NutritionDatePicker({
                 mode="date"
                 display={Platform.OS === "ios" ? "spinner" : "default"}
                 onValueChange={(_event, date) => setDraft(date)}
-                locale={locale}
+                locale={locale ?? i18n.locale}
               />
               <Button
                 className="min-h-11 self-end"

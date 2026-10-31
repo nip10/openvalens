@@ -2776,10 +2776,6 @@ msgstr "Painel"
 msgid "Colours come only from regions the selected scan measured. Regions the scan did not report stay grey; nothing is estimated."
 msgstr "As cores vêm apenas das regiões que o exame selecionado mediu. As regiões que o exame não reportou ficam cinzentas; nada é estimado."
 
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
-msgid "comfortable"
-msgstr "confortável"
-
 #: apps/native/components/language-section.tsx
 #: apps/web/src/components/language-section.tsx
 msgid "Community translation"
@@ -2788,10 +2784,6 @@ msgstr "Tradução da comunidade"
 #: apps/native/components/language-section.tsx
 msgid "Community translation, not yet reviewed. Units, reference ranges, medication and consent text stay in English until a reviewer approves them."
 msgstr "Tradução da comunidade, ainda não revista. As unidades, os intervalos de referência e os textos sobre medicação e consentimento ficam em inglês até um revisor os aprovar."
-
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
-msgid "compact"
-msgstr "compacta"
 
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 msgid "Compact density"
@@ -4033,6 +4025,7 @@ msgstr "diária"
 msgid "Daily"
 msgstr "Diariamente"
 
+#: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/native/app/(drawer)/settings/telegram.tsx
 #: apps/web/src/routes/_auth/settings/index.tsx
@@ -9858,6 +9851,7 @@ msgid "Recorded activity energy"
 msgstr "Energia de atividade registada"
 
 #. placeholder {0}: new Date(status.data.acceptedAt).toLocaleDateString()
+#. placeholder {0}: new Date(status.data.acceptedAt).toLocaleDateString(i18n.locale)
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/web/src/components/health-data-consent-status.tsx
 msgid "Recorded on {0}."
@@ -10424,6 +10418,7 @@ msgstr "Rotina guardada."
 msgid "Routine wasn’t saved. Your edits are still here; retry or refresh."
 msgstr "A rotina não foi guardada. As suas alterações continuam aqui; tente novamente ou atualize."
 
+#: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/workouts.tsx
 msgid "Routines"
 msgstr "Rotinas"

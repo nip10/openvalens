@@ -275,10 +275,11 @@ function PrivateMeasurementsForSubject({ subject }: { subject: PrivateSubject })
                 <Button
                   size="sm"
                   variant="outline"
+                  className="shrink-0"
                   isDisabled={preferenceMutation.isPending}
                   onPress={() => preferenceMutation.mutate(false)}
                 >
-                  {t`Turn off`}
+                  <Button.Label>{t`Turn off`}</Button.Label>
                 </Button>
               </Sheet>
               {screen.preferenceMutationError ? (

@@ -114,9 +114,11 @@ export default function LabsScreen() {
   const foreground = useThemeColor("foreground");
   const { t, i18n } = useLingui();
   const { formatLocale, labUnits } = useDisplayPreferences();
-  const dateSettings = formatLocale
-    ? { units: "metric" as const, locale: formatLocale }
-    : undefined;
+  // "App default" follows the app's language, as the rest of the screen does.
+  const dateSettings = {
+    units: "metric" as const,
+    locale: formatLocale ?? (i18n.locale === "pt-PT" ? ("pt-PT" as const) : ("en-US" as const)),
+  };
   // Display only (#67): the stored reading and its reported unit never change.
   const shown = (marker: { code: string; unit: string | null; latestValue: number | null }) =>
     marker.latestValue === null

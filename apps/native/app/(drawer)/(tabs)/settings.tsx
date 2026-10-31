@@ -237,8 +237,8 @@ export default function SettingsScreen() {
                 setDensity((prev) => (prev === "comfortable" ? "compact" : "comfortable"))
               }
               trailing={
-                <StatusPill tone="neutral">
-                  {density === "compact" ? t`compact` : t`comfortable`}
+                <StatusPill tone={density === "compact" ? "good" : "neutral"}>
+                  {density === "compact" ? t`On` : t`Off`}
                 </StatusPill>
               }
             />
@@ -262,7 +262,7 @@ function HealthDataConsentSettingsSection({
 }: {
   onOpenDeleteAccount: () => void;
 }) {
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const server = useServer();
   const serverUrl = server.status === "set" ? server.url : null;
   const session = authClient.useSession();
@@ -290,7 +290,7 @@ function HealthDataConsentSettingsSection({
                   ? t`Consent recorded for version ${status.data.acceptedVersion}.`
                   : t`No health data consent is recorded.`}
               {status.data.acceptedAt
-                ? ` ${t`Recorded on ${new Date(status.data.acceptedAt).toLocaleDateString()}.`}`
+                ? ` ${t`Recorded on ${new Date(status.data.acceptedAt).toLocaleDateString(i18n.locale)}.`}`
                 : ""}
               {status.data.required && status.data.currentVersion
                 ? ` ${t`Current version: ${status.data.currentVersion}.`}`
@@ -309,10 +309,10 @@ function HealthDataConsentSettingsSection({
           {t`If you no longer want OpenValens to process your health data, you can export your records and delete your account.`}
         </Text>
         <View className="flex-row flex-wrap gap-2">
-          <Button variant="secondary" onPress={() => router.push("/exports")}>
+          <Button variant="outline" onPress={() => router.push("/exports")}>
             <Button.Label>{t`Export records`}</Button.Label>
           </Button>
-          <Button variant="secondary" onPress={onOpenDeleteAccount}>
+          <Button variant="outline" onPress={onOpenDeleteAccount}>
             <Button.Label>{t`Delete account`}</Button.Label>
           </Button>
         </View>

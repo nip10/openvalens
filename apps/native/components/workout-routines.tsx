@@ -377,7 +377,11 @@ export function WorkoutRoutines() {
         flexGrow: 1,
       }}
     >
-      <Text style={{ fontSize: 32, fontWeight: "800", color: ink }}>
+      <Text
+        accessibilityRole="header"
+        className="font-display"
+        style={{ fontSize: 30, fontWeight: "600", color: ink }}
+      >
         <Trans>Your routines</Trans>
       </Text>
       <Text style={{ color: muted, marginBottom: 12 }}>
