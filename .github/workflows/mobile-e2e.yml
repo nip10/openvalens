@@ -1,0 +1,148 @@
+name: Mobile e2e (Android)
+
+# The Maestro suite (docs/mobile/e2e.md) on an Android emulator: a release
+# test build of apps/native against the local seeded stack that
+# `bun run e2e:android` starts itself (a Postgres container, the demo seed, the
+# server in Cloud mode with throwaway secrets, the helper). Slow (40+ minutes),
+# so it is not a required check: it runs nightly, by hand, and on pull
+# requests that touch the app. Screenshots, Maestro output and the stack's
+# logs are uploaded as artifacts; the data is the synthetic demo account only.
+
+on:
+  workflow_dispatch:
+    inputs:
+      flows:
+        description: "Flow prefixes to run, for example 01,02,03 (empty: all)"
+        required: false
+        default: ""
+        type: string
+      screenshots:
+        description: "Also run the screenshot tour (en and pt-PT, light and dark)"
+        required: true
+        default: true
+        type: boolean
+  schedule:
+    - cron: "30 2 * * *"
+  pull_request:
+    paths:
+      - "apps/native/**"
+      - ".github/workflows/mobile-e2e.yml"
+
+concurrency:
+  group: mobile-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # The emulator image and the APK are x86_64 on a Linux runner (the local
+  # default is arm64-v8a on Apple silicon).
+  ANDROID_API_LEVEL: "35"
+  ANDROID_ARCH: x86_64
+  # Same build environment as apps/native/e2e/devices.ts (BUILD_ENV).
+  EXPO_PUBLIC_ALLOW_LOCAL_HTTP: "true"
+  EXPO_PUBLIC_SERVER_URL: ""
+  E2E_OUT_DIR: ${{ github.workspace }}/e2e-artifacts
+
+jobs:
+  android:
+    name: Maestro suite on the Android emulator
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+
+      # The release build, the Gradle cache and the system image do not fit
+      # next to the preinstalled toolchains.
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/node_modules /opt/ghc /usr/local/.ghcup \
+            /usr/share/swift /usr/local/share/powershell /usr/local/share/chromium /opt/hostedtoolcache/CodeQL
+          docker image prune --all --force
+          df -h /
+
+      - name: Enable KVM for the emulator
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - run: bun install --frozen-lockfile
+
+      - name: Install Maestro
+        run: |
+          curl -fsSL "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+          "$HOME/.maestro/bin/maestro" --version
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('bun.lock', 'apps/native/app.json', 'apps/native/package.json') }}
+          restore-keys: gradle-${{ runner.os }}-
+
+      # Built before the emulator starts, so the emulator only runs the suite.
+      # run.ts finds the APK and installs it instead of building.
+      - name: Build the Android e2e app (release APK, x86_64)
+        working-directory: apps/native
+        env:
+          CI: "1"
+          NODE_ENV: production
+        run: |
+          bunx expo prebuild --platform android --no-install
+          cd android
+          ./gradlew :app:assembleRelease -PreactNativeArchitectures="$ANDROID_ARCH" --no-daemon
+          ls -lh app/build/outputs/apk/release/
+
+      - name: Run the suite
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          FLOWS: ${{ inputs.flows }}
+          # A pull request runs the flows only (each flow still takes its own
+          # screenshots); nightly and manual runs add the four-way tour.
+          TOUR: ${{ github.event_name == 'pull_request' && 'false' || (github.event_name == 'schedule' && 'true') || inputs.screenshots }}
+        with:
+          api-level: ${{ env.ANDROID_API_LEVEL }}
+          arch: ${{ env.ANDROID_ARCH }}
+          target: google_apis_playstore
+          profile: pixel_7
+          avd-name: ov-e2e
+          ram-size: 4096M
+          disk-size: 8G
+          force-avd-creation: false
+          emulator-boot-timeout: 900
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save
+          disable-animations: true
+          script: bun --no-env-file apps/native/e2e/run.ts android $( [ -n "$FLOWS" ] && echo "--flows $FLOWS" ) $( [ "$TOUR" = "true" ] || echo "--no-screenshots" )
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-e2e-android-screenshots
+          path: ${{ env.E2E_OUT_DIR }}/screenshots/
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Upload Maestro output and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-e2e-android-maestro
+          path: |
+            ${{ env.E2E_OUT_DIR }}/runs/
+            ${{ env.E2E_OUT_DIR }}/logs/
+            ~/.maestro/tests/
+          if-no-files-found: ignore
+          retention-days: 14
