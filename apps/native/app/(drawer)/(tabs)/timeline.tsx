@@ -4,6 +4,8 @@ import {
   groupTimelineByDay,
   severityTone,
   sourceLabel,
+  timelineSummary,
+  timelineTitle,
 } from "@openvalens/api/presenters/timeline";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Button, Spinner } from "heroui-native";
@@ -142,13 +144,13 @@ export default function TimelineScreen() {
         )}
         renderItem={({ item }) => {
           const tone = severityTone(item.severity);
-          const source = sourceLabel(item);
+          const source = sourceLabel(item, i18n);
           const look = DOMAIN_ICON[item.domain] ?? OTHER_DOMAIN;
           return (
             <ListCard
               icon={look.icon}
               tone={look.tone}
-              title={item.title}
+              title={timelineTitle(item, i18n)}
               chip={item.time || undefined}
               status={
                 tone
@@ -158,7 +160,7 @@ export default function TimelineScreen() {
                     }
                   : undefined
               }
-              subtitle={[item.summary, source ?? i18n._(domainLabel(item.domain))]
+              subtitle={[timelineSummary(item, i18n), source ?? i18n._(domainLabel(item.domain))]
                 .filter(Boolean)
                 .join(", ")}
             />

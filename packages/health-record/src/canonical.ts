@@ -135,9 +135,21 @@ function common(
             : "low"
         : "high";
   const sourceRefs: TimelineEvent["sourceRefs"] = [];
+  // The ingest channel (`apple_health`, `health_connect`, a wearable vendor id)
+  // rides on the row so the apps can name the source; the label stays the raw
+  // data-source identity that source filters match on.
+  const provider =
+    typeof p.provider === "string" && p.provider.trim() ? p.provider.trim() : undefined;
+  const withProvider = provider ? { provider } : {};
   const label =
     source?.displayName || source?.originalSourceName || source?.sourceAppId || source?.sourceType;
-  if (label) sourceRefs.push({ type: "data_source", label, ...(source ? { id: source.id } : {}) });
+  if (label)
+    sourceRefs.push({
+      type: "data_source",
+      label,
+      ...(source ? { id: source.id } : {}),
+      ...withProvider,
+    });
   const fallback =
     typeof p.source === "string"
       ? p.source
@@ -145,7 +157,13 @@ function common(
         ? p.sourceApp
         : undefined;
   if (fallback && !sourceRefs.some((r) => r.label.toLowerCase() === fallback.toLowerCase()))
-    sourceRefs.push({ type: "data_source", label: fallback });
+    sourceRefs.push({ type: "data_source", label: fallback, ...withProvider });
+  if (!sourceRefs.length && provider)
+    sourceRefs.push({ type: "data_source", label: provider, provider });
+  // `healthRecord.ingestMetricSample` stamps the signed-in user and takes no
+  // device: that is a reading the user typed in.
+  if (!sourceRefs.length && !source && typeof p.ingestedByUserId === "string")
+    sourceRefs.push({ type: "manual", label: "manual", provider: "manual" });
   return {
     severity,
     confidence,

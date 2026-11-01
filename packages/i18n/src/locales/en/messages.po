@@ -906,6 +906,11 @@ msgstr "{value} kcal/day"
 msgid "{withIntensity} of {0, plural, one {# session has} other {# sessions have}} an intensity."
 msgstr "{withIntensity} of {0, plural, one {# session has} other {# sessions have}} an intensity."
 
+#. Unit symbol; keep as is.
+#: packages/api/src/presenters/timeline.ts
+msgid "%"
+msgstr "%"
+
 #: apps/native/app/(drawer)/micronutrients.tsx
 #: apps/web/src/routes/_auth/micronutrients.tsx
 msgid "% of reference"
@@ -2097,6 +2102,10 @@ msgstr "Body"
 msgid "Body & weight"
 msgstr "Body & weight"
 
+#: packages/api/src/presenters/timeline.ts
+msgid "Body fat"
+msgstr "Body fat"
+
 #: packages/api/src/presenters/wellness-profile.ts
 msgid "Body goals"
 msgstr "Body goals"
@@ -2746,6 +2755,11 @@ msgstr "Closer to your target: {goalTitle}"
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 msgid "Cloud wearable connections"
 msgstr "Cloud wearable connections"
+
+#. Unit symbol; keep as is.
+#: packages/api/src/presenters/timeline.ts
+msgid "cm"
+msgstr "cm"
 
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
@@ -4322,6 +4336,10 @@ msgstr "Details"
 msgid "Details are unavailable. Refresh the library and try again."
 msgstr "Details are unavailable. Refresh the library and try again."
 
+#: packages/api/src/presenters/timeline.ts
+msgid "Device score"
+msgstr "Device score"
+
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/native/app/(drawer)/settings/devices.tsx
@@ -5731,6 +5749,7 @@ msgid "Heart rate"
 msgstr "Heart rate"
 
 #: packages/api/src/presenters/score.ts
+#: packages/api/src/presenters/timeline.ts
 msgid "Heart rate variability"
 msgstr "Heart rate variability"
 
@@ -5763,6 +5782,10 @@ msgstr "Heaviest: {0}"
 #: apps/web/src/routes/_auth/cycle.tsx
 msgid "Heavy"
 msgstr "Heavy"
+
+#: packages/api/src/presenters/timeline.ts
+msgid "Height"
+msgstr "Height"
 
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Height (cm, optional)"
@@ -7146,6 +7169,11 @@ msgstr "Manage my foods"
 msgid "manual"
 msgstr "manual"
 
+#: packages/api/src/presenters/timeline.ts
+msgctxt "data source"
+msgid "Manual"
+msgstr "Manual"
+
 #: packages/api/src/presenters/body.ts
 msgctxt "weight source"
 msgid "Manual"
@@ -7354,6 +7382,11 @@ msgstr "Micronutrients"
 msgid "Mild sleep debt"
 msgstr "Mild sleep debt"
 
+#. Unit symbol for minutes; keep as is.
+#: packages/api/src/presenters/timeline.ts
+msgid "min"
+msgstr "min"
+
 #: apps/native/components/workout-routines.tsx
 msgid "Min reps"
 msgstr "Min reps"
@@ -7502,6 +7535,11 @@ msgstr "Move up"
 #: packages/api/src/presenters/score.ts
 msgid "Moved away from the target at the last check-in"
 msgstr "Moved away from the target at the last check-in"
+
+#. Unit symbol; keep as is.
+#: packages/api/src/presenters/timeline.ts
+msgid "ms"
+msgstr "ms"
 
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
@@ -11444,8 +11482,13 @@ msgid "Sleep and recovery"
 msgstr "Sleep and recovery"
 
 #: packages/api/src/presenters/reference-comparison.ts
+#: packages/api/src/presenters/timeline.ts
 msgid "Sleep duration"
 msgstr "Sleep duration"
+
+#: packages/api/src/presenters/timeline.ts
+msgid "Sleep session"
+msgstr "Sleep session"
 
 #: packages/api/src/presenters/body-map.ts
 msgid "Slightly higher"
@@ -13820,6 +13863,10 @@ msgstr "Working sets in the last 7 days. A muscle the exercise mainly works coun
 #: packages/api/src/presenters/food-logger-capture.ts
 msgid "Working…"
 msgstr "Working…"
+
+#: packages/api/src/presenters/timeline.ts
+msgid "Workout"
+msgstr "Workout"
 
 #: apps/native/components/workout-session.tsx
 msgid "Workout date"
