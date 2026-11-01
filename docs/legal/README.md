@@ -73,9 +73,8 @@ Company facts and settings
    7/2004 (e-commerce) requires this information to be easy to find; the
    documents put it in the terms and the privacy policy rather than in a
    separate imprint page. Confirm that is enough. _Partly done (2026-11-01):
-   legal name Radix Catch, Lda. and the registered office (from the company's
-   Stripe Tax settings) are published; NIPC, registry office and VAT number
-   are still open._
+   legal name Radix Catch, Lda. is published; the owner chose not to publish
+   the address. NIPC, registry office and VAT number are still open._
 2. ~~Support address and response time.~~ Decided: `hello@openvalens.com` for
    support and privacy requests; replies on working days, usually within two.
 3. ~~`CLOUD_ENDED_RETENTION_MONTHS`.~~ Decided: 6 months.

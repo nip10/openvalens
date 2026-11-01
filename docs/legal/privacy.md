@@ -16,7 +16,7 @@ This policy explains what personal data OpenValens collects, why, on what legal 
 
 ## 1. Who is responsible
 
-The controller for Cloud, the apps (when connected to Cloud) and this website is Radix Catch, Lda., Rua Bernardino Costa 422 B 1.2, 4405-534 Vila Nova de Gaia, Portugal. Write to us at hello@openvalens.com for privacy requests and for support.
+The controller for Cloud, the apps (when connected to Cloud) and this website is Radix Catch, Lda., a company registered in Portugal. Write to us at hello@openvalens.com for privacy requests and for support.
 
 ## 2. The short version
 
