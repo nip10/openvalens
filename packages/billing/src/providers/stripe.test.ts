@@ -79,19 +79,16 @@ describe("what Stripe receives (no PHI, metadata references are opaque)", () => 
     expect(Object.keys(checkout).sort()).toEqual(
       [
         "allow_promotion_codes",
-        "automatic_tax",
         "branding_settings",
         "cancel_url",
         "client_reference_id",
         "customer",
-        "customer_update",
         "line_items",
         "locale",
         "metadata",
         "mode",
         "subscription_data",
         "success_url",
-        "tax_id_collection",
       ].sort(),
     );
     expect(Object.keys(checkout.subscription_data).sort()).toEqual(["metadata", "trial_end"]);
@@ -111,9 +108,10 @@ describe("what Stripe receives (no PHI, metadata references are opaque)", () => 
     for (const value of strings(checkout)) expect(allowed.has(value)).toBe(true);
   });
 
-  test("tax is automatic (Stripe Tax applies each EU country's VAT)", () => {
-    expect(checkout.automatic_tax).toEqual({ enabled: true });
-    expect(checkout.customer_update).toEqual({ address: "auto" });
+  test("Stripe Tax is off: no automatic tax, no tax address, no tax ids", () => {
+    expect(checkout).not.toHaveProperty("automatic_tax");
+    expect(checkout).not.toHaveProperty("customer_update");
+    expect(checkout).not.toHaveProperty("tax_id_collection");
   });
 
   test("a running trial carries over; under 48 hours left it does not", () => {
