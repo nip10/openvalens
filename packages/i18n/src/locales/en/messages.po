@@ -1458,6 +1458,7 @@ msgstr "Adequate intake (AI)"
 msgid "admin"
 msgstr "admin"
 
+#: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/native/app/(drawer)/admin/settings.tsx
 #: apps/web/src/components/admin-invitations-view.tsx
