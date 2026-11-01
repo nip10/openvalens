@@ -126,6 +126,25 @@ export async function iosAppearance(udid: string, theme: "light" | "dark") {
   await sh(["xcrun", "simctl", "ui", udid, "appearance", theme]);
 }
 
+/** The simulator region per run language: dates the app leaves to the phone follow it. */
+const IOS_REGION = { en: "en_US", "pt-PT": "pt_PT" } as const;
+
+/**
+ * Sets the simulator's region (Settings › General › Language & Region) to
+ * match the language a run is in, so screens that format dates with the
+ * phone's region show "26 out." in a Portuguese run. The system language
+ * stays English: the flows match system prompts by their English text. The
+ * app reads the region when it starts, and every run starts it afresh.
+ */
+export async function iosRegion(udid: string, locale: keyof typeof IOS_REGION) {
+  const region = IOS_REGION[locale];
+  const defaults = ["xcrun", "simctl", "spawn", udid, "defaults", "write", "-g"];
+  await sh([...defaults, "AppleLocale", "-string", region]);
+  // Simulator setting changes reach running apps through a notification; a
+  // relaunch is enough for the app, which is all the screenshots need.
+  log(`simulator region ${region}`);
+}
+
 // ─── Android ────────────────────────────────────────────────────
 
 async function runningEmulator(): Promise<string | null> {

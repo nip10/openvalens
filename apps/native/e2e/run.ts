@@ -35,6 +35,7 @@ import {
   iosAppearance,
   iosBuildAndInstall,
   iosDevice,
+  iosRegion,
   type Platform,
 } from "./devices";
 import { writeIndex } from "./screenshot-index";
@@ -208,6 +209,10 @@ async function main() {
   const setAppearance = (theme: "light" | "dark") =>
     platform === "ios" ? iosAppearance(device, theme) : androidAppearance(device, theme);
   await setAppearance("light");
+  // iOS formats some dates with the phone's region: match it to each run's
+  // language (Android follows the app language already).
+  const setRegion = (locale: "en" | "pt-PT") =>
+    platform === "ios" ? iosRegion(device, locale) : Promise.resolve();
 
   const stack = await startStack({ metro: false, logDir: join(runDir, "logs") });
   let failed = false;
@@ -217,6 +222,7 @@ async function main() {
     if (values.store) {
       for (const locale of ["en", "pt-PT"] as const) {
         log(`store screenshots: ${locale}`);
+        await setRegion(locale);
         const out = join(runDir, "store", locale);
         await maestro(
           device,
@@ -241,6 +247,7 @@ async function main() {
         const copied = copyStoreScreenshots(out, platform, locale);
         log(`${copied.count} store screenshots in ${copied.dir}`);
       }
+      await setRegion("en");
     }
 
     // ─── The suite ───────────────────────────────────────────────
@@ -272,6 +279,7 @@ async function main() {
     // ─── The screenshot tour ─────────────────────────────────────
     if (!values["no-screenshots"] && !values.store) {
       for (const locale of ["en", "pt-PT"] as const) {
+        await setRegion(locale);
         for (const theme of ["light", "dark"] as const) {
           const variant = `${locale}-${theme}`;
           log(`screenshot tour: ${variant}`);
@@ -304,6 +312,7 @@ async function main() {
         }
       }
       await setAppearance("light");
+      await setRegion("en");
       const index = writeIndex(shotsRoot);
       log(`screenshot index: ${index}`);
     }

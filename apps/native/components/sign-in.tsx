@@ -267,7 +267,10 @@ function MagicLinkSignIn() {
       <SignInHeading sent={!!sentTo} />
       {sentTo ? (
         <View className="gap-4">
-          <Text className="text-center font-sans text-base leading-relaxed text-ink-2">
+          <Text
+            testID="sign-in-link-sent"
+            className="text-center font-sans text-base leading-relaxed text-ink-2"
+          >
             <Trans>
               We sent a sign-in link to {sentTo}. Open it on this phone within 10 minutes.
             </Trans>

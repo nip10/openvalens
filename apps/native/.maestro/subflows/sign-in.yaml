@@ -12,8 +12,11 @@ appId: com.openvalens.app
 - eraseText: 60
 - inputText: ${EMAIL}
 - pressKey: Enter
+# By id: on iOS the app starts in the simulator region's language, which a
+# Portuguese store run sets to Portugal.
 - extendedWaitUntil:
-    visible: "We sent a sign-in link to .*"
+    visible:
+      id: "sign-in-link-sent"
     timeout: 20000
 - runScript: ../scripts/magic-link.js
 - runFlow:
