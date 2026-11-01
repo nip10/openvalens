@@ -150,6 +150,19 @@ for (const locale of LOCALES) {
       }
     });
 
+    test("the Play feature graphic is a 1024×500 PNG without alpha", () => {
+      // Rendered by scripts/render-feature-graphic.ts. PNG header: signature,
+      // then IHDR with width, height, bit depth and colour type (2 = RGB).
+      const png = readFileSync(
+        join(import.meta.dir, "play", locale, "images", "featureGraphic.png"),
+      );
+      expect(png.subarray(1, 4).toString("ascii")).toBe("PNG");
+      expect(png.subarray(12, 16).toString("ascii")).toBe("IHDR");
+      expect(png.readUInt32BE(16)).toBe(1024);
+      expect(png.readUInt32BE(20)).toBe(500);
+      expect(png[25]).toBe(2);
+    });
+
     test("each store names its own health platform", () => {
       expect(apple(locale).description).toContain("Apple Health");
       expect(apple(locale).description).not.toContain("Health Connect");

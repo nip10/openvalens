@@ -1,6 +1,6 @@
 # Store listings
 
-**Applies to:** the App Store and Google Play listings of `apps/native` · Last updated: 2026-10-29
+**Applies to:** the App Store and Google Play listings of `apps/native` · Last updated: 2026-11-01
 
 The listing text, App Privacy answers (Apple) and Data safety answers (Google)
 for the store app (#307). The text is in the repository so it is reviewed like
@@ -30,18 +30,15 @@ Apple Health on iOS, Health Connect on Android.
 
 ## Owner decisions before submitting
 
-1. **iPad.** `ios.supportsTablet` is `true` in `app.json`, so App Store Connect
-   requires iPad screenshots (13"). Either keep it and add iPad screenshots, or
-   set it to `false` before the first build. The app is designed for phones.
-2. **Support and privacy URLs.** `store.config.json` points to
+1. **Support and privacy URLs.** `store.config.json` points to
    `https://openvalens.com/support` and `https://openvalens.com/privacy`. The
    legal pages ship with #309 after #300 is approved. Both URLs must be live
    before review.
-3. **Account deletion URL (Google).** Play requires a web link where people can
+2. **Account deletion URL (Google).** Play requires a web link where people can
    ask to delete their account. Use the web app's Settings page
    (`https://app.openvalens.com/settings`, which has **Delete account and all
    data**) or a page on the site that explains it. `[CONFIRM]`
-4. **Owner review** of the pt-PT text. It is written in the app's formal
+3. **Owner review** of the pt-PT text. It is written in the app's formal
    register (`o seu`, `introduza`).
 
 ## Screenshots
@@ -58,12 +55,21 @@ Regenerate them with `bun run e2e:ios -- --store` (on an iPhone Pro Max
 simulator) and `bun run e2e:android -- --store`; see
 [Mobile end-to-end tests](mobile/e2e.md#store-screenshots-307). They are plain
 app screenshots: no captions or device frames yet. `[CONFIRM]` whether to add
-captions in the Bloom look before submitting. Still missing: iPad 13" (only if
-`supportsTablet` stays on) and the Play feature graphic (1024×500).
+captions in the Bloom look before submitting.
+
+The app is iPhone only (`ios.supportsTablet` is `false` in `app.json`, the
+owner's decision), so App Store Connect asks for no iPad screenshots.
+
+**Play feature graphic**: `apps/native/store/play/<en-US|pt-PT>/images/featureGraphic.png`,
+1024×500 PNG without alpha: the Bloom mark on Bloom's paper, the app name in
+Fraunces and the locale's short description in Figtree. Regenerate it with
+`cd apps/native && bun scripts/render-feature-graphic.ts` (needs ImageMagick 7,
+`brew install imagemagick`) after changing the mark, the colours or the short
+description.
 
 | Store       | Required                                                                                                                                 |
 | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| App Store   | iPhone 6.9" (1320×2868 or 1290×2796), 3–10 per locale; iPad 13" (2064×2752) only if `supportsTablet` stays on                            |
+| App Store   | iPhone 6.9" (1320×2868 or 1290×2796), 3–10 per locale (no iPad: `supportsTablet` is off)                                                 |
 | Google Play | Phone screenshots, 2–8, 16:9 or 9:16, 320–3840 px per side; feature graphic 1024×500 PNG/JPEG; app icon 512×512 (from `render-icons.ts`) |
 
 ## Privacy answers
