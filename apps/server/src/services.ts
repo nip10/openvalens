@@ -19,6 +19,7 @@ import {
 } from "@openvalens/auth/admission";
 import { deploymentCapabilities, parseDeploymentConfig } from "@openvalens/auth/deployment";
 import { PUBLIC_SIGN_UP_VERIFY_PATH } from "@openvalens/auth/public-sign-up-plugin";
+import { parseReviewSignInConfig } from "@openvalens/auth/review-sign-in";
 import { createWorkspaceInvitationEmails } from "@openvalens/auth/invitation-email";
 import { describeOidcIntegration, oidcSignInOption, parseOidcConfig } from "@openvalens/auth/oidc";
 import {
@@ -138,6 +139,22 @@ export const socialSignInConfig = parseSocialSignInConfig({
 if (socialSignInConfig.missingKeys.length > 0) {
   createStructuredLogger({ level: "info" }).warn("auth.social.config.incomplete", {
     missingKeys: [...socialSignInConfig.missingKeys],
+  });
+}
+
+/**
+ * App store review sign-in: one existing account may sign in with a fixed code
+ * (`REVIEW_ACCOUNT_EMAIL` + `REVIEW_ACCOUNT_CODE`). Off unless both are set; a
+ * code shorter than 12 characters fails startup (as the schema does).
+ */
+export const reviewSignIn = parseReviewSignInConfig({
+  REVIEW_ACCOUNT_EMAIL: ENV.REVIEW_ACCOUNT_EMAIL,
+  REVIEW_ACCOUNT_CODE: ENV.REVIEW_ACCOUNT_CODE,
+});
+
+if (reviewSignIn.missingKeys.length > 0) {
+  createStructuredLogger({ level: "info" }).warn("auth.review-sign-in.config.incomplete", {
+    missingKeys: reviewSignIn.missingKeys,
   });
 }
 
@@ -300,6 +317,7 @@ export const auth = createAuth(ENV, db, {
   emailSignInAvailable:
     !emailConfig.EMAIL_DRY_RUN ||
     (ENV.NODE_ENV === "development" && ENV.AUTH_DEV_MAGIC_LINK_CONSOLE === true),
+  reviewSignIn: reviewSignIn.config,
 });
 
 /**

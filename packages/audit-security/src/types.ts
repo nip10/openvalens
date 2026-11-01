@@ -25,6 +25,12 @@ export const AUDIT_EVENT_TYPES = [
   "ACCESS_REQUEST_DENIED",
   "EXPORT_GENERATED",
   "TENANT_VIOLATION_BLOCKED",
+  // App store review sign-in: one attempt with the fixed review code, recorded
+  // in the review account's own workspace (ids and a reason only).
+  "REVIEW_SIGN_IN_SUCCEEDED",
+  "REVIEW_SIGN_IN_FAILED",
+  // `bun run demo:seed:review` filled the review account's workspace once.
+  "REVIEW_DEMO_SEEDED",
 ] as const;
 
 export const auditEventTypeSchema = z.enum(AUDIT_EVENT_TYPES);

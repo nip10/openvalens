@@ -135,6 +135,9 @@ x-server-env: &server-env
   APPLE_KEY_ID: ${APPLE_KEY_ID:-}
   APPLE_PRIVATE_KEY_FILE: ${APPLE_PRIVATE_KEY_FILE:-}
   APPLE_APP_BUNDLE_ID: ${APPLE_APP_BUNDLE_ID:-}
+  # App store review sign-in: off unless both are set (docs/store-review-account.md).
+  REVIEW_ACCOUNT_EMAIL: ${REVIEW_ACCOUNT_EMAIL:-}
+  REVIEW_ACCOUNT_CODE_FILE: ${REVIEW_ACCOUNT_CODE_FILE:-}
   # Optional cloud wearables (Issue #60): each vendor is off until its client id
   # and client secret file are set; phone-first ingestion needs none of them.
   WEARABLES_WEBHOOKS: ${WEARABLES_WEBHOOKS:-false}

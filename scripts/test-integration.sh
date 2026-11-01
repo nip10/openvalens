@@ -62,6 +62,7 @@ SUITES=(
   "OIDC_AUTH_TEST_DATABASE_URL|oidc_auth_test|packages/auth/src/oidc-auth.integration.test.ts"
   "PUBLIC_SIGN_UP_TEST_DATABASE_URL|public_sign_up_test|packages/auth/src/public-sign-up.integration.test.ts"
   "SOCIAL_AUTH_TEST_DATABASE_URL|social_auth_test|packages/auth/src/social-auth.integration.test.ts"
+  "REVIEW_SIGN_IN_TEST_DATABASE_URL|review_sign_in_test|packages/auth/src/review-sign-in.integration.test.ts"
   "BILLING_TEST_DATABASE_URL|billing_test|packages/billing/src/service.integration.test.ts"
   "BILLING_ACCESS_TEST_DATABASE_URL|billing_access_test|packages/billing/src/access.integration.test.ts"
   "ADMISSION_AUTH_TEST_DATABASE_URL|admission_rpc_test|packages/api/src/admission-rpc.integration.test.ts"
@@ -90,6 +91,7 @@ SUITES=(
   "EXERCISE_CATALOG_API_TEST_DATABASE_URL|exercise_catalog_api_test|packages/api/src/services/exercise-catalog.integration.test.ts"
   "FOOD_CATALOG_CLI_TEST_DATABASE_URL|food_catalog_cli_test|scripts/food-catalog-import.integration.test.ts"
   "DEMO_SEED_TEST_DATABASE_URL|openvalens_demo_test|packages/demo-seed/src/demo-seed.integration.test.ts"
+  "DEMO_SEED_REVIEW_TEST_DATABASE_URL|review_seed_test|packages/demo-seed/src/review.integration.test.ts"
 )
 
 reset_db() {

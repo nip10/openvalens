@@ -4779,6 +4779,11 @@ msgid "Email link"
 msgstr "Email link"
 
 #: apps/native/components/sign-in.tsx
+#: apps/web/src/components/magic-link-form.tsx
+msgid "Email me a link instead"
+msgstr "Email me a link instead"
+
+#: apps/native/components/sign-in.tsx
 #: apps/web/src/components/admission-form.tsx
 #: apps/web/src/components/magic-link-form.tsx
 #: apps/web/src/routes/_auth/settings/index.tsx
@@ -4928,6 +4933,11 @@ msgstr "Enter values from the label. Leave anything you do not know blank; it is
 #: apps/native/components/server-choice.tsx
 msgid "Enter your server's address"
 msgstr "Enter your server's address"
+
+#: apps/native/components/sign-in.tsx
+#: apps/web/src/components/magic-link-form.tsx
+msgid "Enter your sign-in code"
+msgstr "Enter your sign-in code"
 
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 #: apps/web/src/routes/_auth/nutrition.tsx
@@ -5674,6 +5684,11 @@ msgstr "Hamstrings"
 #: packages/api/src/presenters/preventive-care.ts
 msgid "Harms: {harms}"
 msgstr "Harms: {harms}"
+
+#: apps/native/components/sign-in.tsx
+#: apps/web/src/components/magic-link-form.tsx
+msgid "Have a sign-in code?"
+msgstr "Have a sign-in code?"
 
 #: packages/api/src/presenters/body-map.ts
 msgid "Head (back)"
@@ -11288,6 +11303,11 @@ msgstr "Sign in with <0>{email}</0> to start using OpenValens."
 msgid "Sign in with a link sent to your account email."
 msgstr "Sign in with a link sent to your account email."
 
+#: apps/native/components/sign-in.tsx
+#: apps/web/src/components/magic-link-form.tsx
+msgid "Sign in with code"
+msgstr "Sign in with code"
+
 #: apps/web/src/components/accept-invitation-view.tsx
 msgid "Sign in with email"
 msgstr "Sign in with email"
@@ -11309,6 +11329,11 @@ msgstr "Sign Out"
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 msgid "Sign out to confirm it's you"
 msgstr "Sign out to confirm it's you"
+
+#: apps/native/components/sign-in.tsx
+#: apps/web/src/components/magic-link-form.tsx
+msgid "Sign-in code"
+msgstr "Sign-in code"
 
 #: apps/web/src/components/onboarding/server-checklist.tsx
 msgid "Sign-in codes and invitations are sent by email."
@@ -11347,6 +11372,10 @@ msgstr "Signed in as <0>{sessionEmail}</0>."
 #: apps/native/components/sign-in.tsx
 msgid "Signing in to {host}"
 msgstr "Signing in to {host}"
+
+#: apps/web/src/components/magic-link-form.tsx
+msgid "Signing in…"
+msgstr "Signing in…"
 
 #: apps/native/components/change-server.tsx
 msgid "Signs you out and removes this server's data from this phone"
@@ -12090,6 +12119,11 @@ msgstr "That description is too long. Keep it under 2,000 characters."
 msgid "That email already has an account. Sign in with an email link, then connect {displayName} from Settings."
 msgstr "That email already has an account. Sign in with an email link, then connect {displayName} from Settings."
 
+#: apps/native/components/sign-in.tsx
+#: apps/web/src/utils/code-sign-in.ts
+msgid "That email and code do not match."
+msgstr "That email and code do not match."
+
 #: apps/web/src/components/magic-link-form.tsx
 msgid "That sign-in link is invalid or has expired. Request a new one."
 msgstr "That sign-in link is invalid or has expired. Request a new one."
@@ -12830,7 +12864,9 @@ msgstr "Tone"
 msgid "Too many attempts. Wait a few minutes and try again."
 msgstr "Too many attempts. Wait a few minutes and try again."
 
+#: apps/native/components/sign-in.tsx
 #: apps/web/src/components/admission-form.tsx
+#: apps/web/src/utils/code-sign-in.ts
 msgid "Too many attempts. Wait a moment, then try again."
 msgstr "Too many attempts. Wait a moment, then try again."
 

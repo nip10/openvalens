@@ -11,6 +11,7 @@ import { useChangeServer } from "@/components/change-server";
 import { useServerProblemCopy } from "@/components/server-choice";
 import { SocialSignInButtons } from "@/components/social-sign-in";
 import { authClient } from "@/lib/auth-client";
+import { signInWithCode, type CodeSignInFetch } from "@/lib/code-sign-in";
 import { cancelPendingMagicLink, requestMagicLink } from "@/lib/magic-link";
 import { serverLabel } from "@/lib/server/server-address";
 import { probeServer } from "@/lib/server/server-meta";
@@ -218,6 +219,10 @@ function MagicLinkSignIn() {
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [sentTo, setSentTo] = useState<string | null>(null);
+  // "Have a sign-in code?" — always offered, so it reveals nothing about which
+  // account may use one (only the app store review account can).
+  const [codeMode, setCodeMode] = useState(false);
+  const [code, setCode] = useState("");
   const inFlight = useRef(false);
   const { t } = useLingui();
   const invalidEmail = t`Enter a valid email address`;
@@ -230,10 +235,25 @@ function MagicLinkSignIn() {
       setError(parsed.error.issues[0]?.message ?? invalidEmail);
       return;
     }
+    if (codeMode && code.trim().length === 0) {
+      setError(t`Enter your sign-in code`);
+      return;
+    }
     inFlight.current = true;
     setError(null);
     setSending(true);
     try {
+      if (codeMode) {
+        // On success the auth client stores the session and the app moves on.
+        const outcome = await signInWithCode(authClient.$fetch as unknown as CodeSignInFetch, {
+          email: parsed.data,
+          code,
+        });
+        if (outcome === "refused") setError(t`That email and code do not match.`);
+        if (outcome === "rate-limited")
+          setError(t`Too many attempts. Wait a moment, then try again.`);
+        return;
+      }
       const result = await requestMagicLink(parsed.data);
       if (result.error) setError(sendFailed);
       else setSentTo(parsed.data);
@@ -302,15 +322,56 @@ function MagicLinkSignIn() {
               onSubmitEditing={() => void submit()}
             />
           </TextField>
+          {codeMode ? (
+            <TextField isInvalid={!!error}>
+              <Label>{t`Sign-in code`}</Label>
+              <Input
+                testID="sign-in-code-input"
+                value={code}
+                onChangeText={setCode}
+                autoCapitalize="none"
+                autoCorrect={false}
+                autoComplete="one-time-code"
+                textContentType="oneTimeCode"
+                returnKeyType="go"
+                onSubmitEditing={() => void submit()}
+              />
+            </TextField>
+          ) : null}
           {error && <Text className="font-sans text-sm text-danger">{error}</Text>}
           <Button onPress={() => void submit()} isDisabled={sending}>
             {sending ? (
               <Spinner size="sm" />
             ) : (
               <Button.Label>
-                <Trans>Email me a sign-in link</Trans>
+                {codeMode ? (
+                  <Trans>Sign in with code</Trans>
+                ) : (
+                  <Trans>Email me a sign-in link</Trans>
+                )}
               </Button.Label>
             )}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="min-h-11"
+            testID="sign-in-code-toggle"
+            accessibilityState={{ expanded: codeMode }}
+            onPress={() => {
+              setCodeMode((current) => !current);
+              setCode("");
+              setError(null);
+            }}
+            isDisabled={sending}
+          >
+            <Button.Label>
+              {codeMode ? (
+                <Trans>Email me a link instead</Trans>
+              ) : (
+                <Trans>Have a sign-in code?</Trans>
+              )}
+            </Button.Label>
           </Button>
         </View>
       )}

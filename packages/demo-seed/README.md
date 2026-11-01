@@ -102,6 +102,17 @@ runs from the time you seed, not from `--today`, so it is still running while
 reviewers use the account. No Stripe customer is created. Run the server with
 `DEPLOYMENT_MODE=cloud` (and the Stripe test-mode keys) to see Plan & billing.
 
+## Review account variant
+
+`bun run demo:seed:review` writes the same synthetic data (Alex Morgan's
+history, ending today) into the existing app store review account on a real
+database, for example inside the production API container. It reads the
+server's `DATABASE_URL`, `REVIEW_ACCOUNT_EMAIL` and `REVIEW_ACCOUNT_CODE`, never
+resets anything, writes only to that account's own workspace, refuses unless
+the account is the sole owner of exactly one empty workspace, and a second run
+changes nothing (`src/review.ts`). See
+[docs/store-review-account.md](../../docs/store-review-account.md).
+
 ## Tests
 
 - `demo-seed.test.ts`: guard, options, determinism helpers, and the CLI
@@ -109,3 +120,7 @@ reviewers use the account. No Stripe customer is created. Run the server with
 - `demo-seed.integration.test.ts` (`DEMO_SEED_TEST_DATABASE_URL`, database
   `openvalens_demo_test`, run by `scripts/test-integration.sh`): seeds, checks
   that every screen's read has content, seeds again and compares fingerprints.
+- `review.integration.test.ts` (`DEMO_SEED_REVIEW_TEST_DATABASE_URL`, database
+  `review_seed_test`): seeds a real Cloud sign-up's workspace, reruns as a
+  no-op, and checks every refusal. `review-cli.test.ts` covers the command's
+  refusals before it opens a database.

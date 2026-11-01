@@ -9,5 +9,10 @@
     "outDir": "dist"
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"],
-  "references": [{ "path": "../i18n" }, { "path": "../db" }, { "path": "../email" }]
+  "references": [
+    { "path": "../audit-security" },
+    { "path": "../i18n" },
+    { "path": "../db" },
+    { "path": "../email" }
+  ]
 }

@@ -4779,6 +4779,11 @@ msgid "Email link"
 msgstr "Ligação por email"
 
 #: apps/native/components/sign-in.tsx
+#: apps/web/src/components/magic-link-form.tsx
+msgid "Email me a link instead"
+msgstr "Enviar-me antes uma ligação por email"
+
+#: apps/native/components/sign-in.tsx
 #: apps/web/src/components/admission-form.tsx
 #: apps/web/src/components/magic-link-form.tsx
 #: apps/web/src/routes/_auth/settings/index.tsx
@@ -4928,6 +4933,11 @@ msgstr "Introduza os valores do rótulo. Deixe em branco o que não souber; é m
 #: apps/native/components/server-choice.tsx
 msgid "Enter your server's address"
 msgstr "Introduza o endereço do seu servidor"
+
+#: apps/native/components/sign-in.tsx
+#: apps/web/src/components/magic-link-form.tsx
+msgid "Enter your sign-in code"
+msgstr "Introduza o seu código de início de sessão"
 
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 #: apps/web/src/routes/_auth/nutrition.tsx
@@ -5674,6 +5684,11 @@ msgstr "Isquiotibiais"
 #: packages/api/src/presenters/preventive-care.ts
 msgid "Harms: {harms}"
 msgstr "Danos: {harms}"
+
+#: apps/native/components/sign-in.tsx
+#: apps/web/src/components/magic-link-form.tsx
+msgid "Have a sign-in code?"
+msgstr "Tem um código de início de sessão?"
 
 #: packages/api/src/presenters/body-map.ts
 msgid "Head (back)"
@@ -11288,6 +11303,11 @@ msgstr "Inicie sessão com <0>{email}</0> para começar a usar o OpenValens."
 msgid "Sign in with a link sent to your account email."
 msgstr "Inicie sessão com uma ligação enviada para o email da sua conta."
 
+#: apps/native/components/sign-in.tsx
+#: apps/web/src/components/magic-link-form.tsx
+msgid "Sign in with code"
+msgstr "Iniciar sessão com código"
+
 #: apps/web/src/components/accept-invitation-view.tsx
 msgid "Sign in with email"
 msgstr "Iniciar sessão com email"
@@ -11309,6 +11329,11 @@ msgstr "Terminar sessão"
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 msgid "Sign out to confirm it's you"
 msgstr "Terminar sessão para confirmar que é você"
+
+#: apps/native/components/sign-in.tsx
+#: apps/web/src/components/magic-link-form.tsx
+msgid "Sign-in code"
+msgstr "Código de início de sessão"
 
 #: apps/web/src/components/onboarding/server-checklist.tsx
 msgid "Sign-in codes and invitations are sent by email."
@@ -11347,6 +11372,10 @@ msgstr "Sessão iniciada como <0>{sessionEmail}</0>."
 #: apps/native/components/sign-in.tsx
 msgid "Signing in to {host}"
 msgstr "Iniciar sessão em {host}"
+
+#: apps/web/src/components/magic-link-form.tsx
+msgid "Signing in…"
+msgstr "A iniciar sessão…"
 
 #: apps/native/components/change-server.tsx
 msgid "Signs you out and removes this server's data from this phone"
@@ -12090,6 +12119,11 @@ msgstr "Essa descrição é demasiado longa. Mantenha-a abaixo de 2000 caractere
 msgid "That email already has an account. Sign in with an email link, then connect {displayName} from Settings."
 msgstr "Esse email já tem uma conta. Inicie sessão com uma ligação por email e depois ligue {displayName} nas Definições."
 
+#: apps/native/components/sign-in.tsx
+#: apps/web/src/utils/code-sign-in.ts
+msgid "That email and code do not match."
+msgstr "O email e o código não correspondem."
+
 #: apps/web/src/components/magic-link-form.tsx
 msgid "That sign-in link is invalid or has expired. Request a new one."
 msgstr "Essa ligação de início de sessão é inválida ou expirou. Peça uma nova."
@@ -12830,7 +12864,9 @@ msgstr "Tom"
 msgid "Too many attempts. Wait a few minutes and try again."
 msgstr "Demasiadas tentativas. Aguarde alguns minutos e tente novamente."
 
+#: apps/native/components/sign-in.tsx
 #: apps/web/src/components/admission-form.tsx
+#: apps/web/src/utils/code-sign-in.ts
 msgid "Too many attempts. Wait a moment, then try again."
 msgstr "Demasiadas tentativas. Aguarde um momento e tente novamente."
 

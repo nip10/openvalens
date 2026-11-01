@@ -13,6 +13,7 @@ import OidcSignInButton from "@/components/oidc-sign-in-button";
 import { ErrorState, ToneIcon } from "@/components/page";
 import SocialSignInButtons from "@/components/social-sign-in-buttons";
 import { authClient } from "@/lib/auth-client";
+import { codeSignInErrorMessage, signInWithCode, type CodeSignInFetch } from "@/utils/code-sign-in";
 import { validateReturnUrl } from "@/utils/return-url";
 import {
   oidcSignInErrorMessage,
@@ -55,6 +56,9 @@ export default function MagicLinkForm({
   socialError = null,
 }: MagicLinkFormProps) {
   const [sentTo, setSentTo] = useState<string | null>(null);
+  // "Have a sign-in code?" — always offered, so it reveals nothing about which
+  // account may use one (only the app store review account can).
+  const [codeMode, setCodeMode] = useState(false);
   const { t, i18n } = useLingui();
 
   const callbackURL = (() => {
@@ -64,10 +68,19 @@ export default function MagicLinkForm({
   })();
 
   const form = useForm({
-    defaultValues: { email: "" },
+    defaultValues: { email: "", code: "" },
     onSubmit: async ({ value }) => {
       const email = value.email.trim();
       const origin = window.location.origin;
+      if (codeMode) {
+        const outcome = await signInWithCode(authClient.$fetch as unknown as CodeSignInFetch, {
+          email,
+          code: value.code,
+        });
+        if (outcome === "signed-in") window.location.assign(callbackURL);
+        else toast.error(i18n._(codeSignInErrorMessage(outcome)));
+        return;
+      }
       try {
         const { error } = await authClient.signIn.magicLink({
           email,
@@ -81,7 +94,15 @@ export default function MagicLinkForm({
       }
     },
     validators: {
-      onSubmit: z.object({ email: z.email(t`Enter a valid email address`) }),
+      onSubmit: z.object({
+        email: z.email(t`Enter a valid email address`),
+        code: codeMode
+          ? z
+              .string()
+              .trim()
+              .min(1, t`Enter your sign-in code`)
+          : z.string(),
+      }),
     },
   });
 
@@ -179,15 +200,67 @@ export default function MagicLinkForm({
             )}
           </form.Field>
 
+          {codeMode ? (
+            <form.Field name="code">
+              {(field) => (
+                <div className="grid gap-2">
+                  <Label htmlFor={field.name}>
+                    <Trans>Sign-in code</Trans>
+                  </Label>
+                  <Input
+                    id={field.name}
+                    name={field.name}
+                    type="text"
+                    autoComplete="one-time-code"
+                    autoCapitalize="none"
+                    spellCheck={false}
+                    value={field.state.value}
+                    onBlur={field.handleBlur}
+                    onChange={(e) => field.handleChange(e.target.value)}
+                  />
+                  {field.state.meta.errors.map((error) => (
+                    <p key={error?.message} className="text-sm text-destructive">
+                      {error?.message}
+                    </p>
+                  ))}
+                </div>
+              )}
+            </form.Field>
+          ) : null}
+
           <form.Subscribe
             selector={(state) => ({ canSubmit: state.canSubmit, isSubmitting: state.isSubmitting })}
           >
             {({ canSubmit, isSubmitting }) => (
               <Button type="submit" className="w-full" disabled={!canSubmit || isSubmitting}>
-                {isSubmitting ? t`Sending…` : t`Email me a sign-in link`}
+                {codeMode
+                  ? isSubmitting
+                    ? t`Signing in…`
+                    : t`Sign in with code`
+                  : isSubmitting
+                    ? t`Sending…`
+                    : t`Email me a sign-in link`}
               </Button>
             )}
           </form.Subscribe>
+
+          <Button
+            type="button"
+            variant="link"
+            size="sm"
+            className="justify-self-center text-ink-3"
+            aria-expanded={codeMode}
+            onClick={() => {
+              setCodeMode((current) => !current);
+              form.setFieldValue("code", "");
+            }}
+          >
+            {codeMode ? (
+              <Trans>Email me a link instead</Trans>
+            ) : (
+              <Trans>Have a sign-in code?</Trans>
+            )}
+          </Button>
         </form>
 
         {oidc || google || apple ? (

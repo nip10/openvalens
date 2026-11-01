@@ -28,6 +28,7 @@ import { sendAuthMagicLink } from "./magic-link";
 import type { OidcProviderConfig } from "./oidc/config";
 import { createGenericOidcPlugin } from "./providers/generic-oidc";
 import { publicSignUpPlugin, type PublicSignUpPluginOptions } from "./public-sign-up-plugin";
+import { reviewSignInPlugin, type ReviewSignInConfig } from "./review-sign-in";
 import type { SocialSignUpService } from "./admission/social-sign-up";
 import type { AppleClientSecrets } from "./providers/apple";
 import type { SocialSignInConfig } from "./social/config";
@@ -120,6 +121,17 @@ export type CreateAuthOptions = {
   emailSignInAvailable?: boolean;
   /** Current Cloud health-consent version; null/omitted leaves self-host unchanged. */
   healthDataConsentVersion?: string | null;
+  /**
+   * App store review sign-in, from `parseReviewSignInConfig`: the one existing
+   * account that may sign in with a fixed code. Omitted or `null` keeps the
+   * endpoint refusing every attempt.
+   */
+  reviewSignIn?: ReviewSignInConfig | null;
+  /**
+   * Tests only: force Better Auth's rate limiter on or off. Omitted keeps
+   * Better Auth's default (on in production).
+   */
+  rateLimitEnabled?: boolean;
 };
 
 /**
@@ -462,6 +474,9 @@ export function createAuth(env: AuthConfig, database: Database, options: CreateA
     },
     secret: env.BETTER_AUTH_SECRET,
     baseURL: env.BETTER_AUTH_URL,
+    ...(options.rateLimitEnabled === undefined
+      ? {}
+      : { rateLimit: { enabled: options.rateLimitEnabled } }),
     advanced: {
       defaultCookieAttributes: {
         sameSite: "none",
@@ -525,6 +540,9 @@ export function createAuth(env: AuthConfig, database: Database, options: CreateA
             }),
           ]
         : []),
+      // App store review sign-in: one existing account, a fixed code, a
+      // normal session. Refuses everything unless both settings are set.
+      reviewSignInPlugin({ config: options.reviewSignIn ?? null, database }),
       magicLink({
         // Issue #63 — a magic link may sign in an existing account but must
         // never provision a new one; admission owns account creation.

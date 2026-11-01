@@ -12,14 +12,15 @@
   },
   "dependencies": {
     "@openvalens/api": "workspace:*",
+    "@openvalens/audit-security": "workspace:*",
     "@openvalens/auth": "workspace:*",
     "@openvalens/billing": "workspace:*",
+    "@openvalens/config": "workspace:*",
     "@openvalens/db": "workspace:*",
     "@orpc/server": "catalog:",
     "drizzle-orm": "catalog:"
   },
   "devDependencies": {
-    "@openvalens/config": "workspace:*",
     "@types/bun": "catalog:",
     "typescript": "^6.0.3"
   }
