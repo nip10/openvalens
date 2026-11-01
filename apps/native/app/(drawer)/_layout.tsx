@@ -167,6 +167,9 @@ const HEADER_TITLES: Readonly<Record<string, MessageDescriptor>> = {
   "/scores": msg`Scores`,
   "/invitations": msg`Invitations`,
   "/preventive-care": msg`Preventive care`,
+  // The page carries the full "Instance configuration" title; the bar keeps a
+  // short one so the centred iOS title is not cut off.
+  "/admin/settings": msg`Administration`,
 };
 
 function DrawerContent() {
@@ -500,7 +503,7 @@ function DrawerLayout() {
         <Drawer.Screen
           name="admin/settings"
           options={{
-            headerTitle: "Instance configuration",
+            headerTitle,
             drawerItemStyle: { display: "none" },
           }}
         />

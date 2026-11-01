@@ -66,7 +66,18 @@ async function startPostgres() {
     ]);
   }
   await waitFor("Postgres", async () => {
-    await run(["docker", "exec", E2E.pgContainer, "pg_isready", "-U", "postgres"]);
+    // Over TCP: on a fresh container the image's init server answers on the
+    // socket only, then restarts; the real server is the one on TCP.
+    await run([
+      "docker",
+      "exec",
+      E2E.pgContainer,
+      "pg_isready",
+      "-h",
+      "127.0.0.1",
+      "-U",
+      "postgres",
+    ]);
     return true;
   });
   const exists = await run([

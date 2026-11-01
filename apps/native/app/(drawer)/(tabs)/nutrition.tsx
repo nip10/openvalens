@@ -1845,8 +1845,12 @@ export function AddFood({
       className="flex-1 bg-background"
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
+      {/* The screen's side gutter (px-4, as Page): the header, the sheet and the
+          save bar sat flush against the left edge on the full-screen route. The
+          scroll view itself stays full width, so a tap in the gutter still lands
+          on it and closes the number pad, which has no return key. */}
       <View className="flex-1">
-        <View className="min-h-12 flex-row items-center justify-between">
+        <View className="min-h-12 flex-row items-center justify-between px-4">
           <Text className="font-display text-xl font-semibold text-ink" accessibilityRole="header">
             {i18n._(DIARY_COPY.addFood)}
           </Text>
@@ -1857,9 +1861,10 @@ export function AddFood({
         <ScrollView
           className="flex-1"
           keyboardShouldPersistTaps="handled"
-          contentContainerClassName="gap-3 pb-4"
+          contentContainerClassName="gap-3 px-4 pb-4"
         >
-          <Section title={i18n._(DIARY_COPY.addFood)} icon={Plus} tone="food" sheet>
+          {/* No section title: the header above already reads "Add food". */}
+          <Section tone="food" sheet>
             <View className="flex-row flex-wrap gap-2">
               <Chip
                 icon={Search}
@@ -2289,7 +2294,7 @@ export function AddFood({
           </Section>
         </ScrollView>
         {mode !== "templates" ? (
-          <View className="border-t border-rule bg-background py-3">
+          <View className="border-t border-rule bg-background px-4 py-3">
             {quickUndo ? (
               <View className="mb-2 flex-row items-center justify-between gap-3">
                 <Text

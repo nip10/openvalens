@@ -1,6 +1,6 @@
 # Mobile end-to-end tests (Maestro)
 
-**Applies to:** the Expo app in `apps/native` · Last updated: 2026-10-31
+**Applies to:** the Expo app in `apps/native` · Last updated: 2026-11-01
 
 The mobile app has an end-to-end suite written with
 [Maestro](https://docs.maestro.dev). It drives a real build of the app on the
@@ -171,6 +171,16 @@ Training, Sleep, Body) into the store folders, replacing what is there:
 | ----------- | ------------------------------------------------------------------------------------------- |
 | App Store   | `apps/native/store/app-store/screenshots/<en-US\|pt-PT>/iphone-6.9/`                        |
 | Google Play | `apps/native/store/play/<en-US\|pt-PT>/images/phoneScreenshots/` (fastlane `supply` layout) |
+
+**Region on iOS.** Before each language the runner sets the simulator's region
+(`AppleLocale`: `en_US`, then `pt_PT`) and sets it back to `en_US` at the end;
+the screenshot tour does the same. On iOS some dates follow the phone's region
+rather than the app language, so a Portuguese run shows "26 out." only with the
+region set to Portugal. The system language stays English, since the flows
+match system prompts ("Open in “OpenValens”?") by their English text. A fresh
+install starts in the region's language, so flows wait for ids, not English
+app text, before they switch the language. Android follows the app language
+and needs none of this.
 
 The App Store needs the 6.9" size, so use an iPhone Pro Max simulator for
 `--store` (the first run on a new simulator installs the app with a short
