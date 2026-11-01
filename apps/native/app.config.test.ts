@@ -15,6 +15,10 @@ describe("app.config.ts", () => {
     expect(config.android?.googleServicesFile).toBeUndefined();
   });
 
+  test("the iOS app is iPhone only (no iPad screenshots needed in App Store Connect)", () => {
+    expect(withBuildEnv(base, {}).ios?.supportsTablet).toBe(false);
+  });
+
   test("sets extra.eas.projectId from EXPO_PUBLIC_EAS_PROJECT_ID", () => {
     const config = withBuildEnv(base, { EXPO_PUBLIC_EAS_PROJECT_ID: ` ${PROJECT_ID}\n` });
     expect(config.extra?.eas?.projectId).toBe(PROJECT_ID);

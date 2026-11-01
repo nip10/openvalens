@@ -1,6 +1,6 @@
 # Mobile release (EAS)
 
-**Applies to:** the Expo app in `apps/native` · Last updated: 2026-10-29
+**Applies to:** the Expo app in `apps/native` · Last updated: 2026-11-01
 
 How to build and submit the iOS and Android apps with
 [EAS Build](https://docs.expo.dev/build/introduction/) and
@@ -131,7 +131,7 @@ and `android/` folders this generates are not committed.
 - [ ] OpenValens Cloud (`https://app.openvalens.com`) runs a server this version supports, and its `BETTER_AUTH_URL` / trusted origins accept the `openvalens://` scheme (magic-link sign-in returns there).
 - [ ] Sign-in by magic link, Apple Health / Health Connect permission prompts and sync, and push registration tested on a real phone from a `preview` build.
 - [ ] Privacy policy URL, support URL, App Privacy (iOS) and Data safety (Google) answers filled in; Health Connect declaration submitted.
-- [ ] Screenshots for each required device size (6.9" and 6.5" iPhone, 13" iPad because `supportsTablet` is on; Play phone and 7"/10" tablet if listed).
+- [ ] Screenshots for each required device size (6.9" iPhone; no iPad, since `supportsTablet` is off; Play phone and feature graphic, 7"/10" tablet if listed).
 - [ ] Age rating questionnaires answered (health information, no user-generated content shared publicly).
 - [ ] Medical disclaimer visible in the store description: OpenValens is not a medical device and gives no diagnosis.
 - [ ] `EXPO_PUBLIC_EAS_PROJECT_ID` set and push tested, or push knowingly shipped off.
