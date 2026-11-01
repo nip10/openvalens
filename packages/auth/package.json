@@ -30,6 +30,7 @@
     "@better-auth/drizzle-adapter": "1.7.5",
     "@better-auth/expo": "catalog:",
     "@lingui/core": "6.9.1",
+    "@openvalens/audit-security": "workspace:*",
     "@openvalens/db": "workspace:*",
     "@openvalens/email": "workspace:*",
     "@openvalens/i18n": "workspace:*",

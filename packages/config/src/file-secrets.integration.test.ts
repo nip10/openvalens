@@ -27,6 +27,8 @@ const SYNTHETIC_SECRETS: Record<string, string> = {
   ANTHROPIC_API_KEY: "sk-ant-synthetic",
   STORAGE_S3_ACCESS_KEY_ID: "synthetic-storage-access-key",
   STORAGE_S3_SECRET_ACCESS_KEY: "synthetic-storage-secret-key",
+  // Varlock checks its minimum length (12).
+  REVIEW_ACCOUNT_CODE: "synthetic-review-code",
 };
 
 const REQUIRED_SECRET_KEYS = [
@@ -275,6 +277,7 @@ describe("actual server schema sensitive coverage", () => {
           "OIDC_PROVIDER_ID",
           "POSTHOG_IP_CAPTURE_DISABLED",
           "PUSH_PROVIDER",
+          "REVIEW_ACCOUNT_EMAIL",
           "SENTRY_DSN",
           "SENTRY_ENVIRONMENT",
           "SENTRY_RELEASE",

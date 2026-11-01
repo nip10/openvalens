@@ -99,3 +99,16 @@ describe("MagicLinkForm Google and Apple (Issue #296)", () => {
     expect(cloud).not.toInclude("account_not_linked");
   });
 });
+
+describe("MagicLinkForm sign-in code", () => {
+  test("always offers 'Have a sign-in code?', with the code field hidden until asked", () => {
+    for (const html of [
+      renderToStaticMarkup(<MagicLinkForm />),
+      renderToStaticMarkup(<MagicLinkForm signUpAvailable google apple />),
+    ]) {
+      expect(html).toInclude("Have a sign-in code?");
+      expect(html).not.toInclude("Sign-in code<");
+      expect(html).not.toInclude('name="code"');
+    }
+  });
+});

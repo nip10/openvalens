@@ -256,6 +256,18 @@ describe("legal and support pages", () => {
     expect(html).toContain('id="delete-account"');
     expect(html).toContain("Delete account and all data");
     expect(html).toContain("hello@openvalens.com");
+    // The three ways, and what is deleted and kept (same facts as /privacy).
+    const section = html.slice(html.indexOf('id="delete-account"'), html.indexOf('id="privacy"'));
+    for (const heading of [
+      "In the app",
+      "On the web",
+      "By email",
+      "What is deleted",
+      "What is kept",
+    ])
+      expect(section).toContain(`<h3>${heading}</h3>`);
+    expect(section).toContain("10 years");
+    expect(section).toContain("14 days");
   });
 
   test("the privacy policy names the contact and leaves no draft placeholders", async () => {
