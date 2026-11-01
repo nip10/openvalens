@@ -207,13 +207,11 @@ bunx eas-cli init` creates the project; copy its id (a UUID).
    Android upload keystore. CI builds with `--non-interactive` and can only
    reuse stored credentials. Upload the FCM v1 service account key with
    `eas credentials` → Android (#305).
-5. **App Store Connect (#304).** Create the app record for
-   `com.openvalens.app`, then put its **Apple ID** (App Store Connect → the
-   app → App Information, a number like `6740000000`) in `apps/native/eas.json`
-   at `submit.production.ios.ascAppId`, replacing `REPLACE_WITH_ASC_APP_ID`.
-   Add an **App Store Connect API key** (Users and Access → Integrations, App
-   Manager role) to EAS with `eas credentials` → iOS → App Store Connect API
-   Key, so `eas submit` can upload without an Apple ID login.
+5. **App Store Connect (#304).** Done on 2026-11-01: the first `eas submit`
+   created the app record for `com.openvalens.app` (Apple ID `6829515766`,
+   now in `apps/native/eas.json` at `submit.production.ios.ascAppId`) and an
+   App Store Connect API key (App Manager role) stored on EAS, so `eas submit`
+   uploads without an Apple ID login. Build 3 of 0.9.0 went to TestFlight.
 6. **Google Play (#305).** Create the app for `com.openvalens.app`, and upload
    the **first** Android build by hand in the Play Console (Google requires
    it; until then, dispatch the workflow with platform `ios`, or with submit
