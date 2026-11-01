@@ -4,6 +4,8 @@ import {
   groupTimelineByDay,
   severityTone,
   sourceLabel,
+  timelineSummary,
+  timelineTitle,
 } from "@openvalens/api/presenters/timeline";
 import { Button } from "@openvalens/ui/components/button";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
@@ -109,14 +111,17 @@ function TimelinePage() {
               <ul className="sheet grid divide-y divide-rule px-4 py-1">
                 {group.items.map((item) => {
                   const tone = severityTone(item.severity);
-                  const source = sourceLabel(item);
+                  const source = sourceLabel(item, i18n);
+                  const summary = timelineSummary(item, i18n);
                   const look = DOMAIN_ICON[item.domain] ?? OTHER_DOMAIN;
                   return (
                     <li key={item.id} className="flex items-start gap-3 py-3">
                       <ToneIcon icon={look.icon} tone={look.tone} />
                       <div className="grid min-w-0 flex-1 gap-0.5">
                         <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                          <span className="font-semibold text-ink">{item.title}</span>
+                          <span className="font-semibold text-ink">
+                            {timelineTitle(item, i18n)}
+                          </span>
                           {tone ? (
                             <StatusPill tone={tone === "destructive" ? "bad" : "warn"}>
                               {item.severity === "critical" ? (
@@ -127,9 +132,7 @@ function TimelinePage() {
                             </StatusPill>
                           ) : null}
                         </p>
-                        {item.summary ? (
-                          <p className="truncate text-ink-2">{item.summary}</p>
-                        ) : null}
+                        {summary ? <p className="truncate text-ink-2">{summary}</p> : null}
                         <p className="text-sm text-ink-3">
                           {i18n._(domainLabel(item.domain))}
                           {source ? ` · ${source}` : ""}

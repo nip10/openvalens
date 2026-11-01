@@ -29,7 +29,11 @@ export type TimelineEvent = {
   severity: CanonicalTimelineSeverity;
   confidence: CanonicalTimelineConfidence;
   reviewState: CanonicalTimelineReviewState;
-  sourceRefs: { type: string; label: string; id?: number | string }[];
+  /**
+   * `provider` is the ingest channel when known: `apple_health`,
+   * `health_connect`, a wearable vendor id, or `manual` for a typed-in reading.
+   */
+  sourceRefs: { type: string; label: string; id?: number | string; provider?: string }[];
   provenanceRefs: { sourceTable: string; sourceId: number; relation: string }[];
   relatedRefs: { table: string; id: number; relation: string }[];
   canonical: Record<string, unknown>;
