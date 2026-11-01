@@ -280,7 +280,7 @@ jurisdiction.
 ## 19. Company information
 
 OpenValens Cloud is run by Radix Catch, Lda., a company registered in
-Portugal, with its registered office at Rua Bernardino Costa 422 B 1.2, 4405-534 Vila Nova de Gaia, Portugal.
+Portugal.
 Email: hello@openvalens.com, also for privacy requests.
 
 ---
