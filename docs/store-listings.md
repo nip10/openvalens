@@ -34,10 +34,10 @@ Apple Health on iOS, Health Connect on Android.
    `https://openvalens.com/support` and `https://openvalens.com/privacy`. The
    legal pages ship with #309 after #300 is approved. Both URLs must be live
    before review.
-2. **Account deletion URL (Google).** Play requires a web link where people can
-   ask to delete their account. Use the web app's Settings page
-   (`https://app.openvalens.com/settings`, which has **Delete account and all
-   data**) or a page on the site that explains it. `[CONFIRM]`
+2. **Account deletion URL (Google).** Play requires a public web link that
+   explains how to delete the account and its data. Use
+   `https://openvalens.com/support#delete-account`: it covers deleting in the
+   app, on the web and by email, and what is deleted and what is kept.
 3. **Owner review** of the pt-PT text. It is written in the app's formal
    register (`o seu`, `introduza`).
 
@@ -127,8 +127,9 @@ Apple does not list push tokens as a data type, so they are not declared.
 - **Does your app collect or share any of the required user data types?** Yes.
 - **Is all of the user data collected by your app encrypted in transit?** Yes (HTTPS only).
 - **Do you provide a way for users to request that their data is deleted?**
-  Yes, in the app (Settings › Delete account and all data) and on the web
-  (see owner decision 3).
+  Yes, in the app (Settings › Delete account), on the web (Settings › Delete
+  account and all data) and by email; explained at
+  `https://openvalens.com/support#delete-account`.
 - **Shared:** none. Hosting, email, error reporting, push delivery and the
   optional AI provider are service providers acting for us, which Google does
   not count as sharing. Nothing is sold.
