@@ -5,8 +5,8 @@
 ## 1. Who we are and what these terms cover
 
 OpenValens Cloud ("Cloud", "the service") is the hosted version of OpenValens
-at `app.openvalens.com`, run by the company that operates OpenValens ("we", "us"),
-registered in Portugal (details in section 19).
+at `app.openvalens.com`, run by Radix Catch, Lda. ("we", "us"), a company registered in
+Portugal (details in section 19).
 
 These terms are the contract between you and us for using Cloud, on the web
 and through the OpenValens mobile apps. Our [Privacy Policy](https://openvalens.com/privacy)
@@ -279,7 +279,8 @@ jurisdiction.
 
 ## 19. Company information
 
-OpenValens Cloud is run by a company registered in Portugal.
+OpenValens Cloud is run by Radix Catch, Lda., a company registered in
+Portugal, with its registered office at Rua Bernardino Costa 422 B 1.2, 4405-534 Vila Nova de Gaia, Portugal.
 Email: hello@openvalens.com, also for privacy requests.
 
 ---

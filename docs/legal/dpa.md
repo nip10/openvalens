@@ -21,8 +21,8 @@ This Data Processing Agreement ("DPA") is entered into between:
 
 - **Customer** (controller): `[CUSTOMER LEGAL NAME]`, `[ADDRESS]`,
   `[REGISTRATION / VAT NUMBER]`, contact `[EMAIL]`; and
-- **Provider** (processor): `[COMPANY LEGAL NAME]`, `[REGISTERED ADDRESS]`,
-  Portugal, NIPC `[NIPC]`, contact hello@openvalens.com.
+- **Provider** (processor): Radix Catch, Lda., Rua Bernardino Costa 422 B 1.2,
+  4405-534 Vila Nova de Gaia, Portugal, NIPC `[NIPC]`, contact hello@openvalens.com.
 
 It forms part of the OpenValens Cloud Terms of Service (version
 `[TERMS VERSION]`) between the parties (the "Agreement"). Where they conflict

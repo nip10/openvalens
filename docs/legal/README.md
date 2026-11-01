@@ -3,8 +3,8 @@
 > **Status (2026-10-29):** the privacy policy, subprocessors list and terms are
 > published on openvalens.com as version `2026-10-29`; the published pages
 > (`apps/site/src/*.html`) are the source of truth and `privacy.md` and
-> `subprocessors.md` are generated copies. Still open: the company's legal
-> name, NIPC and registered address, and a lawyer's review. The DPA and data
+> `subprocessors.md` are generated copies. Still open: the company's NIPC
+> and a lawyer's review. The DPA and data
 > map remain drafts. Issue #300.
 
 These are the first drafts of the legal documents OpenValens Cloud needs
@@ -72,8 +72,10 @@ Company facts and settings
    and VAT number. Portugal has no German-style "Impressum", but Decreto-Lei
    7/2004 (e-commerce) requires this information to be easy to find; the
    documents put it in the terms and the privacy policy rather than in a
-   separate imprint page. Confirm that is enough. _Open: the owner sends the
-   details; the published pages leave the line out until then._
+   separate imprint page. Confirm that is enough. _Partly done (2026-11-01):
+   legal name Radix Catch, Lda. and the registered office (from the company's
+   Stripe Tax settings) are published; NIPC, registry office and VAT number
+   are still open._
 2. ~~Support address and response time.~~ Decided: `hello@openvalens.com` for
    support and privacy requests; replies on working days, usually within two.
 3. ~~`CLOUD_ENDED_RETENTION_MONTHS`.~~ Decided: 6 months.
