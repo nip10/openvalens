@@ -122,13 +122,10 @@ Do this in test mode first, then repeat in live mode.
    recurring prices in EUR: **7.99 monthly** and **69.00 yearly**. On both,
    set _Include tax in price_ (`tax_behavior: inclusive`). Copy the two price
    ids (`price_…`) into `STRIPE_PRICE_MONTHLY` and `STRIPE_PRICE_ANNUAL`.
-2. **Stripe Tax.** Turn on Stripe Tax, set the head office address, and add
-   the registrations you hold (for an EU seller selling to consumers, typically
-   your home country plus the EU One-Stop Shop, OSS). Set the product's tax
-   code to _Software as a service (SaaS) – personal use_ (or the one your
-   accountant advises). Checkout sends `automatic_tax: { enabled: true }` and
-   collects the address Stripe needs to apply each EU country's VAT, so the
-   person always pays exactly €7.99 or €69.
+2. **Tax.** OpenValens does not use Stripe Tax: Checkout sends no
+   `automatic_tax`, so Stripe charges the Price as it is and the person always
+   pays exactly €7.99 or €69. Account for VAT outside Stripe, as your
+   accountant advises.
 3. **Customer Portal** (Settings › Billing › Customer portal): allow updating
    the payment method, viewing invoice history and cancelling subscriptions
    (at the end of the billing period is recommended). Optionally allow

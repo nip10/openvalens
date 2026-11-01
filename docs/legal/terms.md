@@ -69,9 +69,8 @@ local emergency number (112 in the EU).
 
 ## 5. Price, billing and renewal
 
-- **Price:** €7.99 per month or €69 per year. **Prices include VAT.** VAT is
-  calculated by our payment provider for your country, so the amount you pay
-  is always the price shown.
+- **Price:** €7.99 per month or €69 per year. **Prices include VAT,** so the
+  amount you pay is always the price shown.
 - **Who pays:** only the owner of a workspace. People you invite are not
   charged.
 - **Where you pay:** subscriptions are bought only on the web, through Stripe

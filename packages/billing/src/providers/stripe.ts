@@ -20,13 +20,12 @@ import {
  * - customer: the account email and `metadata.ov_ref` (opaque reference);
  * - Checkout: that customer, `client_reference_id` = the same reference,
  *   the price, `subscription_data.metadata.ov_ref` and opaque acceptance reference,
- *   automatic tax, the
- *   return URLs and the interface language. Never a name, a workspace name or
+ *   the return URLs and the interface language. Never a name, a workspace name or
  *   any health data.
  *
- * Prices are tax-inclusive (`tax_behavior: inclusive`, set on the Price in the
- * Stripe Dashboard) and Stripe Tax computes each EU country's VAT, so the
- * person pays exactly €7.99 or €69 wherever they live.
+ * Stripe Tax is off: Checkout charges the Price as it is, so the person pays
+ * exactly €7.99 or €69 wherever they live, and asks for no billing address
+ * beyond what the card needs.
  */
 
 /** Builds the customer-create parameters. Exported for the privacy tests. */
@@ -59,11 +58,6 @@ export function checkoutSessionParams(input: CheckoutSessionInput) {
       ...(trialEnd ? { trial_end: trialEnd } : {}),
     },
     metadata: metadataFor(input.ref, input.acceptanceReference),
-    // EU VAT through Stripe Tax; the address Checkout collects for tax is
-    // saved on the customer.
-    automatic_tax: { enabled: true },
-    customer_update: { address: "auto" },
-    tax_id_collection: { enabled: false },
     allow_promotion_codes: false,
     // The name Checkout shows, also when the Stripe account's own name differs.
     branding_settings: { display_name: CHECKOUT_DISPLAY_NAME },
