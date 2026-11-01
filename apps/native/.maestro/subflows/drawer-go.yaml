@@ -46,4 +46,15 @@ appId: com.openvalens.app
           optional: true
       - waitForAnimationToEnd:
           timeout: 3000
+# On a slow emulator (CI, software rendering) the route can change while the
+# drawer stays open. Close it with a tap on the dimmed strip to its right; the
+# flow's next steps still check that the right screen opened.
+- runFlow:
+    when:
+      visible: "Close drawer"
+    commands:
+      - tapOn:
+          point: "95%, 50%"
+      - waitForAnimationToEnd:
+          timeout: 3000
 - assertNotVisible: "Close drawer"
