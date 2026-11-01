@@ -1,6 +1,6 @@
 # Mobile end-to-end tests (Maestro)
 
-**Applies to:** the Expo app in `apps/native` · Last updated: 2026-10-31
+**Applies to:** the Expo app in `apps/native` · Last updated: 2026-11-01
 
 The mobile app has an end-to-end suite written with
 [Maestro](https://docs.maestro.dev). It drives a real build of the app on the
@@ -8,8 +8,8 @@ iOS simulator and the Android emulator against a local server seeded with the
 synthetic demo account (#301), walks every main flow, and takes a screenshot of
 every screen in light and dark mode, in English and Portuguese (Portugal).
 
-It runs on a developer Mac. There is no CI job yet (macOS runners cost money);
-see [Follow-ups](#follow-ups).
+It runs on a developer Mac, and the Android half also runs in CI (see
+[CI](#ci)).
 
 ```sh
 bun run e2e:ios        # suite + screenshot tour on the iOS simulator
@@ -210,9 +210,30 @@ Things that trip flows up:
 - Maestro grants every permission on launch unless told not to; flow 01
   launches with `permissions: { all: deny }` so permission screens are real.
 
+## CI
+
+`.github/workflows/mobile-e2e.yml` runs the Android suite on an `ubuntu-latest`
+runner with KVM and an x86_64 emulator (`reactivecircus/android-emulator-runner`,
+API 35, Google Play image, AVD `ov-e2e`). It builds the release test APK for
+x86_64 before the emulator starts, then runs `run.ts android`, which brings up
+the same local stack as on a Mac (Postgres in Docker, seed, server, helper).
+
+| Trigger                                   | What runs                                                     |
+| ----------------------------------------- | ------------------------------------------------------------- |
+| Nightly (02:30 UTC)                       | All flows and the screenshot tour                             |
+| Manual (`workflow_dispatch`)              | All flows or the `flows` prefixes given; the tour is optional |
+| Pull requests that touch `apps/native/**` | The flows only                                                |
+
+It takes 40 minutes or more, so it is not a required check. Each run uploads
+two artifacts, kept for 14 days: `mobile-e2e-android-screenshots` (the
+screenshot folder with its `index.html`) and `mobile-e2e-android-maestro`
+(JUnit report, Maestro output and the stack's logs).
+
+There is no iOS job: it needs a macOS runner and an Xcode simulator build,
+which cost more and take longer. Run `bun run e2e:ios` on a Mac.
+
 ## Follow-ups
 
-- A manual (`workflow_dispatch`) or nightly GitHub Actions job on a macOS
-  runner, uploading the screenshot folder as an artifact.
+- An iOS job on a macOS runner.
 - Google and Apple sign-in end to end need test accounts with the real
   providers; today they are only shown.
