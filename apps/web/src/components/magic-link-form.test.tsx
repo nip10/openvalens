@@ -112,3 +112,31 @@ describe("MagicLinkForm sign-in code", () => {
     }
   });
 });
+
+describe("MagicLinkForm failed link", () => {
+  test("an invalid or expired link points a newcomer at sign-up", () => {
+    const html = renderToStaticMarkup(<MagicLinkForm linkError="INVALID_TOKEN" signUpAvailable />);
+    expect(html).toInclude("That sign-in link is invalid or has expired");
+    expect(html).toInclude("If you don&#x27;t have an account yet,");
+    expect(html).toInclude('href="/signup"');
+  });
+
+  test("without public sign-up the hint names an invitation instead", () => {
+    const html = renderToStaticMarkup(<MagicLinkForm linkError="" />);
+    expect(html).toInclude("you need an invitation first");
+    expect(html).not.toInclude("/signup");
+  });
+
+  test("a link for an email with no account says so, with sign-up", () => {
+    const html = renderToStaticMarkup(
+      <MagicLinkForm linkError="new_user_signup_disabled" signUpAvailable />,
+    );
+    expect(html).toInclude("There is no account for this email yet.");
+    expect(html).toInclude("first, then sign in.");
+    expect(html).not.toInclude("invalid or has expired");
+  });
+
+  test("no error, no alert", () => {
+    expect(renderToStaticMarkup(<MagicLinkForm />)).not.toInclude('role="alert"');
+  });
+});

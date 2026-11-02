@@ -295,6 +295,9 @@ function MagicLinkSignIn() {
               We sent a sign-in link to {sentTo}. Open it on this phone within 10 minutes.
             </Trans>
           </Text>
+          <Text className="text-center font-sans text-sm text-ink-3">
+            <Trans>The link only works for an existing account.</Trans>
+          </Text>
           <Button variant="secondary" onPress={() => void useDifferentEmail()} isDisabled={sending}>
             <Button.Label>
               <Trans>Use a different email</Trans>

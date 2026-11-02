@@ -924,6 +924,10 @@ msgstr "← Todas as conversas"
 msgid "+15 sec"
 msgstr "+15 s"
 
+#: apps/web/src/components/magic-link-form.tsx
+msgid "<0>Create an account</0> first, then sign in."
+msgstr "<0>Crie uma conta</0> primeiro e depois inicie sessão."
+
 #: apps/web/src/routes/_auth/settings/index.tsx
 msgid "<0>Download an export first</0>."
 msgstr "<0>Transfira primeiro uma exportação</0>."
@@ -1822,6 +1826,10 @@ msgstr "Pergunte o que quiser ao coach…"
 #: packages/api/src/presenters/insights.ts
 msgid "Ask the workspace owner if you need it."
 msgstr "Peça ao proprietário do espaço de trabalho, se precisar."
+
+#: apps/web/src/components/magic-link-form.tsx
+msgid "Ask your administrator for an invitation, then sign in."
+msgstr "Peça um convite ao seu administrador e depois inicie sessão."
 
 #: apps/native/app/(drawer)/records/sleep.tsx
 #: apps/web/src/routes/_auth/records/sleep.tsx
@@ -6082,6 +6090,14 @@ msgstr "Se não pediu este email, pode ignorá-lo em segurança."
 #: apps/server/src/admission-email.ts
 msgid "If you didn’t ask to create an account, ignore this email. No account is created unless the link is used."
 msgstr "Se não pediu para criar uma conta, ignore este email. Nenhuma conta é criada sem que a ligação seja usada."
+
+#: apps/web/src/components/magic-link-form.tsx
+msgid "If you don't have an account yet, <0>create one</0> first."
+msgstr "Se ainda não tem uma conta, <0>crie uma</0> primeiro."
+
+#: apps/web/src/components/magic-link-form.tsx
+msgid "If you don't have an account yet, you need an invitation first."
+msgstr "Se ainda não tem uma conta, precisa primeiro de um convite."
 
 #: packages/api/src/presenters/logging-streak.ts
 msgid "If you missed a day, you can still add it until the end of {until}."
@@ -12277,6 +12293,18 @@ msgstr "Por agora, a biblioteca está vazia."
 msgid "The link expires in 1 hour and works once."
 msgstr "A ligação expira dentro de 1 hora e só funciona uma vez."
 
+#: apps/native/components/sign-in.tsx
+msgid "The link only works for an existing account."
+msgstr "A ligação só funciona para uma conta existente."
+
+#: apps/web/src/components/magic-link-form.tsx
+msgid "The link only works for an existing account. New accounts need an invitation."
+msgstr "A ligação só funciona para uma conta existente. As novas contas precisam de um convite."
+
+#: apps/web/src/components/magic-link-form.tsx
+msgid "The link only works for an existing account. New to OpenValens? <0>Create an account</0>"
+msgstr "A ligação só funciona para uma conta existente. Novo no OpenValens? <0>Criar uma conta</0>"
+
 #: packages/api/src/presenters/workout-progression.ts
 msgid "The load stays the same because it cannot be increased for this exercise."
 msgstr "A carga mantém-se porque não pode ser aumentada neste exercício."
@@ -12425,6 +12453,14 @@ msgstr "O email semanal de perspetivas está desligado. Pode voltar a ligá-lo n
 #: apps/web/src/components/ai-workspace-consent-card.tsx
 msgid "The workspace owner decides whether AI features can be used in this workspace. When it is on, each person still has to give their own consent below before AI processes their data."
 msgstr "O proprietário do espaço de trabalho decide se as funcionalidades de IA podem ser usadas neste espaço de trabalho. Quando está ligada, cada pessoa tem ainda de dar o seu próprio consentimento abaixo antes de a IA tratar os seus dados."
+
+#: apps/web/src/components/magic-link-form.tsx
+msgid "There is no account for this email yet."
+msgstr "Ainda não existe uma conta com este email."
+
+#: apps/native/app/_layout.tsx
+msgid "There is no account for this email yet. Create an account or ask for an invitation first, then sign in."
+msgstr "Ainda não existe uma conta com este email. Crie uma conta ou peça um convite primeiro e depois inicie sessão."
 
 #: packages/api/src/presenters/workout-progression.ts
 msgid "There is no previous session to compare, so the prescription stays the same."

@@ -23,7 +23,11 @@ import {
 } from "@/utils/sign-in-options";
 
 export type MagicLinkFormProps = {
-  linkError?: boolean;
+  /**
+   * A failed magic-link redirect: Better Auth's error code (`""` when none),
+   * or `null`. `new_user_signup_disabled` means the email has no account.
+   */
+  linkError?: string | null;
   setupAvailable?: boolean;
   /** Issue #294 — OpenValens Cloud: anyone may create an account at `/signup`. */
   signUpAvailable?: boolean;
@@ -44,8 +48,18 @@ export type MagicLinkFormProps = {
  * accounts come from an invitation, the first setup, or — on OpenValens Cloud
  * only — the public `/signup` page (Issue #294).
  */
+/**
+ * Better Auth's code when a magic link was requested for an email that has no
+ * account (`disableSignUp`). Only someone holding the emailed link (so, the
+ * mailbox owner) lands on it, so naming the cause leaks nothing new.
+ */
+export const NO_ACCOUNT_LINK_ERROR = "new_user_signup_disabled";
+
+const LINK_CLASS =
+  "rounded font-display font-medium text-ink underline decoration-signal underline-offset-[0.15em] hover:decoration-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
+
 export default function MagicLinkForm({
-  linkError,
+  linkError = null,
   setupAvailable,
   signUpAvailable = false,
   returnUrl,
@@ -121,6 +135,20 @@ export default function MagicLinkForm({
               minutes.
             </Trans>
           </p>
+          <p className="text-sm text-ink-3">
+            {signUpAvailable ? (
+              <Trans>
+                The link only works for an existing account. New to OpenValens?{" "}
+                <a href="/signup" className={LINK_CLASS}>
+                  Create an account
+                </a>
+              </Trans>
+            ) : (
+              <Trans>
+                The link only works for an existing account. New accounts need an invitation.
+              </Trans>
+            )}
+          </p>
           <Button variant="link" onClick={() => setSentTo(null)}>
             <Trans>Use a different email</Trans>
           </Button>
@@ -162,11 +190,40 @@ export default function MagicLinkForm({
             )}
           />
         )}
-        {linkError && (
+        {linkError === NO_ACCOUNT_LINK_ERROR ? (
+          <ErrorState
+            title={<Trans>There is no account for this email yet.</Trans>}
+            description={
+              signUpAvailable ? (
+                <Trans>
+                  <a href="/signup" className={LINK_CLASS}>
+                    Create an account
+                  </a>{" "}
+                  first, then sign in.
+                </Trans>
+              ) : (
+                <Trans>Ask your administrator for an invitation, then sign in.</Trans>
+              )
+            }
+          />
+        ) : linkError !== null ? (
           <ErrorState
             title={<Trans>That sign-in link is invalid or has expired. Request a new one.</Trans>}
+            description={
+              signUpAvailable ? (
+                <Trans>
+                  If you don't have an account yet,{" "}
+                  <a href="/signup" className={LINK_CLASS}>
+                    create one
+                  </a>{" "}
+                  first.
+                </Trans>
+              ) : (
+                <Trans>If you don't have an account yet, you need an invitation first.</Trans>
+              )
+            }
           />
-        )}
+        ) : null}
 
         <form
           onSubmit={(e) => {

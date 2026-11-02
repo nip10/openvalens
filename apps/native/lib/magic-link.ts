@@ -13,6 +13,21 @@ const GENERIC_CALLBACK_ERROR =
   "This sign-in link could not be verified. Request a new link and try again.";
 const GENERIC_REQUEST_ERROR = "Could not send the sign-in link. Please try again.";
 
+/**
+ * Better Auth's error when the link was requested for an email with no account
+ * (`magicLink({ disableSignUp: true })`). Only the mailbox owner holds the
+ * link, so naming the cause reveals nothing they do not already know.
+ */
+const NO_ACCOUNT_ERROR_CODE = "new_user_signup_disabled";
+
+/** The emailed link was for an address that has no account on this server. */
+export class MagicLinkNoAccountError extends Error {
+  constructor() {
+    super("No account uses this email yet. Create one first, then sign in.");
+    this.name = "MagicLinkNoAccountError";
+  }
+}
+
 type PendingMagicLink = {
   version: 1;
   email: string;
@@ -246,6 +261,9 @@ export function acceptMagicLinkUrl(url: string): Promise<boolean> {
       if (cookies.length > 1 || errors.length > 1 || descriptions.length > 1) {
         throw new Error(GENERIC_CALLBACK_ERROR);
       }
+      if (errors[0] === NO_ACCOUNT_ERROR_CODE && cookies.length === 0) {
+        throw new MagicLinkNoAccountError();
+      }
       if (errors.length > 0 || descriptions.length > 0 || cookies.length !== 1) {
         throw new Error(GENERIC_CALLBACK_ERROR);
       }
@@ -260,7 +278,8 @@ export function acceptMagicLinkUrl(url: string): Promise<boolean> {
 
       await installVerifiedSessionCookie(candidate.jar);
       return true;
-    } catch {
+    } catch (error) {
+      if (error instanceof MagicLinkNoAccountError) throw error;
       throw new Error(GENERIC_CALLBACK_ERROR);
     }
   });

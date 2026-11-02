@@ -24,7 +24,7 @@ import { getAuthClient } from "@/lib/auth-client";
 import { initErrorReporting } from "@/lib/error-reporting";
 // Defines the background sync task on every launch, including headless ones.
 import "@/lib/health-sync/scheduler";
-import { acceptMagicLinkUrl } from "@/lib/magic-link";
+import { acceptMagicLinkUrl, MagicLinkNoAccountError } from "@/lib/magic-link";
 import { useServer } from "@/lib/server/server-url";
 import { queryClient } from "@/utils/orpc";
 
@@ -45,14 +45,18 @@ function MagicLinkLifecycle() {
   const { t } = useLingui();
   const failedRef = useRef("");
   failedRef.current = t`Could not complete sign-in. Please try again.`;
+  const noAccountRef = useRef("");
+  noAccountRef.current = t`There is no account for this email yet. Create an account or ask for an invitation first, then sign in.`;
 
   useEffect(() => {
     const handle = async (url: string | null) => {
       if (!url) return;
       try {
         await acceptMagicLinkUrl(url);
-      } catch {
-        toastRef.current.show({ variant: "danger", label: failedRef.current });
+      } catch (error) {
+        const label =
+          error instanceof MagicLinkNoAccountError ? noAccountRef.current : failedRef.current;
+        toastRef.current.show({ variant: "danger", label });
       }
     };
     if (!initialUrlStarted.current) {

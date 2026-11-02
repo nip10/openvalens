@@ -34,7 +34,7 @@ function RouteComponent() {
 
   return (
     <MagicLinkForm
-      linkError={error !== undefined && !oidcFlow && !socialFlow}
+      linkError={error !== undefined && !oidcFlow && !socialFlow ? error : null}
       oidc={signInOptions.data?.oidc ?? null}
       oidcError={oidcFlow ? (error ?? "") : null}
       google={signInOptions.data?.google === true}
