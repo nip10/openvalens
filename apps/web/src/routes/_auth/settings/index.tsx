@@ -74,6 +74,10 @@ function SettingsPage() {
   const { t, i18n } = useLingui();
   // Issue #297 — Plan & billing exists only on OpenValens Cloud.
   const cloud = useQuery(signUpOptionsQueryOptions()).data?.mode === "cloud";
+  // Usage analytics hides when the server has it off and sharing is already
+  // off (the section hides itself too); the index entry follows.
+  const analytics = useQuery(orpc.analytics.getPreference.queryOptions({ input: {} })).data;
+  const showAnalytics = !analytics || analytics.available || analytics.enabled;
   // The in-page index: each entry anchors a section below. Sign-in methods
   // sits under Account, the two AI switches under one entry.
   const index = [
@@ -84,7 +88,7 @@ function SettingsPage() {
     { id: "modules", label: t`Modules` },
     { id: "notifications", label: i18n._(INSIGHT_DELIVERY_COPY.settingsTitle) },
     { id: "integrations", label: t`Integrations` },
-    { id: "analytics", label: t`Usage analytics` },
+    ...(showAnalytics ? [{ id: "analytics", label: t`Usage analytics` }] : []),
     { id: "coach", label: t`Coach` },
     { id: "ai", label: t`AI processing` },
     { id: "delete-account", label: t`Delete account and all data` },
@@ -135,9 +139,11 @@ function SettingsPage() {
           <div id="integrations" className="scroll-mt-10">
             <IntegrationsSection />
           </div>
-          <div id="analytics" className="scroll-mt-10">
-            <AnalyticsConsentSection />
-          </div>
+          {showAnalytics ? (
+            <div id="analytics" className="scroll-mt-10">
+              <AnalyticsConsentSection />
+            </div>
+          ) : null}
           <div id="coach" className="scroll-mt-10">
             <CoachSection />
           </div>

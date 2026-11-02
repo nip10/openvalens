@@ -5,7 +5,10 @@ import { useFocusEffect } from "expo-router";
 import { ChartNoAxesColumn, ChartPie } from "lucide-react-native";
 import { Switch, Text, View } from "react-native";
 
-import { useAnalyticsConsent } from "@openvalens/ui/hooks/use-analytics-consent";
+import {
+  analyticsConsentHidden,
+  useAnalyticsConsent,
+} from "@openvalens/ui/hooks/use-analytics-consent";
 
 import { Section } from "@/components/bloom";
 import { SettingsGroup, SettingsRow } from "@/components/language-section";
@@ -76,6 +79,9 @@ export function AnalyticsConsentSection() {
                       message: "Sharing is off unless you explicitly opt in.",
                       comment: "safety",
                     });
+
+  // Server has analytics off and sharing is already off: nothing to manage.
+  if (!isPending && scope && analyticsConsentHidden(consent)) return null;
 
   return (
     <Section
