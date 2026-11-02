@@ -19,6 +19,14 @@ describe("app.config.ts", () => {
     expect(withBuildEnv(base, {}).ios?.supportsTablet).toBe(false);
   });
 
+  test("HealthKit sets both purpose strings (App Store rejects a build missing either, ITMS-90683)", () => {
+    const healthkit = base.plugins?.find(
+      (p) => Array.isArray(p) && p[0] === "@kingstinct/react-native-healthkit",
+    ) as [string, Record<string, unknown>] | undefined;
+    expect(typeof healthkit?.[1].NSHealthShareUsageDescription).toBe("string");
+    expect(typeof healthkit?.[1].NSHealthUpdateUsageDescription).toBe("string");
+  });
+
   test("sets extra.eas.projectId from EXPO_PUBLIC_EAS_PROJECT_ID", () => {
     const config = withBuildEnv(base, { EXPO_PUBLIC_EAS_PROJECT_ID: ` ${PROJECT_ID}\n` });
     expect(config.extra?.eas?.projectId).toBe(PROJECT_ID);
