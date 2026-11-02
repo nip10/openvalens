@@ -77,7 +77,7 @@ export function SettingsRow({
         {description ? <span className="text-sm text-ink-3">{description}</span> : null}
       </div>
       {children ? (
-        <div className="flex max-w-full shrink-0 flex-wrap items-center gap-2">{children}</div>
+        <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">{children}</div>
       ) : null}
     </div>
   );
@@ -85,4 +85,4 @@ export function SettingsRow({
 
 /** A native select styled for a settings row. */
 export const SETTINGS_SELECT =
-  "h-10 w-fit max-w-full rounded-xl border border-input bg-card px-3 text-sm text-ink outline-2 -outline-offset-2 outline-transparent focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-55";
+  "settings-select h-10 w-fit max-w-full rounded-xl border border-input bg-card pl-3 text-sm text-ink outline-2 -outline-offset-2 outline-transparent focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-55";

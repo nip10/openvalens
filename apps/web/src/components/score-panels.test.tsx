@@ -15,6 +15,10 @@ function renderToStaticMarkup(node: ReactNode): string {
 }
 
 const AS_OF = "2026-10-15";
+const day = (daysAgo: number) =>
+  new Date(Date.parse(`${AS_OF}T00:00:00.000Z`) - daysAgo * 86_400_000).toISOString().slice(0, 10);
+const series = (daysAgo: number, count: number, value: number) =>
+  Array.from({ length: count }, (_, index) => ({ date: day(daysAgo + index), value }));
 
 describe("score panels (web)", () => {
   test("a withheld readiness index shows no number, the reason and the experimental label", () => {
@@ -27,6 +31,19 @@ describe("score panels (web)", () => {
     expect(html).toContain("not enough recent data");
     expect(html).toContain("Experimental readiness index not available.");
     expect(html).toContain("Not recorded by OpenValens yet");
+    for (const label of [
+      "Sleep",
+      "Resting heart rate",
+      "Recent activity load",
+      "Heart rate variability",
+      "How you feel (check-in)",
+    ]) {
+      expect(html).toContain(label);
+    }
+    expect(html).toContain("grid-cols-[minmax(0,1fr)_auto]");
+    expect(html).toContain("whitespace-normal break-words");
+    expect(html).toContain("shrink-0 text-right");
+    expect(html).toContain("—");
     expect(html).not.toContain("out of 100</span>");
   });
 
@@ -35,5 +52,19 @@ describe("score panels (web)", () => {
     expect(html).toContain("Goal progress");
     expect(html).toContain("Add a goal with a target to see goal progress.");
     expect(html).toContain("0 of 0 goals counted.");
+  });
+
+  test("available readiness keeps numeric component figures in the reserved value column", () => {
+    const sleep = [...series(1, 28, 450), { date: AS_OF, value: 405 }];
+    const restingHeartRate = [...series(1, 28, 60), { date: AS_OF, value: 63 }];
+    const steps = [...series(4, 31, 8000), ...series(1, 3, 8000)];
+    const html = renderToStaticMarkup(
+      <ReadinessCard
+        result={computeReadiness({ sleepMinutes: sleep, restingHeartRate, steps }, AS_OF)}
+      />,
+    );
+    expect(html).toContain("42");
+    expect(html).toContain("grid-cols-[minmax(0,1fr)_auto]");
+    expect(html).toContain("shrink-0 text-right");
   });
 });
