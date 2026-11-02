@@ -4,7 +4,11 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { act, create, type ReactTestRenderer } from "react-test-renderer";
 import { createORPCClient } from "@orpc/client";
 
-import { useAnalyticsConsent, type AnalyticsConsentApi } from "./use-analytics-consent";
+import {
+  analyticsConsentHidden,
+  useAnalyticsConsent,
+  type AnalyticsConsentApi,
+} from "./use-analytics-consent";
 
 type Preference = { enabled: boolean; available: boolean };
 type Deferred<T> = { promise: Promise<T>; resolve(value: T): void; reject(error: unknown): void };
@@ -401,3 +405,30 @@ function ProbeForTest({
   latest = useAnalyticsConsent({ api, scope, ownerId, active });
   return null;
 }
+
+describe("analyticsConsentHidden", () => {
+  const settled = { pending: null, error: null, locallyRevoked: false } as const;
+
+  test("hides only when the server has analytics off and sharing is already off", () => {
+    expect(
+      analyticsConsentHidden({ ...settled, preference: { available: false, enabled: false } }),
+    ).toBe(true);
+    // Stored preference still on: keep it so the person can turn sharing off.
+    expect(
+      analyticsConsentHidden({ ...settled, preference: { available: false, enabled: true } }),
+    ).toBe(false);
+    expect(
+      analyticsConsentHidden({ ...settled, preference: { available: true, enabled: false } }),
+    ).toBe(false);
+  });
+
+  test("stays while loading, busy, failed or locally revoked", () => {
+    const off = { available: false, enabled: false };
+    expect(analyticsConsentHidden({ ...settled, preference: null })).toBe(false);
+    expect(analyticsConsentHidden({ ...settled, preference: off, pending: "read" })).toBe(false);
+    expect(analyticsConsentHidden({ ...settled, preference: off, error: "revoke" })).toBe(false);
+    expect(analyticsConsentHidden({ ...settled, preference: off, locallyRevoked: true })).toBe(
+      false,
+    );
+  });
+});

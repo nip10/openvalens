@@ -89,7 +89,7 @@ export function createPolarAdapter(
           }),
           oauth: true,
         }),
-        "x_user_id",
+        { externalUserIdKey: "x_user_id" },
       );
       // Polar tokens are long-lived; there is nothing to refresh.
       return { ...tokens, refreshToken: null, expiresAt: null };

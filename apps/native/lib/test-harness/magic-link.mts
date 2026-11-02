@@ -87,7 +87,7 @@ mock.module("@/lib/server/server-url", () => ({
   requireServerUrl: async () => "https://server.example",
 }));
 
-const { acceptMagicLinkUrl, cancelPendingMagicLink, requestMagicLink } =
+const { acceptMagicLinkUrl, cancelPendingMagicLink, MagicLinkNoAccountError, requestMagicLink } =
   await import("../magic-link");
 
 function encodedCallback(setCookies: string, extra = ""): string {
@@ -325,6 +325,22 @@ describe("native magic-link security", () => {
     await failWithSessionError(`${callbackBase}?error=invalid_link`);
 
     expect(secureItems.has(PENDING_KEY)).toBe(false);
+    expect(fetchCalls).toHaveLength(0);
+  });
+
+  test("names a link for an email with no account, consuming it without networking", async () => {
+    putPending();
+
+    await expect(
+      acceptMagicLinkUrl(`${callbackBase}?error=new_user_signup_disabled`),
+    ).rejects.toBeInstanceOf(MagicLinkNoAccountError);
+
+    expect(secureItems.has(PENDING_KEY)).toBe(false);
+    expect(fetchCalls).toHaveLength(0);
+  });
+
+  test("a no-account callback without a fresh request stays generic", async () => {
+    await failWithSessionError(`${callbackBase}?error=new_user_signup_disabled`);
     expect(fetchCalls).toHaveLength(0);
   });
 

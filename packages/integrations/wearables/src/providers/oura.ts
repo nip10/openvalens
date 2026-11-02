@@ -76,6 +76,7 @@ export function createOuraAdapter(
         }),
         oauth: true,
       }),
+      { now: deps.now },
     );
 
   /** Every page of one collection between two dates. */

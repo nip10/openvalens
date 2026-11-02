@@ -270,3 +270,26 @@ export function useAnalyticsConsent({
     deactivate,
   };
 }
+
+/**
+ * Nothing to manage: the server has analytics off and this person's sharing
+ * is already off, with nothing in flight and no failure to retry. The
+ * settings section hides then. If their stored preference is still on (the
+ * server turned analytics off later), it stays so they can turn sharing off.
+ */
+export function analyticsConsentHidden(consent: {
+  preference: Preference | null;
+  pending: Pending;
+  error: Failure;
+  locallyRevoked: boolean;
+}): boolean {
+  const { preference, pending, error, locallyRevoked } = consent;
+  return (
+    preference !== null &&
+    !preference.available &&
+    !preference.enabled &&
+    pending === null &&
+    error === null &&
+    !locallyRevoked
+  );
+}

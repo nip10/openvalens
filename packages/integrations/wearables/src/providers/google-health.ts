@@ -85,6 +85,7 @@ export function createGoogleHealthAdapter(
         }),
         oauth: true,
       }),
+      { now: deps.now },
     );
 
   /** Every page of one data type, filtered by an AIP-160 expression. */

@@ -66,6 +66,7 @@ export function createWhoopAdapter(
         }),
         oauth: true,
       }),
+      { now: deps.now },
     );
 
   async function collection(accessToken: string, path: string, from: Date, to: Date) {
