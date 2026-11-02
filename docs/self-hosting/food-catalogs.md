@@ -1,6 +1,6 @@
 # Food catalogs
 
-**Applies to:** OpenValens 0.9.0 · Last updated: 2026-10-24
+**Applies to:** OpenValens 0.9.1 · Last updated: 2026-10-24
 
 Food search and barcode lookup read two public catalogs from your own
 database: USDA FoodData Central (FDC) and Open Food Facts (OFF). **A new

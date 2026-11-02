@@ -1,6 +1,6 @@
 # Install
 
-**Applies to:** OpenValens 0.9.0 · Last updated: 2026-10-31
+**Applies to:** OpenValens 0.9.1 · Last updated: 2026-10-31
 
 This is the **one supported self-host install** (Issue #63): a pinned Docker
 Compose stack (`deploy/compose.yml`) driven by an interactive setup script
