@@ -1,4 +1,5 @@
 import { writeAuditLog } from "@openvalens/audit-security";
+import { FOCUS_AREA_LABELS } from "@openvalens/api/wellness-profile-contract";
 import { sql, type Database } from "@openvalens/db";
 
 import { createDemoApi, type DemoActor } from "./api";
@@ -31,7 +32,9 @@ import { seedStrengthTraining } from "./training";
  * - the account is not an instance administrator;
  * - the account belongs to exactly one workspace, which it owns alone (no
  *   other member), so no one else's records can be touched;
- * - that workspace holds no records yet.
+ * - that workspace holds no records yet. Setup rows don't count (see
+ *   `ACCOUNT_SETUP_TABLES`), nor do up to `MAX_ONBOARDING_GOALS` bare goals
+ *   from the onboarding or profile goal step (see `onboardingGoalsOnly`).
  *
  * It is idempotent: a successful run writes a `REVIEW_DEMO_SEEDED` audit entry
  * in the workspace, and a later run that finds it reports `already-seeded` and
@@ -64,6 +67,9 @@ const ACCOUNT_SETUP_TABLES = new Set([
   "organization_role",
   "access_audit_log",
   "admin_notification",
+  // The coach's tone and template; `coach.getConfig` writes a defaults row
+  // the first time anything reads it.
+  "coach_profile",
   "onboarding_state",
   "insight_preference",
   "metric_source_preference",
@@ -72,6 +78,37 @@ const ACCOUNT_SETUP_TABLES = new Set([
   "telegram_connect_token",
   "wearable_oauth_state",
 ]);
+
+/**
+ * The onboarding goal step (web welcome flow, native onboarding) and the
+ * profile goal section all create a goal the same way: a title, the first
+ * focus area's label (or "General") as category, `not_started`, and nothing
+ * else. There is no source column, so that exact shape is the discriminator.
+ * Any edit (a target, date, baseline, note, status change) or a check-in (a
+ * `goal_checkin` row, which counts as a record on its own) makes it a record.
+ */
+const ONBOARDING_GOAL_CATEGORIES = [...Object.values(FOCUS_AREA_LABELS), "General"];
+
+/** More bare goals than this is someone using Goals, not finishing setup. */
+export const MAX_ONBOARDING_GOALS = 3;
+
+async function onboardingGoalsOnly(db: Database, organizationId: string): Promise<boolean> {
+  const categories = sql.join(
+    ONBOARDING_GOAL_CATEGORIES.map((category) => sql`${category}`),
+    sql`, `,
+  );
+  const rows = await db.execute<{ total: number; bare: number }>(sql`
+    select count(*)::int as "total",
+      (count(*) filter (where "status" = 'not_started'
+        and "category" in (${categories})
+        and "horizon" is null and "current_value" is null and "target_value" is null
+        and "target_date" is null and "notes" is null and "direction" is null
+        and "baseline_value" is null and "priority" is null))::int as "bare"
+    from "goal" where "organization_id" = ${organizationId}
+  `);
+  const { total, bare } = rows.rows[0] ?? { total: 0, bare: 0 };
+  return Number(total) === Number(bare) && Number(total) <= MAX_ONBOARDING_GOALS;
+}
 
 export const REVIEW_SEED_MARKER = "REVIEW_DEMO_SEEDED";
 
@@ -112,7 +149,11 @@ async function alreadySeeded(db: Database, actor: DemoActor): Promise<boolean> {
   return rows.rows.length > 0;
 }
 
-/** Workspace tables (by `organization_id`) outside account setup that have rows. */
+/**
+ * Workspace tables (by `organization_id`) outside account setup that have
+ * rows. `goal` is left out while it holds only onboarding goals, and only
+ * when no other table has records.
+ */
 export async function tablesWithRecords(db: Database, organizationId: string): Promise<string[]> {
   const tables = (
     await db.execute<{ table_name: string }>(sql`
@@ -132,7 +173,16 @@ export async function tablesWithRecords(db: Database, organizationId: string): P
     );
     if (rows.rows.length > 0) found.push(table);
   }
+  if (found.length === 1 && found[0] === "goal" && (await onboardingGoalsOnly(db, organizationId)))
+    return [];
   return found;
+}
+
+async function goalTitles(db: Database, organizationId: string): Promise<Set<string>> {
+  const rows = await db.execute<{ title: string }>(
+    sql`select "title" from "goal" where "organization_id" = ${organizationId}`,
+  );
+  return new Set(rows.rows.map((row) => row.title.trim().toLowerCase()));
 }
 
 export async function seedReviewAccount(
@@ -161,7 +211,11 @@ export async function seedReviewAccount(
     await seedLabs(db, api, actor, calendar);
     await seedStrengthTraining(db, api, actor, calendar, random.fork("training"));
     await seedNutrition(api, actor, calendar, random.fork("nutrition"));
-    await seedGoals(api, actor, calendar, random.fork("goals"));
+    // An onboarding goal stays as it is; a demo goal with the same title is
+    // skipped rather than added twice.
+    await seedGoals(api, actor, calendar, random.fork("goals"), {
+      skipTitles: await goalTitles(db, actor.organizationId),
+    });
     await seedSupplements(api, actor);
     await seedCycle(api, actor, calendar, random.fork("cycle"));
     await seedPreventiveCare(api, actor, calendar);

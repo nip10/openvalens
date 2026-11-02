@@ -7,6 +7,7 @@ import { createDb, sql } from "@openvalens/db";
 import { createDemoApi, type DemoActor, type DemoApi } from "./api";
 import { resetDemoDatabase } from "./reset";
 import {
+  MAX_ONBOARDING_GOALS,
   REVIEW_SEED_MARKER,
   ReviewSeedRefusal,
   seedReviewAccount,
@@ -160,6 +161,80 @@ describe.skipIf(!url)("review account seed against disposable PostgreSQL", () =>
     const message = await process;
     expect(message).toContain("already holds records (cardiac_exam)");
     expect(message).not.toContain("other@example.test");
+  });
+
+  test("onboarding's goal and the coach defaults don't block the seed, and stay as they were", async () => {
+    const onboarded = await cloudAccount("onboarded@example.test");
+    const setup = createDemoApi(db);
+    try {
+      // What onboarding and a first look around write: the goal step (twice,
+      // once with a demo goal's title) and the coach defaults row.
+      for (const title of ["Log meals most days", "reach 65 kg"])
+        await setup.call(
+          "plans/goals/upsertGoal",
+          { title, category: "Nutrition", status: "not_started" },
+          onboarded,
+        );
+      await setup.call("coach/getConfig", {}, onboarded);
+    } finally {
+      setup.close();
+    }
+    expect(await tablesWithRecords(db, onboarded.organizationId)).toEqual([]);
+
+    const goalsBefore = (
+      await db.execute<{ id: number; title: string; status: string }>(
+        sql`select "id", "title", "status" from "goal" where "organization_id" = ${onboarded.organizationId} order by "id"`,
+      )
+    ).rows;
+    expect(await seedReviewAccount(db, { email: "onboarded@example.test", today })).toMatchObject({
+      status: "seeded",
+    });
+    const goals = (
+      await db.execute<{ id: number; title: string; status: string }>(
+        sql`select "id", "title", "status" from "goal" where "organization_id" = ${onboarded.organizationId} order by "id"`,
+      )
+    ).rows;
+    // The onboarding goals are untouched; the demo "Reach 65 kg" is skipped
+    // (no duplicate), the other demo goal is added.
+    expect(goals.slice(0, 2)).toEqual(goalsBefore);
+    expect(goals.map((goal) => goal.title.toLowerCase()).sort()).toEqual([
+      "log meals most days",
+      "reach 65 kg",
+      "walk 9,000 steps a day",
+    ]);
+  }, 300_000);
+
+  test("goals that are more than onboarding still count as records", async () => {
+    const addGoals = async (actor: DemoActor, goals: Record<string, string>[]) => {
+      const setup = createDemoApi(db);
+      try {
+        for (const goal of goals) await setup.call("plans/goals/upsertGoal", goal, actor);
+      } finally {
+        setup.close();
+      }
+    };
+    const bare = { title: "Walk most days", category: "General", status: "not_started" };
+
+    const edited = await cloudAccount("edited-goal@example.test");
+    await addGoals(edited, [{ ...bare, targetValue: "10" }]);
+    expect(await tablesWithRecords(db, edited.organizationId)).toEqual(["goal"]);
+
+    const many = await cloudAccount("many-goals@example.test");
+    await addGoals(
+      many,
+      Array.from({ length: MAX_ONBOARDING_GOALS + 1 }, () => bare),
+    );
+    expect(await tablesWithRecords(db, many.organizationId)).toEqual(["goal"]);
+
+    const mixed = await cloudAccount("mixed-goal@example.test");
+    await addGoals(mixed, [bare]);
+    await db.execute(
+      sql`insert into "cardiac_exam" ("organization_id", "date", "type", "created_at") values (${mixed.organizationId}, ${today}, 'ecg', ${new Date().toISOString()})`,
+    );
+    expect(await tablesWithRecords(db, mixed.organizationId)).toEqual(["cardiac_exam", "goal"]);
+    await expect(
+      seedReviewAccount(db, { email: "edited-goal@example.test", today }),
+    ).rejects.toThrow("already holds records (goal)");
   });
 
   test("refuses an instance administrator and a shared workspace", async () => {
