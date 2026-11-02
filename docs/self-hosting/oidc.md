@@ -1,6 +1,6 @@
 # Single sign-on (OIDC)
 
-**Applies to:** OpenValens 0.9.1 · Last updated: 2026-10-15
+**Applies to:** OpenValens 1.0.0 · Last updated: 2026-10-15
 
 Besides email-link sign-in, an instance can use **one generic OpenID Connect
 provider** that you run or subscribe to: Authentik, Keycloak, Zitadel,
