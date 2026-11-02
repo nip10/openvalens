@@ -65,7 +65,6 @@ export function createWithingsAdapter(
   credentials: { clientId: string; clientSecret: string },
   deps: WearableHttpDeps & {
     endpoints?: Partial<WearableEndpoints<WithingsEndpointKey>>;
-    now?: () => Date;
   },
 ): WearableAdapter {
   const urls = { ...WITHINGS_ENDPOINTS, ...deps.endpoints };
