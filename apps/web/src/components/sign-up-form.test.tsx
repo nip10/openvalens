@@ -34,7 +34,7 @@ describe("SignUpForm", () => {
     expect(html).toInclude('href="https://legal.test/terms"');
     expect(html).toInclude('href="https://legal.test/privacy"');
     expect(html).toInclude(
-      "I consent to OpenValens processing my health data to provide the service.",
+      "I consent to OpenValens processing my health data to provide the service. This includes any birth year and sex I add to my profile",
     );
     expect(html).toInclude('href="/login"');
   });

@@ -52,12 +52,13 @@ describe("WellnessProfileEditor (web)", () => {
     expect(html).toContain("only available after you confirm you are 18 or older");
   });
 
-  test("an adult sees purpose-specific consent for age and sex separately", () => {
+  test("an adult is asked birth year and sex with no per-field consent box", () => {
     const html = render(adult);
     expect(html).toContain("What year were you born?");
     expect(html).toContain("broad age band");
-    expect(html).toContain("sex-specific guidance");
     expect(html).toContain("not your gender identity");
+    expect(html).not.toContain("I agree that OpenValens may store");
+    expect(html).not.toMatch(/consent/i);
   });
 
   test("unsaved edits are identified per section", () => {

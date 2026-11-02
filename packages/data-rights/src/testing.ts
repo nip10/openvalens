@@ -116,7 +116,6 @@ export async function seedEveryModule(db: Database, who: string): Promise<void> 
     // AI usage per month (#299): counts only.
     `insert into ai_usage_month (user_id, month, input_tokens, output_tokens, cost_micros, call_count) values ('${user}', '2026-10-01', 1200, 300, 5400, 2)`,
     `insert into wellness_profile (user_id, revision) values ('${user}', 1)`,
-    `insert into wellness_profile_consent (user_id, purpose, version) values ('${user}', 'sex', 'v1')`,
     // Weight and Health Connect
     `insert into weight_event (organization_id, user_id, date, measured_at, source, weight_kg, created_at) values ('${org}', '${user}', '2026-10-01', '2026-10-01T07:00', 'manual', 72, '2026-10-01')`,
     `insert into daily_weight (organization_id, user_id, date, source, weight_kg, resolved_from_event_id, created_at, updated_at) select '${org}', '${user}', '2026-10-01', 'manual', 72, id, '2026-10-01', '2026-10-01' from weight_event where organization_id = '${org}'`,

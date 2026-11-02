@@ -17,7 +17,6 @@ import {
 
 const AS_OF = "2026-10-16";
 const NOW = new Date(`${AS_OF}T12:00:00.000Z`);
-const consent = { active: true, version: "v", grantedAt: NOW.toISOString(), withdrawnAt: null };
 
 function daysBefore(offset: number): string {
   const value = new Date(`${AS_OF}T00:00:00.000Z`);
@@ -29,7 +28,7 @@ function series(days: number, value: number, source: string | null = null): Comp
   return Array.from({ length: days }, (_, i) => ({ date: daysBefore(i), value, source }));
 }
 
-/** Synthetic adult: born 1980 → 45–46 in 2026, female, both consents active. */
+/** Synthetic adult: born 1980 → 45–46 in 2026, female. */
 function profile(overrides: Partial<WellnessProfileSnapshot> = {}) {
   return deriveWellnessProfileInputs(
     {
@@ -37,7 +36,6 @@ function profile(overrides: Partial<WellnessProfileSnapshot> = {}) {
       eligibility: { state: "recorded", value: "adult" },
       birthYear: { state: "recorded", value: 1980 },
       sex: { state: "recorded", value: "female" },
-      consents: { age_band: consent, sex: consent },
       ...overrides,
     },
     NOW,
@@ -165,15 +163,6 @@ describe("resting heart rate band (NCHS NHSR 41)", () => {
       "resting_heart_rate",
     );
     expect(missing.unavailableReason).toBe("not_provided");
-  });
-
-  test("withdrawn consent → consent_required", () => {
-    const withdrawn = { ...consent, active: false, withdrawnAt: NOW.toISOString() };
-    const rhr = metric(
-      run({ profile: profile({ consents: { age_band: consent, sex: withdrawn } }) }),
-      "resting_heart_rate",
-    );
-    expect(rhr).toMatchObject({ status: "unavailable", unavailableReason: "consent_required" });
   });
 
   test("an age range straddling two reference rows (39–40) is not placed in either", () => {

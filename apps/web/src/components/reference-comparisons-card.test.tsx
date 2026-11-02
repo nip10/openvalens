@@ -23,7 +23,6 @@ function renderToStaticMarkup(node: ReactNode): string {
 
 const AS_OF = "2026-10-16";
 const NOW = new Date(`${AS_OF}T12:00:00.000Z`);
-const consent = { active: true, version: "v", grantedAt: NOW.toISOString(), withdrawnAt: null };
 const days = (value: number) =>
   Array.from({ length: 28 }, (_, i) => {
     const date = new Date(NOW);
@@ -40,7 +39,6 @@ function render(optedIn: boolean) {
         eligibility: { state: "recorded", value: "adult" },
         birthYear: { state: "recorded", value: 1980 },
         sex: { state: "recorded", value: "female" },
-        consents: { age_band: consent, sex: consent },
       },
       NOW,
     ),

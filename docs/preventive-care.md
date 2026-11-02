@@ -35,8 +35,8 @@ and regulatory background is in
   answer. Only the workspace owner, who is the person the record belongs to,
   can see or change it. Other members get `owner_only`.
 - **Inputs are limited.** The engine reads exactly four inputs: region, the
-  #98 age range (from birth year, with consent), the #98 sex for reference
-  tables (with consent), and the person's self-declarations. A test asserts
+  #98 age range (from birth year), the #98 sex for reference tables, and the
+  person's self-declarations. A test asserts
   that no other input is read. A missing age or sex is shown as missing
   ("add your age band…"). Nothing is inferred. A birth year that straddles an
   age limit is reported as `age_edge`, not resolved.

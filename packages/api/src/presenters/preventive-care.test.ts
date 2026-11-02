@@ -142,7 +142,7 @@ describe("preventive-care copy", () => {
       asOf: "2026-10-16",
       status: "available",
       region: "uk",
-      ageUnavailable: "consent_required",
+      ageUnavailable: "age_band_ambiguous",
       sexUnavailable: "declined",
       items: [],
       notShown: [],

@@ -22,7 +22,6 @@ import {
   type WellnessProfileDraft,
 } from "@openvalens/api/presenters/wellness-profile";
 import {
-  CONSENT_COPY,
   DECLINE_LABEL,
   FOCUS_AREA_LABELS,
   PROFILE_INTRO,
@@ -65,8 +64,7 @@ import {
 import { Container } from "@/components/container";
 import { authClient } from "@/lib/auth-client";
 import { client, orpc } from "@/utils/orpc";
-import { Chips, ConsentToggle, QuestionLabel } from "@/components/wellness-profile-fields";
-import { toggleConsent } from "@/utils/wellness-profile-choices";
+import { CheckboxToggle, Chips, QuestionLabel } from "@/components/wellness-profile-fields";
 
 /**
  * Issue #98 — optional wellness profile (native). Same sections, meaning,
@@ -315,18 +313,9 @@ function ProfileEditor({
                 >
                   {WELLNESS_FIELD_COPY.birthYear.question}
                 </QuestionLabel>
-                <ConsentToggle
-                  label={CONSENT_COPY.age_band}
-                  checked={draft.consents.age_band}
-                  onPress={() => {
-                    const toggled = toggleConsent("age_band", draft);
-                    if (toggled.answers.birthYear.state === "unknown") setBirthYearText("");
-                    change(toggled);
-                  }}
-                />
                 <TextInput
                   value={birthYearText}
-                  editable={draft.consents.age_band && draft.answers.birthYear.state !== "declined"}
+                  editable={draft.answers.birthYear.state !== "declined"}
                   keyboardType="number-pad"
                   maxLength={4}
                   accessibilityLabel={t`Birth year`}
@@ -355,7 +344,7 @@ function ProfileEditor({
                     {i18n._(rejectionMessage(parsedYear.reason))}
                   </Text>
                 ) : null}
-                <ConsentToggle
+                <CheckboxToggle
                   label={DECLINE_LABEL}
                   checked={draft.answers.birthYear.state === "declined"}
                   onPress={() => {
@@ -384,11 +373,6 @@ function ProfileEditor({
                 >
                   {WELLNESS_FIELD_COPY.sex.question}
                 </QuestionLabel>
-                <ConsentToggle
-                  label={CONSENT_COPY.sex}
-                  checked={draft.consents.sex}
-                  onPress={() => change(toggleConsent("sex", draft))}
-                />
                 <Chips field="sex" draft={draft} onChange={change} />
               </View>
             </Section>

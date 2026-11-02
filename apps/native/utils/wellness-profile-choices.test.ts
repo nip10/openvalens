@@ -14,7 +14,7 @@ import {
 } from "@openvalens/api/wellness-profile-contract";
 import { inEnglish } from "@openvalens/i18n/testing";
 
-import { chipsFor, selectedChips, toggleChip, toggleConsent } from "./wellness-profile-choices";
+import { chipsFor, selectedChips, toggleChip } from "./wellness-profile-choices";
 
 const adult: WellnessProfileSnapshot = {
   ...EMPTY_WELLNESS_PROFILE,
@@ -24,9 +24,8 @@ const adult: WellnessProfileSnapshot = {
 
 describe("native profile chips", () => {
   test("chip labels render the same English as the shared contract copy", () => {
-    const draft = draftFromSnapshot(adult);
     const english = (field: Parameters<typeof chipsFor>[0]) =>
-      Object.fromEntries(chipsFor(field, draft).map((chip) => [chip.key, inEnglish(chip.label)]));
+      Object.fromEntries(chipsFor(field).map((chip) => [chip.key, inEnglish(chip.label)]));
     expect(english("eligibility")).toEqual({ ...ELIGIBILITY_LABELS, declined: DECLINE_LABEL });
     expect(english("focus")).toEqual({
       ...FOCUS_AREA_LABELS,
@@ -64,36 +63,33 @@ describe("native profile chips", () => {
     expect(draft.answers.focus).toEqual({ state: "unknown" });
   });
 
-  test("sex chips need consent; not applicable and declined do not", () => {
+  test("sex chips can be picked straight away, with no consent toggle", () => {
     const draft = draftFromSnapshot(adult);
-    const chips = chipsFor("sex", draft);
-    expect(chips.filter((c) => c.disabled).map((c) => c.key)).toEqual(["female", "male"]);
-    expect(chipsFor("sex", toggleConsent("sex", draft)).some((c) => c.disabled)).toBe(false);
+    expect(chipsFor("sex").map((c) => c.key)).toEqual([
+      "female",
+      "male",
+      "not_applicable",
+      "declined",
+    ]);
+    expect(toggleChip("sex", "female", draft).answers.sex).toEqual({
+      state: "recorded",
+      value: "female",
+    });
     expect(toggleChip("sex", "not_applicable", draft).answers.sex).toEqual({
       state: "not_applicable",
     });
   });
 
-  test("withdrawing consent clears the value and produces a withdraw patch", () => {
+  test("tapping the selected sex chip clears it and sends only the cleared answer", () => {
     const snapshot: WellnessProfileSnapshot = {
       ...adult,
       sex: { state: "recorded", value: "male" },
-      consents: {
-        age_band: null,
-        sex: {
-          active: true,
-          version: "v",
-          grantedAt: "2026-10-15T00:00:00.000Z",
-          withdrawnAt: null,
-        },
-      },
     };
-    const draft = toggleConsent("sex", draftFromSnapshot(snapshot));
+    const draft = toggleChip("sex", "male", draftFromSnapshot(snapshot));
     expect(draft.answers.sex).toEqual({ state: "unknown" });
     expect(buildSectionPatch(snapshot, draft, "ageAndSex")).toEqual({
       expectedRevision: 3,
       sex: { state: "unknown" },
-      consents: { sex: "withdraw" },
     });
   });
 

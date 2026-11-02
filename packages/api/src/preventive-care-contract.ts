@@ -16,9 +16,9 @@ import { WELLNESS_REGIONS, type WellnessRegion } from "./wellness-profile-contra
  *   its source URL, statement date, retrieval date, source version, reviewer
  *   and expiry. `preventive-care-pack.test.ts` fails the build when any item
  *   lacks one of them.
- * - Filtering uses only region, the #98 age range (from birth year, with
- *   consent), the #98 sex for reference tables (with consent) and the
- *   person's own self-declarations. Nothing is inferred.
+ * - Filtering uses only region, the #98 age range (from birth year), the
+ *   #98 sex for reference tables and the person's own self-declarations.
+ *   Nothing is inferred.
  * - Self-declared criteria are never pre-selected and can be answered
  *   "prefer not to say".
  * - Reminders are opt-in per item (a date the person sets) and go out only
@@ -256,7 +256,6 @@ export const UNAVAILABLE_INPUT_REASONS = [
   "declined",
   "not_applicable",
   "adult_confirmation_required",
-  "consent_required",
   "age_band_ambiguous",
 ] as const;
 

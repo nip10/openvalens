@@ -217,14 +217,11 @@ describe.skipIf(!url)("preventive care over HTTP against disposable PostgreSQL",
         sql`insert into member (id, organization_id, user_id, role) values (${`m-${id}`}, ${member.org}, ${id}, ${member.role})`,
       );
     }
-    // A: adult, US, birth year (age 52–53) and sex with consent.
+    // A: adult, US, birth year (age 52–53) and sex.
     await db.execute(sql`
       insert into wellness_profile (user_id, revision, eligibility_state, eligibility, region_state, region,
                                     birth_year_state, birth_year, sex_state, sex)
       values ('user-a', 1, 'recorded', 'adult', 'recorded', 'us', 'recorded', ${BIRTH_YEAR_53}, 'recorded', 'female')`);
-    await db.execute(sql`
-      insert into wellness_profile_consent (user_id, purpose, version) values
-        ('user-a', 'age_band', '2026-10-15'), ('user-a', 'sex', '2026-10-15')`);
     // B: adult, UK, no birth year, sex declined.
     await db.execute(sql`
       insert into wellness_profile (user_id, revision, eligibility_state, eligibility, region_state, region, sex_state)

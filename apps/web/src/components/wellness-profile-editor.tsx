@@ -13,7 +13,6 @@ import {
   type WellnessProfileDraft,
 } from "@openvalens/api/presenters/wellness-profile";
 import {
-  CONSENT_COPY,
   unavailableExplanation,
   WELLNESS_ELIGIBILITY,
   WELLNESS_FIELD_COPY,
@@ -280,8 +279,9 @@ function AgeAndSexSection(props: WellnessProfileEditorProps) {
 }
 
 /**
- * The consent-gated birth year and sex questions, shared by the profile page
- * and the onboarding flow (same copy, same rules).
+ * The adult-only birth year and sex questions, shared by the profile page and
+ * the onboarding flow (same copy, same rules). The account's health-data
+ * consent covers them; clearing an answer deletes it.
  */
 export function AgeAndSexFields(
   props: Pick<
@@ -295,23 +295,6 @@ export function AgeAndSexFields(
   const ageDeclined = draft.answers.birthYear.state === "declined";
   const { i18n } = useLingui();
 
-  const setConsent = (purpose: "age_band" | "sex", checked: boolean) => {
-    let next: WellnessProfileDraft = {
-      ...draft,
-      consents: { ...draft.consents, [purpose]: checked },
-    };
-    // Without consent a recorded value cannot be kept: clear it in the draft so
-    // the person sees exactly what saving will do.
-    if (!checked && purpose === "age_band" && next.answers.birthYear.state === "recorded") {
-      next = setAnswer(next, "birthYear", { state: "unknown" });
-      onBirthYearTextChange("");
-    }
-    if (!checked && purpose === "sex" && next.answers.sex.state === "recorded") {
-      next = setAnswer(next, "sex", { state: "unknown" });
-    }
-    onDraftChange(next);
-  };
-
   return (
     <>
       <fieldset className="grid min-w-0 gap-3">
@@ -322,11 +305,6 @@ export function AgeAndSexFields(
             <p>{WELLNESS_FIELD_COPY.birthYear.limits}</p>
           </InfoTip>
         </legend>
-        <CheckboxRow
-          label={CONSENT_COPY.age_band}
-          checked={draft.consents.age_band}
-          onChange={(checked) => setConsent("age_band", checked)}
-        />
         <div className="grid gap-1">
           <label htmlFor={birthYearId} className="text-sm text-ink-3">
             <Trans>Birth year</Trans>
@@ -338,7 +316,7 @@ export function AgeAndSexFields(
             maxLength={4}
             className="num max-w-32"
             value={birthYearText}
-            disabled={!draft.consents.age_band || ageDeclined}
+            disabled={ageDeclined}
             aria-invalid={!parsed.ok}
             aria-describedby={!parsed.ok ? `${birthYearId}-error` : undefined}
             onChange={(event) => {
@@ -386,11 +364,6 @@ export function AgeAndSexFields(
             <p>{WELLNESS_FIELD_COPY.sex.limits}</p>
           </InfoTip>
         </legend>
-        <CheckboxRow
-          label={CONSENT_COPY.sex}
-          checked={draft.consents.sex}
-          onChange={(checked) => setConsent("sex", checked)}
-        />
         <RadioGroup
           name="sex"
           value={answerValue(draft.answers.sex)}
@@ -398,7 +371,6 @@ export function AgeAndSexFields(
             ...WELLNESS_SEXES.map((value) => ({
               value,
               label: i18n._(WELLNESS_CHOICE_LABELS.sex[value]),
-              disabled: !draft.consents.sex,
             })),
             { value: "not_applicable", label: i18n._(WELLNESS_CHOICE_LABELS.sexNotApplicable) },
             { value: "declined", label: i18n._(WELLNESS_CHOICE_LABELS.decline) },

@@ -29,9 +29,9 @@ import type { WellnessAvailability, WellnessSex } from "./wellness-profile-contr
  */
 export type PreventiveEngineInput = {
   region: PreventiveRegion;
-  /** #98 age range from birth year (with consent); unavailable → reason. */
+  /** #98 age range from birth year; unavailable → reason. */
   ageRange: WellnessAvailability<{ minAge: number; maxAge: number }>;
-  /** #98 sex for reference tables (with consent); unavailable → reason. */
+  /** #98 sex for reference tables; unavailable → reason. */
   sex: WellnessAvailability<WellnessSex>;
   /** The person's own answers; a missing key means "not answered". */
   declarations: Partial<Record<PreventiveCriterion, DeclarationAnswer>>;

@@ -16,8 +16,9 @@ import { z } from "zod";
  *   distinct; nothing is ever defaulted or inferred.
  * - Updates are partial: an omitted key is untouched; `{ state: "unknown" }`
  *   explicitly clears an answer.
- * - Birth year and sex are adult-only, purpose-specific inputs: recording one
- *   requires the adult answer and an active consent for its purpose.
+ * - Birth year and sex are adult-only inputs: recording one requires the adult
+ *   answer. There is no separate consent per field: the account's health-data
+ *   consent covers every profile answer, and clearing an answer withdraws it.
  * - Values are self-reported in the app (provenance `self_reported`); the
  *   profile holds preferences and self-declarations, not measurements.
  */
@@ -81,13 +82,6 @@ export function normalizeModules(modules: readonly PersonModule[]): PersonModule
   const chosen = new Set(modules);
   return PERSON_MODULES.filter((module) => chosen.has(module));
 }
-
-/** Purposes that need their own recorded consent before a value is stored. */
-export const WELLNESS_CONSENT_PURPOSES = ["age_band", "sex"] as const;
-export type WellnessConsentPurpose = (typeof WELLNESS_CONSENT_PURPOSES)[number];
-
-/** Version of the purpose disclosures below; stored on every consent record. */
-export const WELLNESS_CONSENT_VERSION = "2026-10-15";
 
 export const ADULT_AGE_YEARS = 18;
 export const MIN_BIRTH_YEAR = 1900;
@@ -180,14 +174,36 @@ export type WellnessProfileAnswers = {
 
 // ─── Snapshot (read + update output) ───────────────────────────
 
-/** Latest consent record for one purpose; `null` when never asked. */
-export const consentRecordSchema = z.strictObject({
-  active: z.boolean(),
+// Compatibility with apps up to 0.9.x. Until 2026-11 birth year and sex each
+// had their own consent (`age_band`, `sex`). The account's health-data consent
+// now covers them, but store apps built before that still read
+// `snapshot.consents.<purpose>.active` (and throw without the object) and
+// still send `consents` with their updates. So the snapshot keeps reporting
+// both purposes as covered, and updates still accept `consents` and ignore
+// it. Neither is a record of anything. Remove both once no supported app
+// reads them (see docs/releasing.md).
+
+const legacyPurposeConsentSchema = z.strictObject({
+  active: z.literal(true),
   version: z.string(),
   grantedAt: z.string(),
-  withdrawnAt: z.string().nullable(),
+  withdrawnAt: z.null(),
 });
-export type WellnessConsentRecord = z.infer<typeof consentRecordSchema>;
+
+const LEGACY_PURPOSE_CONSENT = Object.freeze({
+  active: true as const,
+  version: "health_data_consent",
+  grantedAt: "1970-01-01T00:00:00.000Z",
+  withdrawnAt: null,
+});
+
+/** @deprecated Wire-only placeholder for apps up to 0.9.x; never read it. */
+export const LEGACY_PURPOSE_CONSENTS = Object.freeze({
+  age_band: LEGACY_PURPOSE_CONSENT,
+  sex: LEGACY_PURPOSE_CONSENT,
+});
+
+const legacyConsentActionSchema = z.enum(["grant", "withdraw"]);
 
 export const wellnessProfileSnapshotSchema = z.strictObject({
   revision: z.int().nonnegative(),
@@ -200,9 +216,10 @@ export const wellnessProfileSnapshotSchema = z.strictObject({
   sex: sexAnswerSchema,
   /** The modules the person switched on; `null` = not chosen yet, so every module is on. */
   enabledModules: enabledModulesSchema.nullable(),
+  /** @deprecated Always {@link LEGACY_PURPOSE_CONSENTS}; kept for apps up to 0.9.x. */
   consents: z.strictObject({
-    age_band: consentRecordSchema.nullable(),
-    sex: consentRecordSchema.nullable(),
+    age_band: legacyPurposeConsentSchema,
+    sex: legacyPurposeConsentSchema,
   }),
   updatedAt: z.string().nullable(),
 });
@@ -210,7 +227,7 @@ export type WellnessProfileSnapshot = z.infer<typeof wellnessProfileSnapshotSche
 
 const UNKNOWN = Object.freeze({ state: "unknown" as const });
 
-/** The state of a user who has never opened setup: nothing answered, nothing consented. */
+/** The state of a user who has never opened setup: nothing answered. */
 export const EMPTY_WELLNESS_PROFILE: WellnessProfileSnapshot = Object.freeze({
   revision: 0,
   setupStatus: null,
@@ -221,14 +238,11 @@ export const EMPTY_WELLNESS_PROFILE: WellnessProfileSnapshot = Object.freeze({
   birthYear: UNKNOWN,
   sex: UNKNOWN,
   enabledModules: null,
-  consents: Object.freeze({ age_band: null, sex: null }),
+  consents: LEGACY_PURPOSE_CONSENTS,
   updatedAt: null,
 });
 
 // ─── Update input ──────────────────────────────────────────────
-
-export const consentActionSchema = z.enum(["grant", "withdraw"]);
-export type WellnessConsentAction = z.infer<typeof consentActionSchema>;
 
 /**
  * Strict partial update. Omitted keys are untouched; `{ state: "unknown" }`
@@ -245,10 +259,11 @@ export const wellnessProfileUpdateInput = z.strictObject({
   sex: sexAnswerSchema.optional(),
   /** Replaces the whole module choice (any order; stored in canonical order). */
   enabledModules: enabledModulesSchema.optional(),
+  /** @deprecated Accepted and ignored, for apps up to 0.9.x. */
   consents: z
     .strictObject({
-      age_band: consentActionSchema.optional(),
-      sex: consentActionSchema.optional(),
+      age_band: legacyConsentActionSchema.optional(),
+      sex: legacyConsentActionSchema.optional(),
     })
     .optional(),
 });
@@ -259,16 +274,13 @@ export type WellnessProfileUpdateInput = z.infer<typeof wellnessProfileUpdateInp
 /** Value-free rejection reasons, returned in the error `data.reason`. */
 export type WellnessProfileRejection =
   | "ADULT_CONFIRMATION_REQUIRED"
-  | "CONSENT_REQUIRED"
   | "BIRTH_YEAR_UNDER_18"
-  | "BIRTH_YEAR_OUT_OF_RANGE"
-  | "CONSENT_AND_VALUE_CONFLICT";
+  | "BIRTH_YEAR_OUT_OF_RANGE";
 
 export type WellnessProfileState = {
   setupStatus: WellnessSetupStatus | null;
   answers: WellnessProfileAnswers;
   enabledModules: PersonModule[] | null;
-  activeConsents: Record<WellnessConsentPurpose, boolean>;
 };
 
 export type WellnessProfileApplyResult =
@@ -277,15 +289,11 @@ export type WellnessProfileApplyResult =
       next: WellnessProfileState;
       /** Field names (and `setupStatus`) whose stored value changed. Never values. */
       changedFields: string[];
-      consentChanges: { purpose: WellnessConsentPurpose; action: WellnessConsentAction }[];
     }
-  | { ok: false; reason: WellnessProfileRejection; field: WellnessProfileField | "consents" };
+  | { ok: false; reason: WellnessProfileRejection; field: WellnessProfileField };
 
-/** The field each consent purpose gates. */
-export const CONSENT_PURPOSE_FIELD: Record<WellnessConsentPurpose, "birthYear" | "sex"> = {
-  age_band: "birthYear",
-  sex: "sex",
-};
+/** The adult-only answers. */
+const ADULT_ONLY_FIELDS = ["birthYear", "sex"] as const;
 
 export function answersEqual(a: unknown, b: unknown): boolean {
   return JSON.stringify(normalizeAnswer(a)) === JSON.stringify(normalizeAnswer(b));
@@ -302,12 +310,11 @@ function normalizeAnswer(answer: unknown): unknown {
 /**
  * Applies a validated partial update to the current state.
  *
- * Effects beyond the requested keys are explicit and limited:
- * - Moving the adult answer away from `adult` clears a stored birth year and
- *   sex, because their only purposes are adult-only.
- * - Withdrawing a purpose's consent clears the value it covered.
- * Recording a birth year or sex in the same request that would immediately
- * clear it is rejected instead, so a request never "succeeds" silently.
+ * Effects beyond the requested keys are explicit and limited: moving the adult
+ * answer away from `adult` clears a stored birth year and sex, because their
+ * only purposes are adult-only. Recording a birth year or sex in the same
+ * request that would immediately clear it is rejected instead, so a request
+ * never "succeeds" silently. A legacy `consents` key is ignored.
  */
 export function applyWellnessProfileUpdate(
   current: WellnessProfileState,
@@ -320,36 +327,13 @@ export function applyWellnessProfileUpdate(
     if (next !== undefined) (answers as Record<string, unknown>)[field] = next;
   }
 
-  const activeConsents = { ...current.activeConsents };
-  const consentChanges: { purpose: WellnessConsentPurpose; action: WellnessConsentAction }[] = [];
-  for (const purpose of WELLNESS_CONSENT_PURPOSES) {
-    const action = input.consents?.[purpose];
-    if (action === undefined) continue;
-    const wantActive = action === "grant";
-    if (activeConsents[purpose] !== wantActive) {
-      activeConsents[purpose] = wantActive;
-      consentChanges.push({ purpose, action });
-    }
-  }
-
   const adult = answers.eligibility.state === "recorded" && answers.eligibility.value === "adult";
 
-  for (const purpose of WELLNESS_CONSENT_PURPOSES) {
-    const field = CONSENT_PURPOSE_FIELD[purpose];
-    if (answers[field].state !== "recorded") continue;
-    const requestedNow = input[field]?.state === "recorded";
-    if (!adult) {
-      if (requestedNow) return { ok: false, reason: "ADULT_CONFIRMATION_REQUIRED", field };
-      answers[field] = { state: "unknown" };
-      continue;
-    }
-    if (!activeConsents[purpose]) {
-      if (requestedNow) {
-        const reason =
-          input.consents?.[purpose] === "withdraw"
-            ? "CONSENT_AND_VALUE_CONFLICT"
-            : "CONSENT_REQUIRED";
-        return { ok: false, reason, field };
+  if (!adult) {
+    for (const field of ADULT_ONLY_FIELDS) {
+      if (answers[field].state !== "recorded") continue;
+      if (input[field]?.state === "recorded") {
+        return { ok: false, reason: "ADULT_CONFIRMATION_REQUIRED", field };
       }
       answers[field] = { state: "unknown" };
     }
@@ -383,9 +367,8 @@ export function applyWellnessProfileUpdate(
 
   return {
     ok: true,
-    next: { setupStatus, answers, enabledModules, activeConsents },
+    next: { setupStatus, answers, enabledModules },
     changedFields,
-    consentChanges,
   };
 }
 
@@ -402,10 +385,6 @@ export function snapshotToState(snapshot: WellnessProfileSnapshot): WellnessProf
       sex: snapshot.sex,
     },
     enabledModules: snapshot.enabledModules,
-    activeConsents: {
-      age_band: snapshot.consents.age_band?.active === true,
-      sex: snapshot.consents.sex?.active === true,
-    },
   };
 }
 
@@ -421,8 +400,6 @@ export type WellnessUnavailableReason =
   | "not_applicable"
   /** The person has not confirmed they are 18 or older (or said they are not). */
   | "adult_confirmation_required"
-  /** The purpose consent is missing or withdrawn. */
-  | "consent_required"
   /** Birth year alone cannot place the person in one band right now. */
   | "age_band_ambiguous";
 
@@ -460,8 +437,7 @@ export function ageBandForAge(age: number): WellnessAgeBand | null {
 /**
  * The profile inputs a dependent feature may use, each either available or
  * unavailable with a reason to explain. Adult-only inputs (age, sex) are
- * withheld unless the adult answer is recorded and the purpose consent is
- * active. Nothing is defaulted: a feature that needs an unavailable input must
+ * withheld unless the adult answer is recorded. Nothing is defaulted: a feature that needs an unavailable input must
  * stay unavailable and say why (see {@link unavailableExplanation}).
  */
 export function deriveWellnessProfileInputs(
@@ -475,11 +451,6 @@ export function deriveWellnessProfileInputs(
   let ageBand: WellnessProfileInputs["ageBand"];
   if (!adultConfirmed) {
     ageRange = ageBand = { available: false, reason: "adult_confirmation_required" };
-  } else if (
-    snapshot.consents.age_band?.active !== true &&
-    snapshot.birthYear.state === "recorded"
-  ) {
-    ageRange = ageBand = { available: false, reason: "consent_required" };
   } else if (snapshot.birthYear.state !== "recorded") {
     ageRange = ageBand = { available: false, reason: unavailableFor(snapshot.birthYear) };
   } else {
@@ -499,8 +470,6 @@ export function deriveWellnessProfileInputs(
   if (!adultConfirmed) sex = { available: false, reason: "adult_confirmation_required" };
   else if (snapshot.sex.state !== "recorded")
     sex = { available: false, reason: unavailableFor(snapshot.sex) };
-  else if (snapshot.consents.sex?.active !== true)
-    sex = { available: false, reason: "consent_required" };
   else sex = { available: true, value: snapshot.sex.value };
 
   return {
@@ -616,7 +585,7 @@ export const WELLNESS_FIELD_COPY: Record<WellnessProfileField, WellnessFieldCopy
     purpose:
       "Lets features that show age-specific public-health guidance or reference ranges place you in a broad age band. Each of those features asks you to turn it on separately.",
     limits:
-      "Year only — never your full date of birth. Your age is worked out as a range (for example 34–35). Requires your consent for this purpose, which you can withdraw at any time; withdrawing deletes the stored year.",
+      "Year only — never your full date of birth. Your age is worked out as a range (for example 34–35). Clear it at any time to delete the stored year.",
   },
   sex: {
     title: "Sex for reference tables",
@@ -624,14 +593,8 @@ export const WELLNESS_FIELD_COPY: Record<WellnessProfileField, WellnessFieldCopy
     purpose:
       "Some published guidelines and reference tables are split into female and male. Features that use them can match the right table. Each of those features asks you to turn it on separately.",
     limits:
-      "This is not your gender identity and we never infer it. If neither option fits, or you prefer not to say, anything that needs it stays unavailable rather than guessing. Requires your consent for this purpose; withdrawing deletes the stored answer.",
+      "This is not your gender identity and we never infer it. If neither option fits, or you prefer not to say, anything that needs it stays unavailable rather than guessing. Clear it at any time to delete the stored answer.",
   },
-};
-
-export const CONSENT_COPY: Record<WellnessConsentPurpose, string> = {
-  age_band:
-    "I agree that OpenValens may store my birth year and use it to place me in a broad age band for age-specific guidance and reference ranges.",
-  sex: "I agree that OpenValens may store this answer and use it to choose sex-specific guidance and reference tables.",
 };
 
 const UNAVAILABLE_COPY: Record<WellnessUnavailableReason, string> = {
@@ -639,7 +602,6 @@ const UNAVAILABLE_COPY: Record<WellnessUnavailableReason, string> = {
   declined: "You chose not to share this.",
   not_applicable: "You said neither option fits you.",
   adult_confirmation_required: "This is only available after you confirm you are 18 or older.",
-  consent_required: "This needs your consent for this purpose.",
   age_band_ambiguous: "Your birth year falls on the edge of two age bands.",
 };
 

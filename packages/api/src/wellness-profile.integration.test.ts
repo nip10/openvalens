@@ -113,7 +113,6 @@ async function seedPerson(who: string): Promise<void> {
 }
 
 async function reset(): Promise<void> {
-  await db.execute(sql`delete from "wellness_profile_consent"`);
   await db.execute(sql`delete from "wellness_profile"`);
   await db.execute(sql`delete from "member"`);
   await db.execute(sql`delete from "organization"`);
@@ -122,7 +121,6 @@ async function reset(): Promise<void> {
 
 const ADULT_WITH_AGE = {
   eligibility: { state: "recorded", value: "adult" },
-  consents: { age_band: "grant", sex: "grant" },
   birthYear: { state: "recorded", value: 1983 },
   sex: { state: "recorded", value: "female" },
 };
@@ -175,7 +173,8 @@ describe.skipIf(!url)("wellness profile over RPC (PostgreSQL)", () => {
       setupStatus: null,
       eligibility: { state: "unknown" },
       sex: { state: "unknown" },
-      consents: { age_band: null, sex: null },
+      // Placeholder kept for apps up to 0.9.x, which read it.
+      consents: { age_band: { active: true }, sex: { active: true } },
     });
 
     const skipped = await call(
@@ -302,7 +301,7 @@ describe.skipIf(!url)("wellness profile over RPC (PostgreSQL)", () => {
     expect(after.json).toMatchObject({ revision: 1, region: { state: "recorded", value: "pt" } });
   });
 
-  test("server validation: strict input, adult policy, consent and birth year", async () => {
+  test("server validation: strict input, adult policy and birth year", async () => {
     const a = sessionFor("user-a");
     for (const body of [
       { expectedRevision: 0, userId: "user-b", region: { state: "recorded", value: "us" } },
@@ -317,11 +316,7 @@ describe.skipIf(!url)("wellness profile over RPC (PostgreSQL)", () => {
 
     const noAdult = await call(
       "update",
-      {
-        expectedRevision: 0,
-        consents: { age_band: "grant" },
-        birthYear: { state: "recorded", value: 1980 },
-      },
+      { expectedRevision: 0, birthYear: { state: "recorded", value: 1980 } },
       a,
     );
     expect(noAdult.status).toBe(400);
@@ -329,23 +324,11 @@ describe.skipIf(!url)("wellness profile over RPC (PostgreSQL)", () => {
       data: { reason: "ADULT_CONFIRMATION_REQUIRED", field: "birthYear" },
     });
 
-    const noConsent = await call(
-      "update",
-      {
-        expectedRevision: 0,
-        eligibility: { state: "recorded", value: "adult" },
-        sex: { state: "recorded", value: "male" },
-      },
-      a,
-    );
-    expect(noConsent.json).toMatchObject({ data: { reason: "CONSENT_REQUIRED", field: "sex" } });
-
     const minor = await call(
       "update",
       {
         expectedRevision: 0,
         eligibility: { state: "recorded", value: "adult" },
-        consents: { age_band: "grant" },
         birthYear: { state: "recorded", value: 2012 },
       },
       a,
@@ -354,49 +337,61 @@ describe.skipIf(!url)("wellness profile over RPC (PostgreSQL)", () => {
     // The error envelope never echoes the submitted value.
     expect(JSON.stringify(minor.json)).not.toContain("2012");
 
-    // Rejected requests write nothing — not even the consent they carried.
-    const consentRows = await db.execute(
-      sql`select count(*)::int as n from wellness_profile_consent`,
-    );
-    expect((consentRows.rows[0] as { n: number }).n).toBe(0);
+    // Rejected requests write nothing.
     const profile = await call("get", {}, a);
     expect(profile.json).toMatchObject({ revision: 0, eligibility: { state: "unknown" } });
   });
 
-  test("consent is versioned per purpose; withdrawal clears only its value", async () => {
+  test("an adult saves birth year and sex with no per-field consent; clearing deletes", async () => {
     const a = sessionFor("user-a");
     const saved = await call("update", { expectedRevision: 0, ...ADULT_WITH_AGE }, a);
     expect(saved.status).toBe(200);
     expect(saved.json).toMatchObject({
       birthYear: { state: "recorded", value: 1983 },
       sex: { state: "recorded", value: "female" },
-      consents: {
-        age_band: { active: true, version: "2026-10-15", withdrawnAt: null },
-        sex: { active: true, version: "2026-10-15", withdrawnAt: null },
-      },
     });
 
+    const cleared = await call(
+      "update",
+      { expectedRevision: 1, birthYear: { state: "unknown" } },
+      a,
+    );
+    expect(cleared.json).toMatchObject({
+      revision: 2,
+      birthYear: { state: "unknown" },
+      sex: { state: "recorded", value: "female" },
+    });
+    const stored = await db.execute(
+      sql`select birth_year from wellness_profile where user_id = 'user-a'`,
+    );
+    expect(stored.rows).toEqual([{ birth_year: null }]);
+  });
+
+  test("an app up to 0.9.x can still send its consents key; it is ignored", async () => {
+    const a = sessionFor("user-a");
+    const saved = await call(
+      "update",
+      { expectedRevision: 0, ...ADULT_WITH_AGE, consents: { age_band: "grant", sex: "grant" } },
+      a,
+    );
+    expect(saved.status).toBe(200);
+    expect(saved.json).toMatchObject({
+      revision: 1,
+      birthYear: { state: "recorded", value: 1983 },
+      consents: { age_band: { active: true }, sex: { active: true } },
+    });
+
+    // A legacy withdraw alone changes nothing (the old app clears the answer itself).
     const withdrawn = await call(
       "update",
       { expectedRevision: 1, consents: { age_band: "withdraw" } },
       a,
     );
+    expect(withdrawn.status).toBe(200);
     expect(withdrawn.json).toMatchObject({
-      revision: 2,
-      birthYear: { state: "unknown" },
-      sex: { state: "recorded", value: "female" },
-      consents: { age_band: { active: false }, sex: { active: true } },
+      revision: 1,
+      birthYear: { state: "recorded", value: 1983 },
     });
-
-    // Re-granting appends a new record; history is kept.
-    await call("update", { expectedRevision: 2, consents: { age_band: "grant" } }, a);
-    const history = await db.execute(
-      sql`select purpose, withdrawn_at is null as active from wellness_profile_consent where user_id = 'user-a' order by granted_at, purpose`,
-    );
-    expect(history.rows.filter((r) => (r as { purpose: string }).purpose === "age_band")).toEqual([
-      { purpose: "age_band", active: false },
-      { purpose: "age_band", active: true },
-    ]);
   });
 
   test("changing the adult answer to under 18 clears adult-only values", async () => {
@@ -482,12 +477,9 @@ describe.skipIf(!url)("wellness profile over RPC (PostgreSQL)", () => {
         user_id: string;
       }[];
     expect(file("wellness_profile").map((r) => r.user_id)).toEqual(["user-a"]);
-    expect(file("wellness_profile_consent").map((r) => r.user_id)).toEqual(["user-a", "user-a"]);
 
     await deleteSubjectData(db, { userId: "user-a", organizationIds: ["org-user-a"] });
-    const remaining = await db.execute(
-      sql`select user_id from wellness_profile union all select user_id from wellness_profile_consent`,
-    );
+    const remaining = await db.execute(sql`select user_id from wellness_profile`);
     expect(remaining.rows).toEqual([{ user_id: "user-b" }]);
   });
 
