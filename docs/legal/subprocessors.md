@@ -4,7 +4,7 @@ legal name, NIPC and registered address are still to be added to section 1. -->
 
 # Subprocessors
 
-Last updated 29 October 2026
+Last updated 2 November 2026
 
 These are the service providers that process personal data for OpenValens Cloud on our behalf, as described in the [privacy policy](https://openvalens.com/privacy). Each one works under a data-processing agreement. Health records are stored only with the hosting provider, in the EU. The others receive only the data listed, and the optional ones only when you use the feature.
 
@@ -21,12 +21,13 @@ We announce a new subprocessor on this page at least 30 days before it starts pr
 
 ## Used only when you turn a feature on
 
-| Provider                                     | Purpose                                                                                 | Data                                                                                             | Location       | Safeguard                                                     |
-| -------------------------------------------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | -------------- | ------------------------------------------------------------- |
-| Anthropic, PBC (USA)                         | AI assistant, insights and food and recipe drafts, only after you turn on AI processing | Your messages, earlier messages of the conversation, the health records needed to answer         | USA            | Standard Contractual Clauses                                  |
-| 650 Industries, Inc. (Expo, USA)             | Push notification relay to Apple and Google                                             | Expo push token, notification title and body (fixed generic text, no health values), in-app path | USA            | Standard Contractual Clauses                                  |
-| Apple Inc. (Apple Push Notification service) | Delivering notifications to iPhones                                                     | Device push token, notification content                                                          | USA and global | EU–US Data Privacy Framework and Standard Contractual Clauses |
-| Google LLC (Firebase Cloud Messaging)        | Delivering notifications to Android phones                                              | Device push token, notification content                                                          | USA and global | EU–US Data Privacy Framework and Standard Contractual Clauses |
+| Provider                                     | Purpose                                                                                 | Data                                                                                                                                                           | Location                                                | Safeguard                                                       |
+| -------------------------------------------- | --------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- | --------------------------------------------------------------- |
+| Anthropic, PBC (USA)                         | AI assistant, insights and food and recipe drafts, only after you turn on AI processing | Your messages, earlier messages of the conversation, the health records needed to answer                                                                       | USA                                                     | Standard Contractual Clauses                                    |
+| 650 Industries, Inc. (Expo, USA)             | Push notification relay to Apple and Google                                             | Expo push token, notification title and body (fixed generic text, no health values), in-app path                                                               | USA                                                     | Standard Contractual Clauses                                    |
+| Apple Inc. (Apple Push Notification service) | Delivering notifications to iPhones                                                     | Device push token, notification content                                                                                                                        | USA and global                                          | EU–US Data Privacy Framework and Standard Contractual Clauses   |
+| Google LLC (Firebase Cloud Messaging)        | Delivering notifications to Android phones                                              | Device push token, notification content                                                                                                                        | USA and global                                          | EU–US Data Privacy Framework and Standard Contractual Clauses   |
+| PostHog, Inc. (USA)                          | Usage analytics, only after you turn on Settings › Share optional usage analytics       | The name of an approved action and a new random id for each event, not linked to you; no health data. Our server's IP address is seen in transit and discarded | EU cloud in Frankfurt, Germany; PostHog is a US company | Standard Contractual Clauses for any access from outside the EU |
 
 ## Not subprocessors: services you connect yourself
 
