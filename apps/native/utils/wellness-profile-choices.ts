@@ -29,7 +29,7 @@ import {
 
 export type ChipField = "eligibility" | "focus" | "inputMethod" | "region" | "sex";
 
-export type Chip = { key: string; label: MessageDescriptor; disabled?: boolean };
+export type Chip = { key: string; label: MessageDescriptor };
 
 const {
   eligibility: ELIGIBILITY_LABELS,
@@ -47,7 +47,7 @@ const DECLINED = "declined";
 const NOT_APPLICABLE = "not_applicable";
 const JUST_EXPLORING = "just_exploring";
 
-export function chipsFor(field: ChipField, draft: WellnessProfileDraft): Chip[] {
+export function chipsFor(field: ChipField): Chip[] {
   switch (field) {
     case "eligibility":
       return [
@@ -71,12 +71,7 @@ export function chipsFor(field: ChipField, draft: WellnessProfileDraft): Chip[] 
       ];
     case "sex":
       return [
-        // Recording a sex needs the purpose consent first; declining does not.
-        ...WELLNESS_SEXES.map((key) => ({
-          key,
-          label: SEX_LABELS[key],
-          disabled: !draft.consents.sex,
-        })),
+        ...WELLNESS_SEXES.map((key) => ({ key, label: SEX_LABELS[key] })),
         { key: NOT_APPLICABLE, label: SEX_NOT_APPLICABLE_LABEL },
         { key: DECLINED, label: DECLINE_LABEL },
       ];
@@ -122,20 +117,4 @@ export function toggleChip(
         : { state: "recorded", value: key };
   (answers as Record<string, unknown>)[field] = value;
   return { ...draft, answers };
-}
-
-/** Toggling a purpose consent off also clears the value it covered (in the draft). */
-export function toggleConsent(
-  purpose: "age_band" | "sex",
-  draft: WellnessProfileDraft,
-): WellnessProfileDraft {
-  const granted = !draft.consents[purpose];
-  const answers = { ...draft.answers };
-  if (!granted && purpose === "age_band" && answers.birthYear.state === "recorded") {
-    answers.birthYear = { state: "unknown" };
-  }
-  if (!granted && purpose === "sex" && answers.sex.state === "recorded") {
-    answers.sex = { state: "unknown" };
-  }
-  return { answers, consents: { ...draft.consents, [purpose]: granted } };
 }

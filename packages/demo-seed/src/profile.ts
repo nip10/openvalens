@@ -21,7 +21,6 @@ export async function completeSetup(
       focus: { state: "recorded", value: ["sleep_recovery", "activity_fitness", "nutrition"] },
       inputMethod: { state: "recorded", value: "both" },
       region: { state: "recorded", value: "uk" },
-      consents: { age_band: "grant", sex: "grant" },
       birthYear: { state: "recorded", value: answers.birthYear },
       sex: { state: "recorded", value: answers.sex },
       enabledModules: [...PERSON_MODULES],

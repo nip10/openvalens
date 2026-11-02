@@ -2070,6 +2070,10 @@ msgstr "Faturação"
 msgid "Birth year"
 msgstr "Ano de nascimento"
 
+#: apps/native/components/onboarding/steps.tsx
+msgid "Birth year and sex are only used for age- and sex-specific guidance and reference ranges. Clear either answer at any time to delete it."
+msgstr "O ano de nascimento e o sexo só são usados para orientações e intervalos de referência específicos da idade e do sexo. Pode limpar qualquer uma das respostas a qualquer momento para a apagar."
+
 #: apps/web/src/components/onboarding/welcome-flow.tsx
 msgid "Birth year and sex are optional."
 msgstr "O ano de nascimento e o sexo são opcionais."
@@ -6002,12 +6006,12 @@ msgstr "Dou o meu consentimento"
 #: apps/native/components/health-data-consent-prompt.tsx
 #: apps/web/src/components/accept-invitation-view.tsx
 #: apps/web/src/components/health-data-consent-prompt.tsx
-msgid "I consent to OpenValens processing my health data to provide the service."
-msgstr "Consinto que a OpenValens trate os meus dados de saúde para prestar o serviço."
+msgid "I consent to OpenValens processing my health data to provide the service. This includes any birth year and sex I add to my profile, used to place me in a broad age band and to choose age- and sex-specific guidance and reference ranges."
+msgstr "Consinto que a OpenValens trate os meus dados de saúde para prestar o serviço. Isto inclui o ano de nascimento e o sexo que eu adicionar ao meu perfil, usados para me situar numa faixa etária ampla e para escolher orientações e intervalos de referência específicos da idade e do sexo."
 
 #: apps/web/src/components/sign-up-form.tsx
-msgid "I consent to OpenValens processing my health data to provide the service. Read our <0>privacy policy</0>."
-msgstr "Consinto que a OpenValens trate os meus dados de saúde para prestar o serviço. Leia a nossa <0>política de privacidade</0>."
+msgid "I consent to OpenValens processing my health data to provide the service. This includes any birth year and sex I add to my profile, used to place me in a broad age band and to choose age- and sex-specific guidance and reference ranges. Read our <0>privacy policy</0>."
+msgstr "Consinto que a OpenValens trate os meus dados de saúde para prestar o serviço. Isto inclui o ano de nascimento e o sexo que eu adicionar ao meu perfil, usados para me situar numa faixa etária ampla e para escolher orientações e intervalos de referência específicos da idade e do sexo. Leia a nossa <0>política de privacidade</0>."
 
 #. safety
 #. safety
@@ -10739,10 +10743,6 @@ msgstr "Guardado."
 msgid "Saved. Nothing was logged."
 msgstr "Guardado. Nada foi registado."
 
-#: apps/native/components/onboarding/steps.tsx
-msgid "Saving birth year or sex asks for your consent, with the same text as the profile page. You can withdraw it any time."
-msgstr "Guardar o ano de nascimento ou o sexo pede o seu consentimento, com o mesmo texto da página do perfil. Pode retirá-lo a qualquer momento."
-
 #: apps/web/src/components/progress-photos.tsx
 msgid "Saving photo…"
 msgstr "A guardar fotografia…"
@@ -11156,8 +11156,8 @@ msgid "Setup token"
 msgstr "Token de configuração"
 
 #: packages/api/src/presenters/preventive-care.ts
-msgid "Sex for reference tables is not available: {reason, select, not_provided {You haven't added this yet.} declined {You chose not to share this.} not_applicable {You said neither option fits you.} adult_confirmation_required {This is only available after you confirm you are 18 or older.} consent_required {This needs your consent for this purpose.} other {Your birth year falls on the edge of two age bands.}} Items published for one sex say so instead of guessing."
-msgstr "O sexo para tabelas de referência não está disponível: {reason, select, not_provided {Ainda não adicionou isto.} declined {Optou por não partilhar isto.} not_applicable {Indicou que nenhuma opção se aplica a si.} adult_confirmation_required {Isto só está disponível depois de confirmar que tem 18 anos ou mais.} consent_required {Isto precisa do seu consentimento para esta finalidade.} other {O seu ano de nascimento fica no limite entre dois grupos etários.}} Os itens publicados para um só sexo indicam-no, em vez de adivinhar."
+msgid "Sex for reference tables is not available: {reason, select, not_provided {You haven't added this yet.} declined {You chose not to share this.} not_applicable {You said neither option fits you.} adult_confirmation_required {This is only available after you confirm you are 18 or older.} other {Your birth year falls on the edge of two age bands.}} Items published for one sex say so instead of guessing."
+msgstr "O sexo para tabelas de referência não está disponível: {reason, select, not_provided {Ainda não adicionou isto.} declined {Optou por não partilhar isto.} not_applicable {Indicou que nenhuma opção se aplica a si.} adult_confirmation_required {Isto só está disponível depois de confirmar que tem 18 anos ou mais.} other {O seu ano de nascimento fica no limite entre dois grupos etários.}} Os itens publicados para um só sexo indicam-no, em vez de adivinhar."
 
 #. safety
 #. safety
@@ -11252,8 +11252,8 @@ msgstr "Mostra a alteração medida por região entre dois dos seus exames."
 
 #. safety
 #: packages/api/src/presenters/reference-comparison.ts
-msgid "Shows whether your usual resting heart rate (the median of the last 28 days) is below, within or above the middle half of US adults of your age group and sex, measured from 1999 to 2008 (NCHS). Needs your birth year and sex for reference tables in your profile, each with its consent. Device readings are usually taken differently from the seated pulse in the reference, so treat them as a rough guide."
-msgstr "Mostra se a sua frequência cardíaca em repouso habitual (a mediana dos últimos 28 dias) está abaixo, dentro ou acima da metade central dos adultos dos EUA do seu grupo etário e sexo, medidos de 1999 a 2008 (NCHS). Precisa do seu ano de nascimento e do seu sexo para tabelas de referência no seu perfil, cada um com o respetivo consentimento. As leituras dos dispositivos são normalmente obtidas de forma diferente da pulsação sentada da referência, por isso use-as como uma indicação aproximada."
+msgid "Shows whether your usual resting heart rate (the median of the last 28 days) is below, within or above the middle half of US adults of your age group and sex, measured from 1999 to 2008 (NCHS). Needs your birth year and sex for reference tables in your profile. Device readings are usually taken differently from the seated pulse in the reference, so treat them as a rough guide."
+msgstr "Mostra se a sua frequência cardíaca em repouso habitual (a mediana dos últimos 28 dias) está abaixo, dentro ou acima da metade central dos adultos dos EUA do seu grupo etário e sexo, medidos de 1999 a 2008 (NCHS). Precisa do seu ano de nascimento e do seu sexo para tabelas de referência no seu perfil. As leituras dos dispositivos são normalmente obtidas de forma diferente da pulsação sentada da referência, por isso use-as como uma indicação aproximada."
 
 #. safety
 #: packages/api/src/presenters/reference-comparison.ts
@@ -12673,10 +12673,6 @@ msgstr "Esta ligação já não é válida. Inicie sessão e abra as Definiçõe
 msgid "This module is hidden. Turn it on in Settings › Modules."
 msgstr "Este módulo está oculto. Ative-o em Definições › Módulos."
 
-#: packages/api/src/presenters/reference-comparison.ts
-msgid "This needs your consent for this purpose."
-msgstr "Isto precisa do seu consentimento para esta finalidade."
-
 #. safety
 #: apps/native/app/(drawer)/private-measurements.tsx
 msgid "This optional feature is off by default. Turning it on lets you record weight or circumference measurements and view progress photos in this account."
@@ -12801,11 +12797,6 @@ msgstr "Não foi possível abrir este treino. Tente novamente."
 #: apps/native/components/cloud-access-notice.tsx
 msgid "This workspace's OpenValens Cloud access has ended. Its records are still here, and you can export them."
 msgstr "O acesso deste espaço de trabalho ao OpenValens Cloud terminou. Os registos continuam aqui e pode exportá-los."
-
-#. safety
-#: packages/api/src/presenters/wellness-profile.ts
-msgid "Tick the consent box to save this, or choose 'Prefer not to say'."
-msgstr "Assinale a caixa de consentimento para guardar isto, ou escolha 'Prefiro não dizer'."
 
 #: apps/web/src/routes/_auth/records/vitals.tsx
 #: packages/api/src/presenters/plain-water.ts
@@ -14121,11 +14112,6 @@ msgstr "Configurou este servidor. Uma vista rápida do que ele indica e depois a
 msgid "You will be signed out, and everything this app saved from {host} is removed from this phone."
 msgstr "A sessão será terminada e tudo o que esta aplicação guardou de {host} será removido deste telemóvel."
 
-#. safety
-#: packages/api/src/presenters/wellness-profile.ts
-msgid "You withdrew consent for this answer, so it can't be saved. Clear it or keep your consent."
-msgstr "Retirou o consentimento para esta resposta, por isso não pode ser guardada. Limpe-a ou mantenha o consentimento."
-
 #: apps/native/components/onboarding/steps.tsx
 #: apps/web/src/components/onboarding/welcome-flow.tsx
 msgid "You're all set"
@@ -14202,8 +14188,8 @@ msgid "Your age range does not fall inside a single age group of this reference,
 msgstr "A sua faixa etária não cabe num único grupo etário desta referência, por isso não é escolhido nenhum grupo para si."
 
 #: packages/api/src/presenters/preventive-care.ts
-msgid "Your age range is not available: {reason, select, not_provided {You haven't added this yet.} declined {You chose not to share this.} not_applicable {You said neither option fits you.} adult_confirmation_required {This is only available after you confirm you are 18 or older.} consent_required {This needs your consent for this purpose.} other {Your birth year falls on the edge of two age bands.}} Add your birth year (age band) in your profile to see which items apply to you. Nothing is guessed."
-msgstr "A sua faixa etária não está disponível: {reason, select, not_provided {Ainda não adicionou isto.} declined {Optou por não partilhar isto.} not_applicable {Indicou que nenhuma opção se aplica a si.} adult_confirmation_required {Isto só está disponível depois de confirmar que tem 18 anos ou mais.} consent_required {Isto precisa do seu consentimento para esta finalidade.} other {O seu ano de nascimento fica no limite entre dois grupos etários.}} Adicione o seu ano de nascimento (grupo etário) no seu perfil para ver que itens se aplicam a si. Nada é adivinhado."
+msgid "Your age range is not available: {reason, select, not_provided {You haven't added this yet.} declined {You chose not to share this.} not_applicable {You said neither option fits you.} adult_confirmation_required {This is only available after you confirm you are 18 or older.} other {Your birth year falls on the edge of two age bands.}} Add your birth year (age band) in your profile to see which items apply to you. Nothing is guessed."
+msgstr "A sua faixa etária não está disponível: {reason, select, not_provided {Ainda não adicionou isto.} declined {Optou por não partilhar isto.} not_applicable {Indicou que nenhuma opção se aplica a si.} adult_confirmation_required {Isto só está disponível depois de confirmar que tem 18 anos ou mais.} other {O seu ano de nascimento fica no limite entre dois grupos etários.}} Adicione o seu ano de nascimento (grupo etário) no seu perfil para ver que itens se aplicam a si. Nada é adivinhado."
 
 #: apps/web/src/components/profile-summary-card.tsx
 msgid "Your answers"

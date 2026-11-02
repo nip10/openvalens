@@ -55,7 +55,6 @@ export const PREVENTIVE_COPY = {
       declined: "You chose not to share this.",
       not_applicable: "You said neither option fits you.",
       adult_confirmation_required: "This is only available after you confirm you are 18 or older.",
-      consent_required: "This needs your consent for this purpose.",
       other: "Your birth year falls on the edge of two age bands.",
     })} Add your birth year (age band) in your profile to see which items apply to you. Nothing is guessed.`,
   sexNote: (reason: WellnessUnavailableReason): MessageDescriptor =>
@@ -64,7 +63,6 @@ export const PREVENTIVE_COPY = {
       declined: "You chose not to share this.",
       not_applicable: "You said neither option fits you.",
       adult_confirmation_required: "This is only available after you confirm you are 18 or older.",
-      consent_required: "This needs your consent for this purpose.",
       other: "Your birth year falls on the edge of two age bands.",
     })} Items published for one sex say so instead of guessing.`,
   criteriaTitle: msg`Questions some items depend on`,

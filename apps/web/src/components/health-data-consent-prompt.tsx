@@ -74,7 +74,11 @@ export function HealthDataConsentPrompt() {
           <Trans>Health data consent</Trans>
         </h2>
         <p className="text-sm text-ink-2">
-          <Trans>I consent to OpenValens processing my health data to provide the service.</Trans>{" "}
+          <Trans>
+            I consent to OpenValens processing my health data to provide the service. This includes
+            any birth year and sex I add to my profile, used to place me in a broad age band and to
+            choose age- and sex-specific guidance and reference ranges.
+          </Trans>{" "}
           {status.data.privacyUrl ? (
             <a className={linkClass} href={status.data.privacyUrl} target="_blank" rel="noreferrer">
               <Trans>Read the privacy policy</Trans>

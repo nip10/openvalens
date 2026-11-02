@@ -4,10 +4,7 @@ import { msg } from "@lingui/core/macro";
 import {
   ADULT_AGE_YEARS,
   answersEqual,
-  CONSENT_PURPOSE_FIELD,
   MIN_BIRTH_YEAR,
-  WELLNESS_CONSENT_PURPOSES,
-  type WellnessConsentPurpose,
   type WellnessEligibility,
   type WellnessFocusArea,
   type WellnessInputMethod,
@@ -109,10 +106,9 @@ export const SECTION_TITLES: Record<SetupSection, MessageDescriptor> = {
   ageAndSex: msg`Age and sex for guidance`,
 };
 
-/** Editable copy of the answers plus the consent toggles for the purpose fields. */
+/** Editable copy of the answers. */
 export type WellnessProfileDraft = {
   answers: WellnessProfileAnswers;
-  consents: Record<WellnessConsentPurpose, boolean>;
 };
 
 export function draftFromSnapshot(snapshot: WellnessProfileSnapshot): WellnessProfileDraft {
@@ -124,10 +120,6 @@ export function draftFromSnapshot(snapshot: WellnessProfileSnapshot): WellnessPr
       region: snapshot.region,
       birthYear: snapshot.birthYear,
       sex: snapshot.sex,
-    },
-    consents: {
-      age_band: snapshot.consents.age_band?.active === true,
-      sex: snapshot.consents.sex?.active === true,
     },
   };
 }
@@ -188,9 +180,9 @@ export function setupProgress(snapshot: WellnessProfileSnapshot): {
 }
 
 /**
- * Builds the minimal partial update for one section: only fields (and consent
- * toggles) that differ from the server snapshot are sent, so saving one
- * section never touches another. Returns `null` when nothing changed.
+ * Builds the minimal partial update for one section: only fields that differ
+ * from the server snapshot are sent, so saving one section never touches
+ * another. Returns `null` when nothing changed.
  */
 export function buildSectionPatch(
   snapshot: WellnessProfileSnapshot,
@@ -204,17 +196,6 @@ export function buildSectionPatch(
   for (const field of SECTION_FIELDS[section]) {
     if (!answersEqual(draft.answers[field], baseline.answers[field])) {
       (patch as Record<string, unknown>)[field] = draft.answers[field];
-      changed = true;
-    }
-  }
-
-  for (const purpose of WELLNESS_CONSENT_PURPOSES) {
-    if (!SECTION_FIELDS[section].includes(CONSENT_PURPOSE_FIELD[purpose])) continue;
-    if (draft.consents[purpose] !== baseline.consents[purpose]) {
-      patch.consents = {
-        ...patch.consents,
-        [purpose]: draft.consents[purpose] ? "grant" : "withdraw",
-      };
       changed = true;
     }
   }
@@ -248,12 +229,7 @@ export function rebaseDraft(
       (answers as Record<string, unknown>)[key] = draft.answers[key];
     }
   }
-  const consents = { ...after.consents };
-  for (const purpose of WELLNESS_CONSENT_PURPOSES) {
-    if (draft.consents[purpose] !== before.consents[purpose])
-      consents[purpose] = draft.consents[purpose];
-  }
-  return { answers, consents };
+  return { answers };
 }
 
 /**
@@ -270,13 +246,7 @@ export function resetSection(
   for (const field of SECTION_FIELDS[section]) {
     (answers as Record<string, unknown>)[field] = baseline.answers[field];
   }
-  const consents = { ...draft.consents };
-  for (const purpose of WELLNESS_CONSENT_PURPOSES) {
-    if (SECTION_FIELDS[section].includes(CONSENT_PURPOSE_FIELD[purpose])) {
-      consents[purpose] = baseline.consents[purpose];
-    }
-  }
-  return { answers, consents };
+  return { answers };
 }
 
 /** Sections with unsaved edits, for a "you have unsaved changes" warning. */
@@ -289,17 +259,8 @@ export function dirtySections(
 
 const REJECTION_MESSAGES: Record<WellnessProfileRejection, MessageDescriptor> = {
   ADULT_CONFIRMATION_REQUIRED: msg`Confirm you are 18 or older before adding age or sex.`,
-  CONSENT_REQUIRED: msg({
-    message: "Tick the consent box to save this, or choose 'Prefer not to say'.",
-    comment: "safety",
-  }),
   BIRTH_YEAR_UNDER_18: msg`That birth year is under 18. OpenValens personalisation is for adults only.`,
   BIRTH_YEAR_OUT_OF_RANGE: msg`Enter a four-digit birth year.`,
-  CONSENT_AND_VALUE_CONFLICT: msg({
-    message:
-      "You withdrew consent for this answer, so it can't be saved. Clear it or keep your consent.",
-    comment: "safety",
-  }),
 };
 
 export function rejectionMessage(reason: WellnessProfileRejection): MessageDescriptor {

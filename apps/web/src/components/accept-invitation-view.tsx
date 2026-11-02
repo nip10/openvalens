@@ -397,7 +397,9 @@ export function AcceptInvitationView({
           <div className="grid gap-2 rounded-2xl border border-signal/30 bg-signal-soft/40 p-4">
             <p className="text-sm text-ink-2">
               <Trans>
-                I consent to OpenValens processing my health data to provide the service.
+                I consent to OpenValens processing my health data to provide the service. This
+                includes any birth year and sex I add to my profile, used to place me in a broad age
+                band and to choose age- and sex-specific guidance and reference ranges.
               </Trans>{" "}
               {consentStatus.data?.privacyUrl ? (
                 <a

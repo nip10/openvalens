@@ -32,7 +32,6 @@ import {
 
 const AS_OF = "2026-10-16";
 const NOW = new Date(`${AS_OF}T12:00:00.000Z`);
-const consent = { active: true, version: "v", grantedAt: NOW.toISOString(), withdrawnAt: null };
 
 const days = (n: number, value: number) =>
   Array.from({ length: n }, (_, i) => {
@@ -47,7 +46,6 @@ const adult = deriveWellnessProfileInputs(
     eligibility: { state: "recorded", value: "adult" },
     birthYear: { state: "recorded", value: 1980 },
     sex: { state: "recorded", value: "male" },
-    consents: { age_band: consent, sex: consent },
   },
   NOW,
 );
@@ -101,16 +99,10 @@ describe("reference comparison copy (#96)", () => {
       "declined",
       "not_applicable",
       "adult_confirmation_required",
-      "consent_required",
       "age_band_ambiguous",
     ] as const)
       expect(explainUnavailable(reason, "sleep_duration", englishI18n)).toBe(
-        unavailableExplanation(
-          reason,
-          reason === "not_provided" || reason === "consent_required"
-            ? "your birth year"
-            : undefined,
-        ),
+        unavailableExplanation(reason, reason === "not_provided" ? "your birth year" : undefined),
       );
   });
 

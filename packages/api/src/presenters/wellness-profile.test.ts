@@ -19,7 +19,6 @@ import {
 } from "./wellness-profile";
 
 const NOW = new Date("2026-10-15T12:00:00.000Z");
-const consent = { active: true, version: "v", grantedAt: NOW.toISOString(), withdrawnAt: null };
 
 function snapshot(overrides: Partial<WellnessProfileSnapshot> = {}): WellnessProfileSnapshot {
   return { ...EMPTY_WELLNESS_PROFILE, ...overrides };
@@ -88,25 +87,20 @@ describe("section patches", () => {
     });
   });
 
-  test("age and sex carry their consent toggles", () => {
+  test("age and sex send only their answers, never a consent", () => {
     const base = snapshot({
       revision: 2,
       eligibility: { state: "recorded", value: "adult" },
       sex: { state: "recorded", value: "female" },
-      consents: { age_band: null, sex: consent },
     });
     const draft = draftFromSnapshot(base);
-    draft.consents.age_band = true;
     draft.answers.birthYear = { state: "recorded", value: 1980 };
-    draft.consents.sex = false;
     draft.answers.sex = { state: "unknown" };
     expect(buildSectionPatch(base, draft, "ageAndSex")).toEqual({
       expectedRevision: 2,
       birthYear: { state: "recorded", value: 1980 },
       sex: { state: "unknown" },
-      consents: { age_band: "grant", sex: "withdraw" },
     });
-    // Consent toggles never leak into other sections.
     expect(buildSectionPatch(base, draft, "region")).toBeNull();
   });
 });
@@ -162,10 +156,10 @@ describe("save errors", () => {
     expect(describeProfileSaveError({ code: "CONFLICT" }).kind).toBe("conflict");
     const invalid = describeProfileSaveError({
       code: "INVALID_INPUT",
-      data: { reason: "CONSENT_REQUIRED", field: "sex" },
+      data: { reason: "ADULT_CONFIRMATION_REQUIRED", field: "sex" },
     });
     expect(invalid.kind).toBe("invalid");
-    expect(inEnglish(invalid.message)).toContain("consent");
+    expect(inEnglish(invalid.message)).toContain("18 or older");
     expect(describeProfileSaveError(new TypeError("Failed to fetch")).kind).toBe("offline");
     expect(describeProfileSaveError({ code: "INTERNAL" }).kind).toBe("unknown");
   });

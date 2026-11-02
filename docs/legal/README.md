@@ -40,6 +40,23 @@ settings exactly:
 | Terms of Service | `LEGAL_TERMS_VERSION` (and `LEGAL_TERMS_URL`)     | `draft-2026-10-29` | `2026-10-29`    |
 | Privacy policy   | `LEGAL_PRIVACY_VERSION` (and `LEGAL_PRIVACY_URL`) | `draft-2026-10-29` | `2026-10-29`    |
 
+The health-data consent (#322) has no page of its own: its wording lives in
+the app (sign-up form, the re-consent prompt on web and mobile, invitation
+acceptance), and the server records the version in `legal_acceptance`
+(document `health_data_consent`) from `LEGAL_HEALTH_CONSENT_VERSION`. **Change
+that setting whenever the wording changes**; everyone whose recorded version
+differs is asked to consent again by the existing prompt. Current wording,
+label `2026-11-02`:
+
+> I consent to OpenValens processing my health data to provide the service.
+> This includes any birth year and sex I add to my profile, used to place me
+> in a broad age band and to choose age- and sex-specific guidance and
+> reference ranges.
+
+It is the only consent for the wellness profile: birth year and sex no
+longer have a consent of their own, and clearing an answer deletes it. The AI
+assistant, analytics and cycle logging keep their separate opt-ins.
+
 The subprocessors list and the DPA have their own "Last updated" dates but no
 server setting. A new version is needed whenever a change is material (a new
 subprocessor, a new purpose, a price or retention change); the old versions
