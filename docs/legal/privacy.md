@@ -4,7 +4,7 @@ NIPC is still to be added to section 1. -->
 
 # Privacy policy
 
-Version 2026-10-29 · Applies from 29 October 2026
+Version 2026-11-02 · Applies from 2 November 2026
 
 This policy explains what personal data OpenValens collects, why, on what legal basis, where it is kept, for how long, who else receives it, and your rights. It covers:
 
@@ -21,9 +21,9 @@ The controller for Cloud, the apps (when connected to Cloud) and this website is
 ## 2. The short version
 
 - Your health records are stored in the EU, in Germany. They are not sold, not used for advertising and not shared with anyone you have not chosen to share them with.
-- No analytics or tracking, no advertising SDKs, and no cookies beyond the ones that keep you signed in. This website makes no third-party requests at all.
+- No tracking, no advertising SDKs, and no cookies beyond the ones that keep you signed in. Usage analytics in Cloud is optional, off until you turn it on, and never includes health data. This website makes no third-party requests at all.
 - We process your health data on the basis of your **explicit consent**, which you give at sign-up and can withdraw.
-- Optional features that send data elsewhere (the AI assistant, push notifications, Google or Apple sign-in, phone health data) only do so when you turn them on.
+- Optional features that send data elsewhere (the AI assistant, push notifications, Google or Apple sign-in, phone health data, usage analytics) only do so when you turn them on.
 - You can export your data and delete your account at any time, also after your subscription ends.
 
 ## 3. What we collect
@@ -48,19 +48,22 @@ The controller for Cloud, the apps (when connected to Cloud) and this website is
 
 **Support.** What you write to us and our replies.
 
-**What we do not collect.** No advertising identifiers, no location, no contacts, no microphone. The camera is used only while you scan a food barcode and no image is kept. No analytics.
+**Usage analytics.** Only if you turn on **Settings › Share optional usage analytics**: your choice, and for each approved action you take, an event with the action's name and a new random id that is not linked to you (section 7).
+
+**What we do not collect.** No advertising identifiers, no location, no contacts, no microphone. The camera is used only while you scan a food barcode and no image is kept.
 
 ## 4. Why we use it and on what legal basis
 
-| Purpose                                                                                                                                         | Data                                                                   | Legal basis (GDPR)                                                                   |
-| ----------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| Storing, organising and showing your health records, calculating scores and insights, syncing phone health data, sharing with people you invite | Health and wellness data, phone health data                            | **Explicit consent**, Art. 9(2)(a) and Art. 6(1)(a).                                 |
-| AI assistant                                                                                                                                    | Your messages and the records the assistant uses to answer             | **Explicit consent**, Art. 9(2)(a), given separately when you turn on AI processing. |
-| Opt-in insight emails and push notifications                                                                                                    | Insight text (email), generic text (push), contact details, push token | Consent, Art. 6(1)(a) (and 9(2)(a) where the content is health data).                |
-| Your account, sign-in, the subscription, billing emails, support                                                                                | Account, billing and support data                                      | Performance of the contract, Art. 6(1)(b).                                           |
-| Invoices and tax records                                                                                                                        | Billing data held by Stripe                                            | Legal obligation, Art. 6(1)(c) (Portuguese tax and accounting law).                  |
-| Security, preventing abuse, investigating incidents, error reports, keeping backups                                                             | Technical, security and error data; backups of all data                | Legitimate interest, Art. 6(1)(f): keeping the service and your data safe.           |
-| Proving consent and honouring deletions after a restore                                                                                         | Consent records, erasure records (ids and row counts)                  | Legal obligation, Art. 6(1)(c) (Art. 7(1) and Art. 17 GDPR).                         |
+| Purpose                                                                                                                                         | Data                                                                   | Legal basis (GDPR)                                                                                                     |
+| ----------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Storing, organising and showing your health records, calculating scores and insights, syncing phone health data, sharing with people you invite | Health and wellness data, phone health data                            | **Explicit consent**, Art. 9(2)(a) and Art. 6(1)(a).                                                                   |
+| AI assistant                                                                                                                                    | Your messages and the records the assistant uses to answer             | **Explicit consent**, Art. 9(2)(a), given separately when you turn on AI processing.                                   |
+| Opt-in insight emails and push notifications                                                                                                    | Insight text (email), generic text (push), contact details, push token | Consent, Art. 6(1)(a) (and 9(2)(a) where the content is health data).                                                  |
+| Optional usage analytics, to learn which parts of the product are used and improve it                                                           | The name of an approved action and a random event id                   | Consent, Art. 6(1)(a), given by turning the setting on. You can withdraw it at any time by turning it off in Settings. |
+| Your account, sign-in, the subscription, billing emails, support                                                                                | Account, billing and support data                                      | Performance of the contract, Art. 6(1)(b).                                                                             |
+| Invoices and tax records                                                                                                                        | Billing data held by Stripe                                            | Legal obligation, Art. 6(1)(c) (Portuguese tax and accounting law).                                                    |
+| Security, preventing abuse, investigating incidents, error reports, keeping backups                                                             | Technical, security and error data; backups of all data                | Legitimate interest, Art. 6(1)(f): keeping the service and your data safe.                                             |
+| Proving consent and honouring deletions after a restore                                                                                         | Consent records, erasure records (ids and row counts)                  | Legal obligation, Art. 6(1)(c) (Art. 7(1) and Art. 17 GDPR).                                                           |
 
 **Explicit consent to health data.** When you create a Cloud account, and again when this consent changes, you give your explicit consent to us processing your health data to provide the service. Because keeping your health records is what Cloud does, we cannot provide Cloud without it. You can withdraw it at any time by writing to hello@openvalens.com or by deleting your account; withdrawal does not affect processing before it. When you withdraw, we stop processing your health data except to let you export it, and delete it as described in section 8.
 
@@ -82,6 +85,7 @@ We use a small number of service providers (processors) who act on our instructi
 - **Anthropic** (AI assistant, only when you use it): your message and the records needed to answer it.
 - **Expo, Apple (APNs) and Google (Firebase Cloud Messaging)** (push, only if you turn on notifications): your push token and the notification. Push text is fixed and generic and never contains a health value.
 - **Sentry** (error reports): the reduced crash reports described in section 3.
+- **PostHog** (usage analytics, only if you turn it on; stored in the EU, in Frankfurt, Germany): the events described in section 7. Never health data.
 
 **People you share with.** Members you invite into your workspace see what their role allows. Records you add to someone else's workspace are visible to its owner and members according to their roles.
 
@@ -103,7 +107,11 @@ We do **not** sell or rent your data, share it with advertisers or data brokers,
 
 **Error reporting.** Before any crash report leaves the server or your device it is reduced to an allowlist: exception type, code frames, release, environment, runtime and OS name and version. Messages, URLs and query strings, request data, cookies, headers, user and device details and breadcrumbs are removed, and reports without an exception are dropped. Sentry can see the IP address of the connection that sends a report.
 
-**Analytics.** We do not use analytics in Cloud, the apps or this website. If we ever offer it, it will be off until you opt in, and we will update this policy first.
+**Usage analytics.** Cloud offers optional product analytics through **PostHog**, which stores the data in its EU cloud in Frankfurt, Germany. It is off until you turn on **Settings › Share optional usage analytics**, and you can turn it off there at any time. We use it only to learn which parts of the product are used, so we can improve it.
+
+When it is on, our server (not your browser or phone, which contain no analytics code) sends PostHog one event per approved action. Today there is one: that you opened this setting. Each event contains only the action's name, a new random id created for that single event, and an instruction not to build a profile. The id is never stored or reused and is not linked to your account, device, session or workspace. No health data, records, free text, page addresses, cookies, device details or your IP address are sent. Because the request comes from our server, PostHog sees our server's IP address, not yours; our PostHog project is set to discard IP addresses. Even so, we do not call this anonymous.
+
+Turning analytics off stops new events at once. Events already sent cannot be linked back to you, so we cannot find them to recall them or to answer an access or erasure request for them; they are deleted when their retention period ends (section 8).
 
 **Cookies.** Cloud uses only strictly necessary cookies to keep you signed in and protect sign-in. No tracking or advertising cookies, so there is no cookie banner.
 
@@ -122,13 +130,14 @@ We do **not** sell or rent your data, share it with advertisers or data brokers,
 | Security events and erasure records                                    | Ids and counts only, no content. Your user reference is removed from security events when you delete your account; erasure records are kept so a deletion can be repeated after a restore. |
 | Invoices (held by Stripe)                                              | 10 years, as Portuguese tax law requires. They contain your billing email and address, never health data.                                                                                  |
 | Error reports (Sentry)                                                 | 30 days.                                                                                                                                                                                   |
+| Usage analytics events (PostHog)                                       | 12 months. PostHog deletes older events in a monthly clean-up, so an event can last up to 13 months.                                                                                       |
 | AI requests (Anthropic)                                                | Up to 30 days at Anthropic.                                                                                                                                                                |
 | Emails (Resend)                                                        | Delivery logs according to Resend's retention; we keep no copy of the content.                                                                                                             |
 | Support emails                                                         | 2 years after the request is closed.                                                                                                                                                       |
 
 ## 9. Transfers outside the EU
 
-Your health records are stored in the EU. Some providers are based in, or use infrastructure in, the United States or elsewhere (Resend, Stripe, Anthropic, Expo, Apple, Google and Sentry). When data is transferred outside the European Economic Area, we rely on an adequacy decision (including the EU–US Data Privacy Framework for certified companies) or on the European Commission's Standard Contractual Clauses, as listed for each provider on the [subprocessors page](https://openvalens.com/subprocessors). You can ask us for a copy of the safeguards.
+Your health records are stored in the EU. Some providers are based in, or use infrastructure in, the United States or elsewhere (Resend, Stripe, Anthropic, Expo, Apple, Google, Sentry and PostHog). When data is transferred outside the European Economic Area, we rely on an adequacy decision (including the EU–US Data Privacy Framework for certified companies) or on the European Commission's Standard Contractual Clauses, as listed for each provider on the [subprocessors page](https://openvalens.com/subprocessors). You can ask us for a copy of the safeguards.
 
 ## 10. Your rights
 
@@ -139,7 +148,7 @@ You have the right to:
 - **rectification**: correct it, mostly directly in the app;
 - **erasure**: delete your account and everything in workspaces you own in **Settings › Delete account and all data**, at any time and in every subscription state (see [how to delete your account](https://openvalens.com/support#delete-account));
 - **restriction** and **objection** (to processing based on legitimate interest);
-- **withdraw consent** at any time (health data, AI assistant, insight emails, push), without affecting earlier processing.
+- **withdraw consent** at any time (health data, AI assistant, insight emails, push, usage analytics), without affecting earlier processing.
 
 Write to hello@openvalens.com. We answer within one month (extendable by two months for complex requests, in which case we tell you). We may need to confirm it is you.
 

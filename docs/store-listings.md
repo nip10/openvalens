@@ -1,6 +1,6 @@
 # Store listings
 
-**Applies to:** the App Store and Google Play listings of `apps/native` · Last updated: 2026-11-01
+**Applies to:** the App Store and Google Play listings of `apps/native` · Last updated: 2026-11-02
 
 The listing text, App Privacy answers (Apple) and Data safety answers (Google)
 for the store app (#307). The text is in the repository so it is reviewed like
@@ -81,38 +81,44 @@ Both forms only ask about what we collect. The source is the data map in
 
 ### Data the app sends to Cloud
 
-| Data                                                                                                                                               | Required? | Purpose           | Linked to the person |
-| -------------------------------------------------------------------------------------------------------------------------------------------------- | --------- | ----------------- | -------------------- |
-| Email address                                                                                                                                      | Yes       | Account, sign-in  | Yes                  |
-| Name                                                                                                                                               | No        | Account           | Yes                  |
-| User ID (account id; Google/Apple subject id when signing in with them)                                                                            | Yes       | Account           | Yes                  |
-| Health records: labs, body, vitals, sleep, activity, workouts, nutrition, water, cycle, goals, clinical notes, preventive care with family history | No        | App functionality | Yes                  |
-| Apple Health / Health Connect: steps, heart rate, sleep, weight, body fat, active energy, distance, workouts                                       | No        | App functionality | Yes                  |
-| Progress photos (added on the web, shown in the app)                                                                                               | No        | App functionality | Yes                  |
-| Notes and AI assistant conversations                                                                                                               | No        | App functionality | Yes                  |
-| Push token                                                                                                                                         | No        | Notifications     | Yes                  |
-| Crash reports (Sentry, scrubbed of health data, only if `EXPO_PUBLIC_SENTRY_DSN` is set in the store build)                                        | Yes       | App functionality | No                   |
+| Data                                                                                                                                                | Required? | Purpose           | Linked to the person |
+| --------------------------------------------------------------------------------------------------------------------------------------------------- | --------- | ----------------- | -------------------- |
+| Email address                                                                                                                                       | Yes       | Account, sign-in  | Yes                  |
+| Name                                                                                                                                                | No        | Account           | Yes                  |
+| User ID (account id; Google/Apple subject id when signing in with them)                                                                             | Yes       | Account           | Yes                  |
+| Health records: labs, body, vitals, sleep, activity, workouts, nutrition, water, cycle, goals, clinical notes, preventive care with family history  | No        | App functionality | Yes                  |
+| Apple Health / Health Connect: steps, heart rate, sleep, weight, body fat, active energy, distance, workouts                                        | No        | App functionality | Yes                  |
+| Progress photos (added on the web, shown in the app)                                                                                                | No        | App functionality | Yes                  |
+| Notes and AI assistant conversations                                                                                                                | No        | App functionality | Yes                  |
+| Push token                                                                                                                                          | No        | Notifications     | Yes                  |
+| Crash reports (Sentry, scrubbed of health data, only if `EXPO_PUBLIC_SENTRY_DSN` is set in the store build)                                         | Yes       | App functionality | No                   |
+| Product interaction: opt-in usage analytics (Settings › Share optional usage analytics), sent by the server to PostHog EU with a one-time random id | No        | Analytics         | No                   |
 
 Not collected: location, contacts, browsing or search history, advertising
 identifiers, audio, purchases. Camera frames used for barcode scanning are not
-kept. Analytics is off at launch. If it is turned on, add **Usage data ›
-Product interaction (Analytics, not linked)** to both forms.
+kept.
+
+Usage analytics is opt-in and off by default, but both stores count optional
+collection, so it is declared on both forms: Apple **Usage Data › Product
+Interaction** (Analytics, not linked, no tracking) and Google **App activity ›
+App interactions** (optional, Analytics; already declared in Play Console).
 
 ### Apple: App Store Connect › App Privacy
 
 - **Do you or your third-party partners collect data from this app?** Yes.
 - **Tracking:** No. Nothing is used for tracking or advertising.
 
-| Apple category   | Data type          | Purpose           | Linked to user | Tracking |
-| ---------------- | ------------------ | ----------------- | -------------- | -------- |
-| Contact Info     | Email Address      | App Functionality | Yes            | No       |
-| Contact Info     | Name               | App Functionality | Yes            | No       |
-| Health & Fitness | Health             | App Functionality | Yes            | No       |
-| Health & Fitness | Fitness            | App Functionality | Yes            | No       |
-| User Content     | Photos or Videos   | App Functionality | Yes            | No       |
-| User Content     | Other User Content | App Functionality | Yes            | No       |
-| Identifiers      | User ID            | App Functionality | Yes            | No       |
-| Diagnostics      | Crash Data         | App Functionality | No             | No       |
+| Apple category   | Data type           | Purpose           | Linked to user | Tracking |
+| ---------------- | ------------------- | ----------------- | -------------- | -------- |
+| Contact Info     | Email Address       | App Functionality | Yes            | No       |
+| Contact Info     | Name                | App Functionality | Yes            | No       |
+| Health & Fitness | Health              | App Functionality | Yes            | No       |
+| Health & Fitness | Fitness             | App Functionality | Yes            | No       |
+| User Content     | Photos or Videos    | App Functionality | Yes            | No       |
+| User Content     | Other User Content  | App Functionality | Yes            | No       |
+| Identifiers      | User ID             | App Functionality | Yes            | No       |
+| Diagnostics      | Crash Data          | App Functionality | No             | No       |
+| Usage Data       | Product Interaction | Analytics         | No             | No       |
 
 `[CONFIRM]` **Sensitive Info:** nutrition declarations include "pregnant or
 breastfeeding", and preventive care keeps family history. Apple lists
@@ -130,8 +136,9 @@ Apple does not list push tokens as a data type, so they are not declared.
   Yes, in the app (Settings › Delete account), on the web (Settings › Delete
   account and all data) and by email; explained at
   `https://openvalens.com/support#delete-account`.
-- **Shared:** none. Hosting, email, error reporting, push delivery and the
-  optional AI provider are service providers acting for us, which Google does
+- **Shared:** none. Hosting, email, error reporting, push delivery, the
+  optional AI provider and the optional analytics provider (PostHog) are
+  service providers acting for us, which Google does
   not count as sharing. Nothing is sold.
 
 | Google category          | Data type                        | Collected | Optional | Purpose            | Processed ephemerally |
@@ -144,6 +151,7 @@ Apple does not list push tokens as a data type, so they are not declared.
 | Photos and videos        | Photos                           | Yes       | Yes      | App functionality  | No                    |
 | App activity             | Other user-generated content     | Yes       | Yes      | App functionality  | No                    |
 | App info and performance | Crash logs                       | Yes       | No       | App functionality  | No                    |
+| App activity             | App interactions                 | Yes       | Yes      | Analytics          | No                    |
 | Device or other IDs      | Device or other IDs (push token) | Yes       | Yes      | App functionality  | No                    |
 
 ### Google: Health Connect permissions declaration
