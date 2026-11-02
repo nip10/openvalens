@@ -1,6 +1,6 @@
 # Install
 
-**Applies to:** OpenValens 0.9.1 · Last updated: 2026-10-31
+**Applies to:** OpenValens 1.0.0 · Last updated: 2026-10-31
 
 This is the **one supported self-host install** (Issue #63): a pinned Docker
 Compose stack (`deploy/compose.yml`) driven by an interactive setup script
@@ -140,7 +140,7 @@ Install from a release tag: the newest one on the
 ```bash
 git clone https://github.com/nip10/openvalens.git
 cd openvalens
-git checkout v0.9.0          # the newest release tag
+git checkout v1.0.0          # the newest release tag
 deploy/setup.sh install
 ```
 
