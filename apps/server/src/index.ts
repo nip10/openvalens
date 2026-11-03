@@ -40,6 +40,7 @@ import { registerExerciseCatalogAssetRoute } from "./exercise-catalog-asset-rout
 import { createContext } from "./context";
 import { reportError } from "./error-reporting";
 import { ENV } from "./env.server";
+import { SCALAR_CONFIG, SCALAR_SCRIPT_URL } from "./api-reference";
 import { registerHealthRoute } from "./health-route";
 import { registerServerMetaRoute } from "./server-meta-route";
 import { createDataExportWorker, cleanupExportArtifacts } from "./data-export-worker";
@@ -129,6 +130,7 @@ app.use(
     allowDevScriptEval: ENV.NODE_ENV === "development",
     reportToGroup: "csp-endpoint",
     reportToUrl: CSP_REPORT_PATH,
+    additionalScriptSrc: [SCALAR_SCRIPT_URL],
   }),
 );
 
@@ -422,6 +424,8 @@ export const apiHandler = new OpenAPIHandler(appRouter, {
   plugins: [
     new OpenAPIReferencePlugin({
       schemaConverters: [new ZodToJsonSchemaConverter()],
+      docsScriptUrl: SCALAR_SCRIPT_URL,
+      docsConfig: { ...SCALAR_CONFIG },
     }),
   ],
   interceptors: [
