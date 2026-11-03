@@ -111,6 +111,21 @@ describe("template render options (organizationName)", () => {
 
     const custom = await renderLayout(base, { organizationName: "Alpha" });
     expect(custom.text).toContain("This is an automated message from Alpha.");
-    expect(custom.html).toContain(">Alpha</p>");
+    expect(custom.html).toContain(">Alpha</span>");
+  });
+
+  test("renderLayout includes the app mark with an accessible text brand and allows a custom logo URL", async () => {
+    const base = { title: "Title", bodyHtml: "<p>body</p>", bodyText: "body" };
+    const fallback = await renderLayout(base);
+    expect(fallback.html).toContain(
+      'src="https://raw.githubusercontent.com/nip10/openvalens/main/apps/native/assets/images/icon.png"',
+    );
+    expect(fallback.html).toContain('alt="OpenValens logo"');
+    expect(fallback.html).toContain(">OpenValens</span>");
+
+    const custom = await renderLayout(base, { logoUrl: "https://brand.example/logo.png" });
+    expect(custom.html).toContain('src="https://brand.example/logo.png"');
+    expect(custom.html).toContain('alt="OpenValens logo"');
+    expect(custom.html).toContain(">OpenValens</span>");
   });
 });

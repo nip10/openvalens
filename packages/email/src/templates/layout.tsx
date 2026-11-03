@@ -10,6 +10,7 @@ import {
   Heading,
   Hr,
   Html,
+  Img,
   Preview,
   Section,
   Text,
@@ -40,7 +41,7 @@ export const emailStyles = {
   },
   link: { color: emailTokens.signal2 },
 };
-export type EmailRenderOptions = { organizationName?: string; locale?: Locale };
+export type EmailRenderOptions = { organizationName?: string; locale?: Locale; logoUrl?: string };
 export function emailLocale(options: EmailRenderOptions = {}): Locale {
   return options.locale ?? SOURCE_LOCALE;
 }
@@ -78,6 +79,10 @@ export async function renderLayout(
   options: EmailRenderOptions = {},
 ): Promise<RenderedLayout> {
   const organizationName = options.organizationName ?? FALLBACK_ORGANIZATION_NAME;
+  const logoUrl =
+    options.logoUrl ??
+    "https://raw.githubusercontent.com/nip10/openvalens/main/apps/native/assets/images/icon.png";
+  const logoAlt = options.logoUrl ? `${organizationName} logo` : "OpenValens logo";
   const year = new Date().getFullYear();
   const footerText = input.hideFooter
     ? undefined
@@ -118,7 +123,14 @@ export async function renderLayout(
                 textTransform: "uppercase",
               }}
             >
-              {organizationName}
+              <Img
+                src={logoUrl}
+                width="28"
+                height="28"
+                alt={logoAlt}
+                style={{ display: "inline-block", marginRight: "8px", verticalAlign: "middle" }}
+              />
+              <span style={{ verticalAlign: "middle" }}>{organizationName}</span>
             </Text>
             <Heading
               as="h1"
