@@ -55,6 +55,8 @@ export function renderSnippet(cspMode: CspMode, serverOrigin: string, sentryDsn?
   const headers = buildSecurityHeaders({
     cspMode,
     allowDevScriptEval: false,
+    // The built index.html loads one external module script and inlines none.
+    allowInlineScripts: false,
     reportToGroup: "csp-endpoint",
     reportToUrl: `${serverOrigin}${CSP_REPORT_PATH}`,
     additionalConnectSrc: sentryDsn?.trim()
