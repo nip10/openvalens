@@ -1,16 +1,14 @@
-import { msg } from "@lingui/core/macro";
 import type {
   DeliverInvitation,
   DeliverSignUp,
   DeliverVerification,
 } from "@openvalens/auth/admission";
 import type { EmailService } from "@openvalens/email";
-import {
-  localeForEmail,
-  localeForInvitee,
-  serverI18n,
-  type MessageLocales,
-} from "@openvalens/i18n/server";
+import { localeForEmail, localeForInvitee, type MessageLocales } from "@openvalens/i18n/server";
+import { renderAdmissionVerificationEmail } from "@openvalens/email/templates/admission-verification";
+import { renderAdmissionInvitationEmail as renderInvite } from "@openvalens/email/templates/admission-invitation";
+import { renderExistingPublicSignUpEmail as renderExistingSignUp } from "@openvalens/email/templates/public-sign-up-existing";
+import { renderPublicSignUpEmail as renderNewSignUp } from "@openvalens/email/templates/public-sign-up";
 
 /**
  * Admission email (Issue #63), in the recipient's language (Issue #231).
@@ -43,17 +41,8 @@ function webUrlFrom(webOrigin: string | undefined, path: string): string | null 
   }
 }
 
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
-
 export function createAdmissionEmailDelivery(deps: {
-  email: Pick<EmailService, "sendEmail">;
+  email: Pick<EmailService, "sendEmail"> & Partial<Pick<EmailService, "organizationName">>;
   locales: MessageLocales;
   /** The web app origin (`CORS_ORIGIN`); absent or unparseable omits the link. */
   webOrigin?: string;
@@ -66,14 +55,14 @@ export function createAdmissionEmailDelivery(deps: {
     verificationCode,
     locale: requested,
   }) => {
-    const i18n = serverI18n(requested ?? (await localeForEmail(locales, recipient)));
-    const codeLine = (code: string) => i18n._(msg`Your verification code is ${code}.`);
-    const expiryLine = i18n._(msg`It expires in 10 minutes.`);
+    const locale = requested ?? (await localeForEmail(locales, recipient));
+    const message = await renderAdmissionVerificationEmail(verificationCode, {
+      locale,
+      organizationName: email.organizationName,
+    });
     const result = await email.sendEmail({
       to: recipient,
-      subject: i18n._(msg`Verify your email for OpenValens`),
-      text: `${codeLine(verificationCode)} ${expiryLine}`,
-      html: `<p>${codeLine(`<strong>${escapeHtml(verificationCode)}</strong>`)}</p><p>${expiryLine}</p>`,
+      ...message,
       templateName: "admission-verification",
       tags: ["admission-verification"],
     });
@@ -88,20 +77,17 @@ export function createAdmissionEmailDelivery(deps: {
     invitationToken,
     inviterUserId,
   }) => {
-    const i18n = serverI18n(await localeForInvitee(locales, recipient, inviterUserId));
-    const invitedLine = i18n._(msg`You have been invited to OpenValens.`);
-    const tokenLine = (token: string) => i18n._(msg`Your invitation token is ${token}.`);
-    const joinLine = (url: string) =>
-      i18n._(msg`To create your account, open ${url} and paste the token.`);
-    const joinText = joinUrl ? ` ${joinLine(joinUrl)}` : "";
-    const joinHtml = joinUrl
-      ? `<p>${joinLine(`<a href="${escapeHtml(joinUrl)}">${escapeHtml(joinUrl)}</a>`)}</p>`
-      : "";
+    const locale = await localeForInvitee(locales, recipient, inviterUserId);
+    const message = await renderInvite(
+      { token: invitationToken, joinUrl },
+      {
+        locale,
+        organizationName: email.organizationName,
+      },
+    );
     const result = await email.sendEmail({
       to: recipient,
-      subject: i18n._(msg`You’re invited to OpenValens`),
-      text: `${invitedLine} ${tokenLine(invitationToken)}${joinText}`,
-      html: `<p>${invitedLine}</p><p>${tokenLine(`<strong>${escapeHtml(invitationToken)}</strong>`)}</p>${joinHtml}`,
+      ...message,
       templateName: "admission-invitation",
       tags: ["admission-invitation"],
     });
@@ -126,45 +112,18 @@ export function createAdmissionEmailDelivery(deps: {
  *   what keeps the sign-up response from revealing whether an email is known.
  */
 export function createSignUpEmailDelivery(deps: {
-  email: Pick<EmailService, "sendEmail">;
+  email: Pick<EmailService, "sendEmail"> & Partial<Pick<EmailService, "organizationName">>;
   /** The web app origin (`CORS_ORIGIN`), for the sign-in pointer. */
   webOrigin?: string;
 }): DeliverSignUp {
   const loginUrl = webUrlFrom(deps.webOrigin, "/login");
 
-  function newAccountMessage(url: string, i18n: ReturnType<typeof serverI18n>) {
-    const intro = i18n._(msg`Confirm your email to create your OpenValens account.`);
-    const action = i18n._(msg`Create my account`);
-    const expiry = i18n._(msg`The link expires in 1 hour and works once.`);
-    const ignore = i18n._(
-      msg`If you didn’t ask to create an account, ignore this email. No account is created unless the link is used.`,
-    );
-    return {
-      subject: i18n._(msg`Create your OpenValens account`),
-      text: `${intro}\n\n${action}: ${url}\n\n${expiry}\n\n${ignore}`,
-      html: `<p>${intro}</p><p><a href="${escapeHtml(url)}">${action}</a></p><p>${expiry}</p><p>${ignore}</p>`,
-      templateName: "public-sign-up",
-    };
-  }
-
-  function existingAccountMessage(i18n: ReturnType<typeof serverI18n>) {
-    const intro = i18n._(
-      msg`Someone asked to create an OpenValens account with this email address, but it already has one.`,
-    );
-    const signIn = (url: string) => i18n._(msg`To sign in, open ${url}.`);
-    const ignore = i18n._(msg`If that wasn’t you, you can ignore this email.`);
-    return {
-      subject: i18n._(msg`You already have an OpenValens account`),
-      text: `${intro}${loginUrl ? ` ${signIn(loginUrl)}` : ""}\n\n${ignore}`,
-      html: `<p>${intro}</p>${loginUrl ? `<p>${signIn(`<a href="${escapeHtml(loginUrl)}">${escapeHtml(loginUrl)}</a>`)}</p>` : ""}<p>${ignore}</p>`,
-      templateName: "public-sign-up-existing",
-    };
-  }
-
   return async (input) => {
-    const i18n = serverI18n(input.locale ?? "en");
+    const options = { locale: input.locale ?? "en", organizationName: deps.email.organizationName };
     const message =
-      input.kind === "new" ? newAccountMessage(input.url, i18n) : existingAccountMessage(i18n);
+      input.kind === "new"
+        ? await renderNewSignUp({ url: input.url }, options)
+        : await renderExistingSignUp({ loginUrl }, options);
     const result = await deps.email.sendEmail({
       to: input.email,
       ...message,

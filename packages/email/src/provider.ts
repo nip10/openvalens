@@ -21,6 +21,8 @@ export type ResendSendInput = {
   text: string;
   tags?: ResendTag[];
   headers?: Record<string, string>;
+  /** Resend request-level idempotency key (not an email message header). */
+  idempotencyKey?: string;
 };
 
 export type ResendSendResult = { id: string };
@@ -50,6 +52,7 @@ export type EmailDeliveryErrorCategory =
   | "timeout"
   | "rate_limited"
   | "provider_unavailable"
+  | "idempotency_conflict"
   | "auth"
   | "rejected"
   | "unknown";
@@ -67,6 +70,10 @@ function categorizeStatus(
 
   if (status === 429) {
     return "rate_limited";
+  }
+
+  if (status === 409 && providerError === "concurrent_idempotent_requests") {
+    return "idempotency_conflict";
   }
 
   if (status >= 500) {
@@ -101,7 +108,7 @@ export function sanitizeProviderErrorName(value: unknown): string | null {
   return SAFE_PROVIDER_ERROR_PATTERN.test(trimmed) ? trimmed : null;
 }
 
-/** Retryable provider failure (network failure, timeout, 429 or a 5xx response). */
+/** Retryable provider failure (network failure, timeout, 429, 5xx or idempotency conflict). */
 export class EmailTransientError extends Error {
   readonly code = "EMAIL_TRANSIENT";
   readonly retryable = true;
@@ -215,6 +222,9 @@ export class ResendProvider implements EmailProvider {
         headers: {
           Authorization: `Bearer ${this.#apiKey}`,
           "Content-Type": "application/json",
+          ...(input.idempotencyKey !== undefined
+            ? { "Idempotency-Key": input.idempotencyKey }
+            : {}),
         },
         body: JSON.stringify({
           from: input.from,
@@ -241,7 +251,11 @@ export class ResendProvider implements EmailProvider {
     if (!response.ok) {
       const providerError = await readProviderErrorName(response);
 
-      if (response.status >= 500 || response.status === 429) {
+      if (
+        response.status >= 500 ||
+        response.status === 429 ||
+        (response.status === 409 && providerError === "concurrent_idempotent_requests")
+      ) {
         throw new EmailTransientError(response.status, providerError);
       }
 

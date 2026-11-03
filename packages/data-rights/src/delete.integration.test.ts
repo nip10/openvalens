@@ -275,6 +275,12 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
     expect(await count("plain_water_preference", sql`organization_id = 'org-a'`)).toBe(0);
     expect(await count("plain_water_mutation", sql`organization_id = 'org-a'`)).toBe(0);
     expect(
+      await count(
+        "daily_reminder_email_digest",
+        sql`organization_id = 'org-a' and user_id = 'user-a'`,
+      ),
+    ).toBe(0);
+    expect(
       await count("nutrition_template", sql`user_id = 'user-a' or organization_id = 'org-a'`),
     ).toBe(0);
     expect(
@@ -335,6 +341,12 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
       await count("plain_water_mutation", sql`organization_id = 'org-b' and user_id = 'user-b'`),
     ).toBe(1);
     expect(
+      await count(
+        "daily_reminder_email_digest",
+        sql`organization_id = 'org-b' and user_id = 'user-b'`,
+      ),
+    ).toBe(1);
+    expect(
       await count("plain_water_preference", sql`organization_id = 'org-c' and user_id = 'user-b'`),
     ).toBe(1);
     expect(
@@ -358,6 +370,7 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
       { user_id: "user-b", declarations: ["chronic_kidney_disease"] },
     ]);
     expect(report.rowCounts.nutrition_target_settings).toBe(3);
+    expect(report.rowCounts.daily_reminder_email_digest).toBe(1);
   });
 
   test("supplements: own removed, shared and other-account kept", async () => {

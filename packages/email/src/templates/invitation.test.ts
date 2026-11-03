@@ -11,14 +11,14 @@ const INPUT = {
 };
 
 describe("renderInvitationEmail", () => {
-  test("uses the exact subject", () => {
-    expect(renderInvitationEmail(INPUT).subject).toBe(
+  test("uses the exact subject", async () => {
+    expect((await renderInvitationEmail(INPUT)).subject).toBe(
       "Dr. Ada invited you to Northwind Clinic on OpenValens",
     );
   });
 
-  test("html contains the inviter, organization, role, and accept link", () => {
-    const { html } = renderInvitationEmail(INPUT);
+  test("html contains the inviter, organization, role, and accept link", async () => {
+    const { html } = await renderInvitationEmail(INPUT);
 
     expect(html).toContain("Dr. Ada");
     expect(html).toContain("Northwind Clinic");
@@ -29,8 +29,8 @@ describe("renderInvitationEmail", () => {
     );
   });
 
-  test("text contains the placeholder values", () => {
-    const { text } = renderInvitationEmail(INPUT);
+  test("text contains the placeholder values", async () => {
+    const { text } = await renderInvitationEmail(INPUT);
 
     expect(text).toContain("Dr. Ada");
     expect(text).toContain("Northwind Clinic");
@@ -38,8 +38,8 @@ describe("renderInvitationEmail", () => {
     expect(text).toContain(INPUT.acceptUrl);
   });
 
-  test("singularises the expiry copy for one day", () => {
-    const { text } = renderInvitationEmail({ ...INPUT, expiresInDays: 1 });
+  test("singularises the expiry copy for one day", async () => {
+    const { text } = await renderInvitationEmail({ ...INPUT, expiresInDays: 1 });
 
     expect(text).toContain("expires in 1 day.");
   });

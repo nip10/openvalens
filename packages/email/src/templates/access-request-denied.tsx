@@ -13,17 +13,17 @@ export type RenderedAccessRequestDeniedEmail = {
   text: string;
 };
 
-export function renderAccessRequestDeniedEmail(
+export async function renderAccessRequestDeniedEmail(
   input: AccessRequestDeniedEmailInput,
   options: EmailRenderOptions = {},
-): RenderedAccessRequestDeniedEmail {
+): Promise<RenderedAccessRequestDeniedEmail> {
   const subject = `Access request for ${input.organizationName} was denied`;
   const bodyLines = [
     `${input.requesterName}, your access request for ${input.organizationName} was denied.`,
     "If you believe this decision is incorrect, contact your administrator.",
   ];
 
-  const layout = renderLayout(
+  const layout = await renderLayout(
     {
       title: "Your access request was denied",
       preheader: `Your request for ${input.organizationName} was not approved.`,

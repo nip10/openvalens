@@ -246,7 +246,7 @@ export async function runPreventiveReminderDelivery(
           const unsubscribeUrl = `${deps.webOrigin}/unsubscribe?token=${token}`;
           const locale = await recipientLocale();
           const i18n = serverI18n(locale);
-          const rendered = renderInsightsDigestEmail(
+          const rendered = await renderInsightsDigestEmail(
             {
               subject: i18n._(REMINDER_EMAIL_COPY.subject),
               title: i18n._(REMINDER_EMAIL_COPY.title),

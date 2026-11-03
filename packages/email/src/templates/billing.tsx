@@ -48,10 +48,10 @@ function formatDay(date: Date, options: EmailRenderOptions): string {
   }).format(date);
 }
 
-export function renderBillingEmail(
+export async function renderBillingEmail(
   input: BillingEmailInput,
   options: EmailRenderOptions = {},
-): RenderedBillingEmail {
+): Promise<RenderedBillingEmail> {
   const i18n = emailI18n(options);
   const keep = i18n._(msg`Your records stay in your account, and you can export them at any time.`);
 
@@ -125,7 +125,7 @@ export function renderBillingEmail(
     }
   }
 
-  const layout = renderLayout(
+  const layout = await renderLayout(
     {
       title,
       preheader: lines[0],

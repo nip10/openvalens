@@ -86,9 +86,11 @@ describe.skipIf(!url)("createDueDailyReminders", () => {
       organizationId,
       email: {
         sendEmail: async () => ({ id: "email-1", dryRun: false }),
+        prepareEmail: (input) => input,
         organizationName: "Health",
       },
       now: clock,
+      attemptNow: () => clock,
     });
     return { created: due.created, sent: sent.sort(), delivery };
   }
@@ -384,11 +386,13 @@ describe.skipIf(!url)("createDueDailyReminders", () => {
       correlationId: "corr-weekly",
       organizationId: "org-a",
       now,
+      attemptNow: () => now,
       email: {
         sendEmail: async (input) => {
           sent.push(input);
           return { id: "email-1", dryRun: false };
         },
+        prepareEmail: (input) => input,
         organizationName: "Health",
       },
     });
@@ -398,11 +402,16 @@ describe.skipIf(!url)("createDueDailyReminders", () => {
   test("the email fallback delivers without a Telegram bot", async () => {
     // Leftover reminders for a Telegram-only member and for a member with only
     // the weekly email on must not be emailed.
+    await db.execute(sql`delete from daily_reminder_email_digest where organization_id = 'org-a'`);
+    await db.execute(
+      sql`delete from daily_reminder where organization_id = 'org-a' and user_id in ('u-mail','u-tg','u-weekly')`,
+    );
     await db.execute(sql`
       insert into daily_reminder (organization_id, user_id, date, source_type, source_id, label, created_at)
       values ('org-a', 'u-tg', '2026-10-14', 'supplement', 11, 'Vitamin D', '2026-10-14'),
-             ('org-a', 'u-weekly', '2026-10-14', 'supplement', 16, 'Vitamin D', '2026-10-14')`);
-    await run("org-a", false);
+             ('org-a', 'u-weekly', '2026-10-14', 'supplement', 16, 'Vitamin D', '2026-10-14'),
+             ('org-a', 'u-mail', '2026-10-13', 'supplement', 14, 'Vitamin D', '2026-10-13'),
+             ('org-a', 'u-mail', '2026-10-13', 'medication', 23, 'Levothyroxine', '2026-10-13')`);
 
     const sent: SendEmailInput[] = [];
     const email: EmailService = {
@@ -410,6 +419,7 @@ describe.skipIf(!url)("createDueDailyReminders", () => {
         sent.push(input);
         return { id: "email-1", dryRun: false };
       },
+      prepareEmail: (input) => input,
       organizationName: "Health",
     };
     const { logger, lines } = capturingLogger();
@@ -421,11 +431,13 @@ describe.skipIf(!url)("createDueDailyReminders", () => {
       organizationId: "org-a",
       email,
       now,
+      attemptNow: () => now,
     });
 
     expect(delivery).toMatchObject({ sent: 2, skipped: 2, failed: 0 });
-    expect(sent.map((input) => input.to)).toEqual(["mail@example.test", "mail@example.test"]);
-    expect(sent.map((input) => input.text).sort()).toEqual(["Stretch", "Vitamin D"]);
+    expect(sent.map((input) => input.to)).toEqual(["mail@example.test"]);
+    expect(sent[0]?.text).toContain("Levothyroxine");
+    expect(sent[0]?.text).toContain("Vitamin D");
     expect(lines.join("\n")).toContain("telegram_client_unconfigured");
     expect(lines.join("\n")).toContain("email_not_opted_in");
 

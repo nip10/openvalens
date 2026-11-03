@@ -113,7 +113,7 @@ export function createWorkspaceInvitationEmails(deps: {
       let rendered;
       try {
         const locale = await localeForInvitee(locales, input.recipient, input.inviter.id);
-        rendered = renderInvitationEmail(
+        rendered = await renderInvitationEmail(
           {
             inviterName: input.inviter.name || input.inviter.email,
             organizationName: input.organizationName,
@@ -137,7 +137,7 @@ export function createWorkspaceInvitationEmails(deps: {
       let rendered;
       try {
         const locale = await localeForInvitee(locales, input.recipient, input.revokedBy.id);
-        rendered = renderInvitationRevokedEmail(
+        rendered = await renderInvitationRevokedEmail(
           {
             inviterName: input.revokedBy.name || input.revokedBy.email,
             organizationName: input.organizationName,

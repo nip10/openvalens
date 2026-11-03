@@ -62,6 +62,7 @@ describe.skipIf(!url)("review sign-in against disposable PostgreSQL", () => {
   const db = createDb({ DATABASE_URL: url ?? "postgres://127.0.0.1/review_sign_in_test" });
   const email: EmailService = {
     organizationName: "OpenValens",
+    prepareEmail: (input) => input,
     sendEmail: async () => ({ id: "msg-1", dryRun: false }),
   };
   const on = createAuth(ENV, db, { email, reviewSignIn: REVIEW, rateLimitEnabled: false });

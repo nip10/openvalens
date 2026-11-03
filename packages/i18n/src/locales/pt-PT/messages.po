@@ -1261,6 +1261,10 @@ msgstr "Minutos ativos, últimos 7 dias: {value} minutos. {statusText}"
 msgid "Active workout in progress"
 msgstr "Treino ativo em curso"
 
+#: packages/email/src/templates/daily-reminder.tsx
+msgid "Activities"
+msgstr "Atividades"
+
 #: packages/api/src/presenters/insights.ts
 msgctxt "insight topic"
 msgid "activity"
@@ -2880,7 +2884,7 @@ msgstr "Confirme primeiro o envio deste texto ao fornecedor."
 msgid "Confirm you are 18 or older before adding age or sex."
 msgstr "Confirme que tem 18 anos ou mais antes de indicar a idade ou o sexo."
 
-#: apps/server/src/admission-email.ts
+#: packages/email/src/templates/public-sign-up.tsx
 msgid "Confirm your email to create your OpenValens account."
 msgstr "Confirme o seu email para criar a sua conta OpenValens."
 
@@ -3975,7 +3979,7 @@ msgstr "Criar rascunho"
 msgid "Create exercise"
 msgstr "Criar exercício"
 
-#: apps/server/src/admission-email.ts
+#: packages/email/src/templates/public-sign-up.tsx
 msgid "Create my account"
 msgstr "Criar a minha conta"
 
@@ -3992,7 +3996,7 @@ msgstr "Criar exercício do espaço de trabalho"
 msgid "Create your account"
 msgstr "Criar a sua conta"
 
-#: apps/server/src/admission-email.ts
+#: packages/email/src/templates/public-sign-up.tsx
 msgid "Create your OpenValens account"
 msgstr "Crie a sua conta OpenValens"
 
@@ -6063,7 +6067,7 @@ msgstr "Vou introduzir os dados manualmente"
 msgid "I'll type things in"
 msgstr "Vou escrever eu"
 
-#: apps/server/src/admission-email.ts
+#: packages/email/src/templates/public-sign-up-existing.tsx
 msgid "If that wasn’t you, you can ignore this email."
 msgstr "Se não foi você, pode ignorar este email."
 
@@ -6087,7 +6091,7 @@ msgstr "Se ligar o Telegram nas Definições, os mesmos lembretes são enviados 
 msgid "If you did not request this email, you can safely ignore it."
 msgstr "Se não pediu este email, pode ignorá-lo em segurança."
 
-#: apps/server/src/admission-email.ts
+#: packages/email/src/templates/public-sign-up.tsx
 msgid "If you didn’t ask to create an account, ignore this email. No account is created unless the link is used."
 msgstr "Se não pediu para criar uma conta, ignore este email. Nenhuma conta é criada sem que a ligação seja usada."
 
@@ -6461,7 +6465,7 @@ msgstr "Ferro"
 msgid "Irregular schedule"
 msgstr "Horário irregular"
 
-#: apps/server/src/admission-email.ts
+#: packages/email/src/templates/admission-verification.tsx
 msgid "It expires in 10 minutes."
 msgstr "Expira dentro de 10 minutos."
 
@@ -7334,6 +7338,7 @@ msgstr "Aviso médico"
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
 #: packages/api/src/presenters/clinical-export.ts
+#: packages/email/src/templates/daily-reminder.tsx
 msgid "Medications"
 msgstr "Medicamentos"
 
@@ -11550,7 +11555,7 @@ msgstr "Algumas refeições foram registadas nas quatro horas anteriores ao iní
 msgid "Some stored attachments could not be included. You can try again."
 msgstr "Não foi possível incluir alguns anexos armazenados. Pode tentar novamente."
 
-#: apps/server/src/admission-email.ts
+#: packages/email/src/templates/public-sign-up-existing.tsx
 msgid "Someone asked to create an OpenValens account with this email address, but it already has one."
 msgstr "Alguém pediu para criar uma conta OpenValens com este endereço de email, mas ele já tem uma."
 
@@ -11934,6 +11939,7 @@ msgstr "As sugestões seguem a ingestão estimada que mantém estável a tendên
 #: apps/web/src/components/header.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
 #: packages/api/src/presenters/clinical-export.ts
+#: packages/email/src/templates/daily-reminder.tsx
 msgid "Supplements"
 msgstr "Suplementos"
 
@@ -12289,7 +12295,7 @@ msgstr "A última sincronização falhou. Será repetida automaticamente."
 msgid "The library is empty for now."
 msgstr "Por agora, a biblioteca está vazia."
 
-#: apps/server/src/admission-email.ts
+#: packages/email/src/templates/public-sign-up.tsx
 msgid "The link expires in 1 hour and works once."
 msgstr "A ligação expira dentro de 1 hora e só funciona uma vez."
 
@@ -12864,7 +12870,7 @@ msgstr "Título"
 msgid "To connect this chat, open Settings → Telegram in OpenValens and use the connect link there."
 msgstr "Para ligar esta conversa, abra Definições → Telegram no OpenValens e use a ligação que lá encontra."
 
-#: apps/server/src/admission-email.ts
+#: packages/email/src/templates/admission-invitation.tsx
 msgid "To create your account, open {url} and paste the token."
 msgstr "Para criar a sua conta, abra {url} e cole o token."
 
@@ -12881,7 +12887,7 @@ msgstr "Para manter a sua conta, subscreva em Plano e faturação na web antes d
 msgid "To sign in with {0} later, finish joining, sign in with the email link, then choose Connect under Settings → Sign-in methods."
 msgstr "Para iniciar sessão com {0} mais tarde, termine a adesão, inicie sessão com a ligação por email e depois escolha Ligar em Definições → Métodos de início de sessão."
 
-#: apps/server/src/admission-email.ts
+#: packages/email/src/templates/public-sign-up-existing.tsx
 msgid "To sign in, open {url}."
 msgstr "Para iniciar sessão, abra {url}."
 
@@ -13543,7 +13549,7 @@ msgstr "Código de verificação"
 msgid "Verify"
 msgstr "Verificação"
 
-#: apps/server/src/admission-email.ts
+#: packages/email/src/templates/admission-verification.tsx
 msgid "Verify your email for OpenValens"
 msgstr "Confirme o seu email para o OpenValens"
 
@@ -13965,7 +13971,7 @@ msgstr "Ontem"
 msgid "You"
 msgstr "Você"
 
-#: apps/server/src/admission-email.ts
+#: packages/email/src/templates/public-sign-up-existing.tsx
 msgid "You already have an OpenValens account"
 msgstr "Já tem uma conta OpenValens"
 
@@ -14081,7 +14087,7 @@ msgstr "Foi convidado para aderir a <0>{0}</0> como <1>{role}</1>."
 msgid "You have been invited to join a workspace as <0>{role}</0>."
 msgstr "Foi convidado para aderir a um espaço de trabalho como <0>{role}</0>."
 
-#: apps/server/src/admission-email.ts
+#: packages/email/src/templates/admission-invitation.tsx
 msgid "You have been invited to OpenValens."
 msgstr "Foi convidado para o OpenValens."
 
@@ -14101,6 +14107,10 @@ msgstr "Aderiu ao espaço de trabalho."
 #: apps/web/src/components/my-invitations-view.tsx
 msgid "You have no pending workspace invitations."
 msgstr "Não tem convites pendentes para espaços de trabalho."
+
+#: packages/email/src/templates/daily-reminder.tsx
+msgid "You have no reminders for today."
+msgstr "Não tem lembretes para hoje."
 
 #: apps/web/src/routes/_auth/profile.tsx
 msgid "You have unsaved changes on this page. Leave without saving them?"
@@ -14153,7 +14163,7 @@ msgstr "A sessão será terminada e tudo o que esta aplicação guardou de {host
 msgid "You're all set"
 msgstr "Está tudo pronto"
 
-#: apps/server/src/admission-email.ts
+#: packages/email/src/templates/admission-invitation.tsx
 msgid "You’re invited to OpenValens"
 msgstr "Foi convidado para o OpenValens"
 
@@ -14273,9 +14283,9 @@ msgstr "A sua alteração: remover o registo."
 msgid "Your change: the entry values."
 msgstr "A sua alteração: os valores do registo."
 
-#: packages/integrations/telegram/src/reminders.ts
-msgid "Your daily reminder"
-msgstr "O seu lembrete diário"
+#: packages/email/src/templates/daily-reminder.tsx
+msgid "Your daily reminders"
+msgstr "Os seus lembretes diários"
 
 #: apps/web/src/components/preventive-care-view.tsx
 msgid "Your decision about {title}"
@@ -14319,7 +14329,7 @@ msgstr "O seu convite para {organizationName} foi revogado"
 msgid "Your invitation to {organizationName} is no longer active."
 msgstr "O seu convite para {organizationName} já não está ativo."
 
-#: apps/server/src/admission-email.ts
+#: packages/email/src/templates/admission-invitation.tsx
 msgid "Your invitation token is {token}."
 msgstr "O seu token de convite é {token}."
 
@@ -14444,6 +14454,11 @@ msgstr "Os seus registos ficam na sua conta e pode exportá-los a qualquer momen
 msgid "Your records will be deleted"
 msgstr "Os seus registos vão ser eliminados"
 
+#. placeholder {0}: input.date
+#: packages/email/src/templates/daily-reminder.tsx
+msgid "Your reminders for {0}."
+msgstr "Os seus lembretes para {0}."
+
 #: apps/native/lib/workouts/rest-timer.ts
 msgid "Your rest is over."
 msgstr "O seu descanso terminou."
@@ -14551,7 +14566,7 @@ msgstr "O seu habitual: {usual} (mediana de {0, plural, one {# dia} other {# dia
 msgid "Your values include device readings. Devices often measure resting heart rate during sleep, which likely reads lower than the seated pulse used in the reference, so this band may place you lower than a seated reading would."
 msgstr "Os seus valores incluem leituras de dispositivos. Os dispositivos medem muitas vezes a frequência cardíaca em repouso durante o sono, o que provavelmente dá valores mais baixos do que a pulsação sentada usada na referência, por isso esta faixa pode colocá-lo mais abaixo do que uma leitura sentada colocaria."
 
-#: apps/server/src/admission-email.ts
+#: packages/email/src/templates/admission-verification.tsx
 msgid "Your verification code is {code}."
 msgstr "O seu código de verificação é {code}."
 

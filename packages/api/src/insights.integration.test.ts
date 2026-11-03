@@ -133,6 +133,7 @@ describe.skipIf(!url)("insights over HTTP against disposable PostgreSQL", () => 
   let workspaceAccessLevel: "full" | "read_only" = "full";
   const fakeEmail: EmailService = {
     organizationName: "Health",
+    prepareEmail: (input) => input,
     sendEmail: async (input) => {
       if (failEmail) throw new EmailTransientError(503, "provider_down");
       emails.push(input);
@@ -909,8 +910,8 @@ describe.skipIf(!url)("insights over HTTP against disposable PostgreSQL", () => 
     expect(email.text).toContain(
       "Desligar este email: https://app.example.test/unsubscribe?token=",
     );
-    expect(email.html).toContain('<html lang="pt-PT">');
-    expect(email.html).toContain(">Definições de notificações</a>");
+    expect(email.html).toMatch(/<html\b[^>]*\blang="pt-PT"[^>]*>/);
+    expect(email.html).toContain("Definições de notificações");
 
     await db.execute(sql`delete from user_preference where user_id = 'user-a'`);
   });

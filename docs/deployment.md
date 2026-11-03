@@ -319,6 +319,14 @@ Only members who connected Telegram, or turned on "Daily reminders by email" in
 their notification settings (`insight_preference.daily_reminder_email`, off by
 default), get reminders.
 
+- **Once per day.** Each (member, date, item) slot is created once. Email-only
+  members receive one grouped digest containing the full eligible set captured
+  when the immutable daily snapshot is made; later additions remain pending
+  and are not sent as a second digest that day. Provider retries reuse that
+  exact snapshot and idempotency key, for at most 23 hours after preparation.
+  The digest schema is added by a normal `bun run db:migrate` migration.
+  During rollout, stop/drain old cron workers before enabling the new workers
+  so they cannot race the digest reservation protocol.
 - **Once per day.** Each (member, date, item) slot is created once, so
   rerunning the job, overlapping runs and a repeated DST hour create and send
   nothing twice. "Hour reached" means local hour ≥ reminder hour, so a skipped

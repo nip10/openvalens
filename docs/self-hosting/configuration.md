@@ -319,6 +319,14 @@ If the job misses runs, a member's reminders go out at the next run on the same
 local day. Reminders for a day that has already ended are never sent, so an
 outage does not end in a burst of old reminders.
 
+Email-only members receive one daily grouped digest. Its immutable snapshot
+includes all eligible pending reminders present at preparation time; items added
+after that cutoff remain pending and are not sent in another email that day.
+Retries reuse the frozen message and provider idempotency key for up to 23 hours
+after snapshot creation. Apply the digest table migration with the normal
+pre-migration backup procedure before deploying this worker, and stop/drain old
+cron workers before switching to the new worker to avoid mixed-version races.
+
 1. Create a bot with [@BotFather](https://t.me/BotFather) (`/newbot`) and keep
    the token it gives you private.
 2. Save the token as a secret and apply it:
