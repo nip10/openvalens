@@ -1,3 +1,4 @@
+/** @jsxImportSource react */
 import { emailStyles, emailTokens, renderLayout, type EmailRenderOptions } from "./layout";
 import { Link, Section, Text } from "react-email";
 

@@ -1,3 +1,4 @@
+/** @jsxImportSource react */
 import { msg } from "@lingui/core/macro";
 
 import {
