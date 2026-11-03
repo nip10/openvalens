@@ -332,6 +332,11 @@ The readiness body also reports each optional integration (`email`, `ai`,
 [Configuration](configuration.md#optional-providers). Those never degrade the
 status.
 
+For an **uptime monitor** that can only send `GET` or `HEAD`, use
+`https://<domain>/api/health`. It pings the database and answers 200
+(`{"status":"ok","database":"ok"}`), or 503 when the database is unreachable.
+It checks nothing else; readiness above is the full report.
+
 From **another machine**, confirm that only 80/443 answer, for example
 `nmap -Pn -p 80,443,3000,3001,5432 <host>` (3000, 3001 and 5432 must not be
 open).

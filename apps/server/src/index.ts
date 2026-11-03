@@ -3,6 +3,7 @@
 import "./csp-mode-capture";
 import { Readable } from "node:stream";
 import { CSP_REPORT_PATH, createCspReportHandler, resolveCspMode } from "./security-csp-report";
+import { pingDatabase } from "@openvalens/api/routers/health";
 import { appRouter } from "@openvalens/api/routers/index";
 import { ensureActiveOrganization, personalWorkspaceSlug } from "@openvalens/auth/authz/auth-org";
 import { InMemoryRateLimiter } from "@openvalens/ai/rate-limit";
@@ -39,6 +40,7 @@ import { registerExerciseCatalogAssetRoute } from "./exercise-catalog-asset-rout
 import { createContext } from "./context";
 import { reportError } from "./error-reporting";
 import { ENV } from "./env.server";
+import { registerHealthRoute } from "./health-route";
 import { registerServerMetaRoute } from "./server-meta-route";
 import { createDataExportWorker, cleanupExportArtifacts } from "./data-export-worker";
 import { openAuthorizedExportArchive } from "./data-export-download";
@@ -337,6 +339,9 @@ registerExerciseCatalogAssetRoute(app, {
 // Issue #295 — public server check the mobile app reads before connecting.
 // Issue #294 — mode and sign-up come from the validated `DEPLOYMENT_MODE`.
 registerServerMetaRoute(app, { signInOptions, profile: () => deploymentInfo });
+
+// Issue #308 — GET liveness with a database ping, for uptime monitors.
+registerHealthRoute(app, { pingDatabase: () => pingDatabase(db) });
 
 // Issue #297 — Stripe webhook (Cloud only). Registered before the oRPC
 // catch-all; reads the raw body for signature verification.
