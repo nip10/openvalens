@@ -1,3 +1,4 @@
+/** @jsxImportSource react */
 import type { I18n } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { SOURCE_LOCALE, type Locale } from "@openvalens/i18n";

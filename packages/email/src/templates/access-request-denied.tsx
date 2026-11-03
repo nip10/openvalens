@@ -1,3 +1,4 @@
+/** @jsxImportSource react */
 import { renderLayout, renderParagraphs, type EmailRenderOptions } from "./layout";
 
 const APP_NAME = "OpenValens";

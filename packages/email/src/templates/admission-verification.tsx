@@ -1,3 +1,4 @@
+/** @jsxImportSource react */
 import { msg } from "@lingui/core/macro";
 import { Section, Text } from "react-email";
 import { emailI18n, emailStyles, renderLayout, type EmailRenderOptions } from "./layout";

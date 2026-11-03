@@ -1,3 +1,4 @@
+/** @jsxImportSource react */
 // TODO(#15): migrate to React Email if/when the react-email dep family is
 // adopted. Plain functions keep the `{ subject, html, text }` contract stable.
 import { msg, plural } from "@lingui/core/macro";
