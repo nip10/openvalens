@@ -56,6 +56,7 @@ describe("built site", () => {
     const headers = await readFile(join(outDir, "_headers"), "utf8");
     expect(headers).toContain(`Content-Security-Policy: ${SITE_CSP_HEADER}`);
     expect(headers).toContain("Referrer-Policy: no-referrer");
+    expect(headers).toContain("Strict-Transport-Security: max-age=31536000\n");
   });
 
   test("the page carries the canonical URL, Open Graph and Twitter card tags", async () => {
