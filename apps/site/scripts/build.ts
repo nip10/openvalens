@@ -40,6 +40,8 @@ export function renderHeaders(): string {
   return [
     "/*",
     `  Content-Security-Policy: ${SITE_CSP_HEADER}`,
+    // Not includeSubDomains or preload: mail autoconfig names share the domain.
+    "  Strict-Transport-Security: max-age=31536000",
     "  Referrer-Policy: no-referrer",
     "  X-Content-Type-Options: nosniff",
     "  Permissions-Policy: camera=(), microphone=(), geolocation=(), interest-cohort=()",
