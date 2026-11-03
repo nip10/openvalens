@@ -139,7 +139,7 @@ describe.skipIf(!url)("AI health tools against disposable PostgreSQL", () => {
         organizationId: ORG_A,
         metricDefinitionId: ferritinA,
         sampledAt: new Date(now - DAY_MS),
-        numericValue: 777,
+        numericValue: 777.125,
         dedupeHash: "a-f-3",
         supersededAt: new Date(),
       },
@@ -200,8 +200,11 @@ describe.skipIf(!url)("AI health tools against disposable PostgreSQL", () => {
   });
 
   btest("healthSnapshot reads real data for the bound org only", async () => {
-    const snapshot = await executeHealthSnapshot(context());
+    const proofNow = new Date();
+    proofNow.setUTCMilliseconds(777);
+    const snapshot = await executeHealthSnapshot(context({ now: () => proofNow }));
     if (snapshot.status !== "ok") throw new Error(`expected ok, got ${snapshot.status}`);
+    expect(snapshot.generatedAt).toBe(proofNow.toISOString());
 
     expect(snapshot.labs.markers).toEqual([
       expect.objectContaining({ code: "blood_marker_ferritin", latestValue: 52 }),
@@ -218,7 +221,7 @@ describe.skipIf(!url)("AI health tools against disposable PostgreSQL", () => {
     const serialized = JSON.stringify(snapshot);
     for (const forbidden of [
       "999",
-      "777",
+      "777.125",
       "123.4",
       "Cortisol",
       "SYNTHETIC_NOTE_A",

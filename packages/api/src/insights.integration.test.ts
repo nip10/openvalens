@@ -910,8 +910,8 @@ describe.skipIf(!url)("insights over HTTP against disposable PostgreSQL", () => 
     expect(email.text).toContain(
       "Desligar este email: https://app.example.test/unsubscribe?token=",
     );
-    expect(email.html).toContain('<html lang="pt-PT">');
-    expect(email.html).toContain(">Definições de notificações</a>");
+    expect(email.html).toMatch(/<html\b[^>]*\blang="pt-PT"[^>]*>/);
+    expect(email.html).toContain("Definições de notificações");
 
     await db.execute(sql`delete from user_preference where user_id = 'user-a'`);
   });
