@@ -44,6 +44,7 @@
     "@happy-dom/global-registrator": "^21.0.4",
     "@lingui/vite-plugin": "6.9.1",
     "@openvalens/config": "workspace:*",
+    "@sentry/vite-plugin": "11.8.0",
     "@tanstack/react-query-devtools": "^5.102.8",
     "@tanstack/react-router-devtools": "^1.167.1",
     "@tanstack/router-plugin": "^1.168.35",

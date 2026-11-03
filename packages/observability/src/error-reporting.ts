@@ -5,7 +5,7 @@
  * sent unless an operator configures a DSN. Every event passes through
  * {@link scrubErrorEvent}, which keeps only what is needed to find the code
  * that failed — the exception type, mechanism and code frames, plus release
- * and environment — and drops everything that could carry health data or
+ * and environment, and the source-map debug ids — and drops everything that could carry health data or
  * identity: error messages, request data, cookies, headers, URLs and query
  * strings, user, extras, tags, breadcrumbs, host names and source lines.
  * Events without an exception (plain messages) are dropped entirely.
@@ -25,8 +25,12 @@ export type ErrorEvent = {
   sdk?: { name?: string; version?: string };
   exception?: { values?: ExceptionValue[] };
   contexts?: Record<string, Record<string, unknown> | undefined>;
+  debug_meta?: { images?: DebugImage[]; [key: string]: unknown };
   [key: string]: unknown;
 };
+
+/** A source-map image: how Sentry matches a minified file to its uploaded map. */
+type DebugImage = { type?: string; debug_id?: string; code_file?: string; [key: string]: unknown };
 
 type ExceptionValue = {
   type?: string;
@@ -56,6 +60,7 @@ export type ErrorReportingConfig = {
 /** Error names are identifiers; anything else (a message in disguise) is replaced. */
 const ERROR_TYPE = /^[A-Za-z_$][\w$.]{0,99}$/;
 const MAX_FRAMES = 100;
+const DEBUG_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Drops the query string and fragment, which can carry ids or tokens. */
 function stripUrlParts(path: string | undefined): string | undefined {
@@ -106,6 +111,21 @@ function scrubContexts(contexts: ErrorEvent["contexts"]): ErrorEvent["contexts"]
   return Object.keys(safe).length ? safe : undefined;
 }
 
+/** Keeps source-map debug ids and their file paths (no query), nothing else. */
+function scrubDebugMeta(meta: ErrorEvent["debug_meta"]): ErrorEvent["debug_meta"] | undefined {
+  if (!Array.isArray(meta?.images)) return undefined;
+  const images = meta.images
+    .filter((image) => image.type === "sourcemap" && DEBUG_ID.test(image.debug_id ?? ""))
+    .slice(0, MAX_FRAMES)
+    .map((image) => {
+      const safe: DebugImage = { type: "sourcemap", debug_id: image.debug_id };
+      const codeFile = stripUrlParts(image.code_file);
+      if (codeFile) safe.code_file = codeFile;
+      return safe;
+    });
+  return images.length ? { images } : undefined;
+}
+
 /**
  * Returns the event reduced to its allowlisted fields, or `null` to drop it.
  * Pass as `beforeSend` to every Sentry SDK.
@@ -120,6 +140,8 @@ export function scrubErrorEvent<T extends object>(input: T): T | null {
   if (event.sdk) safe.sdk = { name: event.sdk.name, version: event.sdk.version };
   const contexts = scrubContexts(event.contexts);
   if (contexts) safe.contexts = contexts;
+  const debugMeta = scrubDebugMeta(event.debug_meta);
+  if (debugMeta) safe.debug_meta = debugMeta;
   return safe as T;
 }
 

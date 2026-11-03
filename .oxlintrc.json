@@ -53,6 +53,12 @@
       "rules": {
         "no-restricted-imports": "off"
       }
+    },
+    {
+      "files": ["apps/web/vite.config.ts"],
+      "rules": {
+        "no-restricted-imports": "off"
+      }
     }
   ],
   "env": {
