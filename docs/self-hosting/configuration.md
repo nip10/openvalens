@@ -403,8 +403,16 @@ Every event is reduced to the error type, code locations, release and
 environment before it leaves the instance: no error messages, request data,
 headers, cookies, URLs, user, device details or breadcrumbs, and no performance
 tracing. The readiness probe reports `"sentry": true` while server reporting is
-on. Uploading source maps is optional and happens on your build machine with
-`SENTRY_AUTH_TOKEN`; never put that token in `deploy/.env` or the running stack.
+on. Events also keep the source-map debug ids (no personal data), so Sentry
+can match browser errors to uploaded source maps.
+
+**Web source maps (optional).** Building the web image with the build argument
+`SENTRY_AUTH_TOKEN` (an organization auth token) turns on the Sentry Vite
+plugin: the build makes hidden source maps, uploads them to `SENTRY_ORG` /
+`SENTRY_PROJECT` (also build arguments), then deletes them, so they are never
+served. A failed upload doesn't fail the build. The token is used by the
+builder stage only and is not in the final image. Never put it in `deploy/.env`
+or the running stack. Without it, the build makes no source maps.
 
 ## Product settings
 

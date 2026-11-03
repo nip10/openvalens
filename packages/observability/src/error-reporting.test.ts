@@ -128,6 +128,36 @@ describe("scrubErrorEvent", () => {
     expect(scrubErrorEvent(event)?.exception?.values?.[0]?.type).toBe("Error");
   });
 
+  test("keeps only source-map debug ids and their file paths from debug_meta", () => {
+    const debugId = "c0ffee00-1234-4abc-8def-0123456789ab";
+    const event = realisticEvent();
+    event.debug_meta = {
+      images: [
+        {
+          type: "sourcemap",
+          debug_id: debugId,
+          code_file: `https://app.example.test/assets/index.js?subject=${SUBJECT_ID}`,
+          note: EMAIL,
+        },
+        { type: "sourcemap", debug_id: `not-an-id ${EMAIL}` },
+        { type: "macho", debug_id: debugId, code_file: "/Users/ana/app" },
+      ],
+      sdk_info: { email: EMAIL },
+    };
+    const scrubbed = scrubErrorEvent(event);
+    expect(scrubbed?.debug_meta).toEqual({
+      images: [
+        {
+          type: "sourcemap",
+          debug_id: debugId,
+          code_file: "https://app.example.test/assets/index.js",
+        },
+      ],
+    });
+    expect(JSON.stringify(scrubbed)).not.toContain(EMAIL);
+    expect(JSON.stringify(scrubbed)).not.toContain(SUBJECT_ID);
+  });
+
   test("drops events without an exception and every breadcrumb", () => {
     expect(scrubErrorEvent({ message: `Hello ${EMAIL}` })).toBeNull();
     expect(scrubErrorEvent({ exception: { values: [] } })).toBeNull();
