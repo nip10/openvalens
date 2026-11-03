@@ -58,6 +58,11 @@ export type SecurityHeadersOptions = {
    * served from different origins (`VITE_SERVER_URL`).
    */
   additionalConnectSrc?: readonly string[];
+  /**
+   * Extra `script-src` sources, after `'self'`. The server adds the pinned
+   * Scalar bundle for its API reference page (#369). Use exact file URLs.
+   */
+  additionalScriptSrc?: readonly string[];
 };
 
 /** Allowlisted third-party origins the app connects to. */
@@ -80,9 +85,11 @@ export function buildSecurityHeaders({
   reportToGroup,
   reportToUrl,
   additionalConnectSrc = [],
+  additionalScriptSrc = [],
 }: SecurityHeadersOptions): Record<string, string> {
   const scriptSrc = [
     "'self'",
+    ...additionalScriptSrc,
     ...(allowInlineScripts ? ["'unsafe-inline'"] : []),
     ...(allowDevScriptEval ? ["'unsafe-eval'"] : []),
   ];
