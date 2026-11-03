@@ -238,6 +238,11 @@ describe("legal and support pages", () => {
     for (const page of PAGES) expect(html).toContain(`href="/${page}"`);
   });
 
+  test("support links to the Cloud status page", async () => {
+    const html = await readFile(join(outDir, "support.html"), "utf8");
+    expect(html).toContain('href="https://stats.uptimerobot.com/hYgbJCzAWr" id="status"');
+  });
+
   test("support explains account deletion at a stable anchor (Google Play deletion URL)", async () => {
     const html = await readFile(join(outDir, "support.html"), "utf8");
     expect(html).toContain('id="delete-account"');
