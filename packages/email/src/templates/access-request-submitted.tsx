@@ -14,10 +14,10 @@ export type RenderedAccessRequestSubmittedEmail = {
   text: string;
 };
 
-export function renderAccessRequestSubmittedEmail(
+export async function renderAccessRequestSubmittedEmail(
   input: AccessRequestSubmittedEmailInput,
   options: EmailRenderOptions = {},
-): RenderedAccessRequestSubmittedEmail {
+): Promise<RenderedAccessRequestSubmittedEmail> {
   const subject = `${input.requesterName} requested access to ${input.organizationName}`;
   const bodyLines = [
     `${input.requesterName} submitted a new access request for ${input.organizationName}.`,
@@ -25,7 +25,7 @@ export function renderAccessRequestSubmittedEmail(
     "Please process pending requests promptly to keep access up to date.",
   ];
 
-  const layout = renderLayout(
+  const layout = await renderLayout(
     {
       title: "Access request received",
       preheader: `${input.requesterName} requested access to ${input.organizationName}.`,

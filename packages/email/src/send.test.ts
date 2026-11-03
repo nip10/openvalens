@@ -144,6 +144,26 @@ describe("sendEmail", () => {
     expect(lines.join("\n")).not.toContain("secret-token");
   });
 
+  test("passes idempotency keys separately from message headers and never logs them", async () => {
+    const { logger, lines } = createCapturingLogger();
+    const provider = new FakeProvider();
+    const idempotencyKey = "request-key-secret";
+
+    await sendEmail({ ...BASE_INPUT, idempotencyKey }, { config: BASE_CONFIG, logger, provider });
+
+    expect(provider.calls[0]?.idempotencyKey).toBe(idempotencyKey);
+    expect(provider.calls[0]?.headers).toBeUndefined();
+    expect(lines.join("\n")).not.toContain(idempotencyKey);
+  });
+
+  test("preserves sends without an idempotency key", async () => {
+    const provider = new FakeProvider();
+
+    await sendEmail(BASE_INPUT, { config: BASE_CONFIG, provider });
+
+    expect(provider.calls[0]?.idempotencyKey).toBeUndefined();
+  });
+
   test("auto-applies the audit BCC to sensitive templates", async () => {
     const { logger } = createCapturingLogger();
     const provider = new FakeProvider();
@@ -326,6 +346,34 @@ describe("ResendProvider", () => {
     expect(result).toEqual({ id: "msg-1" });
   });
 
+  test("sends idempotency key as an HTTP header, not in the JSON body", async () => {
+    let request: Request | undefined;
+    globalThis.fetch = (async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      request = new Request(String(input), init);
+      return new Response(JSON.stringify({ id: "msg-1" }), { status: 200 });
+    }) as typeof fetch;
+
+    const idempotencyKey = "request-key-secret";
+    await new ResendProvider("re_test_1234567890").send({ ...sendInput, idempotencyKey });
+
+    expect(request?.headers.get("Idempotency-Key")).toBe(idempotencyKey);
+    const body = await request?.json();
+    expect(body).not.toHaveProperty("idempotencyKey");
+    expect(body).not.toHaveProperty("headers");
+  });
+
+  test("omits the idempotency header when no key is supplied", async () => {
+    let request: Request | undefined;
+    globalThis.fetch = (async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      request = new Request(String(input), init);
+      return new Response(JSON.stringify({ id: "msg-1" }), { status: 200 });
+    }) as typeof fetch;
+
+    await new ResendProvider("re_test_1234567890").send(sendInput);
+
+    expect(request?.headers.has("Idempotency-Key")).toBe(false);
+  });
+
   test("5xx responses throw EmailTransientError", async () => {
     globalThis.fetch = (async () =>
       new Response(JSON.stringify({ name: "internal_server_error" }), {
@@ -358,6 +406,34 @@ describe("ResendProvider", () => {
 
     expect(error).toBeInstanceOf(EmailTransientError);
     expect(error).toMatchObject({ category: "rate_limited", providerError: "rate_limit_exceeded" });
+  });
+
+  test("only Resend's concurrent idempotency conflict is retryable for HTTP 409", async () => {
+    globalThis.fetch = (async () =>
+      new Response(JSON.stringify({ name: "concurrent_idempotent_requests" }), {
+        status: 409,
+      })) as unknown as typeof fetch;
+
+    const error = await new ResendProvider("re_test_1234567890").send(sendInput).catch((e) => e);
+    expect(error).toBeInstanceOf(EmailTransientError);
+    expect(error).toMatchObject({
+      category: "idempotency_conflict",
+      providerError: "concurrent_idempotent_requests",
+    });
+  });
+
+  test("idempotency payload mismatch remains a permanent HTTP 409", async () => {
+    globalThis.fetch = (async () =>
+      new Response(JSON.stringify({ name: "invalid_idempotent_request" }), {
+        status: 409,
+      })) as unknown as typeof fetch;
+
+    const error = await new ResendProvider("re_test_1234567890").send(sendInput).catch((e) => e);
+    expect(error).toBeInstanceOf(EmailPermanentError);
+    expect(error).toMatchObject({
+      category: "rejected",
+      providerError: "invalid_idempotent_request",
+    });
   });
 
   test("401 responses are permanent auth failures", async () => {

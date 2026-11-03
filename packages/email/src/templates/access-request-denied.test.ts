@@ -8,22 +8,22 @@ const INPUT = {
 };
 
 describe("renderAccessRequestDeniedEmail", () => {
-  test("uses the exact subject", () => {
-    expect(renderAccessRequestDeniedEmail(INPUT).subject).toBe(
+  test("uses the exact subject", async () => {
+    expect((await renderAccessRequestDeniedEmail(INPUT)).subject).toBe(
       "Access request for Northwind Clinic was denied",
     );
   });
 
-  test("html contains the placeholder values", () => {
-    const { html } = renderAccessRequestDeniedEmail(INPUT);
+  test("html contains the placeholder values", async () => {
+    const { html } = await renderAccessRequestDeniedEmail(INPUT);
 
     expect(html).toContain("Dr. Ada");
     expect(html).toContain("Northwind Clinic");
     expect(html).toContain("denied");
   });
 
-  test("text contains the placeholder values", () => {
-    const { text } = renderAccessRequestDeniedEmail(INPUT);
+  test("text contains the placeholder values", async () => {
+    const { text } = await renderAccessRequestDeniedEmail(INPUT);
 
     expect(text).toContain("Dr. Ada");
     expect(text).toContain("Northwind Clinic");

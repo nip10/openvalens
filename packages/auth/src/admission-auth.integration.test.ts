@@ -60,6 +60,7 @@ describe.skipIf(!url)("admission auth HTTP against disposable PostgreSQL", () =>
   const sent: SendEmailInput[] = [];
   const email: EmailService = {
     organizationName: "OpenValens",
+    prepareEmail: (input) => input,
     sendEmail: async (input: SendEmailInput, _options?: SendEmailOptions) => {
       sent.push(input);
       return { id: "msg-1", dryRun: false };

@@ -47,16 +47,16 @@ describe("admission verification email", () => {
       verificationCode: "AB<1>",
     });
 
-    expect(sent).toEqual([
-      {
-        to: "new@example.test",
-        subject: "Verify your email for OpenValens",
-        text: "Your verification code is AB<1>. It expires in 10 minutes.",
-        html: "<p>Your verification code is <strong>AB&lt;1&gt;</strong>.</p><p>It expires in 10 minutes.</p>",
-        templateName: "admission-verification",
-        tags: ["admission-verification"],
-      },
-    ]);
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toMatchObject({
+      to: "new@example.test",
+      subject: "Verify your email for OpenValens",
+      text: "Your verification code is AB<1>. It expires in 10 minutes.",
+      templateName: "admission-verification",
+      tags: ["admission-verification"],
+    });
+    expect(sent[0]?.html).toContain("Your verification code is AB&lt;1&gt;.");
+    expect(sent[0]?.html).not.toContain("AB<1>");
   });
 
   test("the page's language wins and needs no lookup", async () => {
@@ -73,9 +73,8 @@ describe("admission verification email", () => {
     expect(sent[0]?.text).toBe(
       "O seu código de verificação é 123456. Expira dentro de 10 minutos.",
     );
-    expect(sent[0]?.html).toBe(
-      "<p>O seu código de verificação é <strong>123456</strong>.</p><p>Expira dentro de 10 minutos.</p>",
-    );
+    expect(sent[0]?.html).toContain("O seu código de verificação é 123456.");
+    expect(sent[0]?.html).toContain("Expira dentro de 10 minutos.");
   });
 
   test("without a page language, an existing account's language is used", async () => {
@@ -118,9 +117,8 @@ describe("admission invitation email", () => {
 
     expect(sent[0]?.subject).toBe("Foi convidado para o OpenValens");
     expect(sent[0]?.text).toBe("Foi convidado para o OpenValens. O seu token de convite é tok<&>.");
-    expect(sent[0]?.html).toBe(
-      "<p>Foi convidado para o OpenValens.</p><p>O seu token de convite é <strong>tok&lt;&amp;&gt;</strong>.</p>",
-    );
+    expect(sent[0]?.html).toContain("Foi convidado para o OpenValens.");
+    expect(sent[0]?.html).toContain("O seu token de convite é tok&lt;&amp;&gt;.");
   });
 
   test("a recipient with an account gets their own language", async () => {
@@ -135,14 +133,14 @@ describe("admission invitation email", () => {
     });
 
     expect(lookups).toEqual(["email:member@example.test"]);
-    expect(sent[0]).toEqual({
+    expect(sent[0]).toMatchObject({
       to: "member@example.test",
       subject: "You’re invited to OpenValens",
       text: "You have been invited to OpenValens. Your invitation token is tok.",
-      html: "<p>You have been invited to OpenValens.</p><p>Your invitation token is <strong>tok</strong>.</p>",
       templateName: "admission-invitation",
       tags: ["admission-invitation"],
     });
+    expect(sent[0]?.html).toContain("Your invitation token is tok.");
   });
 
   test("a failed lookup falls back to English", async () => {
@@ -193,8 +191,9 @@ describe("admission invitation email: join link (Issue #243)", () => {
     expect(sent[0]?.text).toBe(
       "You have been invited to OpenValens. Your invitation token is tok. To create your account, open https://health.example/join and paste the token.",
     );
+    expect(sent[0]?.html).toContain('href="https://health.example/join"');
     expect(sent[0]?.html).toContain(
-      '<p>To create your account, open <a href="https://health.example/join">https://health.example/join</a> and paste the token.</p>',
+      "To create your account, open https://health.example/join and paste the token.",
     );
     expect(sent[0]?.html).not.toContain("join?");
     expect(sent[0]?.text).not.toContain("join?");

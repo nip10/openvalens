@@ -10,7 +10,7 @@ import { renderLayout } from "./layout";
 import { renderMagicLinkEmail } from "./magic-link";
 
 type Rendered = { subject: string; html: string; text: string };
-type Renderer = (input: never, options?: { organizationName?: string }) => Rendered;
+type Renderer = (input: never, options?: { organizationName?: string }) => Promise<Rendered>;
 
 const ORG = "Northwind Clinic";
 const URL = "https://app.example/action?token=abc123&org=org_1";
@@ -67,19 +67,19 @@ const CASES: Array<{ name: string; render: Renderer; input: unknown }> = [
 
 describe("template render options (organizationName)", () => {
   for (const { name, render, input } of CASES) {
-    test(`${name}: default options render byte-identically to explicit OpenValens`, () => {
-      const fallback = render(input as never);
-      const explicit = render(input as never, { organizationName: "OpenValens" });
+    test(`${name}: default options render byte-identically to explicit OpenValens`, async () => {
+      const fallback = await render(input as never);
+      const explicit = await render(input as never, { organizationName: "OpenValens" });
 
       expect(explicit.html).toBe(fallback.html);
       expect(explicit.text).toBe(fallback.text);
       expect(explicit.subject).toBe(fallback.subject);
     });
 
-    test(`${name}: custom names change only the organization header, body stays identical`, () => {
-      const fallback = render(input as never);
-      const alpha = render(input as never, { organizationName: "Alpha" });
-      const beta = render(input as never, { organizationName: "Beta" });
+    test(`${name}: custom names change only the organization header, body stays identical`, async () => {
+      const fallback = await render(input as never);
+      const alpha = await render(input as never, { organizationName: "Alpha" });
+      const beta = await render(input as never, { organizationName: "Beta" });
 
       expect(alpha.html).not.toBe(beta.html);
       expect(alpha.html.split("Alpha").join("OpenValens")).toBe(fallback.html);
@@ -90,8 +90,8 @@ describe("template render options (organizationName)", () => {
     });
   }
 
-  test("escapes the organization name in the header", () => {
-    const rendered = renderInvitationEmail(CASES[0]?.input as never, {
+  test("escapes the organization name in the header", async () => {
+    const rendered = await renderInvitationEmail(CASES[0]?.input as never, {
       organizationName: "<Alpha & Co>",
     });
 
@@ -99,17 +99,17 @@ describe("template render options (organizationName)", () => {
     expect(rendered.html).not.toContain("<Alpha & Co>");
   });
 
-  test("renderLayout defaults its footer copy to OpenValens and honours an explicit name", () => {
+  test("renderLayout defaults its footer copy to OpenValens and honours an explicit name", async () => {
     const base = {
       title: "Title",
       bodyHtml: "<p>body</p>",
       bodyText: "body",
     };
 
-    const fallback = renderLayout(base);
+    const fallback = await renderLayout(base);
     expect(fallback.text).toContain("This is an automated message from OpenValens.");
 
-    const custom = renderLayout(base, { organizationName: "Alpha" });
+    const custom = await renderLayout(base, { organizationName: "Alpha" });
     expect(custom.text).toContain("This is an automated message from Alpha.");
     expect(custom.html).toContain(">Alpha</p>");
   });

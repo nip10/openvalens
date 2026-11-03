@@ -63,12 +63,61 @@ describe("createEmailService", () => {
   test("exposes only sendEmail and organizationName and is frozen", () => {
     const service = createEmailService(ALPHA_CONFIG);
 
-    expect(Object.keys(service).sort()).toEqual(["organizationName", "sendEmail"]);
+    expect(Object.keys(service).sort()).toEqual(["organizationName", "prepareEmail", "sendEmail"]);
     expect(Object.isFrozen(service)).toBe(true);
     // The raw config / API key are never reachable from the public object.
     expect("config" in service).toBe(false);
     expect("RESEND_API_KEY" in service).toBe(false);
     expect(JSON.stringify(service)).not.toContain(ALPHA_CONFIG.RESEND_API_KEY);
+  });
+
+  test("prepares stable defaults without exposing config secrets or retaining mutable input", () => {
+    const service = createEmailService(ALPHA_CONFIG);
+    const input = {
+      ...INPUT,
+      to: ["one@example.com", "two@example.com"],
+      bcc: ["copy@example.com"],
+      headers: { "List-Unsubscribe": "<https://example.com/unsubscribe>" },
+    };
+
+    const prepared = service.prepareEmail(input);
+    input.to.push("later@example.com");
+    input.bcc.push("later-copy@example.com");
+    input.headers["List-Unsubscribe"] = "mutated";
+
+    expect(prepared).toMatchObject({
+      from: ALPHA_CONFIG.EMAIL_FROM,
+      replyTo: ALPHA_CONFIG.EMAIL_REPLY_TO,
+      to: ["one@example.com", "two@example.com"],
+      bcc: ["copy@example.com"],
+      headers: { "List-Unsubscribe": "<https://example.com/unsubscribe>" },
+    });
+    expect(JSON.stringify(prepared)).not.toContain(ALPHA_CONFIG.RESEND_API_KEY);
+    expect(JSON.stringify(prepared)).not.toContain(ALPHA_CONFIG.EMAIL_AUDIT_BCC ?? "unset");
+  });
+
+  test("prepared daily reminder replays identically under a different config", async () => {
+    const configA: EmailConfig = {
+      ...ALPHA_CONFIG,
+      EMAIL_REPLY_TO: "",
+    };
+    const configB: EmailConfig = {
+      ...BETA_CONFIG,
+      EMAIL_REPLY_TO: "beta-support@beta.example",
+    };
+    const originalProvider = new FakeProvider();
+    const replayProvider = new FakeProvider();
+    const serviceA = createEmailService(configA, { provider: originalProvider });
+    const serviceB = createEmailService(configB, { provider: replayProvider });
+    const input = { ...INPUT, templateName: "daily-reminder", tags: ["daily-reminder"] };
+
+    const prepared = serviceA.prepareEmail(input);
+    await serviceA.sendEmail(prepared);
+    await serviceB.sendEmail(prepared);
+
+    expect(replayProvider.calls[0]).toEqual(originalProvider.calls[0]);
+    expect(replayProvider.calls[0]).toMatchObject({ from: configA.EMAIL_FROM, replyTo: "" });
+    expect(replayProvider.calls[0]?.bcc).toBeUndefined();
   });
 
   test("derives organizationName from the sender display name, falling back to OpenValens", () => {
@@ -95,6 +144,15 @@ describe("createEmailService", () => {
     expect(betaProvider.calls[0]?.bcc).toBe("beta-audit@beta.example");
     expect(alpha.organizationName).toBe("Alpha");
     expect(beta.organizationName).toBe("Beta");
+  });
+
+  test("passes an idempotency key through the config-bound service", async () => {
+    const provider = new FakeProvider();
+    const service = createEmailService(ALPHA_CONFIG, { provider });
+
+    await service.sendEmail({ ...INPUT, idempotencyKey: "service-request-key" });
+
+    expect(provider.calls[0]?.idempotencyKey).toBe("service-request-key");
   });
 
   test("snapshots config so mutating the original after binding has no effect", async () => {

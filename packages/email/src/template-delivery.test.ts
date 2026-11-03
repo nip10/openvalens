@@ -44,7 +44,7 @@ function createHarness() {
 describe("invitation delivery", () => {
   test("reaches the provider with the invitation tag and the audit BCC", async () => {
     const { service, calls } = createHarness();
-    const rendered = renderInvitationEmail(
+    const rendered = await renderInvitationEmail(
       {
         inviterName: "Dr. Ada",
         organizationName: "Northwind Clinic",
@@ -75,8 +75,8 @@ describe("invitation delivery", () => {
     expect(calls[0]?.text).toContain("https://app.example/accept-invitation/inv_1");
   });
 
-  test("escapes inviter and organization names in the HTML", () => {
-    const rendered = renderInvitationEmail({
+  test("escapes inviter and organization names in the HTML", async () => {
+    const rendered = await renderInvitationEmail({
       inviterName: '<script>alert("x")</script>',
       organizationName: "A & B <Clinic>",
       acceptUrl: "https://app.example/accept-invitation/inv_2",
@@ -93,7 +93,7 @@ describe("invitation delivery", () => {
 describe("magic-link delivery", () => {
   test("reaches the provider with the magic-link tag and never the audit BCC", async () => {
     const { service, calls, lines } = createHarness();
-    const rendered = renderMagicLinkEmail({ url: MAGIC_URL, expiresInMinutes: 5 }, service);
+    const rendered = await renderMagicLinkEmail({ url: MAGIC_URL, expiresInMinutes: 5 }, service);
 
     await service.sendEmail(
       { to: "patient@example.com", ...rendered, templateName: "magic-link", tags: ["magic-link"] },

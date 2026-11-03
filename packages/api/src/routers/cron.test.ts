@@ -47,6 +47,7 @@ function authorizedContext(correlationId = "test-correlation-id"): Context {
 function createFakeEmailService() {
   const sends: SendEmailInput[] = [];
   const service = {
+    prepareEmail: (input: SendEmailInput) => input,
     sendEmail: async (input: SendEmailInput, _options?: SendEmailOptions) => {
       sends.push(input);
       return { id: "email-1", dryRun: false };

@@ -18,8 +18,8 @@ const INPUT = {
 };
 
 describe("renderInsightsDigestEmail", () => {
-  test("lists each insight, escapes text and links a one-step unsubscribe", () => {
-    const { subject, html, text } = renderInsightsDigestEmail(INPUT);
+  test("lists each insight, escapes text and links a one-step unsubscribe", async () => {
+    const { subject, html, text } = await renderInsightsDigestEmail(INPUT);
     expect(subject).toBe("Your weekly insights summary");
     expect(html).toContain("Sleep lower than your usual");
     expect(html).toContain("&lt;sleep&gt;");
@@ -28,8 +28,8 @@ describe("renderInsightsDigestEmail", () => {
     expect(text).toContain("Open OpenValens: https://app.example.test/dashboard");
   });
 
-  test("an empty week says so instead of listing nothing", () => {
-    const { text } = renderInsightsDigestEmail({ ...INPUT, items: [] });
+  test("an empty week says so instead of listing nothing", async () => {
+    const { text } = await renderInsightsDigestEmail({ ...INPUT, items: [] });
     expect(text).toContain("Nothing stood out this week.");
   });
 });

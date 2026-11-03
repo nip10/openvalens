@@ -16,10 +16,10 @@ export type RenderedInvitationReminderEmail = {
   text: string;
 };
 
-export function renderInvitationReminderEmail(
+export async function renderInvitationReminderEmail(
   input: InvitationReminderEmailInput,
   options: EmailRenderOptions = {},
-): RenderedInvitationReminderEmail {
+): Promise<RenderedInvitationReminderEmail> {
   const subject = `Reminder: join ${input.organizationName} on ${APP_NAME}`;
   const expiryLine =
     input.expiresInDays === 1
@@ -33,7 +33,7 @@ export function renderInvitationReminderEmail(
     "If you no longer need access, you can ignore this message.",
   ];
 
-  const layout = renderLayout(
+  const layout = await renderLayout(
     {
       title: "Invitation reminder",
       preheader: `You still have a pending invitation to ${input.organizationName}.`,

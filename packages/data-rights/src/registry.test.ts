@@ -64,6 +64,12 @@ describe("data-rights registry", () => {
     expect(table?.columns.map((column) => column.name)).toContain("user_id");
   });
 
+  test("daily reminder email snapshots are organization-owned PHI", () => {
+    const entry = DATA_RIGHTS_REGISTRY.daily_reminder_email_digest;
+    expect(entry?.kind).toBe("organization");
+    expect(isExported(entry!)).toBe(true);
+  });
+
   test("credential columns of exported tables are redacted", () => {
     const unredacted: string[] = [];
     for (const t of tables) {

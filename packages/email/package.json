@@ -10,17 +10,23 @@
   },
   "scripts": {
     "build": "tsc -b",
-    "check-types": "tsc -b"
+    "check-types": "tsc -b",
+    "preview": "bun --preload ../../scripts/test/lingui-macro.ts scripts/render-previews.ts"
   },
   "dependencies": {
     "@lingui/core": "6.9.1",
     "@openvalens/db": "workspace:*",
     "@openvalens/i18n": "workspace:*",
     "@openvalens/observability": "workspace:*",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-email": "^6.11.6",
     "zod": "catalog:"
   },
   "devDependencies": {
     "@openvalens/config": "workspace:*",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "catalog:",
     "typescript": "^6.0.3"
   }
 }

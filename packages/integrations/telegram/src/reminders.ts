@@ -1,17 +1,21 @@
-import { msg } from "@lingui/core/macro";
 import type { Database } from "@openvalens/db";
 import { member, user } from "@openvalens/db/schema/auth";
 import { insightPreference } from "@openvalens/db/schema/insights";
-import { dailyReminder, telegramAccount } from "@openvalens/db/schema/integrations";
+import {
+  dailyReminder,
+  dailyReminderEmailDigest,
+  telegramAccount,
+} from "@openvalens/db/schema/integrations";
+import { organization } from "@openvalens/db/schema/auth";
 import type { EmailService } from "@openvalens/email";
+import { renderDailyReminderEmail } from "@openvalens/email/templates/daily-reminder";
 import {
   databaseMessageLocales,
   localeOrEnglish,
-  serverI18n,
   type MessageLocales,
 } from "@openvalens/i18n/server";
 import type { StructuredLogger } from "@openvalens/observability";
-import { and, eq, gte, inArray, isNull } from "drizzle-orm";
+import { and, eq, gte, inArray, isNull, sql } from "drizzle-orm";
 
 import type { TelegramClient } from "./client";
 import {
@@ -72,8 +76,6 @@ import { isReminderDeliverable, localClockIn } from "./reminder-schedule";
 export const EMAIL_DELIVERED_TELEGRAM_MESSAGE_ID = -2;
 
 /** Issue #231 — rendered in the member's language. */
-const REMINDER_EMAIL_SUBJECT = msg`Your daily reminder`;
-const REMINDER_EMAIL_TEMPLATE = "daily-reminder";
 
 /** Diagnostic reasons recorded in log lines and counted in results. */
 export type MaterializeSkipReason =
@@ -96,6 +98,8 @@ export type MaterializeDailyRemindersDeps = {
   organizationId: string;
   /** The run's clock (tests pin it); defaults to now. */
   now?: Date;
+  /** Live delivery clock, independent of the shared cron scheduling timestamp. */
+  attemptNow?: () => Date;
   /** Config-bound email transport; required. */
   email: EmailService;
   /**
@@ -118,24 +122,35 @@ export type MaterializeDailyRemindersResult = {
   failed: number;
 };
 
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
 function typedErrorCode(error: unknown): string {
   if (error && typeof error === "object" && "code" in error) {
     const code = (error as { code?: unknown }).code;
-    if (typeof code === "string") {
+    if (typeof code === "string" && /^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(code)) {
       return code;
     }
   }
 
   return "UNKNOWN_SEND";
+}
+
+function accountReminderIds(accounted: Set<number>, reminderIds: readonly number[]): number {
+  let count = 0;
+  for (const reminderId of reminderIds) {
+    if (accounted.has(reminderId)) continue;
+    accounted.add(reminderId);
+    count += 1;
+  }
+  return count;
+}
+
+function groupReminderIdsByUser(rows: readonly PendingSelectionRow[]): Map<string, number[]> {
+  const grouped = new Map<string, number[]>();
+  for (const row of rows) {
+    const ids = grouped.get(row.userId) ?? [];
+    ids.push(row.id);
+    grouped.set(row.userId, ids);
+  }
+  return grouped;
 }
 
 type PendingSelectionRow = {
@@ -161,6 +176,7 @@ export async function materializeDailyReminders(
   const { db, client, logger, correlationId, organizationId, email } = deps;
   const locales = deps.locales ?? databaseMessageLocales(db);
   const now = deps.now ?? new Date();
+  const attemptNow = deps.attemptNow ?? (() => new Date());
 
   // Read-only prefetch. Every query is tenant-scoped to `organizationId`.
   // Rows older than any member's local today are stale and never read.
@@ -215,15 +231,29 @@ export async function materializeDailyReminders(
   });
 
   if (pending.length === 0) {
+    const recovered = await runEmailDigests({
+      db,
+      email,
+      locales,
+      logger,
+      correlationId,
+      organizationId,
+      now,
+      attemptNow,
+      candidateUsers: [],
+      clientAvailable: client !== null,
+      candidateReminderIdsByUser: new Map(),
+      accountedReminderIds: new Set(),
+    });
     logger.info("telegram.materialize.completed", {
       correlationId,
       organizationId,
-      sent: 0,
-      skipped: 0,
-      failed: 0,
+      sent: recovered.sent,
+      skipped: recovered.skipped,
+      failed: recovered.failed,
     });
 
-    return { organizationId, sent: 0, skipped: 0, failed: 0 };
+    return { organizationId, ...recovered };
   }
 
   const userIds = [...new Set(pending.map((row) => row.userId))];
@@ -283,6 +313,8 @@ export async function materializeDailyReminders(
   let sent = 0;
   let skipped = 0;
   let failed = 0;
+  const emailUsers = new Set<string>();
+  const accountedReminderIds = new Set<number>();
 
   for (const reminder of pending) {
     // Per-recipient authorization — keep this strictly inside the per-org
@@ -293,7 +325,7 @@ export async function materializeDailyReminders(
         ? "recipient_banned"
         : null;
     if (skipReason) {
-      skipped += 1;
+      skipped += accountReminderIds(accountedReminderIds, [reminder.id]);
       logger.info("telegram.materialize.skipped", {
         correlationId,
         organizationId,
@@ -307,7 +339,7 @@ export async function materializeDailyReminders(
     // Telegram in this org first, else the email fallback.
     const chatId = chatIdByUser.get(reminder.userId);
     const recipientEmail = emailByUser.get(reminder.userId);
-    let channel: "telegram" | "email";
+    let channel: "telegram";
     let send: () => Promise<number | null>;
     if (chatId && client) {
       channel = "telegram";
@@ -318,25 +350,10 @@ export async function materializeDailyReminders(
           : null;
       };
     } else if (recipientEmail && emailOptInUserIds.has(reminder.userId)) {
-      channel = "email";
-      send = async () => {
-        // The label is the member's own text and is sent as written; only
-        // the subject is translated (#231).
-        const locale = await localeOrEnglish(locales.forUser(reminder.userId));
-        await email.sendEmail(
-          {
-            to: recipientEmail,
-            subject: serverI18n(locale)._(REMINDER_EMAIL_SUBJECT),
-            html: `<p>${escapeHtml(reminder.label)}</p>`,
-            text: reminder.label,
-            templateName: REMINDER_EMAIL_TEMPLATE,
-          },
-          { correlationId },
-        );
-        return EMAIL_DELIVERED_TELEGRAM_MESSAGE_ID;
-      };
+      emailUsers.add(reminder.userId);
+      continue;
     } else {
-      skipped += 1;
+      skipped += accountReminderIds(accountedReminderIds, [reminder.id]);
       logger.warn("telegram.materialize.skipped", {
         correlationId,
         organizationId,
@@ -353,12 +370,15 @@ export async function materializeDailyReminders(
 
     const result = await deliverOnce({ db, reminderId: reminder.id, organizationId, send });
     if (result.outcome === "sent") {
-      sent += 1;
+      sent += accountReminderIds(accountedReminderIds, [reminder.id]);
     } else if (result.outcome === "skipped") {
       // A sibling run holds or already delivered this slot; it owns delivery.
-      skipped += 1;
+      skipped += accountReminderIds(accountedReminderIds, [reminder.id]);
+    } else if (result.outcome === "reserved") {
+      // A committed digest owns this reminder; its recovery pass counts it.
+      continue;
     } else {
-      failed += 1;
+      failed += accountReminderIds(accountedReminderIds, [reminder.id]);
       logger.warn("telegram.materialize.delivery_failed", {
         correlationId,
         organizationId,
@@ -369,6 +389,26 @@ export async function materializeDailyReminders(
       });
     }
   }
+
+  // Recovery is deliberately independent of current candidates: a digest is
+  // committed before transport, and must be retried after a process crash.
+  const emailResult = await runEmailDigests({
+    db,
+    email,
+    locales,
+    logger,
+    correlationId,
+    organizationId,
+    now,
+    attemptNow,
+    candidateUsers: [...new Set([...emailUsers, ...userIds])],
+    clientAvailable: client !== null,
+    candidateReminderIdsByUser: groupReminderIdsByUser(pending),
+    accountedReminderIds,
+  });
+  sent += emailResult.sent;
+  skipped += emailResult.skipped;
+  failed += emailResult.failed;
 
   logger.info("telegram.materialize.completed", {
     correlationId,
@@ -384,6 +424,7 @@ export async function materializeDailyReminders(
 type DeliverResult =
   | { outcome: "sent" }
   | { outcome: "skipped" }
+  | { outcome: "reserved" }
   | { outcome: "failed"; errorCode: string };
 
 /**
@@ -418,6 +459,19 @@ async function deliverOnce(input: {
 
     if (!row) return { outcome: "skipped" };
 
+    // The row lock alone does not serialize with digest preparation: email
+    // reserves by locking the same candidate rows and committing a snapshot.
+    // This fresh query runs after the lock and observes any committed claim.
+    const [reservation] = await tx
+      .select({ id: dailyReminderEmailDigest.id })
+      .from(dailyReminderEmailDigest)
+      .where(sql`${dailyReminderEmailDigest.organizationId} = ${organizationId}
+        and ${dailyReminderEmailDigest.userId} = (select user_id from daily_reminder where id = ${reminderId})
+        and ${dailyReminderEmailDigest.date} = (select date from daily_reminder where id = ${reminderId})
+        and ${reminderId} = any(${dailyReminderEmailDigest.reminderIds})`)
+      .limit(1);
+    if (reservation) return { outcome: "reserved" };
+
     let telegramMessageId: number | null;
     try {
       telegramMessageId = await send();
@@ -435,4 +489,346 @@ async function deliverOnce(input: {
 
     return { outcome: "sent" };
   });
+}
+
+async function runEmailDigests(input: {
+  db: Database;
+  email: EmailService;
+  locales: Pick<MessageLocales, "forUser">;
+  logger: StructuredLogger;
+  correlationId: string;
+  organizationId: string;
+  now: Date;
+  attemptNow: () => Date;
+  candidateUsers: string[];
+  clientAvailable: boolean;
+  candidateReminderIdsByUser: Map<string, number[]>;
+  accountedReminderIds: Set<number>;
+}): Promise<{ sent: number; skipped: number; failed: number }> {
+  const {
+    db,
+    email,
+    locales,
+    logger,
+    correlationId,
+    organizationId,
+    attemptNow,
+    clientAvailable,
+    accountedReminderIds,
+  } = input;
+  let sent = 0;
+  let skipped = 0;
+  let failed = 0;
+  const datesUsers = new Set(input.candidateUsers);
+
+  // Candidate preparation is serialized by a stable, namespace-prefixed,
+  // unambiguous key. Existing snapshots are never re-rendered.
+  for (const userId of datesUsers) {
+    let failureReminderIds = input.candidateReminderIdsByUser.get(userId) ?? [];
+    try {
+      await db.transaction(async (tx) => {
+        const [profile] = await tx
+          .select({
+            email: user.email,
+            banned: user.banned,
+            orgName: organization.name,
+            timeZone: insightPreference.timeZone,
+            reminderHour: insightPreference.dailyReminderHour,
+            optedIn: insightPreference.dailyReminderEmail,
+          })
+          .from(user)
+          .innerJoin(member, eq(member.userId, user.id))
+          .innerJoin(organization, eq(organization.id, member.organizationId))
+          .leftJoin(
+            insightPreference,
+            and(
+              eq(insightPreference.userId, user.id),
+              eq(insightPreference.organizationId, organizationId),
+            ),
+          )
+          .where(and(eq(member.organizationId, organizationId), eq(user.id, userId)))
+          .limit(1);
+        if (!profile || profile.banned || !profile.optedIn || !profile.email) return;
+        const preparedAt = attemptNow();
+        const clock = localClockIn(preparedAt, profile.timeZone);
+        if (clock.hour < (profile.reminderHour ?? 8)) return;
+        const date = clock.date;
+        await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(
+          ${`daily_reminder_email_digest|${organizationId.length}:${organizationId}|${userId.length}:${userId}|${date}`}, 0))`);
+        const [existing] = await tx
+          .select({ id: dailyReminderEmailDigest.id })
+          .from(dailyReminderEmailDigest)
+          .where(
+            and(
+              eq(dailyReminderEmailDigest.organizationId, organizationId),
+              eq(dailyReminderEmailDigest.userId, userId),
+              eq(dailyReminderEmailDigest.date, date),
+            ),
+          )
+          .limit(1);
+        if (existing) return;
+        if (clientAvailable) {
+          const [active] = await tx
+            .select({ id: telegramAccount.id })
+            .from(telegramAccount)
+            .where(
+              and(
+                eq(telegramAccount.organizationId, organizationId),
+                eq(telegramAccount.userId, userId),
+                eq(telegramAccount.status, "active"),
+              ),
+            )
+            .limit(1);
+          if (active) return;
+        }
+        const [legacyEmail] = await tx
+          .select({ id: dailyReminder.id })
+          .from(dailyReminder)
+          .where(
+            and(
+              eq(dailyReminder.organizationId, organizationId),
+              eq(dailyReminder.userId, userId),
+              eq(dailyReminder.date, date),
+              eq(dailyReminder.telegramMessageId, EMAIL_DELIVERED_TELEGRAM_MESSAGE_ID),
+            ),
+          )
+          .limit(1);
+        if (legacyEmail) return;
+        const rows = await tx
+          .select({
+            id: dailyReminder.id,
+            label: dailyReminder.label,
+            sourceType: dailyReminder.sourceType,
+          })
+          .from(dailyReminder)
+          .where(
+            and(
+              eq(dailyReminder.organizationId, organizationId),
+              eq(dailyReminder.userId, userId),
+              eq(dailyReminder.date, date),
+              eq(dailyReminder.status, "pending"),
+              isNull(dailyReminder.telegramMessageId),
+            ),
+          )
+          .orderBy(dailyReminder.id)
+          .for("update");
+        if (rows.length === 0) return;
+        const hidden = await usersWithModuleHidden(tx, [userId], "supplements");
+        const hiddenActivity = await usersWithModuleHidden(tx, [userId], "activity");
+        const eligible = rows.filter(
+          (row) =>
+            !(
+              hidden.has(userId) &&
+              (row.sourceType === "supplement" || row.sourceType === "medication")
+            ) && !(hiddenActivity.has(userId) && row.sourceType === "activity"),
+        );
+        if (eligible.length === 0) return;
+        failureReminderIds = eligible.map((row) => row.id);
+        const locale = await localeOrEnglish(locales.forUser(userId));
+        const rendered = await renderDailyReminderEmail(
+          {
+            date,
+            reminders: eligible.map(({ label, sourceType }) => ({ label, sourceType })),
+          },
+          { locale, organizationName: profile.orgName },
+        );
+        const prepared = email.prepareEmail({
+          to: profile.email,
+          ...rendered,
+          templateName: "daily-reminder",
+        });
+        const createdAt = attemptNow();
+        const finalPreparationClock = localClockIn(createdAt, profile.timeZone);
+        if (
+          finalPreparationClock.date !== date ||
+          finalPreparationClock.hour < (profile.reminderHour ?? 8)
+        ) {
+          return;
+        }
+        await tx.insert(dailyReminderEmailDigest).values({
+          organizationId,
+          userId,
+          date,
+          reminderIds: failureReminderIds,
+          renderedEmail: prepared,
+          createdAt: createdAt.toISOString(),
+        });
+      });
+    } catch (error) {
+      failed += accountReminderIds(accountedReminderIds, failureReminderIds);
+      logger.warn("telegram.materialize.preparation_failed", {
+        correlationId,
+        organizationId,
+        errorCode: typedErrorCode(error),
+        count: failureReminderIds.length,
+      });
+    }
+  }
+
+  // Snapshot discovery is independent of current reminder candidates, so a
+  // committed payload always gets another chance after a worker crash.
+  const discoveryNow = attemptNow();
+  const snapshots = await db
+    .select({ id: dailyReminderEmailDigest.id, reminderIds: dailyReminderEmailDigest.reminderIds })
+    .from(dailyReminderEmailDigest)
+    .where(
+      and(
+        eq(dailyReminderEmailDigest.organizationId, organizationId),
+        isNull(dailyReminderEmailDigest.deliveredAt),
+        gte(dailyReminderEmailDigest.date, earliestDeliverableDate(discoveryNow)),
+      ),
+    );
+  for (const { id, reminderIds } of snapshots) {
+    try {
+      const result = await db.transaction(async (tx) => {
+        const [digest] = await tx
+          .select()
+          .from(dailyReminderEmailDigest)
+          .where(
+            and(
+              eq(dailyReminderEmailDigest.id, id),
+              eq(dailyReminderEmailDigest.organizationId, organizationId),
+            ),
+          )
+          .for("update", { skipLocked: true })
+          .limit(1);
+        if (!digest || digest.deliveredAt)
+          return { state: "skip" as const, reminderIds: [] as number[] };
+
+        const [profile] = await tx
+          .select({
+            email: user.email,
+            banned: user.banned,
+            optedIn: insightPreference.dailyReminderEmail,
+            timeZone: insightPreference.timeZone,
+            reminderHour: insightPreference.dailyReminderHour,
+          })
+          .from(user)
+          .innerJoin(member, eq(member.userId, user.id))
+          .leftJoin(
+            insightPreference,
+            and(
+              eq(insightPreference.userId, user.id),
+              eq(insightPreference.organizationId, organizationId),
+            ),
+          )
+          .where(and(eq(member.organizationId, organizationId), eq(user.id, digest.userId)))
+          .limit(1);
+        if (
+          !profile ||
+          profile.banned ||
+          !profile.optedIn ||
+          profile.email !==
+            (Array.isArray(digest.renderedEmail.to)
+              ? digest.renderedEmail.to[0]
+              : digest.renderedEmail.to)
+        ) {
+          return { state: "skip" as const, reminderIds: digest.reminderIds };
+        }
+        if (clientAvailable) {
+          const [active] = await tx
+            .select({ id: telegramAccount.id })
+            .from(telegramAccount)
+            .where(
+              and(
+                eq(telegramAccount.organizationId, organizationId),
+                eq(telegramAccount.userId, digest.userId),
+                eq(telegramAccount.status, "active"),
+              ),
+            )
+            .limit(1);
+          if (active) return { state: "skip" as const, reminderIds: digest.reminderIds };
+        }
+        const rows = await tx
+          .select({
+            id: dailyReminder.id,
+            sourceType: dailyReminder.sourceType,
+            status: dailyReminder.status,
+            telegramMessageId: dailyReminder.telegramMessageId,
+          })
+          .from(dailyReminder)
+          .where(
+            and(
+              eq(dailyReminder.organizationId, organizationId),
+              eq(dailyReminder.userId, digest.userId),
+              eq(dailyReminder.date, digest.date),
+              inArray(dailyReminder.id, digest.reminderIds),
+            ),
+          );
+        const hidden = await usersWithModuleHidden(tx, [digest.userId], "supplements");
+        const hiddenActivity = await usersWithModuleHidden(tx, [digest.userId], "activity");
+        if (
+          rows.length !== digest.reminderIds.length ||
+          rows.some(
+            (row) =>
+              row.status !== "pending" ||
+              row.telegramMessageId !== null ||
+              (hidden.has(digest.userId) &&
+                (row.sourceType === "supplement" || row.sourceType === "medication")) ||
+              (hiddenActivity.has(digest.userId) && row.sourceType === "activity"),
+          )
+        ) {
+          return { state: "skip" as const, reminderIds: digest.reminderIds };
+        }
+
+        // Recheck wall-clock policy after all awaited policy queries, immediately
+        // before handing the persisted payload to the provider.
+        const attemptAt = attemptNow();
+        const attemptClock = localClockIn(attemptAt, profile.timeZone);
+        if (
+          new Date(digest.createdAt).getTime() + 23 * 60 * 60_000 <= attemptAt.getTime() ||
+          attemptClock.date !== digest.date ||
+          attemptClock.hour < (profile.reminderHour ?? 8)
+        ) {
+          return { state: "skip" as const, reminderIds: digest.reminderIds };
+        }
+        const sentResult = await email.sendEmail(
+          {
+            ...digest.renderedEmail,
+            idempotencyKey: `daily-reminder-digest/${digest.id}`,
+          },
+          { correlationId },
+        );
+        if (sentResult.dryRun) return { state: "dry" as const, reminderIds: digest.reminderIds };
+        await tx
+          .update(dailyReminderEmailDigest)
+          .set({ deliveredAt: attemptAt.toISOString(), providerMessageId: sentResult.id })
+          .where(
+            and(
+              eq(dailyReminderEmailDigest.id, digest.id),
+              isNull(dailyReminderEmailDigest.deliveredAt),
+            ),
+          );
+        await tx
+          .update(dailyReminder)
+          .set({ telegramMessageId: EMAIL_DELIVERED_TELEGRAM_MESSAGE_ID })
+          .where(
+            and(
+              eq(dailyReminder.organizationId, organizationId),
+              inArray(dailyReminder.id, digest.reminderIds),
+              eq(dailyReminder.status, "pending"),
+              isNull(dailyReminder.telegramMessageId),
+            ),
+          );
+        return { state: "sent" as const, reminderIds: digest.reminderIds };
+      });
+      if (result.state === "skip" || result.state === "dry") {
+        skipped += accountReminderIds(accountedReminderIds, result.reminderIds);
+      }
+      if (result.state === "sent") {
+        sent += accountReminderIds(accountedReminderIds, result.reminderIds);
+      }
+    } catch (error) {
+      failed += accountReminderIds(accountedReminderIds, reminderIds);
+      logger.warn("telegram.materialize.delivery_failed", {
+        correlationId,
+        organizationId,
+        digestId: id,
+        channel: "email",
+        errorCode: typedErrorCode(error),
+        count: reminderIds.length,
+      });
+    }
+  }
+  return { sent, skipped, failed };
 }

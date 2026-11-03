@@ -41,6 +41,7 @@ function createFakeEmailService(
   const calls: CapturedCall[] = [];
   const service: EmailService = {
     organizationName,
+    prepareEmail: (input) => input,
     sendEmail: async (input, options) => {
       calls.push({ input, options });
       if (error) throw error;

@@ -22,10 +22,10 @@ export type RenderedInvitationEmail = {
  * Workspace invitation, in the recipient's language (#231). The inviter name,
  * workspace name and role are user or system values and are not translated.
  */
-export function renderInvitationEmail(
+export async function renderInvitationEmail(
   input: InvitationEmailInput,
   options: EmailRenderOptions = {},
-): RenderedInvitationEmail {
+): Promise<RenderedInvitationEmail> {
   const i18n = emailI18n(options);
   const { inviterName, organizationName, role } = input;
   const appName = APP_NAME;
@@ -46,7 +46,7 @@ export function renderInvitationEmail(
     i18n._(msg`If you were not expecting this invitation, you can ignore this email.`),
   ];
 
-  const layout = renderLayout(
+  const layout = await renderLayout(
     {
       title: i18n._(msg`You are invited`),
       preheader: i18n._(msg`${inviterName} invited you to join ${organizationName}.`),
