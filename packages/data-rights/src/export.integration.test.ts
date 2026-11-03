@@ -316,6 +316,36 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
     expect(empty.map((entity) => entity.table)).toEqual([]);
   });
 
+  test("daily reminder digests export only with their owned organization", () => {
+    const digests = parse("daily_reminder_email_digest");
+    expect(digests).toHaveLength(1);
+    expect(digests[0]).toMatchObject({
+      organization_id: "org-a",
+      user_id: "user-a",
+      date: "2026-09-01",
+      provider_message_id: "digest-provider-a",
+      rendered_email: {
+        to: "a@example.test",
+        subject: "Your daily reminders",
+        html: "<p>Seeded daily reminder digest</p>",
+        text: "Seeded daily reminder digest",
+        templateName: "daily-reminder",
+      },
+    });
+    const reminderIds = digests[0]!.reminder_ids as number[];
+    expect(reminderIds.length).toBeGreaterThan(0);
+    expect(
+      (parse("daily_reminder").map((reminder) => reminder.id) as number[]).some((id) =>
+        reminderIds.includes(id),
+      ),
+    ).toBe(true);
+
+    const noOwnedOrganization = exportedA2WithoutOwnedOrganization.files.find(
+      (file) => file.path === "entities/daily_reminder_email_digest.json",
+    );
+    expect(JSON.parse(noOwnedOrganization!.content)).toEqual([]);
+  });
+
   test("contains the subject's data and nothing from the other account", () => {
     expect(parse("legal_acceptance")).toContainEqual(
       expect.objectContaining({
