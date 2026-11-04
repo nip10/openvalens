@@ -5,7 +5,7 @@
 // `checkins` array.
 import type { Database } from "@openvalens/db";
 import { goal, goalCheckin } from "@openvalens/db/schema/plans";
-import { desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import type { ExportPayloadDataByDomain } from "../types";
 import type { ExportPayloadScope } from "../build-payload";
 
@@ -13,10 +13,19 @@ export async function extractGoals(
   db: Database,
   scope: ExportPayloadScope,
 ): Promise<ExportPayloadDataByDomain["goals"]> {
+  // A caller that has not established the export subject cannot read private
+  // goals merely by supplying an organization id.
+  if (!scope.userId) return [];
   const goals = await db
     .select()
     .from(goal)
-    .where(eq(goal.organizationId, scope.organizationId))
+    .where(
+      and(
+        eq(goal.organizationId, scope.organizationId),
+        eq(goal.userId, scope.userId),
+        isNull(goal.deletedAt),
+      ),
+    )
     .orderBy(desc(goal.id));
 
   if (goals.length === 0) return [];
@@ -31,7 +40,7 @@ export async function extractGoals(
       notes: goalCheckin.notes,
     })
     .from(goalCheckin)
-    .where(inArray(goalCheckin.goalId, goalIds))
+    .where(and(inArray(goalCheckin.goalId, goalIds), eq(goalCheckin.userId, scope.userId)))
     .orderBy(desc(goalCheckin.date), desc(goalCheckin.id));
 
   const checkinsByGoalId = new Map<

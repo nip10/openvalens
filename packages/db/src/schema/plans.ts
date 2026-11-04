@@ -3,15 +3,18 @@ import {
   check,
   pgTable,
   smallint,
+  boolean,
   text,
   integer,
   real,
   serial,
   index,
+  unique,
   uniqueIndex,
   foreignKey,
   uuid,
   jsonb,
+  timestamp,
 } from "drizzle-orm/pg-core";
 
 import { orgId, user, member } from "./auth";
@@ -138,10 +141,41 @@ export const goal = pgTable(
     direction: text("direction"), // "increase", "decrease"
     baselineValue: text("baseline_value"),
     priority: text("priority"), // "low", "normal", "high"
+    // Confirmed-goals foundations. Owner remains nullable for legacy rows;
+    // new writes must always supply it through the authenticated repository.
+    userId: text("user_id").references(() => user.id, { onDelete: "restrict" }),
+    version: integer("version").notNull().default(1),
+    source: text("source"),
+    everHadEvidence: boolean("ever_had_evidence").notNull().default(false),
+    definition: jsonb("definition"),
+    timezone: text("timezone"),
+    startDate: text("start_date"),
+    cutoffTime: text("cutoff_time"),
+    deletedAt: text("deleted_at"),
   },
   (table) => ({
     goalOrgIdx: index("goal_organization_id_idx").on(table.organizationId),
     goalOrgIdUnique: uniqueIndex("goal_org_id_key").on(table.organizationId, table.id),
+    goalOrgUserIdUnique: uniqueIndex("goal_org_user_id_key").on(
+      table.organizationId,
+      table.userId,
+      table.id,
+    ),
+    goalOwnerIdx: index("goal_org_user_status_idx").on(
+      table.organizationId,
+      table.userId,
+      table.status,
+    ),
+    goalOwnerMemberFk: foreignKey({
+      columns: [table.organizationId, table.userId],
+      foreignColumns: [member.organizationId, member.userId],
+      name: "goal_org_user_member_fk",
+    }).onDelete("restrict"),
+    goalVersionCheck: check("goal_version_check", sql`${table.version} > 0`),
+    goalSourceCheck: check(
+      "goal_source_check",
+      sql`${table.source} is null or ${table.source} in ('manual', 'water', 'supplement', 'workout', 'sleep')`,
+    ),
     goalDirectionCheck: check(
       "goal_direction_check",
       sql`${table.direction} is null or ${table.direction} in ('increase', 'decrease')`,
@@ -150,6 +184,265 @@ export const goal = pgTable(
       "goal_priority_check",
       sql`${table.priority} is null or ${table.priority} in ('low', 'normal', 'high')`,
     ),
+  }),
+);
+
+/** Immutable, effective-dated rules; JSON is validated at the domain boundary. */
+export const goalDefinition = pgTable(
+  "goal_definition",
+  {
+    id: serial("id").primaryKey(),
+    organizationId: orgId(),
+    goalId: integer("goal_id").notNull(),
+    userId: text("user_id").notNull(),
+    revision: integer("revision").notNull(),
+    definition: jsonb("definition").notNull(),
+    effectiveFrom: text("effective_from").notNull(),
+    effectiveUntil: text("effective_until"),
+    createdAt: text("created_at")
+      .notNull()
+      .$defaultFn(() => new Date().toISOString()),
+  },
+  (table) => ({
+    ownerGoalFk: foreignKey({
+      columns: [table.organizationId, table.userId, table.goalId],
+      foreignColumns: [goal.organizationId, goal.userId, goal.id],
+      name: "goal_definition_org_user_goal_fk",
+    }).onDelete("cascade"),
+    revisionUnique: uniqueIndex("goal_definition_goal_revision_key").on(
+      table.goalId,
+      table.revision,
+    ),
+    effectiveIdx: index("goal_definition_goal_effective_idx").on(
+      table.organizationId,
+      table.userId,
+      table.goalId,
+      table.effectiveFrom,
+    ),
+    revisionCheck: check("goal_definition_revision_check", sql`${table.revision} > 0`),
+  }),
+);
+
+export const goalMilestone = pgTable(
+  "goal_milestone",
+  {
+    id: serial("id").primaryKey(),
+    organizationId: orgId(),
+    goalId: integer("goal_id").notNull(),
+    userId: text("user_id").notNull(),
+    value: text("value").notNull(),
+    targetDate: text("target_date").notNull(),
+    achievedAt: text("achieved_at"),
+    createdAt: text("created_at")
+      .notNull()
+      .$defaultFn(() => new Date().toISOString()),
+  },
+  (table) => ({
+    ownerGoalFk: foreignKey({
+      columns: [table.organizationId, table.userId, table.goalId],
+      foreignColumns: [goal.organizationId, goal.userId, goal.id],
+      name: "goal_milestone_org_user_goal_fk",
+    }).onDelete("cascade"),
+    ownerDateIdx: index("goal_milestone_org_user_date_idx").on(
+      table.organizationId,
+      table.userId,
+      table.targetDate,
+    ),
+  }),
+);
+
+export const goalLifecycle = pgTable(
+  "goal_lifecycle",
+  {
+    id: serial("id").primaryKey(),
+    organizationId: orgId(),
+    goalId: integer("goal_id").notNull(),
+    userId: text("user_id").notNull(),
+    event: text("event").notNull(),
+    occurredAt: text("occurred_at").notNull(),
+    effectiveDate: text("effective_date"),
+    details: jsonb("details"),
+  },
+  (table) => ({
+    ownerGoalFk: foreignKey({
+      columns: [table.organizationId, table.userId, table.goalId],
+      foreignColumns: [goal.organizationId, goal.userId, goal.id],
+      name: "goal_lifecycle_org_user_goal_fk",
+    }).onDelete("cascade"),
+    historyIdx: index("goal_lifecycle_history_idx").on(
+      table.organizationId,
+      table.userId,
+      table.goalId,
+      table.occurredAt,
+    ),
+    eventCheck: check(
+      "goal_lifecycle_event_check",
+      sql`${table.event} in ('created', 'paused', 'resumed', 'completed', 'cancelled', 'deleted', 'reopened')`,
+    ),
+  }),
+);
+
+/** Idempotency receipt for retried goal and evidence writes. */
+export const goalMutation = pgTable(
+  "goal_mutation",
+  {
+    organizationId: orgId(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
+    clientMutationId: uuid("client_mutation_id").notNull(),
+    operation: text("operation").notNull(),
+    targetId: integer("target_id"),
+    fingerprint: text("fingerprint").notNull(),
+    result: jsonb("result").notNull(),
+    createdAt: text("created_at")
+      .notNull()
+      .$defaultFn(() => new Date().toISOString()),
+  },
+  (table) => ({
+    mutationKey: uniqueIndex("goal_mutation_org_user_client_key").on(
+      table.organizationId,
+      table.userId,
+      table.clientMutationId,
+    ),
+    ownerMemberFk: foreignKey({
+      columns: [table.organizationId, table.userId],
+      foreignColumns: [member.organizationId, member.userId],
+      name: "goal_mutation_org_user_member_fk",
+    }).onDelete("restrict"),
+    fingerprintCheck: check(
+      "goal_mutation_fingerprint_check",
+      sql`${table.fingerprint} ~ '^[0-9a-f]{64}$'`,
+    ),
+  }),
+);
+
+/** Provenance for explicit assignment of otherwise ownerless legacy goals. */
+export const goalOwnershipAssignment = pgTable(
+  "goal_ownership_assignment",
+  {
+    id: serial("id").primaryKey(),
+    organizationId: orgId(),
+    goalId: integer("goal_id").notNull(),
+    assignedUserId: text("assigned_user_id").notNull(),
+    assignedByUserId: text("assigned_by_user_id").notNull(),
+    reason: text("reason").notNull(),
+    assignedAt: text("assigned_at")
+      .notNull()
+      .$defaultFn(() => new Date().toISOString()),
+  },
+  (table) => ({
+    goalFk: foreignKey({
+      columns: [table.organizationId, table.goalId],
+      foreignColumns: [goal.organizationId, goal.id],
+      name: "goal_ownership_assignment_org_goal_fk",
+    }).onDelete("cascade"),
+    assignedMemberFk: foreignKey({
+      columns: [table.organizationId, table.assignedUserId],
+      foreignColumns: [member.organizationId, member.userId],
+      name: "goal_ownership_assignment_assignee_member_fk",
+    }).onDelete("restrict"),
+    assignerMemberFk: foreignKey({
+      columns: [table.organizationId, table.assignedByUserId],
+      foreignColumns: [member.organizationId, member.userId],
+      name: "goal_ownership_assignment_assigner_member_fk",
+    }).onDelete("restrict"),
+    oneAssignment: uniqueIndex("goal_ownership_assignment_goal_key").on(table.goalId),
+  }),
+);
+
+/** Actual intake only; schedule rows never qualify as evidence. */
+export const supplementIntake = pgTable(
+  "supplement_intake",
+  {
+    id: serial("id").primaryKey(),
+    organizationId: orgId(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
+    supplementId: integer("supplement_id")
+      .notNull()
+      .references(() => supplement.id, { onDelete: "restrict" }),
+    occurredAt: timestamp("occurred_at", { withTimezone: true, mode: "date" }).notNull(),
+    timezone: text("timezone").notNull(),
+    dose: text("dose").notNull(),
+    note: text("note"),
+    version: integer("version").notNull().default(1),
+    correctedFromId: integer("corrected_from_id"),
+    deletedAt: timestamp("deleted_at", { withTimezone: true, mode: "date" }),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => ({
+    ownerMemberFk: foreignKey({
+      columns: [table.organizationId, table.userId],
+      foreignColumns: [member.organizationId, member.userId],
+      name: "supplement_intake_org_user_member_fk",
+    }).onDelete("restrict"),
+    ownerTimeIdx: index("supplement_intake_owner_time_idx").on(
+      table.organizationId,
+      table.userId,
+      table.occurredAt,
+    ),
+    ownerIdUnique: unique("supplement_intake_org_user_id_key").on(
+      table.organizationId,
+      table.userId,
+      table.id,
+    ),
+    correctionFk: foreignKey({
+      columns: [table.organizationId, table.userId, table.correctedFromId],
+      foreignColumns: [table.organizationId, table.userId, table.id],
+      name: "supplement_intake_correction_owner_fk",
+    }).onDelete("restrict"),
+    versionCheck: check("supplement_intake_version_check", sql`${table.version} > 0`),
+  }),
+);
+
+/** At most one current daily-water goal per owner. */
+export const goalWaterLink = pgTable(
+  "goal_water_link",
+  {
+    organizationId: orgId(),
+    userId: text("user_id").notNull(),
+    goalId: integer("goal_id").notNull(),
+    linkedAt: text("linked_at")
+      .notNull()
+      .$defaultFn(() => new Date().toISOString()),
+    endedAt: text("ended_at"),
+  },
+  (table) => ({
+    ownerGoalFk: foreignKey({
+      columns: [table.organizationId, table.userId, table.goalId],
+      foreignColumns: [goal.organizationId, goal.userId, goal.id],
+      name: "goal_water_link_org_user_goal_fk",
+    }).onDelete("cascade"),
+    oneLinkPerGoal: uniqueIndex("goal_water_link_goal_key").on(table.goalId),
+    activeOwnerUnique: uniqueIndex("goal_water_link_active_owner_key")
+      .on(table.organizationId, table.userId)
+      .where(sql`${table.endedAt} is null`),
+  }),
+);
+
+/** Durable cutover tombstone prevents legacy preference fallback after unlink. */
+export const goalWaterCutover = pgTable(
+  "goal_water_cutover",
+  {
+    organizationId: orgId(),
+    userId: text("user_id").notNull(),
+    cutoverAt: text("cutover_at")
+      .notNull()
+      .$defaultFn(() => new Date().toISOString()),
+  },
+  (table) => ({
+    ownerPrimaryKey: uniqueIndex("goal_water_cutover_owner_key").on(
+      table.organizationId,
+      table.userId,
+    ),
+    ownerMemberFk: foreignKey({
+      columns: [table.organizationId, table.userId],
+      foreignColumns: [member.organizationId, member.userId],
+      name: "goal_water_cutover_org_user_member_fk",
+    }).onDelete("restrict"),
   }),
 );
 
@@ -167,6 +460,10 @@ export const goalCheckin = pgTable(
     createdAt: text("created_at")
       .notNull()
       .$defaultFn(() => new Date().toISOString()),
+    userId: text("user_id").references(() => user.id, { onDelete: "restrict" }),
+    version: integer("version").notNull().default(1),
+    correctedFromId: integer("corrected_from_id"),
+    deletedAt: text("deleted_at"),
   },
   (table) => ({
     goalCheckinOrgIdx: index("goal_checkin_organization_id_idx").on(table.organizationId),
@@ -175,6 +472,27 @@ export const goalCheckin = pgTable(
       foreignColumns: [goal.organizationId, goal.id],
       name: "goal_checkin_org_goal_fk",
     }).onDelete("cascade"),
+    goalCheckinOwnerGoalFk: foreignKey({
+      columns: [table.organizationId, table.userId, table.goalId],
+      foreignColumns: [goal.organizationId, goal.userId, goal.id],
+      name: "goal_checkin_org_user_goal_fk",
+    }).onDelete("cascade"),
+    goalCheckinOwnerMemberFk: foreignKey({
+      columns: [table.organizationId, table.userId],
+      foreignColumns: [member.organizationId, member.userId],
+      name: "goal_checkin_org_user_member_fk",
+    }).onDelete("restrict"),
+    goalCheckinOwnerIdUnique: unique("goal_checkin_org_user_id_key").on(
+      table.organizationId,
+      table.userId,
+      table.id,
+    ),
+    goalCheckinCorrectionFk: foreignKey({
+      columns: [table.organizationId, table.userId, table.correctedFromId],
+      foreignColumns: [table.organizationId, table.userId, table.id],
+      name: "goal_checkin_correction_owner_fk",
+    }).onDelete("restrict"),
+    goalCheckinVersionCheck: check("goal_checkin_version_check", sql`${table.version} > 0`),
   }),
 );
 

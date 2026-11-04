@@ -23,6 +23,7 @@ import { exampleRouter } from "./example";
 import { exerciseCatalogRouter } from "./exercise-catalog";
 import { exportsRouter } from "./exports";
 import { healthRouter } from "./health";
+import { goalsRouter } from "./goals";
 import { healthConsentRouter } from "./health-consent";
 import { healthRecordRouter } from "./health-record";
 import { ingestionRouter } from "./ingestion";
@@ -48,6 +49,7 @@ import { sharingRouter } from "./sharing";
 import { signInRouter } from "./sign-in";
 import { signUpRouter } from "./sign-up";
 import { sleepRouter } from "./sleep";
+import { supplementIntakeRouter } from "./supplement-intake";
 import { storageRouter } from "./storage";
 import { telegramRouter } from "./telegram";
 import { timelineRouter } from "./timeline";
@@ -82,6 +84,7 @@ type AppRouterShape = {
   exerciseCatalog: typeof exerciseCatalogRouter;
   exports: typeof exportsRouter;
   health: typeof healthRouter;
+  goals: typeof goalsRouter;
   healthConsent: typeof healthConsentRouter;
   healthRecord: typeof healthRecordRouter;
   ingestion: typeof ingestionRouter;
@@ -107,6 +110,7 @@ type AppRouterShape = {
   signIn: typeof signInRouter;
   signUp: typeof signUpRouter;
   sleep: typeof sleepRouter;
+  supplementIntake: typeof supplementIntakeRouter;
   storage: typeof storageRouter;
   telegram: typeof telegramRouter;
   timeline: typeof timelineRouter;
@@ -138,6 +142,7 @@ export const appRouter: AppRouterShape = {
   exerciseCatalog: exerciseCatalogRouter,
   exports: exportsRouter,
   health: healthRouter,
+  goals: goalsRouter,
   healthConsent: healthConsentRouter,
   healthRecord: healthRecordRouter,
   ingestion: ingestionRouter,
@@ -163,6 +168,7 @@ export const appRouter: AppRouterShape = {
   signIn: signInRouter,
   signUp: signUpRouter,
   sleep: sleepRouter,
+  supplementIntake: supplementIntakeRouter,
   storage: storageRouter,
   telegram: telegramRouter,
   timeline: timelineRouter,

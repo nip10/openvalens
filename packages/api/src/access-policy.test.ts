@@ -44,6 +44,48 @@ describe("procedure classification", () => {
     expect(unclassified).toEqual([]);
   });
 
+  test("personal goals and supplement intake have explicit read/write classes", () => {
+    expect(
+      Object.fromEntries([
+        ["goals.list", PROCEDURE_ACCESS["goals.list"]],
+        ["goals.detail", PROCEDURE_ACCESS["goals.detail"]],
+        ["goals.create", PROCEDURE_ACCESS["goals.create"]],
+        ["goals.update", PROCEDURE_ACCESS["goals.update"]],
+        ["goals.setStatus", PROCEDURE_ACCESS["goals.setStatus"]],
+        ["goals.delete", PROCEDURE_ACCESS["goals.delete"]],
+        ["goals.createCheckin", PROCEDURE_ACCESS["goals.createCheckin"]],
+        ["goals.updateCheckin", PROCEDURE_ACCESS["goals.updateCheckin"]],
+        ["goals.deleteCheckin", PROCEDURE_ACCESS["goals.deleteCheckin"]],
+        ["goals.listNeedsConfiguration", PROCEDURE_ACCESS["goals.listNeedsConfiguration"]],
+        ["goals.configureLegacy", PROCEDURE_ACCESS["goals.configureLegacy"]],
+        ["goals.listUnassignedLegacy", PROCEDURE_ACCESS["goals.listUnassignedLegacy"]],
+        ["goals.assignLegacy", PROCEDURE_ACCESS["goals.assignLegacy"]],
+        ["supplementIntake.list", PROCEDURE_ACCESS["supplementIntake.list"]],
+        ["supplementIntake.create", PROCEDURE_ACCESS["supplementIntake.create"]],
+        ["supplementIntake.update", PROCEDURE_ACCESS["supplementIntake.update"]],
+        ["supplementIntake.delete", PROCEDURE_ACCESS["supplementIntake.delete"]],
+      ]),
+    ).toEqual({
+      "goals.list": "read",
+      "goals.detail": "read",
+      "goals.create": "write",
+      "goals.update": "write",
+      "goals.setStatus": "write",
+      "goals.delete": "write",
+      "goals.createCheckin": "write",
+      "goals.updateCheckin": "write",
+      "goals.deleteCheckin": "write",
+      "goals.listNeedsConfiguration": "read",
+      "goals.configureLegacy": "write",
+      "goals.listUnassignedLegacy": "read",
+      "goals.assignLegacy": "write",
+      "supplementIntake.list": "read",
+      "supplementIntake.create": "write",
+      "supplementIntake.update": "write",
+      "supplementIntake.delete": "write",
+    });
+  });
+
   test("the policy lists no procedure that no longer exists", () => {
     const known = new Set(paths);
     expect(Object.keys(PROCEDURE_ACCESS).filter((path) => !known.has(path))).toEqual([]);

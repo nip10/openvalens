@@ -14,15 +14,6 @@ import {
   sessionEffortText,
 } from "@openvalens/api/presenters/activity-load";
 import {
-  GOAL_DIRECTION_OPTIONS,
-  GOAL_PRIORITY_OPTIONS,
-  goalDirectionLabel,
-  goalMeasurementFields,
-  goalPriorityLabel,
-  goalStatusLabel,
-  summarizeGoals,
-  type GoalDirectionOption,
-  type GoalPriorityOption,
   summarizeWorkouts,
   workoutDurationLabel,
   workoutTypeLabel,
@@ -32,14 +23,12 @@ import { Link } from "expo-router";
 import { Button, Spinner } from "heroui-native";
 import {
   Activity,
-  Plus,
   Bike,
   BookOpen,
   Dumbbell,
   Flame,
   Footprints,
   type LucideIcon,
-  Target,
   Timer,
   TrendingUp,
   Trophy,
@@ -47,7 +36,7 @@ import {
   Zap,
 } from "lucide-react-native";
 import { useState } from "react";
-import { Alert, Pressable, RefreshControl, Text, TextInput, View } from "react-native";
+import { Alert, Pressable, RefreshControl, Text, View } from "react-native";
 
 import {
   Details,
@@ -56,14 +45,12 @@ import {
   Icon,
   InfoTip,
   ListCard,
-  Meter,
   Page,
   PageHeader,
   Prose,
   Section,
   Sheet,
   StatTile,
-  type StatusTone,
   TileRow,
   ToneIcon,
 } from "@/components/bloom";
@@ -71,11 +58,9 @@ import { TrendChart } from "@/components/chart";
 import { Container } from "@/components/container";
 import { friendlyDate } from "@/utils/friendly";
 import { orpc } from "@/utils/orpc";
-import { goalLogValue } from "@/utils/score-screen";
 import { useThemeColor } from "@/utils/theme";
 import { ModuleHiddenNote } from "@/components/module-hidden-note";
 import { WorkoutSession } from "@/components/workout-session";
-import { DateField } from "@/components/date-field";
 import { toggleEffort } from "@/utils/activity-load-screen";
 import { WorkoutSessionDetail } from "@/components/workout-session-detail";
 import { useWorkoutSession } from "@/lib/workouts/sync";
@@ -83,15 +68,8 @@ import type { WorkoutDetail } from "@/lib/workouts/model";
 import { createWorkoutDraft } from "@/lib/workouts/model";
 import { authClient } from "@/lib/auth-client";
 
-const INPUT_CLASS =
-  "min-h-11 rounded-xl border border-rule-2 bg-paper-2 px-3 font-sans text-base text-ink";
-
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
-}
-
-function FieldLabel({ children }: { children: React.ReactNode }) {
-  return <Text className="font-sans text-sm font-medium text-ink-3">{children}</Text>;
 }
 
 function Pill({
@@ -117,9 +95,6 @@ function Pill({
   );
 }
 
-const GOAL_STATUSES = ["not_started", "in_progress", "achieved", "paused", "cancelled"] as const;
-type GoalStatus = (typeof GOAL_STATUSES)[number];
-
 /** How many sessions show as cards; the rest are in the full log. */
 const RECENT_SESSIONS = 6;
 
@@ -133,20 +108,6 @@ const WORKOUT_ICONS: Record<string, LucideIcon> = {
 
 function workoutIcon(type: string): LucideIcon {
   return WORKOUT_ICONS[type] ?? Activity;
-}
-
-function goalTone(status: string): StatusTone {
-  if (status === "achieved") return "good";
-  return "neutral";
-}
-
-/** How far a goal has come from its start toward its target, 0 to 1; null without three numbers (as web). */
-function goalShare(start: string | null, now: string | null, target: string | null): number | null {
-  const a = Number.parseFloat(start ?? "");
-  const b = Number.parseFloat(now ?? "");
-  const c = Number.parseFloat(target ?? "");
-  if (![a, b, c].every(Number.isFinite) || a === c) return null;
-  return (b - a) / (c - a);
 }
 
 /** Issue #99 — 0–10 effort choices (CR-10); tapping the selected one clears it. */
@@ -397,283 +358,6 @@ function ActivityLoadView({ result }: { result: ActivityLoadResult }) {
         </Sheet>
       ) : null}
     </View>
-  );
-}
-
-function AddGoalForm({ onSaved }: { onSaved: () => void }) {
-  const { t } = useLingui();
-  const { _ } = useLinguiRuntime();
-  const placeholder = useThemeColor("ink-3");
-  const [title, setTitle] = useState("");
-  const [targetDate, setTargetDate] = useState<string | null>(null);
-  const [status, setStatus] = useState<GoalStatus>("not_started");
-  // Issue #95 — optional measurement so goal progress can be calculated (same as web).
-  const [startValue, setStartValue] = useState("");
-  const [targetValue, setTargetValue] = useState("");
-  const [direction, setDirection] = useState<GoalDirectionOption | null>(null);
-  const [priority, setPriority] = useState<GoalPriorityOption>("normal");
-
-  const save = useMutation(
-    orpc.plans.goals.upsertGoal.mutationOptions({
-      onSuccess: () => {
-        setTitle("");
-        setTargetDate(null);
-        setStatus("not_started");
-        setStartValue("");
-        setTargetValue("");
-        setDirection(null);
-        setPriority("normal");
-        onSaved();
-      },
-    }),
-  );
-
-  const titleMissing = title.trim().length === 0;
-  const measurement = goalMeasurementFields({ startValue, targetValue, direction, priority });
-
-  const submit = () => {
-    if (titleMissing || !measurement.ok) return;
-    save.mutate({
-      title: title.trim(),
-      // `upsertGoal` requires a category; goals created here default to
-      // the general health category.
-      category: "health",
-      targetDate,
-      status,
-      ...measurement.fields,
-    });
-  };
-
-  return (
-    <Section sheet icon={Plus} tone="weight" title={t`Add a goal`}>
-      <View className="gap-2">
-        <FieldLabel>
-          <Trans>Title</Trans>
-        </FieldLabel>
-        <TextInput
-          value={title}
-          onChangeText={setTitle}
-          placeholder={t`Run a 5k`}
-          className={INPUT_CLASS}
-          placeholderTextColor={placeholder}
-        />
-      </View>
-      <DateField label={t`Due date`} value={targetDate} onChange={setTargetDate} nullable />
-      <View className="gap-2">
-        <FieldLabel>
-          <Trans>Status</Trans>
-        </FieldLabel>
-        <View className="flex-row flex-wrap gap-2">
-          {GOAL_STATUSES.map((value) => (
-            <Pill
-              key={value}
-              label={_(goalStatusLabel(value))}
-              selected={value === status}
-              onPress={() => setStatus(value)}
-            />
-          ))}
-        </View>
-      </View>
-      <View className="flex-row gap-3">
-        <View className="flex-1 gap-2">
-          <FieldLabel>
-            <Trans>Starting value (optional)</Trans>
-          </FieldLabel>
-          <TextInput
-            value={startValue}
-            onChangeText={setStartValue}
-            placeholder="80 kg"
-            accessibilityLabel={t`Starting value (optional)`}
-            className={INPUT_CLASS}
-            placeholderTextColor={placeholder}
-          />
-        </View>
-        <View className="flex-1 gap-2">
-          <FieldLabel>
-            <Trans>Target (optional)</Trans>
-          </FieldLabel>
-          <TextInput
-            value={targetValue}
-            onChangeText={setTargetValue}
-            placeholder="75 kg"
-            accessibilityLabel={t`Target (optional)`}
-            className={INPUT_CLASS}
-            placeholderTextColor={placeholder}
-          />
-        </View>
-      </View>
-      <View className="gap-2">
-        <FieldLabel>
-          <Trans>Progress means the value should</Trans>
-        </FieldLabel>
-        <View className="flex-row flex-wrap gap-2">
-          {GOAL_DIRECTION_OPTIONS.map((value) => (
-            <Pill
-              key={value}
-              label={_(goalDirectionLabel(value))}
-              selected={value === direction}
-              onPress={() => setDirection(value === direction ? null : value)}
-            />
-          ))}
-        </View>
-      </View>
-      <View className="gap-2">
-        <FieldLabel>
-          <Trans>Priority</Trans>
-        </FieldLabel>
-        <View className="flex-row flex-wrap gap-2">
-          {GOAL_PRIORITY_OPTIONS.map((value) => (
-            <Pill
-              key={value}
-              label={_(goalPriorityLabel(value))}
-              selected={value === priority}
-              onPress={() => setPriority(value)}
-            />
-          ))}
-        </View>
-      </View>
-      <View className="flex-row flex-wrap items-center gap-3 pt-1">
-        <Button
-          variant="outline"
-          onPress={submit}
-          isDisabled={titleMissing || !measurement.ok || save.isPending}
-        >
-          {save.isPending ? t`Saving…` : t`Save`}
-        </Button>
-        {!measurement.ok ? (
-          <Text className="font-sans text-sm text-destructive" accessibilityRole="alert">
-            {_(measurement.error)}
-          </Text>
-        ) : save.isSuccess ? (
-          <Text className="font-sans text-sm text-success">
-            <Trans>Saved</Trans>
-          </Text>
-        ) : save.isError ? (
-          <Text className="font-sans text-sm text-destructive">
-            <Trans>Could not save.</Trans>
-          </Text>
-        ) : null}
-      </View>
-    </Section>
-  );
-}
-
-/** Issue #95 — record today's value for a goal (same as web "Log"). */
-function LogGoalValue({ goalId, onSaved }: { goalId: number; onSaved: () => void }) {
-  const { t } = useLingui();
-  const placeholder = useThemeColor("ink-3");
-  const [text, setText] = useState("");
-  const log = useMutation(
-    orpc.plans.goals.upsertCheckin.mutationOptions({
-      onSuccess: () => {
-        setText("");
-        onSaved();
-      },
-    }),
-  );
-  const value = goalLogValue(text);
-  return (
-    <View className="flex-row items-center gap-2">
-      <TextInput
-        value={text}
-        onChangeText={setText}
-        placeholder={t`Today`}
-        accessibilityLabel={t`Today's value`}
-        maxLength={80}
-        className="min-h-11 w-28 rounded-xl border border-rule-2 bg-paper-2 px-3 font-sans text-sm text-ink"
-        placeholderTextColor={placeholder}
-      />
-      <Button
-        size="sm"
-        variant="secondary"
-        isDisabled={value === null || log.isPending}
-        onPress={() => {
-          if (value !== null) log.mutate({ goalId, date: todayIso(), value });
-        }}
-      >
-        {t`Log`}
-      </Button>
-    </View>
-  );
-}
-
-export function GoalsContent() {
-  const { t, i18n } = useLingui();
-  const { _ } = useLinguiRuntime();
-  const queryClient = useQueryClient();
-  const goals = useQuery(orpc.plans.goals.listGoals.queryOptions({ input: {} }));
-  const reloadGoals = () => {
-    void goals.refetch();
-    void queryClient.invalidateQueries({ queryKey: [["plans", "goals", "listGoals"]] });
-    void queryClient.invalidateQueries({ queryKey: orpc.score.key() });
-  };
-  if (goals.isPending)
-    return (
-      <Sheet className="items-center py-10">
-        <Spinner />
-      </Sheet>
-    );
-  if (goals.isError || !goals.data)
-    return (
-      <ErrorState
-        title={<Trans>Could not load goals.</Trans>}
-        action={
-          <Button variant="outline" size="sm" onPress={() => void goals.refetch()}>
-            <Trans>Retry</Trans>
-          </Button>
-        }
-      />
-    );
-  const summary = summarizeGoals(goals.data);
-  return (
-    <Section
-      icon={Target}
-      tone="weight"
-      title={t`Goals`}
-      description={
-        summary.total ? (
-          <Trans>
-            {summary.open} open, {summary.achieved} achieved
-          </Trans>
-        ) : undefined
-      }
-    >
-      {goals.data.length === 0 ? (
-        <EmptyState
-          icon={Target}
-          tone="weight"
-          title={<Trans>No goals yet</Trans>}
-          description={<Trans>Add a goal to start tracking.</Trans>}
-        />
-      ) : (
-        <View className="gap-3">
-          {goals.data.map((goal) => {
-            const progress = goalShare(goal.baselineValue, goal.currentValue, goal.targetValue);
-            return (
-              <ListCard
-                key={goal.id}
-                icon={Target}
-                tone="weight"
-                title={goal.title}
-                status={{ label: _(goalStatusLabel(goal.status)), tone: goalTone(goal.status) }}
-                subtitle={
-                  goal.targetDate ? t`Due ${friendlyDate(i18n, goal.targetDate)}` : t`No due date`
-                }
-                chip={
-                  goal.currentValue || goal.targetValue
-                    ? `${goal.currentValue ?? "—"} / ${goal.targetValue ?? "—"}`
-                    : undefined
-                }
-              >
-                {progress !== null ? <Meter value={progress} tone="weight" /> : null}
-                <LogGoalValue goalId={goal.id} onSaved={reloadGoals} />
-              </ListCard>
-            );
-          })}
-        </View>
-      )}
-      <AddGoalForm onSaved={reloadGoals} />
-    </Section>
   );
 }
 

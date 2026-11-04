@@ -75,8 +75,12 @@ export type AiHealthToolSources = {
     organizationId: string,
     supplementId: number,
   ) => Promise<SupplementSchedule[]>;
-  listGoals: (organizationId: string) => Promise<Goal[]>;
-  listGoalCheckins: (organizationId: string, goalId: number) => Promise<GoalCheckin[]>;
+  listGoals: (organizationId: string, userId: string) => Promise<Goal[]>;
+  listGoalCheckins: (
+    organizationId: string,
+    userId: string,
+    goalId: number,
+  ) => Promise<GoalCheckin[]>;
   /** Merged health-record timeline page (`@openvalens/health-record`). */
   listTimeline: (organizationId: string, filters: TimelineFilters) => Promise<TimelinePage>;
   /**
@@ -91,10 +95,10 @@ export type AiHealthToolSources = {
 };
 
 /** Binds the ports to the real domain packages for one database handle. */
-export function createDomainHealthToolSources(db: Database): AiHealthToolSources {
+export function createDomainHealthToolSources(db: Database, userId: string): AiHealthToolSources {
   const clinical = createClinicalRepository(db);
   const plans = createPlansRepository(db);
-  const goals = createGoalRepository(db);
+  const goals = createGoalRepository(db, userId);
   const healthRecord = createHealthRecordRepository(db);
   const nutritionTotals = createNutritionTotals(db);
   return {
@@ -114,8 +118,10 @@ export function createDomainHealthToolSources(db: Database): AiHealthToolSources
     listSupplements: (organizationId) => plans.listSupplements(organizationId),
     listSupplementSchedules: (organizationId, supplementId) =>
       plans.listSchedules(organizationId, supplementId),
-    listGoals: (organizationId) => goals.listGoals(organizationId),
-    listGoalCheckins: (organizationId, goalId) => goals.listCheckins(organizationId, goalId),
+    listGoals: async (organizationId) =>
+      (await goals.listGoals(organizationId)).filter((item) => item.deletedAt == null),
+    listGoalCheckins: async (organizationId, _userId, goalId) =>
+      (await goals.listCheckins(organizationId, goalId)).filter((item) => item.deletedAt == null),
     listTimeline: (organizationId, filters) => healthRecord.listTimeline(organizationId, filters),
     listNutritionDailyTotals: (scope, range) => nutritionTotals.listDays(scope, range),
   };

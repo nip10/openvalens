@@ -18,6 +18,15 @@ export type SleepEventRow = {
   payloadJson: unknown;
 };
 
+/** A stable personal-goal evidence item; date is the local date of wake-up. */
+export type PersonalSleepDailyEvidence = {
+  date: string;
+  minutes: number;
+  wakeAt: string;
+  sessionIds: string[];
+  source: "automatic_sleep";
+};
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -35,6 +44,45 @@ function asStageIntervals(value: unknown): SleepSessionInput["stageIntervals"] {
     start: String(interval.start ?? ""),
     end: String(interval.end ?? ""),
   }));
+}
+
+function asleepIntervals(row: SleepEventRow): Array<{ start: number; end: number }> {
+  const session = toSessionInput(row);
+  const start = new Date(session.start).getTime();
+  const end = new Date(session.end ?? "").getTime();
+  if (!Number.isFinite(end) || end - start < 10 * 60_000 || end - start > DAY_MS) return [];
+  const awake = (session.stageIntervals ?? [])
+    .filter((stage) => /awake|wake/i.test(stage.stage))
+    .map((stage) => ({
+      start: new Date(stage.start).getTime(),
+      end: new Date(stage.end).getTime(),
+    }))
+    .filter(
+      (interval) =>
+        Number.isFinite(interval.start) &&
+        Number.isFinite(interval.end) &&
+        interval.end > interval.start,
+    )
+    .map((interval) => ({
+      start: Math.max(start, interval.start),
+      end: Math.min(end, interval.end),
+    }))
+    .filter((interval) => interval.end > interval.start)
+    .sort((a, b) => a.start - b.start || a.end - b.end);
+  const mergedAwake: Array<{ start: number; end: number }> = [];
+  for (const interval of awake) {
+    const last = mergedAwake.at(-1);
+    if (!last || interval.start > last.end) mergedAwake.push({ ...interval });
+    else last.end = Math.max(last.end, interval.end);
+  }
+  const asleep: Array<{ start: number; end: number }> = [];
+  let cursor = start;
+  for (const interval of mergedAwake) {
+    if (interval.start > cursor) asleep.push({ start: cursor, end: interval.start });
+    cursor = Math.max(cursor, interval.end);
+  }
+  if (cursor < end) asleep.push({ start: cursor, end });
+  return asleep;
 }
 
 function toSessionInput(row: SleepEventRow): SleepSessionInput {
@@ -189,4 +237,111 @@ export async function listSleepDailySummaries(
     .orderBy(desc(healthEvent.eventAt), desc(healthEvent.id));
 
   return buildSleepDailySummariesFromEventRows(rows);
+}
+
+/**
+ * Owner-scoped automatic-sleep evidence. Unlike legacy readiness summaries,
+ * this explicitly excludes ownerless history and assigns each complete
+ * session to its wake-up date in the caller's stable goal timezone.
+ */
+export async function getPersonalSleepDailyEvidence(
+  db: Database,
+  input: {
+    organizationId: string;
+    userId: string;
+    startDate: string;
+    endDate: string;
+    timeZone: string;
+  },
+): Promise<PersonalSleepDailyEvidence[]> {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.startDate) || !/^\d{4}-\d{2}-\d{2}$/.test(input.endDate))
+    throw new RangeError("Sleep evidence dates must use YYYY-MM-DD.");
+  if (input.startDate > input.endDate)
+    throw new RangeError("Sleep evidence date range is inverted.");
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: input.timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const localDate = (date: Date) => {
+    const parts = Object.fromEntries(
+      formatter.formatToParts(date).map((part) => [part.type, part.value]),
+    );
+    return `${parts.year}-${parts.month}-${parts.day}`;
+  };
+  // timezone extremes plus a full overnight session; filter exact local dates below.
+  const from = new Date(`${dateMinusDays(input.startDate, 2)}T00:00:00.000Z`);
+  const to = new Date(`${dateMinusDays(input.endDate, -2)}T23:59:59.999Z`);
+  const rows = await db
+    .select({
+      id: healthEvent.id,
+      eventAt: healthEvent.eventAt,
+      title: healthEvent.title,
+      payloadJson: healthEvent.payloadJson,
+    })
+    .from(healthEvent)
+    .where(
+      and(
+        eq(healthEvent.organizationId, input.organizationId),
+        eq(healthEvent.userId, input.userId),
+        eq(healthEvent.eventType, "sleep_session"),
+        isNull(healthEvent.supersededAt),
+        gte(healthEvent.eventAt, from),
+        lte(healthEvent.eventAt, to),
+      ),
+    )
+    .orderBy(desc(healthEvent.eventAt), desc(healthEvent.id));
+
+  const grouped = new Map<
+    string,
+    Array<{ id: string; start: number; end: number; asleep: Array<{ start: number; end: number }> }>
+  >();
+  for (const row of rows) {
+    const payload = isRecord(row.payloadJson) ? row.payloadJson : {};
+    const endValue = asString(payload.endAt);
+    if (!endValue) continue;
+    const start = row.eventAt.getTime();
+    const end = new Date(endValue).getTime();
+    const duration = end - start;
+    if (!Number.isFinite(end) || duration < 10 * 60_000 || duration > DAY_MS) continue;
+    const date = localDate(new Date(end));
+    if (date < input.startDate || date > input.endDate) continue;
+    const sessions = grouped.get(date) ?? [];
+    sessions.push({ id: String(row.id), start, end, asleep: asleepIntervals(row) });
+    grouped.set(date, sessions);
+  }
+
+  const evidence: PersonalSleepDailyEvidence[] = [];
+  for (const [date, sessions] of [...grouped].sort(([a], [b]) => a.localeCompare(b))) {
+    // Union overlapping intervals so duplicate sessions from multiple sources
+    // never inflate a personal goal's daily credit.
+    const sorted = [...sessions].sort((a, b) => a.start - b.start || a.end - b.end);
+    const merged: Array<{ start: number; end: number; ids: string[] }> = [];
+    for (const session of sorted) {
+      merged.push(...session.asleep.map((interval) => ({ ...interval, ids: [session.id] })));
+    }
+    merged.sort((a, b) => a.start - b.start || a.end - b.end);
+    const union: Array<{ start: number; end: number; ids: string[] }> = [];
+    for (const interval of merged) {
+      const last = union.at(-1);
+      if (!last || interval.start > last.end) union.push({ ...interval });
+      else {
+        last.end = Math.max(last.end, interval.end);
+        last.ids.push(...interval.ids);
+      }
+    }
+    const minutes = Math.round(
+      union.reduce((sum, item) => sum + item.end - item.start, 0) / 60_000,
+    );
+    const lastWake = Math.max(...sessions.map((session) => session.end));
+    evidence.push({
+      date,
+      minutes,
+      wakeAt: new Date(lastWake).toISOString(),
+      sessionIds: [...new Set(union.flatMap((item) => item.ids))],
+      source: "automatic_sleep",
+    });
+  }
+  return evidence;
 }

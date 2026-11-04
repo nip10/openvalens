@@ -106,11 +106,12 @@ export async function applyHealthKitSleepSegments(
     providerConnectionId: number;
     ingestionBatchId: number;
     provider: MobileProvider;
+    ownerUserId: string | null;
     batch: MobileIngestBatch;
     now: Date;
   },
 ): Promise<ApplySleepSegmentsResult> {
-  const { organizationId, providerConnectionId, batch } = input;
+  const { organizationId, providerConnectionId, batch, ownerUserId } = input;
   await tx.execute(
     sql`select pg_advisory_xact_lock(hashtext(${`sleep_segment:${organizationId}:${providerConnectionId}`}))`,
   );
@@ -177,6 +178,7 @@ export async function applyHealthKitSleepSegments(
     where r.organization_id = ${organizationId}
       and d.provider_connection_id = ${providerConnectionId}
       and r.event_type = 'sleep_session'
+      and r.user_id is not distinct from ${ownerUserId}
       and r.superseded_at is null
       and r.payload_json ? 'segmentIds'
       and ((r.payload_json->'segmentIds') ?| ${textArray(touchedIds)} ${near})
@@ -278,6 +280,7 @@ export async function applyHealthKitSleepSegments(
       dataSourceId,
       ingestionBatchId: input.ingestionBatchId,
       provider: input.provider,
+      ownerUserId,
       intents,
       dedupe: "mobile",
     });
@@ -294,6 +297,7 @@ export async function applyHealthKitSleepSegments(
         and r.organization_id = ${organizationId}
         and d.provider_connection_id = ${providerConnectionId}
         and r.event_type = 'sleep_session'
+        and r.user_id is not distinct from ${ownerUserId}
         and r.source_event_id in (${sql.join(
           restore.map((id) => sql`${id}`),
           sql`, `,

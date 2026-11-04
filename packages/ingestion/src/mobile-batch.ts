@@ -23,7 +23,11 @@ import {
   type MobileHealthRecordType,
 } from "./mobile-records";
 import { resolveDataSource, sourceIdentity, type SourceIdentity } from "./mobile-data-source";
-import { hasCloudWearableSources, reconcilePhoneFirst } from "./phone-first";
+import {
+  hasCloudWearableSources,
+  latchSleepGoalEvidence,
+  reconcilePhoneFirst,
+} from "./phone-first";
 import { persistCanonicalIntents, type CanonicalRowRef } from "./persist-canonical-records";
 import type { RunClaimedJobResult } from "./run-job";
 
@@ -383,21 +387,18 @@ export async function runMobileIngestBatchJob(
 
     const containsWeight =
       batch.recordType === "weight" || batch.upserts.some((record) => record.type === "weight");
-    let deviceOwnerId: string | null = null;
-    if (containsWeight) {
-      const [owner] = await tx
-        .select({ userId: providerConnection.userId })
-        .from(providerConnection)
-        .where(
-          and(
-            eq(providerConnection.id, job.providerConnectionId),
-            eq(providerConnection.organizationId, organizationId),
-          ),
-        )
-        .limit(1);
-      deviceOwnerId = owner?.userId ?? null;
-      if (deviceOwnerId) await lockNutritionSafetyUser(tx, deviceOwnerId);
-    }
+    const [owner] = await tx
+      .select({ userId: providerConnection.userId })
+      .from(providerConnection)
+      .where(
+        and(
+          eq(providerConnection.id, job.providerConnectionId),
+          eq(providerConnection.organizationId, organizationId),
+        ),
+      )
+      .limit(1);
+    const deviceOwnerId = owner?.userId ?? null;
+    if (containsWeight && deviceOwnerId) await lockNutritionSafetyUser(tx, deviceOwnerId);
 
     const totals = {
       metricSampleCount: 0,
@@ -416,6 +417,7 @@ export async function runMobileIngestBatchJob(
             providerConnectionId: job.providerConnectionId,
             ingestionBatchId: batchId,
             provider: batch.provider,
+            ownerUserId: deviceOwnerId,
             batch,
             now: now(),
           })
@@ -451,6 +453,7 @@ export async function runMobileIngestBatchJob(
         dataSourceId,
         ingestionBatchId: batchId,
         provider: batch.provider,
+        ownerUserId: deviceOwnerId,
         intents,
         dedupe: "mobile",
       });
@@ -501,8 +504,17 @@ export async function runMobileIngestBatchJob(
     const scope = {
       organizationId,
       providerConnectionId: job.providerConnectionId,
+      ownerUserId: deviceOwnerId,
       now: now(),
     };
+    // Preserve source immutability before accepted sleep rows can be retired
+    // by this batch, even when the organization has no cloud wearable source.
+    await latchSleepGoalEvidence(
+      tx,
+      organizationId,
+      new Date(0),
+      new Date("2200-01-01T00:00:00.000Z"),
+    );
     const superseded = sleep
       ? sleep.superseded
       : [
@@ -649,6 +661,7 @@ async function supersede(
   input: {
     organizationId: string;
     providerConnectionId: number;
+    ownerUserId: string | null;
     externalIds: string[];
     mode: "deleted" | "older_versions";
     now: Date;
@@ -664,16 +677,25 @@ async function supersede(
   );
   const version = (alias: string) =>
     sql`(${sql.identifier(alias)}.${versionColumn}->>'lastModifiedAt')::timestamptz`;
+  const versionOwnerScope =
+    target.table === "health_event"
+      ? sql`and (r2.event_type <> 'sleep_session' or r2.user_id is not distinct from ${input.ownerUserId})`
+      : sql``;
   const olderThanNewest =
     input.mode === "older_versions"
       ? sql`and coalesce(${version("r")}, '-infinity'::timestamptz) < (
           select max(${version("r2")}) from ${table} r2
           join data_source d2 on d2.id = r2.data_source_id and d2.organization_id = r2.organization_id
           where r2.organization_id = ${input.organizationId}
-            and d2.provider_connection_id = ${input.providerConnectionId}
-            and r2.${idColumn} = r.${idColumn})`
+             and d2.provider_connection_id = ${input.providerConnectionId}
+             and r2.${idColumn} = r.${idColumn}
+             ${versionOwnerScope})`
       : sql``;
   const touch = target.touchesUpdatedAt ? sql`, updated_at = ${input.now}` : sql``;
+  const ownerScope =
+    target.table === "health_event"
+      ? sql`and (r.event_type <> 'sleep_session' or r.user_id is not distinct from ${input.ownerUserId})`
+      : sql``;
   const result = await tx.execute(sql`
     update ${table} r set superseded_at = ${input.now} ${touch}
     from data_source d
@@ -681,6 +703,7 @@ async function supersede(
       and r.organization_id = ${input.organizationId}
       and d.provider_connection_id = ${input.providerConnectionId}
       and r.${idColumn} in (${ids})
+      ${ownerScope}
       and r.superseded_at is null
       ${olderThanNewest}
     returning r.id`);

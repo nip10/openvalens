@@ -1,6 +1,7 @@
-import type { Database } from "@openvalens/db";
+import type { Database, DbTransaction } from "@openvalens/db";
 import { exercise } from "@openvalens/db/schema/exercises";
 import {
+  goal,
   workout,
   workoutExercise,
   workoutMutation,
@@ -8,7 +9,7 @@ import {
   workoutSet,
   workoutRoutine,
 } from "@openvalens/db/schema/plans";
-import { and, asc, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
 
 import { todayIsoDate } from "./validation";
@@ -240,6 +241,70 @@ export class WorkoutVersionConflictError extends Error {}
 
 export function createWorkoutRepository(db: Database) {
   const history = createWorkoutHistoryRepository(db);
+  type EvidenceExercise = {
+    exerciseId?: number | null;
+    sets: Array<{ reps: number | null; weightKg?: number | null }>;
+  };
+  async function latchGoalEvidence(
+    tx: DbTransaction,
+    organizationId: string,
+    userId: string | null | undefined,
+    date: string,
+    exercises: ReadonlyArray<EvidenceExercise>,
+  ): Promise<void> {
+    if (!userId) return;
+    const acceptedExercises = new Set(
+      exercises
+        .filter(
+          (item) =>
+            item.exerciseId != null &&
+            item.sets.some((set) => set.reps != null && set.reps >= 1 && set.weightKg != null),
+        )
+        .map((item) => item.exerciseId!),
+    );
+    if (!acceptedExercises.size) return;
+    const linkedGoals = await tx
+      .select({ id: goal.id, definition: goal.definition })
+      .from(goal)
+      .where(
+        and(
+          eq(goal.organizationId, organizationId),
+          eq(goal.userId, userId),
+          eq(goal.source, "workout"),
+          inArray(goal.status, ["in_progress", "not_started"]),
+          isNull(goal.deletedAt),
+          lte(goal.startDate, date),
+        ),
+      );
+    const goalIds = linkedGoals
+      .filter((row) => {
+        if (
+          typeof row.definition !== "object" ||
+          row.definition === null ||
+          Array.isArray(row.definition)
+        )
+          return false;
+        const definition = row.definition as Record<string, unknown>;
+        if (definition.source !== "workout" || typeof definition.metric !== "string") return false;
+        const match = /^exercise:([1-9]\d*)$/.exec(definition.metric);
+        if (!match) return false;
+        const exerciseId = Number(match[1]);
+        return Number.isSafeInteger(exerciseId) && acceptedExercises.has(exerciseId);
+      })
+      .map((row) => row.id);
+    if (goalIds.length)
+      await tx
+        .update(goal)
+        .set({ everHadEvidence: true })
+        .where(
+          and(
+            eq(goal.organizationId, organizationId),
+            eq(goal.userId, userId),
+            inArray(goal.id, goalIds),
+            eq(goal.everHadEvidence, false),
+          ),
+        );
+  }
   const present = async (
     session: Workout,
     exercises: Array<WorkoutExercise & { sets: WorkoutSet[] }>,
@@ -600,6 +665,7 @@ export function createWorkoutRepository(db: Database) {
           await tx.insert(workoutSet).values(setInserts);
         }
       }
+      await latchGoalEvidence(tx, organizationId, input.userId, input.date, input.exercises);
 
       const result = {
         id: session.id,
@@ -755,6 +821,43 @@ export function createWorkoutRepository(db: Database) {
         .for("update");
       if (!current) throw new WorkoutNotFoundError();
       if (current.version !== expectedVersion) throw new WorkoutVersionConflictError();
+      const priorSets = await tx
+        .select({
+          exerciseId: workoutExercise.exerciseId,
+          reps: workoutSet.reps,
+          weightKg: workoutSet.weightKg,
+        })
+        .from(workoutExercise)
+        .innerJoin(
+          workoutSet,
+          and(
+            eq(workoutSet.organizationId, workoutExercise.organizationId),
+            eq(workoutSet.exerciseId, workoutExercise.id),
+          ),
+        )
+        .where(
+          and(
+            eq(workoutExercise.organizationId, organizationId),
+            eq(workoutExercise.workoutId, id),
+          ),
+        );
+      const priorByExercise = new Map<
+        number,
+        Array<{ reps: number | null; weightKg: number | null }>
+      >();
+      for (const set of priorSets) {
+        if (set.exerciseId === null) continue;
+        const list = priorByExercise.get(set.exerciseId) ?? [];
+        list.push({ reps: set.reps, weightKg: set.weightKg });
+        priorByExercise.set(set.exerciseId, list);
+      }
+      await latchGoalEvidence(
+        tx,
+        organizationId,
+        userId,
+        current.date,
+        [...priorByExercise].map(([exerciseId, sets]) => ({ exerciseId, sets })),
+      );
       let result: {
         id: number;
         version: number;
@@ -869,6 +972,13 @@ export function createWorkoutRepository(db: Database) {
             count += item.sets.length;
           }
         }
+        await latchGoalEvidence(
+          tx,
+          organizationId,
+          userId,
+          replacement.date,
+          replacement.exercises,
+        );
         result = {
           id,
           version,

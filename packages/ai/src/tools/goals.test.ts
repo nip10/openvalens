@@ -1,7 +1,14 @@
 import { describe, expect, test } from "bun:test";
 
 import { GOALS_MAX_ITEMS, buildGoals, executeGoals, goalsInput, goalsOutput } from "./goals";
-import { FIXED_NOW, ORG_A, createFakeSources, goalEntry, toolContext } from "./test-fixtures";
+import {
+  FIXED_NOW,
+  ORG_A,
+  USER_A,
+  createFakeSources,
+  goalEntry,
+  toolContext,
+} from "./test-fixtures";
 
 describe("goals input", () => {
   test("accepts only known statuses", () => {
@@ -81,5 +88,32 @@ describe("goals execution", () => {
     calls.length = 0;
     await executeGoals(toolContext({ sources }), { status: "paused" });
     expect(calls.filter((call) => call.port === "listGoalCheckins")).toHaveLength(1);
+  });
+
+  test("binds goal and history reads to the authenticated subject, not an org-wide scope", async () => {
+    const { sources, calls } = createFakeSources({
+      [ORG_A]: { goals: [goalEntry(9, "Private goal", "in_progress")] },
+    });
+    await executeGoals(toolContext({ sources }), {});
+    expect(calls.filter((call) => call.port === "listGoals")).toEqual([
+      { port: "listGoals", organizationId: ORG_A, subjectUserId: USER_A },
+    ]);
+    expect(calls.filter((call) => call.port === "listGoalCheckins")).toEqual([
+      { port: "listGoalCheckins", organizationId: ORG_A, subjectUserId: USER_A },
+    ]);
+  });
+
+  test("permission denial prevents any goal or check-in source reads", async () => {
+    const { sources, calls } = createFakeSources({
+      [ORG_A]: { goals: [goalEntry(9, "Private goal", "in_progress")] },
+    });
+    const result = await executeGoals(
+      toolContext({ sources, canReadRecords: async () => false }),
+      {},
+    );
+    expect(result).toMatchObject({ status: "unavailable", reason: "permission_denied" });
+    expect(
+      calls.filter((call) => call.port === "listGoals" || call.port === "listGoalCheckins"),
+    ).toEqual([]);
   });
 });

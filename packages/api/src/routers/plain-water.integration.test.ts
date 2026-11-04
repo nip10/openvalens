@@ -2,6 +2,8 @@ import { readdir } from "node:fs/promises";
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import { clearRegisteredAuth, setRegisteredAuth, type Auth } from "@openvalens/auth";
 import { createDb, sql, type Database } from "@openvalens/db";
+import { createPersonalGoalRepository } from "@openvalens/plans";
+import { reconcileWaterLink } from "@openvalens/plans/goal-water-link";
 import { RPCHandler } from "@orpc/server/fetch";
 
 import type { Context } from "../context";
@@ -24,6 +26,22 @@ const members: Record<string, { org: string; role: string }> = {
 };
 const deniedRecords = new Set<string>();
 const actor = (headers: Headers) => headers.get("x-test-user") ?? "user-a";
+async function bounded<T>(promise: Promise<T>, label: string, milliseconds = 5000): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error(`${label} exceeded ${milliseconds}ms`)),
+          milliseconds,
+        );
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
 const auth = {
   api: {
     getSession: async ({ headers }: { headers: Headers }) => {
@@ -129,6 +147,14 @@ describe.skipIf(!url)("plainWater authenticated HTTP/PG API", () => {
   });
   beforeEach(async () => {
     deniedRecords.clear();
+    const testOwners = sql`(organization_id, user_id) in (('org-a', 'user-a'), ('org-a', 'user-b'), ('org-a', 'user-c'), ('org-b', 'user-d'))`;
+    await db.execute(sql`delete from goal_checkin where ${testOwners}`);
+    await db.execute(sql`delete from goal_water_link where ${testOwners}`);
+    await db.execute(sql`delete from goal_definition where ${testOwners}`);
+    await db.execute(sql`delete from goal_lifecycle where ${testOwners}`);
+    await db.execute(sql`delete from goal_mutation where ${testOwners}`);
+    await db.execute(sql`delete from goal_water_cutover where ${testOwners}`);
+    await db.execute(sql`delete from goal where ${testOwners}`);
     await db.execute(sql`delete from "user"`);
     await db.execute(sql`delete from organization`);
     await db.execute(
@@ -615,5 +641,434 @@ describe.skipIf(!url)("plainWater authenticated HTTP/PG API", () => {
     expect(
       (await call("change", { id: 1, expectedRevision: 1, clientMutationId: "noop" })).status,
     ).not.toBe(200);
+  });
+
+  test("legacy water target writes conflict after Goals cutover", async () => {
+    await call("updatePreferences", { enabled: true, personalGoal: 1300, personalGoalUnit: "ml" });
+    const definition = {
+      id: "api-water-goal",
+      title: "Drink water",
+      source: "water",
+      metric: "water_ml",
+      unit: "ml",
+      rule: { kind: "recurring", cadence: "daily", completion: { kind: "minimum", value: 1800 } },
+      startDate: "2026-01-01",
+      timeZone: "UTC",
+      status: "active",
+    };
+    const inserted = await db.execute(sql`
+      insert into goal (organization_id, user_id, title, category, status, source, definition, start_date)
+      values ('org-a', 'user-a', 'Drink water', 'health', 'in_progress', 'water', ${JSON.stringify(definition)}::jsonb, '2026-01-01')
+      returning id
+    `);
+    const goalId = Number(inserted.rows[0]?.id);
+    await db.execute(sql`
+      insert into goal_definition (organization_id, goal_id, user_id, revision, definition, effective_from)
+      values ('org-a', ${goalId}, 'user-a', 1, ${JSON.stringify(definition)}::jsonb, '2026-01-01')
+    `);
+    await db.execute(
+      sql`insert into goal_water_link (organization_id, user_id, goal_id, linked_at) values ('org-a', 'user-a', ${goalId}, '2026-01-01T00:00:00.000Z')`,
+    );
+    await db.execute(
+      sql`insert into goal_water_cutover (organization_id, user_id) values ('org-a', 'user-a')`,
+    );
+    expect(await call("getDay", { date: "2026-10-01", timeZone: "UTC" })).toMatchObject({
+      body: { personalGoalMl: 1800 },
+    });
+    expect(
+      await call("updatePreferences", { personalGoal: 1900, personalGoalUnit: "ml" }),
+    ).toMatchObject({ status: 409, body: { code: "CONFLICT" } });
+  });
+
+  test("diary reads serialize with goal detail, pause, and effective-rule update", async () => {
+    await call("updatePreferences", { enabled: true });
+    const definition = {
+      id: "concurrent-water-goal",
+      title: "Concurrent water goal",
+      source: "water",
+      metric: "water_ml",
+      unit: "ml",
+      rule: { kind: "recurring", cadence: "daily", completion: { kind: "minimum", value: 1800 } },
+      startDate: "2026-01-01",
+      timeZone: "UTC",
+      status: "active",
+    };
+    const created = await call("goals/create", {
+      definition,
+      clientMutationId: "00000000-0000-4000-8000-000000000080",
+    });
+    expect(created.status).toBe(200);
+    const goalId = (created.body as { id: number }).id;
+
+    const pauseRace = await bounded(
+      Promise.all([
+        call("getDay", { date: new Date().toISOString().slice(0, 10), timeZone: "UTC" }),
+        call("goals/detail", { id: goalId }),
+        call("goals/setStatus", {
+          id: goalId,
+          version: 1,
+          status: "paused",
+          clientMutationId: "00000000-0000-4000-8000-000000000081",
+        }),
+      ]),
+      "diary/detail/pause reconciliation",
+    );
+    expect(pauseRace[0]?.status).toBe(200);
+    expect(pauseRace[1]?.status).toBe(200);
+    expect(pauseRace[2]?.status).toBe(200);
+    expect(
+      (await db.execute(sql`select ended_at from goal_water_link where goal_id=${goalId}`)).rows[0]
+        ?.ended_at,
+    ).not.toBeNull();
+
+    await call("goals/setStatus", {
+      id: goalId,
+      version: 2,
+      status: "active",
+      clientMutationId: "00000000-0000-4000-8000-000000000082",
+    });
+    const updateRace = await bounded(
+      Promise.all([
+        call("getDay", { date: new Date().toISOString().slice(0, 10), timeZone: "UTC" }),
+        call("goals/detail", { id: goalId }),
+        call("goals/update", {
+          id: goalId,
+          version: 3,
+          definition: {
+            ...definition,
+            rule: { kind: "average", target: { kind: "minimum", value: 1800 }, windowDays: 7 },
+          },
+          clientMutationId: "00000000-0000-4000-8000-000000000083",
+        }),
+      ]),
+      "diary/detail/effective-rule reconciliation",
+    );
+    expect(updateRace.map((result) => result.status)).toEqual([200, 200, 200]);
+    expect(
+      (await db.execute(sql`select ended_at from goal_water_link where goal_id=${goalId}`)).rows[0]
+        ?.ended_at,
+    ).toBeNull();
+  });
+
+  test("unused measurement changes install an immediate water baseline without reinterpreting old targets", async () => {
+    await call("updatePreferences", { enabled: true });
+    const observedAt = new Date();
+    const today = observedAt.toISOString().slice(0, 10);
+    const manual = {
+      id: "manual-water-baseline",
+      title: "Manual measurement baseline",
+      source: "manual",
+      metric: "body_weight",
+      unit: "kg",
+      rule: { kind: "target", target: { kind: "minimum", value: 100 } },
+      startDate: today,
+      timeZone: "UTC",
+      status: "active",
+    };
+    const water = {
+      ...manual,
+      source: "water",
+      metric: "water_ml",
+      unit: "ml",
+      rule: {
+        kind: "recurring",
+        cadence: "daily",
+        completion: { kind: "minimum", value: 1000 },
+      },
+    };
+    const created = await call("goals/create", {
+      definition: manual,
+      clientMutationId: "00000000-0000-4000-8000-000000000090",
+    });
+    expect(created.status).toBe(200);
+    const goalId = (created.body as { id: number }).id;
+    const changed = await call("goals/update", {
+      id: goalId,
+      version: 1,
+      definition: water,
+      clientMutationId: "00000000-0000-4000-8000-000000000091",
+    });
+    expect(changed.status).toBe(200);
+    expect(changed.body).toMatchObject({
+      sourceLocked: false,
+      definition: {
+        source: "water",
+        metric: "water_ml",
+        unit: "ml",
+        rule: { kind: "recurring", completion: { kind: "minimum", value: 1000 } },
+      },
+    });
+    expect(await call("getDay", { date: today, timeZone: "UTC" })).toMatchObject({
+      status: 200,
+      body: { personalGoalMl: 1000 },
+    });
+
+    const added = await call("add", {
+      quantity: 150,
+      unit: "ml",
+      observedAt: observedAt.toISOString(),
+      timeZone: "UTC",
+      clientMutationId: "00000000-0000-4000-8000-000000000092",
+    });
+    expect(added.status).toBe(200);
+    const detail = await call("goals/detail", { id: goalId });
+    expect(detail.status).toBe(200);
+    const detailBody = detail.body as {
+      sourceLocked: boolean;
+      definition: { rule: { kind: string; completion: { value: number } } };
+      evaluation: {
+        achieved: boolean;
+        currentValue: number | null;
+        days: Array<{ date: string; state: string; value: number | null }>;
+      };
+    };
+    expect(detailBody.sourceLocked).toBe(true);
+    expect(detailBody.definition.rule.kind).toBe("recurring");
+    expect(detailBody.definition.rule.completion.value).toBe(1000);
+    expect(detailBody.evaluation.achieved).toBe(false);
+    expect(detailBody.evaluation.currentValue).toBe(150);
+    expect(Array.isArray(detailBody.evaluation.days)).toBe(true);
+    const todayEvaluation = detailBody.evaluation.days.find((day) => day.date === today);
+    expect(todayEvaluation?.date).toBe(today);
+    expect(todayEvaluation?.state).toBe("does-not-qualify");
+    expect(todayEvaluation?.value).toBe(150);
+
+    const deleted = await call("goals/delete", {
+      id: goalId,
+      version: 2,
+      clientMutationId: "00000000-0000-4000-8000-000000000093",
+    });
+    expect(deleted.status).toBe(200);
+
+    const manualWithExistingWater = { ...manual, id: "manual-with-existing-water" };
+    const waterWithExistingWater = { ...water, id: manualWithExistingWater.id };
+    const withExistingWater = await call("goals/create", {
+      definition: manualWithExistingWater,
+      clientMutationId: "00000000-0000-4000-8000-000000000094",
+    });
+    expect(withExistingWater.status).toBe(200);
+    const secondGoalId = (withExistingWater.body as { id: number }).id;
+    const switchedWithHistory = await call("goals/update", {
+      id: secondGoalId,
+      version: 1,
+      definition: waterWithExistingWater,
+      clientMutationId: "00000000-0000-4000-8000-000000000095",
+    });
+    expect(switchedWithHistory.status).toBe(200);
+    const switchedBody = switchedWithHistory.body as {
+      sourceLocked: boolean;
+      definition: {
+        source: string;
+        metric: string;
+        unit: string;
+        rule: { completion: { value: number } };
+      };
+    };
+    expect(switchedBody.sourceLocked).toBe(true);
+    expect(switchedBody.definition.source).toBe("water");
+    expect(switchedBody.definition.metric).toBe("water_ml");
+    expect(switchedBody.definition.unit).toBe("ml");
+    expect(switchedBody.definition.rule.completion.value).toBe(1000);
+    expect(await call("getDay", { date: today, timeZone: "UTC" })).toMatchObject({
+      status: 200,
+      body: { personalGoalMl: 1000 },
+    });
+    const secondDetail = await call("goals/detail", { id: secondGoalId });
+    expect(secondDetail.status).toBe(200);
+    const secondBody = secondDetail.body as {
+      definition: { rule: { kind: string; completion: { value: number } } };
+      evaluation: { currentValue: number | null; achieved: boolean };
+    };
+    expect(secondBody.definition.rule.kind).toBe("recurring");
+    expect(secondBody.definition.rule.completion.value).toBe(1000);
+    expect(secondBody.evaluation.currentValue).toBe(150);
+    expect(secondBody.evaluation.achieved).toBe(false);
+  });
+
+  test("unused contract reset covers the retained start date across a cutoff change", async () => {
+    const now = new Date("2026-01-05T02:00:00.000Z");
+    const startDate = "2026-01-01";
+    await call("updatePreferences", { enabled: true });
+    const goals = createPersonalGoalRepository(db, "org-a", "user-a", undefined, () => now);
+    const manual = {
+      id: "cutoff-contract-reset",
+      title: "Cutoff contract reset",
+      source: "manual",
+      metric: "water_ml",
+      unit: "ml",
+      rule: { kind: "target", target: { kind: "minimum", value: 100 } },
+      startDate,
+      timeZone: "UTC",
+      status: "active",
+    };
+    const created = await goals.create({
+      definition: manual,
+      clientMutationId: "00000000-0000-4000-8000-000000000096",
+    });
+    const water = {
+      ...manual,
+      source: "water",
+      metric: "water_ml",
+      unit: "ml",
+      rule: {
+        kind: "recurring",
+        cadence: "daily",
+        completion: { kind: "minimum", value: 1000 },
+      },
+      dayCutoff: "04:00",
+    };
+    const updated = await goals.update({
+      id: created.id,
+      version: created.version,
+      definition: water,
+      clientMutationId: "00000000-0000-4000-8000-000000000097",
+    });
+    const detail = await goals.detail(created.id);
+    const preferenceAtBoundary = await db.transaction((tx) =>
+      reconcileWaterLink(tx, { organizationId: "org-a", userId: "user-a" }, { now }),
+    );
+
+    expect(updated.sourceLocked).toBe(false);
+    expect(detail.definition.startDate).toBe(startDate);
+    expect(detail.evaluation.asOf).toBe("2026-01-04");
+    expect(detail.evaluation.achieved).toBe(false);
+    expect(detail.history).toHaveLength(2);
+    expect(detail.history[0]).toMatchObject({
+      revision: 1,
+      effectiveFrom: startDate,
+      effectiveUntil: "2026-01-05",
+      definition: { source: "manual", metric: "water_ml", unit: "ml" },
+    });
+    expect(detail.history[1]).toMatchObject({
+      revision: 2,
+      effectiveFrom: startDate,
+      effectiveUntil: null,
+      definition: {
+        source: "water",
+        metric: "water_ml",
+        unit: "ml",
+        dayCutoff: "04:00",
+        rule: { kind: "recurring", completion: { kind: "minimum", value: 1000 } },
+      },
+    });
+    // This is the canonical no-date current-target resolution used by
+    // resolvePlainWaterGoal/getPreferences, with its existing `now` seam fixed
+    // to the same boundary instant as the goal repository above. The HTTP
+    // getPreferences call below uses the live clock and is only a wiring check.
+    expect(preferenceAtBoundary).toEqual({ linkedGoalId: created.id, targetMl: 1000 });
+
+    expect(await call("getPreferences", {})).toMatchObject({
+      status: 200,
+      body: { enabled: true, personalGoalMl: 1000 },
+    });
+    const added = await call("add", {
+      quantity: 150,
+      unit: "ml",
+      observedAt: now.toISOString(),
+      timeZone: "UTC",
+      clientMutationId: "00000000-0000-4000-8000-000000000098",
+    });
+    expect(added.status).toBe(200);
+    const afterWaterEntry = await goals.detail(created.id);
+    expect(afterWaterEntry.sourceLocked).toBe(true);
+    expect(afterWaterEntry.evaluation.currentValue).toBe(150);
+    expect(afterWaterEntry.evaluation.achieved).toBe(false);
+    const preferenceAfterEntryAtBoundary = await db.transaction((tx) =>
+      reconcileWaterLink(tx, { organizationId: "org-a", userId: "user-a" }, { now }),
+    );
+    expect(preferenceAfterEntryAtBoundary).toEqual({ linkedGoalId: created.id, targetMl: 1000 });
+
+    // The goal cutoff puts Jan 5 at 02:00 UTC in goal day Jan 4, but the diary
+    // keeps its independent UTC-midnight buckets: the entry is in Jan 5.
+    // Jan 4 is a historical diary read before this link's real creation time,
+    // so it has neither entries nor a historical target.
+    const jan4Diary = await call("getDay", { date: "2026-01-04", timeZone: "UTC" });
+    expect(jan4Diary.status).toBe(200);
+    expect(jan4Diary.body).toMatchObject({
+      date: "2026-01-04",
+      quantityMl: 0,
+      personalGoalMl: null,
+    });
+    expect((jan4Diary.body as { entries: unknown[] }).entries).toHaveLength(0);
+
+    const addedEntryId = (added.body as { entry: { id: number } }).entry.id;
+    const jan5Diary = await call("getDay", { date: "2026-01-05", timeZone: "UTC" });
+    expect(jan5Diary.status).toBe(200);
+    const jan5Body = jan5Diary.body as {
+      date: string;
+      quantityMl: number;
+      personalGoalMl: number | null;
+      entries: Array<{ id: number; quantityMl: number | null; observedAt: string }>;
+    };
+    expect(jan5Body.date).toBe("2026-01-05");
+    expect(jan5Body.quantityMl).toBe(150);
+    expect(jan5Body.personalGoalMl).toBeNull();
+    expect(jan5Body.entries).toHaveLength(1);
+    const diaryEntry = jan5Body.entries.find((entry) => entry.id === addedEntryId);
+    expect(diaryEntry?.id).toBe(addedEntryId);
+    expect(diaryEntry?.quantityMl).toBe(150);
+    expect(diaryEntry?.observedAt).toBe(now.toISOString());
+  });
+
+  test("water measurement round-trip installs and projects the latest contract baseline", async () => {
+    await call("updatePreferences", { enabled: true });
+    const today = new Date().toISOString().slice(0, 10);
+    const water = {
+      id: "water-contract-round-trip",
+      title: "Water measurement round-trip",
+      source: "water",
+      metric: "water_ml",
+      unit: "ml",
+      rule: {
+        kind: "recurring",
+        cadence: "daily",
+        completion: { kind: "minimum", value: 500 },
+      },
+      startDate: today,
+      timeZone: "UTC",
+      status: "active",
+    };
+    const created = await call("goals/create", {
+      definition: water,
+      clientMutationId: "00000000-0000-4000-8000-000000000096",
+    });
+    expect(created.status).toBe(200);
+    const goalId = (created.body as { id: number }).id;
+    const manual = {
+      ...water,
+      source: "manual",
+      metric: "amount",
+      unit: "reps",
+      rule: { kind: "target", target: { kind: "minimum", value: 100 } },
+    };
+    const changedToManual = await call("goals/update", {
+      id: goalId,
+      version: 1,
+      definition: manual,
+      clientMutationId: "00000000-0000-4000-8000-000000000097",
+    });
+    expect(changedToManual.status).toBe(200);
+    const changedBackToWater = await call("goals/update", {
+      id: goalId,
+      version: 2,
+      definition: {
+        ...water,
+        rule: {
+          kind: "recurring",
+          cadence: "daily",
+          completion: { kind: "minimum", value: 1200 },
+        },
+      },
+      clientMutationId: "00000000-0000-4000-8000-000000000098",
+    });
+    expect(changedBackToWater.status).toBe(200);
+    expect(changedBackToWater.body).toMatchObject({
+      sourceLocked: false,
+      definition: { rule: { kind: "recurring", completion: { value: 1200 } } },
+    });
+    expect(await call("getDay", { date: today, timeZone: "UTC" })).toMatchObject({
+      status: 200,
+      body: { personalGoalMl: 1200 },
+    });
   });
 });
