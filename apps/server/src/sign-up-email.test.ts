@@ -33,6 +33,7 @@ describe("sign-up email", () => {
     expect(sent[0]?.html).toContain(
       'href="https://api.test/api/auth/admission/sign-up/verify?token=abc&amp;x=&lt;1&gt;"',
     );
+    expect(sent[0]?.html).toContain("Confirm your email to create your OpenValens account.");
     expect(sent[0]?.templateName).toBe("public-sign-up");
   });
 

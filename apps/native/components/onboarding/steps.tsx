@@ -13,7 +13,6 @@ import {
 } from "@openvalens/api/presenters/modules";
 import {
   answersEqual,
-  CONSENT_COPY,
   DECLINE_LABEL,
   FOCUS_AREA_LABELS,
   WELLNESS_FIELD_COPY,
@@ -63,7 +62,7 @@ import {
   type Tone,
 } from "@/components/bloom";
 import { SettingsGroup, SettingsRow } from "@/components/language-section";
-import { Chips, ConsentToggle, QuestionLabel } from "@/components/wellness-profile-fields";
+import { CheckboxToggle, Chips, QuestionLabel } from "@/components/wellness-profile-fields";
 import { requestHealthAccess, rememberSyncModules } from "@/lib/health-sync";
 import { MODULE_ICON_COMPONENTS } from "@/lib/modules/icons";
 import {
@@ -79,7 +78,6 @@ import {
   type OnboardingRoute,
 } from "@/lib/onboarding/steps";
 import { describePushRegistration, enablePushOnThisPhone } from "@/lib/push-notifications";
-import { toggleConsent } from "@/utils/wellness-profile-choices";
 import { client, orpc } from "@/utils/orpc";
 import { useThemeColor } from "@/utils/theme";
 import { adminAccessQueryOptions } from "@/utils/admin-settings";
@@ -605,18 +603,9 @@ export function BasicsStep({ flow }: StepProps) {
             >
               {WELLNESS_FIELD_COPY.birthYear.question}
             </QuestionLabel>
-            <ConsentToggle
-              label={CONSENT_COPY.age_band}
-              checked={draft.consents.age_band}
-              onPress={() => {
-                const toggled = toggleConsent("age_band", draft);
-                if (toggled.answers.birthYear.state === "unknown") setBirthYearText("");
-                setDraft(toggled);
-              }}
-            />
             <TextInput
               value={birthYearText}
-              editable={draft.consents.age_band && draft.answers.birthYear.state !== "declined"}
+              editable={draft.answers.birthYear.state !== "declined"}
               keyboardType="number-pad"
               maxLength={4}
               accessibilityLabel={t`Birth year`}
@@ -645,7 +634,7 @@ export function BasicsStep({ flow }: StepProps) {
                 {i18n._(rejectionMessage(parsedYear.reason))}
               </Text>
             ) : null}
-            <ConsentToggle
+            <CheckboxToggle
               label={DECLINE_LABEL}
               checked={draft.answers.birthYear.state === "declined"}
               onPress={() => {
@@ -674,11 +663,6 @@ export function BasicsStep({ flow }: StepProps) {
             >
               {WELLNESS_FIELD_COPY.sex.question}
             </QuestionLabel>
-            <ConsentToggle
-              label={CONSENT_COPY.sex}
-              checked={draft.consents.sex}
-              onPress={() => setDraft(toggleConsent("sex", draft))}
-            />
             <Chips field="sex" draft={draft} onChange={setDraft} />
           </View>
         </Sheet>
@@ -689,8 +673,8 @@ export function BasicsStep({ flow }: StepProps) {
       )}
       <Note icon={ShieldCheck}>
         <Trans>
-          Saving birth year or sex asks for your consent, with the same text as the profile page.
-          You can withdraw it any time.
+          Birth year and sex are only used for age- and sex-specific guidance and reference ranges.
+          Clear either answer at any time to delete it.
         </Trans>
       </Note>
     </StepFrame>

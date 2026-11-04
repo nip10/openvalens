@@ -1,3 +1,4 @@
+/** @jsxImportSource react */
 import { renderLayout, renderParagraphs, type EmailRenderOptions } from "./layout";
 
 const APP_NAME = "OpenValens";
@@ -14,17 +15,17 @@ export type RenderedAccessRequestApprovedEmail = {
   text: string;
 };
 
-export function renderAccessRequestApprovedEmail(
+export async function renderAccessRequestApprovedEmail(
   input: AccessRequestApprovedEmailInput,
   options: EmailRenderOptions = {},
-): RenderedAccessRequestApprovedEmail {
+): Promise<RenderedAccessRequestApprovedEmail> {
   const subject = `Access approved for ${input.organizationName} on ${APP_NAME}`;
   const bodyLines = [
     `${input.requesterName}, your access request for ${input.organizationName} has been approved.`,
     "You can now continue in your dashboard.",
   ];
 
-  const layout = renderLayout(
+  const layout = await renderLayout(
     {
       title: "Your access request was approved",
       preheader: `You can now access ${input.organizationName}.`,

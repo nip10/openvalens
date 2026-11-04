@@ -1,22 +1,13 @@
-import { Trans, useLingui } from "@lingui/react/macro";
+import { useLingui } from "@lingui/react/macro";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "expo-router";
-import { Button } from "heroui-native";
-import {
-  CircleCheck,
-  CircleX,
-  Hourglass,
-  LayoutDashboard,
-  LogOut,
-  Server,
-} from "lucide-react-native";
+import { Redirect } from "expo-router";
+import { CircleCheck, CircleX, Hourglass, Server } from "lucide-react-native";
 import { Text, View } from "react-native";
 
 import { BloomMark, Details, Icon, Page, Sheet, StatusPill, ToneIcon } from "@/components/bloom";
 import { Container } from "@/components/container";
 import { SignIn } from "@/components/sign-in";
 import { authClient } from "@/lib/auth-client";
-import { signOutOfThisPhone } from "@/lib/sign-out";
 import { orpc } from "@/utils/orpc";
 
 export default function Home() {
@@ -26,8 +17,14 @@ export default function Home() {
   );
   const isConnected = readiness?.data?.status === "ok";
   const isLoading = readiness?.isLoading;
-  const { data: session } = authClient.useSession();
+  const { data: session, isPending } = authClient.useSession();
   const { t } = useLingui();
+
+  // Signed in, a launch opens the tabs: a welcome screen first would add a
+  // tap to every log (#271). Until the session is known, show nothing rather
+  // than flash the sign-in form.
+  if (isPending) return <Container />;
+  if (session?.user) return <Redirect href="/(drawer)/(tabs)" />;
 
   return (
     <Container>
@@ -45,30 +42,7 @@ export default function Home() {
           </Text>
         </View>
 
-        {session?.user ? (
-          <Sheet className="gap-4">
-            <View className="gap-1">
-              <Text className="font-display text-xl text-ink">
-                <Trans>
-                  Welcome, <Text className="font-display font-semibold">{session.user.name}</Text>
-                </Trans>
-              </Text>
-              <Text className="font-sans text-sm text-ink-3">{session.user.email}</Text>
-            </View>
-            <Link href="/(drawer)/(tabs)" asChild>
-              <Button accessibilityLabel={t`Cockpit`} testID="home-cockpit">
-                <Icon icon={LayoutDashboard} size={18} color="primary-foreground" />
-                <Button.Label>{t`Cockpit`}</Button.Label>
-              </Button>
-            </Link>
-            <Button variant="danger-soft" onPress={() => void signOutOfThisPhone()}>
-              <Icon icon={LogOut} size={18} color="danger" />
-              <Button.Label>{t`Sign Out`}</Button.Label>
-            </Button>
-          </Sheet>
-        ) : (
-          <SignIn />
-        )}
+        <SignIn />
 
         <Details summary={t`System Status`}>
           <View className="gap-3">

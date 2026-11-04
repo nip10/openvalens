@@ -105,7 +105,9 @@ and `android/` folders this generates are not committed.
 - **HealthKit (iOS).** The `@kingstinct/react-native-healthkit` plugin adds
   the HealthKit entitlement, background delivery and the read-only usage text
   ("OpenValens reads your health data from Apple Health…"); the app never
-  writes to Health (`NSHealthUpdateUsageDescription` is off). The App ID
+  writes to Health. `NSHealthUpdateUsageDescription` is still set, to a text
+  saying so: the library references the write APIs, and App Store Connect
+  rejects an upload without it (ITMS-90683, every build before 1.0.1). The App ID
   needs the HealthKit capability: EAS enables it when it syncs capabilities.
   App Review expects the health data use to be visible in the app and
   described in the privacy policy, and the App Privacy answers must declare

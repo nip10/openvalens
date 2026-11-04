@@ -1,7 +1,9 @@
 # Legal documents for OpenValens Cloud
 
-> **Status (2026-10-29):** the privacy policy, subprocessors list and terms are
-> published on openvalens.com as version `2026-10-29`; the published pages
+> **Status (2026-11-02):** the terms are published on openvalens.com as
+> version `2026-10-29` and the privacy policy as version `2026-11-02` (adds
+> opt-in PostHog usage analytics); the subprocessors list was last updated on
+> 2 November 2026. The published pages
 > (`apps/site/src/*.html`) are the source of truth and `privacy.md` and
 > `subprocessors.md` are generated copies. Still open: the company's NIPC
 > and a lawyer's review. The DPA and data
@@ -38,7 +40,34 @@ settings exactly:
 | Document         | Server setting                                    | Draft label        | Published label |
 | ---------------- | ------------------------------------------------- | ------------------ | --------------- |
 | Terms of Service | `LEGAL_TERMS_VERSION` (and `LEGAL_TERMS_URL`)     | `draft-2026-10-29` | `2026-10-29`    |
-| Privacy policy   | `LEGAL_PRIVACY_VERSION` (and `LEGAL_PRIVACY_URL`) | `draft-2026-10-29` | `2026-10-29`    |
+| Privacy policy   | `LEGAL_PRIVACY_VERSION` (and `LEGAL_PRIVACY_URL`) | `draft-2026-10-29` | `2026-11-02`    |
+
+The health-data consent (#322) has no page of its own: its wording lives in
+the app (sign-up form, the re-consent prompt on web and mobile, invitation
+acceptance), and the server records the version in `legal_acceptance`
+(document `health_data_consent`) from `LEGAL_HEALTH_CONSENT_VERSION`. **Change
+that setting whenever the wording changes**; everyone whose recorded version
+differs is asked to consent again by the existing prompt. Current wording,
+label `2026-11-02`:
+
+> I consent to OpenValens processing my health data to provide the service.
+> This includes any birth year and sex I add to my profile, used to place me
+> in a broad age band and to choose age- and sex-specific guidance and
+> reference ranges.
+
+It is the only consent for the wellness profile: birth year and sex no
+longer have a consent of their own, and clearing an answer deletes it. The AI
+assistant, analytics and cycle logging keep their separate opt-ins.
+
+`LEGAL_PRIVACY_VERSION` is only recorded at sign-up: changing it does not
+prompt existing users again (only `LEGAL_HEALTH_CONSENT_VERSION` does). Set
+it to the new label when the new policy is published so new accounts record
+the version they actually saw, and tell existing users about a material
+change by email or in the app, as section 14 of the policy promises.
+
+Privacy versions: `2026-10-29` (first published); `2026-11-02` (opt-in
+PostHog usage analytics in Cloud: what is sent, consent, retention, PostHog as
+a subprocessor).
 
 The subprocessors list and the DPA have their own "Last updated" dates but no
 server setting. A new version is needed whenever a change is material (a new
@@ -137,9 +166,15 @@ Product facts to confirm
     Whoop, Polar, Withings, Google Health), Telegram reminders, Open Food Facts
     barcode lookup, S3 object storage, the insights email digest,
     `EMAIL_AUDIT_BCC`. The drafts list them as "[CONFIRM: enabled in Cloud]".
-18. ~~PostHog at launch.~~ Off: no PostHog token is configured in Cloud, and
-    the privacy policy says analytics is not used. Turning it on needs a policy
-    update first.
+18. ~~PostHog at launch.~~ Disclosed in privacy version `2026-11-02` and on
+    the subprocessors page (2 November 2026): opt-in, server-side, PostHog EU
+    Cloud (Frankfurt), one approved event with a one-time random id, project
+    set to discard IP addresses. Before turning it on in Cloud: set the PostHog
+    project's events retention to 12 months, as the policy promises
+    `[CONFIRM]`; sign or record PostHog's DPA (SCCs) `[CONFIRM]`; and respect
+    the 30-day notice the subprocessors page promises for a new subprocessor,
+    so no events before 2 December 2026 `[CONFIRM: or decide the notice does
+not apply to an opt-in feature]`.
 19. **Staff access.** Instance administrators can impersonate accounts. Decide
     the policy (the draft: only at the person's request or to investigate abuse
     or a security incident, and logged) and confirm impersonation is logged.

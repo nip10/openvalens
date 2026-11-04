@@ -17,6 +17,7 @@ import {
   jpegWithExif,
   pngWithMetadata,
 } from "@openvalens/body/sanitize-image.fixtures";
+import { findSharpDistributionFailure } from "./image-sanitizer-smoke-check";
 
 class ProofFailure extends Error {}
 
@@ -100,15 +101,13 @@ async function main(): Promise<void> {
   const distModules = readdirSync(distDirectory).filter((name) => name.endsWith(".mjs"));
   check(distModules.includes("image-sanitizer-smoke.mjs"), "smoke_emitted");
   check(distModules.includes("index.mjs"), "index_module");
-  const bundledSharpPath = ["node_modules", "sharp"].join("/");
-  const sharpSpecifier = /(?:from\s*|require\(\s*)["']sharp["']/;
-  for (const module of distModules) {
-    const source = readFileSync(join(distDirectory, module), "latin1");
-    if (source.includes("sharp")) {
-      check(sharpSpecifier.test(source), "sharp_bare_specifier");
-      check(!source.includes(bundledSharpPath), "sharp_inlined");
-    }
-  }
+  const sharpFailure = findSharpDistributionFailure(
+    distModules.map((name) => ({
+      name,
+      source: readFileSync(join(distDirectory, name), "latin1"),
+    })),
+  );
+  check(sharpFailure === undefined, sharpFailure ?? "sharp_distribution");
   const smokeSource = readFileSync(join(distDirectory, "image-sanitizer-smoke.mjs"), "latin1");
   check(
     smokeSource.includes("ImageSanitizationError") && smokeSource.includes("output_too_large"),

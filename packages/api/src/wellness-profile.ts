@@ -1,20 +1,18 @@
 import type { Session } from "@openvalens/auth";
 import { requireTrustedIdentity } from "@openvalens/auth/authz/trusted-session";
 import { lockNutritionSafetyUser, type Database } from "@openvalens/db";
-import { wellnessProfile, wellnessProfileConsent } from "@openvalens/db/schema/profile";
-import { and, eq, isNull } from "drizzle-orm";
+import { wellnessProfile } from "@openvalens/db/schema/profile";
+import { eq } from "drizzle-orm";
 
 import { raiseApiError } from "./errors";
 import {
   applyWellnessProfileUpdate,
   EMPTY_WELLNESS_PROFILE,
+  LEGACY_PURPOSE_CONSENTS,
   normalizeModules,
-  WELLNESS_CONSENT_VERSION,
   wellnessProfileSnapshotSchema,
   wellnessProfileUpdateInput,
   snapshotToState,
-  type WellnessConsentPurpose,
-  type WellnessConsentRecord,
   type WellnessProfileField,
   type WellnessProfileRejection,
   type WellnessProfileSnapshot,
@@ -36,11 +34,12 @@ import {
  *   already succeeded) returns the current snapshot without a revision bump,
  *   even when its `expectedRevision` is stale.
  * - Otherwise a stale `expectedRevision` is a `CONFLICT` with no write.
- * - Consent changes append/stamp versioned rows in `wellness_profile_consent`
- *   in the same transaction.
+ *
+ * There is no per-field consent: the account's health-data consent covers the
+ * profile, and clearing an answer deletes it.
  *
  * No answer value ever reaches a log line or an error: callers log only the
- * changed field names and consent purposes returned in {@link UpdateOutcome}.
+ * changed field names returned in {@link UpdateOutcome}.
  */
 
 export type WellnessProfileErrorCode = "DENIED" | "CONFLICT" | "INVALID_INPUT" | "INTERNAL";
@@ -48,11 +47,11 @@ export type WellnessProfileErrorCode = "DENIED" | "CONFLICT" | "INVALID_INPUT" |
 export class WellnessProfileError extends Error {
   readonly code: WellnessProfileErrorCode;
   readonly reason?: WellnessProfileRejection;
-  readonly field?: WellnessProfileField | "consents";
+  readonly field?: WellnessProfileField;
 
   constructor(
     code: WellnessProfileErrorCode,
-    detail: { reason?: WellnessProfileRejection; field?: WellnessProfileField | "consents" } = {},
+    detail: { reason?: WellnessProfileRejection; field?: WellnessProfileField } = {},
   ) {
     super(code);
     this.name = "WellnessProfileError";
@@ -65,7 +64,6 @@ export class WellnessProfileError extends Error {
 export type UpdateOutcome = {
   snapshot: WellnessProfileSnapshot;
   changedFields: string[];
-  consentChanges: { purpose: WellnessConsentPurpose; action: "grant" | "withdraw" }[];
 };
 
 export type WellnessProfileService = {
@@ -75,7 +73,6 @@ export type WellnessProfileService = {
 
 type ProfileReadExecutor = Pick<Database, "select">;
 type ProfileRow = typeof wellnessProfile.$inferSelect;
-type ConsentRow = typeof wellnessProfileConsent.$inferSelect;
 
 function answer(state: string | null, value: unknown): unknown {
   if (state === null) return { state: "unknown" };
@@ -83,32 +80,9 @@ function answer(state: string | null, value: unknown): unknown {
   return { state };
 }
 
-function latestConsent(rows: ConsentRow[], purpose: WellnessConsentPurpose) {
-  const forPurpose = rows.filter((row) => row.purpose === purpose);
-  const active = forPurpose.find((row) => row.withdrawnAt === null);
-  const chosen =
-    active ??
-    forPurpose.sort((a, b) => (b.withdrawnAt?.getTime() ?? 0) - (a.withdrawnAt?.getTime() ?? 0))[0];
-  if (!chosen) return null;
-  const record: WellnessConsentRecord = {
-    active: chosen.withdrawnAt === null,
-    version: chosen.version,
-    grantedAt: chosen.grantedAt.toISOString(),
-    withdrawnAt: chosen.withdrawnAt?.toISOString() ?? null,
-  };
-  return record;
-}
-
-/** Maps stored rows to the contract snapshot; malformed rows fail closed. */
-export function toSnapshot(
-  row: ProfileRow | undefined,
-  consents: ConsentRow[],
-): WellnessProfileSnapshot {
-  const consentState = {
-    age_band: latestConsent(consents, "age_band"),
-    sex: latestConsent(consents, "sex"),
-  };
-  if (!row) return { ...EMPTY_WELLNESS_PROFILE, consents: consentState };
+/** Maps the stored row to the contract snapshot; a malformed row fails closed. */
+export function toSnapshot(row: ProfileRow | undefined): WellnessProfileSnapshot {
+  if (!row) return EMPTY_WELLNESS_PROFILE;
   const parsed = wellnessProfileSnapshotSchema.safeParse({
     revision: row.revision,
     setupStatus: row.setupStatus,
@@ -119,7 +93,7 @@ export function toSnapshot(
     birthYear: answer(row.birthYearState, row.birthYear),
     sex: answer(row.sexState, row.sex),
     enabledModules: row.enabledModules,
-    consents: consentState,
+    consents: LEGACY_PURPOSE_CONSENTS,
     updatedAt: row.updatedAt.toISOString(),
   });
   if (!parsed.success) throw new WellnessProfileError("INTERNAL");
@@ -154,10 +128,6 @@ function columnsFor(snapshotAnswers: ReturnType<typeof snapshotToState>["answers
   };
 }
 
-async function loadConsents(db: Pick<Database, "select">, userId: string): Promise<ConsentRow[]> {
-  return db.select().from(wellnessProfileConsent).where(eq(wellnessProfileConsent.userId, userId));
-}
-
 export function createWellnessProfileService(deps: {
   db: Database;
   now?: () => Date;
@@ -185,7 +155,7 @@ export function createWellnessProfileService(deps: {
           .from(wellnessProfile)
           .where(eq(wellnessProfile.userId, userId))
           .for("update");
-        const current = toSnapshot(row, await loadConsents(tx, userId));
+        const current = toSnapshot(row);
 
         const result = applyWellnessProfileUpdate(snapshotToState(current), request, now);
         if (!result.ok) {
@@ -195,30 +165,11 @@ export function createWellnessProfileService(deps: {
           });
         }
 
-        if (result.changedFields.length === 0 && result.consentChanges.length === 0) {
-          return { snapshot: current, changedFields: [], consentChanges: [] };
+        if (result.changedFields.length === 0) {
+          return { snapshot: current, changedFields: [] };
         }
         if (request.expectedRevision !== current.revision) {
           throw new WellnessProfileError("CONFLICT");
-        }
-
-        for (const { purpose, action } of result.consentChanges) {
-          if (action === "grant") {
-            await tx
-              .insert(wellnessProfileConsent)
-              .values({ userId, purpose, version: WELLNESS_CONSENT_VERSION, grantedAt: now });
-          } else {
-            await tx
-              .update(wellnessProfileConsent)
-              .set({ withdrawnAt: now })
-              .where(
-                and(
-                  eq(wellnessProfileConsent.userId, userId),
-                  eq(wellnessProfileConsent.purpose, purpose),
-                  isNull(wellnessProfileConsent.withdrawnAt),
-                ),
-              );
-          }
         }
 
         await tx
@@ -236,11 +187,7 @@ export function createWellnessProfileService(deps: {
           .select()
           .from(wellnessProfile)
           .where(eq(wellnessProfile.userId, userId));
-        return {
-          snapshot: toSnapshot(saved, await loadConsents(tx, userId)),
-          changedFields: result.changedFields,
-          consentChanges: result.consentChanges,
-        };
+        return { snapshot: toSnapshot(saved), changedFields: result.changedFields };
       });
     } catch (error) {
       throw error instanceof WellnessProfileError ? error : new WellnessProfileError("INTERNAL");
@@ -259,7 +206,7 @@ export async function readWellnessProfile(
       .select()
       .from(wellnessProfile)
       .where(eq(wellnessProfile.userId, userId));
-    return toSnapshot(row, await loadConsents(executor, userId));
+    return toSnapshot(row);
   } catch (error) {
     throw error instanceof WellnessProfileError ? error : new WellnessProfileError("INTERNAL");
   }

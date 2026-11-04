@@ -36,6 +36,14 @@ describe("renderSnippet", () => {
     );
   });
 
+  test("allows no inline or eval scripts in either mode (#308)", () => {
+    for (const mode of ["enforce", "report-only"] as const) {
+      const snippet = renderSnippet(mode, ORIGIN);
+      expect(snippet).toContain("script-src 'self';");
+      expect(snippet).not.toMatch(/script-src[^;]*'unsafe-/);
+    }
+  });
+
   test("a Sentry DSN adds only its origin to connect-src (Issue #54)", () => {
     const snippet = renderSnippet("enforce", ORIGIN, "https://abc123@o1.ingest.de.sentry.io/42");
     expect(snippet).toContain(

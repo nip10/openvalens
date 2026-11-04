@@ -207,7 +207,7 @@ export default function InvitationsScreen() {
         {needsHealthConsent(consentStatus.data) ? (
           <Sheet className="gap-3 border border-signal/30 p-4">
             <Text className="font-sans text-sm leading-relaxed text-ink-2">
-              {t`I consent to OpenValens processing my health data to provide the service.`}{" "}
+              {t`I consent to OpenValens processing my health data to provide the service. This includes any birth year and sex I add to my profile, used to place me in a broad age band and to choose age- and sex-specific guidance and reference ranges.`}{" "}
               {consentStatus.data?.privacyUrl ? (
                 <Text
                   accessibilityRole="link"

@@ -19,6 +19,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import type { WearableProviderId } from "./adapter";
 import { createWearablesService, WearableConnectError, WearableNotConnectedError } from "./service";
 import {
+  fixtureClock,
   mockAdapters,
   seedVendorData,
   startMockVendor,
@@ -68,6 +69,7 @@ describe.skipIf(!url)("cloud wearables on disposable PostgreSQL", () => {
   const tokenKey = deriveWearableTokenKey("synthetic-better-auth-secret-0123456789abcdef");
   let service: ReturnType<typeof createWearablesService>;
   let serviceDeps: Parameters<typeof createWearablesService>[0];
+  let now: () => Date;
 
   const connect = async (
     provider: WearableProviderId,
@@ -229,9 +231,14 @@ describe.skipIf(!url)("cloud wearables on disposable PostgreSQL", () => {
     vendor.state.polarRegistered.clear();
     logLines.length = 0;
     fetchedUrls.length = 0;
+    // The fixtures are dated; sync windows come from this clock, so the suite
+    // doesn't start failing once the dates age out of the first-sync backfill.
+    now = fixtureClock();
     serviceDeps = {
       db,
+      now,
       adapters: mockAdapters(vendor, {
+        now,
         fetch: ((input: Parameters<typeof fetch>[0], init?: RequestInit) => {
           fetchedUrls.push(String(input));
           return fetch(input, init);
@@ -977,7 +984,7 @@ describe.skipIf(!url)("cloud wearables on disposable PostgreSQL", () => {
     await service.runDueSyncs();
     const deliver = (body: object, secret = TEST_CLIENT.clientSecret) => {
       const rawBody = JSON.stringify(body);
-      const timestamp = String(Date.now());
+      const timestamp = String(now().getTime());
       const headers = new Headers({
         "x-whoop-signature": createHmac("sha256", secret)
           .update(timestamp + rawBody)

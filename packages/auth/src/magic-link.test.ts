@@ -208,7 +208,7 @@ describe("sendAuthMagicLink", () => {
 
     expect(calls[0]?.input.subject).toBe("Iniciar sessão em OpenValens");
     expect(calls[0]?.input.text).toContain("Pediu uma ligação segura de início de sessão");
-    expect(calls[0]?.input.html).toContain(">Iniciar sessão</a>");
+    expect(calls[0]?.input.html).toMatch(/<a\b[^>]*>[\s\S]*?Iniciar sessão[\s\S]*?<\/a>/);
     const success = lines.map(parseLine).find((line) => line.event === "auth.magic-link.sent");
     expect(success?.subject).toBe("Sign in to OpenValens");
     expect(lines.join("\n")).not.toMatch(/pt-PT|Iniciar/);

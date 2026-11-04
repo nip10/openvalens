@@ -33,8 +33,8 @@ import type { WellnessAvailability, WellnessProfileInputs } from "./wellness-pro
  *   confirmed adult answer, and at least {@link USUAL_MIN_DAYS} days of data.
  * - The compared value is your usual (28-day median), rounded to a whole
  *   unit, not a single day.
- * - A band needs a consented age range that fits inside one reference age row
- *   and a consented sex; otherwise the band is unavailable with the reason.
+ * - A band needs an age range that fits inside one reference age row and a
+ *   sex; otherwise the band is unavailable with the reason.
  * - A guideline with age rows shows every row when your age is unavailable,
  *   and never picks one for you.
  */

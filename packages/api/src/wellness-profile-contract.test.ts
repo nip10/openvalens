@@ -8,7 +8,7 @@ import {
   snapshotToState,
   unavailableExplanation,
   WELLNESS_FIELD_COPY,
-  CONSENT_COPY,
+  LEGACY_PURPOSE_CONSENTS,
   PROFILE_STORAGE_NOTE,
   wellnessProfileUpdateInput,
   type WellnessProfileSnapshot,
@@ -21,7 +21,7 @@ const NOW = new Date("2026-10-15T12:00:00.000Z");
 
 const empty = (): WellnessProfileState => snapshotToState(EMPTY_WELLNESS_PROFILE);
 
-const adultWithConsents = (): WellnessProfileState => ({
+const adultWithAnswers = (): WellnessProfileState => ({
   setupStatus: "in_progress",
   answers: {
     ...empty().answers,
@@ -31,14 +31,11 @@ const adultWithConsents = (): WellnessProfileState => ({
     region: { state: "recorded", value: "uk" },
   },
   enabledModules: null,
-  activeConsents: { age_band: true, sex: true },
 });
 
 function snapshot(overrides: Partial<WellnessProfileSnapshot> = {}): WellnessProfileSnapshot {
   return { ...EMPTY_WELLNESS_PROFILE, ...overrides };
 }
-
-const consent = { active: true, version: "v", grantedAt: NOW.toISOString(), withdrawnAt: null };
 
 describe("update input schema", () => {
   test("accepts an empty partial update (only the revision)", () => {
@@ -64,11 +61,20 @@ describe("update input schema", () => {
       expect(wellnessProfileUpdateInput.safeParse(bad).success).toBe(false);
     }
   });
+
+  test("still accepts the legacy consents key sent by apps up to 0.9.x", () => {
+    expect(
+      wellnessProfileUpdateInput.safeParse({
+        expectedRevision: 0,
+        consents: { age_band: "grant", sex: "withdraw" },
+      }).success,
+    ).toBe(true);
+  });
 });
 
 describe("applyWellnessProfileUpdate", () => {
   test("omitted keys are untouched; explicit unknown clears", () => {
-    const current = adultWithConsents();
+    const current = adultWithAnswers();
     const omitted = applyWellnessProfileUpdate(
       current,
       { expectedRevision: 3, focus: { state: "just_exploring" } },
@@ -90,7 +96,7 @@ describe("applyWellnessProfileUpdate", () => {
   });
 
   test("declined, not applicable and unknown stay distinct", () => {
-    const current = adultWithConsents();
+    const current = adultWithAnswers();
     const declined = applyWellnessProfileUpdate(
       current,
       { expectedRevision: 0, sex: { state: "declined" } },
@@ -108,7 +114,7 @@ describe("applyWellnessProfileUpdate", () => {
   });
 
   test("same values are a no-op (idempotent retry)", () => {
-    const current = adultWithConsents();
+    const current = adultWithAnswers();
     const result = applyWellnessProfileUpdate(
       current,
       {
@@ -120,7 +126,6 @@ describe("applyWellnessProfileUpdate", () => {
       NOW,
     );
     expect(result.ok && result.changedFields).toEqual([]);
-    expect(result.ok && result.consentChanges).toEqual([]);
   });
 
   test("focus order does not count as a change", () => {
@@ -160,7 +165,6 @@ describe("applyWellnessProfileUpdate", () => {
         {
           expectedRevision: 0,
           ...(eligibility ? { eligibility } : {}),
-          consents: { age_band: "grant", sex: "grant" },
           birthYear: { state: "recorded", value: 1990 },
         },
         NOW,
@@ -173,62 +177,51 @@ describe("applyWellnessProfileUpdate", () => {
     }
   });
 
-  test("recording birth year or sex needs the purpose consent", () => {
+  test("an adult records birth year and sex with no per-field consent", () => {
     const adult: WellnessProfileState = {
       ...empty(),
       answers: { ...empty().answers, eligibility: { state: "recorded", value: "adult" } },
     };
-    expect(
-      applyWellnessProfileUpdate(
-        adult,
-        { expectedRevision: 0, sex: { state: "recorded", value: "male" } },
-        NOW,
-      ),
-    ).toEqual({ ok: false, reason: "CONSENT_REQUIRED", field: "sex" });
-
-    // Consenting to sex is not consent to age.
-    expect(
-      applyWellnessProfileUpdate(
-        adult,
-        {
-          expectedRevision: 0,
-          consents: { sex: "grant" },
-          birthYear: { state: "recorded", value: 1980 },
-        },
-        NOW,
-      ),
-    ).toEqual({ ok: false, reason: "CONSENT_REQUIRED", field: "birthYear" });
-
-    const granted = applyWellnessProfileUpdate(
+    const result = applyWellnessProfileUpdate(
       adult,
       {
         expectedRevision: 0,
-        consents: { sex: "grant" },
+        birthYear: { state: "recorded", value: 1980 },
         sex: { state: "recorded", value: "male" },
       },
       NOW,
     );
-    expect(granted.ok && granted.consentChanges).toEqual([{ purpose: "sex", action: "grant" }]);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.next.answers.birthYear).toEqual({ state: "recorded", value: 1980 });
+    expect(result.next.answers.sex).toEqual({ state: "recorded", value: "male" });
+    expect(result.changedFields).toEqual(["birthYear", "sex"]);
   });
 
-  test("declining sex needs no consent and records no consent", () => {
-    const adult: WellnessProfileState = {
-      ...empty(),
-      answers: { ...empty().answers, eligibility: { state: "recorded", value: "adult" } },
-    };
-    const result = applyWellnessProfileUpdate(
-      adult,
-      { expectedRevision: 0, sex: { state: "declined" } },
+  test("a legacy consents key is ignored: withdrawing it neither clears nor blocks", () => {
+    const withdrawn = applyWellnessProfileUpdate(
+      adultWithAnswers(),
+      { expectedRevision: 0, consents: { age_band: "withdraw", sex: "withdraw" } },
       NOW,
     );
-    expect(result.ok && result.consentChanges).toEqual([]);
-    expect(result.ok && result.next.activeConsents).toEqual({ age_band: false, sex: false });
+    expect(withdrawn.ok && withdrawn.changedFields).toEqual([]);
+
+    const recorded = applyWellnessProfileUpdate(
+      adultWithAnswers(),
+      {
+        expectedRevision: 0,
+        consents: { sex: "withdraw" },
+        sex: { state: "recorded", value: "male" },
+      },
+      NOW,
+    );
+    expect(recorded.ok && recorded.next.answers.sex).toEqual({ state: "recorded", value: "male" });
   });
 
-  test("withdrawing a consent clears only the value it covered", () => {
+  test("clearing an answer deletes it", () => {
     const result = applyWellnessProfileUpdate(
-      adultWithConsents(),
-      { expectedRevision: 0, consents: { age_band: "withdraw" } },
+      adultWithAnswers(),
+      { expectedRevision: 0, birthYear: { state: "unknown" } },
       NOW,
     );
     expect(result.ok).toBe(true);
@@ -238,23 +231,9 @@ describe("applyWellnessProfileUpdate", () => {
     expect(result.changedFields).toEqual(["birthYear"]);
   });
 
-  test("withdrawing and recording in one request is rejected", () => {
-    expect(
-      applyWellnessProfileUpdate(
-        adultWithConsents(),
-        {
-          expectedRevision: 0,
-          consents: { sex: "withdraw" },
-          sex: { state: "recorded", value: "male" },
-        },
-        NOW,
-      ),
-    ).toEqual({ ok: false, reason: "CONSENT_AND_VALUE_CONFLICT", field: "sex" });
-  });
-
   test("leaving the adult answer clears adult-only values, not preferences", () => {
     const result = applyWellnessProfileUpdate(
-      adultWithConsents(),
+      adultWithAnswers(),
       { expectedRevision: 0, eligibility: { state: "recorded", value: "under_18" } },
       NOW,
     );
@@ -267,7 +246,7 @@ describe("applyWellnessProfileUpdate", () => {
   });
 
   test("birth year: under 18, future and implausible years are rejected", () => {
-    const base = { ...adultWithConsents() };
+    const base = { ...adultWithAnswers() };
     const attempt = (value: number) =>
       applyWellnessProfileUpdate(
         base,
@@ -301,14 +280,13 @@ describe("deriveWellnessProfileInputs", () => {
     expect(inputs.focus).toEqual({ available: false, reason: "not_provided" });
   });
 
-  test("adult with consented answers exposes a range and coarse band", () => {
+  test("adult with recorded answers exposes a range and coarse band", () => {
     const inputs = deriveWellnessProfileInputs(
       snapshot({
         eligibility: { state: "recorded", value: "adult" },
         birthYear: { state: "recorded", value: 1985 },
         sex: { state: "recorded", value: "male" },
         region: { state: "recorded", value: "pt" },
-        consents: { age_band: consent, sex: consent },
       }),
       NOW,
     );
@@ -323,7 +301,6 @@ describe("deriveWellnessProfileInputs", () => {
       snapshot({
         eligibility: { state: "recorded", value: "adult" },
         birthYear: { state: "recorded", value: 1996 },
-        consents: { age_band: consent, sex: null },
       }),
       NOW,
     );
@@ -331,7 +308,7 @@ describe("deriveWellnessProfileInputs", () => {
     expect(inputs.ageBand).toEqual({ available: false, reason: "age_band_ambiguous" });
   });
 
-  test("declined, not applicable and withdrawn consent stay distinct", () => {
+  test("declined and not applicable stay distinct", () => {
     const declined = deriveWellnessProfileInputs(
       snapshot({
         eligibility: { state: "recorded", value: "adult" },
@@ -351,19 +328,12 @@ describe("deriveWellnessProfileInputs", () => {
       NOW,
     );
     expect(na.sex).toEqual({ available: false, reason: "not_applicable" });
+  });
 
-    const withdrawn = deriveWellnessProfileInputs(
-      snapshot({
-        eligibility: { state: "recorded", value: "adult" },
-        sex: { state: "recorded", value: "female" },
-        consents: {
-          age_band: null,
-          sex: { ...consent, active: false, withdrawnAt: NOW.toISOString() },
-        },
-      }),
-      NOW,
-    );
-    expect(withdrawn.sex).toEqual({ available: false, reason: "consent_required" });
+  test("the snapshot reports both legacy purposes as covered, for older apps", () => {
+    expect(EMPTY_WELLNESS_PROFILE.consents).toEqual(LEGACY_PURPOSE_CONSENTS);
+    expect(LEGACY_PURPOSE_CONSENTS.age_band.active).toBe(true);
+    expect(LEGACY_PURPOSE_CONSENTS.sex.active).toBe(true);
   });
 
   test("under-18 never exposes adult-only inputs", () => {
@@ -396,7 +366,6 @@ describe("copy", () => {
   test("profile copy follows the health-copy rules", () => {
     const texts = [
       ...Object.values(WELLNESS_FIELD_COPY).flatMap((c) => Object.values(c)),
-      ...Object.values(CONSENT_COPY),
       PROFILE_STORAGE_NOTE,
       unavailableExplanation("not_provided", "your region"),
     ];
@@ -404,9 +373,15 @@ describe("copy", () => {
   });
 
   test("unavailable explanations name what is needed", () => {
-    expect(unavailableExplanation("consent_required", "your consent")).toContain(
-      "Add your consent",
+    expect(unavailableExplanation("not_provided", "your birth year")).toContain(
+      "Add your birth year",
     );
+  });
+
+  test("profile copy no longer asks for a per-field consent", () => {
+    for (const copy of Object.values(WELLNESS_FIELD_COPY)) {
+      expect(copy.limits).not.toMatch(/consent/i);
+    }
   });
 });
 

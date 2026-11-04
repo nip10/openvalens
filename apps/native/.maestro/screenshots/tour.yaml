@@ -72,13 +72,7 @@ name: Screenshot tour
     file: ../subflows/sign-in.yaml
     env:
       EMAIL: "tour-${PREFIX.toLowerCase()}@example.com"
-- extendedWaitUntil:
-    visible:
-      id: "home-cockpit"
-    timeout: 30000
-- takeScreenshot: ${PREFIX}-auth-03-signed-in
-- tapOn:
-    id: "home-cockpit"
+# Signed in, a new account goes straight to onboarding.
 - extendedWaitUntil:
     visible:
       id: "onboarding-continue"

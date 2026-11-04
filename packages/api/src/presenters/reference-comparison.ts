@@ -68,7 +68,7 @@ export const COMPARISON_METRIC_LABELS: Record<ComparisonMetric, MessageDescripto
 export const COMPARISON_DISCLOSURES: Record<ComparisonMetric, MessageDescriptor> = {
   resting_heart_rate: msg({
     message:
-      "Shows whether your usual resting heart rate (the median of the last 28 days) is below, within or above the middle half of US adults of your age group and sex, measured from 1999 to 2008 (NCHS). Needs your birth year and sex for reference tables in your profile, each with its consent. Device readings are usually taken differently from the seated pulse in the reference, so treat them as a rough guide.",
+      "Shows whether your usual resting heart rate (the median of the last 28 days) is below, within or above the middle half of US adults of your age group and sex, measured from 1999 to 2008 (NCHS). Needs your birth year and sex for reference tables in your profile. Device readings are usually taken differently from the seated pulse in the reference, so treat them as a rough guide.",
     comment: "safety",
   }),
   sleep_duration: msg({
@@ -119,7 +119,6 @@ const PROFILE_UNAVAILABLE_COPY: Record<WellnessUnavailableReason, MessageDescrip
   declined: msg`You chose not to share this.`,
   not_applicable: msg`You said neither option fits you.`,
   adult_confirmation_required: msg`This is only available after you confirm you are 18 or older.`,
-  consent_required: msg`This needs your consent for this purpose.`,
   age_band_ambiguous: msg`Your birth year falls on the edge of two age bands.`,
 };
 
@@ -128,7 +127,6 @@ const PROFILE_REASONS: readonly string[] = [
   "declined",
   "not_applicable",
   "adult_confirmation_required",
-  "consent_required",
   "age_band_ambiguous",
 ];
 
@@ -150,9 +148,7 @@ export function explainUnavailable(
     const profileReason = reason as WellnessUnavailableReason;
     const base = i18n._(PROFILE_UNAVAILABLE_COPY[profileReason]);
     // Ambiguous/declined/not-applicable answers can't be fixed by "adding" them.
-    return profileReason === "not_provided" || profileReason === "consent_required"
-      ? `${base} ${i18n._(ADD_IN_PROFILE[metric])}`
-      : base;
+    return profileReason === "not_provided" ? `${base} ${i18n._(ADD_IN_PROFILE[metric])}` : base;
   }
   return i18n._(OTHER_UNAVAILABLE_COPY[reason as keyof typeof OTHER_UNAVAILABLE_COPY]);
 }

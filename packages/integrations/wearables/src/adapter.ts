@@ -188,6 +188,8 @@ export type WearableHttpDeps = {
   fetch: typeof fetch;
   /** Per-request timeout. Default 15 s. */
   timeoutMs?: number;
+  /** The clock token expiries are computed from. Default: the system clock. */
+  now?: () => Date;
 };
 
 /** Vendor base URLs; tests point every one at a local mock server. */
@@ -320,15 +322,16 @@ export function expiresIn(seconds: unknown, now = Date.now()): Date | null {
 export function parseTokenResponse(
   provider: WearableProviderId,
   body: unknown,
-  externalUserIdKey?: string,
+  options: { externalUserIdKey?: string; now?: () => Date } = {},
 ): WearableTokenSet {
+  const { externalUserIdKey, now } = options;
   const record = asRecord(body);
   const accessToken = record ? str(record, "access_token") : null;
   if (!record || !accessToken) throw new WearableProviderError(provider, "invalid_response", 200);
   return {
     accessToken,
     refreshToken: str(record, "refresh_token"),
-    expiresAt: expiresIn(record.expires_in),
+    expiresAt: expiresIn(record.expires_in, now ? now().getTime() : Date.now()),
     scope: str(record, "scope"),
     externalUserId: externalUserIdKey ? str(record, externalUserIdKey) : null,
   };

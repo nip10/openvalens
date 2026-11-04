@@ -186,14 +186,11 @@ describe.skipIf(!url)("reference comparisons over HTTP against disposable Postgr
         sql`insert into member (id, organization_id, user_id, role) values (${`m-${id}`}, ${member.org}, ${id}, ${member.role})`,
       );
     }
-    // A and V: adults with birth year and sex, both consents active. U: under 18.
+    // A and V: adults with birth year and sex. U: under 18.
     for (const id of ["user-a", "user-v"]) {
       await db.execute(sql`
         insert into wellness_profile (user_id, revision, eligibility_state, eligibility, birth_year_state, birth_year, sex_state, sex)
         values (${id}, 1, 'recorded', 'adult', 'recorded', ${BIRTH_YEAR}, 'recorded', 'female')`);
-      await db.execute(sql`
-        insert into wellness_profile_consent (user_id, purpose, version)
-        values (${id}, 'age_band', '2026-10-15'), (${id}, 'sex', '2026-10-15')`);
     }
     await db.execute(
       sql`insert into wellness_profile (user_id, revision, eligibility_state, eligibility) values ('user-u', 1, 'recorded', 'under_18')`,
@@ -302,20 +299,20 @@ describe.skipIf(!url)("reference comparisons over HTTP against disposable Postgr
     expect(byMetric(body, "active_minutes").status).toBe("off");
   });
 
-  test("withdrawing the sex consent makes the band unavailable; nothing is inferred", async () => {
+  test("clearing sex makes the band unavailable; nothing is inferred", async () => {
     await db.execute(
-      sql`update wellness_profile_consent set withdrawn_at = now() where user_id = 'user-a' and purpose = 'sex'`,
+      sql`update wellness_profile set sex_state = null, sex = null where user_id = 'user-a'`,
     );
     const { body } = await call<ReferenceComparisonsResult>("comparison/get", {});
     expect(byMetric(body, "resting_heart_rate")).toMatchObject({
       status: "unavailable",
-      unavailableReason: "consent_required",
+      unavailableReason: "not_provided",
       band: null,
     });
     // Sleep only needs the age band: still shown.
     expect(byMetric(body, "sleep_duration").status).toBe("available");
     await db.execute(
-      sql`insert into wellness_profile_consent (user_id, purpose, version) values ('user-a', 'sex', '2026-10-15')`,
+      sql`update wellness_profile set sex_state = 'recorded', sex = 'female' where user_id = 'user-a'`,
     );
   });
 

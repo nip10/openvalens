@@ -1,0 +1,11 @@
+-- Birth year and sex no longer have their own per-purpose consent (`age_band`,
+-- `sex`): the account's versioned health-data consent (`legal_acceptance`,
+-- document `health_data_consent`) now covers every wellness profile answer,
+-- and clearing an answer deletes it. The per-purpose history table is unused.
+--
+-- It holds no profile values or health data, only purpose names, disclosure
+-- versions and timestamps, so dropping it destroys no PHI lineage. The stored
+-- birth years and sexes in `wellness_profile` are kept as they are. Rolling the
+-- server back past this migration needs the table restored from the
+-- pre-migrate backup.
+DROP TABLE IF EXISTS "wellness_profile_consent";

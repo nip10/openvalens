@@ -38,7 +38,7 @@ export const COMPARISON_STATUSES = [
 export type ComparisonStatus = (typeof COMPARISON_STATUSES)[number];
 
 /**
- * Why a comparison (or one part of it) cannot be shown. The first six mirror
+ * Why a comparison (or one part of it) cannot be shown. The first five mirror
  * the wellness profile's `WellnessUnavailableReason` (#98); nothing is ever
  * inferred to fill a gap.
  */
@@ -47,7 +47,6 @@ export const COMPARISON_UNAVAILABLE_REASONS = [
   "declined",
   "not_applicable",
   "adult_confirmation_required",
-  "consent_required",
   "age_band_ambiguous",
   /** Your age range is outside (or straddles) the reference's age rows. */
   "age_outside_reference",

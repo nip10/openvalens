@@ -116,7 +116,6 @@ export async function seedEveryModule(db: Database, who: string): Promise<void> 
     // AI usage per month (#299): counts only.
     `insert into ai_usage_month (user_id, month, input_tokens, output_tokens, cost_micros, call_count) values ('${user}', '2026-10-01', 1200, 300, 5400, 2)`,
     `insert into wellness_profile (user_id, revision) values ('${user}', 1)`,
-    `insert into wellness_profile_consent (user_id, purpose, version) values ('${user}', 'sex', 'v1')`,
     // Weight and Health Connect
     `insert into weight_event (organization_id, user_id, date, measured_at, source, weight_kg, created_at) values ('${org}', '${user}', '2026-10-01', '2026-10-01T07:00', 'manual', 72, '2026-10-01')`,
     `insert into daily_weight (organization_id, user_id, date, source, weight_kg, resolved_from_event_id, created_at, updated_at) select '${org}', '${user}', '2026-10-01', 'manual', 72, id, '2026-10-01', '2026-10-01' from weight_event where organization_id = '${org}'`,
@@ -174,6 +173,22 @@ export async function seedEveryModule(db: Database, who: string): Promise<void> 
     `insert into provenance_link (organization_id, target_table, target_id, source_table, source_id) values ('${org}', 'metric_sample', 1, 'health_event', 1)`,
     `insert into telegram_account (organization_id, user_id, telegram_chat_id, telegram_user_id, connected_at, created_at) values ('${org}', '${user}', 'chat-${who}', 'tg-${who}', '2026-09-01', '2026-09-01')`,
     `insert into daily_reminder (organization_id, user_id, date, source_type, source_id, label, created_at) values ('${org}', '${user}', '2026-09-01', 'activity', 1, 'Seeded reminder', '2026-09-01')`,
+    `insert into daily_reminder_email_digest
+       (organization_id, user_id, date, reminder_ids, rendered_email, created_at, delivered_at, provider_message_id)
+       select r.organization_id, r.user_id, '2026-09-01', array_agg(r.id order by r.id),
+         jsonb_build_object(
+           'to', u.email,
+           'from', 'OpenValens <reminders@example.test>',
+           'subject', 'Your daily reminders',
+           'html', '<p>Seeded daily reminder digest</p>',
+           'text', 'Seeded daily reminder digest',
+           'templateName', 'daily-reminder'
+         ),
+         '2026-09-01T08:00:00.000Z', '2026-09-01T08:00:01.000Z', 'digest-provider-${who}'
+       from daily_reminder r
+       join "user" u on u.id = r.user_id
+       where r.organization_id = '${org}' and r.user_id = '${user}'
+       group by r.organization_id, r.user_id, u.email`,
     // Plans, goals and training
     `with goal_row as (insert into goal (organization_id, title, category) values ('${org}', 'Seeded goal', 'fitness') returning organization_id, id)
        insert into goal_checkin (organization_id, goal_id, date, created_at) select organization_id, id, '2026-09-01', '2026-09-01' from goal_row`,

@@ -46,9 +46,9 @@ function ScoreRow({
       className="grid min-w-0 content-start gap-2.5 rounded-2xl bg-paper-2 px-4 py-3.5"
       aria-label={accessibilityLabel}
     >
-      <div className="flex items-start justify-between gap-3">
+      <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1">
         <div className="grid min-w-0 gap-1">
-          <span className="flex items-center gap-1 font-semibold text-ink">
+          <span className="flex min-w-0 flex-wrap items-start gap-x-1.5 gap-y-0.5 font-semibold text-ink">
             {label}
             <InfoTip>
               {lines.map((line, index) => (
@@ -56,11 +56,19 @@ function ScoreRow({
               ))}
             </InfoTip>
           </span>
-          <span>
-            <StatusPill tone={counted ? "good" : "neutral"}>{state}</StatusPill>
+          <span className="min-w-0">
+            <StatusPill
+              className="max-w-full whitespace-normal break-words text-left"
+              tone={counted ? "good" : "neutral"}
+            >
+              {state}
+            </StatusPill>
           </span>
         </div>
-        <span className="num shrink-0 font-display text-xl font-medium text-ink" aria-hidden="true">
+        <span
+          className="num min-w-0 max-w-full shrink-0 text-right font-display text-xl font-medium text-ink"
+          aria-hidden="true"
+        >
           {figure}
         </span>
       </div>

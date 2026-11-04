@@ -9,14 +9,14 @@ const INPUT = {
 };
 
 describe("renderAccessRequestApprovedEmail", () => {
-  test("uses the exact subject", () => {
-    expect(renderAccessRequestApprovedEmail(INPUT).subject).toBe(
+  test("uses the exact subject", async () => {
+    expect((await renderAccessRequestApprovedEmail(INPUT)).subject).toBe(
       "Access approved for Northwind Clinic on OpenValens",
     );
   });
 
-  test("html contains the placeholder values and login link", () => {
-    const { html } = renderAccessRequestApprovedEmail(INPUT);
+  test("html contains the placeholder values and login link", async () => {
+    const { html } = await renderAccessRequestApprovedEmail(INPUT);
 
     expect(html).toContain("Dr. Ada");
     expect(html).toContain("Northwind Clinic");
@@ -24,8 +24,8 @@ describe("renderAccessRequestApprovedEmail", () => {
     expect(html).toContain('href="https://app.example/login"');
   });
 
-  test("text contains the placeholder values", () => {
-    const { text } = renderAccessRequestApprovedEmail(INPUT);
+  test("text contains the placeholder values", async () => {
+    const { text } = await renderAccessRequestApprovedEmail(INPUT);
 
     expect(text).toContain("Dr. Ada");
     expect(text).toContain("Northwind Clinic");

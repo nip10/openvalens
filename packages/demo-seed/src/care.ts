@@ -16,55 +16,64 @@ import { round, type Random } from "./random";
 
 const thousands = (value: number) => String(value).replace(/\B(?=(\d{3})+$)/g, ",");
 
+const DEMO_GOALS = {
+  weight: {
+    title: "Reach 65 kg",
+    category: "body",
+    horizon: "quarter",
+    status: "active",
+    targetValue: "65",
+    baselineValue: "68.4",
+    direction: "decrease",
+    priority: "high",
+  },
+  steps: {
+    title: "Walk 9,000 steps a day",
+    category: "activity",
+    horizon: "quarter",
+    status: "active",
+    // With separators, as typed in the app ("9000" would read as 900).
+    targetValue: "9,000",
+    baselineValue: "7,800",
+    direction: "increase",
+    priority: "normal",
+  },
+} as const;
+
+/**
+ * Two goals with weekly check-ins. `skipTitles` (lower-cased, trimmed) leaves
+ * out a goal the workspace already has under that title, with its check-ins;
+ * the random draws stay the same either way.
+ */
 export async function seedGoals(
   api: DemoApi,
   actor: DemoActor,
   calendar: DemoCalendar,
   random: Random,
+  options: { skipTitles?: ReadonlySet<string> } = {},
 ) {
-  const weight = await api.call<{ id: number }>(
-    "plans/goals/upsertGoal",
-    {
-      title: "Reach 65 kg",
-      category: "body",
-      horizon: "quarter",
-      status: "active",
-      targetValue: "65",
-      baselineValue: "68.4",
-      direction: "decrease",
-      priority: "high",
-      targetDate: calendar.day(-60),
-    },
-    actor,
-  );
-  const steps = await api.call<{ id: number }>(
-    "plans/goals/upsertGoal",
-    {
-      title: "Walk 9,000 steps a day",
-      category: "activity",
-      horizon: "quarter",
-      status: "active",
-      // With separators, as typed in the app ("9000" would read as 900).
-      targetValue: "9,000",
-      baselineValue: "7,800",
-      direction: "increase",
-      priority: "normal",
-    },
-    actor,
-  );
+  const create = async (goal: Record<string, string>) =>
+    options.skipTitles?.has(goal.title!.trim().toLowerCase())
+      ? null
+      : await api.call<{ id: number }>("plans/goals/upsertGoal", goal, actor);
+  const weight = await create({ ...DEMO_GOALS.weight, targetDate: calendar.day(-60) });
+  const steps = await create(DEMO_GOALS.steps);
   for (let offset = 84; offset >= 0; offset -= 7) {
     const date = calendar.day(offset);
-    await api.call(
-      "plans/goals/upsertCheckin",
-      { goalId: weight.id, date, value: String(demoWeightKg(offset, random)) },
-      actor,
-    );
+    const kg = demoWeightKg(offset, random);
+    if (weight)
+      await api.call(
+        "plans/goals/upsertCheckin",
+        { goalId: weight.id, date, value: String(kg) },
+        actor,
+      );
     const average = 7_800 + 1_500 * (1 - offset / 84) + random.normal(0, 300, -600, 600);
-    await api.call(
-      "plans/goals/upsertCheckin",
-      { goalId: steps.id, date, value: thousands(Math.round(average)) },
-      actor,
-    );
+    if (steps)
+      await api.call(
+        "plans/goals/upsertCheckin",
+        { goalId: steps.id, date, value: thousands(Math.round(average)) },
+        actor,
+      );
   }
 }
 

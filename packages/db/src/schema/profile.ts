@@ -1,15 +1,5 @@
 import { sql } from "drizzle-orm";
-import {
-  check,
-  index,
-  integer,
-  pgTable,
-  primaryKey,
-  text,
-  timestamp,
-  uniqueIndex,
-  uuid,
-} from "drizzle-orm/pg-core";
+import { check, integer, pgTable, primaryKey, text, timestamp } from "drizzle-orm/pg-core";
 
 import { user } from "./auth";
 
@@ -117,41 +107,6 @@ export const wellnessProfile = pgTable(
       sql`(${table.sexState} is null and ${table.sex} is null)
         or (${table.sexState} in ('declined', 'not_applicable') and ${table.sex} is null)
         or (${table.sexState} = 'recorded' and ${table.sex} is not null and ${table.sex} in ('female', 'male'))`,
-    ),
-  }),
-);
-
-/**
- * Purpose-specific consent records for the profile fields that need one
- * (`age_band`, `sex`). Append-only history: granting inserts a row with the
- * disclosure version agreed to; withdrawing stamps `withdrawn_at` on the active
- * row. At most one active (not withdrawn) row exists per user and purpose.
- * Holds no profile values.
- */
-export const wellnessProfileConsent = pgTable(
-  "wellness_profile_consent",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    userId: text("user_id")
-      .notNull()
-      .references(() => user.id, { onDelete: "cascade" }),
-    purpose: text("purpose").notNull(),
-    version: text("version").notNull(),
-    grantedAt: timestamp("granted_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
-    withdrawnAt: timestamp("withdrawn_at", { withTimezone: true, mode: "date" }),
-  },
-  (table) => ({
-    wellnessProfileConsentUserIdx: index("wellness_profile_consent_user_id_idx").on(table.userId),
-    wellnessProfileConsentActiveUnique: uniqueIndex("wellness_profile_consent_active_key")
-      .on(table.userId, table.purpose)
-      .where(sql`${table.withdrawnAt} is null`),
-    wellnessProfileConsentPurposeCheck: check(
-      "wellness_profile_consent_purpose_check",
-      sql`${table.purpose} in ('age_band', 'sex')`,
-    ),
-    wellnessProfileConsentWithdrawnCheck: check(
-      "wellness_profile_consent_withdrawn_after_granted_check",
-      sql`${table.withdrawnAt} is null or ${table.withdrawnAt} >= ${table.grantedAt}`,
     ),
   }),
 );

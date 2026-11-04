@@ -444,6 +444,12 @@ export default function NutritionScreen() {
       ],
     );
 
+  /** Up to three recent foods last logged in this meal, for one-tap re-log (#276). */
+  const usualFoods = (slot: MealSlot) =>
+    (foods.data?.recents ?? [])
+      .filter((food) => !food.lastSlot || food.lastSlot === slot)
+      .slice(0, 3);
+
   const slotRows = (slot: MealSlot) =>
     visible.filter(
       (row) =>
@@ -516,23 +522,7 @@ export default function NutritionScreen() {
     <Container>
       <Page>
         <ModuleHiddenNote module="food" />
-        <PageHeader
-          title={i18n._(DIARY_COPY.title)}
-          actions={
-            <>
-              <HeaderLink
-                href="/foods"
-                icon={Bookmark}
-                label={i18n._(CUSTOM_FOOD_COPY.manageLink)}
-              />
-              <HeaderLink
-                href="/nutrition-targets"
-                icon={SlidersHorizontal}
-                label={i18n._(TARGET_COPY.settingsLink)}
-              />
-            </>
-          }
-        />
+        <PageHeader title={i18n._(DIARY_COPY.title)} />
 
         <OutboxBanner outbox={outbox} />
 
@@ -624,8 +614,6 @@ export default function NutritionScreen() {
             targets={targets.data?.targetsOn.targets ?? []}
             compact
           />
-
-          <TargetsOnDay targets={targets.data?.targetsOn.targets ?? []} hideNumbers={hideNumbers} />
         </View>
 
         <View className="gap-2">
@@ -680,22 +668,29 @@ export default function NutritionScreen() {
                     }
                   />
                 </View>
-                {(foods.data?.recents ?? [])
-                  .filter((food) => !food.lastSlot || food.lastSlot === slot)
-                  .slice(0, 3)
-                  .map((food) => {
-                    const candidate = candidateFromChoice(food);
-                    return (
-                      <Button
-                        key={`usual-${candidate.key}`}
-                        variant="ghost"
-                        className="min-h-11 self-start"
-                        onPress={() => logUsual(candidate, slot)}
-                      >
-                        <Button.Label>{t`Add usual: ${food.name}`}</Button.Label>
-                      </Button>
-                    );
-                  })}
+                {usualFoods(slot).length > 0 ? (
+                  // One wrapped row of short pills, so the logged entries below
+                  // still fit on a 390 pt screen (#277).
+                  <View className="flex-row flex-wrap gap-2">
+                    {usualFoods(slot).map((food) => {
+                      const candidate = candidateFromChoice(food);
+                      return (
+                        <Pressable
+                          key={`usual-${candidate.key}`}
+                          onPress={() => logUsual(candidate, slot)}
+                          accessibilityRole="button"
+                          accessibilityLabel={t`Add usual: ${food.name}`}
+                          className="min-h-11 max-w-full flex-row items-center gap-1 rounded-full border border-rule bg-card px-3 active:opacity-80"
+                        >
+                          <Icon icon={Plus} size={14} color="food" />
+                          <Text className="shrink font-sans text-sm text-ink-2" numberOfLines={1}>
+                            {food.name}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                ) : null}
                 {rowsInSlot.length > 0
                   ? rowsInSlot.map((row, index) => (
                       <EntryCard
@@ -731,6 +726,18 @@ export default function NutritionScreen() {
           />
         </View>
 
+        {/* Below the meals, so the first logged meal fits on a 390 pt screen (#277). */}
+        <TargetsOnDay targets={targets.data?.targetsOn.targets ?? []} hideNumbers={hideNumbers} />
+
+        <View className="flex-row flex-wrap gap-2">
+          <HeaderLink href="/foods" icon={Bookmark} label={i18n._(CUSTOM_FOOD_COPY.manageLink)} />
+          <HeaderLink
+            href="/nutrition-targets"
+            icon={SlidersHorizontal}
+            label={i18n._(TARGET_COPY.settingsLink)}
+          />
+        </View>
+
         <LoggingStreakCard streak={streak.isSuccess ? streak.data : undefined} />
 
         <PlainWaterSection
@@ -755,7 +762,7 @@ export default function NutritionScreen() {
   );
 }
 
-/** A quiet pill link under the page title (my foods, targets). */
+/** A quiet pill link below the meals (my foods, targets). */
 function HeaderLink({ href, icon, label }: { href: Href; icon: LucideIcon; label: string }) {
   return (
     <Link href={href} asChild>
@@ -1854,7 +1861,7 @@ export function AddFood({
           <Text className="font-display text-xl font-semibold text-ink" accessibilityRole="header">
             {i18n._(DIARY_COPY.addFood)}
           </Text>
-          <Button className="min-h-11" variant="ghost" onPress={cancel}>
+          <Button className="min-h-11" variant="ghost" onPress={cancel} testID="add-food-cancel">
             <Button.Label>{t`Cancel`}</Button.Label>
           </Button>
         </View>

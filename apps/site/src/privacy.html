@@ -33,7 +33,7 @@
       <article class="prose">
         <p class="eyebrow">Legal</p>
         <h1>Privacy policy</h1>
-        <p class="meta">Version 2026-10-29 · Applies from 29 October 2026</p>
+        <p class="meta">Version 2026-11-02 · Applies from 2 November 2026</p>
 
         <p>
           This policy explains what personal data OpenValens collects, why, on what legal basis,
@@ -67,8 +67,9 @@
             advertising and not shared with anyone you have not chosen to share them with.
           </li>
           <li>
-            No analytics or tracking, no advertising SDKs, and no cookies beyond the ones that keep
-            you signed in. This website makes no third-party requests at all.
+            No tracking, no advertising SDKs, and no cookies beyond the ones that keep you signed
+            in. Usage analytics in Cloud is optional, off until you turn it on, and never includes
+            health data. This website makes no third-party requests at all.
           </li>
           <li>
             We process your health data on the basis of your <strong>explicit consent</strong>,
@@ -76,7 +77,7 @@
           </li>
           <li>
             Optional features that send data elsewhere (the AI assistant, push notifications, Google
-            or Apple sign-in, phone health data) only do so when you turn them on.
+            or Apple sign-in, phone health data, usage analytics) only do so when you turn them on.
           </li>
           <li>
             You can export your data and delete your account at any time, also after your
@@ -147,9 +148,15 @@
         </p>
         <p><strong>Support.</strong> What you write to us and our replies.</p>
         <p>
+          <strong>Usage analytics.</strong> Only if you turn on
+          <strong>Settings › Share optional usage analytics</strong>: your choice, and for each
+          approved action you take, an event with the action's name and a new random id that is not
+          linked to you (<a href="#features">section 7</a>).
+        </p>
+        <p>
           <strong>What we do not collect.</strong> No advertising identifiers, no location, no
           contacts, no microphone. The camera is used only while you scan a food barcode and no
-          image is kept. No analytics.
+          image is kept.
         </p>
 
         <h2 id="bases">4. Why we use it and on what legal basis</h2>
@@ -183,6 +190,17 @@
                 <td>Opt-in insight emails and push notifications</td>
                 <td>Insight text (email), generic text (push), contact details, push token</td>
                 <td>Consent, Art. 6(1)(a) (and 9(2)(a) where the content is health data).</td>
+              </tr>
+              <tr>
+                <td>
+                  Optional usage analytics, to learn which parts of the product are used and improve
+                  it
+                </td>
+                <td>The name of an approved action and a random event id</td>
+                <td>
+                  Consent, Art. 6(1)(a), given by turning the setting on. You can withdraw it at any
+                  time by turning it off in Settings.
+                </td>
               </tr>
               <tr>
                 <td>Your account, sign-in, the subscription, billing emails, support</td>
@@ -269,6 +287,10 @@
             <strong>Sentry</strong> (error reports): the reduced crash reports described in section
             3.
           </li>
+          <li>
+            <strong>PostHog</strong> (usage analytics, only if you turn it on; stored in the EU, in
+            Frankfurt, Germany): the events described in section 7. Never health data.
+          </li>
         </ul>
         <p>
           <strong>People you share with.</strong> Members you invite into your workspace see what
@@ -328,8 +350,28 @@
           dropped. Sentry can see the IP address of the connection that sends a report.
         </p>
         <p>
-          <strong>Analytics.</strong> We do not use analytics in Cloud, the apps or this website. If
-          we ever offer it, it will be off until you opt in, and we will update this policy first.
+          <strong>Usage analytics.</strong> Cloud offers optional product analytics through
+          <strong>PostHog</strong>, which stores the data in its EU cloud in Frankfurt, Germany. It
+          is off until you turn on <strong>Settings › Share optional usage analytics</strong>, and
+          you can turn it off there at any time. We use it only to learn which parts of the product
+          are used, so we can improve it.
+        </p>
+        <p>
+          When it is on, our server (not your browser or phone, which contain no analytics code)
+          sends PostHog one event per approved action. Today there is one: that you opened this
+          setting. Each event contains only the action's name, a new random id created for that
+          single event, and an instruction not to build a profile. The id is never stored or reused
+          and is not linked to your account, device, session or workspace. No health data, records,
+          free text, page addresses, cookies, device details or your IP address are sent. Because
+          the request comes from our server, PostHog sees our server's IP address, not yours; our
+          PostHog project is set to discard IP addresses. Even so, we do not call this anonymous.
+        </p>
+        <p>
+          Turning analytics off stops new events at once. Events already sent cannot be linked back
+          to you, so we cannot find them to recall them or to answer an access or erasure request
+          for them; they are deleted when their retention period ends (<a href="#retention"
+            >section 8</a
+          >).
         </p>
         <p>
           <strong>Cookies.</strong> Cloud uses only strictly necessary cookies to keep you signed in
@@ -399,6 +441,13 @@
                 <td>30 days.</td>
               </tr>
               <tr>
+                <td>Usage analytics events (PostHog)</td>
+                <td>
+                  12 months. PostHog deletes older events in a monthly clean-up, so an event can
+                  last up to 13 months.
+                </td>
+              </tr>
+              <tr>
                 <td>AI requests (Anthropic)</td>
                 <td>Up to 30 days at Anthropic.</td>
               </tr>
@@ -420,8 +469,8 @@
         <p>
           Your health records are stored in the EU. Some providers are based in, or use
           infrastructure in, the United States or elsewhere (Resend, Stripe, Anthropic, Expo, Apple,
-          Google and Sentry). When data is transferred outside the European Economic Area, we rely
-          on an adequacy decision (including the EU–US Data Privacy Framework for certified
+          Google, Sentry and PostHog). When data is transferred outside the European Economic Area,
+          we rely on an adequacy decision (including the EU–US Data Privacy Framework for certified
           companies) or on the European Commission's Standard Contractual Clauses, as listed for
           each provider on the <a href="/subprocessors">subprocessors page</a>. You can ask us for a
           copy of the safeguards.
@@ -450,7 +499,7 @@
           </li>
           <li>
             <strong>withdraw consent</strong> at any time (health data, AI assistant, insight
-            emails, push), without affecting earlier processing.
+            emails, push, usage analytics), without affecting earlier processing.
           </li>
         </ul>
         <p>

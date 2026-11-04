@@ -18,6 +18,7 @@ const ENV = {
 
 const email: EmailService = {
   organizationName: "OpenValens",
+  prepareEmail: (input) => input,
   sendEmail: async () => ({ id: "msg-1", dryRun: true }),
 };
 

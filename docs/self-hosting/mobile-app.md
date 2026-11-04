@@ -1,6 +1,6 @@
 # Connecting the mobile app
 
-**Applies to:** OpenValens 0.9.0 · Last updated: 2026-10-28
+**Applies to:** OpenValens 1.0.1 · Last updated: 2026-10-28
 
 The OpenValens app from the App Store and Google Play connects to any
 OpenValens server, not only to OpenValens Cloud. You do not need to build the

@@ -70,6 +70,7 @@ describe.skipIf(!url)("public sign-up against disposable PostgreSQL", () => {
   const sentAuthEmail: SendEmailInput[] = [];
   const email: EmailService = {
     organizationName: "OpenValens",
+    prepareEmail: (input) => input,
     sendEmail: async (input: SendEmailInput, _options?: SendEmailOptions) => {
       sentAuthEmail.push(input);
       return { id: "msg-1", dryRun: false };

@@ -41,24 +41,18 @@ export function Chips({
   const selected = selectedChips(field, draft.answers);
   return (
     <View className="flex-row flex-wrap gap-2" accessibilityRole="radiogroup">
-      {chipsFor(field, draft).map((chip) => {
+      {chipsFor(field).map((chip) => {
         const isSelected = selected.includes(chip.key);
         return (
           <Pressable
             key={chip.key}
             testID={`chip-${field}-${chip.key}`}
             onPress={() => onChange(toggleChip(field, chip.key, draft))}
-            disabled={chip.disabled}
             accessibilityRole={field === "focus" ? "checkbox" : "radio"}
-            accessibilityState={{
-              selected: isSelected,
-              checked: isSelected,
-              disabled: chip.disabled,
-            }}
+            accessibilityState={{ selected: isSelected, checked: isSelected }}
             className={cn(
               "min-h-11 justify-center rounded-full border px-4 active:opacity-70",
               isSelected ? "border-signal bg-sidebar-accent" : "border-rule bg-paper",
-              chip.disabled && "opacity-40",
             )}
           >
             <Text
@@ -76,7 +70,7 @@ export function Chips({
   );
 }
 
-export function ConsentToggle({
+export function CheckboxToggle({
   label,
   checked,
   onPress,

@@ -964,6 +964,10 @@ msgstr "← All conversations"
 msgid "+15 sec"
 msgstr "+15 sec"
 
+#: apps/web/src/components/magic-link-form.tsx
+msgid "<0>Create an account</0> first, then sign in."
+msgstr "<0>Create an account</0> first, then sign in."
+
 #: apps/web/src/routes/_auth/settings/index.tsx
 msgid "<0>Download an export first</0>."
 msgstr "<0>Download an export first</0>."
@@ -1312,6 +1316,10 @@ msgstr "Active minutes, last 7 days: {value} minutes. {statusText}"
 #: apps/native/components/workout-session-detail.tsx
 msgid "Active workout in progress"
 msgstr "Active workout in progress"
+
+#: packages/email/src/templates/daily-reminder.tsx
+msgid "Activities"
+msgstr "Activities"
 
 #: packages/api/src/presenters/insights.ts
 msgctxt "insight topic"
@@ -1918,6 +1926,10 @@ msgstr "Ask the coach anything…"
 msgid "Ask the workspace owner if you need it."
 msgstr "Ask the workspace owner if you need it."
 
+#: apps/web/src/components/magic-link-form.tsx
+msgid "Ask your administrator for an invitation, then sign in."
+msgstr "Ask your administrator for an invitation, then sign in."
+
 #: apps/native/app/(drawer)/records/sleep.tsx
 #: apps/web/src/routes/_auth/records/sleep.tsx
 msgid "Asleep"
@@ -2222,6 +2234,10 @@ msgstr "Billing"
 #: apps/web/src/components/wellness-profile-editor.tsx
 msgid "Birth year"
 msgstr "Birth year"
+
+#: apps/native/components/onboarding/steps.tsx
+msgid "Birth year and sex are only used for age- and sex-specific guidance and reference ranges. Clear either answer at any time to delete it."
+msgstr "Birth year and sex are only used for age- and sex-specific guidance and reference ranges. Clear either answer at any time to delete it."
 
 #: apps/web/src/components/onboarding/welcome-flow.tsx
 msgid "Birth year and sex are optional."
@@ -3007,7 +3023,6 @@ msgstr "Coach is thinking…"
 
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/(tabs)/_layout.tsx
-#: apps/native/app/(drawer)/index.tsx
 msgid "Cockpit"
 msgstr "Cockpit"
 
@@ -3124,7 +3139,7 @@ msgstr "Confirm sending this text to the provider first."
 msgid "Confirm you are 18 or older before adding age or sex."
 msgstr "Confirm you are 18 or older before adding age or sex."
 
-#: apps/server/src/admission-email.ts
+#: packages/email/src/templates/public-sign-up.tsx
 msgid "Confirm your email to create your OpenValens account."
 msgstr "Confirm your email to create your OpenValens account."
 
@@ -4343,7 +4358,7 @@ msgstr "Create draft"
 msgid "Create exercise"
 msgstr "Create exercise"
 
-#: apps/server/src/admission-email.ts
+#: packages/email/src/templates/public-sign-up.tsx
 msgid "Create my account"
 msgstr "Create my account"
 
@@ -4364,7 +4379,7 @@ msgstr "Create workspace exercise"
 msgid "Create your account"
 msgstr "Create your account"
 
-#: apps/server/src/admission-email.ts
+#: packages/email/src/templates/public-sign-up.tsx
 msgid "Create your OpenValens account"
 msgstr "Create your OpenValens account"
 
@@ -6603,12 +6618,12 @@ msgstr "I consent"
 #: apps/native/components/health-data-consent-prompt.tsx
 #: apps/web/src/components/accept-invitation-view.tsx
 #: apps/web/src/components/health-data-consent-prompt.tsx
-msgid "I consent to OpenValens processing my health data to provide the service."
-msgstr "I consent to OpenValens processing my health data to provide the service."
+msgid "I consent to OpenValens processing my health data to provide the service. This includes any birth year and sex I add to my profile, used to place me in a broad age band and to choose age- and sex-specific guidance and reference ranges."
+msgstr "I consent to OpenValens processing my health data to provide the service. This includes any birth year and sex I add to my profile, used to place me in a broad age band and to choose age- and sex-specific guidance and reference ranges."
 
 #: apps/web/src/components/sign-up-form.tsx
-msgid "I consent to OpenValens processing my health data to provide the service. Read our <0>privacy policy</0>."
-msgstr "I consent to OpenValens processing my health data to provide the service. Read our <0>privacy policy</0>."
+msgid "I consent to OpenValens processing my health data to provide the service. This includes any birth year and sex I add to my profile, used to place me in a broad age band and to choose age- and sex-specific guidance and reference ranges. Read our <0>privacy policy</0>."
+msgstr "I consent to OpenValens processing my health data to provide the service. This includes any birth year and sex I add to my profile, used to place me in a broad age band and to choose age- and sex-specific guidance and reference ranges. Read our <0>privacy policy</0>."
 
 #. safety
 #. safety
@@ -6652,7 +6667,7 @@ msgstr "I'll enter things myself"
 msgid "I'll type things in"
 msgstr "I'll type things in"
 
-#: apps/server/src/admission-email.ts
+#: packages/email/src/templates/public-sign-up-existing.tsx
 msgid "If that wasn’t you, you can ignore this email."
 msgstr "If that wasn’t you, you can ignore this email."
 
@@ -6676,9 +6691,17 @@ msgstr "If you connect Telegram in Settings, the same reminders are sent there i
 msgid "If you did not request this email, you can safely ignore it."
 msgstr "If you did not request this email, you can safely ignore it."
 
-#: apps/server/src/admission-email.ts
+#: packages/email/src/templates/public-sign-up.tsx
 msgid "If you didn’t ask to create an account, ignore this email. No account is created unless the link is used."
 msgstr "If you didn’t ask to create an account, ignore this email. No account is created unless the link is used."
+
+#: apps/web/src/components/magic-link-form.tsx
+msgid "If you don't have an account yet, <0>create one</0> first."
+msgstr "If you don't have an account yet, <0>create one</0> first."
+
+#: apps/web/src/components/magic-link-form.tsx
+msgid "If you don't have an account yet, you need an invitation first."
+msgstr "If you don't have an account yet, you need an invitation first."
 
 #: packages/api/src/presenters/logging-streak.ts
 msgid "If you missed a day, you can still add it until the end of {until}."
@@ -7042,7 +7065,7 @@ msgstr "Iron"
 msgid "Irregular schedule"
 msgstr "Irregular schedule"
 
-#: apps/server/src/admission-email.ts
+#: packages/email/src/templates/admission-verification.tsx
 msgid "It expires in 10 minutes."
 msgstr "It expires in 10 minutes."
 
@@ -8043,6 +8066,7 @@ msgstr "Medical disclaimer"
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
 #: packages/api/src/presenters/clinical-export.ts
+#: packages/email/src/templates/daily-reminder.tsx
 msgid "Medications"
 msgstr "Medications"
 
@@ -11768,10 +11792,6 @@ msgstr "Saved."
 msgid "Saved. Nothing was logged."
 msgstr "Saved. Nothing was logged."
 
-#: apps/native/components/onboarding/steps.tsx
-msgid "Saving birth year or sex asks for your consent, with the same text as the profile page. You can withdraw it any time."
-msgstr "Saving birth year or sex asks for your consent, with the same text as the profile page. You can withdraw it any time."
-
 #: apps/web/src/components/progress-photos.tsx
 msgid "Saving photo…"
 msgstr "Saving photo…"
@@ -12217,8 +12237,8 @@ msgid "Setup token"
 msgstr "Setup token"
 
 #: packages/api/src/presenters/preventive-care.ts
-msgid "Sex for reference tables is not available: {reason, select, not_provided {You haven't added this yet.} declined {You chose not to share this.} not_applicable {You said neither option fits you.} adult_confirmation_required {This is only available after you confirm you are 18 or older.} consent_required {This needs your consent for this purpose.} other {Your birth year falls on the edge of two age bands.}} Items published for one sex say so instead of guessing."
-msgstr "Sex for reference tables is not available: {reason, select, not_provided {You haven't added this yet.} declined {You chose not to share this.} not_applicable {You said neither option fits you.} adult_confirmation_required {This is only available after you confirm you are 18 or older.} consent_required {This needs your consent for this purpose.} other {Your birth year falls on the edge of two age bands.}} Items published for one sex say so instead of guessing."
+msgid "Sex for reference tables is not available: {reason, select, not_provided {You haven't added this yet.} declined {You chose not to share this.} not_applicable {You said neither option fits you.} adult_confirmation_required {This is only available after you confirm you are 18 or older.} other {Your birth year falls on the edge of two age bands.}} Items published for one sex say so instead of guessing."
+msgstr "Sex for reference tables is not available: {reason, select, not_provided {You haven't added this yet.} declined {You chose not to share this.} not_applicable {You said neither option fits you.} adult_confirmation_required {This is only available after you confirm you are 18 or older.} other {Your birth year falls on the edge of two age bands.}} Items published for one sex say so instead of guessing."
 
 #. safety
 #. safety
@@ -12313,8 +12333,8 @@ msgstr "Shows the measured change per region between two of your scans."
 
 #. safety
 #: packages/api/src/presenters/reference-comparison.ts
-msgid "Shows whether your usual resting heart rate (the median of the last 28 days) is below, within or above the middle half of US adults of your age group and sex, measured from 1999 to 2008 (NCHS). Needs your birth year and sex for reference tables in your profile, each with its consent. Device readings are usually taken differently from the seated pulse in the reference, so treat them as a rough guide."
-msgstr "Shows whether your usual resting heart rate (the median of the last 28 days) is below, within or above the middle half of US adults of your age group and sex, measured from 1999 to 2008 (NCHS). Needs your birth year and sex for reference tables in your profile, each with its consent. Device readings are usually taken differently from the seated pulse in the reference, so treat them as a rough guide."
+msgid "Shows whether your usual resting heart rate (the median of the last 28 days) is below, within or above the middle half of US adults of your age group and sex, measured from 1999 to 2008 (NCHS). Needs your birth year and sex for reference tables in your profile. Device readings are usually taken differently from the seated pulse in the reference, so treat them as a rough guide."
+msgstr "Shows whether your usual resting heart rate (the median of the last 28 days) is below, within or above the middle half of US adults of your age group and sex, measured from 1999 to 2008 (NCHS). Needs your birth year and sex for reference tables in your profile. Device readings are usually taken differently from the seated pulse in the reference, so treat them as a rough guide."
 
 #. safety
 #: packages/api/src/presenters/reference-comparison.ts
@@ -12420,7 +12440,6 @@ msgstr "Sign in with the matching email first, then return and enter the token a
 msgid "Sign out"
 msgstr "Sign out"
 
-#: apps/native/app/(drawer)/index.tsx
 #: apps/web/src/components/user-menu.tsx
 msgid "Sign Out"
 msgstr "Sign Out"
@@ -12618,7 +12637,7 @@ msgstr "Some logged meals were recorded within four hours before sleep starts in
 msgid "Some stored attachments could not be included. You can try again."
 msgstr "Some stored attachments could not be included. You can try again."
 
-#: apps/server/src/admission-email.ts
+#: packages/email/src/templates/public-sign-up-existing.tsx
 msgid "Someone asked to create an OpenValens account with this email address, but it already has one."
 msgstr "Someone asked to create an OpenValens account with this email address, but it already has one."
 
@@ -13033,6 +13052,7 @@ msgstr "Supplement intake"
 #: apps/web/src/components/header.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
 #: packages/api/src/presenters/clinical-export.ts
+#: packages/email/src/templates/daily-reminder.tsx
 msgid "Supplements"
 msgstr "Supplements"
 
@@ -13411,9 +13431,21 @@ msgstr "The last sync failed. It will retry automatically."
 msgid "The library is empty for now."
 msgstr "The library is empty for now."
 
-#: apps/server/src/admission-email.ts
+#: packages/email/src/templates/public-sign-up.tsx
 msgid "The link expires in 1 hour and works once."
 msgstr "The link expires in 1 hour and works once."
+
+#: apps/native/components/sign-in.tsx
+msgid "The link only works for an existing account."
+msgstr "The link only works for an existing account."
+
+#: apps/web/src/components/magic-link-form.tsx
+msgid "The link only works for an existing account. New accounts need an invitation."
+msgstr "The link only works for an existing account. New accounts need an invitation."
+
+#: apps/web/src/components/magic-link-form.tsx
+msgid "The link only works for an existing account. New to OpenValens? <0>Create an account</0>"
+msgstr "The link only works for an existing account. New to OpenValens? <0>Create an account</0>"
 
 #: packages/api/src/presenters/workout-progression.ts
 msgid "The load stays the same because it cannot be increased for this exercise."
@@ -13591,6 +13623,14 @@ msgstr "The weekly insights email is off. You can turn it on again in Settings."
 #: apps/web/src/components/ai-workspace-consent-card.tsx
 msgid "The workspace owner decides whether AI features can be used in this workspace. When it is on, each person still has to give their own consent below before AI processes their data."
 msgstr "The workspace owner decides whether AI features can be used in this workspace. When it is on, each person still has to give their own consent below before AI processes their data."
+
+#: apps/web/src/components/magic-link-form.tsx
+msgid "There is no account for this email yet."
+msgstr "There is no account for this email yet."
+
+#: apps/native/app/_layout.tsx
+msgid "There is no account for this email yet. Create an account or ask for an invitation first, then sign in."
+msgstr "There is no account for this email yet. Create an account or ask for an invitation first, then sign in."
 
 #: packages/api/src/presenters/workout-progression.ts
 msgid "There is no previous session to compare, so the prescription stays the same."
@@ -13843,10 +13883,6 @@ msgstr "This link is not valid any more. Sign in and open Settings to change you
 msgid "This module is hidden. Turn it on in Settings › Modules."
 msgstr "This module is hidden. Turn it on in Settings › Modules."
 
-#: packages/api/src/presenters/reference-comparison.ts
-msgid "This needs your consent for this purpose."
-msgstr "This needs your consent for this purpose."
-
 #. safety
 #: apps/native/app/(drawer)/private-measurements.tsx
 msgid "This optional feature is off by default. Turning it on lets you record weight or circumference measurements and view progress photos in this account."
@@ -13980,11 +14016,6 @@ msgstr "This workout could not be opened. Please try again."
 msgid "This workspace's OpenValens Cloud access has ended. Its records are still here, and you can export them."
 msgstr "This workspace's OpenValens Cloud access has ended. Its records are still here, and you can export them."
 
-#. safety
-#: packages/api/src/presenters/wellness-profile.ts
-msgid "Tick the consent box to save this, or choose 'Prefer not to say'."
-msgstr "Tick the consent box to save this, or choose 'Prefer not to say'."
-
 #: apps/web/src/routes/_auth/records/vitals.tsx
 #: packages/api/src/presenters/plain-water.ts
 msgid "Time"
@@ -14017,7 +14048,7 @@ msgstr "Title"
 msgid "To connect this chat, open Settings → Telegram in OpenValens and use the connect link there."
 msgstr "To connect this chat, open Settings → Telegram in OpenValens and use the connect link there."
 
-#: apps/server/src/admission-email.ts
+#: packages/email/src/templates/admission-invitation.tsx
 msgid "To create your account, open {url} and paste the token."
 msgstr "To create your account, open {url} and paste the token."
 
@@ -14034,7 +14065,7 @@ msgstr "To keep your account, subscribe in Plan & billing on the web before that
 msgid "To sign in with {0} later, finish joining, sign in with the email link, then choose Connect under Settings → Sign-in methods."
 msgstr "To sign in with {0} later, finish joining, sign in with the email link, then choose Connect under Settings → Sign-in methods."
 
-#: apps/server/src/admission-email.ts
+#: packages/email/src/templates/public-sign-up-existing.tsx
 msgid "To sign in, open {url}."
 msgstr "To sign in, open {url}."
 
@@ -14763,7 +14794,7 @@ msgstr "Verification code"
 msgid "Verify"
 msgstr "Verify"
 
-#: apps/server/src/admission-email.ts
+#: packages/email/src/templates/admission-verification.tsx
 msgid "Verify your email for OpenValens"
 msgstr "Verify your email for OpenValens"
 
@@ -15096,11 +15127,6 @@ msgstr "Welcome"
 msgid "Welcome to OpenValens"
 msgstr "Welcome to OpenValens"
 
-#. placeholder {0}: session.user.name
-#: apps/native/app/(drawer)/index.tsx
-msgid "Welcome, <0>{0}</0>"
-msgstr "Welcome, <0>{0}</0>"
-
 #: packages/api/src/presenters/wellness-profile.ts
 msgid "Wellbeing"
 msgstr "Wellbeing"
@@ -15260,7 +15286,7 @@ msgstr "Yesterday"
 msgid "You"
 msgstr "You"
 
-#: apps/server/src/admission-email.ts
+#: packages/email/src/templates/public-sign-up-existing.tsx
 msgid "You already have an OpenValens account"
 msgstr "You already have an OpenValens account"
 
@@ -15376,7 +15402,7 @@ msgstr "You have been invited to join <0>{0}</0> as <1>{role}</1>."
 msgid "You have been invited to join a workspace as <0>{role}</0>."
 msgstr "You have been invited to join a workspace as <0>{role}</0>."
 
-#: apps/server/src/admission-email.ts
+#: packages/email/src/templates/admission-invitation.tsx
 msgid "You have been invited to OpenValens."
 msgstr "You have been invited to OpenValens."
 
@@ -15396,6 +15422,10 @@ msgstr "You have joined the workspace."
 #: apps/web/src/components/my-invitations-view.tsx
 msgid "You have no pending workspace invitations."
 msgstr "You have no pending workspace invitations."
+
+#: packages/email/src/templates/daily-reminder.tsx
+msgid "You have no reminders for today."
+msgstr "You have no reminders for today."
 
 #: apps/web/src/routes/_auth/profile.tsx
 msgid "You have unsaved changes on this page. Leave without saving them?"
@@ -15443,17 +15473,12 @@ msgstr "You set up this server. A quick look at what it reports, then your own s
 msgid "You will be signed out, and everything this app saved from {host} is removed from this phone."
 msgstr "You will be signed out, and everything this app saved from {host} is removed from this phone."
 
-#. safety
-#: packages/api/src/presenters/wellness-profile.ts
-msgid "You withdrew consent for this answer, so it can't be saved. Clear it or keep your consent."
-msgstr "You withdrew consent for this answer, so it can't be saved. Clear it or keep your consent."
-
 #: apps/native/components/onboarding/steps.tsx
 #: apps/web/src/components/onboarding/welcome-flow.tsx
 msgid "You're all set"
 msgstr "You're all set"
 
-#: apps/server/src/admission-email.ts
+#: packages/email/src/templates/admission-invitation.tsx
 msgid "You’re invited to OpenValens"
 msgstr "You’re invited to OpenValens"
 
@@ -15524,8 +15549,8 @@ msgid "Your age range does not fall inside a single age group of this reference,
 msgstr "Your age range does not fall inside a single age group of this reference, so no group is picked for you."
 
 #: packages/api/src/presenters/preventive-care.ts
-msgid "Your age range is not available: {reason, select, not_provided {You haven't added this yet.} declined {You chose not to share this.} not_applicable {You said neither option fits you.} adult_confirmation_required {This is only available after you confirm you are 18 or older.} consent_required {This needs your consent for this purpose.} other {Your birth year falls on the edge of two age bands.}} Add your birth year (age band) in your profile to see which items apply to you. Nothing is guessed."
-msgstr "Your age range is not available: {reason, select, not_provided {You haven't added this yet.} declined {You chose not to share this.} not_applicable {You said neither option fits you.} adult_confirmation_required {This is only available after you confirm you are 18 or older.} consent_required {This needs your consent for this purpose.} other {Your birth year falls on the edge of two age bands.}} Add your birth year (age band) in your profile to see which items apply to you. Nothing is guessed."
+msgid "Your age range is not available: {reason, select, not_provided {You haven't added this yet.} declined {You chose not to share this.} not_applicable {You said neither option fits you.} adult_confirmation_required {This is only available after you confirm you are 18 or older.} other {Your birth year falls on the edge of two age bands.}} Add your birth year (age band) in your profile to see which items apply to you. Nothing is guessed."
+msgstr "Your age range is not available: {reason, select, not_provided {You haven't added this yet.} declined {You chose not to share this.} not_applicable {You said neither option fits you.} adult_confirmation_required {This is only available after you confirm you are 18 or older.} other {Your birth year falls on the edge of two age bands.}} Add your birth year (age band) in your profile to see which items apply to you. Nothing is guessed."
 
 #: apps/web/src/components/profile-summary-card.tsx
 msgid "Your answers"
@@ -15573,9 +15598,9 @@ msgstr "Your change: remove the entry."
 msgid "Your change: the entry values."
 msgstr "Your change: the entry values."
 
-#: packages/integrations/telegram/src/reminders.ts
-msgid "Your daily reminder"
-msgstr "Your daily reminder"
+#: packages/email/src/templates/daily-reminder.tsx
+msgid "Your daily reminders"
+msgstr "Your daily reminders"
 
 #: apps/web/src/components/preventive-care-view.tsx
 msgid "Your decision about {title}"
@@ -15619,7 +15644,7 @@ msgstr "Your invitation to {organizationName} has been revoked"
 msgid "Your invitation to {organizationName} is no longer active."
 msgstr "Your invitation to {organizationName} is no longer active."
 
-#: apps/server/src/admission-email.ts
+#: packages/email/src/templates/admission-invitation.tsx
 msgid "Your invitation token is {token}."
 msgstr "Your invitation token is {token}."
 
@@ -15748,6 +15773,11 @@ msgstr "Your records stay in your account, and you can export them at any time."
 msgid "Your records will be deleted"
 msgstr "Your records will be deleted"
 
+#. placeholder {0}: input.date
+#: packages/email/src/templates/daily-reminder.tsx
+msgid "Your reminders for {0}."
+msgstr "Your reminders for {0}."
+
 #: apps/native/lib/workouts/rest-timer.ts
 msgid "Your rest is over."
 msgstr "Your rest is over."
@@ -15855,7 +15885,7 @@ msgstr "Your usual: {usual} (median of {0, plural, one {# day} other {# days}} i
 msgid "Your values include device readings. Devices often measure resting heart rate during sleep, which likely reads lower than the seated pulse used in the reference, so this band may place you lower than a seated reading would."
 msgstr "Your values include device readings. Devices often measure resting heart rate during sleep, which likely reads lower than the seated pulse used in the reference, so this band may place you lower than a seated reading would."
 
-#: apps/server/src/admission-email.ts
+#: packages/email/src/templates/admission-verification.tsx
 msgid "Your verification code is {code}."
 msgstr "Your verification code is {code}."
 

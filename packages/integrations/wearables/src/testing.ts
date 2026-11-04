@@ -352,7 +352,11 @@ export function mockAdapters(
   deps: { fetch?: typeof fetch; now?: () => Date } = {},
 ): Record<WearableProviderId, WearableAdapter> {
   const base = vendor.url;
-  const http = { fetch: deps.fetch ?? globalThis.fetch, timeoutMs: 5_000 };
+  const http = {
+    fetch: deps.fetch ?? globalThis.fetch,
+    timeoutMs: 5_000,
+    ...(deps.now ? { now: deps.now } : {}),
+  };
   return {
     oura: createOuraAdapter(TEST_CLIENT, {
       ...http,
@@ -384,7 +388,6 @@ export function mockAdapters(
     ),
     withings: createWithingsAdapter(TEST_CLIENT, {
       ...http,
-      ...(deps.now ? { now: deps.now } : {}),
       endpoints: { authorize: `${base}/withings/authorize2`, api: `${base}/withings` },
     }),
     google_health: createGoogleHealthAdapter(TEST_CLIENT, {
@@ -397,6 +400,25 @@ export function mockAdapters(
       },
     }),
   };
+}
+
+/**
+ * The moment the `seedVendorData` fixtures are "recent": a day after their
+ * last record. A first sync reads `WEARABLE_BACKFILL_DAYS` back from the
+ * service clock, and some adapters (Polar) drop records outside that window,
+ * so a suite that syncs these fixtures must run on `fixtureClock()`.
+ */
+export const FIXTURE_NOW = new Date("2026-10-04T12:00:00.000Z");
+
+/**
+ * A clock that starts at `FIXTURE_NOW` when created and then moves with real
+ * time, so durations and ordering still behave. Pass it as the service's and
+ * the adapters' `now`, and use it for anything time-checked (webhook
+ * signature timestamps).
+ */
+export function fixtureClock(): () => Date {
+  const offset = Date.now() - FIXTURE_NOW.getTime();
+  return () => new Date(Date.now() - offset);
 }
 
 /** Synthetic payloads shaped like each vendor's documented responses. */

@@ -124,6 +124,26 @@ async function seed() {
      select gen_random_uuid()::text, "id", 'health_data_consent', '${E2E_LEGAL_VERSION}', now(), 'sign_up' from "user"
      on conflict do nothing`,
   ]);
+  // The seed has no food catalog: import one synthetic Open Food Facts product,
+  // so "Food databases" search has a result (flow 14).
+  await run(
+    [
+      "bun",
+      "--no-env-file",
+      "scripts/food-catalog-import.ts",
+      "--source",
+      "off",
+      "--file",
+      join(NATIVE_DIR, "e2e", "fixtures", "openfoodfacts-products.jsonl"),
+      "--dataset",
+      "products",
+      "--version",
+      "e2e",
+      "--source-url",
+      "https://static.openfoodfacts.org/data/openfoodfacts-products.jsonl.gz",
+    ],
+    { env: { DATABASE_URL: databaseUrl() } },
+  );
 }
 
 async function pipeLines(stream: ReadableStream<Uint8Array>, onLine: (line: string) => void) {

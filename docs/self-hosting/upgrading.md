@@ -1,6 +1,6 @@
 # Upgrading
 
-**Applies to:** OpenValens 0.9.0 · Last updated: 2026-10-31
+**Applies to:** OpenValens 1.0.1 · Last updated: 2026-10-31
 
 Upgrades are a `git checkout` followed by `deploy/setup.sh upgrade`. Every
 upgrade takes an encrypted, verified backup of the database and the stored

@@ -11,14 +11,14 @@ const INPUT = {
 };
 
 describe("renderInvitationReminderEmail", () => {
-  test("uses the exact subject", () => {
-    expect(renderInvitationReminderEmail(INPUT).subject).toBe(
+  test("uses the exact subject", async () => {
+    expect((await renderInvitationReminderEmail(INPUT)).subject).toBe(
       "Reminder: join Northwind Clinic on OpenValens",
     );
   });
 
-  test("html contains the placeholder values", () => {
-    const { html } = renderInvitationReminderEmail(INPUT);
+  test("html contains the placeholder values", async () => {
+    const { html } = await renderInvitationReminderEmail(INPUT);
 
     expect(html).toContain("Dr. Ada");
     expect(html).toContain("Northwind Clinic");
@@ -26,8 +26,8 @@ describe("renderInvitationReminderEmail", () => {
     expect(html).toContain("Accept invitation");
   });
 
-  test("text contains the placeholder values and accept url", () => {
-    const { text } = renderInvitationReminderEmail(INPUT);
+  test("text contains the placeholder values and accept url", async () => {
+    const { text } = await renderInvitationReminderEmail(INPUT);
 
     expect(text).toContain("Northwind Clinic");
     expect(text).toContain(INPUT.acceptUrl);

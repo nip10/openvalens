@@ -1,31 +1,54 @@
+/** @jsxImportSource react */
 import type { I18n } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { SOURCE_LOCALE, type Locale } from "@openvalens/i18n";
 import { serverI18n } from "@openvalens/i18n/server";
+import {
+  Body,
+  Button,
+  Container,
+  Head,
+  Heading,
+  Hr,
+  Html,
+  Img,
+  Preview,
+  Section,
+  Text,
+  render,
+} from "react-email";
+import type { ReactNode } from "react";
 
 const FALLBACK_ORGANIZATION_NAME = "OpenValens";
-
-/**
- * Branding options threaded from a bound `EmailService` (which structurally
- * satisfies this) or supplied directly. `organizationName` is presentation
- * only — never delivery config — and defaults to the `Health` brand.
- * `locale` is the recipient's language (#231); English when omitted.
- */
-export type EmailRenderOptions = {
-  organizationName?: string;
-  locale?: Locale;
+export const emailTokens = {
+  paper: "#fbf1ea",
+  sheet: "#fffbf8",
+  ink: "#2e211c",
+  ink2: "#57463e",
+  ink3: "#7a665b",
+  rule: "#f0e0d6",
+  rule2: "#e2c9ba",
+  signal: "#c2512e",
+  signal2: "#a8441f",
+  signalInk: "#fff8f4",
+} as const;
+export const emailStyles = {
+  paragraph: { color: emailTokens.ink, fontSize: "15px", lineHeight: "1.65", margin: "0 0 12px" },
+  secondaryText: {
+    color: emailTokens.ink2,
+    fontSize: "14px",
+    lineHeight: "1.5",
+    margin: "0 0 6px",
+  },
+  link: { color: emailTokens.signal2 },
 };
-
-/** The recipient's language for a template, English by default (#231). */
+export type EmailRenderOptions = { organizationName?: string; locale?: Locale; logoUrl?: string };
 export function emailLocale(options: EmailRenderOptions = {}): Locale {
   return options.locale ?? SOURCE_LOCALE;
 }
-
-/** The shared Lingui instance a template renders its text with. */
 export function emailI18n(options: EmailRenderOptions = {}): I18n {
   return serverI18n(emailLocale(options));
 }
-
 export function escapeHtml(value: string): string {
   return value
     .replace(/&/g, "&amp;")
@@ -34,101 +57,155 @@ export function escapeHtml(value: string): string {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 }
-
-export function renderParagraphs(lines: readonly string[]): string {
-  return lines
-    .map(
-      (line) =>
-        `<p style="margin:0 0 12px 0;font-size:15px;line-height:1.6;color:#111;">${escapeHtml(line)}</p>`,
-    )
-    .join("");
+export function renderParagraphs(lines: readonly string[]): ReactNode[] {
+  return lines.map((line, i) => (
+    <Text key={i} style={emailStyles.paragraph}>
+      {line}
+    </Text>
+  ));
 }
-
 export type RenderLayoutInput = {
   title: string;
-  bodyHtml: string;
+  bodyHtml: ReactNode;
   bodyText: string;
   preheader?: string;
   ctaLabel?: string;
   ctaUrl?: string;
   footerText?: string;
+  hideFooter?: boolean;
 };
-
-export type RenderedLayout = {
-  html: string;
-  text: string;
-};
-
-/**
- * Shared plain-HTML email scaffold. Inline CSS only, 560px max width, `#111`
- * body text, footer with the organization name and the current year.
- *
- * NOTE: plain functions rather than React Email components (deviation from
- * anchovy, Issue #15) — the returned shape stays compatible with a future
- * React Email swap.
- */
-export function renderLayout(
+export type RenderedLayout = { html: string; text: string };
+export async function renderLayout(
   input: RenderLayoutInput,
   options: EmailRenderOptions = {},
-): RenderedLayout {
+): Promise<RenderedLayout> {
   const organizationName = options.organizationName ?? FALLBACK_ORGANIZATION_NAME;
+  const logoUrl =
+    options.logoUrl ??
+    "https://raw.githubusercontent.com/nip10/openvalens/main/apps/native/assets/images/icon.png";
+  const logoAlt = options.logoUrl ? `${organizationName} logo` : "OpenValens logo";
   const year = new Date().getFullYear();
-  const footerText =
-    input.footerText ??
-    emailI18n(options)._(msg`This is an automated message from ${organizationName}.`);
-
-  const preheader = input.preheader
-    ? `<span style="display:none;visibility:hidden;opacity:0;height:0;width:0;">${escapeHtml(
-        input.preheader,
-      )}</span>`
-    : "";
-
-  const cta =
-    input.ctaLabel && input.ctaUrl
-      ? `<p style="margin:20px 0;"><a href="${escapeHtml(
-          input.ctaUrl,
-        )}" style="background-color:#0f766e;border-radius:6px;color:#ffffff;display:inline-block;font-size:14px;font-weight:600;padding:12px 18px;text-decoration:none;">${escapeHtml(
-          input.ctaLabel,
-        )}</a></p>`
-      : "";
-
-  const html = `<!DOCTYPE html>
-<html lang="${emailLocale(options)}">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>${escapeHtml(input.title)}</title>
-  </head>
-  <body style="background-color:#f5f7fb;color:#111;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:0;padding:24px 12px;">
-    ${preheader}
-    <div style="background-color:#ffffff;border:1px solid #e5e7eb;border-radius:8px;margin:0 auto;max-width:560px;padding:24px;">
-      <p style="color:#0f766e;font-size:13px;font-weight:700;letter-spacing:0.4px;margin:0 0 8px 0;text-transform:uppercase;">${escapeHtml(
-        organizationName,
-      )}</p>
-      <h1 style="color:#111;font-size:24px;font-weight:700;line-height:1.3;margin:0 0 16px 0;">${escapeHtml(
-        input.title,
-      )}</h1>
-      ${input.bodyHtml}
-      ${cta}
-      <hr style="border-color:#e5e7eb;margin:20px 0 12px 0;" />
-      <p style="color:#6b7280;font-size:12px;line-height:1.5;margin:0 0 6px 0;">${escapeHtml(
-        footerText,
-      )}</p>
-      <p style="color:#6b7280;font-size:12px;line-height:1.5;margin:0;">${FALLBACK_ORGANIZATION_NAME} &middot; &copy; ${year}</p>
-    </div>
-  </body>
-</html>`;
-
-  const textParts = [input.bodyText];
-
-  if (input.ctaLabel && input.ctaUrl) {
-    textParts.push(`${input.ctaLabel}: ${input.ctaUrl}`);
-  }
-
-  textParts.push(footerText, `${FALLBACK_ORGANIZATION_NAME} © ${year}`);
-
-  return {
-    html,
-    text: textParts.filter((part) => part.length > 0).join("\n\n"),
-  };
+  const footerText = input.hideFooter
+    ? undefined
+    : (input.footerText ??
+      emailI18n(options)._(msg`This is an automated message from ${organizationName}.`));
+  const tree = (
+    <Html lang={emailLocale(options)}>
+      <Head />
+      <Body
+        lang={emailLocale(options)}
+        style={{
+          backgroundColor: emailTokens.paper,
+          color: emailTokens.ink,
+          fontFamily: "Figtree, 'Trebuchet MS', Arial, sans-serif",
+          margin: 0,
+          padding: "28px 12px",
+        }}
+      >
+        <Preview>{input.preheader ?? input.title}</Preview>
+        <Container
+          style={{
+            backgroundColor: emailTokens.sheet,
+            border: `1px solid ${emailTokens.rule}`,
+            borderRadius: "18px",
+            margin: "0 auto",
+            maxWidth: "560px",
+            padding: "28px",
+          }}
+        >
+          <Section>
+            <Text
+              style={{
+                color: emailTokens.signal,
+                fontSize: "13px",
+                fontWeight: 700,
+                letterSpacing: ".08em",
+                margin: "0 0 10px",
+                textTransform: "uppercase",
+              }}
+            >
+              <Img
+                src={logoUrl}
+                width="28"
+                height="28"
+                alt={logoAlt}
+                style={{ display: "inline-block", marginRight: "8px", verticalAlign: "middle" }}
+              />
+              <span style={{ verticalAlign: "middle" }}>{organizationName}</span>
+            </Text>
+            <Heading
+              as="h1"
+              style={{
+                color: emailTokens.ink,
+                fontFamily: "Fraunces, Georgia, serif",
+                fontSize: "26px",
+                lineHeight: "1.25",
+                margin: "0 0 18px",
+              }}
+            >
+              {input.title}
+            </Heading>
+            {input.bodyHtml}
+            {input.ctaLabel && input.ctaUrl ? (
+              <Button
+                href={input.ctaUrl}
+                style={{
+                  backgroundColor: emailTokens.signal2,
+                  borderRadius: "10px",
+                  color: emailTokens.signalInk,
+                  fontSize: "14px",
+                  fontWeight: 700,
+                  padding: "13px 20px",
+                  textDecoration: "none",
+                }}
+              >
+                {input.ctaLabel}
+              </Button>
+            ) : null}
+            {footerText ? (
+              <>
+                <Hr
+                  style={{
+                    border: 0,
+                    borderTop: `1px solid ${emailTokens.rule}`,
+                    margin: "22px 0 12px",
+                  }}
+                />
+                <Text
+                  style={{
+                    color: emailTokens.ink3,
+                    fontSize: "12px",
+                    lineHeight: "1.5",
+                    margin: "0 0 6px",
+                  }}
+                >
+                  {footerText}
+                </Text>
+                <Text
+                  style={{
+                    color: emailTokens.ink3,
+                    fontSize: "12px",
+                    lineHeight: "1.5",
+                    margin: 0,
+                  }}
+                >
+                  {FALLBACK_ORGANIZATION_NAME} · © {year}
+                </Text>
+              </>
+            ) : null}
+          </Section>
+        </Container>
+      </Body>
+    </Html>
+  );
+  const text = await render(tree, { plainText: true });
+  const explicitText = [
+    input.bodyText,
+    input.ctaLabel && input.ctaUrl ? `${input.ctaLabel}: ${input.ctaUrl}` : "",
+    footerText,
+    footerText ? `${FALLBACK_ORGANIZATION_NAME} © ${year}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+  return { html: await render(tree), text: explicitText || text };
 }

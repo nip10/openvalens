@@ -3,7 +3,10 @@ import { Button } from "@openvalens/ui/components/button";
 import { ChartNoAxesColumn, ChartPie } from "lucide-react";
 import { useMemo } from "react";
 
-import { useAnalyticsConsent } from "@openvalens/ui/hooks/use-analytics-consent";
+import {
+  analyticsConsentHidden,
+  useAnalyticsConsent,
+} from "@openvalens/ui/hooks/use-analytics-consent";
 
 import { InfoTip, ToneIcon } from "@/components/page";
 import { SettingsGroup, SettingsIcon } from "@/components/settings-rows";
@@ -52,6 +55,9 @@ export function AnalyticsConsentSection() {
                       message: "Sharing is off unless you explicitly opt in.",
                       comment: "safety",
                     });
+
+  // Server has analytics off and sharing is already off: nothing to manage.
+  if (!isPending && scope && analyticsConsentHidden(consent)) return null;
 
   return (
     <section aria-labelledby="analytics-title" className="grid min-w-0 content-start gap-3">

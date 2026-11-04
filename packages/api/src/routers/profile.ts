@@ -21,8 +21,8 @@ import {
  *
  * Both are keyed only by the trusted session user: there is no user or
  * organization id in the input, no workspace role grants access, and an
- * impersonated session is denied. Logs carry field names and consent purposes,
- * never answers.
+ * impersonated session is denied. Logs carry field names, never
+ * answers.
  */
 
 const logger = createStructuredLogger({ level: "info" });
@@ -53,11 +53,10 @@ export const profileRouter = {
           userId,
           input,
         );
-        if (outcome.changedFields.length > 0 || outcome.consentChanges.length > 0) {
+        if (outcome.changedFields.length > 0) {
           logger.info("profile.updated", {
             correlationId: context.correlationId,
             changedFields: outcome.changedFields,
-            consentChanges: outcome.consentChanges.map((c) => `${c.purpose}:${c.action}`),
             revision: outcome.snapshot.revision,
           });
         }

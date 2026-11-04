@@ -1,3 +1,4 @@
+/** @jsxImportSource react */
 // TODO(#15): migrate to React Email if/when the react-email dep family is
 // adopted. Plain functions keep the `{ subject, html, text }` contract stable.
 import { msg, plural } from "@lingui/core/macro";
@@ -25,10 +26,10 @@ export function magicLinkEmailSubject(options: EmailRenderOptions = {}): string 
 }
 
 /** Text in the recipient's language (#231); `options.locale` defaults to English. */
-export function renderMagicLinkEmail(
+export async function renderMagicLinkEmail(
   input: MagicLinkEmailInput,
   options: EmailRenderOptions = {},
-): RenderedMagicLinkEmail {
+): Promise<RenderedMagicLinkEmail> {
   const i18n = emailI18n(options);
   const appName = APP_NAME;
   const minutes = input.expiresInMinutes;
@@ -52,7 +53,7 @@ export function renderMagicLinkEmail(
 
   // The URL is server-built, so only HTML-escaping is applied — the query
   // string (which carries the token) is never re-encoded.
-  const layout = renderLayout(
+  const layout = await renderLayout(
     {
       title: i18n._(msg`Secure sign-in link`),
       preheader: i18n._(msg`Use this link to securely sign in to ${appName}.`),

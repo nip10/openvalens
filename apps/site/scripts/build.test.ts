@@ -17,32 +17,21 @@ import {
   auditMarkup,
   auditSite,
   buildSite,
-  CLOUD_LIVE,
   CLOUD_SIGNUP_URL,
-  selectCloudBlocks,
   SITE_CSP,
   SITE_CSP_HEADER,
   type Finding,
 } from "./build";
 
-/** The pre-launch build ("Cloud · coming soon"), whatever CLOUD_LIVE says. */
 let outDir: string;
-/** The same site once Cloud is live. */
-let liveDir: string;
-/** The build `bun run build` ships, which follows CLOUD_LIVE. */
-let shippedDir: string;
 
 beforeAll(async () => {
   outDir = await mkdtemp(join(tmpdir(), "openvalens-site-"));
-  liveDir = await mkdtemp(join(tmpdir(), "openvalens-site-live-"));
-  shippedDir = await mkdtemp(join(tmpdir(), "openvalens-site-shipped-"));
-  await buildSite(outDir, undefined, { cloudLive: false });
-  await buildSite(liveDir, undefined, { cloudLive: true });
-  await buildSite(shippedDir);
+  await buildSite(outDir);
 });
 
 afterAll(async () => {
-  for (const dir of [outDir, liveDir, shippedDir]) await rm(dir, { recursive: true, force: true });
+  await rm(outDir, { recursive: true, force: true });
 });
 
 /** Visible text of a built page: tags, comments and entities flattened. */
@@ -67,6 +56,7 @@ describe("built site", () => {
     const headers = await readFile(join(outDir, "_headers"), "utf8");
     expect(headers).toContain(`Content-Security-Policy: ${SITE_CSP_HEADER}`);
     expect(headers).toContain("Referrer-Policy: no-referrer");
+    expect(headers).toContain("Strict-Transport-Security: max-age=31536000\n");
   });
 
   test("the page carries the canonical URL, Open Graph and Twitter card tags", async () => {
@@ -190,7 +180,6 @@ describe("site copy", () => {
   test("states the name, the privacy tagline and the intended purpose", async () => {
     const text = await pageText();
     expect(text).toContain("A private place for your health records.");
-    expect(text).toContain("Cloud · coming soon");
     expect(text).toContain("€7.99 / month");
     expect(text).toContain("€69 / year");
     expect(text).toContain("VAT included");
@@ -208,7 +197,6 @@ describe("site copy", () => {
     const text = await pageText();
     expect(text).toContain("Off-site backups are opt-in.");
     expect(text).toContain("Encrypted daily backups stay on the host");
-    expect(text).toContain("Cloud is not live yet.");
     expect(text).toContain("Mobile apps are not published in the stores yet.");
     expect(text).not.toContain("No hosted service.");
     expect(text).toContain("no analytics and no telemetry");
@@ -251,6 +239,11 @@ describe("legal and support pages", () => {
     for (const page of PAGES) expect(html).toContain(`href="/${page}"`);
   });
 
+  test("support links to the Cloud status page", async () => {
+    const html = await readFile(join(outDir, "support.html"), "utf8");
+    expect(html).toContain('href="https://stats.uptimerobot.com/hYgbJCzAWr" id="status"');
+  });
+
   test("support explains account deletion at a stable anchor (Google Play deletion URL)", async () => {
     const html = await readFile(join(outDir, "support.html"), "utf8");
     expect(html).toContain('id="delete-account"');
@@ -280,25 +273,14 @@ describe("legal and support pages", () => {
   });
 });
 
-describe("Cloud go-live switch (#309)", () => {
-  const signupLink = `href="${CLOUD_SIGNUP_URL}"`;
-
-  test("before launch: Cloud is coming soon and nothing links to sign-up", async () => {
+describe("Cloud sign-up (#309)", () => {
+  test("Start free trial links to sign-up and no pre-launch copy is left", async () => {
     const html = await readFile(join(outDir, "index.html"), "utf8");
-    const text = await pageText(outDir);
-    expect(text).toContain("Cloud · coming soon");
+    const text = await pageText();
+    expect(html).toContain(
+      `<a class="button primary" href="${CLOUD_SIGNUP_URL}">Start free trial</a>`,
+    );
     expect(text).toContain("Self-host it");
-    expect(text).not.toContain("Start free trial");
-    expect(html).not.toContain(CLOUD_SIGNUP_URL);
-    expect(html).not.toContain("signup");
-  });
-
-  test("once live: Start free trial links to sign-up and the pre-launch copy is gone", async () => {
-    const html = await readFile(join(liveDir, "index.html"), "utf8");
-    const text = await pageText(liveDir);
-    expect(html).toContain(`<a class="button primary" ${signupLink}>Start free trial</a>`);
-    expect(text).toContain("Self-host it");
-    expect(text).toContain("€7.99 / month");
     expect(text).toContain("30-day free trial, no card required");
     for (const prelaunch of [
       "Cloud · coming soon",
@@ -310,49 +292,7 @@ describe("Cloud go-live switch (#309)", () => {
       expect(text).not.toContain(prelaunch);
     }
     expect(html).not.toContain("future hosted service");
-  });
-
-  test("the live build passes the audit and the wording rules too", async () => {
-    expect(await auditSite(liveDir)).toEqual([]);
-    const text = await pageText(liveDir);
-    const purposeStart = text.indexOf("OpenValens is a personal record-keeping");
-    const purposeEnd = text.indexOf("about your health.", purposeStart);
-    expect(purposeStart).toBeGreaterThan(-1);
-    let scanned = text.slice(0, purposeStart) + text.slice(purposeEnd);
-    for (const phrase of ALLOWED_PHRASES) scanned = scanned.replace(phrase, " ");
-    expect(BANNED_TERMS.filter((term) => term.test(scanned)).map(String)).toEqual([]);
-  });
-
-  test("the shipped build follows CLOUD_LIVE and leaves no markers or placeholders", async () => {
-    const html = await readFile(join(shippedDir, "index.html"), "utf8");
-    expect(html.includes(signupLink)).toBe(CLOUD_LIVE);
-    expect(html.includes("Cloud · coming soon")).toBe(!CLOUD_LIVE);
-    for (const dir of [outDir, liveDir, shippedDir]) {
-      const page = await readFile(join(dir, "index.html"), "utf8");
-      expect(page).not.toMatch(/<!--\s*\/?cloud:(soon|live)\s*-->/);
-      expect(page).not.toContain("__CLOUD_SIGNUP_URL__");
-    }
-  });
-
-  test("selectCloudBlocks keeps one state and refuses broken blocks", () => {
-    const page = [
-      "a",
-      "<!-- cloud:soon -->",
-      "soon",
-      "<!-- /cloud:soon -->",
-      "<!-- cloud:live -->",
-      "live",
-      "<!-- /cloud:live -->",
-      "b",
-      "",
-    ].join("\n");
-    expect(selectCloudBlocks(page, false)).toBe("a\nsoon\nb\n");
-    expect(selectCloudBlocks(page, true)).toBe("a\nlive\nb\n");
-    expect(() => selectCloudBlocks("<!-- cloud:soon -->x", false)).toThrow("not closed");
-    expect(() => selectCloudBlocks("x<!-- /cloud:live -->", false)).toThrow("stray");
-    expect(() =>
-      selectCloudBlocks("<!-- cloud:soon --><!-- cloud:live --><!-- /cloud:live -->", true),
-    ).toThrow("inside");
+    expect(html).not.toContain("__CLOUD_SIGNUP_URL__");
   });
 });
 

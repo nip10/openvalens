@@ -8,22 +8,22 @@ const INPUT = {
 };
 
 describe("renderInvitationRevokedEmail", () => {
-  test("uses the exact subject", () => {
-    expect(renderInvitationRevokedEmail(INPUT).subject).toBe(
+  test("uses the exact subject", async () => {
+    expect((await renderInvitationRevokedEmail(INPUT)).subject).toBe(
       "Your invitation to Northwind Clinic has been revoked",
     );
   });
 
-  test("html contains the placeholder values", () => {
-    const { html } = renderInvitationRevokedEmail(INPUT);
+  test("html contains the placeholder values", async () => {
+    const { html } = await renderInvitationRevokedEmail(INPUT);
 
     expect(html).toContain("Northwind Clinic");
     expect(html).toContain("Dr. Ada");
     expect(html).toContain("revoked");
   });
 
-  test("text contains the placeholder values", () => {
-    const { text } = renderInvitationRevokedEmail(INPUT);
+  test("text contains the placeholder values", async () => {
+    const { text } = await renderInvitationRevokedEmail(INPUT);
 
     expect(text).toContain("Northwind Clinic");
     expect(text).toContain("Dr. Ada");

@@ -1,3 +1,4 @@
+/** @jsxImportSource react */
 import { msg } from "@lingui/core/macro";
 
 import { emailI18n, renderLayout, renderParagraphs, type EmailRenderOptions } from "./layout";
@@ -19,10 +20,10 @@ export type RenderedInvitationRevokedEmail = {
  * Workspace invitation revoked, in the recipient's language (#231). The
  * inviter and workspace names are user values and are not translated.
  */
-export function renderInvitationRevokedEmail(
+export async function renderInvitationRevokedEmail(
   input: InvitationRevokedEmailInput,
   options: EmailRenderOptions = {},
-): RenderedInvitationRevokedEmail {
+): Promise<RenderedInvitationRevokedEmail> {
   const i18n = emailI18n(options);
   const { inviterName, organizationName } = input;
   const appName = APP_NAME;
@@ -35,7 +36,7 @@ export function renderInvitationRevokedEmail(
     i18n._(msg`If you still need access, contact your administrator.`),
   ];
 
-  const layout = renderLayout(
+  const layout = await renderLayout(
     {
       title: i18n._(msg`Invitation revoked`),
       preheader: i18n._(msg`Your invitation to ${organizationName} is no longer active.`),

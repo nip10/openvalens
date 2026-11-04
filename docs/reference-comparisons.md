@@ -38,7 +38,7 @@ contract `reference-comparison-contract.ts`, shared copy and view models
   tables that ship with the app. `presenters/reference-comparison.test.ts`
   scans all copy for banned wording.
 - **Nothing is inferred.** Age and sex come only from the wellness profile
-  (#98) with their purpose consents. A band needs your whole age range (from
+  (#98), covered by the account's health-data consent. A band needs your whole age range (from
   your birth year) to fit inside one reference age row; otherwise it is
   unavailable with the reason. A guideline with age rows shows every row when
   your age is unavailable, and never picks one for you.
@@ -55,7 +55,7 @@ contract `reference-comparison-contract.ts`, shared copy and view models
 
 | Metric             | Comparison                                    | Needs                                             | Comparability                                                                                                                                                                                                                                           |
 | ------------------ | --------------------------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Resting heart rate | Coarse band, NCHS NHSR 41 (by age group, sex) | Opt-in, adult, birth year + sex consents, ≥7 days | Manual entries: protocol note (seated, ~4 min rest). Any device day: "measured differently, likely reads lower" note. US 1999–2008 population note. No guideline range (the 60/100 bpm clinical thresholds are diagnostic thresholds and are not used). |
+| Resting heart rate | Coarse band, NCHS NHSR 41 (by age group, sex) | Opt-in, adult, birth year + sex, ≥7 days          | Manual entries: protocol note (seated, ~4 min rest). Any device day: "measured differently, likely reads lower" note. US 1999–2008 population note. No guideline range (the 60/100 bpm clinical thresholds are diagnostic thresholds and are not used). |
 | Sleep duration     | Guideline range, NSF 2015 (age rows)          | Opt-in, adult, ≥7 nights; birth year for your row | A recommendation, not a distribution (noted).                                                                                                                                                                                                           |
 | Active minutes     | Guideline range, WHO 2020 (all adults)        | Opt-in, adult, sessions with intensity            | Only sessions with a recorded intensity count (#99).                                                                                                                                                                                                    |
 
