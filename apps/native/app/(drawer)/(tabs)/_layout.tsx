@@ -45,6 +45,10 @@ export default function TabLayout() {
           borderTopColor: themeColorRule,
         },
         tabBarLabelStyle: { fontFamily: BODY_FONT_MEDIUM, fontWeight: "500", fontSize: 11 },
+        // Fixed-size labels, as in the iOS tab bar: at the largest text sizes six
+        // scaled labels overflow a 375 pt phone (#272). The icons and the screen
+        // titles carry the same meaning.
+        tabBarAllowFontScaling: false,
         tabBarActiveTintColor: themeColorPrimary,
         tabBarInactiveTintColor: themeColorInk3,
       }}

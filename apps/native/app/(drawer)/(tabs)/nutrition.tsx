@@ -203,17 +203,20 @@ function Chip({
   onPress,
   disabled = false,
   icon,
+  testID,
 }: {
   label: string;
   selected: boolean;
   onPress: () => void;
   disabled?: boolean;
   icon?: LucideIcon;
+  testID?: string;
 }) {
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled}
+      testID={testID}
       accessibilityRole="button"
       accessibilityState={{ selected }}
       className={cn(
@@ -1867,6 +1870,7 @@ export function AddFood({
         <ScrollView
           className="flex-1"
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           contentContainerClassName="gap-3 px-4 pb-4"
         >
           {/* No section title: the header above already reads "Add food". */}
@@ -2120,6 +2124,7 @@ export function AddFood({
                   onChangeText={lifecycle.bindMutation((name) => setQuick({ ...quick, name }))}
                   placeholder={t`Food name`}
                   accessibilityLabel={t`Food name`}
+                  testID="quick-name"
                   className={inputClass}
                   placeholderTextColor={placeholder}
                 />
@@ -2172,6 +2177,7 @@ export function AddFood({
                         : i18n._(HIDDEN_VALUE)
                     }
                     accessibilityLabel={i18n._(nutrientFieldLabel(key))}
+                    testID={`quick-${key}`}
                     className={inputClass}
                     placeholderTextColor={placeholder}
                   />
@@ -2212,6 +2218,7 @@ export function AddFood({
                         if (lifecycle.canMutate()) setSlot(option);
                       }}
                       disabled={!editable}
+                      testID={`meal-slot-${option}`}
                     />
                   ))}
                 </View>
