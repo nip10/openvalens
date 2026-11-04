@@ -787,6 +787,7 @@ function PlainWaterDayPanel({
             placeholderTextColor={placeholder}
             keyboardType="decimal-pad"
             accessibilityLabel={i18n._(WATER_COPY.amountLabel)}
+            testID="water-amount"
           />
           <UnitChoice value={addUnit} onChange={setAddUnit} />
           <View className="flex-row items-center gap-2">
