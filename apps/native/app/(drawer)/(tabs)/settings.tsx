@@ -80,6 +80,15 @@ import { signOutOfThisPhone } from "@/lib/sign-out";
 import { client, orpc } from "@/utils/orpc";
 import { adminAccessQueryOptions } from "@/utils/admin-settings";
 
+/**
+ * Signs out, then opens the sign-in screen. A launch opens the tabs (#271), so
+ * nothing else leaves them: without this the tabs stayed up, signed out (#380).
+ */
+async function signOutToSignIn() {
+  await signOutOfThisPhone();
+  router.replace("/");
+}
+
 export default function SettingsScreen() {
   const { isDark, toggleTheme } = useAppTheme();
   const [density, setDensity] = useState<"comfortable" | "compact">("comfortable");
@@ -124,7 +133,7 @@ export default function SettingsScreen() {
               <Button
                 variant="outline"
                 size="sm"
-                onPress={() => void signOutOfThisPhone()}
+                onPress={() => void signOutToSignIn()}
                 accessibilityLabel={t`Sign out`}
                 testID="sign-out"
               >
@@ -247,7 +256,7 @@ export default function SettingsScreen() {
 
         {session?.user ? (
           <View onLayout={(event) => (deleteAccountOffset.current = event.nativeEvent.layout.y)}>
-            <DeleteAccountSection onSignOut={signOutOfThisPhone} />
+            <DeleteAccountSection onSignOut={signOutToSignIn} />
           </View>
         ) : null}
 
