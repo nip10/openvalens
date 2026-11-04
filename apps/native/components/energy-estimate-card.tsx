@@ -11,7 +11,7 @@ import { Button } from "heroui-native";
 import { Gauge, Sparkles, Square, SquareCheck } from "lucide-react-native";
 
 import { deviceTimeZone, localDateIn } from "@openvalens/api/presenters/nutrition-diary";
-import { Icon, InfoTip, Prose, Section } from "@/components/bloom";
+import { Icon, InfoTip, Prose, Section, DISPLAY_MAX_FONT_SCALE } from "@/components/bloom";
 import { orpc } from "@/utils/orpc";
 
 export function EnergyEstimateCard({
@@ -114,6 +114,7 @@ export function EnergyEstimateCard({
           <Text
             className="font-display text-[34px] font-medium leading-[40px] text-ink"
             style={{ fontVariant: ["tabular-nums"] }}
+            maxFontSizeMultiplier={DISPLAY_MAX_FONT_SCALE}
           >
             {display.value}
           </Text>

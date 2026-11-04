@@ -35,7 +35,7 @@ import React, { useCallback, useEffect, useRef } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { BloomMark } from "@/components/bloom";
+import { BloomMark, DISPLAY_MAX_FONT_SCALE } from "@/components/bloom";
 import { DISPLAY_FONT } from "@/components/fonts";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { HealthDataConsentPrompt } from "@/components/health-data-consent-prompt";
@@ -197,7 +197,12 @@ function DrawerContent() {
     >
       <View className="flex-row items-center gap-2.5 px-5 pb-5">
         <BloomMark size={30} />
-        <Text className="font-display text-2xl font-semibold text-ink">OpenValens</Text>
+        <Text
+          className="font-display text-2xl font-semibold text-ink"
+          maxFontSizeMultiplier={DISPLAY_MAX_FONT_SCALE}
+        >
+          OpenValens
+        </Text>
       </View>
 
       <View className="gap-5 px-3">
@@ -319,6 +324,9 @@ function DrawerLayout() {
             fontSize: 19,
             color: themeColorForeground,
           },
+          // Fixed size, as iOS bar titles: the bar keeps its height, so at the
+          // accessibility text sizes a scaled title was cut in half (#379).
+          headerTitleAllowFontScaling: false,
           headerShadowVisible: false,
           headerRight: renderThemeToggle,
           drawerStyle: { backgroundColor: themeColorSidebar },

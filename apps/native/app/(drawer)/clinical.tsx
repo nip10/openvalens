@@ -22,6 +22,7 @@ import {
   Section,
   Sheet,
   ToneIcon,
+  DISPLAY_MAX_FONT_SCALE,
 } from "@/components/bloom";
 import { Container } from "@/components/container";
 import { friendlyDate } from "@/utils/friendly";
@@ -148,6 +149,7 @@ function CountFigure({
       <Text
         className="font-display text-[30px] font-medium leading-[36px] text-ink"
         style={{ fontVariant: ["tabular-nums"] }}
+        maxFontSizeMultiplier={DISPLAY_MAX_FONT_SCALE}
       >
         {value}
       </Text>

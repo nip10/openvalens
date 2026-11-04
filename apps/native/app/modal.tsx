@@ -4,7 +4,7 @@ import { Button } from "heroui-native";
 import { Check } from "lucide-react-native";
 import { Text, View } from "react-native";
 
-import { Sheet, ToneIcon } from "@/components/bloom";
+import { Sheet, ToneIcon, DISPLAY_MAX_FONT_SCALE } from "@/components/bloom";
 import { Container } from "@/components/container";
 
 function Modal() {
@@ -21,6 +21,7 @@ function Modal() {
             <Text
               className="text-center font-display text-2xl font-semibold text-ink"
               accessibilityRole="header"
+              maxFontSizeMultiplier={DISPLAY_MAX_FONT_SCALE}
             >
               <Trans>Modal Screen</Trans>
             </Text>

@@ -4,6 +4,7 @@ import { Alert, Modal, Pressable, ScrollView, Text, View } from "react-native";
 import { useWorkoutSession } from "@/lib/workouts/sync";
 import type { WorkoutDetail } from "@/lib/workouts/model";
 import { weightFromKg } from "@/lib/workouts/model";
+import { DISPLAY_MAX_FONT_SCALE } from "@/components/bloom";
 import { SaveWorkoutAsRoutine } from "@/components/workout-routines";
 
 export function WorkoutSessionDetail({
@@ -65,7 +66,11 @@ export function WorkoutSessionDetail({
     <Modal visible={!!workout} animationType="slide" onRequestClose={onClose}>
       <ScrollView className="flex-1 bg-paper px-5 py-8" contentContainerClassName="gap-5">
         <View className="flex-row items-center justify-between">
-          <Text accessibilityRole="header" className="font-display text-2xl font-semibold text-ink">
+          <Text
+            accessibilityRole="header"
+            className="font-display text-2xl font-semibold text-ink"
+            maxFontSizeMultiplier={DISPLAY_MAX_FONT_SCALE}
+          >
             <Trans>Workout details</Trans>
           </Text>
           <Pressable accessibilityRole="button" onPress={onClose} className="p-3">

@@ -6,7 +6,7 @@ import { useRef, useState } from "react";
 import { Linking, Text, View } from "react-native";
 import z from "zod";
 
-import { ErrorState, Icon, Sheet, ToneIcon } from "@/components/bloom";
+import { ErrorState, Icon, Sheet, ToneIcon, DISPLAY_MAX_FONT_SCALE } from "@/components/bloom";
 import { useChangeServer } from "@/components/change-server";
 import { useServerProblemCopy } from "@/components/server-choice";
 import { SocialSignInButtons } from "@/components/social-sign-in";
@@ -120,6 +120,7 @@ function SignInHeading({ sent }: { sent: boolean }) {
       <Text
         className="font-display text-[26px] font-semibold leading-[32px] text-ink"
         accessibilityRole="header"
+        maxFontSizeMultiplier={DISPLAY_MAX_FONT_SCALE}
       >
         <Trans>Sign in</Trans>
       </Text>

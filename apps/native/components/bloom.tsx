@@ -13,7 +13,7 @@ import { type Href, Link } from "expo-router";
 import { BottomSheet, cn } from "heroui-native";
 import { ChevronDown, ChevronRight, Info, type LucideIcon } from "lucide-react-native";
 import { Children, isValidElement, type ReactNode, useState } from "react";
-import { Pressable, Text, View, type ViewProps } from "react-native";
+import { Pressable, Text, useWindowDimensions, View, type ViewProps } from "react-native";
 import Svg, { Circle, Defs, RadialGradient, Stop } from "react-native-svg";
 
 import { useThemeColor } from "@/utils/theme";
@@ -22,6 +22,27 @@ export type { LucideIcon };
 
 /** One soft colour per measure; the same tone marks its icon, its bar and its chart. */
 export type Tone = "sleep" | "steps" | "heart" | "weight" | "water" | "food" | "signal" | "neutral";
+
+/**
+ * How far display type (titles and big figures in Fraunces) grows with the
+ * phone's text size. It starts large, so uncapped it broke words mid-way on a
+ * 375 pt phone at the accessibility sizes (#379); body text scales fully.
+ */
+export const DISPLAY_MAX_FONT_SCALE = 1.4;
+
+/**
+ * Labels inside controls with a set height (heroui buttons and chips): past
+ * this they were cut through the middle at the accessibility sizes (#379).
+ */
+export const CONTROL_MAX_FONT_SCALE = 1.4;
+
+/** From the first accessibility text size up, two cards side by side break every word (#379). */
+const STACK_FONT_SCALE = 1.6;
+
+/** True at the accessibility text sizes, where side-by-side cards and figures stack. */
+export function useStackedLayout(): boolean {
+  return useWindowDimensions().fontScale >= STACK_FONT_SCALE;
+}
 
 const TONE_ICON_BG: Record<Tone, string> = {
   sleep: "bg-sleep-soft",
@@ -221,7 +242,12 @@ export function Ring({
         />
       </Svg>
       {children ? (
-        <Text className="font-display text-base font-semibold text-ink">{children}</Text>
+        <Text
+          className="font-display text-base font-semibold text-ink"
+          maxFontSizeMultiplier={DISPLAY_MAX_FONT_SCALE}
+        >
+          {children}
+        </Text>
       ) : null}
     </View>
   );
@@ -257,6 +283,7 @@ export function StatusPill({
       <Text
         className={cn("font-sans text-[13px] font-medium leading-snug", STATUS_TEXT[tone])}
         numberOfLines={1}
+        maxFontSizeMultiplier={CONTROL_MAX_FONT_SCALE}
       >
         {children}
       </Text>
@@ -276,7 +303,11 @@ export function ToneChip({
 }) {
   return (
     <View className={cn("self-start rounded-full px-2.5 py-1", TONE_ICON_BG[tone], className)}>
-      <Text className="font-sans text-[13px] font-semibold text-ink" numberOfLines={1}>
+      <Text
+        className="font-sans text-[13px] font-semibold text-ink"
+        numberOfLines={1}
+        maxFontSizeMultiplier={CONTROL_MAX_FONT_SCALE}
+      >
         {children}
       </Text>
     </View>
@@ -384,7 +415,12 @@ export function Details({
         className="min-h-11 flex-row items-center gap-1.5 self-start rounded-md px-1 active:opacity-70"
       >
         <Chevron size={16} color={ink2} />
-        <Text className="font-display text-base font-medium text-ink-2">{summary}</Text>
+        <Text
+          className="shrink font-display text-base font-medium text-ink-2"
+          maxFontSizeMultiplier={DISPLAY_MAX_FONT_SCALE}
+        >
+          {summary}
+        </Text>
       </Pressable>
       {open ? <View className="gap-2">{textChildren(children)}</View> : null}
     </View>
@@ -413,6 +449,7 @@ export function PageHeader({
           <Text
             className="shrink font-display text-[30px] font-semibold leading-[36px] text-ink"
             accessibilityRole="header"
+            maxFontSizeMultiplier={DISPLAY_MAX_FONT_SCALE}
           >
             {title}
           </Text>
@@ -459,6 +496,7 @@ export function Section({
                 <Text
                   className="shrink font-display text-xl font-semibold text-ink"
                   accessibilityRole="header"
+                  maxFontSizeMultiplier={DISPLAY_MAX_FONT_SCALE}
                 >
                   {title}
                 </Text>
@@ -527,6 +565,7 @@ export function StatTile({
           numberOfLines={1}
           adjustsFontSizeToFit
           minimumFontScale={0.6}
+          maxFontSizeMultiplier={DISPLAY_MAX_FONT_SCALE}
         >
           {value}
         </Text>
@@ -627,12 +666,17 @@ export function ListCard({
   testID?: string;
   className?: string;
 }) {
+  const stacked = useStackedLayout();
   const content = (
     <Sheet className={cn("gap-3 p-4", className)} testID={onPress ? undefined : testID}>
       <View className="flex-row items-start gap-3">
         <ToneIcon icon={icon} tone={tone} />
         <View className="min-w-0 flex-1 gap-1">
-          <View className="flex-row items-start justify-between gap-2">
+          {/* The chip under the title at the accessibility text sizes: beside
+              it, the title had a word's width and broke every word (#379). */}
+          <View
+            className={stacked ? "items-start gap-1" : "flex-row items-start justify-between gap-2"}
+          >
             <Text className="shrink font-sans text-base font-semibold text-ink">{title}</Text>
             {chip ? <ToneChip tone={tone}>{chip}</ToneChip> : null}
           </View>
@@ -683,7 +727,12 @@ export function EmptyState({
       )}
     >
       {icon ? <ToneIcon icon={icon} tone={tone} size="sm" /> : null}
-      <Text className="font-display text-lg font-medium text-ink">{title}</Text>
+      <Text
+        className="font-display text-lg font-medium text-ink"
+        maxFontSizeMultiplier={DISPLAY_MAX_FONT_SCALE}
+      >
+        {title}
+      </Text>
       {description ? (
         <Text className="font-sans text-sm leading-relaxed text-ink-3">{description}</Text>
       ) : null}
@@ -712,7 +761,12 @@ export function ErrorState({
         className,
       )}
     >
-      <Text className="font-display text-base font-medium text-ink">{title}</Text>
+      <Text
+        className="font-display text-base font-medium text-ink"
+        maxFontSizeMultiplier={DISPLAY_MAX_FONT_SCALE}
+      >
+        {title}
+      </Text>
       {description ? <Text className="font-sans text-sm text-ink-3">{description}</Text> : null}
       {action ? <View className="pt-1">{action}</View> : null}
     </View>
@@ -724,12 +778,13 @@ export function Page({ children, className }: { children: ReactNode; className?:
   return <View className={cn("gap-7 px-4 pb-12 pt-4", className)}>{children}</View>;
 }
 
-/** Tiles side by side, sharing the row equally. */
+/** Tiles side by side, sharing the row equally; stacked at the accessibility text sizes. */
 export function TileRow({ children, className }: { children: ReactNode; className?: string }) {
+  const stacked = useStackedLayout();
   return (
-    <View className={cn("flex-row gap-3", className)}>
+    <View className={cn(stacked ? "gap-3" : "flex-row gap-3", className)}>
       {Children.toArray(children).map((child, index) => (
-        <View key={index} className="min-w-0 flex-1">
+        <View key={index} className={stacked ? "min-w-0" : "min-w-0 flex-1"}>
           {child}
         </View>
       ))}

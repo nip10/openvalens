@@ -4,7 +4,16 @@ import { Redirect } from "expo-router";
 import { CircleCheck, CircleX, Hourglass, Server } from "lucide-react-native";
 import { Text, View } from "react-native";
 
-import { BloomMark, Details, Icon, Page, Sheet, StatusPill, ToneIcon } from "@/components/bloom";
+import {
+  BloomMark,
+  Details,
+  Icon,
+  Page,
+  Sheet,
+  StatusPill,
+  ToneIcon,
+  DISPLAY_MAX_FONT_SCALE,
+} from "@/components/bloom";
 import { Container } from "@/components/container";
 import { SignIn } from "@/components/sign-in";
 import { authClient } from "@/lib/auth-client";
@@ -34,6 +43,7 @@ export default function Home() {
           <Text
             className="font-display text-[34px] font-semibold leading-[40px] text-ink"
             accessibilityRole="header"
+            maxFontSizeMultiplier={DISPLAY_MAX_FONT_SCALE}
           >
             OpenValens
           </Text>

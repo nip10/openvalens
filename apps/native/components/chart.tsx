@@ -1,8 +1,8 @@
 import { type ComponentProps, type ReactNode, useState } from "react";
-import { Text, View } from "react-native";
+import { Text, useWindowDimensions, View } from "react-native";
 import { BarChart as RNBarChart, LineChart as RNLineChart } from "react-native-gifted-charts";
 
-import { type Tone, useToneColor } from "@/components/bloom";
+import { CONTROL_MAX_FONT_SCALE, type Tone, useToneColor } from "@/components/bloom";
 import { BODY_FONT } from "@/components/fonts";
 import { useThemeColor } from "@/utils/theme";
 
@@ -43,6 +43,16 @@ function pointerConfigFor(color: string, stripColor: string, sheet: string, ink:
   };
 }
 
+/**
+ * Axis labels sit in slots the chart sizes at 10 pt, and the chart takes no
+ * maxFontSizeMultiplier: shrink the base so the scaled label stops at the
+ * control cap, or "Aug Sep Oct" ran into each other at large text (#379).
+ */
+function useAxisFontSize(): number {
+  const { fontScale } = useWindowDimensions();
+  return (10 * Math.min(fontScale, CONTROL_MAX_FONT_SCALE)) / fontScale;
+}
+
 export function LineChart({
   tone = "signal",
   ...props
@@ -50,7 +60,7 @@ export function LineChart({
   const { color: toneColor } = useToneColor(tone);
   const { ink3, rule, sheet, ink } = useChartChrome();
   const color = props.color ?? toneColor;
-  const labelStyle = { color: ink3, fontFamily: BODY_FONT, fontSize: 10 };
+  const labelStyle = { color: ink3, fontFamily: BODY_FONT, fontSize: useAxisFontSize() };
 
   return (
     <View className="overflow-hidden rounded-2xl">
@@ -92,7 +102,7 @@ export function BarChart({
 }: ComponentProps<typeof RNBarChart> & ToneProp) {
   const { color: toneColor } = useToneColor(tone);
   const { ink3, rule } = useChartChrome();
-  const labelStyle = { color: ink3, fontFamily: BODY_FONT, fontSize: 10 };
+  const labelStyle = { color: ink3, fontFamily: BODY_FONT, fontSize: useAxisFontSize() };
 
   return (
     <View className="overflow-hidden rounded-2xl">
@@ -258,6 +268,7 @@ function AxisLabel({
         fontFamily: BODY_FONT,
         fontSize: 10,
       }}
+      maxFontSizeMultiplier={CONTROL_MAX_FONT_SCALE}
     >
       {text}
     </Text>

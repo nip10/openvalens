@@ -27,6 +27,7 @@ import {
   Sheet,
   StatusPill,
   ToneIcon,
+  DISPLAY_MAX_FONT_SCALE,
 } from "@/components/bloom";
 import { describePushRegistration, enablePushOnThisPhone } from "@/lib/push-notifications";
 import { insightsSectionModel } from "@/utils/insight-screen";
@@ -203,6 +204,7 @@ function SubjectInsightsSection({
                   <Text
                     className="font-display text-[32px] font-medium leading-[38px] text-ink"
                     style={{ fontVariant: ["tabular-nums"] }}
+                    maxFontSizeMultiplier={DISPLAY_MAX_FONT_SCALE}
                   >
                     {summary.score}
                   </Text>

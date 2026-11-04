@@ -4,7 +4,7 @@ import { Cloud, Server } from "lucide-react-native";
 import { useRef, useState } from "react";
 import { Text, View } from "react-native";
 
-import { BloomMark, Sheet, ToneIcon } from "@/components/bloom";
+import { BloomMark, Sheet, ToneIcon, DISPLAY_MAX_FONT_SCALE } from "@/components/bloom";
 import { Container } from "@/components/container";
 import {
   CLOUD_SERVER_URL,
@@ -129,6 +129,7 @@ export function ServerChoice() {
           <Text
             className="font-display text-[34px] font-semibold leading-[40px] text-ink"
             accessibilityRole="header"
+            maxFontSizeMultiplier={DISPLAY_MAX_FONT_SCALE}
           >
             OpenValens
           </Text>

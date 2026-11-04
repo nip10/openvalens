@@ -107,6 +107,7 @@ import {
 import { BarcodeScanner } from "@/components/barcode-scanner";
 import {
   Details,
+  DISPLAY_MAX_FONT_SCALE,
   ErrorState,
   Icon,
   InfoTip,
@@ -118,6 +119,7 @@ import {
   StatusPill,
   ToneChip,
   ToneIcon,
+  useStackedLayout,
 } from "@/components/bloom";
 import { Container } from "@/components/container";
 import { LoggingStreakCard } from "@/components/logging-streak-card";
@@ -626,8 +628,9 @@ export default function NutritionScreen() {
                 <View className="min-h-11 flex-row items-center gap-3">
                   <ToneIcon icon={SLOT_ICONS[slot]} tone="food" size="sm" />
                   <Text
-                    className="font-display text-lg font-semibold text-ink"
+                    className="shrink font-display text-lg font-semibold text-ink"
                     accessibilityRole="header"
+                    maxFontSizeMultiplier={DISPLAY_MAX_FONT_SCALE}
                   >
                     {i18n._(SLOT_LABELS[slot])}
                   </Text>
@@ -1038,6 +1041,7 @@ function EntryCard({
 }) {
   const sessionKey = useOfflineWriteSessionKey();
   const { t, i18n } = useLingui();
+  const stacked = useStackedLayout();
   const name =
     row.kind === "server"
       ? row.entry.food.name
@@ -1229,8 +1233,10 @@ function EntryCard({
 
   return (
     <View className={cn("gap-2", !first && "border-t border-rule pt-3")}>
-      <View className="flex-row items-start justify-between gap-2">
-        <View className="min-w-0 flex-1 gap-0.5">
+      {/* The energy under the name at the accessibility text sizes: beside it,
+          the name had a word's width and broke every word (#379). */}
+      <View className={stacked ? "gap-1" : "flex-row items-start justify-between gap-2"}>
+        <View className={stacked ? "gap-0.5" : "min-w-0 flex-1 gap-0.5"}>
           <View className="flex-row items-center gap-1">
             <Text className="shrink font-sans text-base font-semibold text-ink">{name}</Text>
             <InfoTip label={t`Nutrients and source`} title={name}>
@@ -1255,7 +1261,7 @@ function EntryCard({
                 : formatAmount(amount, unit, i18n)}
           </Text>
         </View>
-        <View className="items-end gap-1">
+        <View className={stacked ? "flex-row items-center gap-2" : "items-end gap-1"}>
           <ToneChip tone="food">{figure("energyKcal")}</ToneChip>
           <SyncBadge state={row.sync} />
         </View>

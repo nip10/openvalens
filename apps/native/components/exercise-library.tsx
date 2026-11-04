@@ -7,6 +7,7 @@ import { Button, Card, Spinner } from "heroui-native";
 import { useEffect, useRef, useState } from "react";
 import { Image, Linking, Platform, Pressable, Text, TextInput, View } from "react-native";
 
+import { DISPLAY_MAX_FONT_SCALE } from "@/components/bloom";
 import { Container } from "@/components/container";
 import { ExerciseAttribution, TranslationAttribution } from "@/components/exercise-attribution";
 import { MuscleGuide } from "@/components/muscle-guide";
@@ -497,7 +498,10 @@ export default function ExerciseLibraryScreen() {
     return (
       <Container>
         <View className="gap-2 p-4">
-          <Text className="font-display text-[30px] font-semibold leading-[36px] text-ink">
+          <Text
+            className="font-display text-[30px] font-semibold leading-[36px] text-ink"
+            maxFontSizeMultiplier={DISPLAY_MAX_FONT_SCALE}
+          >
             <Trans>Exercise library</Trans>
           </Text>
           <Text className="font-sans text-sm text-ink-3">
@@ -511,7 +515,10 @@ export default function ExerciseLibraryScreen() {
     <Container>
       <View className="gap-4 p-4">
         <View className="gap-1">
-          <Text className="font-display text-[30px] font-semibold leading-[36px] text-ink">
+          <Text
+            className="font-display text-[30px] font-semibold leading-[36px] text-ink"
+            maxFontSizeMultiplier={DISPLAY_MAX_FONT_SCALE}
+          >
             <Trans>Exercise library</Trans>
           </Text>
           <Text className="font-sans text-sm text-ink-3">
