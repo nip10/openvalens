@@ -81,9 +81,13 @@ tags: [logging]
 - extendedWaitUntil:
     visible: "Save to Breakfast"
     timeout: 10000
+# A new food defaults to 1 serving when it has one (#276), not the 100 g basis.
+- assertVisible: "Review: E2E banana, 1 serving.*"
 - takeScreenshot: 14-new-food-amount
 - tapOn: "Save to Breakfast" # tap 5
 - extendedWaitUntil:
     visible: "Add food to Breakfast"
     timeout: 15000
+# The first logged entry is on screen without scrolling (#277).
+- assertVisible: "Edit .*"
 - takeScreenshot: 14-new-food-logged
