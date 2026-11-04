@@ -25,11 +25,11 @@ appId: com.openvalens.app
             ID: sign-out
       - tapOn:
           id: "sign-out"
-      # Signing out leaves the current screen in place; a fresh start opens
-      # the sign-in screen.
-      - stopApp
-      - launchApp:
-          stopApp: false
+      # Signing out opens the sign-in screen (#380).
+      - extendedWaitUntil:
+          visible:
+            id: "sign-in-email-input"
+          timeout: 30000
 - runFlow:
     file: sign-in.yaml
     env:
