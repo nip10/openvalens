@@ -2,7 +2,6 @@ import { describe, expect, test } from "bun:test";
 import { join } from "node:path";
 
 import {
-  SERVER_API_VERSION,
   SERVER_META_PATH,
   SERVER_VERSION,
   serverMetaSchema,
@@ -20,7 +19,7 @@ function appWith(options: Parameters<typeof registerServerMetaRoute>[1]) {
 }
 
 describe("GET /.well-known/openvalens (#295)", () => {
-  test("answers without a session, with exactly the documented fields", async () => {
+  test("answers without a session, advertises API v2, and has exactly the documented fields", async () => {
     const response = await appWith({ signInOptions: { oidc: null } }).request(SERVER_META_PATH);
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toContain("application/json");
@@ -28,7 +27,7 @@ describe("GET /.well-known/openvalens (#295)", () => {
     const body = (await response.json()) as ServerMeta;
     expect(body).toEqual({
       product: "openvalens",
-      apiVersion: SERVER_API_VERSION,
+      apiVersion: 2,
       serverVersion: SERVER_VERSION,
       mode: "self-hosted",
       signIn: { magicLink: true, oidc: false, google: false, apple: false, signUp: false },

@@ -29,6 +29,7 @@
     "@openvalens/api": "workspace:*",
     "@openvalens/i18n": "workspace:*",
     "@openvalens/observability": "workspace:*",
+    "@openvalens/plans": "workspace:*",
     "@openvalens/ui": "workspace:*",
     "@orpc/client": "catalog:",
     "@orpc/tanstack-query": "catalog:",

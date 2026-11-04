@@ -268,7 +268,7 @@ describe.skipIf(!url)("AI health tools against disposable PostgreSQL", () => {
   btest("a revoked user consent blocks both tools on the next call", async () => {
     await db
       .update(userAiConsent)
-      .set({ granted: false, revokedAt: new Date() })
+      .set({ granted: false, revokedAt: sql`${userAiConsent.grantedAt}` })
       .where(eq(userAiConsent.userId, USER_A));
     try {
       await expect(executeHealthSnapshot(context())).resolves.toMatchObject({

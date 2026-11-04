@@ -54,6 +54,7 @@ describe.skipIf(!url)("AI remaining health tools against disposable PostgreSQL",
   const ORG_EMPTY = "org-ai-rest-empty";
   const USER_A = "user-ai-rest-a";
   const USER_B = "user-ai-rest-b";
+  const USER_A_OTHER = "user-ai-rest-a-other";
   const B_VALUE = 913.37;
 
   /** Strings and values that must never reach an ORG_A tool result. */
@@ -78,6 +79,8 @@ describe.skipIf(!url)("AI remaining health tools against disposable PostgreSQL",
     "SYNTHETIC_RANGE_AUTHOR",
     "ORG_B_SUPPLEMENT",
     "ORG_B_GOAL",
+    "OTHER_OWNER_GOAL",
+    "OWNERLESS_LEGACY_GOAL",
   ];
 
   function context(overrides: Partial<AiHealthToolContext> = {}): AiHealthToolContext {
@@ -144,9 +147,16 @@ describe.skipIf(!url)("AI remaining health tools against disposable PostgreSQL",
     await db.insert(user).values([
       { id: USER_A, email: "ai-rest-a@example.test" },
       { id: USER_B, email: "ai-rest-b@example.test" },
+      { id: USER_A_OTHER, email: "ai-rest-a-other@example.test" },
     ]);
     await db.insert(member).values([
       { id: "member-ai-rest-a", organizationId: ORG_A, userId: USER_A, role: "owner" },
+      {
+        id: "member-ai-rest-a-other",
+        organizationId: ORG_A,
+        userId: USER_A_OTHER,
+        role: "collaborator",
+      },
       { id: "member-ai-rest-b", organizationId: ORG_B, userId: USER_B, role: "owner" },
     ]);
     await db.insert(userAiConsent).values({ userId: USER_A, granted: true, consentVersion: "v1" });
@@ -255,19 +265,40 @@ describe.skipIf(!url)("AI remaining health tools against disposable PostgreSQL",
         {
           organizationId: ORG_A,
           title: "Reach target weight",
+          userId: USER_A,
           category: "body_composition",
           status: "in_progress",
           currentValue: "74 kg",
           targetValue: "70 kg",
           notes: "SYNTHETIC_GOAL_NOTE",
         },
-        { organizationId: ORG_B, title: "ORG_B_GOAL", category: "health", status: "in_progress" },
+        {
+          organizationId: ORG_B,
+          userId: USER_B,
+          title: "ORG_B_GOAL",
+          category: "health",
+          status: "in_progress",
+        },
+        {
+          organizationId: ORG_A,
+          userId: USER_A_OTHER,
+          title: "OTHER_OWNER_GOAL",
+          category: "health",
+          status: "in_progress",
+        },
+        {
+          organizationId: ORG_A,
+          title: "OWNERLESS_LEGACY_GOAL",
+          category: "health",
+          status: "in_progress",
+        },
       ])
       .returning({ id: goal.id });
     if (!goalA) throw new Error("goal insert failed");
     await db.insert(goalCheckin).values({
       organizationId: ORG_A,
       goalId: goalA.id,
+      userId: USER_A,
       date: daysAgo(5),
       value: "74 kg",
       notes: "SYNTHETIC_CHECKIN_NOTE",

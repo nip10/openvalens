@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@openvalens/db": "workspace:*",
+    "@openvalens/plans": "workspace:*",
     "drizzle-orm": "catalog:"
   },
   "devDependencies": {

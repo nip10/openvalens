@@ -283,6 +283,25 @@ export const PROCEDURE_ACCESS: Readonly<Record<string, ProcedureAccessClass>> = 
   "plans.goals.listCheckins": R,
   "plans.goals.upsertCheckin": W,
   "plans.goals.deleteGoal": W,
+  // Personal goals and actual supplement intake have explicit workspace
+  // access classes; reads remain available after a plan ends, writes do not.
+  "goals.list": R,
+  "goals.detail": R,
+  "goals.create": W,
+  "goals.update": W,
+  "goals.setStatus": W,
+  "goals.delete": W,
+  "goals.createCheckin": W,
+  "goals.updateCheckin": W,
+  "goals.deleteCheckin": W,
+  "goals.listNeedsConfiguration": R,
+  "goals.configureLegacy": W,
+  "goals.listUnassignedLegacy": R,
+  "goals.assignLegacy": W,
+  "supplementIntake.list": R,
+  "supplementIntake.create": W,
+  "supplementIntake.update": W,
+  "supplementIntake.delete": W,
   "plans.calendar.listEvents": R,
   "plans.calendar.upsertEvent": W,
   "plans.calendar.deleteEvent": W,
@@ -314,7 +333,6 @@ export const PROCEDURE_ACCESS: Readonly<Record<string, ProcedureAccessClass>> = 
   "privateBody.photoFile": R,
 
   "score.readiness": R,
-  "score.goalProgress": R,
 
   "sharing.listMembers": R,
   "sharing.listInvitations": R,

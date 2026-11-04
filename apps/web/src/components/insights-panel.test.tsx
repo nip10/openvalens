@@ -2,7 +2,6 @@ import "@/testing/varlock-test-setup";
 import { describe, expect, test } from "bun:test";
 import type { InsightPreferences, InsightsResult } from "@openvalens/api/insight-contract";
 import { defaultKindChannels, runInsightRules } from "@openvalens/api/insight-rules";
-import { computeGoalProgress } from "@openvalens/api/score-goal-progress";
 import { computeReadiness } from "@openvalens/api/score-readiness";
 import { I18nProvider } from "@lingui/react";
 import { englishI18n, inEnglish } from "@openvalens/i18n/testing";
@@ -167,16 +166,19 @@ describe("insights panel (web)", () => {
     expect(withheld).toContain("adults 18 and over");
   });
 
-  test("summaries lead with the readiness index and goal progress", () => {
+  test("summaries lead with readiness and link to goals without an aggregate progress score", () => {
     const html = renderToStaticMarkup(
       <SummaryCards
         readiness={computeReadiness({ sleepMinutes: [], restingHeartRate: [], steps: [] }, AS_OF)}
-        goals={computeGoalProgress([])}
+        goalsLink={<a href="/goals">View goals</a>}
       />,
     );
     expect(html).toContain("How am I doing?");
     expect(html).toContain("Experimental");
-    expect(html).toContain("Add a goal with a target");
+    expect(html).toContain('href="/goals"');
+    expect(html).toContain("View goals");
+    expect(html).not.toContain("Add a goal with a target");
+    expect(html).not.toContain("Goal progress");
   });
 
   test("the daily reminder time shows once Telegram or reminder email is on", () => {

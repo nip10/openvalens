@@ -17,10 +17,11 @@ import {
   PushNotificationLifecycle,
 } from "@/components/push-notification-lifecycle";
 import { ServerChoice } from "@/components/server-choice";
+import { ServerCompatibilityGate } from "@/components/server-compatibility-gate";
+import { ServerRuntime } from "@/components/server-runtime";
 import { AppThemeProvider } from "@/contexts/app-theme-context";
 import { DisplayPreferencesProvider } from "@/lib/display-preferences";
 import { AppI18nProvider } from "@/lib/i18n/provider";
-import { getAuthClient } from "@/lib/auth-client";
 import { initErrorReporting } from "@/lib/error-reporting";
 // Defines the background sync task on every launch, including headless ones.
 import "@/lib/health-sync/scheduler";
@@ -82,10 +83,13 @@ function ServerGate({ children }: { children: ReactNode }) {
   const server = useServer();
   if (server.status === "loading") return null;
   if (server.status === "unset") return <ServerChoice />;
-  // Create the auth client up front: a magic link that cold-starts the app
-  // installs its session into this client's store.
-  getAuthClient();
-  return <Fragment key={server.url}>{children}</Fragment>;
+  return (
+    <ServerCompatibilityGate key={server.url} url={server.url}>
+      <Fragment key={server.url}>
+        <ServerRuntime>{children}</ServerRuntime>
+      </Fragment>
+    </ServerCompatibilityGate>
+  );
 }
 
 function StackLayout() {

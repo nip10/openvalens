@@ -1,6 +1,6 @@
 import type { Database } from "@openvalens/db";
 import { goal, goalCheckin } from "@openvalens/db/schema/plans";
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, isNull } from "drizzle-orm";
 
 /**
  * Goals — public type surface + repository (Issue #23).
@@ -54,6 +54,9 @@ export type Goal = {
   direction: string | null;
   baselineValue: string | null;
   priority: string | null;
+  deletedAt?: string | null;
+  /** Present for canonical goals; legacy compatibility mutations may not alter these rows. */
+  definition?: unknown;
 };
 
 export type GoalCheckin = {
@@ -64,6 +67,7 @@ export type GoalCheckin = {
   value: string | null;
   notes: string | null;
   createdAt: string;
+  deletedAt?: string | null;
 };
 
 export type GoalWithCheckins = Goal & {
@@ -103,6 +107,8 @@ export type UpsertGoalResult = {
   id: number;
   created: boolean;
 };
+
+export class LegacyGoalConflictError extends Error {}
 
 export type UpsertCheckinInput = {
   goalId: number;
@@ -312,21 +318,34 @@ export function orderCheckinsByDate(checkins: ReadonlyArray<GoalCheckin>): GoalC
 
 export type GoalRepository = ReturnType<typeof createGoalRepository>;
 
-export function createGoalRepository(db: Database) {
+/** Legacy goal adapter. Personal rows are fail-closed unless the caller supplies the authenticated owner. */
+export function createGoalRepository(db: Database, userId?: string) {
+  const ownedGoal = (organizationId: string, id?: number) =>
+    and(
+      eq(goal.organizationId, organizationId),
+      isNull(goal.deletedAt),
+      ...(userId ? [eq(goal.userId, userId)] : []),
+      ...(id === undefined ? [] : [eq(goal.id, id)]),
+    );
+  const requireOwner = () => {
+    if (!userId) throw new Error("Authenticated goal owner required");
+  };
   return {
     async listGoals(organizationId: string): Promise<Goal[]> {
+      if (!userId) return [];
       return (await db
         .select()
         .from(goal)
-        .where(eq(goal.organizationId, organizationId))
+        .where(and(ownedGoal(organizationId), isNull(goal.definition)))
         .orderBy(desc(goal.id))) as Goal[];
     },
 
     async getGoal(organizationId: string, id: number): Promise<Goal | null> {
+      if (!userId) return null;
       const rows = (await db
         .select()
         .from(goal)
-        .where(and(eq(goal.organizationId, organizationId), eq(goal.id, id)))
+        .where(ownedGoal(organizationId, id))
         .limit(1)) as Goal[];
       return rows[0] ?? null;
     },
@@ -337,16 +356,32 @@ export function createGoalRepository(db: Database) {
     ): Promise<GoalWithCheckins | null> {
       const g = await this.getGoal(organizationId, id);
       if (!g) return null;
+      if (g.definition != null)
+        throw new LegacyGoalConflictError("Read canonical check-ins through goals.detail");
       const checkins = (await db
         .select()
         .from(goalCheckin)
-        .where(and(eq(goalCheckin.organizationId, organizationId), eq(goalCheckin.goalId, id)))
+        .where(
+          and(
+            eq(goalCheckin.organizationId, organizationId),
+            eq(goalCheckin.goalId, id),
+            eq(goalCheckin.userId, userId!),
+            isNull(goalCheckin.deletedAt),
+          ),
+        )
         .orderBy(asc(goalCheckin.date), asc(goalCheckin.id))) as GoalCheckin[];
       return { ...g, checkins: orderCheckinsByDate(checkins) };
     },
 
     async upsertGoal(organizationId: string, input: UpsertGoalInput): Promise<UpsertGoalResult> {
+      requireOwner();
       if ("id" in input) {
+        const existing = await this.getGoal(organizationId, input.id);
+        if (!existing) throw new Error("Goal not found or not owned by authenticated user");
+        if (existing.definition != null)
+          throw new LegacyGoalConflictError(
+            "Canonical goals must be changed through the versioned goals API",
+          );
         const update: Partial<Goal> = {};
         if (input.title !== undefined) update.title = input.title;
         if (input.category !== undefined) update.category = input.category;
@@ -360,10 +395,12 @@ export function createGoalRepository(db: Database) {
         if (input.baselineValue !== undefined) update.baselineValue = input.baselineValue ?? null;
         if (input.priority !== undefined) update.priority = input.priority ?? null;
 
-        await db
+        const updated = await db
           .update(goal)
           .set(update)
-          .where(and(eq(goal.organizationId, organizationId), eq(goal.id, input.id)));
+          .where(ownedGoal(organizationId, input.id))
+          .returning({ id: goal.id });
+        if (!updated.length) throw new Error("Goal not found or not owned by authenticated user");
         return { id: input.id, created: false };
       }
 
@@ -371,6 +408,7 @@ export function createGoalRepository(db: Database) {
         .insert(goal)
         .values({
           organizationId,
+          userId,
           title: input.title,
           category: input.category,
           horizon: input.horizon ?? null,
@@ -389,19 +427,33 @@ export function createGoalRepository(db: Database) {
     },
 
     async deleteGoal(organizationId: string, id: number): Promise<{ id: number } | null> {
+      requireOwner();
       const existing = await this.getGoal(organizationId, id);
       if (!existing) return null;
+      if (existing.definition != null)
+        throw new LegacyGoalConflictError(
+          "Canonical goals must be deleted through the versioned goals API",
+        );
       // FK cascade on goal_checkin removes child rows.
-      await db.delete(goal).where(and(eq(goal.organizationId, organizationId), eq(goal.id, id)));
+      await db.delete(goal).where(ownedGoal(organizationId, id));
       return { id };
     },
 
     async listCheckins(organizationId: string, goalId: number): Promise<GoalCheckin[]> {
+      if (!userId) return [];
+      const parent = await this.getGoal(organizationId, goalId);
+      if (parent?.definition != null)
+        throw new LegacyGoalConflictError("Read canonical check-ins through goals.detail");
       const rows = (await db
         .select()
         .from(goalCheckin)
         .where(
-          and(eq(goalCheckin.organizationId, organizationId), eq(goalCheckin.goalId, goalId)),
+          and(
+            eq(goalCheckin.organizationId, organizationId),
+            eq(goalCheckin.goalId, goalId),
+            eq(goalCheckin.userId, userId),
+            isNull(goalCheckin.deletedAt),
+          ),
         )) as GoalCheckin[];
       return orderCheckinsByDate(rows);
     },
@@ -416,14 +468,18 @@ export function createGoalRepository(db: Database) {
       organizationId: string,
       input: UpsertCheckinInput,
     ): Promise<UpsertCheckinResult> {
+      requireOwner();
       // Verify the goal exists in this org before inserting the check-in.
       const existingGoal = await this.getGoal(organizationId, input.goalId);
       if (!existingGoal) throw new Error("Goal not found");
+      if (existingGoal.definition != null)
+        throw new LegacyGoalConflictError("Canonical goals require versioned check-in mutations");
 
       const [row] = (await db
         .insert(goalCheckin)
         .values({
           organizationId,
+          userId,
           goalId: input.goalId,
           date: input.date,
           value: input.value ?? null,
@@ -438,7 +494,7 @@ export function createGoalRepository(db: Database) {
         await db
           .update(goal)
           .set({ currentValue: newCurrentValue })
-          .where(and(eq(goal.organizationId, organizationId), eq(goal.id, input.goalId)));
+          .where(ownedGoal(organizationId, input.goalId));
       }
 
       return { id: row.id, goalCurrentValue: newCurrentValue };

@@ -67,15 +67,6 @@ function SubjectInsightsSection({
     ),
     staleTime: 60_000,
   });
-  const goals = useQuery({
-    ...orpc.score.goalProgress.queryOptions({ input: {} }),
-    queryKey: privateInsightsQueryKey(
-      orpc.score.goalProgress.queryOptions({ input: {} }).queryKey,
-      userId,
-      organizationId,
-    ),
-    staleTime: 60_000,
-  });
   const insights = useQuery({
     ...orpc.insights.list.queryOptions({ input: {} }),
     queryKey: privateInsightsQueryKey(
@@ -161,7 +152,7 @@ function SubjectInsightsSection({
 
   return (
     <div className="grid gap-8">
-      {readiness.isPending || goals.isPending ? (
+      {readiness.isPending ? (
         <div className="grid gap-4">
           <Skeleton className="h-6 w-48" />
           <Skeleton className="h-32 w-full" />
@@ -169,7 +160,6 @@ function SubjectInsightsSection({
       ) : (
         <SummaryCards
           readiness={readiness.data ?? null}
-          goals={goals.data ?? null}
           scoresLink={
             <Link
               to="/scores"
@@ -177,6 +167,12 @@ function SubjectInsightsSection({
             >
               {i18n._(INSIGHT_COPY.summariesLink)}
             </Link>
+          }
+          goalsLink={
+            <Link
+              to="/goals"
+              className="text-sm font-medium text-ink underline"
+            >{t`View goals`}</Link>
           }
         />
       )}

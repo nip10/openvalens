@@ -317,8 +317,18 @@ export const DATA_RIGHTS_REGISTRY: Readonly<Record<string, TableEntry>> = Object
   supplement_schedule: organization,
   supplement_change: organization,
   medication: organization,
+  // Goal identity/history is private to its author; the organization scope is
+  // retained for container erasure, with explicit owner filtering in export.
   goal: organization,
   goal_checkin: organization,
+  goal_definition: organization,
+  goal_milestone: organization,
+  goal_lifecycle: organization,
+  goal_mutation: { kind: "organization", redact: ["fingerprint"] },
+  goal_ownership_assignment: organization,
+  goal_water_link: organization,
+  goal_water_cutover: organization,
+  supplement_intake: organization,
   workout: organization,
   workout_exercise: { kind: "child", parent: "workout" },
   workout_routine: { kind: "user" },

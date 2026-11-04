@@ -17,7 +17,7 @@ import { z } from "zod";
  * hold a health value.
  */
 
-export const INSIGHT_ENGINE_VERSION = "insights-0.1.0";
+export const INSIGHT_ENGINE_VERSION = "insights-0.2.0";
 
 /** The v1 kinds; each can be toggled per channel. */
 export const INSIGHT_KINDS = [
@@ -94,9 +94,9 @@ export const INSIGHT_RULE_VERSIONS: Record<InsightRuleId, string> = {
   "change.resting_heart_rate": "1",
   "change.steps": "1",
   "change.weight_trend": "1",
-  "goal.reached": "1",
-  "goal.toward_target": "1",
-  "goal.away_from_target": "1",
+  "goal.reached": "2",
+  "goal.toward_target": "2",
+  "goal.away_from_target": "2",
   "data_quality.recording_gap": "1",
   "data_quality.source_change": "1",
   "streak.recording": "1",

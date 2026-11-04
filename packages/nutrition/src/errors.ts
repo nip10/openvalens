@@ -3,6 +3,8 @@ export type NutritionErrorCode =
   | "NOT_FOUND"
   /** The input breaks a domain rule (empty name, negative nutrient, bad date…). */
   | "INVALID_INPUT"
+  /** A legacy write conflicts with a newer authoritative owner. */
+  | "CONFLICT"
   /** The amount's unit cannot be converted to the food's nutrient basis. */
   | "UNIT_INCOMPATIBLE";
 

@@ -42,6 +42,7 @@
         "@openvalens/api": "workspace:*",
         "@openvalens/i18n": "workspace:*",
         "@openvalens/observability": "workspace:*",
+        "@openvalens/plans": "workspace:*",
         "@openvalens/ui": "workspace:*",
         "@orpc/client": "catalog:",
         "@orpc/tanstack-query": "catalog:",
@@ -170,6 +171,7 @@
         "@openvalens/api": "workspace:*",
         "@openvalens/i18n": "workspace:*",
         "@openvalens/observability": "workspace:*",
+        "@openvalens/plans": "workspace:*",
         "@openvalens/ui": "workspace:*",
         "@orpc/client": "catalog:",
         "@orpc/server": "catalog:",
@@ -556,6 +558,7 @@
       "name": "@openvalens/nutrition",
       "dependencies": {
         "@openvalens/db": "workspace:*",
+        "@openvalens/plans": "workspace:*",
         "drizzle-orm": "catalog:",
       },
       "devDependencies": {

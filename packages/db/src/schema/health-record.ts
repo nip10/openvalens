@@ -153,7 +153,7 @@ export const metricSourcePreference = pgTable(
       columns: [table.organizationId, table.userId],
       foreignColumns: [member.organizationId, member.userId],
       name: "metric_source_preference_org_user_member_fk",
-    }).onDelete("restrict"),
+    }).onDelete("cascade"),
   }),
 );
 
@@ -332,6 +332,8 @@ export const healthEvent = pgTable(
     organizationId: text("organization_id")
       .notNull()
       .references(() => organization.id, { onDelete: "cascade" }),
+    /** Person attribution is populated only from a trusted provider connection; historical rows stay null. */
+    userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
     dataSourceId: integer("data_source_id").references(() => dataSource.id, {
       onDelete: "set null",
     }),
@@ -351,6 +353,12 @@ export const healthEvent = pgTable(
   },
   (table) => ({
     healthEventOrgIdx: index("health_event_organization_id_idx").on(table.organizationId),
+    healthEventOwnerTimeIdx: index("health_event_owner_type_time_idx").on(
+      table.organizationId,
+      table.userId,
+      table.eventType,
+      table.eventAt,
+    ),
     healthEventOrgSourceEventIdx: index("health_event_organization_id_source_event_id_idx").on(
       table.organizationId,
       table.sourceEventId,
@@ -368,6 +376,11 @@ export const healthEvent = pgTable(
       foreignColumns: [dataSource.organizationId, dataSource.id],
       name: "health_event_org_data_source_fk",
     }),
+    healthEventOwnerMemberFk: foreignKey({
+      columns: [table.organizationId, table.userId],
+      foreignColumns: [member.organizationId, member.userId],
+      name: "health_event_org_user_member_fk",
+    }).onDelete("restrict"),
     healthEventOrgIngestionBatchFk: foreignKey({
       columns: [table.organizationId, table.ingestionBatchId],
       foreignColumns: [ingestionBatch.organizationId, ingestionBatch.id],

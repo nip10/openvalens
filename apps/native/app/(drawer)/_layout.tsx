@@ -262,7 +262,11 @@ function DrawerLayout() {
 
   const { _ } = useLingui();
   // A conversation lives at /coach/<id>; its bar reads "Coach" too.
-  const titleKey = pathname.startsWith("/coach/") ? "/coach" : pathname;
+  const titleKey = pathname.startsWith("/coach/")
+    ? "/coach"
+    : pathname.startsWith("/goals/")
+      ? "/goals"
+      : pathname;
   const headerTitle = _(HEADER_TITLES[titleKey] ?? msg`Cockpit`);
 
   return (
@@ -356,6 +360,13 @@ function DrawerLayout() {
           name="goals"
           options={{
             headerTitle,
+            drawerItemStyle: { display: "none" },
+          }}
+        />
+        <Drawer.Screen
+          name="goals/[goalId]"
+          options={{
+            headerTitle: headerTitle,
             drawerItemStyle: { display: "none" },
           }}
         />

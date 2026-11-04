@@ -17,7 +17,7 @@ export const SERVER_META_PATH = "/.well-known/openvalens";
  * app cannot follow; the app declares the range it supports
  * (`apps/native/lib/server/server-meta.ts`).
  */
-export const SERVER_API_VERSION = 1;
+export const SERVER_API_VERSION = 2;
 
 /** This release; kept equal to the root `package.json` version (a test checks it). */
 export const SERVER_VERSION = "1.0.2";

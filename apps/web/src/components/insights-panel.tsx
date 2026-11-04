@@ -7,8 +7,8 @@ import {
   type InsightView,
 } from "@openvalens/api/presenters/insights";
 import type { ProductDisplaySettings } from "@openvalens/api/presenters/product-formatting";
-import { goalProgressView, readinessView } from "@openvalens/api/presenters/score";
-import type { GoalProgressResult, ReadinessResult } from "@openvalens/api/score-contract";
+import { readinessView } from "@openvalens/api/presenters/score";
+import type { ReadinessResult } from "@openvalens/api/score-contract";
 import { Button } from "@openvalens/ui/components/button";
 import { Sparkles, X } from "lucide-react";
 import type { ReactNode } from "react";
@@ -25,20 +25,17 @@ import { Details, InfoTip, Ring, StatusPill, ToneIcon } from "./page";
 
 export function SummaryCards({
   readiness,
-  goals,
   scoresLink,
+  goalsLink,
 }: {
   readiness: ReadinessResult | null;
-  goals: GoalProgressResult | null;
   /** Router link to the full breakdown (injected so this stays router-free). */
   scoresLink?: ReactNode;
+  goalsLink?: ReactNode;
 }) {
   const { t, i18n } = useLingui();
   const ready = readiness ? readinessView(readiness, i18n) : null;
-  const progress = goals ? goalProgressView(goals, i18n) : null;
   const readyNote = ready?.withheldExplanation ?? ready?.coverageText ?? t`Could not load.`;
-  const progressNote =
-    progress?.withheldExplanation ?? progress?.coverageText ?? t`Could not load.`;
   return (
     <section aria-labelledby="summaries-title" className="grid min-w-0 content-start gap-3">
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
@@ -69,30 +66,8 @@ export function SummaryCards({
             </span>
           </dd>
         </div>
-        <div className="sheet grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-x-4 gap-y-1 p-5">
-          <Ring
-            className="row-span-2"
-            tone="weight"
-            value={(Number.parseFloat(progress?.scoreText ?? "") || 0) / 100}
-          />
-          <dt className="flex flex-wrap items-center gap-2 font-semibold text-ink-2">
-            {progress?.title ?? t`Goal progress`}
-            <InfoTip>{progressNote}</InfoTip>
-          </dt>
-          <dd className="m-0">
-            <span
-              className="num font-display text-[2rem] leading-none font-medium tracking-[-0.02em] text-ink"
-              role="img"
-              aria-label={progress?.accessibilityLabel ?? t`Goal progress not loaded.`}
-            >
-              {progress?.scoreText ?? "—"}
-            </span>
-          </dd>
-          {progress?.flaggedText ? (
-            <dd className="col-span-2 m-0 text-sm text-ink-2">{progress.flaggedText}</dd>
-          ) : null}
-        </div>
       </dl>
+      {goalsLink}
     </section>
   );
 }

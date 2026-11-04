@@ -27,6 +27,21 @@ describe("checkServerMeta (#295)", () => {
     expect(meta.apiVersion).toBeLessThanOrEqual(APP_API_RANGE.max);
   });
 
+  test("the new native range accepts API 2 and rejects API 1", () => {
+    expect(checkServerMeta({ ...meta, apiVersion: 2 }).ok).toBe(true);
+    expect(checkServerMeta({ ...meta, apiVersion: 1 })).toEqual({
+      ok: false,
+      problem: { kind: "server-too-old", serverVersion: meta.serverVersion },
+    });
+  });
+
+  test("the previously shipped frozen range rejects API 2", () => {
+    expect(checkServerMeta({ ...meta, apiVersion: 2 }, { min: 1, max: 1 })).toEqual({
+      ok: false,
+      problem: { kind: "app-too-old", serverVersion: meta.serverVersion },
+    });
+  });
+
   test("ignores fields a newer server adds", () => {
     const result = checkServerMeta({ ...meta, region: "eu", signIn: { ...meta.signIn, x: 1 } });
     expect(result.ok).toBe(true);
