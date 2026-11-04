@@ -1079,6 +1079,14 @@ msgstr "7: Very hard"
 msgid "8 to under 12"
 msgstr "8 to under 12"
 
+#: apps/native/components/change-server.tsx
+msgid "A change is being sent right now. Nothing has been removed. Try again when it finishes."
+msgstr "A change is being sent right now. Nothing has been removed. Try again when it finishes."
+
+#: apps/native/components/change-server.tsx
+msgid "A change is being sent right now. Nothing was removed. Try again when it finishes."
+msgstr "A change is being sent right now. Nothing was removed. Try again when it finishes."
+
 #: packages/api/src/presenters/preventive-care.ts
 msgid "A date you set has arrived"
 msgstr "A date you set has arrived"
@@ -2543,6 +2551,7 @@ msgid "Change paste"
 msgstr "Change paste"
 
 #: apps/native/components/change-server.tsx
+#: apps/native/components/server-compatibility-gate.tsx
 #: apps/native/components/sign-in.tsx
 msgid "Change server"
 msgstr "Change server"
@@ -2688,6 +2697,10 @@ msgstr "Checking your cycle setting…"
 #: apps/web/src/routes/_auth/private-measurements.tsx
 msgid "Checking your private measurement setting…"
 msgstr "Checking your private measurement setting…"
+
+#: apps/native/components/server-compatibility-gate.tsx
+msgid "Checking your server…"
+msgstr "Checking your server…"
 
 #: apps/web/src/routes/index.tsx
 msgid "Checking..."
@@ -2968,6 +2981,7 @@ msgstr "Clinician decision for specific situations"
 
 #: apps/native/app/(drawer)/goals.tsx
 #: apps/native/app/modal.tsx
+#: apps/native/components/change-server.tsx
 #: apps/native/components/workout-session-detail.tsx
 #: apps/web/src/routes/_auth/goals.index.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
@@ -7143,6 +7157,10 @@ msgstr "Keep review"
 msgid "Keep the other version"
 msgstr "Keep the other version"
 
+#: apps/native/components/change-server.tsx
+msgid "Keep your data on this phone"
+msgstr "Keep your data on this phone"
+
 #: apps/native/app/(drawer)/admin/settings.tsx
 #: apps/web/src/components/admin-settings-view.tsx
 msgid "Keys"
@@ -8459,6 +8477,12 @@ msgstr "New"
 #: apps/web/src/components/magic-link-form.tsx
 msgid "New accounts require an invitation."
 msgstr "New accounts require an invitation."
+
+#. placeholder {0}: result.records
+#. placeholder {1}: result.drafts
+#: apps/native/components/change-server.tsx
+msgid "New changes are still on this phone ({0} waiting records and {1} drafts). Nothing was removed. Send them before changing servers."
+msgstr "New changes are still on this phone ({0} waiting records and {1} drafts). Nothing was removed. Send them before changing servers."
 
 #: apps/native/app/(drawer)/coach/[conversationId].tsx
 #: apps/web/src/routes/_auth/coach/$conversationId.tsx
@@ -11221,6 +11245,7 @@ msgstr "Retired version"
 #: apps/native/components/ai-section.tsx
 #: apps/native/components/analytics-consent-section.tsx
 #: apps/native/components/energy-estimate-card.tsx
+#: apps/native/components/server-compatibility-gate.tsx
 #: apps/native/components/sign-in-methods.tsx
 #: apps/native/components/sign-in.tsx
 #: apps/web/src/components/accept-invitation-view.tsx
@@ -11295,6 +11320,10 @@ msgstr "Retry same request"
 #: apps/web/src/components/insights-section.tsx
 msgid "Retry saving choice"
 msgstr "Retry saving choice"
+
+#: apps/native/components/server-compatibility-gate.tsx
+msgid "Retry server check"
+msgstr "Retry server check"
 
 #: apps/native/components/workout-session.tsx
 msgid "Retry sync"
@@ -12613,6 +12642,12 @@ msgstr "Sodium"
 msgid "Some answers could not be saved. Check them and try again."
 msgstr "Some answers could not be saved. Check them and try again."
 
+#. placeholder {0}: safety.records
+#. placeholder {1}: safety.drafts
+#: apps/native/components/change-server.tsx
+msgid "Some changes are still on this phone ({0} waiting records and {1} drafts). They will stay here. Retry the server check, or finish sending them before changing servers."
+msgstr "Some changes are still on this phone ({0} waiting records and {1} drafts). They will stay here. Retry the server check, or finish sending them before changing servers."
+
 #: apps/native/components/change-server.tsx
 msgid "Some changes may not have reached {host} yet. Changing server signs you out and deletes them from this phone."
 msgstr "Some changes may not have reached {host} yet. Changing server signs you out and deletes them from this phone."
@@ -13336,6 +13371,14 @@ msgstr "The AI provider is not set up on this server. Use the on-server draft in
 #: apps/native/components/server-choice.tsx
 msgid "The app connects only over HTTPS. Use an address that starts with https://."
 msgstr "The app connects only over HTTPS. Use an address that starts with https://."
+
+#: apps/native/components/change-server.tsx
+msgid "The app could not confirm that this phone has no unsent changes. Nothing has been removed. Try again later."
+msgstr "The app could not confirm that this phone has no unsent changes. Nothing has been removed. Try again later."
+
+#: apps/native/components/change-server.tsx
+msgid "The app could not confirm that this phone has no unsent changes. Nothing was removed. Try again later."
+msgstr "The app could not confirm that this phone has no unsent changes. Nothing was removed. Try again later."
 
 #: apps/native/components/goal-editor.tsx
 msgid "The average window must be at least one day."
@@ -15470,6 +15513,10 @@ msgid "You set up this server. A quick look at what it reports, then your own se
 msgstr "You set up this server. A quick look at what it reports, then your own setup."
 
 #: apps/native/components/change-server.tsx
+msgid "You will be signed out of {host}. This server's saved data on this phone will be removed. You can cancel and keep using this server."
+msgstr "You will be signed out of {host}. This server's saved data on this phone will be removed. You can cancel and keep using this server."
+
+#: apps/native/components/change-server.tsx
 msgid "You will be signed out, and everything this app saved from {host} is removed from this phone."
 msgstr "You will be signed out, and everything this app saved from {host} is removed from this phone."
 
@@ -15601,6 +15648,10 @@ msgstr "Your change: the entry values."
 #: packages/email/src/templates/daily-reminder.tsx
 msgid "Your daily reminders"
 msgstr "Your daily reminders"
+
+#: apps/native/components/change-server.tsx
+msgid "Your data stays on this phone"
+msgstr "Your data stays on this phone"
 
 #: apps/web/src/components/preventive-care-view.tsx
 msgid "Your decision about {title}"

@@ -46,6 +46,9 @@ jobs:
       - name: Mounted strength training (#282)
         working-directory: apps/web
         run: bun run test:mounted-strength
+      - name: Mounted native server compatibility gate
+        working-directory: apps/web
+        run: bun run test:mounted-native-compat
 
   native-bundle:
     name: Mobile app bundles (iOS, Android)

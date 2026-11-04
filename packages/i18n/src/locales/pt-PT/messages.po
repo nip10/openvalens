@@ -1079,6 +1079,14 @@ msgstr "7: Muito difícil"
 msgid "8 to under 12"
 msgstr "8 a menos de 12"
 
+#: apps/native/components/change-server.tsx
+msgid "A change is being sent right now. Nothing has been removed. Try again when it finishes."
+msgstr "Está a ser enviada uma alteração. Nada foi removido. Tente novamente quando terminar."
+
+#: apps/native/components/change-server.tsx
+msgid "A change is being sent right now. Nothing was removed. Try again when it finishes."
+msgstr "Está a ser enviada uma alteração. Nada foi removido. Tente novamente quando terminar."
+
 #: packages/api/src/presenters/preventive-care.ts
 msgid "A date you set has arrived"
 msgstr "Chegou uma data que definiu"
@@ -2543,6 +2551,7 @@ msgid "Change paste"
 msgstr "Alterar texto colado"
 
 #: apps/native/components/change-server.tsx
+#: apps/native/components/server-compatibility-gate.tsx
 #: apps/native/components/sign-in.tsx
 msgid "Change server"
 msgstr "Mudar de servidor"
@@ -2688,6 +2697,10 @@ msgstr "A verificar a definição do ciclo…"
 #: apps/web/src/routes/_auth/private-measurements.tsx
 msgid "Checking your private measurement setting…"
 msgstr "A verificar a sua definição de medições privadas…"
+
+#: apps/native/components/server-compatibility-gate.tsx
+msgid "Checking your server…"
+msgstr "A verificar o servidor…"
 
 #: apps/web/src/routes/index.tsx
 msgid "Checking..."
@@ -2968,6 +2981,7 @@ msgstr "Decisão do profissional de saúde em situações específicas"
 
 #: apps/native/app/(drawer)/goals.tsx
 #: apps/native/app/modal.tsx
+#: apps/native/components/change-server.tsx
 #: apps/native/components/workout-session-detail.tsx
 #: apps/web/src/routes/_auth/goals.index.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
@@ -7143,6 +7157,10 @@ msgstr "Manter revisão"
 msgid "Keep the other version"
 msgstr "Manter a outra versão"
 
+#: apps/native/components/change-server.tsx
+msgid "Keep your data on this phone"
+msgstr "Manter os seus dados neste telemóvel"
+
 #: apps/native/app/(drawer)/admin/settings.tsx
 #: apps/web/src/components/admin-settings-view.tsx
 msgid "Keys"
@@ -8459,6 +8477,12 @@ msgstr "Nova"
 #: apps/web/src/components/magic-link-form.tsx
 msgid "New accounts require an invitation."
 msgstr "As novas contas precisam de um convite."
+
+#. placeholder {0}: result.records
+#. placeholder {1}: result.drafts
+#: apps/native/components/change-server.tsx
+msgid "New changes are still on this phone ({0} waiting records and {1} drafts). Nothing was removed. Send them before changing servers."
+msgstr "Ainda há alterações neste telemóvel ({0} registos por enviar e {1} rascunhos). Nada foi removido. Envie-as antes de mudar de servidor."
 
 #: apps/native/app/(drawer)/coach/[conversationId].tsx
 #: apps/web/src/routes/_auth/coach/$conversationId.tsx
@@ -11221,6 +11245,7 @@ msgstr "Versão anterior"
 #: apps/native/components/ai-section.tsx
 #: apps/native/components/analytics-consent-section.tsx
 #: apps/native/components/energy-estimate-card.tsx
+#: apps/native/components/server-compatibility-gate.tsx
 #: apps/native/components/sign-in-methods.tsx
 #: apps/native/components/sign-in.tsx
 #: apps/web/src/components/accept-invitation-view.tsx
@@ -11295,6 +11320,10 @@ msgstr "Repetir o mesmo pedido"
 #: apps/web/src/components/insights-section.tsx
 msgid "Retry saving choice"
 msgstr "Tentar guardar a escolha novamente"
+
+#: apps/native/components/server-compatibility-gate.tsx
+msgid "Retry server check"
+msgstr "Voltar a verificar o servidor"
 
 #: apps/native/components/workout-session.tsx
 msgid "Retry sync"
@@ -12613,6 +12642,12 @@ msgstr "Sódio"
 msgid "Some answers could not be saved. Check them and try again."
 msgstr "Não foi possível guardar algumas respostas. Verifique-as e tente novamente."
 
+#. placeholder {0}: safety.records
+#. placeholder {1}: safety.drafts
+#: apps/native/components/change-server.tsx
+msgid "Some changes are still on this phone ({0} waiting records and {1} drafts). They will stay here. Retry the server check, or finish sending them before changing servers."
+msgstr "Ainda há alterações neste telemóvel ({0} registos por enviar e {1} rascunhos). Ficarão aqui. Volte a verificar o servidor ou termine o envio antes de mudar de servidor."
+
 #: apps/native/components/change-server.tsx
 msgid "Some changes may not have reached {host} yet. Changing server signs you out and deletes them from this phone."
 msgstr "Algumas alterações podem ainda não ter chegado a {host}. Mudar de servidor termina a sessão e apaga-as deste telemóvel."
@@ -13336,6 +13371,14 @@ msgstr "O fornecedor de IA não está configurado neste servidor. Use o rascunho
 #: apps/native/components/server-choice.tsx
 msgid "The app connects only over HTTPS. Use an address that starts with https://."
 msgstr "A aplicação liga-se apenas por HTTPS. Use um endereço que comece por https://."
+
+#: apps/native/components/change-server.tsx
+msgid "The app could not confirm that this phone has no unsent changes. Nothing has been removed. Try again later."
+msgstr "A aplicação não conseguiu confirmar que não há alterações por enviar neste telemóvel. Nada foi removido. Tente novamente mais tarde."
+
+#: apps/native/components/change-server.tsx
+msgid "The app could not confirm that this phone has no unsent changes. Nothing was removed. Try again later."
+msgstr "A aplicação não conseguiu confirmar que não há alterações por enviar neste telemóvel. Nada foi removido. Tente novamente mais tarde."
 
 #: apps/native/components/goal-editor.tsx
 msgid "The average window must be at least one day."
@@ -15470,6 +15513,10 @@ msgid "You set up this server. A quick look at what it reports, then your own se
 msgstr "Configurou este servidor. Uma vista rápida do que ele indica e depois a sua própria configuração."
 
 #: apps/native/components/change-server.tsx
+msgid "You will be signed out of {host}. This server's saved data on this phone will be removed. You can cancel and keep using this server."
+msgstr "A sua sessão em {host} será terminada e os dados guardados deste servidor serão removidos do telemóvel. Pode cancelar e continuar a usar este servidor."
+
+#: apps/native/components/change-server.tsx
 msgid "You will be signed out, and everything this app saved from {host} is removed from this phone."
 msgstr "A sessão será terminada e tudo o que esta aplicação guardou de {host} será removido deste telemóvel."
 
@@ -15601,6 +15648,10 @@ msgstr "A sua alteração: os valores do registo."
 #: packages/email/src/templates/daily-reminder.tsx
 msgid "Your daily reminders"
 msgstr "Os seus lembretes diários"
+
+#: apps/native/components/change-server.tsx
+msgid "Your data stays on this phone"
+msgstr "Os seus dados ficam neste telemóvel"
 
 #: apps/web/src/components/preventive-care-view.tsx
 msgid "Your decision about {title}"

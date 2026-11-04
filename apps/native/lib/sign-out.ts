@@ -1,15 +1,28 @@
 import { authClient } from "@/lib/auth-client";
 import { resetHealthSync } from "@/lib/health-sync";
-import { prepareOfflineSignOut } from "@/lib/offline/sync";
+import { isMetricOutboxBusy, prepareOfflineSignOut } from "@/lib/offline/sync";
 import { disablePushOnThisPhone } from "@/lib/push-notifications";
 import { createSignOut } from "@/lib/sign-out-steps";
 import { queryClient } from "@/utils/orpc";
+
+import type { PreserveServerLeaveOptions, ServerLeaveOptions } from "./server/server-leave-policy";
+
+function preserveOptions(options?: ServerLeaveOptions): PreserveServerLeaveOptions | undefined {
+  if (options?.pendingDataPolicy !== "preserve") return undefined;
+  return {
+    pendingDataPolicy: "preserve",
+    hasInFlightWrites: () =>
+      isMetricOutboxBusy() ||
+      queryClient.isMutating() > 0 ||
+      options.hasInFlightWrites?.() === true,
+  };
+}
 
 /** The one sign-out used by every screen: push, health sync, offline data, session, cache. */
 export const signOutOfThisPhone = createSignOut({
   disablePush: disablePushOnThisPhone,
   resetHealthSync,
-  prepareOffline: prepareOfflineSignOut,
+  prepareOffline: (options) => prepareOfflineSignOut(preserveOptions(options)),
   signOut: () => authClient.signOut(),
   clearQueries: () => queryClient.clear(),
 });
