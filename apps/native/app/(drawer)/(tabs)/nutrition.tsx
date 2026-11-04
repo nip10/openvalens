@@ -542,35 +542,19 @@ export default function NutritionScreen() {
         ) : null}
 
         <View className="gap-4">
+          {/* Date and arrows on one row, the day status below at full width: in
+              one column beside the arrows, the date and Mark day complete
+              clipped at large text on a 375 pt phone (#373). */}
           <View className="flex-row items-center gap-3">
-            <ToneIcon icon={UtensilsCrossed} tone="food" size="lg" />
-            <View className="min-w-0 flex-1 gap-1">
-              <View accessibilityRole="header">
-                <NutritionDatePicker
-                  value={localDate}
-                  onChange={go}
-                  label={i18n._(DIARY_COPY.title)}
-                  compact
-                  accessibilityLabel={t`Choose diary date`}
-                />
-              </View>
-              <View className="flex-row flex-wrap items-center gap-1.5">
-                <View accessibilityLiveRegion="polite">
-                  <StatusPill tone={status === "complete" ? "good" : "neutral"}>
-                    {i18n._(statusText.label)}
-                    {pendingStatus ? `, ${i18n._(SYNC_STATE_LABELS[pendingStatus.status])}` : ""}
-                  </StatusPill>
-                </View>
-                <InfoTip title={i18n._(statusText.label)}>{i18n._(statusText.description)}</InfoTip>
-                <Button size="sm" variant="outline" className="min-h-11" onPress={toggleStatus}>
-                  <Icon icon={CircleCheck} size={16} color="ink-2" />
-                  <Button.Label>
-                    {i18n._(
-                      status === "complete" ? DIARY_COPY.clearComplete : DIARY_COPY.markComplete,
-                    )}
-                  </Button.Label>
-                </Button>
-              </View>
+            <ToneIcon icon={UtensilsCrossed} tone="food" size="sm" />
+            <View className="min-w-0 flex-1" accessibilityRole="header">
+              <NutritionDatePicker
+                value={localDate}
+                onChange={go}
+                label={i18n._(DIARY_COPY.title)}
+                compact
+                accessibilityLabel={t`Choose diary date`}
+              />
             </View>
             <Button
               size="sm"
@@ -589,6 +573,21 @@ export default function NutritionScreen() {
               onPress={() => go(shiftLocalDate(localDate, 1))}
             >
               <Icon icon={ChevronRight} size={18} color="ink-2" />
+            </Button>
+          </View>
+          <View className="flex-row flex-wrap items-center gap-1.5">
+            <View accessibilityLiveRegion="polite">
+              <StatusPill tone={status === "complete" ? "good" : "neutral"}>
+                {i18n._(statusText.label)}
+                {pendingStatus ? `, ${i18n._(SYNC_STATE_LABELS[pendingStatus.status])}` : ""}
+              </StatusPill>
+            </View>
+            <InfoTip title={i18n._(statusText.label)}>{i18n._(statusText.description)}</InfoTip>
+            <Button size="sm" variant="outline" className="min-h-11" onPress={toggleStatus}>
+              <Icon icon={CircleCheck} size={16} color="ink-2" />
+              <Button.Label>
+                {i18n._(status === "complete" ? DIARY_COPY.clearComplete : DIARY_COPY.markComplete)}
+              </Button.Label>
             </Button>
           </View>
           {day.isPending && !day.data ? (
@@ -2300,10 +2299,17 @@ export function AddFood({
             ) : null}
           </Section>
         </ScrollView>
-        {mode !== "templates" ? (
+        {/* While searching, Save can't do anything yet: leave the space to the
+            results, which the keyboard already squeezes on a small phone (#373). */}
+        {mode !== "templates" && (quickUndo || mode !== "choose" || chosen) ? (
           <View className="border-t border-rule bg-background px-4 py-3">
             {quickUndo ? (
-              <View className="mb-2 flex-row items-center justify-between gap-3">
+              <View
+                className={cn(
+                  "flex-row items-center justify-between gap-3",
+                  (mode !== "choose" || chosen) && "mb-2",
+                )}
+              >
                 <Text
                   className="flex-1 text-sm text-ink-2"
                   accessibilityLiveRegion="polite"
@@ -2313,9 +2319,11 @@ export function AddFood({
                 </Button>
               </View>
             ) : null}
-            <Button className="min-h-11" onPress={save} isDisabled={!preview || !editable}>
-              <Button.Label>{t`Save to ${slotLabel}`}</Button.Label>
-            </Button>
+            {mode !== "choose" || chosen ? (
+              <Button className="min-h-11" onPress={save} isDisabled={!preview || !editable}>
+                <Button.Label>{t`Save to ${slotLabel}`}</Button.Label>
+              </Button>
+            ) : null}
           </View>
         ) : null}
       </View>
