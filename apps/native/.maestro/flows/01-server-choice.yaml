@@ -74,5 +74,7 @@ tags: [auth]
 - extendedWaitUntil:
     visible: "Email me a sign-in link"
     timeout: 30000
-- assertVisible: "Signing in to localhost:.*"
+# Below the form on a short phone.
+- scrollUntilVisible:
+    element: "Signing in to localhost:.*"
 - takeScreenshot: 01-sign-in

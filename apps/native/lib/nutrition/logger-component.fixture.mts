@@ -587,8 +587,10 @@ describe("production AddFood component", () => {
     ).toBe(true);
     for (const key of changes) {
       await TestRenderer.act(async () => root.update(rerender(key)));
-      const freshSave = findButton(root, "Save to").props.onPress as () => void;
-      await TestRenderer.act(async () => freshSave());
+      // The selection is gone, so search mode offers no Save to press (#373).
+      expect(
+        root.root.findAllByType("Button").some((button) => findText(button).includes("Save to")),
+      ).toBe(false);
       expect(captured.enqueues).toBe(0);
       expect(
         root.root.findAllByType("Button").some((button) => findText(button).includes("Change")),
