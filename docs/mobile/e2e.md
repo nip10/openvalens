@@ -1,6 +1,6 @@
 # Mobile end-to-end tests (Maestro)
 
-**Applies to:** the Expo app in `apps/native` · Last updated: 2026-11-01
+**Applies to:** the Expo app in `apps/native` · Last updated: 2026-11-03
 
 The mobile app has an end-to-end suite written with
 [Maestro](https://docs.maestro.dev). It drives a real build of the app on the
@@ -36,6 +36,7 @@ path of the Maestro artifacts and the path of the screenshot folder.
 | 11 Sharing and invitations         | The owner invites someone; they see the invitation and accept it                                     |
 | 12 Read-only Cloud state           | Subscription ended: the read-only notice, no purchase UI, writes refused, export still works         |
 | 13 Export and delete account       | JSON bundle and per-domain export; "Delete everything" with the typed confirmation                   |
+| 14 Tap budgets                     | A recent food in ≤ 3 taps and a new food in ≤ 5 taps from launch (#271), on a catalog fixture        |
 | Screenshot tour (×4)               | Every screen, the sign-in and server-choice screens and each onboarding step, per language × theme   |
 
 The barcode scanner needs a camera and is only opened as far as its entry
