@@ -2799,7 +2799,6 @@ msgstr "Coach is thinking…"
 
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/(tabs)/_layout.tsx
-#: apps/native/app/(drawer)/index.tsx
 msgid "Cockpit"
 msgstr "Cockpit"
 
@@ -11380,7 +11379,6 @@ msgstr "Sign in with the matching email first, then return and enter the token a
 msgid "Sign out"
 msgstr "Sign out"
 
-#: apps/native/app/(drawer)/index.tsx
 #: apps/web/src/components/user-menu.tsx
 msgid "Sign Out"
 msgstr "Sign Out"
@@ -13819,11 +13817,6 @@ msgstr "Welcome"
 #: apps/web/src/components/onboarding/welcome-flow.tsx
 msgid "Welcome to OpenValens"
 msgstr "Welcome to OpenValens"
-
-#. placeholder {0}: session.user.name
-#: apps/native/app/(drawer)/index.tsx
-msgid "Welcome, <0>{0}</0>"
-msgstr "Welcome, <0>{0}</0>"
 
 #: packages/api/src/presenters/wellness-profile.ts
 msgid "Wellbeing"

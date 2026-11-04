@@ -4,6 +4,12 @@ appId: com.openvalens.app
 ---
 - launchApp:
     stopApp: false
+# Let the launch screen settle (sign-in form, or the tabs) before checking.
+- extendedWaitUntil:
+    visible: "Show navigation menu"
+    timeout: 30000
+- waitForAnimationToEnd:
+    timeout: 3000
 - runFlow:
     when:
       notVisible:
@@ -28,12 +34,8 @@ appId: com.openvalens.app
     file: sign-in.yaml
     env:
       EMAIL: ${EMAIL}
-- extendedWaitUntil:
-    visible: ${EMAIL}
-    timeout: 30000
-- tapOn:
-    id: "home-cockpit"
+# Signed in, the app opens the tabs.
 - extendedWaitUntil:
     visible:
       id: "tab-cockpit"
-    timeout: 20000
+    timeout: 30000

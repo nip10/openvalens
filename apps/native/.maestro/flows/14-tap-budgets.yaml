@@ -1,0 +1,89 @@
+# 14. The tap budgets from the fast-logging epic (#271), counted from a fresh
+# launch: a recent food in 3 taps or fewer, a new food (search, pick, amount,
+# save) in 5 taps or fewer plus typing. Every user tap is a numbered `tapOn`;
+# waits and asserts are not taps. Runs after 05, so Baked salmon is a recent
+# breakfast food; the food database search finds the e2e catalog fixture.
+appId: com.openvalens.app
+name: 14 Tap budgets
+tags: [logging]
+---
+# Flow 13 deletes its account: sign the demo account in, then count from a
+# fresh launch.
+- runFlow:
+    file: ../subflows/switch-account.yaml
+    env:
+      EMAIL: alex.morgan@example.com
+- runFlow: ../subflows/fresh-start.yaml
+- extendedWaitUntil:
+    visible:
+      id: tab-nutrition
+    timeout: 20000
+
+# Recent food from the diary's "usual" row: 2 taps.
+- tapOn:
+    id: tab-nutrition # tap 1
+- extendedWaitUntil:
+    visible: "Add usual: Baked salmon"
+    timeout: 20000
+- tapOn: "Add usual: Baked salmon" # tap 2
+- extendedWaitUntil:
+    visible: "Undo"
+    timeout: 10000
+- takeScreenshot: 14-recent-food-logged
+
+# Recent food from Add food: 3 taps.
+- runFlow: ../subflows/fresh-start.yaml
+- extendedWaitUntil:
+    visible:
+      id: tab-nutrition
+    timeout: 20000
+- tapOn:
+    id: tab-nutrition # tap 1
+- extendedWaitUntil:
+    visible: "Add food to Breakfast"
+    timeout: 20000
+- tapOn: "Add food to Breakfast" # tap 2
+- extendedWaitUntil:
+    visible: "Add Baked salmon to Breakfast"
+    timeout: 15000
+- tapOn: "Add Baked salmon to Breakfast" # tap 3
+- extendedWaitUntil:
+    visible: "Saved Baked salmon.*"
+    timeout: 10000
+- assertVisible: "Undo"
+- runFlow: ../subflows/close-add-food.yaml
+
+# New food from the food databases: 5 taps plus typing.
+- runFlow: ../subflows/fresh-start.yaml
+- extendedWaitUntil:
+    visible:
+      id: tab-nutrition
+    timeout: 20000
+- tapOn:
+    id: tab-nutrition # tap 1
+- extendedWaitUntil:
+    visible: "Add food to Breakfast"
+    timeout: 20000
+- tapOn: "Add food to Breakfast" # tap 2
+- extendedWaitUntil:
+    visible: "Search foods"
+    timeout: 10000
+- tapOn: "Search foods" # tap 3
+- inputText: "banana"
+- extendedWaitUntil:
+    visible: "Food databases"
+    timeout: 10000
+- extendedWaitUntil:
+    visible: "E2E banana, .*"
+    timeout: 20000
+- takeScreenshot: 14-new-food-results
+- tapOn: "E2E banana, .*" # tap 4
+- extendedWaitUntil:
+    visible: "Save to Breakfast"
+    timeout: 10000
+- takeScreenshot: 14-new-food-amount
+- tapOn: "Save to Breakfast" # tap 5
+- extendedWaitUntil:
+    visible: "Add food to Breakfast"
+    timeout: 15000
+- takeScreenshot: 14-new-food-logged

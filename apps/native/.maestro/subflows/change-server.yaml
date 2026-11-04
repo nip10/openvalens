@@ -11,9 +11,10 @@ appId: com.openvalens.app
 - extendedWaitUntil:
     visible: "(Change server|Mudar de servidor)\\?"
     timeout: 5000
-# The alert's confirm button: right of Cancel and above the screen's own
-# Change server button, which sits underneath the alert. On iOS a tap during the alert's entrance
-# animation is dropped, so wait, and tap again while it is still up.
+# The alert's confirm button: above the screen's own Change server button,
+# which sits underneath the alert. Not "right of Cancel": the longer pt-PT
+# labels stack the buttons, confirm on top. On iOS a tap during the alert's
+# entrance animation is dropped, so wait, and tap again while it is still up.
 - waitForAnimationToEnd:
     timeout: 2000
 # On Android the alert is its own window, so the screen underneath is not in
@@ -36,8 +37,6 @@ appId: com.openvalens.app
           commands:
             - tapOn:
                 text: "(?i)(change server|mudar de servidor)"
-                rightOf:
-                  text: "(?i)(cancel|cancelar)"
                 above:
                   id: "change-server"
             - waitForAnimationToEnd:

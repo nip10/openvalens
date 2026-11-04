@@ -1854,7 +1854,7 @@ export function AddFood({
           <Text className="font-display text-xl font-semibold text-ink" accessibilityRole="header">
             {i18n._(DIARY_COPY.addFood)}
           </Text>
-          <Button className="min-h-11" variant="ghost" onPress={cancel}>
+          <Button className="min-h-11" variant="ghost" onPress={cancel} testID="add-food-cancel">
             <Button.Label>{t`Cancel`}</Button.Label>
           </Button>
         </View>

@@ -50,11 +50,19 @@ tags: [logging]
 - tapOn: "Quick add"
 - tapOn: "Food name"
 - inputText: "Trail mix"
+# Let the keyboard settle, or the tap on Energy is lost and "180" lands in
+# the name.
+- waitForAnimationToEnd:
+    timeout: 2000
 - tapOn: "Energy \\(kcal, optional\\)"
+- waitForAnimationToEnd:
+    timeout: 2000
 - inputText: "180"
 - runFlow: ../subflows/hide-keyboard.yaml
+# Centred: at the bottom edge the chip sits under the Save bar.
 - scrollUntilVisible:
     element: "Snack"
+    centerElement: true
 - tapOn: "Snack"
 - takeScreenshot: 05-quick-add
 - scrollUntilVisible:
