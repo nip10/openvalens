@@ -50,10 +50,14 @@ tags: [logging]
 - tapOn: "Quick add"
 - tapOn: "Food name"
 - inputText: "Trail mix"
-# Let the keyboard settle, or the tap on Energy is lost and "180" lands in
-# the name.
-- waitForAnimationToEnd:
-    timeout: 2000
+# Close the keyboard first: on a shorter phone (iPhone 17e) it pushes the Save
+# bar over the Energy field, and Maestro, which ignores the overlap, taps Save
+# and saves the food without calories (#373). Closing it also lets the
+# keyboard settle, or the tap on Energy is lost and "180" lands in the name.
+- runFlow: ../subflows/hide-keyboard.yaml
+- scrollUntilVisible:
+    element: "Energy \\(kcal, optional\\)"
+    centerElement: true
 - tapOn: "Energy \\(kcal, optional\\)"
 - waitForAnimationToEnd:
     timeout: 2000
@@ -100,10 +104,12 @@ tags: [logging]
     timeout: 10000
 - runFlow: ../subflows/close-add-food.yaml
 
-# Plain water
+# Plain water: below the meals, targets and streak. On a shorter phone the
+# default speed runs out of time before it gets there.
 - scrollUntilVisible:
     element: "Add plain water"
-    timeout: 30000
+    speed: 80
+    timeout: 60000
 - tapOn: "Add plain water"
 - extendedWaitUntil:
     visible: "Amount"

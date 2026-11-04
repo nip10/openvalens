@@ -3,8 +3,9 @@
 # it to the openvalens:// callback the browser would hand the app.
 appId: com.openvalens.app
 ---
-- extendedWaitUntil:
-    visible:
+# Scrolls too: on an iPhone SE the field starts below the fold (#373).
+- scrollUntilVisible:
+    element:
       id: "sign-in-email-input"
     timeout: 30000
 - tapOn:
