@@ -9,6 +9,7 @@ import { providerConnection } from "@openvalens/db/schema/ingestion";
 import { wearableConnection } from "@openvalens/db/schema/wearables";
 import {
   ingestMobileBatch,
+  latchSleepGoalEvidence,
   registerMobileDevice,
   type MobileHealthRecord,
 } from "@openvalens/ingestion";
@@ -52,6 +53,12 @@ const VENDOR_USER: Record<WearableProviderId, string> = {
   google_health: "g-health-1",
 };
 const DEVICE = "6f1c2d3e-4b5a-4c6d-8e7f-90a1b2c3d4e5";
+
+function timestampIso(value: Date | string): string {
+  const date = value instanceof Date ? value : new Date(value);
+  if (!Number.isFinite(date.getTime())) throw new Error("Expected a valid canonical timestamp.");
+  return date.toISOString();
+}
 
 describe.skipIf(!url)("cloud wearables on disposable PostgreSQL", () => {
   const db = createDb({ DATABASE_URL: url ?? "postgres://127.0.0.1/wearables_issue60" });
@@ -120,6 +127,14 @@ describe.skipIf(!url)("cloud wearables on disposable PostgreSQL", () => {
     return row;
   };
 
+  const createSleepGoal = async (userId: string | null, startDate = "2026-10-01") => {
+    const result = await db.execute(sql`
+      insert into goal (organization_id, user_id, title, category, source, start_date, timezone)
+      values ('org-a', ${userId}, 'Sleep test goal', 'health', 'sleep', ${startDate}, 'UTC')
+      returning id`);
+    return Number((result.rows[0] as { id: number }).id);
+  };
+
   beforeAll(async () => {
     const tables = await db.execute(
       sql`select tablename from pg_tables where schemaname = 'public'`,
@@ -143,12 +158,15 @@ describe.skipIf(!url)("cloud wearables on disposable PostgreSQL", () => {
     await db.insert(member).values([
       { id: "m1", organizationId: "org-a", userId: "u1", role: "owner" },
       { id: "m2", organizationId: "org-b", userId: "u2", role: "owner" },
+      { id: "wearables-test-org-a-u2", organizationId: "org-a", userId: "u2", role: "member" },
     ]);
     vendor = await startMockVendor();
   }, 120_000);
 
   beforeEach(async () => {
     for (const table of [
+      "goal_definition",
+      "goal",
       "provenance_link",
       "weight_event",
       "daily_weight",
@@ -172,6 +190,37 @@ describe.skipIf(!url)("cloud wearables on disposable PostgreSQL", () => {
       google_health: {},
     };
     seedVendorData(vendor.state);
+    // Polar serves only a rolling recent window; keep its mock rows recent as
+    // well so this integration remains valid after the fixture's seed date.
+    const polarEnd = new Date(Date.now() - 60 * 60_000);
+    const polarStart = new Date(polarEnd.getTime() - 8 * 60 * 60_000);
+    const polarDate = polarEnd.toISOString().slice(0, 10);
+    vendor.state.data.polar.recharges[0]!.date = polarDate;
+    vendor.state.data.polar.nights[0]!.date = polarDate;
+    vendor.state.data.polar.nights[0]!.sleep_start_time = polarStart.toISOString();
+    vendor.state.data.polar.nights[0]!.sleep_end_time = polarEnd.toISOString();
+    // The mock vendors' checked-in dates age out of the normal 30-day sync
+    // window. Keep the records used by phone-first and source-deletion cases
+    // recent, with phone fixtures derived from these exact cloud intervals.
+    const whoopEnd = new Date(Date.now() - 60 * 60_000);
+    const whoopStart = new Date(whoopEnd.getTime() - 8 * 60 * 60_000);
+    vendor.state.data.whoop.sleep[0]!.start = whoopStart.toISOString();
+    vendor.state.data.whoop.sleep[0]!.end = whoopEnd.toISOString();
+    vendor.state.data.whoop.sleep[0]!.updated_at = new Date(
+      whoopEnd.getTime() + 5 * 60_000,
+    ).toISOString();
+    const withingsEnd = new Date(Date.now() - 60 * 60_000);
+    const withingsStart = new Date(withingsEnd.getTime() - 7 * 60 * 60_000 - 45 * 60_000);
+    vendor.state.data.withings.measuregrps[0]!.date = Math.floor(withingsEnd.getTime() / 1000);
+    vendor.state.data.withings.measuregrps[0]!.modified = Math.floor(
+      (withingsEnd.getTime() + 5 * 60_000) / 1000,
+    );
+    vendor.state.data.withings.series[0]!.startdate = Math.floor(withingsStart.getTime() / 1000);
+    vendor.state.data.withings.series[0]!.enddate = Math.floor(withingsEnd.getTime() / 1000);
+    vendor.state.data.withings.series[0]!.date = withingsEnd.toISOString().slice(0, 10);
+    vendor.state.data.withings.series[0]!.modified = Math.floor(
+      (withingsEnd.getTime() + 5 * 60_000) / 1000,
+    );
     vendor.state.refuseRefresh = {};
     vendor.state.expiresIn = {};
     vendor.state.refreshDelayMs = 0;
@@ -385,15 +434,16 @@ describe.skipIf(!url)("cloud wearables on disposable PostgreSQL", () => {
       platform: "ios",
     });
     expect(providerConnectionId).toBeGreaterThan(0);
+    const withingsMeasure = vendor.state.data.withings.measuregrps[0]!;
     const phoneWeight: MobileHealthRecord = {
       type: "weight",
       externalRecordId: "hk-weight-1",
-      startTime: "2026-10-02T06:00:30.000Z",
+      startTime: new Date(Number(withingsMeasure.date) * 1000).toISOString(),
       valueKg: 72.4,
       sourceApp: "com.withings.wiscale2",
       sourceDevice: { type: "scale", model: "Body+" },
     };
-    await ingestMobileBatch(db, {
+    const phoneIngest = await ingestMobileBatch(db, {
       organizationId: "org-a",
       traceId: "t",
       batch: {
@@ -407,6 +457,11 @@ describe.skipIf(!url)("cloud wearables on disposable PostgreSQL", () => {
         deletions: [],
       },
     });
+    expect(phoneIngest).toMatchObject({ status: "applied", accepted: 1, rejected: 0 });
+    const phoneBeforeCloud = (await active("metric_sample")).filter(
+      (row) => row.code === "weight" && row.ext === "hk-weight-1",
+    );
+    expect(phoneBeforeCloud).toHaveLength(1);
 
     const { connectionId } = await connect("withings");
     const sync = await service.syncConnection(connectionId);
@@ -437,7 +492,7 @@ describe.skipIf(!url)("cloud wearables on disposable PostgreSQL", () => {
     expect(restored.map((row) => row.ext)).toEqual(["withings-measure-9001-weight"]);
 
     // And a phone sleep session arriving later hides the overlapping cloud one.
-    await ingestMobileBatch(db, {
+    const phoneSleepIngest = await ingestMobileBatch(db, {
       organizationId: "org-a",
       traceId: "t3",
       batch: {
@@ -451,15 +506,353 @@ describe.skipIf(!url)("cloud wearables on disposable PostgreSQL", () => {
           {
             type: "sleep_session",
             externalRecordId: "hk-sleep-1",
-            startTime: "2026-10-01T22:35:00.000Z",
-            endTime: "2026-10-02T06:10:00.000Z",
-            sourceApp: "com.withings.wiscale2",
+            startTime: new Date(
+              Number(vendor.state.data.withings.series[0]!.startdate) * 1000,
+            ).toISOString(),
+            endTime: new Date(
+              Number(vendor.state.data.withings.series[0]!.enddate) * 1000,
+            ).toISOString(),
+            sourceApp: "com.apple.health.81C2D3E4",
+            sourceDevice: { type: "phone", model: "iPhone" },
           },
         ],
         deletions: [],
       },
     });
+    expect(phoneSleepIngest).toMatchObject({ status: "applied", accepted: 1, rejected: 0 });
     expect((await active("health_event")).map((row) => row.ext)).toEqual(["hk-sleep-1"]);
+  });
+
+  test("phone deletion restores only the corrected canonical cloud sleep version", async () => {
+    const { connectionId } = await connect("whoop");
+    await service.syncConnection(connectionId);
+    const whoopConnection = await connectionOf("whoop");
+    expect(whoopConnection).toBeDefined();
+    const initial = await db.execute(sql`
+      select e.id, e.source_event_id from health_event e
+      join data_source d on d.id = e.data_source_id and d.organization_id = e.organization_id
+      where e.organization_id = 'org-a' and e.event_type = 'sleep_session' and e.user_id = 'u1'
+        and d.provider_connection_id = ${whoopConnection!.providerConnectionId}
+        and d.import_channel = 'wearable_cloud' and e.superseded_at is null`);
+    expect(initial.rows).toHaveLength(1);
+    const oldId = Number((initial.rows[0] as { id: number }).id);
+    const sourceId = String((initial.rows[0] as { source_event_id: string }).source_event_id);
+    const sourceSleep = vendor.state.data.whoop.sleep[0]!;
+    const phone = await registerMobileDevice(db, {
+      organizationId: "org-a",
+      userId: "u1",
+      deviceId: DEVICE,
+      platform: "ios",
+    });
+    expect(phone.providerConnectionId).toBeGreaterThan(0);
+    const phoneIngest = await ingestMobileBatch(db, {
+      organizationId: "org-a",
+      traceId: "shadow-whoop-sleep",
+      batch: {
+        schemaVersion: 1,
+        deviceId: DEVICE,
+        provider: "apple_health",
+        recordType: "sleep_session",
+        mode: "changes",
+        clientTimezone: "UTC",
+        upserts: [
+          {
+            type: "sleep_session",
+            externalRecordId: sourceId,
+            startTime: String(sourceSleep.start),
+            endTime: String(sourceSleep.end),
+            sourceApp: "com.apple.health.81C2D3E4",
+            sourceDevice: { type: "phone", model: "iPhone" },
+          },
+        ],
+        deletions: [],
+      },
+    });
+    expect(phoneIngest).toMatchObject({ status: "applied", accepted: 1, rejected: 0 });
+    expect(
+      (await db.execute(sql`select superseded_at from health_event where id = ${oldId}`)).rows[0]
+        ?.superseded_at,
+    ).not.toBeNull();
+
+    if (typeof sourceSleep.end !== "string" || typeof sourceSleep.updated_at !== "string")
+      throw new Error("Expected canonical source-sleep end and update timestamps to be strings");
+    sourceSleep.end = new Date(Date.parse(sourceSleep.end) + 15 * 60_000).toISOString();
+    sourceSleep.updated_at = new Date(
+      Date.parse(sourceSleep.updated_at) + 15 * 60_000,
+    ).toISOString();
+    await service.syncConnection(connectionId);
+    const versions = await db.execute(sql`
+      select e.id, e.superseded_at from health_event e
+      join data_source d on d.id = e.data_source_id and d.organization_id = e.organization_id
+      where e.organization_id = 'org-a' and e.source_event_id = ${sourceId} and e.user_id = 'u1'
+        and d.import_channel = 'wearable_cloud'
+      order by e.id`);
+    expect(versions.rows).toHaveLength(2);
+    const currentId = Number((versions.rows[1] as { id: number }).id);
+    expect(currentId).not.toBe(oldId);
+    expect(versions.rows[0]?.superseded_at).not.toBeNull();
+
+    await ingestMobileBatch(db, {
+      organizationId: "org-a",
+      traceId: "remove-phone-sleep",
+      batch: {
+        schemaVersion: 1,
+        deviceId: DEVICE,
+        provider: "apple_health",
+        recordType: "sleep_session",
+        mode: "changes",
+        clientTimezone: "UTC",
+        upserts: [],
+        deletions: [{ externalRecordId: sourceId }],
+      },
+    });
+    const final = await db.execute(sql`
+      select id from health_event where organization_id = 'org-a'
+        and source_event_id = ${sourceId} and superseded_at is null`);
+    expect(final.rows.map((row) => Number((row as { id: number }).id))).toEqual([currentId]);
+  });
+
+  test("deleting a phone-shadowed cloud source cannot restore it later", async () => {
+    const { connectionId } = await connect("whoop");
+    await service.syncConnection(connectionId);
+    const whoopConnection = await connectionOf("whoop");
+    expect(whoopConnection).toBeDefined();
+    const cloud = await db.execute(sql`
+      select e.id, e.source_event_id, e.event_at, e.payload_json from health_event e
+      join data_source d on d.id = e.data_source_id and d.organization_id = e.organization_id
+      where e.organization_id = 'org-a' and e.event_type = 'sleep_session' and e.user_id = 'u1'
+        and d.provider_connection_id = ${whoopConnection!.providerConnectionId}
+        and d.import_channel = 'wearable_cloud' and e.superseded_at is null`);
+    expect(cloud.rows).toHaveLength(1);
+    const row = cloud.rows[0] as {
+      id: number;
+      source_event_id: string;
+      event_at: Date | string;
+      payload_json: Record<string, unknown>;
+    };
+    const endAt = row.payload_json.endAt;
+    if (!row.source_event_id || typeof endAt !== "string" || !Number.isFinite(Date.parse(endAt)))
+      throw new Error(
+        "Canonical cloud sleep row must include its source identity and valid endAt.",
+      );
+    const startAt = timestampIso(row.event_at);
+    const phoneDevice = "2a6f8f9e-5d0c-4a52-9a43-7f1d2b3c4d5e";
+    await registerMobileDevice(db, {
+      organizationId: "org-a",
+      userId: "u1",
+      deviceId: phoneDevice,
+      platform: "ios",
+    });
+    const phoneIngest = await ingestMobileBatch(db, {
+      organizationId: "org-a",
+      traceId: "shadow-then-delete-cloud",
+      batch: {
+        schemaVersion: 1,
+        deviceId: phoneDevice,
+        provider: "apple_health",
+        recordType: "sleep_session",
+        mode: "changes",
+        clientTimezone: "UTC",
+        upserts: [
+          {
+            type: "sleep_session",
+            externalRecordId: row.source_event_id,
+            startTime: startAt,
+            endTime: endAt,
+            sourceApp: "com.apple.health.81C2D3E4",
+            sourceDevice: { type: "phone", model: "iPhone" },
+          },
+        ],
+        deletions: [],
+      },
+    });
+    expect(phoneIngest).toMatchObject({ status: "applied", accepted: 1, rejected: 0 });
+    const cloudAfterPhone = await db.execute(sql`
+      select superseded_at from health_event where organization_id = 'org-a'
+        and user_id = 'u1' and id = ${row.id}`);
+    expect(cloudAfterPhone.rows[0]?.superseded_at).not.toBeNull();
+    const disconnected = await service.disconnect({
+      organizationId: "org-a",
+      userId: "u1",
+      provider: "whoop",
+      deleteData: true,
+    });
+    expect(disconnected.revoked).toBe(true);
+    expect(disconnected.deletedRows).toBeGreaterThan(0);
+    // Confirm the canonical cloud event itself was removed before exercising
+    // phone deletion; unrelated same-owner/vendor sessions are not evidence.
+    const cloudAfterDisconnect = await db.execute(sql`
+      select id from health_event where organization_id = 'org-a' and user_id = 'u1'
+        and id = ${row.id} and source_event_id = ${row.source_event_id}`);
+    expect(cloudAfterDisconnect.rows).toHaveLength(0);
+    await ingestMobileBatch(db, {
+      organizationId: "org-a",
+      traceId: "phone-delete-after-cloud-delete",
+      batch: {
+        schemaVersion: 1,
+        deviceId: phoneDevice,
+        provider: "apple_health",
+        recordType: "sleep_session",
+        mode: "changes",
+        clientTimezone: "UTC",
+        upserts: [],
+        deletions: [{ externalRecordId: row.source_event_id }],
+      },
+    });
+    const retainedHistory = await db.execute(sql`
+      select superseded_at from health_event where organization_id = 'org-a' and user_id = 'u1'
+        and source_event_id = ${row.source_event_id}`);
+    // Mobile deletion retires phone records to preserve source provenance.
+    // The cloud canonical row was physically removed above; no historical
+    // copy may remain active or become visible again after the phone deletion.
+    expect(retainedHistory.rows.length).toBeGreaterThan(0);
+    expect(
+      retainedHistory.rows.every(
+        (history) => (history as { superseded_at: Date | null }).superseded_at !== null,
+      ),
+    ).toBe(true);
+  });
+
+  test("sleep evidence latches before source deletion, including goals created after the event", async () => {
+    const beforeGoal = await createSleepGoal("u1");
+    const { connectionId } = await connect("whoop");
+    await service.syncConnection(connectionId);
+    const afterGoal = await createSleepGoal("u1");
+    await service.disconnect({
+      organizationId: "org-a",
+      userId: "u1",
+      provider: "whoop",
+      deleteData: true,
+    });
+    const values = await db.execute(sql`
+      select id, ever_had_evidence from goal where id in (${beforeGoal}, ${afterGoal}) order by id`);
+    expect(
+      values.rows.map((row) => (row as { ever_had_evidence: boolean }).ever_had_evidence),
+    ).toEqual([true, true]);
+  });
+
+  test("ownerless historical sleep never latches a personal sleep goal", async () => {
+    const goalId = await createSleepGoal("u2");
+    await db.insert(healthEvent).values({
+      organizationId: "org-a",
+      userId: null,
+      dataSourceId: null,
+      eventType: "sleep_session",
+      eventAt: new Date("2026-10-01T22:00:00.000Z"),
+      title: "legacy ownerless",
+      payloadJson: { endAt: "2026-10-02T06:00:00.000Z" },
+      sourceEventId: "legacy-ownerless-sleep",
+      dedupeHash: "legacy-ownerless-hash",
+    });
+    await latchSleepGoalEvidence(
+      db,
+      "org-a",
+      new Date("2026-10-01T00:00:00.000Z"),
+      new Date("2026-10-03T00:00:00.000Z"),
+    );
+    const value = await db.execute(sql`select ever_had_evidence from goal where id = ${goalId}`);
+    expect((value.rows[0] as { ever_had_evidence: boolean }).ever_had_evidence).toBe(false);
+  });
+
+  test("same-time overlapping sleep from another owner neither shadows nor latches across users", async () => {
+    const { connectionId } = await connect("whoop");
+    await service.syncConnection(connectionId);
+    const whoopConnection = await connectionOf("whoop");
+    expect(whoopConnection).toBeDefined();
+    const canonicalCloud = await db.execute(sql`
+      select e.id, e.source_event_id, e.event_at, e.payload_json from health_event e
+      join data_source d on d.id = e.data_source_id and d.organization_id = e.organization_id
+      where e.organization_id = 'org-a' and e.user_id = 'u1'
+        and e.event_type = 'sleep_session' and e.superseded_at is null
+        and d.provider_connection_id = ${whoopConnection!.providerConnectionId}
+        and d.import_channel = 'wearable_cloud'`);
+    expect(canonicalCloud.rows).toHaveLength(1);
+    const cloudRow = canonicalCloud.rows[0] as {
+      id: number;
+      source_event_id: string | null;
+      event_at: Date | string;
+      payload_json: Record<string, unknown>;
+    };
+    const cloudEndAt = cloudRow.payload_json.endAt;
+    if (
+      !cloudRow.source_event_id ||
+      typeof cloudEndAt !== "string" ||
+      !Number.isFinite(Date.parse(cloudEndAt))
+    )
+      throw new Error("Canonical Whoop sleep row must include its source identity and endAt.");
+    const cloudStartAt = timestampIso(cloudRow.event_at);
+    const phoneDevice = "3b6f8f9e-5d0c-4a52-9a43-7f1d2b3c4d5e";
+    await registerMobileDevice(db, {
+      organizationId: "org-a",
+      userId: "u2",
+      deviceId: phoneDevice,
+      platform: "ios",
+    });
+    const phoneIngest = await ingestMobileBatch(db, {
+      organizationId: "org-a",
+      traceId: "cross-owner-overlap",
+      batch: {
+        schemaVersion: 1,
+        deviceId: phoneDevice,
+        provider: "apple_health",
+        recordType: "sleep_session",
+        mode: "changes",
+        clientTimezone: "UTC",
+        upserts: [
+          {
+            type: "sleep_session",
+            externalRecordId: cloudRow.source_event_id,
+            startTime: cloudStartAt,
+            endTime: cloudEndAt,
+            sourceApp: "com.apple.health.81C2D3E4",
+            sourceDevice: { type: "phone", model: "iPhone" },
+          },
+        ],
+        deletions: [],
+      },
+    });
+    expect(phoneIngest).toMatchObject({ status: "applied", accepted: 1, rejected: 0 });
+    const cloudAfter = await db.select().from(healthEvent).where(eq(healthEvent.id, cloudRow.id));
+    expect(cloudAfter[0]?.supersededAt).toBeNull();
+    // Remove the other owner's row before creating their goal. The retained
+    // cloud evidence belongs only to u1 and must not latch u2's new goal.
+    const removedPhone = await db
+      .delete(healthEvent)
+      .where(
+        and(
+          eq(healthEvent.organizationId, "org-a"),
+          eq(healthEvent.userId, "u2"),
+          eq(healthEvent.sourceEventId, cloudRow.source_event_id),
+        ),
+      )
+      .returning({ id: healthEvent.id });
+    expect(removedPhone.length).toBeGreaterThan(0);
+    const goalId = await createSleepGoal("u2");
+    const cloudEventAt = new Date(timestampIso(cloudRow.event_at));
+    const evidenceStart = new Date(cloudEventAt.getTime() - 24 * 60 * 60_000);
+    const evidenceEnd = new Date(cloudEventAt.getTime() + 24 * 60 * 60_000);
+    await latchSleepGoalEvidence(db, "org-a", evidenceStart, evidenceEnd);
+    const goal = await db.execute(sql`select ever_had_evidence from goal where id = ${goalId}`);
+    expect((goal.rows[0] as { ever_had_evidence: boolean }).ever_had_evidence).toBe(false);
+    await ingestMobileBatch(db, {
+      organizationId: "org-a",
+      traceId: "remove-cross-owner-phone-sleep",
+      batch: {
+        schemaVersion: 1,
+        deviceId: phoneDevice,
+        provider: "apple_health",
+        recordType: "sleep_session",
+        mode: "changes",
+        clientTimezone: "UTC",
+        upserts: [],
+        deletions: [{ externalRecordId: cloudRow.source_event_id }],
+      },
+    });
+    const cloudAfterPhoneRemoval = await db
+      .select()
+      .from(healthEvent)
+      .where(eq(healthEvent.id, cloudRow.id));
+    expect(cloudAfterPhoneRemoval[0]?.supersededAt).toBeNull();
   });
 
   test("an unlink notification quarantines only after Withings rejects the grant; keep restores", async () => {
@@ -616,16 +1009,12 @@ describe.skipIf(!url)("cloud wearables on disposable PostgreSQL", () => {
   });
 
   test("one vendor account cannot be linked by two people in one workspace", async () => {
-    await db
-      .insert(member)
-      .values({ id: "m3", organizationId: "org-a", userId: "u2", role: "viewer" });
-    try {
-      await connect("oura");
-      await expect(
-        connect("oura", { organizationId: "org-a", userId: "u2" }),
-      ).rejects.toMatchObject({ code: "account_in_use" });
-    } finally {
-      await db.delete(member).where(eq(member.id, "m3"));
-    }
+    // org-a/u2 membership is seeded once in beforeAll (with a unique member
+    // ID) and reused here; inserting a duplicate membership would violate the
+    // organization/user uniqueness constraint before reaching the assertion.
+    await connect("oura");
+    await expect(connect("oura", { organizationId: "org-a", userId: "u2" })).rejects.toMatchObject({
+      code: "account_in_use",
+    });
   });
 });

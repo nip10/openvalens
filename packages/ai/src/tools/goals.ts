@@ -8,7 +8,7 @@ import { round, shortText, unavailableReason } from "./format";
 /**
  * `goals` tool (Issue #13 plan, implemented in Issue #130).
  *
- * Lists the bound organization's goals (`@openvalens/plans`) with their
+ * Lists the authenticated user's goals in the bound organization (`@openvalens/plans`) with their
  * recorded current and target values and check-in history counts. The tool
  * reports the recorded numbers and their difference; it does not judge
  * whether a goal is on track, because goal direction (gain vs reduce) is not
@@ -129,7 +129,10 @@ export async function executeGoals(
   }
 
   const organizationId = context.organizationId;
-  const goals = await access.sources.listGoals(organizationId);
+  const userId = context.userId;
+  const goals = (await access.sources.listGoals(organizationId, userId)).filter(
+    (goal) => goal.deletedAt == null,
+  );
   const visible = goals.filter(
     (goal) => input.status === undefined || goal.status === input.status,
   );
@@ -139,7 +142,7 @@ export async function executeGoals(
     goals.map(async (goal) => ({
       goal,
       checkins: visibleIds.has(goal.id)
-        ? await access.sources.listGoalCheckins(organizationId, goal.id)
+        ? await access.sources.listGoalCheckins(organizationId, userId, goal.id)
         : [],
     })),
   );

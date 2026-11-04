@@ -91,7 +91,7 @@ export async function resolveToolAccess(
 
   return {
     allowed: true,
-    sources: context.sources ?? createDomainHealthToolSources(context.db),
+    sources: context.sources ?? createDomainHealthToolSources(context.db, context.userId),
     now,
     logger,
   };

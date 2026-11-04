@@ -2,17 +2,14 @@ import { createStructuredLogger } from "@openvalens/observability";
 
 import { permissionedProcedure, raiseApiError, validateInput } from "../index";
 import { createScoreService } from "../score";
-import {
-  goalProgressResultSchema,
-  readinessResultSchema,
-  scoreInputSchema,
-} from "../score-contract";
+import { readinessResultSchema, scoreInputSchema } from "../score-contract";
 
 /**
  * Issue #95 — the two "how am I doing?" numbers, computed on request.
  *
  * - `score.readiness`    — experimental readiness index; `records:read`.
- * - `score.goalProgress` — progress toward configured goals; `goals:read`.
+ * Goal progress is now presented per goal by the Goals API, never as an
+ * organization-wide aggregate score.
  *
  * Two procedures on purpose: the numbers are never blended, and each is
  * gated by the permission for the records it reads. The organization comes
@@ -39,28 +36,6 @@ export const scoreRouter = {
           status: result.status,
           profile: result.profile,
           usedInputs: result.coverage.usedInputs.length,
-        });
-        return result;
-      } catch {
-        throw raiseApiError("INTERNAL", "Something went wrong.");
-      }
-    }),
-
-  goalProgress: permissionedProcedure({ resource: "goals", action: "read" })
-    .use(validateInput(scoreInputSchema))
-    .input(scoreInputSchema)
-    .output(goalProgressResultSchema)
-    .handler(async ({ context }) => {
-      try {
-        const result = await createScoreService({ db: context.db }).goalProgress({
-          organizationId: context.authz.activeOrganizationId,
-          viewerUserId: context.authz.user.id,
-        });
-        logger.info("score.goal_progress.computed", {
-          correlationId: context.correlationId,
-          status: result.status,
-          scoredGoals: result.coverage.scored,
-          totalGoals: result.coverage.total,
         });
         return result;
       } catch {

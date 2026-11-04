@@ -9,7 +9,7 @@ import { Target } from "lucide-react";
 
 import { ErrorState, Page, PageHeader, ToneIcon } from "@/components/page";
 import { ReferenceComparisonsSection } from "@/components/reference-comparisons-card";
-import { GoalProgressCard, ReadinessCard } from "@/components/score-panels";
+import { ReadinessCard } from "@/components/score-panels";
 import { orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute("/_auth/scores")({
@@ -28,11 +28,6 @@ function ScoresPage() {
     ...orpc.score.readiness.queryOptions({ input: {} }),
     staleTime: 60_000,
   });
-  const goals = useQuery({
-    ...orpc.score.goalProgress.queryOptions({ input: {} }),
-    staleTime: 60_000,
-  });
-
   return (
     <Page>
       <PageHeader
@@ -45,7 +40,7 @@ function ScoresPage() {
         }
       />
 
-      <div className="grid items-start gap-6 lg:grid-cols-2">
+      <div className="grid items-start gap-6">
         {readiness.isPending ? (
           <ScoreSkeleton />
         ) : readiness.isError || !readiness.data ? (
@@ -60,21 +55,6 @@ function ScoresPage() {
         ) : (
           <ReadinessCard result={readiness.data} />
         )}
-
-        {goals.isPending ? (
-          <ScoreSkeleton />
-        ) : goals.isError || !goals.data ? (
-          <ErrorState
-            title={<Trans>Could not load goal progress.</Trans>}
-            action={
-              <Button variant="outline" size="sm" onClick={() => void goals.refetch()}>
-                <Trans>Retry</Trans>
-              </Button>
-            }
-          />
-        ) : (
-          <GoalProgressCard result={goals.data} />
-        )}
       </div>
 
       <ReferenceComparisonsSection />
@@ -82,12 +62,12 @@ function ScoresPage() {
       <p className="flex flex-wrap items-center gap-2 text-sm text-ink-3">
         <ToneIcon icon={Target} tone="weight" size="sm" />
         <Trans>
-          Set targets, directions and priorities for your goals under{" "}
+          Manage your personal goals on{" "}
           <Link
-            to="/workouts"
+            to="/goals"
             className="text-ink underline decoration-signal underline-offset-[0.15em] hover:decoration-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >
-            Workouts
+            Goals
           </Link>
           .
         </Trans>

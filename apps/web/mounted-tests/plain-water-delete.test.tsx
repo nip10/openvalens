@@ -4,6 +4,7 @@ import { englishI18n } from "@openvalens/i18n/testing";
 import { RPCHandler } from "@orpc/server/fetch";
 import { os } from "@orpc/server";
 import { z } from "zod";
+import { createMountedRouter } from "./router-fixture";
 
 const date = "2026-10-20";
 const entry = {
@@ -36,8 +37,14 @@ test.skipIf(process.env.MOUNTED_WATER_TEST !== "1")(
     const userEvent = userModule.default;
     const { QueryClient, QueryClientProvider } = query;
     const { createElement } = react;
-    const withI18n = (node: ReturnType<typeof createElement>) =>
-      createElement(I18nProvider, { i18n: englishI18n }, node);
+    const withI18n = (node: ReturnType<typeof createElement>) => {
+      const { router, RouterProvider } = createMountedRouter(node);
+      return createElement(
+        I18nProvider,
+        { i18n: englishI18n },
+        createElement(RouterProvider, { router }),
+      );
+    };
     const { PlainWaterSection } = section;
 
     const deleteInputs: unknown[] = [];
@@ -160,8 +167,14 @@ test.skipIf(process.env.MOUNTED_WATER_TEST !== "1")(
     const user = userModule.default.setup();
     const { QueryClient, QueryClientProvider } = query;
     const { createElement } = react;
-    const withI18n = (node: ReturnType<typeof createElement>) =>
-      createElement(I18nProvider, { i18n: englishI18n }, node);
+    const withI18n = (node: ReturnType<typeof createElement>) => {
+      const { router, RouterProvider } = createMountedRouter(node);
+      return createElement(
+        I18nProvider,
+        { i18n: englishI18n },
+        createElement(RouterProvider, { router }),
+      );
+    };
     const { PlainWaterSection } = section;
     const inputs: { clientMutationId: string; expectedRevision: number }[] = [];
     let deleteAttempts = 0;
@@ -257,8 +270,14 @@ test.skipIf(process.env.MOUNTED_WATER_TEST !== "1")(
     const user = userModule.default.setup();
     const { QueryClient, QueryClientProvider } = query;
     const { createElement } = react;
-    const withI18n = (node: ReturnType<typeof createElement>) =>
-      createElement(I18nProvider, { i18n: englishI18n }, node);
+    const withI18n = (node: ReturnType<typeof createElement>) => {
+      const { router, RouterProvider } = createMountedRouter(node);
+      return createElement(
+        I18nProvider,
+        { i18n: englishI18n },
+        createElement(RouterProvider, { router }),
+      );
+    };
     const { PlainWaterSection } = section;
     const second = {
       ...entry,
@@ -377,8 +396,14 @@ test.skipIf(process.env.MOUNTED_WATER_TEST !== "1")(
     const user = userModule.default.setup();
     const { QueryClient, QueryClientProvider } = query;
     const { act, createElement } = react;
-    const withI18n = (node: ReturnType<typeof createElement>) =>
-      createElement(I18nProvider, { i18n: englishI18n }, node);
+    const withI18n = (node: ReturnType<typeof createElement>) => {
+      const { router, RouterProvider } = createMountedRouter(node);
+      return createElement(
+        I18nProvider,
+        { i18n: englishI18n },
+        createElement(RouterProvider, { router }),
+      );
+    };
     const { PlainWaterSection } = section;
     let releaseAdd!: (result: { outcome: "applied" }) => void;
     let markAddStarted!: () => void;
@@ -480,8 +505,14 @@ test.skipIf(process.env.MOUNTED_WATER_TEST !== "1")(
     const user = userModule.default.setup();
     const { QueryClient, QueryClientProvider } = query;
     const { act, createElement } = react;
-    const withI18n = (node: ReturnType<typeof createElement>) =>
-      createElement(I18nProvider, { i18n: englishI18n }, node);
+    const withI18n = (node: ReturnType<typeof createElement>) => {
+      const { router, RouterProvider } = createMountedRouter(node);
+      return createElement(
+        I18nProvider,
+        { i18n: englishI18n },
+        createElement(RouterProvider, { router }),
+      );
+    };
     const { PlainWaterSection } = section;
     let releaseChange!: (result: {
       outcome: "applied";
@@ -568,6 +599,88 @@ test.skipIf(process.env.MOUNTED_WATER_TEST !== "1")(
 
       expect(screen.getByRole<HTMLInputElement>("textbox", { name: "Amount" }).value).toBe("500");
       expect(screen.getByRole("button", { name: "Save" })).toBeTruthy();
+    } finally {
+      Object.defineProperty(globalThis, "fetch", {
+        configurable: true,
+        writable: true,
+        value: originalFetch,
+      });
+      client.clear();
+      cleanup();
+    }
+  },
+);
+
+test.skipIf(process.env.MOUNTED_WATER_TEST !== "1")(
+  "Manage water goal navigates through the mounted Goals route",
+  async () => {
+    if (!mounted) throw new Error("mounted suite setup not loaded");
+    const [{ cleanup, render, screen }, userModule, query, react, section] = mounted;
+    const user = userModule.default.setup();
+    const { QueryClient, QueryClientProvider } = query;
+    const { createElement } = react;
+    const { PlainWaterSection } = section;
+    const procedure = os.input(z.unknown());
+    const fixtureRouter = {
+      plainWater: {
+        getDay: os.input(z.any()).handler(() => ({
+          date,
+          timeZone: "UTC",
+          label: "Plain water subtotal",
+          enabled: true,
+          quantityMl: 0,
+          personalGoalMl: null,
+          entries: [],
+        })),
+        getPreferences: procedure.handler(() => ({ enabled: true, personalGoalMl: null })),
+      },
+    };
+    const rpc = new RPCHandler(fixtureRouter);
+    const originalFetch = globalThis.fetch;
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    const { router, RouterProvider } = createMountedRouter(
+      createElement(
+        QueryClientProvider,
+        { client },
+        createElement(PlainWaterSection, {
+          trustedScope: "scope-fixture",
+          localDate: date,
+          timeZone: "UTC",
+          hideNumbers: false,
+          announce: () => {},
+        }),
+      ),
+    );
+    Object.defineProperty(globalThis, "fetch", {
+      configurable: true,
+      writable: true,
+      value: async (input: RequestInfo | URL, init?: RequestInit) => {
+        const request = new Request(input, init);
+        const result = await rpc.handle(request, { prefix: "/rpc", context: {} });
+        if (!result.matched || !result.response)
+          throw new Error(
+            `Unmatched synthetic RPC request (${request.method} ${new URL(request.url).pathname})`,
+          );
+        return result.response;
+      },
+    });
+    try {
+      render(
+        createElement(
+          I18nProvider,
+          { i18n: englishI18n },
+          createElement(RouterProvider, { router }),
+        ),
+      );
+      const settingsLabel = await screen.findByText("Plain water logging", { selector: "summary" });
+      const summary = settingsLabel.closest("summary");
+      if (!summary) throw new Error("plain-water settings summary was not mounted");
+      await user.click(summary);
+      await user.click(screen.getByRole("link", { name: "Manage water goal" }));
+      await screen.findByText("Goals route mounted");
+      expect(router.state.location.pathname).toBe("/goals");
     } finally {
       Object.defineProperty(globalThis, "fetch", {
         configurable: true,

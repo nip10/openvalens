@@ -151,7 +151,11 @@ export function marker(
   };
 }
 
-export type SourceCalls = Array<{ port: keyof AiHealthToolSources; organizationId: string }>;
+export type SourceCalls = Array<{
+  port: keyof AiHealthToolSources;
+  organizationId: string;
+  subjectUserId?: string;
+}>;
 
 /**
  * Per-organization fake ports. Each read records the org it was asked for so
@@ -241,12 +245,12 @@ export function createFakeSources(data: Partial<Record<string, Partial<FakeOrgDa
             ?.schedules ?? []
         );
       },
-      listGoals: async (organizationId) => {
-        calls.push({ port: "listGoals", organizationId });
+      listGoals: async (organizationId, subjectUserId) => {
+        calls.push({ port: "listGoals", organizationId, subjectUserId });
         return forOrg(organizationId).goals.map((entry) => entry.goal);
       },
-      listGoalCheckins: async (organizationId, goalId) => {
-        calls.push({ port: "listGoalCheckins", organizationId });
+      listGoalCheckins: async (organizationId, subjectUserId, goalId) => {
+        calls.push({ port: "listGoalCheckins", organizationId, subjectUserId });
         return (
           forOrg(organizationId).goals.find((entry) => entry.goal.id === goalId)?.checkins ?? []
         );

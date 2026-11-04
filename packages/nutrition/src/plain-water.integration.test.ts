@@ -27,6 +27,8 @@ async function migrate(db: Database) {
 const A: NutritionScope = { organizationId: "water-org-a", userId: "water-user-a" };
 const A2: NutritionScope = { organizationId: "water-org-a", userId: "water-user-a2" };
 const B: NutritionScope = { organizationId: "water-org-b", userId: "water-user-b" };
+const C: NutritionScope = { organizationId: "water-org-a", userId: "water-user-c" };
+const C2: NutritionScope = { organizationId: "water-org-a", userId: "water-user-c2" };
 const input = (clientMutationId: string, overrides: Partial<WaterInput> = {}): WaterInput => ({
   quantity: 250,
   unit: "ml",
@@ -48,12 +50,15 @@ describe.skipIf(!url)("optional plain-water domain against disposable PostgreSQL
     await db.execute(
       sql.raw(`
       insert into "user" (id, email) values
-        ('water-user-a', 'water-a@example.test'), ('water-user-a2', 'water-a2@example.test'), ('water-user-b', 'water-b@example.test');
+        ('water-user-a', 'water-a@example.test'), ('water-user-a2', 'water-a2@example.test'), ('water-user-b', 'water-b@example.test'),
+        ('water-user-c', 'water-c@example.test'), ('water-user-c2', 'water-c2@example.test');
       insert into organization (id, name, slug) values
         ('water-org-a', 'Water A', 'water-a'), ('water-org-b', 'Water B', 'water-b');
       insert into member (id, organization_id, user_id, role) values
         ('water-m-a', 'water-org-a', 'water-user-a', 'owner'),
         ('water-m-a2', 'water-org-a', 'water-user-a2', 'collaborator'),
+        ('water-m-c', 'water-org-a', 'water-user-c', 'collaborator'),
+        ('water-m-c2', 'water-org-a', 'water-user-c2', 'collaborator'),
         ('water-m-b', 'water-org-b', 'water-user-b', 'owner');
     `),
     );
@@ -99,6 +104,79 @@ describe.skipIf(!url)("optional plain-water domain against disposable PostgreSQL
     expect((await water.getDay(A, "2026-10-01", "UTC")).personalGoalMl).toBe(1400);
     await water.setPreference(A, { personalGoalMl: null });
     expect((await water.getDay(A, "2026-10-01", "UTC")).personalGoalMl).toBeNull();
+  });
+
+  test("linked water goal owns the target, uses effective revisions, and never falls back after cutover", async () => {
+    await water.setPreference(C, { enabled: true, personalGoalMl: 1400 });
+    const definition = (amount: number) => ({
+      id: "water-goal",
+      title: "Drink water",
+      source: "water",
+      metric: "water_ml",
+      unit: "ml",
+      rule: { kind: "recurring", cadence: "daily", completion: { kind: "minimum", value: amount } },
+      startDate: "2026-01-01",
+      timeZone: "UTC",
+      status: "active",
+    });
+    const inserted = await db.execute(sql`
+      insert into goal (organization_id, user_id, title, category, status, source, definition, start_date)
+      values (${C.organizationId}, ${C.userId}, 'Drink water', 'health', 'in_progress', 'water', ${JSON.stringify(definition(1500))}::jsonb, '2026-01-01')
+      returning id
+    `);
+    const goalId = Number(inserted.rows[0]?.id);
+    await db.execute(sql`
+      insert into goal_definition (organization_id, goal_id, user_id, revision, definition, effective_from, effective_until)
+      values
+        (${C.organizationId}, ${goalId}, ${C.userId}, 1, ${JSON.stringify(definition(1500))}::jsonb, '2026-01-01', '2026-10-02'),
+        (${C.organizationId}, ${goalId}, ${C.userId}, 2, ${JSON.stringify(definition(2000))}::jsonb, '2026-10-02', null)
+    `);
+    await db.execute(
+      sql`insert into goal_water_link (organization_id, user_id, goal_id, linked_at) values (${C.organizationId}, ${C.userId}, ${goalId}, '2026-01-01T00:00:00.000Z')`,
+    );
+    await db.execute(
+      sql`insert into goal_water_cutover (organization_id, user_id) values (${C.organizationId}, ${C.userId})`,
+    );
+    expect((await water.getDay(C, "2026-10-01", "UTC")).personalGoalMl).toBe(1500);
+    expect((await water.getDay(C, "2026-10-02", "UTC")).personalGoalMl).toBe(2000);
+    expect(await errorCode(() => water.setPreference(C, { personalGoalMl: 1600 }))).toBe(
+      "CONFLICT",
+    );
+    expect((await water.add(C, input("goal-owned-water-entry"))).outcome).toBe("applied");
+
+    await db.execute(sql`
+      update goal_water_link set ended_at = '2026-10-03T00:00:00Z'
+      where organization_id = ${C.organizationId} and user_id = ${C.userId} and goal_id = ${goalId}
+    `);
+    expect((await water.getDay(C, "2026-10-03", "UTC")).personalGoalMl).toBeNull();
+    expect(await errorCode(() => water.setPreference(C, { personalGoalMl: 1400 }))).toBe(
+      "CONFLICT",
+    );
+
+    await db.execute(sql`delete from goal where id = ${goalId}`);
+    expect((await water.getDay(C, "2026-10-04", "UTC")).personalGoalMl).toBeNull();
+
+    await water.setPreference(C2, { enabled: true, personalGoalMl: 900 });
+    const otherDefinition = { ...definition(2100), id: "other-water-goal" };
+    const otherGoal = await db.execute(sql`
+      insert into goal (organization_id, user_id, title, category, status, source, definition, start_date)
+      values (${C2.organizationId}, ${C2.userId}, 'Other water goal', 'health', 'in_progress', 'water', ${JSON.stringify(otherDefinition)}::jsonb, '2026-01-01')
+      returning id
+    `);
+    const otherGoalId = Number(otherGoal.rows[0]?.id);
+    await db.execute(
+      sql`insert into goal_definition (organization_id, goal_id, user_id, revision, definition, effective_from) values (${C2.organizationId}, ${otherGoalId}, ${C2.userId}, 1, ${JSON.stringify(otherDefinition)}::jsonb, '2026-01-01')`,
+    );
+    await db.execute(
+      sql`insert into goal_water_link (organization_id, user_id, goal_id, linked_at) values (${C2.organizationId}, ${C2.userId}, ${otherGoalId}, '2026-01-01T00:00:00.000Z')`,
+    );
+    await db.execute(
+      sql`insert into goal_water_cutover (organization_id, user_id) values (${C2.organizationId}, ${C2.userId})`,
+    );
+    expect((await water.getDay(C, "2026-10-04", "UTC")).personalGoalMl).toBeNull();
+    expect((await water.getDay(C2, "2026-10-04", "UTC")).personalGoalMl).toBe(2100);
+    await db.execute(sql`delete from goal where id = ${otherGoalId}`);
+    expect((await water.getDay(C2, "2026-10-04", "UTC")).personalGoalMl).toBeNull();
   });
 
   test("add replay is atomic under concurrency and mutation ids bind payload", async () => {

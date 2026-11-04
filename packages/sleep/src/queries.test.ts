@@ -8,6 +8,7 @@ import {
   buildSleepSummaryFromEventRows,
   getSleepSummary,
   getSleepSummaryForRange,
+  getPersonalSleepDailyEvidence,
   listSleepDailySummaries,
 } from "./queries";
 import type { SleepWindowSummary } from "./types";
@@ -135,6 +136,98 @@ describe("listSleepDailySummaries Drizzle query", () => {
     expect(fake.selects[0]?.table).toBe(healthEvent);
     expect(fake.selects[0]?.params).toContain("org-1");
     expect(fake.selects[0]?.params).toContain("sleep_session");
+  });
+});
+
+describe("personal sleep goal evidence", () => {
+  test("is owner scoped and uses the local wake-up date without double-counting overlaps", async () => {
+    const fake = fakeDb([
+      {
+        id: 1,
+        eventAt: new Date("2026-03-07T23:00:00.000Z"),
+        title: "sleep_session",
+        payloadJson: {
+          endAt: "2026-03-08T07:00:00.000Z",
+          sleepStageIntervals: [
+            { stage: "awake", start: "2026-03-08T01:00:00.000Z", end: "2026-03-08T03:00:00.000Z" },
+          ],
+        },
+      },
+      {
+        id: 2,
+        eventAt: new Date("2026-03-08T00:00:00.000Z"),
+        title: "sleep_session",
+        payloadJson: {
+          endAt: "2026-03-08T07:00:00.000Z",
+          sleepStageIntervals: [
+            { stage: "awake", start: "2026-03-08T01:00:00.000Z", end: "2026-03-08T03:00:00.000Z" },
+          ],
+        },
+      },
+    ]);
+    const evidence = await getPersonalSleepDailyEvidence(fake.db, {
+      organizationId: "org-1",
+      userId: "user-1",
+      startDate: "2026-03-08",
+      endDate: "2026-03-08",
+      // At 07:00Z on the spring-forward date it is already March 8 in New York.
+      timeZone: "America/New_York",
+    });
+    expect(fake.selects[0]?.params).toContain("user-1");
+    expect(fake.selects[0]?.sql).toContain('"user_id"');
+    expect(evidence).toEqual([
+      {
+        date: "2026-03-08",
+        minutes: 360,
+        wakeAt: "2026-03-08T07:00:00.000Z",
+        sessionIds: ["1", "2"],
+        source: "automatic_sleep",
+      },
+    ]);
+  });
+
+  test("unions deduplicated asleep time and assigns the actual local wake date across DST", async () => {
+    const fake = fakeDb([
+      {
+        id: 10,
+        eventAt: new Date("2026-03-08T06:00:00.000Z"),
+        title: "sleep_session",
+        payloadJson: {
+          endAt: "2026-03-08T14:00:00.000Z",
+          sleepStageIntervals: [
+            { stage: "awake", start: "2026-03-08T09:00:00.000Z", end: "2026-03-08T11:00:00.000Z" },
+          ],
+        },
+      },
+      {
+        id: 11,
+        eventAt: new Date("2026-03-08T07:00:00.000Z"),
+        title: "sleep_session",
+        payloadJson: {
+          endAt: "2026-03-08T14:00:00.000Z",
+          sleepStageIntervals: [
+            { stage: "awake", start: "2026-03-08T09:00:00.000Z", end: "2026-03-08T11:00:00.000Z" },
+          ],
+        },
+      },
+    ]);
+    const evidence = await getPersonalSleepDailyEvidence(fake.db, {
+      organizationId: "org-1",
+      userId: "owner",
+      startDate: "2026-03-08",
+      endDate: "2026-03-08",
+      timeZone: "America/Los_Angeles",
+    });
+    expect(evidence).toEqual([
+      {
+        date: "2026-03-08",
+        minutes: 360,
+        wakeAt: "2026-03-08T14:00:00.000Z",
+        sessionIds: ["10", "11"],
+        source: "automatic_sleep",
+      },
+    ]);
+    expect(fake.selects[0]?.params).toContain("owner");
   });
 });
 

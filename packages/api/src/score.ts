@@ -1,21 +1,15 @@
 import { listDailyActivityTotals } from "@openvalens/activity";
 import type { Database } from "@openvalens/db";
-import { createGoalRepository } from "@openvalens/plans";
 import { listSleepDailySummaries } from "@openvalens/sleep";
 import { listDailyVitals } from "@openvalens/vitals";
 
-import type { GoalProgressResult, ReadinessResult } from "./score-contract";
-import {
-  computeGoalProgress,
-  goalProgressAdultsOnly,
-  type GoalWithHistory,
-} from "./score-goal-progress";
+import type { ReadinessResult } from "./score-contract";
 import { computeReadiness, readinessAdultsOnly } from "./score-readiness";
 import { createWellnessProfileService } from "./wellness-profile";
 
 /**
- * Issue #95 — loads the inputs for the two scores from the existing domain
- * stores (sleep, vitals, activity, goals) and hands them to the pure
+ * Issue #95 — loads readiness inputs from the existing domain
+ * stores (sleep, vitals, activity) and hands them to the pure
  * algorithms. Nothing is cached or stored: every call recomputes from the
  * workspace's current records, so there is no score history to splice.
  *
@@ -29,10 +23,6 @@ export const READINESS_HISTORY_DAYS = 35;
 
 export type ScoreService = {
   readiness(scope: { organizationId: string; viewerUserId: string }): Promise<ReadinessResult>;
-  goalProgress(scope: {
-    organizationId: string;
-    viewerUserId: string;
-  }): Promise<GoalProgressResult>;
 };
 
 export function createScoreService(deps: { db: Database; now?: () => Date }): ScoreService {
@@ -66,20 +56,6 @@ export function createScoreService(deps: { db: Database; now?: () => Date }): Sc
         },
         asOf,
       );
-    },
-
-    async goalProgress({ organizationId, viewerUserId }) {
-      if (await viewerDeclaredUnder18(viewerUserId)) return goalProgressAdultsOnly();
-
-      const repository = createGoalRepository(db);
-      const goals = await repository.listGoals(organizationId);
-      const entries: GoalWithHistory[] = await Promise.all(
-        goals.map(async (goal) => ({
-          goal,
-          checkins: await repository.listCheckins(organizationId, goal.id),
-        })),
-      );
-      return computeGoalProgress(entries);
     },
   };
 }

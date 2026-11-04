@@ -263,6 +263,13 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
       values ('health-consent-export', 'user-a', 'health_data_consent', 'health-v1', now(), 're_consent')
     `);
 
+    // A collaborator's same-workspace goal must not be folded into the owner's
+    // personal export. The member and composite goal ownership are both real.
+    await db.execute(sql`
+      insert into goal (organization_id, user_id, title, category, status, source)
+      values ('org-a', 'user-a2', 'Other member personal goal', 'health', 'in_progress', 'manual')
+    `);
+
     await db.execute(sql`insert into billing_checkout_acknowledgement
       (id,user_id,version,immediate_start_requested,withdrawal_acknowledged,stripe_checkout_session_id)
       values ('00000000-0000-4000-8000-0000000000a1','user-a','checkout-v1',true,true,'cs_export_fixture')`);
@@ -373,6 +380,30 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
     expect(rows(exportedA2, "nutrition_energy_proposal").map((r) => r.user_id)).toEqual([
       "user-a2",
     ]);
+    expect(rows(exported, "goal").map((row) => [row.user_id, row.title])).toEqual([
+      ["user-a", "Personal goal a"],
+    ]);
+    expect(rows(exportedA2, "goal").map((row) => row.title)).toEqual([
+      "Other member personal goal",
+    ]);
+    expect(rows(exported, "goal_checkin").map((row) => row.user_id)).toEqual(["user-a", "user-a"]);
+    for (const table of [
+      "goal_definition",
+      "goal_milestone",
+      "goal_lifecycle",
+      "goal_mutation",
+      "goal_ownership_assignment",
+      "goal_water_link",
+      "goal_water_cutover",
+      "supplement_intake",
+    ])
+      expect(rows(exported, table).length).toBeGreaterThan(0);
+    expect(rows(exported, "goal_ownership_assignment").map((row) => row.assigned_user_id)).toEqual([
+      "user-a",
+    ]);
+    expect(exported.files.map((f) => f.content).join("\n")).not.toContain(
+      "Other member personal goal",
+    );
     expect(exported.files.map((f) => f.content).join("\n")).not.toContain("collaborator_canary");
   });
 
@@ -452,6 +483,7 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
     expect(parse("session")[0]).not.toHaveProperty("token");
     expect(parse("account")[0]).not.toHaveProperty("password");
     expect(parse("exercise_catalog_mutation")[0]).not.toHaveProperty("fingerprint");
+    expect(parse("goal_mutation")[0]).not.toHaveProperty("fingerprint");
     expect(all).not.toContain("d".repeat(64));
     expect(all).not.toContain("signup-token-hash-");
     expect(all).not.toContain("c".repeat(64));
@@ -460,6 +492,7 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
       "account",
       "admission_grant",
       "exercise_catalog_mutation",
+      "goal_mutation",
       "insight_preference",
       "nutrition_diary_batch",
       "nutrition_template_revision",

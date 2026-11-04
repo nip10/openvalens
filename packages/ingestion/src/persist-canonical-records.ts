@@ -114,9 +114,13 @@ function mobileEventKey(provider: Provider, intent: CanonicalHealthEventWriteInt
 export function mobileIntentDedupeHash(
   provider: Provider,
   intent: CanonicalWriteIntent,
+  ownerUserId?: string | null,
 ): string | null {
   if (intent.kind === "health_event")
-    return dedupeHash("health_event", mobileEventKey(provider, intent));
+    return dedupeHash("health_event", {
+      ...mobileEventKey(provider, intent),
+      ...(intent.canonicalType === "sleep_session" ? { ownerUserId: ownerUserId ?? null } : {}),
+    });
   const normalized = normalizeMetricSample({
     metricCode: intent.canonicalType,
     value: intent.value,
@@ -182,6 +186,8 @@ export async function persistCanonicalIntents(
     dataSourceId: number | null;
     ingestionBatchId: number | null;
     provider: Provider;
+    /** Resolved from the authenticated provider connection, never batch payload. */
+    ownerUserId?: string | null;
     intents: CanonicalWriteIntent[];
     dedupe: "legacy" | "mobile";
   },
@@ -276,6 +282,7 @@ export async function persistCanonicalIntents(
       .insert(healthEvent)
       .values({
         organizationId: input.organizationId,
+        userId: intent.canonicalType === "sleep_session" ? (input.ownerUserId ?? null) : null,
         dataSourceId: input.dataSourceId,
         ingestionBatchId: input.ingestionBatchId,
         eventType: intent.canonicalType,
@@ -294,7 +301,12 @@ export async function persistCanonicalIntents(
         dedupeHash: dedupeHash(
           "health_event",
           input.dedupe === "mobile"
-            ? mobileEventKey(input.provider, intent)
+            ? {
+                ...mobileEventKey(input.provider, intent),
+                ...(intent.canonicalType === "sleep_session"
+                  ? { ownerUserId: input.ownerUserId ?? null }
+                  : {}),
+              }
             : {
                 canonicalType: intent.canonicalType,
                 eventAt: intent.eventAt,

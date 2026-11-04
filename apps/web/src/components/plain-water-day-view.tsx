@@ -10,7 +10,6 @@ import {
   describeWaterSubtotal,
   observedTimeLabel,
   parseWaterAmount,
-  parseWaterGoal,
   waterAmountValue,
   waterDateInstant,
   type WaterDayRow,
@@ -24,6 +23,7 @@ import { Label } from "@openvalens/ui/components/label";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { Switch } from "@openvalens/ui/components/switch";
 import { plural } from "@lingui/core/macro";
+import { Link } from "@tanstack/react-router";
 import { ChevronRight, GlassWater, Pencil, Plus, Settings2, Trash2 } from "lucide-react";
 import { useId, useRef, useState } from "react";
 import { inlineButtonClass } from "./food-classes";
@@ -56,8 +56,6 @@ export type PlainWaterDayViewProps = {
   formError: string | null;
   onRetry: () => void;
   onToggleEnabled: (enabled: boolean) => void;
-  /** Resolves true once the server accepted the change. */
-  onSaveGoal: (personalGoalMl: number | null) => Promise<boolean>;
   onAdd: (
     input: { quantity: number; unit: WaterUnit; observedAt: string },
     generation?: number,
@@ -145,7 +143,6 @@ function PlainWaterDayViewState({
   formError,
   onRetry,
   onToggleEnabled,
-  onSaveGoal,
   onAdd,
   onChange,
   onDelete,
@@ -154,8 +151,6 @@ function PlainWaterDayViewState({
 }: PlainWaterDayViewProps) {
   const { t, i18n } = useLingui();
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [goalText, setGoalText] = useState("");
-  const [goalError, setGoalError] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [amount, setAmount] = useState("");
   const [addUnit, setAddUnit] = useState<WaterUnit>(unit);
@@ -254,18 +249,6 @@ function PlainWaterDayViewState({
       setEditing(null);
       setEditGeneration(null);
     }
-  };
-
-  const submitGoal = async (clear: boolean) => {
-    if (clear) {
-      setGoalError(null);
-      await onSaveGoal(null);
-      return;
-    }
-    const parsed = parseWaterGoal(goalText, unit);
-    if (!parsed.ok) return setGoalError(i18n._(parsed.error));
-    setGoalError(null);
-    await onSaveGoal(parsed.personalGoalMl);
   };
 
   const errorLine = (
@@ -536,48 +519,18 @@ function PlainWaterDayViewState({
                   <p className="font-display text-sm font-medium text-ink">
                     {i18n._(WATER_COPY.goalLabel)}
                   </p>
-                  {hideNumbers ? (
-                    <p className="text-sm text-ink-3">{i18n._(WATER_COPY.editGoalHiddenNote)}</p>
-                  ) : null}
-                  <div className="flex flex-wrap items-end gap-2">
-                    <WaterField label={i18n._(WATER_COPY.goalAmountLabel)}>
-                      {(id) => (
-                        <Input
-                          id={id}
-                          inputMode="decimal"
-                          placeholder={i18n._(WATER_COPY.goalAmountPlaceholder)}
-                          value={goalText}
-                          aria-invalid={goalError !== null}
-                          onChange={(event) => setGoalText(event.target.value)}
-                        />
-                      )}
-                    </WaterField>
-                    {hideNumbers ? null : (
-                      <span className="pb-2 text-sm text-ink-3">{WATER_UNIT_LABELS[unit]}</span>
-                    )}
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => void submitGoal(false)}
-                      disabled={busy !== null}
-                    >
-                      {i18n._(busy === "settings" ? WATER_COPY.saving : WATER_COPY.setGoal)}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => void submitGoal(true)}
-                      disabled={busy !== null || (view.personalGoalMl === null && !hideNumbers)}
-                    >
-                      {i18n._(WATER_COPY.clearGoal)}
-                    </Button>
-                  </div>
-                  {goalError ? (
-                    <p className="text-sm text-destructive" role="alert">
-                      {goalError}
-                    </p>
-                  ) : null}
-                  <p className="text-sm text-ink-3">{i18n._(WATER_COPY.goalNote)}</p>
+                  <p className="text-sm text-ink-3">
+                    <Trans>
+                      The daily water target is managed by one linked goal. Ending that goal also
+                      ends the target; your water entries stay in the diary.
+                    </Trans>
+                  </p>
+                  <Link
+                    to="/goals"
+                    className="inline-flex min-h-10 w-fit items-center rounded-xl bg-food-soft px-4 text-sm font-semibold text-ink hover:bg-muted"
+                  >
+                    <Trans>Manage water goal</Trans>
+                  </Link>
                 </div>
               </div>
             </details>

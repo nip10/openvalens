@@ -464,17 +464,6 @@ export function PlainWaterSection({
           next ? WATER_COPY.turnedOn : WATER_COPY.turnedOff,
         );
       }}
-      onSaveGoal={(personalGoalMl) =>
-        settingsWrite(
-          () =>
-            preferences.mutateAsync(
-              personalGoalMl === null
-                ? { personalGoal: null }
-                : { personalGoal: personalGoalMl, personalGoalUnit: "ml" },
-            ),
-          personalGoalMl === null ? WATER_COPY.goalCleared : WATER_COPY.goalSaved,
-        )
-      }
       onAdd={onAdd}
       onChange={onChange}
       onDelete={onDelete}

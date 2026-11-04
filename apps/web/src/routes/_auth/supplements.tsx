@@ -9,6 +9,7 @@ import {
   supplementDoseLabel,
   supplementFrequencyLabel,
 } from "@openvalens/api/presenters/supplements";
+import type { SupplementIntake } from "@openvalens/plans/supplement-intake";
 import { Button } from "@openvalens/ui/components/button";
 import { Input } from "@openvalens/ui/components/input";
 import { Label } from "@openvalens/ui/components/label";
@@ -419,6 +420,8 @@ function SupplementsPage() {
         <AddSupplementForm onSaved={() => void supplements.refetch()} />
       </section>
 
+      <SupplementIntakeSection supplements={supplementList} />
+
       <Section icon={Tablets} tone="heart" title={<Trans>Medications</Trans>}>
         <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
           {medicationList.length === 0 ? (
@@ -476,5 +479,249 @@ function SupplementsPage() {
         </div>
       </Section>
     </Page>
+  );
+}
+
+function SupplementIntakeSection({
+  supplements,
+}: {
+  supplements: Array<{ id: number; name: string; dose: string | null }>;
+}) {
+  const { t } = useLingui();
+  const client = useQueryClient();
+  const now = new Date();
+  const from = new Date(now.getTime() - 7 * 86_400_000).toISOString();
+  const rows = useQuery(orpc.supplementIntake.list.queryOptions({ input: { from } }));
+  const [selected, setSelected] = useState(String(supplements[0]?.id ?? ""));
+  const [dose, setDose] = useState("");
+  const [occurredLocal, setOccurredLocal] = useState(() => {
+    const d = new Date();
+    return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+  });
+  const [editing, setEditing] = useState<number | null>(null);
+  const [editDose, setEditDose] = useState("");
+  const [editOccurred, setEditOccurred] = useState("");
+  const [createKey, setCreateKey] = useState("");
+  const [updateKeys, setUpdateKeys] = useState<Record<number, string>>({});
+  const [deleteKeys, setDeleteKeys] = useState<Record<number, string>>({});
+  const refresh = async () => {
+    await client.invalidateQueries({ queryKey: orpc.supplementIntake.key() });
+    await client.invalidateQueries({ queryKey: orpc.goals.key() });
+  };
+  const create = useMutation(
+    orpc.supplementIntake.create.mutationOptions({
+      onSuccess: async () => {
+        setDose("");
+        setCreateKey("");
+        await refresh();
+      },
+    }),
+  );
+  const remove = useMutation(
+    orpc.supplementIntake.delete.mutationOptions({
+      onSuccess: async (_result, variables) => {
+        setDeleteKeys((current) => {
+          const next = { ...current };
+          delete next[variables.id];
+          return next;
+        });
+        await refresh();
+      },
+    }),
+  );
+  const correct = useMutation(
+    orpc.supplementIntake.update.mutationOptions({
+      onSuccess: async (_result, variables) => {
+        setEditing(null);
+        setUpdateKeys((current) => {
+          const next = { ...current };
+          delete next[variables.id];
+          return next;
+        });
+        await refresh();
+      },
+    }),
+  );
+  return (
+    <Section
+      icon={Pill}
+      tone="food"
+      title={<Trans>Log supplement intake</Trans>}
+      description={
+        <Trans>
+          Log doses actually taken. Schedules are reminders, not proof. Goals count the day once,
+          while every dose stays recorded.
+        </Trans>
+      }
+    >
+      {supplements.length === 0 ? (
+        <EmptyState
+          title={<Trans>Add a supplement first</Trans>}
+          description={
+            <Trans>Actual intake can be logged after you add a supplement to your list.</Trans>
+          }
+        />
+      ) : (
+        <form
+          className="flex flex-wrap items-end gap-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const supplementId = Number(selected);
+            const item = supplements.find((s) => s.id === supplementId);
+            if (!item) return;
+            const actualDose = dose.trim() || item.dose;
+            if (!actualDose) return;
+            const key = createKey || globalThis.crypto.randomUUID();
+            setCreateKey(key);
+            create.mutate({
+              supplementId,
+              occurredAt: new Date(occurredLocal).toISOString(),
+              timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+              dose: actualDose,
+              clientMutationId: key,
+            });
+          }}
+        >
+          <Field label={t`Supplement`}>
+            <Select
+              value={selected}
+              onValueChange={(value) => {
+                setSelected(value);
+                if (create.isError) setCreateKey("");
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {supplements.map((s) => (
+                  <SelectItem key={s.id} value={String(s.id)}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field label={t`Dose taken`}>
+            <Input
+              value={dose}
+              onChange={(e) => {
+                setDose(e.target.value);
+                if (create.isError) setCreateKey("");
+              }}
+              placeholder={supplements.find((s) => String(s.id) === selected)?.dose ?? "Dose"}
+            />
+          </Field>
+          <Field label={t`Time taken`}>
+            <Input
+              type="datetime-local"
+              value={occurredLocal}
+              onChange={(e) => {
+                setOccurredLocal(e.target.value);
+                if (create.isError) setCreateKey("");
+              }}
+            />
+          </Field>
+          <Button type="submit" disabled={create.isPending}>
+            <Trans>Log dose</Trans>
+          </Button>
+        </form>
+      )}
+      {create.isError ? (
+        <p role="alert" className="mt-2 text-sm text-destructive">
+          <Trans>Could not save intake. Try again.</Trans>
+        </p>
+      ) : null}
+      {rows.isError ? (
+        <p className="mt-3 text-sm text-destructive">
+          <Trans>Could not load recent intake.</Trans>
+        </p>
+      ) : rows.data?.length ? (
+        <ul className="mt-4 grid gap-2">
+          {rows.data.map((row: SupplementIntake) => (
+            <li key={row.id} className="sheet grid gap-2 p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-sm">
+                  <strong>
+                    {supplements.find((s) => s.id === row.supplementId)?.name ?? t`Supplement`}
+                  </strong>{" "}
+                  · {row.dose} · {new Date(row.occurredAt).toLocaleString()}
+                </span>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setEditing(row.id);
+                      setEditDose(row.dose);
+                      setEditOccurred(
+                        new Date(
+                          new Date(row.occurredAt).getTime() -
+                            new Date(row.occurredAt).getTimezoneOffset() * 60000,
+                        )
+                          .toISOString()
+                          .slice(0, 16),
+                      );
+                    }}
+                  >
+                    <Trans>Correct</Trans>
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      if (window.confirm("Remove this intake record?")) {
+                        const key = deleteKeys[row.id] || globalThis.crypto.randomUUID();
+                        setDeleteKeys((current) => ({ ...current, [row.id]: key }));
+                        remove.mutate({ id: row.id, version: row.version, clientMutationId: key });
+                      }
+                    }}
+                  >
+                    <Trans>Undo</Trans>
+                  </Button>
+                </div>
+              </div>
+              {editing === row.id ? (
+                <div className="flex flex-wrap gap-2">
+                  <Input
+                    aria-label="Corrected dose"
+                    value={editDose}
+                    onChange={(e) => setEditDose(e.target.value)}
+                  />
+                  <Input
+                    aria-label="Corrected time"
+                    type="datetime-local"
+                    value={editOccurred}
+                    onChange={(e) => setEditOccurred(e.target.value)}
+                  />
+                  <Button
+                    size="sm"
+                    disabled={correct.isPending}
+                    onClick={() => {
+                      const key = updateKeys[row.id] || globalThis.crypto.randomUUID();
+                      setUpdateKeys((current) => ({ ...current, [row.id]: key }));
+                      correct.mutate({
+                        id: row.id,
+                        version: row.version,
+                        dose: editDose,
+                        occurredAt: new Date(editOccurred).toISOString(),
+                        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+                        clientMutationId: key,
+                      });
+                    }}
+                  >
+                    <Trans>Save correction</Trans>
+                  </Button>
+                </div>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-3 text-sm text-ink-3">
+          <Trans>No actual doses logged this week.</Trans>
+        </p>
+      )}
+    </Section>
   );
 }

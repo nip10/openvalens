@@ -171,6 +171,15 @@ export function rowFilter(table: string, subject: DataRightsSubject): SQL {
       // record. Keep the organization classification for container erasure,
       // but export only this subject's values across their memberships.
       if (
+        table === "goal" ||
+        table === "goal_checkin" ||
+        table === "goal_definition" ||
+        table === "goal_milestone" ||
+        table === "goal_lifecycle" ||
+        table === "goal_mutation" ||
+        table === "goal_water_link" ||
+        table === "goal_water_cutover" ||
+        table === "supplement_intake" ||
         table === "nutrition_goal" ||
         table === "nutrition_energy_proposal" ||
         table === "nutrition_target_settings" ||
@@ -181,6 +190,13 @@ export function rowFilter(table: string, subject: DataRightsSubject): SQL {
         table === "chat_message"
       )
         return sql`user_id = ${subject.userId}`;
+      if (table === "goal_ownership_assignment")
+        return sql`assigned_user_id = ${subject.userId} or assigned_by_user_id = ${subject.userId}`;
+      // Health events may be legacy workspace evidence (NULL owner) or
+      // explicitly attributed personal evidence. Never export another
+      // member's attributed events, even from a workspace the subject owns.
+      if (table === "health_event")
+        return sql`user_id = ${subject.userId} or (user_id is null and ${inList("organization_id", orgIds)})`;
       if (table === "workout")
         return sql`user_id = ${subject.userId} or (user_id is null and ${inList("organization_id", orgIds)} and exists (
           select 1 from workout_exercise e where e.workout_id = workout.id
@@ -249,6 +265,23 @@ export function deletionRowFilter(table: string, subject: DataRightsSubject): SQ
   if (table === "workout_mutation" || table === "workout_operation")
     return sql`user_id = ${subject.userId} or ${inList("organization_id", orgIds)}`;
   if (table === "stored_object") return inList("organization_id", subject.organizationIds);
+  if (
+    table === "goal" ||
+    table === "goal_checkin" ||
+    table === "goal_definition" ||
+    table === "goal_milestone" ||
+    table === "goal_lifecycle" ||
+    table === "goal_mutation" ||
+    table === "goal_water_link" ||
+    table === "goal_water_cutover" ||
+    table === "supplement_intake"
+  )
+    return sql`user_id = ${subject.userId} or ${inList("organization_id", subject.organizationIds)}`;
+  if (table === "goal_ownership_assignment")
+    return sql`assigned_user_id = ${subject.userId} or assigned_by_user_id = ${subject.userId}
+      or ${inList("organization_id", subject.organizationIds)}`;
+  if (table === "health_event")
+    return sql`user_id = ${subject.userId} or (user_id is null and ${inList("organization_id", subject.organizationIds)})`;
   // Snapshots are deduplicated and have no member owner. Estimate container
   // snapshots plus the subject's own diary/template/favourite references, but
   // exclude snapshots still referenced by another member in a surviving org.
@@ -291,6 +324,15 @@ export function deletionRowFilter(table: string, subject: DataRightsSubject): SQ
   )
     return sql`user_id = ${subject.userId} or ${inList("organization_id", subject.organizationIds)}`;
   if (
+    table === "goal" ||
+    table === "goal_checkin" ||
+    table === "goal_definition" ||
+    table === "goal_milestone" ||
+    table === "goal_lifecycle" ||
+    table === "goal_mutation" ||
+    table === "goal_water_link" ||
+    table === "goal_water_cutover" ||
+    table === "supplement_intake" ||
     table === "nutrition_goal" ||
     table === "nutrition_energy_proposal" ||
     table === "nutrition_target_settings" ||
@@ -300,6 +342,11 @@ export function deletionRowFilter(table: string, subject: DataRightsSubject): SQ
     table === "chat_message"
   )
     return sql`user_id = ${subject.userId} or ${inList("organization_id", subject.organizationIds)}`;
+  if (table === "goal_ownership_assignment")
+    return sql`assigned_user_id = ${subject.userId} or assigned_by_user_id = ${subject.userId}
+      or ${inList("organization_id", subject.organizationIds)}`;
+  if (table === "health_event")
+    return sql`user_id = ${subject.userId} or (user_id is null and ${inList("organization_id", subject.organizationIds)})`;
   return rowFilter(table, subject);
 }
 

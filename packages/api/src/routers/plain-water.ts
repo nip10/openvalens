@@ -41,6 +41,7 @@ const run = async <T>(work: () => Promise<T>): Promise<T> => {
   } catch (error) {
     if (error instanceof NutritionError) {
       if (error.code === "NOT_FOUND") throw raiseApiError("NOT_FOUND", error.message);
+      if (error.code === "CONFLICT") throw raiseApiError("CONFLICT", error.message);
       throw raiseApiError("INVALID_INPUT", error.message, { reason: error.code });
     }
     throw error;

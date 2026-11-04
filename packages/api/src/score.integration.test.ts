@@ -4,15 +4,14 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { clearRegisteredAuth, setRegisteredAuth, type Auth } from "@openvalens/auth";
 import { createDb, sql, type Database } from "@openvalens/db";
 import { healthEvent, metricDefinition, metricSample } from "@openvalens/db/schema/health-record";
-import { goal, goalCheckin } from "@openvalens/db/schema/plans";
 import { RPCHandler } from "@orpc/server/fetch";
 
 import type { Context } from "./context";
 import { appRouter } from "./routers/index";
-import type { GoalProgressResult, ReadinessResult } from "./score-contract";
+import type { ReadinessResult } from "./score-contract";
 
 /**
- * Issue #95 — `score.readiness` / `score.goalProgress` (and the goal
+ * Issue #95 — `score.readiness` (and the goal
  * measurement fields on `plans.goals.upsertGoal`) over HTTP (oRPC
  * `RPCHandler`) against a disposable PostgreSQL: real domain reads, the
  * weight-loss direction regression, permissions, workspace isolation, the
@@ -142,7 +141,7 @@ describe.skipIf(!url)("score over HTTP against disposable PostgreSQL", () => {
         ? contextFor(headers)
         : ({ ...contextFor(headers), session: null } as unknown as Context),
     });
-    if (!matched || !response) throw new Error("unmatched RPC path");
+    if (!matched || !response) return { status: 404, body: {} as T };
     const parsed = (await response.json()) as { json: T };
     return { status: response.status, body: parsed.json };
   }
@@ -227,44 +226,6 @@ describe.skipIf(!url)("score over HTTP against disposable PostgreSQL", () => {
     }
     await db.insert(metricSample).values(samples);
     await db.insert(healthEvent).values(sleeps);
-
-    // org-a goals: a weight-loss goal above its target (the #95 bug), and a paused one.
-    const [weight] = await db
-      .insert(goal)
-      .values({
-        organizationId: "org-a",
-        title: "Synthetic weight goal",
-        category: "body_composition",
-        status: "in_progress",
-        currentValue: "80 kg",
-        targetValue: "70 kg",
-        baselineValue: "85 kg",
-        direction: "decrease",
-        priority: "high",
-      })
-      .returning({ id: goal.id });
-    await db.insert(goalCheckin).values([
-      { organizationId: "org-a", goalId: weight!.id, date: "2026-10-01", value: "79 kg" },
-      { organizationId: "org-a", goalId: weight!.id, date: "2026-10-08", value: "80 kg" },
-    ]);
-    await db.insert(goal).values({
-      organizationId: "org-a",
-      title: "Synthetic paused goal",
-      category: "strength",
-      status: "paused",
-      currentValue: "0",
-      targetValue: "100",
-      direction: "increase",
-    });
-    // A legacy goal with no direction and no baseline: never "achieved".
-    await db.insert(goal).values({
-      organizationId: "org-a",
-      title: "Synthetic legacy goal",
-      category: "body_composition",
-      status: "in_progress",
-      currentValue: "82 kg",
-      targetValue: "80 kg",
-    });
   });
 
   afterAll(() => {
@@ -328,41 +289,16 @@ describe.skipIf(!url)("score over HTTP against disposable PostgreSQL", () => {
     expect((await call("score/readiness", {}, null)).status).toBe(401);
   });
 
-  test("goal progress: direction-aware, flags the setback, excludes paused and unknown", async () => {
-    const { status, body } = await call<GoalProgressResult>("score/goalProgress", {});
-    expect(status).toBe(200);
-    expect(body.status).toBe("available");
-    const byTitle = Object.fromEntries(body.goals.map((g) => [g.title, g]));
-    expect(byTitle["Synthetic weight goal"]).toMatchObject({
-      state: "scored",
-      reachedTarget: false,
-      progress: 1 / 3,
-      trend: "away_from_target",
-      flagged: true,
-      contribution: 1,
-    });
-    expect(byTitle["Synthetic paused goal"]).toMatchObject({ state: "paused", progress: null });
-    expect(byTitle["Synthetic legacy goal"]).toMatchObject({
-      state: "needs_direction",
-      reachedTarget: false,
-      progress: null,
-    });
-    expect(body.score).toBe(33);
-    expect(body.coverage).toEqual({ scored: 1, total: 3, flagged: 1 });
-  });
-
-  test("goal progress: another workspace gets no goals; anonymous is rejected", async () => {
-    const other = await call<GoalProgressResult>("score/goalProgress", {}, "user-b");
-    expect(other.body).toMatchObject({ status: "withheld", withheldReason: "no_goals", goals: [] });
-    expect((await call("score/goalProgress", {}, null)).status).toBe(401);
-    expect((await call("score/goalProgress", {}, "user-n")).status).toBe(403);
+  test("the deprecated aggregate goal-progress procedure is absent while readiness stays exposed", async () => {
+    const readiness = await call<ReadinessResult>("score/readiness", {});
+    expect(readiness.status).toBe(200);
+    expect(readiness.body.kind).toBe("readiness");
+    expect((await call("score/goalProgress", {})).status).toBe(404);
   });
 
   test("scores are withheld for a person who declared they are under 18", async () => {
     const readiness = await call<ReadinessResult>("score/readiness", {}, "user-u");
     expect(readiness.body).toMatchObject({ status: "withheld", withheldReason: "adults_only" });
-    const goals = await call<GoalProgressResult>("score/goalProgress", {}, "user-u");
-    expect(goals.body).toMatchObject({ status: "withheld", withheldReason: "adults_only" });
   });
 
   test("upsertGoal stores direction, baseline and priority; rejects unknown values", async () => {

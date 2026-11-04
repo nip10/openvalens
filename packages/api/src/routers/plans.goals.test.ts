@@ -188,12 +188,15 @@ function fakeDb(store: RowStore): { db: Database; calls: CapturedCall[] } {
             params: query.params,
           });
           const key = findTable(table);
-          if (key) {
-            for (const row of store[key]) {
-              Object.assign(row, payload);
-            }
+          const updatedRows = key
+            ? filterRows(store[key], parseEqPredicates(query.sql, query.params))
+            : [];
+          for (const row of updatedRows) {
+            Object.assign(row, payload);
           }
-          return Promise.resolve();
+          return Object.assign(Promise.resolve(), {
+            returning: async () => updatedRows.map((row) => ({ id: row.id })),
+          });
         },
       };
       return node;
@@ -342,6 +345,7 @@ describe("plans.goals — write boundary", () => {
         {
           id: 1,
           organizationId: "org-1",
+          userId: "user-1",
           title: "Existing goal",
           category: "strength",
           horizon: null,
@@ -413,6 +417,7 @@ describe("plans.goals — write boundary", () => {
         {
           id: 5,
           organizationId: "org-1",
+          userId: "user-1",
           title: "Bench 100kg",
           category: "strength",
           horizon: "short",

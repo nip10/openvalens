@@ -9,11 +9,12 @@ import {
   supplementDoseLabel,
   supplementFrequencyLabel,
 } from "@openvalens/api/presenters/supplements";
+import type { SupplementIntake } from "@openvalens/plans/supplement-intake";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Spinner } from "heroui-native";
 import { Pill, Plus, Tablets } from "lucide-react-native";
 import { useState } from "react";
-import { Pressable, RefreshControl, Text, TextInput, View } from "react-native";
+import { Alert, Pressable, RefreshControl, Text, TextInput, View } from "react-native";
 
 import {
   EmptyState,
@@ -412,6 +413,9 @@ export default function SupplementsScreen() {
         </View>
 
         <AddSupplementForm onSaved={() => void supplements.refetch()} />
+        <ActualIntake
+          supplements={supplementList.map((item) => ({ ...item, dose: item.dose ?? "" }))}
+        />
 
         <Section icon={Tablets} tone="heart" title={t`Medications`}>
           {medicationList.length === 0 ? (
@@ -468,5 +472,216 @@ export default function SupplementsScreen() {
         <AddMedicationForm onSaved={() => void medications.refetch()} />
       </Page>
     </Container>
+  );
+}
+
+function ActualIntake({
+  supplements,
+}: {
+  supplements: Array<{ id: number; name: string; dose: string }>;
+}) {
+  const { t } = useLingui();
+  const client = useQueryClient();
+  const rows = useQuery(orpc.supplementIntake.list.queryOptions({ input: {} }));
+  const [selected, setSelected] = useState(supplements[0]?.id ?? 0);
+  const [dose, setDose] = useState("");
+  const [occurredAt, setOccurredAt] = useState(new Date().toISOString());
+  const [editing, setEditing] = useState<number | null>(null);
+  const [correctedDose, setCorrectedDose] = useState("");
+  const [correctedAt, setCorrectedAt] = useState("");
+  const [createKey, setCreateKey] = useState("");
+  const [updateKeys, setUpdateKeys] = useState<Record<number, string>>({});
+  const [deleteKeys, setDeleteKeys] = useState<Record<number, string>>({});
+  const refresh = async () => {
+    await client.invalidateQueries({ queryKey: orpc.supplementIntake.key() });
+    await client.invalidateQueries({ queryKey: orpc.goals.key() });
+  };
+  const add = useMutation(
+    orpc.supplementIntake.create.mutationOptions({
+      onSuccess: async () => {
+        setDose("");
+        setCreateKey("");
+        await refresh();
+      },
+    }),
+  );
+  const remove = useMutation(
+    orpc.supplementIntake.delete.mutationOptions({
+      onSuccess: async (_result, variables) => {
+        setDeleteKeys((current) => {
+          const next = { ...current };
+          delete next[variables.id];
+          return next;
+        });
+        await refresh();
+      },
+    }),
+  );
+  const correct = useMutation(
+    orpc.supplementIntake.update.mutationOptions({
+      onSuccess: async (_result, variables) => {
+        setEditing(null);
+        setUpdateKeys((current) => {
+          const next = { ...current };
+          delete next[variables.id];
+          return next;
+        });
+        await refresh();
+      },
+    }),
+  );
+  return (
+    <Section
+      icon={Pill}
+      tone="food"
+      title={t`Log actual intake`}
+      description={t`Reminders are not proof. Log doses you took; goal credit is once per day, while each real dose stays recorded.`}
+    >
+      {supplements.length ? (
+        <View className="gap-3">
+          <View className="flex-row flex-wrap gap-2">
+            {supplements.map((s) => (
+              <Pressable
+                key={s.id}
+                accessibilityRole="button"
+                accessibilityState={{ selected: selected === s.id }}
+                onPress={() => {
+                  setSelected(s.id);
+                  if (add.isError) setCreateKey("");
+                }}
+                className={`rounded-xl border px-3 py-2 ${selected === s.id ? "border-signal bg-food-soft" : "border-border"}`}
+              >
+                <Text className="text-ink">{s.name}</Text>
+              </Pressable>
+            ))}
+          </View>
+          <TextInput
+            accessibilityLabel={t`Dose actually taken`}
+            value={dose}
+            onChangeText={(value) => {
+              setDose(value);
+              if (add.isError) setCreateKey("");
+            }}
+            placeholder={supplements.find((s) => s.id === selected)?.dose ?? t`Dose taken`}
+            className="rounded-xl border border-border p-3 text-ink"
+          />
+          <TextInput
+            accessibilityLabel={t`Date and time taken`}
+            value={occurredAt}
+            onChangeText={(value) => {
+              setOccurredAt(value);
+              if (add.isError) setCreateKey("");
+            }}
+            placeholder="2026-11-02T09:00:00.000Z"
+            className="rounded-xl border border-border p-3 text-ink"
+          />
+          <Button
+            isDisabled={!selected || add.isPending}
+            onPress={() => {
+              const key = createKey || globalThis.crypto.randomUUID();
+              setCreateKey(key);
+              add.mutate({
+                supplementId: selected,
+                occurredAt,
+                timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+                dose: dose.trim() || supplements.find((s) => s.id === selected)?.dose || "Dose",
+                clientMutationId: key,
+              });
+            }}
+          >
+            <Button.Label>{add.isPending ? t`Saving…` : t`Log dose`}</Button.Label>
+          </Button>
+        </View>
+      ) : (
+        <Text className="text-sm text-ink-3">{t`Add a supplement first to log an actual dose.`}</Text>
+      )}
+      {add.isError ? (
+        <Text accessibilityRole="alert" className="text-sm text-destructive">
+          {add.error.message ?? t`Could not save intake. Retry the same dose.`}
+        </Text>
+      ) : null}
+      {rows.isError ? (
+        <Text
+          accessibilityRole="alert"
+          className="text-sm text-destructive"
+        >{t`Could not load intake history.`}</Text>
+      ) : null}
+      {rows.data?.map((row: SupplementIntake) => (
+        <View key={row.id} className="mt-2 rounded-xl bg-paper-2 p-3">
+          <View className="flex-row items-center justify-between">
+            <Text className="flex-1 text-sm text-ink">
+              {supplements.find((s) => s.id === row.supplementId)?.name ?? t`Supplement`} ·{" "}
+              {row.dose} · {new Date(row.occurredAt).toLocaleString()}
+            </Text>
+            <View className="flex-row gap-1">
+              <Button
+                size="sm"
+                variant="outline"
+                onPress={() => {
+                  setEditing(row.id);
+                  setCorrectedDose(row.dose);
+                  setCorrectedAt(row.occurredAt);
+                }}
+              >
+                <Button.Label>{t`Correct`}</Button.Label>
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onPress={() =>
+                  Alert.alert(t`Undo this intake?`, t`This removes only the intake record.`, [
+                    { text: t`Cancel`, style: "cancel" },
+                    {
+                      text: t`Undo`,
+                      style: "destructive",
+                      onPress: () => {
+                        const key = deleteKeys[row.id] || globalThis.crypto.randomUUID();
+                        setDeleteKeys((current) => ({ ...current, [row.id]: key }));
+                        remove.mutate({ id: row.id, version: row.version, clientMutationId: key });
+                      },
+                    },
+                  ])
+                }
+              >
+                <Button.Label>{t`Undo`}</Button.Label>
+              </Button>
+            </View>
+          </View>
+          {editing === row.id ? (
+            <View className="mt-2 gap-2">
+              <TextInput
+                accessibilityLabel={t`Corrected dose`}
+                value={correctedDose}
+                onChangeText={setCorrectedDose}
+                className="rounded-xl border border-border p-3 text-ink"
+              />
+              <TextInput
+                accessibilityLabel={t`Corrected date and time`}
+                value={correctedAt}
+                onChangeText={setCorrectedAt}
+                className="rounded-xl border border-border p-3 text-ink"
+              />
+              <Button
+                isDisabled={correct.isPending}
+                onPress={() => {
+                  const key = updateKeys[row.id] || globalThis.crypto.randomUUID();
+                  setUpdateKeys((current) => ({ ...current, [row.id]: key }));
+                  correct.mutate({
+                    id: row.id,
+                    version: row.version,
+                    dose: correctedDose,
+                    occurredAt: correctedAt,
+                    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+                    clientMutationId: key,
+                  });
+                }}
+              >
+                <Button.Label>{correct.isPending ? t`Saving…` : t`Save correction`}</Button.Label>
+              </Button>
+            </View>
+          ) : null}
+        </View>
+      ))}
+    </Section>
   );
 }

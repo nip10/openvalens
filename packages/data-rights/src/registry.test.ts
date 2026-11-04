@@ -1,8 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import * as schema from "@openvalens/db/schema/index";
-import { getTableConfig, PgTable } from "drizzle-orm/pg-core";
+import { getTableConfig, PgDialect, PgTable } from "drizzle-orm/pg-core";
 
 import { DATA_RIGHTS_REGISTRY, isExported } from "./registry";
+import { deletionRowFilter, rowFilter } from "./export";
 
 const tables = (Object.values(schema) as unknown[])
   .filter((value): value is PgTable => value instanceof PgTable)
@@ -62,6 +63,57 @@ describe("data-rights registry", () => {
     expect(isExported(entry!)).toBe(true);
     const table = tables.find((candidate) => candidate.name === "billing_checkout_acknowledgement");
     expect(table?.columns.map((column) => column.name)).toContain("user_id");
+  });
+
+  test("goal identity, history and source receipts are registered as private organization data", () => {
+    for (const name of [
+      "goal",
+      "goal_checkin",
+      "goal_definition",
+      "goal_milestone",
+      "goal_lifecycle",
+      "goal_mutation",
+      "goal_ownership_assignment",
+      "goal_water_link",
+      "goal_water_cutover",
+      "supplement_intake",
+    ]) {
+      expect(DATA_RIGHTS_REGISTRY[name]?.kind).toBe("organization");
+      expect(isExported(DATA_RIGHTS_REGISTRY[name]!)).toBe(true);
+    }
+  });
+
+  test("private goal exports exclude other owners and ownerless legacy rows", () => {
+    const query = new PgDialect().sqlToQuery(
+      rowFilter("goal", {
+        userId: "subject-a",
+        organizationIds: ["org-a"],
+      }),
+    );
+    expect(query.sql).toContain("user_id = $1");
+    expect(query.params).toEqual(["subject-a"]);
+    expect(query.sql).not.toContain("organization_id in");
+  });
+
+  test("goal erasure covers own memberships and container legacy rows; attributed health events stay scoped", () => {
+    const dialect = new PgDialect();
+    const goalQuery = dialect.sqlToQuery(
+      deletionRowFilter("goal", {
+        userId: "subject-a",
+        organizationIds: ["org-a"],
+      }),
+    );
+    expect(goalQuery.sql).toContain("user_id = $1");
+    expect(goalQuery.sql).toContain("organization_id");
+    const eventQuery = dialect.sqlToQuery(
+      deletionRowFilter("health_event", {
+        userId: "subject-a",
+        organizationIds: ["org-a"],
+      }),
+    );
+    expect(eventQuery.sql).toContain("user_id is null");
+    expect(eventQuery.sql).toContain("organization_id");
+    expect(eventQuery.params).toContain("subject-a");
   });
 
   test("credential columns of exported tables are redacted", () => {

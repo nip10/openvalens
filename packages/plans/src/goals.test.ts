@@ -167,12 +167,15 @@ function fakeDb(store: RowStore): { db: Database; calls: CapturedCall[] } {
           const query = dialect.sqlToQuery(condition);
           calls.push({ kind: "update", table, payload, sql: query.sql, params: query.params });
           const key = findTable(table);
-          if (key) {
-            for (const row of store[key]) {
-              Object.assign(row, payload);
-            }
+          const updatedRows = key
+            ? filterRows(store[key], parseEqPredicates(query.sql, query.params))
+            : [];
+          for (const row of updatedRows) {
+            Object.assign(row, payload);
           }
-          return Promise.resolve();
+          return Object.assign(Promise.resolve(), {
+            returning: async () => updatedRows.map((row) => ({ id: row.id })),
+          });
         },
       };
       return node;
@@ -435,9 +438,20 @@ describe("goals — derived helpers", () => {
 });
 
 describe("goals — repository", () => {
+  test("legacy repository fails closed without an authenticated owner", async () => {
+    const state = fakeDb({ goals: [], checkins: [] });
+    expect(await createGoalRepository(state.db).listGoals("org-1")).toEqual([]);
+    await expect(
+      createGoalRepository(state.db).upsertGoal("org-1", {
+        title: "Private",
+        category: "health",
+      }),
+    ).rejects.toThrow(/Authenticated goal owner required/);
+  });
+
   test("listGoals scopes by active organization", async () => {
     const state = fakeDb({ goals: [], checkins: [] });
-    const rows = await createGoalRepository(state.db).listGoals("org-1");
+    const rows = await createGoalRepository(state.db, "user-1").listGoals("org-1");
     expect(rows).toEqual([]);
     const select = state.calls.find((c) => c.kind === "select" && c.table === goal);
     if (select?.kind !== "select") throw new Error("expected select call");
@@ -446,7 +460,7 @@ describe("goals — repository", () => {
 
   test("upsertGoal insert defaults status to not_started", async () => {
     const state = fakeDb({ goals: [], checkins: [] });
-    const result = await createGoalRepository(state.db).upsertGoal("org-1", {
+    const result = await createGoalRepository(state.db, "user-1").upsertGoal("org-1", {
       title: "Body fat ≤ 15%",
       category: "body_composition",
       horizon: "medium",
@@ -467,7 +481,7 @@ describe("goals — repository", () => {
 
   test("upsertGoal stores the measurement contract (#95)", async () => {
     const state = fakeDb({ goals: [], checkins: [] });
-    await createGoalRepository(state.db).upsertGoal("org-1", {
+    await createGoalRepository(state.db, "user-1").upsertGoal("org-1", {
       title: "Weigh 70 kg",
       category: "body_composition",
       currentValue: "80 kg",
@@ -491,6 +505,7 @@ describe("goals — repository", () => {
         {
           id: 1,
           organizationId: "org-1",
+          userId: "user-1",
           title: "Strength baseline",
           category: "strength",
           horizon: null,
@@ -503,7 +518,7 @@ describe("goals — repository", () => {
       ],
       checkins: [],
     });
-    const result = await createGoalRepository(state.db).upsertGoal("org-1", {
+    const result = await createGoalRepository(state.db, "user-1").upsertGoal("org-1", {
       id: 1,
       title: "Strength updated",
       category: "strength",
@@ -521,6 +536,7 @@ describe("goals — repository", () => {
         {
           id: 5,
           organizationId: "org-1",
+          userId: "user-1",
           title: "Bench 100kg",
           category: "strength",
           horizon: "short",
@@ -533,7 +549,7 @@ describe("goals — repository", () => {
       ],
       checkins: [],
     });
-    const result = await createGoalRepository(state.db).upsertCheckin("org-1", {
+    const result = await createGoalRepository(state.db, "user-1").upsertCheckin("org-1", {
       goalId: 5,
       date: "2026-03-07",
       value: "87.5 kg",
@@ -550,6 +566,7 @@ describe("goals — repository", () => {
         {
           id: 5,
           organizationId: "org-1",
+          userId: "user-1",
           title: "Bench 100kg",
           category: "strength",
           horizon: "short",
@@ -562,7 +579,7 @@ describe("goals — repository", () => {
       ],
       checkins: [],
     });
-    const result = await createGoalRepository(state.db).upsertCheckin("org-1", {
+    const result = await createGoalRepository(state.db, "user-1").upsertCheckin("org-1", {
       goalId: 5,
       date: "2026-03-07",
       value: "  ",
@@ -575,7 +592,7 @@ describe("goals — repository", () => {
   test("upsertCheckin throws when the goal does not exist in this org", async () => {
     const state = fakeDb({ goals: [], checkins: [] });
     await expect(
-      createGoalRepository(state.db).upsertCheckin("org-1", {
+      createGoalRepository(state.db, "user-1").upsertCheckin("org-1", {
         goalId: 999,
         date: "2026-03-07",
         value: "82",
@@ -585,7 +602,7 @@ describe("goals — repository", () => {
 
   test("deleteGoal returns null when the row is missing", async () => {
     const state = fakeDb({ goals: [], checkins: [] });
-    const result = await createGoalRepository(state.db).deleteGoal("org-1", 999);
+    const result = await createGoalRepository(state.db, "user-1").deleteGoal("org-1", 999);
     expect(result).toBeNull();
   });
 });
