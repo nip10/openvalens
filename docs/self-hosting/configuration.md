@@ -1,6 +1,6 @@
 # Configuration
 
-**Applies to:** OpenValens 1.0.2 · Last updated: 2026-10-25
+**Applies to:** OpenValens 1.0.3 · Last updated: 2026-10-25
 
 A self-hosted instance is configured in three places:
 

@@ -1,6 +1,6 @@
 # Self-hosting OpenValens
 
-**Applies to:** OpenValens 1.0.2 · Last updated: 2026-10-31
+**Applies to:** OpenValens 1.0.3 · Last updated: 2026-10-31
 
 These pages describe how to run your own OpenValens instance with the one
 supported install: the Docker Compose stack in `deploy/`, driven by

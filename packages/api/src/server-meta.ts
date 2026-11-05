@@ -20,7 +20,7 @@ export const SERVER_META_PATH = "/.well-known/openvalens";
 export const SERVER_API_VERSION = 1;
 
 /** This release; kept equal to the root `package.json` version (a test checks it). */
-export const SERVER_VERSION = "1.0.2";
+export const SERVER_VERSION = "1.0.3";
 
 export const deploymentModes = ["self-hosted", "cloud"] as const;
 export type DeploymentMode = (typeof deploymentModes)[number];
