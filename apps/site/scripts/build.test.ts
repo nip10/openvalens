@@ -6,7 +6,7 @@
  * Pure file work in a temporary directory; no network, no browser.
  */
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -326,5 +326,25 @@ describe("Cloud vs self-host and the store apps", () => {
     expect(await pageText()).toContain(
       "Google Play and the Google Play logo are trademarks of Google LLC.",
     );
+  });
+});
+
+describe("nginx serves what the build outputs", () => {
+  // Anything the static locations don't match is redirected to the web app, so
+  // a new top-level file or folder (like badges/, #361) breaks silently.
+  test("every top-level file and folder of the build is served, not redirected", async () => {
+    const conf = await readFile(
+      join(import.meta.dir, "..", "deploy", "default.conf.template"),
+      "utf8",
+    );
+    const pattern = /location ~ (\^\/\(index\\\.html[^ ]*) \{/.exec(conf)?.[1];
+    expect(pattern).toBeDefined();
+    const staticFiles = new RegExp(pattern!);
+    const entries = await readdir(outDir, { withFileTypes: true });
+    const unserved = entries
+      .filter((entry) => !entry.name.startsWith("_"))
+      .map((entry) => `/${entry.name}${entry.isDirectory() ? "/" : ""}`)
+      .filter((path) => !staticFiles.test(path));
+    expect(unserved).toEqual([]);
   });
 });
