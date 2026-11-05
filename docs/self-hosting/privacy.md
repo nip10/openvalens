@@ -1,6 +1,6 @@
 # Privacy and data rights
 
-**Applies to:** OpenValens 1.0.2 · Last updated: 2026-10-14
+**Applies to:** OpenValens 1.1.0 · Last updated: 2026-10-14
 
 This page is for operators. It describes where a self-hosted instance keeps
 data, what the app lets people do with their own data, and the gaps you need
