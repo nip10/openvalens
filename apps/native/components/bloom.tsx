@@ -16,6 +16,7 @@ import { Children, isValidElement, type ReactNode, useState } from "react";
 import { Pressable, Text, useWindowDimensions, View, type ViewProps } from "react-native";
 import Svg, { Circle, Defs, RadialGradient, Stop } from "react-native-svg";
 
+import { CONTROL_MAX_FONT_SCALE, DISPLAY_MAX_FONT_SCALE } from "@/components/font-scale";
 import { useThemeColor } from "@/utils/theme";
 
 export type { LucideIcon };
@@ -23,18 +24,7 @@ export type { LucideIcon };
 /** One soft colour per measure; the same tone marks its icon, its bar and its chart. */
 export type Tone = "sleep" | "steps" | "heart" | "weight" | "water" | "food" | "signal" | "neutral";
 
-/**
- * How far display type (titles and big figures in Fraunces) grows with the
- * phone's text size. It starts large, so uncapped it broke words mid-way on a
- * 375 pt phone at the accessibility sizes (#379); body text scales fully.
- */
-export const DISPLAY_MAX_FONT_SCALE = 1.4;
-
-/**
- * Labels inside controls with a set height (heroui buttons and chips): past
- * this they were cut through the middle at the accessibility sizes (#379).
- */
-export const CONTROL_MAX_FONT_SCALE = 1.4;
+export { CONTROL_MAX_FONT_SCALE, DISPLAY_MAX_FONT_SCALE };
 
 /** From the first accessibility text size up, two cards side by side break every word (#379). */
 const STACK_FONT_SCALE = 1.6;

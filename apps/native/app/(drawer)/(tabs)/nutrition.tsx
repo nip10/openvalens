@@ -107,7 +107,6 @@ import {
 import { BarcodeScanner } from "@/components/barcode-scanner";
 import {
   Details,
-  DISPLAY_MAX_FONT_SCALE,
   ErrorState,
   Icon,
   InfoTip,
@@ -121,6 +120,7 @@ import {
   ToneIcon,
   useStackedLayout,
 } from "@/components/bloom";
+import { DISPLAY_MAX_FONT_SCALE } from "@/components/font-scale";
 import { Container } from "@/components/container";
 import { LoggingStreakCard } from "@/components/logging-streak-card";
 import { NutritionDayTotals } from "@/components/nutrition-day-totals";

@@ -27,8 +27,8 @@ import {
   Sheet,
   StatusPill,
   ToneIcon,
-  DISPLAY_MAX_FONT_SCALE,
 } from "@/components/bloom";
+import { DISPLAY_MAX_FONT_SCALE } from "@/components/font-scale";
 import { describePushRegistration, enablePushOnThisPhone } from "@/lib/push-notifications";
 import { insightsSectionModel } from "@/utils/insight-screen";
 import { client, orpc } from "@/utils/orpc";

@@ -7,7 +7,7 @@ import { Button, Card, Spinner } from "heroui-native";
 import { useEffect, useRef, useState } from "react";
 import { Image, Linking, Platform, Pressable, Text, TextInput, View } from "react-native";
 
-import { DISPLAY_MAX_FONT_SCALE } from "@/components/bloom";
+import { DISPLAY_MAX_FONT_SCALE } from "@/components/font-scale";
 import { Container } from "@/components/container";
 import { ExerciseAttribution, TranslationAttribution } from "@/components/exercise-attribution";
 import { MuscleGuide } from "@/components/muscle-guide";

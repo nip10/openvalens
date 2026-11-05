@@ -4,7 +4,7 @@ import { Alert, Modal, Pressable, ScrollView, Text, View } from "react-native";
 import { useWorkoutSession } from "@/lib/workouts/sync";
 import type { WorkoutDetail } from "@/lib/workouts/model";
 import { weightFromKg } from "@/lib/workouts/model";
-import { DISPLAY_MAX_FONT_SCALE } from "@/components/bloom";
+import { DISPLAY_MAX_FONT_SCALE } from "@/components/font-scale";
 import { SaveWorkoutAsRoutine } from "@/components/workout-routines";
 
 export function WorkoutSessionDetail({

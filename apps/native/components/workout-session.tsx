@@ -30,7 +30,8 @@ import {
 import { client, orpc } from "@/utils/orpc";
 import { useQuery } from "@tanstack/react-query";
 import { useThemeColor } from "@/utils/theme";
-import { Section, Sheet, DISPLAY_MAX_FONT_SCALE } from "@/components/bloom";
+import { Section, Sheet } from "@/components/bloom";
+import { DISPLAY_MAX_FONT_SCALE } from "@/components/font-scale";
 import { useWorkoutRestTimer } from "@/lib/workouts/rest-timer";
 import { WorkoutRoutineStart } from "@/components/workout-routines";
 import { WorkoutExerciseHistory } from "@/components/workout-history";
