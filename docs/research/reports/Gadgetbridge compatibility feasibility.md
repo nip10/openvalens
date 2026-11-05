@@ -1,6 +1,14 @@
 # Gadgetbridge compatibility feasibility
 
-Checked: 2026-11-02; embedded-integration follow-up 2026-11-03. Research only; no catalog import or device integration implemented.
+Checked: 2026-11-02; embedded-integration follow-up 2026-11-03. Implementation checkpoint: 2026-11-05. No catalog import or complete device sync implemented.
+
+## Implementation checkpoint, 2026-11-05
+
+OpenValens now has an inactive direct-device ingestion contract and ownership checks, a private account-scoped SQLite capture queue, and a development-only Helio Strap settings section for explicit BLE discovery, connection/service checks and a synthetic crypto compatibility check. The connection controller and crypto probe live under `apps/native/lib/direct-devices/setup/` and `crypto/`; the UI is `apps/native/components/direct-device-settings.tsx`. Direct-device API procedures remain unmounted and capture/upload is not wired to the app.
+
+The foundation and development-only connection/probe source passed independent review after remediation. PostgreSQL ownership/idempotency regressions and real SQLite tests passed; controller tests cover asynchronous native operations and same-device cancellation races. Deterministic B-163 and AES vectors pass against Node/OpenSSL through a strict native-shaped interface. Native iOS simulator and Android debug builds compiled with the pinned Bluetooth and crypto dependencies.
+
+**Not established:** native B-163/AES runtime compatibility, physical BLE behavior on the user's iPhone 14/Pixel 7, strap authentication, historical record decoding/sync, or broad Gadgetbridge device coverage. The simulator runtime probe is blocked by its first-launch developer onboarding screen; no Android runtime device/emulator was connected. No real auth keys or health records were used. Compilation and injected tests are not evidence of working Helio sync. Do not enable or advertise production support based on this checkpoint.
 
 ## Recommendation
 

@@ -59,6 +59,7 @@ import { CloudAccessNotice } from "@/components/cloud-access-notice";
 import { ListRow } from "@/components/list-row";
 import { Container } from "@/components/container";
 import { HealthSyncSettings } from "@/components/health-sync-settings";
+import { DirectDeviceSettings } from "@/components/direct-device-settings";
 import {
   choiceChip,
   choiceText,
@@ -82,6 +83,7 @@ import { adminAccessQueryOptions } from "@/utils/admin-settings";
 
 export default function SettingsScreen() {
   const { isDark, toggleTheme } = useAppTheme();
+  const directDeviceServer = useServer();
   const [density, setDensity] = useState<"comfortable" | "compact">("comfortable");
   const { data: session, isPending: sessionPending } = authClient.useSession();
   const settingsScroll = useRef<ScrollView>(null);
@@ -182,6 +184,21 @@ export default function SettingsScreen() {
         )}
 
         {session?.user && <HealthSyncSettings />}
+
+        {__DEV__ && (
+          <DirectDeviceSettings
+            key={
+              session?.user?.id && session.session.activeOrganizationId && directDeviceServer.status === "set"
+                ? `${directDeviceServer.url}:${session.user.id}:${session.session.activeOrganizationId}`
+                : "no-scope"
+            }
+            scopeKey={
+              session?.user?.id && session.session.activeOrganizationId && directDeviceServer.status === "set"
+                ? `${directDeviceServer.url}:${session.user.id}:${session.session.activeOrganizationId}`
+                : null
+            }
+          />
+        )}
 
         {session?.user && (
           <Section title={t`Integrations`} icon={Plug} tone="signal">
