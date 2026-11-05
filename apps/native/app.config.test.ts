@@ -55,7 +55,14 @@ describe("app.config.ts", () => {
     const config = withBuildEnv(base, { EXPO_PUBLIC_ALLOW_LOCAL_HTTP: "true" });
     expect(buildProps(config)).toEqual([
       "expo-build-properties",
-      { android: { minSdkVersion: 26, usesCleartextTraffic: true } },
+      {
+        android: {
+          minSdkVersion: 26,
+          enableMinifyInReleaseBuilds: true,
+          enableShrinkResourcesInReleaseBuilds: true,
+          usesCleartextTraffic: true,
+        },
+      },
     ]);
     expect(config.plugins?.length).toBe(base.plugins?.length);
   });
