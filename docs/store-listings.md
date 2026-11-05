@@ -1,11 +1,21 @@
 # Store listings
 
-**Applies to:** the App Store and Google Play listings of `apps/native` · Last updated: 2026-11-02
+**Applies to:** the App Store and Google Play listings of `apps/native` · Last updated: 2026-11-05
 
 The listing text, App Privacy answers (Apple) and Data safety answers (Google)
 for the store app (#307). The text is in the repository so it is reviewed like
 code; `apps/native/store/listing.test.ts` keeps it inside the store limits and
 the wording rules. `[CONFIRM]` marks a fact the owner checks before submitting.
+
+## Store pages
+
+| Store       | Public page                                                      | State (2026-11-05)                                          |
+| ----------- | ---------------------------------------------------------------- | ----------------------------------------------------------- |
+| Google Play | https://play.google.com/store/apps/details?id=com.openvalens.app | Live since 1.0.0 (2026-11-04); 1.1.0 in review              |
+| App Store   | Not public yet (App Store Connect app id `6829515766`)           | 1.1.0 in review; add the URL here and the badge on the site |
+
+The landing site links each live store with its official badge, served from
+`apps/site/src/badges/` (#361).
 
 ## Where the text lives
 
