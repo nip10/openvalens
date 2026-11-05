@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import z from "zod";
 
 import MagicLinkForm from "@/components/magic-link-form";
+import { authClient } from "@/lib/auth-client";
 import { admissionStatusQueryOptions } from "@/utils/admission";
 import {
   isSocialProvider,
@@ -18,6 +19,18 @@ export const Route = createFileRoute("/login")({
     returnUrl: z.string().optional(),
     via: z.string().optional(),
   }),
+  // Signed in already: the sign-in form would sit inside the signed-in app
+  // shell. Only with an active workspace — a session whose workspace could not
+  // be prepared is sent here by the _auth layout, and must stay to sign in again.
+  beforeLoad: async ({ search }) => {
+    let signedIn = false;
+    try {
+      signedIn = Boolean((await authClient.getSession()).data?.session.activeOrganizationId);
+    } catch {
+      return;
+    }
+    if (signedIn) throw redirect({ href: validateReturnUrl(search.returnUrl) ?? "/dashboard" });
+  },
   component: RouteComponent,
 });
 
