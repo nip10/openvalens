@@ -2,7 +2,9 @@
 
 Goals and their evidence are private to the authenticated person in the active
 workspace. This note describes the additive rollout and migration safety
-requirements; it does not claim rollout rehearsal or validation is complete.
+requirements. The migration sequence was rehearsed on a disposable database,
+including repeat application and interruption rollback/retry; this does not
+mean a production backup was restored or production was migrated.
 
 ## Current implementation map
 
@@ -56,12 +58,14 @@ Source records remain independent of goal deletion.
 
 ## Operational rollout
 
-1. **Prepare and rehearse.** Back up the database and rehearse both migrations,
-   including interruption and repeat application, on an empty disposable
-   PostgreSQL database. Record outcomes and verify scope/integrity before
-   production; rehearsal is not asserted here as completed.
-2. **Apply additive schema first.** Deploy the timestamped migrations before
-   owner-aware app or ingestion workers. Keep existing goal/check-in and
+1. **Prepare the exact target.** Take a backup of the exact production database
+   before any migration. The disposable PostgreSQL rehearsal covered both
+   timestamped migrations, repeat application, interruption rollback, and
+   retry. It is not a production backup or production migration.
+2. **Apply the additive schema first.** Apply the reviewed migration artifact
+   once, and verify its ledger, before allowing API v2 endpoints or owner-aware
+   app/ingestion workers to receive traffic. The ordinary post-deploy migration
+   hook must be a no-op after this pre-application. Keep existing goal/check-in and
    health-event rows intact. Their new ownership is nullable by design; null
    means legacy/unassigned, not workspace-wide evidence.
 3. **Deploy owner-safe services.** Roll out API readers/writers and ingestion
@@ -81,10 +85,16 @@ Source records remain independent of goal deletion.
    fallback. After cutover, legacy target writes from older clients return
    `409`; upgrade/drain those clients rather than clearing the marker. Never
    perform a workspace-wide implicit cutover.
-6. **Release both clients together.** Coordinate web and native deployment and
-   feature enablement; do not partially launch the cross-platform Goals
-   feature. Keep the release flag off until owner-safe server and worker
-   versions are serving.
+6. **Hold production for the native-first API v2 rollout.** There is no
+   dedicated Goals feature flag. Keep production API/web on the current API v1
+   release while native 1.1.0 store candidates are being reviewed. Stage and
+   verify API v2 only on an isolated review server. Make the API v2 production
+   endpoint available only after the native 1.1.0 app is approved and available
+   to users. Native 1.1.0 supports API v2 only; API v1-only native clients are
+   unsupported and require an update. New connection checks block unsupported
+   versions, but already-authenticated old binaries may still attempt calls
+   and fail until updated. Native 1.1.0 cannot use an API v1 server. Communicate
+   the required app update before server cutover.
 7. **Rollback compatibly.** Roll back application images/flags only to a
    server version that safely ignores additive columns and never restores
    organization-wide readers. Keep ownership columns, intake rows, correction
