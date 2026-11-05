@@ -13,7 +13,7 @@ import { z } from "zod";
 
 /** Same rule as `isCanonicalUtcTimestamp` in `@openvalens/ingestion`. */
 const ISO_UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/;
-const isoUtc = z
+export const isoUtc = z
   .string()
   .regex(ISO_UTC, "Expected a UTC timestamp like 2026-10-01T07:00:00.000Z")
   .refine((value) => !Number.isNaN(new Date(value).getTime()), "Invalid timestamp");

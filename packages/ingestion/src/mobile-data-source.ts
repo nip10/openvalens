@@ -10,7 +10,7 @@ import type { MobileHealthRecord } from "./mobile-records";
  * One `data_source` per (provider, source app, device) for `mobile.ingestBatch`,
  * so source priority can tell a scale from a watch.
  */
-export type SourceIdentity = ReturnType<typeof sourceIdentity>;
+export type SourceIdentity = ReturnType<typeof sourceIdentity> | ReturnType<typeof directSourceIdentity>;
 
 export function sourceIdentity(provider: MobileProvider, record: MobileHealthRecord) {
   const identity = buildDataSourceIdentity({
@@ -29,6 +29,18 @@ export function sourceIdentity(provider: MobileProvider, record: MobileHealthRec
   };
 }
 
+/** Direct devices have an independent identity from health-store app/device metadata. */
+export function directSourceIdentity(deviceId: string) {
+  return {
+    sourceKey: `direct_device|v1|${deviceId}`,
+    sourceType: "wearable",
+    deviceType: "wearable",
+    deviceModel: "Amazfit Helio Strap",
+    sourceAppId: null,
+    importChannel: "direct_device" as const,
+  };
+}
+
 export async function resolveDataSource(
   tx: Pick<Database, "select" | "insert">,
   organizationId: string,
@@ -42,7 +54,7 @@ export async function resolveDataSource(
       providerConnectionId,
       sourceType: identity.sourceType,
       sourceKey: identity.sourceKey,
-      importChannel: "mobile_ingest",
+      importChannel: "importChannel" in identity ? identity.importChannel : "mobile_ingest",
       deviceType: identity.deviceType,
       deviceModel: identity.deviceModel,
       sourceAppId: identity.sourceAppId,
@@ -50,7 +62,7 @@ export async function resolveDataSource(
     })
     .onConflictDoNothing({ target: [dataSource.organizationId, dataSource.sourceKey] });
   const [row] = await tx
-    .select({ id: dataSource.id })
+    .select({ id: dataSource.id, providerConnectionId: dataSource.providerConnectionId })
     .from(dataSource)
     .where(
       and(
@@ -60,5 +72,7 @@ export async function resolveDataSource(
     )
     .limit(1);
   if (!row) throw new Error("Data source was not resolvable.");
+  if (identity.importChannel === "direct_device" && row.providerConnectionId !== providerConnectionId)
+    throw new Error("Data source identity is already owned by another provider connection.");
   return row.id;
 }

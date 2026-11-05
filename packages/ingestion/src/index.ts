@@ -10,4 +10,5 @@ export * from "./replay";
 export * from "./mobile-records";
 export * from "./healthkit-sleep";
 export * from "./mobile-batch";
+export * from "./direct-device";
 export * from "./phone-first";

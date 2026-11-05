@@ -29,6 +29,13 @@ import {
   type MobileIngestBatch,
 } from "./mobile-batch";
 import { createDatabaseIngestionTick } from "./orchestrator";
+import { directSourceIdentity, resolveDataSource } from "./mobile-data-source";
+import {
+  DirectDeviceContextMismatchError,
+  DirectDeviceOwnershipError,
+  ingestDirectDeviceBatch,
+  registerDirectDevice,
+} from "./direct-device";
 
 const url = process.env.MOBILE_INGEST_TEST_DATABASE_URL;
 if (url) {
@@ -128,6 +135,84 @@ describe.skipIf(!url)("mobile ingest batch on disposable PostgreSQL", () => {
       now,
     });
 
+  const directContext = { userId: "u1", organizationId: "org-a" };
+  const registerDirect = (deviceId = DEVICE, userId = "u1") => registerDirectDevice(db, {
+    deviceId,
+    family: "amazfit_helio_strap",
+    expectedContext: { userId, organizationId: "org-a" },
+    authenticatedContext: { userId, organizationId: "org-a" },
+    now,
+  });
+  const directBatch = (deviceId = DEVICE) => ({
+    schemaVersion: 1 as const,
+    deviceId,
+    provider: "direct_device" as const,
+    recordType: "steps" as const,
+    mode: "backfill" as const,
+    clientTimezone: "UTC",
+    upserts: [{ type: "steps" as const, externalRecordId: "same-local-id", sourceApp: null, startTime: "2026-10-01T07:00:00Z", endTime: "2026-10-01T08:00:00Z", count: 10 }],
+    deletions: [] as [],
+  });
+
+  test("direct registration is idempotent under concurrent retries and expected-context mismatch writes nothing", async () => {
+    const results = await Promise.all([registerDirect(), registerDirect()]);
+    expect(results[0]?.providerConnectionId).toBe(results[1]?.providerConnectionId);
+    expect(await db.select().from(providerConnection)).toHaveLength(1);
+    await expect(registerDirectDevice(db, {
+      deviceId: DEVICE, family: "amazfit_helio_strap",
+      expectedContext: { userId: "u2", organizationId: "org-a" },
+      authenticatedContext: directContext, now,
+    })).rejects.toBeInstanceOf(DirectDeviceContextMismatchError);
+    expect(await db.select().from(providerConnection)).toHaveLength(1);
+  });
+
+  test("direct binding refuses null, wrong, and revoked owners without transfer or reactivation", async () => {
+    await registerDirect();
+    await db.update(providerConnection).set({ userId: "u2" });
+    await expect(registerDirect()).rejects.toBeInstanceOf(DirectDeviceOwnershipError);
+    await expect(ingestDirectDeviceBatch(db, {
+      expectedContext: directContext, authenticatedContext: directContext,
+      batch: directBatch(), traceId: "wrong-owner", now,
+    })).rejects.toBeInstanceOf(MobileDeviceNotRegisteredError);
+    expect(await db.select().from(ingestionJob)).toHaveLength(0);
+    await db.update(providerConnection).set({ userId: null });
+    await expect(registerDirect()).rejects.toBeInstanceOf(DirectDeviceOwnershipError);
+    await db.update(providerConnection).set({ userId: "u1", status: "revoked" });
+    await expect(registerDirect()).rejects.toBeInstanceOf(MobileDeviceRevokedError);
+    const [row] = await db.select().from(providerConnection);
+    expect(row).toMatchObject({ userId: "u1", status: "revoked" });
+  });
+
+  test("direct owner check is transactional on acceptance and source identity is device-bound", async () => {
+    const secondDevice = "7f1c2a3e-9b2d-4c1e-8f3a-2d7e5b9c0a12";
+    const { providerConnectionId: firstConnection } = await registerDirect();
+    const { providerConnectionId: secondConnection } = await registerDirect(secondDevice);
+    const first = await ingestDirectDeviceBatch(db, {
+      expectedContext: directContext, authenticatedContext: directContext, batch: directBatch(), traceId: "direct-1", now,
+    });
+    const replay = await ingestDirectDeviceBatch(db, {
+      expectedContext: directContext, authenticatedContext: directContext, batch: directBatch(), traceId: "direct-2", now,
+    });
+    const rebatch = await ingestDirectDeviceBatch(db, {
+      expectedContext: directContext, authenticatedContext: directContext,
+      batch: { ...directBatch(), clientTimezone: "Europe/Lisbon", window: { from: "2026-10-01T00:00:00Z", to: "2026-10-02T00:00:00Z" } },
+      traceId: "direct-rebatch", now,
+    });
+    await ingestDirectDeviceBatch(db, {
+      expectedContext: directContext, authenticatedContext: directContext, batch: directBatch(secondDevice), traceId: "direct-3", now,
+    });
+    expect(replay.status).toBe("duplicate");
+    expect(rebatch.status).toBe("duplicate");
+    expect(await db.select().from(ingestionRawArtifact)).toHaveLength(2);
+    const sources = await db.select().from(dataSource);
+    expect(sources).toHaveLength(2);
+    expect(new Set(sources.map((source) => source.sourceKey)).size).toBe(2);
+    expect(sources.map((source) => source.providerConnectionId).sort()).toEqual([firstConnection, secondConnection].sort());
+    expect(sources.every((source) => source.importChannel === "direct_device")).toBe(true);
+    const [artifact] = await db.select().from(ingestionRawArtifact).where(eq(ingestionRawArtifact.id, first.rawArtifactId));
+    expect(artifact?.payloadJson).toMatchObject({ upserts: [{ externalRecordId: `dd:v1:${DEVICE}:steps:same-local-id`, sourceApp: null, sourceDevice: { model: "Amazfit Helio Strap" } }] });
+  });
+
   test("registerDevice creates one active connection and is idempotent", async () => {
     const first = await register();
     const second = await register();
@@ -214,6 +299,57 @@ describe.skipIf(!url)("mobile ingest batch on disposable PostgreSQL", () => {
     expect(job).toMatchObject({ jobType: MOBILE_INGEST_JOB_TYPE, status: "succeeded" });
     const [connection] = await db.select().from(providerConnection);
     expect(connection?.lastSyncedAt?.toISOString()).toBe(now.toISOString());
+  });
+
+  test("legacy phone connections share a source for matching metadata while direct bindings stay fenced", async () => {
+    const secondDevice = "7f1c2a3e-9b2d-4c1e-8f3a-2d7e5b9c0a12";
+    const firstConnection = await register();
+    const secondConnection = await registerMobileDevice(db, {
+      organizationId: "org-a",
+      userId: "u1",
+      deviceId: secondDevice,
+      platform: "android",
+      now,
+    });
+    const phoneBatch = (deviceId: string, recordId: string): MobileIngestBatch => ({
+      ...batch({ upserts: [{
+        type: "weight",
+        externalRecordId: recordId,
+        sourceApp: "com.withings.wiscale2",
+        sourceDevice: { type: "scale", model: "Body+" },
+        startTime: "2026-10-01T07:00:00.000Z",
+        valueKg: 72.4,
+      }], deletions: [] }),
+      deviceId,
+    });
+    expect((await ingestMobileBatch(db, {
+      organizationId: "org-a", batch: phoneBatch(DEVICE, "legacy-1"), traceId: "legacy-1", now,
+    })).status).toBe("applied");
+    expect((await ingestMobileBatch(db, {
+      organizationId: "org-a", batch: phoneBatch(secondDevice, "legacy-2"), traceId: "legacy-2", now,
+    })).status).toBe("applied");
+
+    const [source] = await db.select().from(dataSource);
+    expect(await db.select().from(dataSource)).toHaveLength(1);
+    expect(source?.providerConnectionId).toBe(firstConnection.providerConnectionId);
+    expect((await db.select().from(metricSample)).map((sample) => sample.dataSourceId)).toEqual([
+      source!.id, source!.id,
+    ]);
+    expect(secondConnection.providerConnectionId).not.toBe(firstConnection.providerConnectionId);
+
+    const directDevice = "8f1c2a3e-9b2d-4c1e-8f3a-2d7e5b9c0a13";
+    const directFirst = await registerDirect();
+    const directSecond = await registerDirect(directDevice);
+    await ingestDirectDeviceBatch(db, {
+      expectedContext: directContext, authenticatedContext: directContext,
+      batch: directBatch(), traceId: "direct-fence-first", now,
+    });
+    // A direct identity remains owned by its exact connection.
+    await expect(resolveDataSource(db, "org-a", directSecond.providerConnectionId,
+      directSourceIdentity(DEVICE))).rejects.toThrow(
+      "Data source identity is already owned by another provider connection.",
+    );
+    expect(directFirst.providerConnectionId).not.toBe(directSecond.providerConnectionId);
   });
 
   test("replaying the same batch returns duplicate and writes nothing new", async () => {

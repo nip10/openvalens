@@ -13,7 +13,7 @@ import { lockNutritionSafetyUser } from "@openvalens/db";
 import { stableSerialize } from "@openvalens/health-record";
 import { and, desc, eq, inArray, like, sql } from "drizzle-orm";
 
-import type { MOBILE_INGESTION_PROVIDERS } from "./health-connect";
+import { INTERNAL_MOBILE_PROVIDERS, MOBILE_INGESTION_PROVIDERS } from "./health-connect";
 import { applyHealthKitSleepSegments } from "./healthkit-sleep-ingest";
 import { localDateIn } from "./healthkit-sleep";
 import { IngestionStateError } from "./job-runner-state";
@@ -22,7 +22,7 @@ import {
   type MobileHealthRecord,
   type MobileHealthRecordType,
 } from "./mobile-records";
-import { resolveDataSource, sourceIdentity, type SourceIdentity } from "./mobile-data-source";
+import { directSourceIdentity, resolveDataSource, sourceIdentity, type SourceIdentity } from "./mobile-data-source";
 import { hasCloudWearableSources, reconcilePhoneFirst } from "./phone-first";
 import { persistCanonicalIntents, type CanonicalRowRef } from "./persist-canonical-records";
 import type { RunClaimedJobResult } from "./run-job";
@@ -57,7 +57,8 @@ export const MOBILE_BATCH_RETENTION_DAYS = 30;
 
 const IDEMPOTENCY_PREFIX = "mobile-ingest:";
 
-export type MobileProvider = (typeof MOBILE_INGESTION_PROVIDERS)[number];
+export type MobileProvider = (typeof INTERNAL_MOBILE_PROVIDERS)[number];
+export type LegacyMobileProvider = (typeof MOBILE_INGESTION_PROVIDERS)[number];
 
 export type MobileIngestBatch = {
   schemaVersion: 1;
@@ -199,17 +200,23 @@ export type AcceptMobileBatchResult =
 /** Transaction 1: durably record the batch, or detect that it was seen before. */
 export async function acceptMobileBatch(
   db: Database,
-  input: { organizationId: string; batch: MobileIngestBatch; traceId: string; now?: Date },
+  input: { organizationId: string; batch: MobileIngestBatch; traceId: string; now?: Date; expectedOwnerId?: string },
 ): Promise<AcceptMobileBatchResult> {
   const now = input.now ?? new Date();
   const { batch, organizationId } = input;
-  const connection = await findConnection(db, organizationId, batch.provider, batch.deviceId);
-  if (!connection) throw new MobileDeviceNotRegisteredError();
-  if (connection.status !== "active") throw new MobileDeviceRevokedError();
-
+  if (batch.provider === "direct_device" && input.expectedOwnerId === undefined)
+    throw new MobileDeviceNotRegisteredError();
   const hash = mobileBatchContentHash(organizationId, batch);
   const key = idempotencyKey(batch.recordType, hash);
   return db.transaction(async (tx) => {
+    const [connection] = await tx.select({ id: providerConnection.id, status: providerConnection.status, userId: providerConnection.userId })
+      .from(providerConnection)
+      .where(and(eq(providerConnection.organizationId, organizationId), eq(providerConnection.provider, batch.provider), eq(providerConnection.externalUserId, batch.deviceId)))
+      .limit(1).for("update");
+    if (!connection) throw new MobileDeviceNotRegisteredError();
+    if (connection.status !== "active") throw new MobileDeviceRevokedError();
+    if (input.expectedOwnerId !== undefined && connection.userId !== input.expectedOwnerId)
+      throw new MobileDeviceNotRegisteredError();
     const [created] = await tx
       .insert(ingestionJob)
       .values({
@@ -432,7 +439,9 @@ export async function runMobileIngestBatchJob(
     // scale from a watch.
     const groups = new Map<string, { identity: SourceIdentity; records: MobileHealthRecord[] }>();
     for (const record of sleep ? [] : batch.upserts) {
-      const identity = sourceIdentity(batch.provider, record);
+      const identity = batch.provider === "direct_device"
+        ? directSourceIdentity(batch.deviceId)
+        : sourceIdentity(batch.provider, record);
       const group = groups.get(identity.sourceKey);
       if (group) group.records.push(record);
       else groups.set(identity.sourceKey, { identity, records: [record] });
@@ -540,7 +549,7 @@ export async function runMobileIngestBatchJob(
 
     // Phone-first (#60): this batch may hide (or, after a deletion, restore)
     // cloud wearable rows for the same days. Skipped when no cloud source exists.
-    if (await hasCloudWearableSources(tx, organizationId)) {
+    if (batch.provider !== "direct_device" && await hasCloudWearableSources(tx, organizationId)) {
       const window = await touchedWindow(tx, organizationId, target.table, batch, superseded);
       if (window) await reconcilePhoneFirst(tx, { organizationId, ...window, now: scope.now });
     }
@@ -709,6 +718,8 @@ export async function ingestMobileBatch(
     batch: MobileIngestBatch;
     traceId: string;
     now?: Date;
+    /** Direct-device ownership is checked under the provider-connection row lock. */
+    expectedOwnerId?: string;
     /** Test seam: replaces the inline apply step. */
     apply?: typeof runMobileIngestBatchJob;
   },

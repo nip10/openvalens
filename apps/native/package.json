@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@better-auth/expo": "catalog:",
+    "@config-plugins/react-native-ble-plx": "7.0.0",
     "@expo-google-fonts/figtree": "0.4.1",
     "@expo-google-fonts/fraunces": "0.4.1",
     "@expo/metro-runtime": "~57.0.15",
@@ -70,6 +71,7 @@
     "react-dom": "19.2.3",
     "react-native": "0.86.3",
     "react-native-gesture-handler": "~2.32.0",
+    "react-native-ble-plx": "3.5.1",
     "react-native-gifted-charts": "^1.4.79",
     "react-native-health-connect": "^4.1.3",
     "react-native-keyboard-controller": "1.21.9",

@@ -19,6 +19,21 @@ describe("app.config.ts", () => {
     expect(withBuildEnv(base, {}).ios?.supportsTablet).toBe(false);
   });
 
+  test("configures BLE with a truthful iOS purpose and no background/location assertion", () => {
+    const plugin = base.plugins?.find(
+      (entry) => Array.isArray(entry) && entry[0] === "@config-plugins/react-native-ble-plx",
+    );
+    expect(plugin).toEqual([
+      "@config-plugins/react-native-ble-plx",
+      {
+        bluetoothAlwaysPermission:
+          "OpenValens uses Bluetooth to connect to compatible health devices when you choose to pair them.",
+      },
+    ]);
+    expect(base.ios?.infoPlist?.NSBluetoothAlwaysUsageDescription).toBeUndefined();
+    expect(withBuildEnv(base, {}).plugins).toEqual(base.plugins);
+  });
+
   test("sets extra.eas.projectId from EXPO_PUBLIC_EAS_PROJECT_ID", () => {
     const config = withBuildEnv(base, { EXPO_PUBLIC_EAS_PROJECT_ID: ` ${PROJECT_ID}\n` });
     expect(config.extra?.eas?.projectId).toBe(PROJECT_ID);

@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "curve": "sect163r2",
+  "encoding": {
+    "privateScalar": "little-endian, 24 bytes",
+    "publicPoint": "x || y; each coordinate little-endian in a 24-byte slot",
+    "sharedX": "little-endian x coordinate in a 24-byte slot",
+    "sessionKey": "sharedX[8:24] XOR syntheticKey",
+    "sequence": "uint32 little-endian sharedX[0:4]"
+  },
+  "reference": {
+    "sourceUrl": "https://codeberg.org/Freeyourgadget/Gadgetbridge/raw/commit/8976702fc3d00e6008c91fe994668cb4027f7bc2/app/src/main/java/nodomain/freeyourgadget/gadgetbridge/util/ECDH_B163.java",
+    "revision": "8976702fc3d00e6008c91fe994668cb4027f7bc2",
+    "sourceSha256": "9be2f19acaaa134c6d29738b533e44c0a1b55ca4056fe757af49c9c9120d4a5d",
+    "status": "offline synthetic compatibility reference; not hardware or mobile-crypto validation"
+  },
+  "environment": {
+    "node": "v24.19.0",
+    "openssl": "3.5.7",
+    "javac": "17.0.20.1"
+  },
+  "syntheticKey": "00112233445566778899aabbccddeeff",
+  "vectors": [
+    {
+      "name": "k1",
+      "privateScalarLe": "896745230100000000000000100000000000000000000000",
+      "publicPointLe": "61d2f35512d51478e944eb0ab0a4ca4c6346f30306000000ac1633157ce2ae05348ed37ed603bbfb60e3f8cc00000000",
+      "sharedXLe": "bce950529d8722282cb57fa7414fc597e51c2aa504000000",
+      "sessionKey": "2ca45d94051aa3e06d85801ec8ddeeff",
+      "sequence": 1381034428
+    },
+    {
+      "name": "k2",
+      "privateScalarLe": "214365870900000000000000000000010000000000000000",
+      "publicPointLe": "635a1fce70af0c2785a9f9fca94875ffe0efc8d407000000539fa559bc8e776bd6bc6576568df23a4201f03006000000",
+      "sharedXLe": "bce950529d8722282cb57fa7414fc597e51c2aa504000000",
+      "sessionKey": "2ca45d94051aa3e06d85801ec8ddeeff",
+      "sequence": 1381034428
+    }
+  ]
+}

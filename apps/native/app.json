@@ -48,6 +48,12 @@
       "@react-native-community/datetimepicker",
       "react-native-health-connect",
       [
+        "@config-plugins/react-native-ble-plx",
+        {
+          "bluetoothAlwaysPermission": "OpenValens uses Bluetooth to connect to compatible health devices when you choose to pair them."
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "image": "./assets/images/splash-icon.png",

@@ -181,6 +181,8 @@ export function adaptHealthConnectCanonicalRecords(records: unknown[]): Canonica
 
 /** Ported `isMobileIngestionEnvelope` / `parseMobileIngestionEnvelope`. */
 export const MOBILE_INGESTION_PROVIDERS = ["health_connect", "apple_health"] as const;
+/** Internal ingestion providers; intentionally not used by the legacy parser. */
+export const INTERNAL_MOBILE_PROVIDERS = [...MOBILE_INGESTION_PROVIDERS, "direct_device"] as const;
 
 export function parseMobileIngestionEnvelope(
   payload: unknown,

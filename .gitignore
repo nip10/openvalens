@@ -68,3 +68,6 @@ deploy/catalogs/
 
 # Issue #62 — default local object storage directory (STORAGE_LOCAL_DIR)
 .data/
+
+# Local orchestration progress
+.slim/deepwork/
