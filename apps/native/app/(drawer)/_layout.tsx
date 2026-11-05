@@ -2,7 +2,7 @@ import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react";
 import { Link, usePathname } from "expo-router";
-import { Drawer } from "expo-router/drawer";
+import { Drawer, type DrawerContentComponentProps } from "expo-router/drawer";
 import { cn } from "heroui-native";
 import {
   CalendarHeart,
@@ -31,7 +31,7 @@ import {
   Users,
   UtensilsCrossed,
 } from "lucide-react-native";
-import React, { useCallback } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -39,9 +39,11 @@ import { BloomMark } from "@/components/bloom";
 import { DISPLAY_FONT } from "@/components/fonts";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { HealthDataConsentPrompt } from "@/components/health-data-consent-prompt";
+import { authClient } from "@/lib/auth-client";
 import { isRouteVisible } from "@/lib/modules/routes";
 import { useModules } from "@/lib/modules/use-modules";
 import { wasServerChosenThisRun } from "@/lib/server/server-url";
+import { queryClient } from "@/utils/orpc";
 import { useThemeColor } from "@/utils/theme";
 
 type DrawerItem = {
@@ -252,6 +254,32 @@ function DrawerContent() {
   );
 }
 
+/**
+ * A launch signed in opens the tabs (#271), so nothing else leaves them when
+ * the session ends: Sign out, Delete account or an expired session left the
+ * tabs on screen, signed out (#380). When a signed-in session goes away this
+ * opens the sign-in screen (this drawer's `index`), by screen name: in the
+ * app, "/" resolves to the Cockpit tab. When someone then signs in, it drops
+ * the errors the mounted screens cached while signed out, so they load again.
+ * Rendered in the drawer content, which stays mounted, to reach the drawer's
+ * navigation.
+ */
+function SessionChangeNavigator({ navigation }: Pick<DrawerContentComponentProps, "navigation">) {
+  const { data: session, isPending } = authClient.useSession();
+  const userId = session?.user?.id ?? null;
+  // undefined until the first settled session: a launch is not a change.
+  const lastUserId = useRef<string | null | undefined>(undefined);
+  useEffect(() => {
+    if (isPending) return;
+    const previous = lastUserId.current;
+    lastUserId.current = userId;
+    if (previous === undefined || previous === userId) return;
+    if (userId === null) navigation.navigate("index");
+    else void queryClient.resetQueries();
+  }, [isPending, navigation, userId]);
+  return null;
+}
+
 function DrawerLayout() {
   const themeColorForeground = useThemeColor("foreground");
   const themeColorBackground = useThemeColor("background");
@@ -272,7 +300,12 @@ function DrawerLayout() {
         // Right after a server is chosen the screens mount afresh: open the
         // sign-in screen (this group's index), as a launch at `/` does.
         initialRouteName={wasServerChosenThisRun() ? "index" : "(tabs)"}
-        drawerContent={() => <DrawerContent />}
+        drawerContent={({ navigation }) => (
+          <>
+            <SessionChangeNavigator navigation={navigation} />
+            <DrawerContent />
+          </>
+        )}
         screenOptions={{
           headerTintColor: themeColorForeground,
           headerStyle: { backgroundColor: themeColorBackground },
