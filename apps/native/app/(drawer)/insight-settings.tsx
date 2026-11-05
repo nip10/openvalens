@@ -24,6 +24,7 @@ import {
   Prose,
   Sheet,
   StatusPill,
+  DISPLAY_MAX_FONT_SCALE,
 } from "@/components/bloom";
 import { Container } from "@/components/container";
 import { SettingsGroup, SettingsRow } from "@/components/language-section";
@@ -96,6 +97,7 @@ function HourStepper({
         className="font-display text-2xl font-medium text-ink"
         style={{ fontVariant: ["tabular-nums"] }}
         accessibilityLabel={`${label} ${hour}:00`}
+        maxFontSizeMultiplier={DISPLAY_MAX_FONT_SCALE}
       >
         {String(hour).padStart(2, "0")}:00
       </Text>

@@ -27,6 +27,7 @@ import {
   Sheet,
   StatTile,
   TileRow,
+  useStackedLayout,
 } from "@/components/bloom";
 import { TrendChart } from "@/components/chart";
 import { Container } from "@/components/container";
@@ -43,6 +44,7 @@ const INPUT_CLASS =
   "min-h-11 rounded-xl border border-rule-2 bg-sheet px-3 font-sans text-base text-ink";
 
 function AddWeightForm({ onSaved }: { onSaved: () => void }) {
+  const stacked = useStackedLayout();
   const field = MANUAL_ENTRY_FIELDS.weight;
   const { t, i18n } = useLingui();
   const placeholder = useThemeColor("ink-3");
@@ -74,8 +76,9 @@ function AddWeightForm({ onSaved }: { onSaved: () => void }) {
 
   return (
     <Section icon={Plus} tone="weight" title={t`Add weight`} sheet>
-      <View className="flex-row gap-3">
-        <View className="flex-1 gap-2">
+      {/* One field under the other at the accessibility text sizes (#379). */}
+      <View className={stacked ? "gap-3" : "flex-row gap-3"}>
+        <View className={stacked ? "gap-2" : "flex-1 gap-2"}>
           <Text className="font-sans text-sm font-medium text-ink-2">{t`Weight (${unit})`}</Text>
           <TextInput
             testID="weight-value-input"
@@ -88,7 +91,7 @@ function AddWeightForm({ onSaved }: { onSaved: () => void }) {
             placeholderTextColor={placeholder}
           />
         </View>
-        <View className="flex-1 gap-2">
+        <View className={stacked ? "gap-2" : "flex-1 gap-2"}>
           <Text className="font-sans text-sm font-medium text-ink-2">{t`Observed at`}</Text>
           <TextInput
             value={observedAt}

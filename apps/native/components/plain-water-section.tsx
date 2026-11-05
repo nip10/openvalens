@@ -39,6 +39,7 @@ import { usePlainWaterOutbox, type PlainWaterOutbox } from "@/lib/plain-water/sy
 import { canDiscardWaterItem } from "@/lib/plain-water/outbox";
 import { editAmountChanged, editUnitChanged, waterEditAmountPatch } from "@/lib/plain-water/form";
 import { useCacheFirst } from "@/lib/offline/sync";
+import { DISPLAY_MAX_FONT_SCALE } from "@/components/bloom";
 import { client, orpc } from "@/utils/orpc";
 import { useThemeColor } from "@/utils/theme";
 
@@ -569,6 +570,7 @@ function PlainWaterDayPanel({
                 : "font-display text-lg font-medium text-ink-2"
             }
             style={{ fontVariant: ["tabular-nums"] }}
+            maxFontSizeMultiplier={DISPLAY_MAX_FONT_SCALE}
           >
             {subtotalText}
           </Text>
@@ -785,6 +787,7 @@ function PlainWaterDayPanel({
             placeholderTextColor={placeholder}
             keyboardType="decimal-pad"
             accessibilityLabel={i18n._(WATER_COPY.amountLabel)}
+            testID="water-amount"
           />
           <UnitChoice value={addUnit} onChange={setAddUnit} />
           <View className="flex-row items-center gap-2">

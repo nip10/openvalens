@@ -10,6 +10,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Fragment, useEffect, useRef, type ReactNode } from "react";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 
+import { CONTROL_MAX_FONT_SCALE } from "@/components/bloom";
 import { BloomFonts, DISPLAY_FONT } from "@/components/fonts";
 import { LocaleSync } from "@/components/locale-sync";
 import {
@@ -115,7 +116,9 @@ export default function Layout() {
           <GestureHandlerRootView style={{ flex: 1 }}>
             <KeyboardProvider>
               <AppThemeProvider>
-                <HeroUINativeProvider>
+                <HeroUINativeProvider
+                  config={{ textProps: { maxFontSizeMultiplier: CONTROL_MAX_FONT_SCALE } }}
+                >
                   <BloomFonts>
                     <ServerGate>
                       <MagicLinkLifecycle />

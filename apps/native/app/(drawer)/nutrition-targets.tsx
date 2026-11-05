@@ -69,6 +69,7 @@ import {
   Prose,
   Section,
   Sheet,
+  DISPLAY_MAX_FONT_SCALE,
 } from "@/components/bloom";
 import { Container } from "@/components/container";
 import { readCache, writeCache } from "@/lib/offline/cache";
@@ -286,6 +287,7 @@ export default function NutritionTargetsScreen() {
                     : "font-sans text-sm text-ink-2"
                 }
                 style={data.proteinReference ? { fontVariant: ["tabular-nums"] } : undefined}
+                maxFontSizeMultiplier={DISPLAY_MAX_FONT_SCALE}
               >
                 {data.proteinReference
                   ? formatProteinReference(data.proteinReference, hideNumbers, i18n)

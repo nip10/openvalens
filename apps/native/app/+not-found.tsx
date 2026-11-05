@@ -4,7 +4,7 @@ import { Button } from "heroui-native";
 import { Compass } from "lucide-react-native";
 import { Text, View } from "react-native";
 
-import { Sheet, ToneIcon } from "@/components/bloom";
+import { Sheet, ToneIcon, DISPLAY_MAX_FONT_SCALE } from "@/components/bloom";
 import { Container } from "@/components/container";
 
 export default function NotFoundScreen() {
@@ -19,6 +19,7 @@ export default function NotFoundScreen() {
             <Text
               className="text-center font-display text-2xl font-semibold text-ink"
               accessibilityRole="header"
+              maxFontSizeMultiplier={DISPLAY_MAX_FONT_SCALE}
             >
               <Trans>Page Not Found</Trans>
             </Text>

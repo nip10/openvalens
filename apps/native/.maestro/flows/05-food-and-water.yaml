@@ -112,18 +112,23 @@ tags: [logging]
 - runFlow: ../subflows/close-add-food.yaml
 
 # Plain water: below the meals, targets and streak. On a shorter phone the
-# default speed runs out of time before it gets there.
+# default speed runs out of time before it gets there. Centred: at the bottom
+# edge the button sits under the tab bar and the tap opens nothing.
 - scrollUntilVisible:
     element: "Add plain water"
     speed: 80
     timeout: 60000
+    centerElement: true
 - tapOn: "Add plain water"
 - extendedWaitUntil:
     visible: "Amount"
     timeout: 10000
+# Let the form settle first: tapped while it still scrolled into view, the
+# field never took focus and "300" went nowhere.
+- waitForAnimationToEnd:
+    timeout: 2000
 - tapOn:
-    text: "Amount"
-    index: 0
+    id: water-amount
 - inputText: "300"
 - runFlow: ../subflows/hide-keyboard.yaml
 # Centred: on a short phone, Save stops just under the tab bar.

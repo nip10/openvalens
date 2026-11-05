@@ -23,6 +23,7 @@ import {
   StatusPill,
   ToneChip,
   ToneIcon,
+  DISPLAY_MAX_FONT_SCALE,
 } from "@/components/bloom";
 import { Container } from "@/components/container";
 import { authClient } from "@/lib/auth-client";
@@ -215,6 +216,7 @@ function CycleForMember({ scope }: { scope: string }) {
                   <Text
                     className="font-display text-[48px] font-medium leading-[54px] text-ink"
                     style={{ fontVariant: ["tabular-nums"] }}
+                    maxFontSizeMultiplier={DISPLAY_MAX_FONT_SCALE}
                   >
                     {t`Day ${current.dayOfCycle}`}
                   </Text>

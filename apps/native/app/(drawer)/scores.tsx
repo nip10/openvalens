@@ -20,6 +20,7 @@ import {
   StatusPill,
   ToneIcon,
   type Tone,
+  DISPLAY_MAX_FONT_SCALE,
 } from "@/components/bloom";
 import { Container } from "@/components/container";
 import { ReferenceComparisonsSection } from "@/components/reference-comparisons-section";
@@ -175,6 +176,7 @@ function ScoreCardView({
             style={{ fontVariant: ["tabular-nums"] }}
             accessible
             accessibilityLabel={card.scoreAccessibilityLabel}
+            maxFontSizeMultiplier={DISPLAY_MAX_FONT_SCALE}
           >
             {card.scoreText}
           </Text>

@@ -160,6 +160,7 @@ mock.module("@/components/bloom", () => ({
   StatusPill: host("StatusPill"),
   ToneChip: host("ToneChip"),
   ToneIcon: host("ToneIcon"),
+  useStackedLayout: () => false,
 }));
 mock.module("@/components/container", () => ({ Container: host("Container") }));
 mock.module("@/components/logging-streak-card", () => ({

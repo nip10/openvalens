@@ -38,6 +38,7 @@ import {
   Sheet,
   StatTile,
   TileRow,
+  useStackedLayout,
 } from "@/components/bloom";
 import { TrendChart } from "@/components/chart";
 import { Container } from "@/components/container";
@@ -89,6 +90,7 @@ export default function CockpitScreen() {
   const readiness = useHealthReadiness();
   const { data: session } = authClient.useSession();
   const modules = useModules();
+  const stacked = useStackedLayout();
 
   const foreground = useThemeColor("foreground");
 
@@ -317,14 +319,18 @@ export default function CockpitScreen() {
             title={t`Weight, last ${WEIGHT_TREND_DAYS} days`}
           >
             <Sheet className="gap-4">
-              <View className="flex-row">
+              {/* Side by side, three columns break every word at the accessibility
+                  text sizes (#379): one under the other there. */}
+              <View className={stacked ? "gap-3" : "flex-row"}>
                 <Figure
-                  className="flex-1 pr-3"
+                  className={stacked ? undefined : "flex-1 pr-3"}
                   label={friendlyDate(i18n, weightSummary.latest.date)}
                   value={formatKg(weightSummary.latest.weightKg)}
                 />
                 <Figure
-                  className="flex-1 border-l border-rule px-3"
+                  className={
+                    stacked ? "border-t border-rule pt-3" : "flex-1 border-l border-rule px-3"
+                  }
                   label={t`7 days`}
                   value={
                     weightSummary.change7d === null
@@ -333,7 +339,9 @@ export default function CockpitScreen() {
                   }
                 />
                 <Figure
-                  className="flex-1 border-l border-rule pl-3"
+                  className={
+                    stacked ? "border-t border-rule pt-3" : "flex-1 border-l border-rule pl-3"
+                  }
                   label={t`30 days`}
                   value={
                     weightSummary.change30d === null

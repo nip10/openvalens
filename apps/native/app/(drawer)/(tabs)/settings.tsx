@@ -46,6 +46,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Linking, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 
 import {
+  DISPLAY_MAX_FONT_SCALE,
   ErrorState,
   Icon,
   Page,
@@ -107,12 +108,22 @@ export default function SettingsScreen() {
                     accessibilityElementsHidden
                     importantForAccessibility="no-hide-descendants"
                   >
-                    <Text className="font-display text-xl font-medium text-signal">
+                    <Text
+                      className="font-display text-xl font-medium text-signal"
+                      maxFontSizeMultiplier={DISPLAY_MAX_FONT_SCALE}
+                    >
                       {(displayName ?? "?").trim().charAt(0).toUpperCase()}
                     </Text>
                   </View>
-                  <View className="min-w-0 flex-1 gap-0.5">
-                    <Text className="font-display text-lg font-medium text-ink">{displayName}</Text>
+                  {/* At least 10rem wide, or Sign out wraps below it: beside it at
+                      the accessibility text sizes the name broke every word (#379). */}
+                  <View className="min-w-40 flex-1 gap-0.5">
+                    <Text
+                      className="font-display text-lg font-medium text-ink"
+                      maxFontSizeMultiplier={DISPLAY_MAX_FONT_SCALE}
+                    >
+                      {displayName}
+                    </Text>
                     {session.user.email && (
                       <Text className="font-sans text-sm text-ink-3" numberOfLines={1}>
                         {session.user.email}

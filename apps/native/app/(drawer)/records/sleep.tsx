@@ -29,6 +29,7 @@ import {
   ToneIcon,
   useToneColor,
   withAlpha,
+  DISPLAY_MAX_FONT_SCALE,
 } from "@/components/bloom";
 import { TrendChart } from "@/components/chart";
 import { Container } from "@/components/container";
@@ -214,6 +215,7 @@ export default function SleepScreen() {
                 <Text
                   className="font-display text-[52px] font-medium leading-[58px] text-ink"
                   style={{ fontVariant: ["tabular-nums"] }}
+                  maxFontSizeMultiplier={DISPLAY_MAX_FONT_SCALE}
                 >
                   {formatSleepDuration(last.asleepMinutes)}
                 </Text>
