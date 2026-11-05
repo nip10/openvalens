@@ -197,7 +197,8 @@ describe("site copy", () => {
     const text = await pageText();
     expect(text).toContain("Off-site backups are opt-in.");
     expect(text).toContain("Encrypted daily backups stay on the host");
-    expect(text).toContain("Mobile apps are not published in the stores yet.");
+    expect(text).toContain("The iPhone app is in App Store review.");
+    expect(text).not.toContain("Mobile apps are not published in the stores yet.");
     expect(text).not.toContain("No hosted service.");
     expect(text).toContain("no analytics and no telemetry");
   });
@@ -306,14 +307,24 @@ describe("Cloud vs self-host and the store apps", () => {
     expect(text).toContain("The software is free; you pay for your own hosting");
   });
 
-  test("store apps are labels marked coming soon, never links or remote badges", async () => {
+  test("a live store app links its official badge, served locally; the App Store waits", async () => {
     const html = await readFile(join(outDir, "index.html"), "utf8");
     const badges = /<ul class="store-badges"[\s\S]*?<\/ul>/.exec(html)?.[0];
     expect(badges).toBeDefined();
+    expect(badges).toContain(
+      'href="https://play.google.com/store/apps/details?id=com.openvalens.app"',
+    );
+    expect(badges).toContain('src="badges/google-play.png"');
+    expect(badges).toContain('alt="Get it on Google Play"');
+    expect(badges!.match(/coming soon/g)).toHaveLength(1);
     expect(badges).toContain("App Store");
-    expect(badges).toContain("Google Play");
-    expect(badges!.match(/coming soon/g)).toHaveLength(2);
-    expect(badges).not.toMatch(/<a\b|<img\b/);
-    expect(html).not.toMatch(/apps\.apple\.com|play\.google\.com/);
+    // Images come from this site only: the CSP blocks remote badges.
+    expect(badges).not.toMatch(/<img[^>]+src="(https?:)?\/\//);
+    expect(html).not.toMatch(/apps\.apple\.com/);
+    await expect(readFile(join(outDir, "badges", "google-play.png"))).resolves.toBeDefined();
+    // Google's badge guidelines ask for this attribution wherever the badge is shown.
+    expect(await pageText()).toContain(
+      "Google Play and the Google Play logo are trademarks of Google LLC.",
+    );
   });
 });

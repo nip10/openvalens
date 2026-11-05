@@ -189,17 +189,25 @@
             <p>Sign in to Cloud or to your own server from the same app.</p>
           </div>
           <!--
-            Store badges (#309): the apps are not in the stores yet, so these are plain
-            labels, not links. When an app is live, replace its label with the official
-            badge as a local SVG (no hotlinking) linking to its store page, and drop the
-            "Mobile apps are not published" line under "Not there yet".
+            Store badges (#309, #361): a live app gets its store's official badge, served
+            from badges/ (the CSP blocks remote images), linking to its store page. The
+            App Store stays a plain label until Apple approves the app; then add its
+            badge and drop the "iPhone app" line under "Not there yet".
           -->
           <ul class="store-badges" aria-label="Mobile apps">
             <li class="store-badge">
               <span>App Store</span> <span class="soon-tag">coming soon</span>
             </li>
-            <li class="store-badge">
-              <span>Google Play</span> <span class="soon-tag">coming soon</span>
+            <li>
+              <a
+                class="store-badge-link"
+                href="https://play.google.com/store/apps/details?id=com.openvalens.app"
+                ><img
+                  src="badges/google-play.png"
+                  alt="Get it on Google Play"
+                  width="168"
+                  height="65"
+              /></a>
             </li>
           </ul>
         </div>
@@ -395,7 +403,10 @@
             <strong>Off-site backups are opt-in.</strong> Encrypted daily backups stay on the host
             until you add a bucket.
           </li>
-          <li><strong>Mobile apps are not published in the stores yet.</strong></li>
+          <li>
+            <strong>The iPhone app is in App Store review.</strong> The Android app is on Google
+            Play.
+          </li>
           <li>
             <strong>Wearable connections need setup.</strong> Vendor connections are optional and
             require provider configuration.
@@ -407,7 +418,7 @@
         <div>
           <h2 id="install-title">Install with Docker Compose</h2>
           <p>
-            Beta 0.9.0, the first tagged release. You need a Linux host with Docker, a domain and a
+            Every release is tagged on GitHub. You need a Linux host with Docker, a domain and a
             Resend API key. Read the script and the guide first.
           </p>
           <div class="actions">
@@ -453,6 +464,7 @@ deploy/setup.sh install</code></pre>
           >app-store permission</a
         >.
       </p>
+      <p class="footer-note">Google Play and the Google Play logo are trademarks of Google LLC.</p>
       <ul class="footer-links">
         <li><a href="/support">Support</a></li>
         <li><a href="/terms">Terms</a></li>

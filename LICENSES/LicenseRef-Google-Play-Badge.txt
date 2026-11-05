@@ -1,0 +1,6 @@
+The "Get it on Google Play" badge is a trademark of Google LLC. It is used
+unmodified, linking to the app's Google Play listing, under Google's badge
+guidelines: https://partnermarketinghub.withgoogle.com/brands/google-play/visual-identity/badge-guidelines/
+
+Google Play and the Google Play logo are trademarks of Google LLC. This file
+is not covered by the OpenValens licences.
