@@ -536,7 +536,8 @@ export function StatTile({
   testID?: string;
 }) {
   const body = (
-    <Sheet className={cn("min-w-0 gap-3", className)} testID={href ? undefined : testID}>
+    // Grows to its cell, so tiles side by side share one height.
+    <Sheet className={cn("min-w-0 grow gap-3", className)} testID={href ? undefined : testID}>
       <View className="flex-row items-center justify-between gap-2">
         <Text
           className="shrink font-sans text-[15px] font-semibold leading-5 text-ink-2"
@@ -581,7 +582,7 @@ export function StatTile({
         accessibilityRole="link"
         accessibilityLabel={accessibilityLabel}
         testID={testID}
-        className="active:opacity-80"
+        className="grow active:opacity-80"
       >
         {body}
       </Pressable>
@@ -776,6 +777,57 @@ export function TileRow({ children, className }: { children: ReactNode; classNam
       {Children.toArray(children).map((child, index) => (
         <View key={index} className={stacked ? "min-w-0" : "min-w-0 flex-1"}>
           {child}
+        </View>
+      ))}
+    </View>
+  );
+}
+
+/**
+ * Tiles in rows of `columns`, every tile the same width and height: a short
+ * last row keeps the column width, and each cell is as tall as the tallest
+ * tile. Stacked at the accessibility text sizes.
+ */
+export function TileGrid({
+  children,
+  columns = 2,
+  className,
+  accessibilityLabel,
+}: {
+  children: ReactNode;
+  columns?: number;
+  className?: string;
+  accessibilityLabel?: string;
+}) {
+  const stacked = useStackedLayout();
+  const [height, setHeight] = useState(0);
+  const tiles = Children.toArray(children);
+  if (stacked)
+    return (
+      <View className={cn("gap-3", className)} accessibilityLabel={accessibilityLabel}>
+        {tiles}
+      </View>
+    );
+  const rows: ReactNode[][] = [];
+  for (let start = 0; start < tiles.length; start += columns)
+    rows.push(tiles.slice(start, start + columns));
+  return (
+    <View className={cn("gap-3", className)} accessibilityLabel={accessibilityLabel}>
+      {rows.map((row, rowIndex) => (
+        <View key={rowIndex} className="flex-row gap-3">
+          {Array.from({ length: columns }, (_, index) => (
+            <View
+              key={index}
+              className="min-w-0 flex-1"
+              style={height ? { minHeight: height } : undefined}
+              onLayout={(event) => {
+                const next = Math.ceil(event.nativeEvent.layout.height);
+                if (row[index] !== undefined && next > height) setHeight(next);
+              }}
+            >
+              {row[index] ?? null}
+            </View>
+          ))}
         </View>
       ))}
     </View>

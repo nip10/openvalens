@@ -13,6 +13,7 @@ import { Alert, Pressable, RefreshControl, Text, TextInput, View } from "react-n
 import {
   EmptyState,
   ErrorState,
+  Icon,
   ListCard,
   Page,
   PageHeader,
@@ -90,7 +91,7 @@ export default function GoalsScreen() {
             <Text className="text-sm text-ink-3">{t`What needs attention today, followed by your longer-term progress.`}</Text>
           </View>
           <Button onPress={() => setCreating((value) => !value)}>
-            <Plus size={17} />
+            <Icon icon={Plus} size={17} color="primary-foreground" />
             <Button.Label>{creating ? t`Close` : t`Add a goal`}</Button.Label>
           </Button>
         </View>
@@ -231,12 +232,12 @@ function GoalTodayCard({
         </Button>
         {!goal.evaluation.achieved ? (
           <Button size="sm" variant="outline" onPress={() => onStatus(goal, "completed")}>
-            <Check size={15} />
+            <Icon icon={Check} size={15} color="ink-2" />
             <Button.Label>{t`Complete`}</Button.Label>
           </Button>
         ) : null}
         <Button size="sm" variant="ghost" onPress={() => onDelete(goal)}>
-          <Trash2 size={16} />
+          <Icon icon={Trash2} size={16} color="ink-2" />
           <Button.Label>{t`Delete`}</Button.Label>
         </Button>
       </View>
@@ -292,7 +293,7 @@ function Action({ goal, onRefresh }: { goal: GoalSummary; onRefresh: () => void 
             save.mutate({ goalId: goal.id, date, completed: true, clientMutationId: mutationId() })
           }
         >
-          <Check size={15} />
+          <Icon icon={Check} size={15} color="ink-2" />
           <Button.Label>{save.isPending ? t`Saving…` : t`Mark done today`}</Button.Label>
         </Button>
         {save.isError ? (

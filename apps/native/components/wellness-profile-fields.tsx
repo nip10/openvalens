@@ -1,11 +1,12 @@
 import { useLingui } from "@lingui/react/macro";
 import type { WellnessProfileDraft } from "@openvalens/api/presenters/wellness-profile";
-import { cn, Select } from "heroui-native";
+import { cn } from "heroui-native";
 import { Check } from "lucide-react-native";
 import type { ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
 
 import { Icon, InfoTip } from "@/components/bloom";
+import { SelectField } from "@/components/select-field";
 import {
   chipsFor,
   selectedChips,
@@ -89,37 +90,19 @@ export function ChoiceSelect({
   onChange: (draft: WellnessProfileDraft) => void;
   label: string;
 }) {
-  const { t, i18n } = useLingui();
-  const options = chipsFor(field).map((chip) => ({ value: chip.key, label: i18n._(chip.label) }));
-  const key = selectedChips(field, draft.answers)[0];
-  const value = options.find((option) => option.value === key);
+  const { i18n } = useLingui();
   return (
-    <Select
-      value={value}
-      onValueChange={(next) => {
-        // Picking the current choice again keeps it (a pill would clear it).
-        if (next && !Array.isArray(next) && next.value !== key)
-          onChange(toggleChip(field, next.value, draft));
-      }}
-    >
-      <Select.Trigger testID={`select-${field}`} accessibilityLabel={label}>
-        <Select.Value placeholder={t`Choose…`} />
-        <Select.TriggerIndicator />
-      </Select.Trigger>
-      <Select.Portal>
-        <Select.Overlay />
-        <Select.Content presentation="popover" width="trigger">
-          {options.map((option) => (
-            <Select.Item
-              key={option.value}
-              value={option.value}
-              label={option.label}
-              testID={`select-${field}-${option.value}`}
-            />
-          ))}
-        </Select.Content>
-      </Select.Portal>
-    </Select>
+    <SelectField
+      options={chipsFor(field).map((chip) => ({
+        value: chip.key,
+        label: i18n._(chip.label),
+        testID: `select-${field}-${chip.key}`,
+      }))}
+      value={selectedChips(field, draft.answers)[0]}
+      onChange={(key) => onChange(toggleChip(field, key, draft))}
+      accessibilityLabel={label}
+      testID={`select-${field}`}
+    />
   );
 }
 

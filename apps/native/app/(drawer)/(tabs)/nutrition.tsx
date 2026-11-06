@@ -122,6 +122,7 @@ import {
 } from "@/components/bloom";
 import { DISPLAY_MAX_FONT_SCALE } from "@/components/font-scale";
 import { Container } from "@/components/container";
+import { SegmentedTabs } from "@/components/segmented-tabs";
 import { LoggingStreakCard } from "@/components/logging-streak-card";
 import { NutritionDayTotals } from "@/components/nutrition-day-totals";
 import { NutritionDatePicker } from "@/components/nutrition-date-picker";
@@ -1881,54 +1882,33 @@ export function AddFood({
         >
           {/* No section title: the header above already reads "Add food". */}
           <Section tone="food" sheet>
-            <View className="flex-row flex-wrap gap-2">
-              <Chip
-                icon={Search}
-                label={t`Search and recents`}
-                selected={mode === "choose"}
-                onPress={() => switchMode("choose")}
-                disabled={!editable}
-              />
-              <Chip
-                icon={Bookmark}
-                label={i18n._(NUTRITION_TEMPLATES_COPY.title)}
-                selected={mode === "templates"}
-                onPress={() => switchMode("templates")}
-                disabled={!editable}
-              />
-              <Chip
-                icon={ScanBarcode}
-                label={i18n._(BARCODE_COPY.mode)}
-                selected={mode === "barcode"}
-                onPress={() => switchMode("barcode")}
-                disabled={!editable}
-              />
-              <Chip
-                icon={Zap}
-                label={t`Quick add`}
-                selected={mode === "quick"}
-                onPress={() => switchMode("quick")}
-                disabled={!editable}
-              />
-              {voiceDraftsEnabled ? (
-                <Chip
-                  icon={Search}
-                  label={t`Describe`}
-                  selected={mode === "describe"}
-                  onPress={() => switchMode("describe")}
-                  disabled={!editable}
-                />
-              ) : null}
-              {photoDraftsEnabled ? (
-                <Chip
-                  icon={ScanBarcode}
-                  label={t`Photo`}
-                  selected={mode === "photo"}
-                  onPress={() => switchMode("photo")}
-                  disabled={!editable}
-                />
-              ) : null}
-            </View>
+            <SegmentedTabs
+              value={mode}
+              onChange={switchMode}
+              disabled={!editable}
+              tabs={[
+                {
+                  value: "choose",
+                  icon: Search,
+                  label: t({ message: "Search", context: "add food mode" }),
+                  accessibilityLabel: t`Search and recents`,
+                },
+                {
+                  value: "templates",
+                  icon: Bookmark,
+                  label: t({ message: "Saved", context: "add food mode" }),
+                  accessibilityLabel: i18n._(NUTRITION_TEMPLATES_COPY.title),
+                },
+                { value: "barcode", icon: ScanBarcode, label: i18n._(BARCODE_COPY.mode) },
+                { value: "quick", icon: Zap, label: t`Quick add` },
+                ...(voiceDraftsEnabled
+                  ? [{ value: "describe" as const, icon: Search, label: t`Describe` }]
+                  : []),
+                ...(photoDraftsEnabled
+                  ? [{ value: "photo" as const, icon: ScanBarcode, label: t`Photo` }]
+                  : []),
+              ]}
+            />
             {mode === "templates" ? (
               <NutritionTemplatePanel
                 localDate={localDate}

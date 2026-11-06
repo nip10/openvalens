@@ -2911,7 +2911,7 @@ msgstr "Escolha com que receita quer continuar."
 msgid "Choose your region in your profile to see guidance from public-health authorities there. Without a region, no list is shown."
 msgstr "Escolha a sua região no seu perfil para ver as orientações das autoridades de saúde pública dessa região. Sem uma região, não é mostrada nenhuma lista."
 
-#: apps/native/components/wellness-profile-fields.tsx
+#: apps/native/components/select-field.tsx
 msgid "Choose…"
 msgstr "Escolher…"
 
@@ -5976,6 +5976,10 @@ msgstr "Concluir treino"
 msgid "First setup"
 msgstr "Primeira configuração"
 
+#: apps/native/app/(drawer)/cycle.tsx
+msgid "Flow"
+msgstr "Fluxo"
+
 #: apps/web/src/routes/_auth/cycle.tsx
 msgid "Flow (optional)"
 msgstr "Fluxo (opcional)"
@@ -6161,6 +6165,8 @@ msgid "General information from your own logs, not a diagnosis or medical advice
 msgstr "Informação geral com base nos seus próprios registos, não um diagnóstico nem aconselhamento médico. Consulte um profissional de saúde antes de alterar a sua alimentação ou tomar suplementos."
 
 #. safety
+#. safety
+#: apps/native/app/(drawer)/preventive-care.tsx
 #: apps/web/src/components/preventive-care-view.tsx
 msgid "General public-health information, not personal medical advice."
 msgstr "Informação geral de saúde pública, não aconselhamento médico pessoal."
@@ -9648,12 +9654,12 @@ msgstr "Uma vez"
 msgid "Once a week, a summary of your insights with their values. Service messages only, never promotion. Every email has a one-step unsubscribe link."
 msgstr "Uma vez por semana, um resumo das suas perspetivas com os respetivos valores. Apenas mensagens de serviço, nunca promoções. Cada email tem uma ligação para cancelar a subscrição num só passo."
 
+#: apps/native/components/onboarding/steps.tsx
 #: apps/native/lib/onboarding/steps.ts
 #: apps/web/src/utils/onboarding.ts
 msgid "One goal"
 msgstr "Um objetivo"
 
-#: apps/native/components/onboarding/steps.tsx
 #: apps/web/src/components/onboarding/welcome-flow.tsx
 msgid "One goal (optional)"
 msgstr "Um objetivo (opcional)"
@@ -11766,6 +11772,11 @@ msgstr "Guardar treino"
 msgid "Saved"
 msgstr "Guardado"
 
+#: apps/native/app/(drawer)/(tabs)/nutrition.tsx
+msgctxt "add food mode"
+msgid "Saved"
+msgstr "Guardados"
+
 #. placeholder {0}: quickUndo.name
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 msgid "Saved {0}"
@@ -11913,6 +11924,11 @@ msgstr "Pontuações"
 #: packages/api/src/presenters/modules.ts
 msgid "Screening dates"
 msgstr "Datas de rastreio"
+
+#: apps/native/app/(drawer)/(tabs)/nutrition.tsx
+msgctxt "add food mode"
+msgid "Search"
+msgstr "Pesquisar"
 
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 #: apps/web/src/routes/_auth/nutrition.tsx

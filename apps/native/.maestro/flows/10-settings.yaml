@@ -21,11 +21,10 @@ tags: [settings]
 
 # Language: Portuguese (Portugal), then back to English
 - runFlow:
-    file: ../subflows/find-id.yaml
+    file: ../subflows/pick-option.yaml
     env:
-      ID: "language-pt-PT"
-- tapOn:
-    id: "language-pt-PT"
+      SELECT: "language-select"
+      OPTION: "language-pt-PT"
 - extendedWaitUntil:
     visible: "Idioma da interface"
     timeout: 10000
@@ -36,27 +35,25 @@ tags: [settings]
 - tapOn:
     id: "tab-settings"
 - runFlow:
-    file: ../subflows/find-id.yaml
+    file: ../subflows/pick-option.yaml
     env:
-      ID: "language-en"
-- tapOn:
-    id: "language-en"
+      SELECT: "language-select"
+      OPTION: "language-en"
 - extendedWaitUntil:
     visible: "Interface language"
     timeout: 10000
 
 # Units and formats: lab units in mmol/L, dates as in the UK, then back
 - runFlow:
-    file: ../subflows/find-id.yaml
+    file: ../subflows/pick-option.yaml
     env:
-      ID: "lab-units-mmol_l"
-- tapOn:
-    id: "lab-units-mmol_l"
+      SELECT: "lab-units-select"
+      OPTION: "lab-units-mmol_l"
 - runFlow:
-    file: ../subflows/find-text.yaml
+    file: ../subflows/pick-option.yaml
     env:
-      TEXT: "United Kingdom"
-- tapOn: "United Kingdom"
+      SELECT: "format-select"
+      OPTION: "format-en-GB"
 - takeScreenshot: 10-units
 - runFlow:
     file: ../subflows/drawer-go.yaml
@@ -72,12 +69,15 @@ tags: [settings]
     env:
       ID: drawer-settings
 - runFlow:
-    file: ../subflows/find-id.yaml
+    file: ../subflows/pick-option.yaml
     env:
-      ID: "lab-units-as_reported"
-- tapOn:
-    id: "lab-units-as_reported"
-- tapOn: "App default"
+      SELECT: "lab-units-select"
+      OPTION: "lab-units-as_reported"
+- runFlow:
+    file: ../subflows/pick-option.yaml
+    env:
+      SELECT: "format-select"
+      OPTION: "format-default"
 
 # Theme: dark mode on, then off
 - runFlow:

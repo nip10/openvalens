@@ -60,16 +60,11 @@ import { CloudAccessNotice } from "@/components/cloud-access-notice";
 import { ListRow } from "@/components/list-row";
 import { Container } from "@/components/container";
 import { HealthSyncSettings } from "@/components/health-sync-settings";
-import {
-  choiceChip,
-  choiceText,
-  LanguageSection,
-  SettingsGroup,
-  SettingsIcon,
-} from "@/components/language-section";
+import { LanguageSection, SettingsGroup, SettingsIcon } from "@/components/language-section";
 import { AnalyticsConsentSection } from "@/components/analytics-consent-section";
 import { AiSection } from "@/components/ai-section";
 import { ServerSection } from "@/components/change-server";
+import { SelectField } from "@/components/select-field";
 import { SignInMethodsSection } from "@/components/sign-in-methods";
 import { useAppTheme } from "@/contexts/app-theme-context";
 import { appBuildInfo } from "@/lib/app-version";
@@ -744,22 +739,12 @@ function CoachSelect<V extends string>({
   return (
     <View className="gap-2">
       <Text className="font-sans text-sm font-medium text-ink-2">{label}</Text>
-      <View className="flex-row flex-wrap gap-2">
-        {values.map((option) => {
-          const selected = option === value;
-          return (
-            <Pressable
-              key={option}
-              onPress={() => onChange(option)}
-              accessibilityRole="button"
-              accessibilityState={{ selected }}
-              className={choiceChip(selected)}
-            >
-              <Text className={choiceText(selected)}>{format(option)}</Text>
-            </Pressable>
-          );
-        })}
-      </View>
+      <SelectField
+        options={values.map((option) => ({ value: option, label: format(option) }))}
+        value={value}
+        onChange={onChange}
+        accessibilityLabel={label}
+      />
       {hint ? <Text className="font-sans text-sm text-ink-3">{hint}</Text> : null}
     </View>
   );

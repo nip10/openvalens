@@ -736,7 +736,7 @@ export function GoalStep({ flow }: StepProps) {
   return (
     <StepFrame
       step="goal"
-      title={<Trans>One goal (optional)</Trans>}
+      title={<Trans>One goal</Trans>}
       description={<Trans>Something to work toward, in your own words.</Trans>}
       info={
         <Prose>

@@ -29,6 +29,7 @@ import {
   Section,
   Sheet,
   StatTile,
+  TileGrid,
   TileRow,
   ToneChip,
 } from "@/components/bloom";
@@ -231,39 +232,34 @@ export default function ActivityScreen() {
           />
         ) : (
           <>
-            <View className="gap-3" accessibilityLabel={t`Today`}>
-              <TileRow>
-                <StatTile
-                  icon={Footprints}
-                  tone="steps"
-                  label={t`Steps`}
-                  value={formatSteps(today.steps)}
-                  meter={
-                    summary.sevenDayAverageSteps
-                      ? { value: today.steps / summary.sevenDayAverageSteps }
-                      : undefined
-                  }
-                  note={t`Your usual: ${formatSteps(summary.sevenDayAverageSteps)}`}
-                />
-                <StatTile
-                  icon={Flame}
-                  tone="food"
-                  label={t`Calories`}
-                  value={formatKcalories(today.activeCaloriesKcal)}
-                  note={t`Your usual: ${formatKcalories(summary.sevenDayAverageCalories)}`}
-                />
-              </TileRow>
-              <TileRow>
-                <StatTile
-                  icon={Route}
-                  tone="water"
-                  label={t`Distance`}
-                  value={formatDistanceMeters(today.distanceMeters)}
-                  note={t`Your usual: ${formatDistanceMeters(summary.sevenDayAverageDistance)}`}
-                />
-                <View />
-              </TileRow>
-            </View>
+            <TileGrid accessibilityLabel={t`Today`}>
+              <StatTile
+                icon={Footprints}
+                tone="steps"
+                label={t`Steps`}
+                value={formatSteps(today.steps)}
+                meter={
+                  summary.sevenDayAverageSteps
+                    ? { value: today.steps / summary.sevenDayAverageSteps }
+                    : undefined
+                }
+                note={t`Your usual: ${formatSteps(summary.sevenDayAverageSteps)}`}
+              />
+              <StatTile
+                icon={Flame}
+                tone="food"
+                label={t`Calories`}
+                value={formatKcalories(today.activeCaloriesKcal)}
+                note={t`Your usual: ${formatKcalories(summary.sevenDayAverageCalories)}`}
+              />
+              <StatTile
+                icon={Route}
+                tone="water"
+                label={t`Distance`}
+                value={formatDistanceMeters(today.distanceMeters)}
+                note={t`Your usual: ${formatDistanceMeters(summary.sevenDayAverageDistance)}`}
+              />
+            </TileGrid>
 
             <Section
               icon={BarChart3}

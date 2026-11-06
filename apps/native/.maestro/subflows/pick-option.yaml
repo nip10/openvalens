@@ -1,0 +1,18 @@
+# Opens the dropdown with test id SELECT and picks the option with test id
+# OPTION (ids, so it works in either language).
+appId: com.openvalens.app
+---
+- runFlow:
+    file: find-id.yaml
+    env:
+      ID: ${SELECT}
+- tapOn:
+    id: ${SELECT}
+- extendedWaitUntil:
+    visible:
+      id: ${OPTION}
+    timeout: 5000
+- tapOn:
+    id: ${OPTION}
+- waitForAnimationToEnd:
+    timeout: 2000

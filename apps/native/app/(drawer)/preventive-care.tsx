@@ -450,11 +450,23 @@ export default function PreventiveCareScreen() {
     >
       <Page>
         <ModuleHiddenNote module="care" />
-        {/* The intro is safety copy (general information, not medical advice): it stays on show. */}
+        {/* As on the web: the safety line stays on show, the full intro sits behind the ⓘ. */}
         <PageHeader
           title={model.title}
-          description={model.intro}
-          info={<Text className="font-sans text-sm text-ink-3">{model.versionText}</Text>}
+          description={
+            <Text className="font-sans text-sm text-ink-3">
+              {t({
+                message: "General public-health information, not personal medical advice.",
+                comment: "safety",
+              })}
+            </Text>
+          }
+          info={
+            <>
+              <Prose>{model.intro}</Prose>
+              <Text className="font-sans text-sm text-ink-3">{model.versionText}</Text>
+            </>
+          }
         />
 
         {message ? <ErrorState title={message} /> : null}

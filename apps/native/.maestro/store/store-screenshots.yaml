@@ -40,11 +40,10 @@ name: Store screenshots
     env:
       ID: drawer-settings
 - runFlow:
-    file: ../subflows/find-id.yaml
+    file: ../subflows/pick-option.yaml
     env:
-      ID: "language-${LOCALE}"
-- tapOn:
-    id: "language-${LOCALE}"
+      SELECT: "language-select"
+      OPTION: "language-${LOCALE}"
 - waitForAnimationToEnd:
     timeout: 3000
 
@@ -95,8 +94,7 @@ name: Store screenshots
     env:
       ID: drawer-settings
 - runFlow:
-    file: ../subflows/find-id.yaml
+    file: ../subflows/pick-option.yaml
     env:
-      ID: "language-en"
-- tapOn:
-    id: "language-en"
+      SELECT: "language-select"
+      OPTION: "language-en"
