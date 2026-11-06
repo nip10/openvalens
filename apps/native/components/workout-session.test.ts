@@ -81,12 +81,20 @@ if (mountedMode) {
         buttons?: Array<{ text: string; onPress?: () => void }>,
       ) => buttons?.at(-1)?.onPress?.(),
     };
+    class AnimatedValue {
+      constructor(public value: number) {}
+      setValue(next: number) {
+        this.value = next;
+      }
+    }
     return {
       View,
       Text,
       TextInput,
       Pressable,
       Modal,
+      Image: host("img"),
+      Animated: { View, Value: AnimatedValue },
       ScrollView: View,
       KeyboardAvoidingView: View,
       Platform: { OS: "ios" },
@@ -115,7 +123,25 @@ if (mountedMode) {
     Trash2: () => null,
     ChevronUp: () => null,
     ChevronDown: () => null,
+    ChevronLeft: () => null,
+    ChevronRight: () => null,
+    ListOrdered: () => null,
+    MoreHorizontal: () => null,
+    GripVertical: () => null,
+    Dumbbell: () => null,
   }));
+  // The overview sheet's drag handle needs the native gesture module; drag itself is unit-tested.
+  mock.module("react-native-gesture-handler", () => {
+    const chain: Record<string, unknown> = {};
+    for (const name of ["runOnJS", "activeOffsetY", "onStart", "onUpdate", "onEnd", "onFinalize"])
+      chain[name] = () => chain;
+    return {
+      Gesture: { Pan: () => chain },
+      GestureDetector: ({ children }: { children: React.ReactNode }) => children,
+    };
+  });
+  // Thumbnails query the catalog and load images; they have no bearing on logging.
+  mock.module("@/components/exercise-thumbnail", () => ({ ExerciseThumbnail: () => null }));
   mock.module("react-native-svg", () => ({
     default: host("svg"),
     Circle: host("circle"),
@@ -190,9 +216,15 @@ if (mountedMode) {
     useLingui: () => ({
       t: (parts: TemplateStringsArray, ...values: unknown[]) =>
         String.raw({ raw: parts.raw }, ...(values as string[])),
+      i18n: {
+        locale: "en",
+        _: (descriptor: { message?: string } | string) =>
+          typeof descriptor === "string" ? descriptor : (descriptor.message ?? ""),
+      },
     }),
   }));
   mock.module("@lingui/core/macro", () => ({
+    msg: (descriptor: unknown) => descriptor,
     plural: (count: number, options: { one: string; other: string }) =>
       count === 1 ? options.one.replace("#", "1") : options.other.replace("#", String(count)),
   }));
@@ -302,6 +334,11 @@ if (mountedMode) {
       if (!target) throw new Error(`Missing button ${label}; rendered: ${container.textContent}`);
       await React.act(async () => target.click());
     };
+    const clickLabel = async (label: string) => {
+      const target = container.querySelector(`[aria-label="${label}"]`) as HTMLElement | null;
+      if (!target) throw new Error(`Missing control ${label}; rendered: ${container.textContent}`);
+      await React.act(async () => target.click());
+    };
     const change = async (el: HTMLInputElement, value: string) =>
       React.act(async () => {
         const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
@@ -320,35 +357,26 @@ if (mountedMode) {
         "Free-text squat",
       );
       await click("Add custom exercise");
+      // More exercises are added from the workout overview.
+      await clickLabel("Show all exercises in this workout");
       await click("Add exercise");
       await click("Catalog press");
       const exercises = ["Free-text squat", "Catalog press"];
+      // One exercise per screen: go back to the first one.
+      await clickLabel("Previous exercise: Free-text squat");
       for (let ei = 0; ei < exercises.length; ei++) {
-        const sheet = Array.from(container.querySelectorAll('[data-testid="workout-sheet"]')).find(
-          (node) => node.textContent?.includes(exercises[ei]!),
-        );
-        if (!sheet) throw new Error(`No editor for ${exercises[ei]}`);
-        const inputs = () => Array.from(sheet.querySelectorAll("input"));
-        const addSet = async () => {
-          const current = Array.from(
-            container.querySelectorAll('[data-testid="workout-sheet"]'),
-          ).find((node) => node.textContent?.includes(exercises[ei]!));
-          const target = Array.from(current?.querySelectorAll("button") ?? []).find((button) =>
-            button.textContent?.includes("Add set"),
-          ) as HTMLButtonElement | undefined;
-          if (!target) throw new Error(`Missing Add set in ${exercises[ei]}`);
-          await React.act(async () => target.click());
-        };
-        await addSet();
-        await addSet();
-        await addSet();
-        for (const input of inputs()) {
-          const label = input.getAttribute("aria-label");
-          if (label?.startsWith("Set ")) await change(input, ei === 0 ? "80" : "30");
-          if (label === "Reps") await change(input, ei === 0 ? "8" : "10");
+        if (ei > 0) await clickLabel(`Next exercise: ${exercises[ei]}`);
+        expect(container.textContent).toContain(exercises[ei]!);
+        await click("Add set");
+        await click("Add set");
+        await click("Add set");
+        for (const input of Array.from(container.querySelectorAll("input"))) {
+          const label = input.getAttribute("aria-label") ?? "";
+          if (/^Set \d+ weight/.test(label)) await change(input, ei === 0 ? "80" : "30");
+          if (/^Set \d+ reps$/.test(label)) await change(input, ei === 0 ? "8" : "10");
         }
         for (const done of Array.from(
-          sheet.querySelectorAll<HTMLButtonElement>('button[role="checkbox"]'),
+          container.querySelectorAll<HTMLButtonElement>('button[role="checkbox"]'),
         ))
           await React.act(async () => done.click());
       }
@@ -371,9 +399,9 @@ if (mountedMode) {
       ]);
       await React.act(async () => root.render(null));
       await render();
+      expect(container.textContent).toContain("2 exercises, 6 sets done");
       expect(container.textContent).toContain("Free-text squat");
-      expect(container.textContent).toContain("Catalog press");
-      await click("Finish workout");
+      await clickLabel("Finish workout");
       const duration = container.querySelector(
         'input[aria-label="Duration in minutes"]',
       ) as HTMLInputElement | null;
@@ -455,23 +483,17 @@ if (mountedMode) {
         "Imperial lift",
       );
       await click("Add custom exercise");
-      const sheet = container.querySelector('[data-testid="workout-sheet"]')!;
-      const addSet = Array.from(sheet.querySelectorAll("button")).find((item) =>
-        item.textContent?.includes("Add set"),
-      )!;
-      await React.act(async () => addSet.click());
-      let weight = Array.from(sheet.querySelectorAll("input")).find((item) =>
-        item.getAttribute("aria-label")?.startsWith("Set "),
-      )!;
+      await click("Add set");
+      const weight = container.querySelector(
+        'input[aria-label="Set 1 weight in pounds"]',
+      ) as HTMLInputElement;
       await change(weight, "176.4");
       expect((savedDraft as WorkoutDraft | null)?.exercises[0]?.sets[0]?.weightKg).toBeCloseTo(
         80,
         1,
       );
       storageFails = true;
-      const reps = Array.from(sheet.querySelectorAll("input")).find(
-        (item) => item.getAttribute("aria-label") === "Reps",
-      )!;
+      const reps = container.querySelector('input[aria-label="Set 1 reps"]') as HTMLInputElement;
       await change(reps, "8");
       expect(container.textContent).toContain("Could not save workout changes. Please try again.");
       expect((savedDraft as WorkoutDraft | null)?.exercises[0]?.sets[0]?.reps).toBe("");
