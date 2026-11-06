@@ -147,6 +147,9 @@ mock.module("@/components/nutrition-week-strip", () => ({
 mock.module("@/components/nutrition-day-summary", () => ({
   NutritionDaySummary: host("NutritionDaySummary"),
 }));
+mock.module("@/components/nutrition-trend-card", () => ({
+  NutritionTrendCard: host("NutritionTrendCard"),
+}));
 mock.module("@/components/nutrition-day-menu", () => ({
   NutritionDayMenu: host("NutritionDayMenu"),
 }));
