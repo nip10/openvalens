@@ -690,6 +690,11 @@ msgstr "{label}: desconhecido, {coverage}"
 msgid "{label}: value hidden, {coverage}"
 msgstr "{label}: valor oculto, {coverage}"
 
+#. placeholder {0}: items.length
+#: apps/native/components/get-started-card.tsx
+msgid "{left} of {0} left"
+msgstr "Faltam {left} de {0}"
+
 #. safety
 #: packages/api/src/presenters/energy-estimate.ts
 msgid "{low} to {high} kcal/day"
@@ -1392,6 +1397,10 @@ msgstr "Se tiver um objetivo, adicione-o por palavras suas. Fica guardado nos se
 #: apps/web/src/routes/_auth/goals.index.tsx
 msgid "Add a goal or review paused and completed goals below."
 msgstr "Adicione uma meta ou reveja abaixo as metas em pausa e concluídas."
+
+#: apps/native/components/get-started-card.tsx
+msgid "Add a goal to track"
+msgstr "Adicionar um objetivo para acompanhar"
 
 #: packages/api/src/presenters/score.ts
 msgid "Add a goal with a target to see goal progress."
@@ -2911,6 +2920,10 @@ msgstr "Escolha com que receita quer continuar."
 msgid "Choose your region in your profile to see guidance from public-health authorities there. Without a region, no list is shown."
 msgstr "Escolha a sua região no seu perfil para ver as orientações das autoridades de saúde pública dessa região. Sem uma região, não é mostrada nenhuma lista."
 
+#: apps/native/components/select-field.tsx
+msgid "Choose…"
+msgstr "Escolher…"
+
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 #: apps/native/components/date-field.tsx
 #: apps/native/components/recipe-draft-editor.tsx
@@ -2982,6 +2995,7 @@ msgstr "Decisão do profissional de saúde em situações específicas"
 #: apps/native/app/(drawer)/goals.tsx
 #: apps/native/app/modal.tsx
 #: apps/native/components/change-server.tsx
+#: apps/native/components/select-field.tsx
 #: apps/native/components/workout-session-detail.tsx
 #: apps/web/src/routes/_auth/goals.index.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
@@ -3166,6 +3180,10 @@ msgstr "Confirme o seu email para criar a sua conta OpenValens."
 #: apps/web/src/routes/_auth/settings/telegram.tsx
 msgid "Connect"
 msgstr "Ligar"
+
+#: apps/native/components/get-started-card.tsx
+msgid "Connect {sourceName}"
+msgstr "Ligar {sourceName}"
 
 #: apps/native/app/(drawer)/settings/telegram.tsx
 #: apps/web/src/routes/_auth/settings/telegram.tsx
@@ -5972,6 +5990,10 @@ msgstr "Concluir treino"
 msgid "First setup"
 msgstr "Primeira configuração"
 
+#: apps/native/app/(drawer)/cycle.tsx
+msgid "Flow"
+msgstr "Fluxo"
+
 #: apps/web/src/routes/_auth/cycle.tsx
 msgid "Flow (optional)"
 msgstr "Fluxo (opcional)"
@@ -6157,6 +6179,8 @@ msgid "General information from your own logs, not a diagnosis or medical advice
 msgstr "Informação geral com base nos seus próprios registos, não um diagnóstico nem aconselhamento médico. Consulte um profissional de saúde antes de alterar a sua alimentação ou tomar suplementos."
 
 #. safety
+#. safety
+#: apps/native/app/(drawer)/preventive-care.tsx
 #: apps/web/src/components/preventive-care-view.tsx
 msgid "General public-health information, not personal medical advice."
 msgstr "Informação geral de saúde pública, não aconselhamento médico pessoal."
@@ -6176,6 +6200,10 @@ msgstr "Suave"
 #: packages/api/src/presenters/insights.ts
 msgid "Get a quiet notification for new insights?"
 msgstr "Receber uma notificação discreta de novas perspetivas?"
+
+#: apps/native/components/get-started-card.tsx
+msgid "Get started"
+msgstr "Primeiros passos"
 
 #: packages/api/src/presenters/body-map.ts
 msgid "Glutes"
@@ -6207,6 +6235,9 @@ msgid "Goal"
 msgstr "Objetivo"
 
 #: apps/native/app/(drawer)/profile.tsx
+msgid "Goal added. You can change it in Goals, in the menu under Habits."
+msgstr "Objetivo adicionado. Pode alterá-lo em Objetivos, no menu, em Hábitos."
+
 #: apps/web/src/routes/_auth/profile.tsx
 msgid "Goal added. You can edit it under Workouts."
 msgstr "Objetivo adicionado. Pode editá-lo em Treinos."
@@ -6436,6 +6467,10 @@ msgstr "Olá coach, dê-me um resumo numa linha de como estou hoje e uma sugest�
 msgid "Hidden"
 msgstr "Oculto"
 
+#: apps/native/components/get-started-card.tsx
+msgid "Hide"
+msgstr "Ocultar"
+
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Hide numbers"
 msgstr "Ocultar números"
@@ -6451,6 +6486,10 @@ msgstr "Oculta os números de energia, nutrientes e objetivos no diário. O regi
 #: packages/api/src/presenters/insights.ts
 msgid "Hides this kind of insight for 30 days."
 msgstr "Oculta este tipo de perspetiva durante 30 dias."
+
+#: apps/native/components/get-started-card.tsx
+msgid "Hides this list on this phone"
+msgstr "Oculta esta lista neste telemóvel"
 
 #: packages/api/src/presenters/modules.ts
 msgid "Hiding a module keeps its data. Turn it back on and everything is there again."
@@ -6562,6 +6601,10 @@ msgstr "Como funcionam as perspetivas"
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "How it was measured"
 msgstr "Como foi medido"
+
+#: apps/native/components/insights-section.tsx
+msgid "How it works"
+msgstr "Como funciona"
 
 #. safety
 #: packages/api/src/presenters/preventive-care.ts
@@ -6817,6 +6860,10 @@ msgstr "No mesmo período, {metric, select, sleep_duration {o seu sono} resting_
 #: packages/api/src/presenters/insights.ts
 msgid "In the same period, your {metric, select, sleep_duration {sleep} resting_heart_rate {resting heart rate} steps {step count} other {weight}} was {direction, select, higher {higher} other {lower}} than usual. These changed at the same time; that does not mean one explains the other."
 msgstr "No mesmo período, {metric, select, sleep_duration {o seu sono} resting_heart_rate {a sua frequência cardíaca em repouso} steps {o seu número de passos} other {o seu peso}} esteve {direction, select, higher {acima} other {abaixo}} do habitual. Estas alterações aconteceram ao mesmo tempo; isso não significa que uma explique a outra."
+
+#: apps/native/app/(drawer)/goals.tsx
+msgid "In your own words"
+msgstr "Nas suas palavras"
 
 #: apps/web/src/components/billing-plan-view.tsx
 msgid "Included"
@@ -7079,6 +7126,10 @@ msgstr "Ferro"
 msgid "Irregular schedule"
 msgstr "Horário irregular"
 
+#: apps/native/components/insights-section.tsx
+msgid "It appears once there are a few days of sleep and heart data."
+msgstr "Aparece quando houver alguns dias de dados de sono e de coração."
+
 #: packages/email/src/templates/admission-verification.tsx
 msgid "It expires in 10 minutes."
 msgstr "Expira dentro de 10 minutos."
@@ -7087,6 +7138,10 @@ msgstr "Expira dentro de 10 minutos."
 #: packages/api/src/presenters/score.ts
 msgid "It is not medical advice and says nothing about your health status. It does not tell you whether or how hard to exercise, and it has not been validated."
 msgstr "Não é aconselhamento médico e não diz nada sobre o seu estado de saúde. Não lhe diz se deve fazer exercício nem com que intensidade, e não foi validado."
+
+#: apps/native/components/get-started-card.tsx
+msgid "It starts your weight trend."
+msgstr "Inicia a sua tendência de peso."
 
 #: apps/web/src/routes/_auth/food-draft.tsx
 msgid "Item {number}, from the photo"
@@ -7684,6 +7739,10 @@ msgstr "Registar"
 msgid "Log {name} ({amount})"
 msgstr "Registar {name} ({amount})"
 
+#: apps/native/components/get-started-card.tsx
+msgid "Log a meal"
+msgstr "Registar uma refeição"
+
 #: apps/native/app/(drawer)/cycle.tsx
 #: apps/web/src/routes/_auth/cycle.tsx
 msgid "Log a period"
@@ -7693,6 +7752,14 @@ msgstr "Registar um período"
 #: apps/web/src/routes/_auth/cycle.tsx
 msgid "Log a period to see your cycle history."
 msgstr "Registe um período para ver o histórico do seu ciclo."
+
+#: apps/native/components/get-started-card.tsx
+msgid "Log a weight"
+msgstr "Registar um peso"
+
+#: apps/native/app/(drawer)/(tabs)/index.tsx
+msgid "Log a weight to see it here"
+msgstr "Registe um peso para o ver aqui"
 
 #: apps/native/app/(drawer)/goals.tsx
 #: apps/web/src/routes/_auth/goals.index.tsx
@@ -8595,7 +8662,6 @@ msgstr "Não há nenhuma conta ligada a esse início de sessão. Peça um convit
 msgid "No active minutes with a recorded intensity in the last 7 days."
 msgstr "Sem minutos ativos com intensidade registada nos últimos 7 dias."
 
-#: apps/native/app/(drawer)/(tabs)/index.tsx
 #: apps/web/src/routes/_auth/dashboard.tsx
 #: packages/api/src/presenters/cockpit.ts
 msgid "No activity logged"
@@ -8914,7 +8980,6 @@ msgstr "Sem quantidade"
 msgid "No rated sessions this week, so there is nothing to compare."
 msgstr "Sem sessões avaliadas esta semana, por isso não há nada para comparar."
 
-#: apps/native/app/(drawer)/(tabs)/index.tsx
 #: apps/web/src/routes/_auth/dashboard.tsx
 #: packages/api/src/presenters/cockpit.ts
 msgid "No reading yet"
@@ -9641,12 +9706,12 @@ msgstr "Uma vez"
 msgid "Once a week, a summary of your insights with their values. Service messages only, never promotion. Every email has a one-step unsubscribe link."
 msgstr "Uma vez por semana, um resumo das suas perspetivas com os respetivos valores. Apenas mensagens de serviço, nunca promoções. Cada email tem uma ligação para cancelar a subscrição num só passo."
 
+#: apps/native/components/onboarding/steps.tsx
 #: apps/native/lib/onboarding/steps.ts
 #: apps/web/src/utils/onboarding.ts
 msgid "One goal"
 msgstr "Um objetivo"
 
-#: apps/native/components/onboarding/steps.tsx
 #: apps/web/src/components/onboarding/welcome-flow.tsx
 msgid "One goal (optional)"
 msgstr "Um objetivo (opcional)"
@@ -9845,6 +9910,10 @@ msgstr "Descrições opcionais de como as refeições registadas se alinham no t
 #: apps/web/src/components/analytics-consent-section.tsx
 msgid "Optional usage analytics via PostHog EU. Sends approved settings-action names and a new random event ID for each event; events are not linked to your account, device, session, or workspace. No health records or free text are sent. PostHog retains events and their IDs and sees our server’s network IP, not your forwarded IP. Turning this off stops new sends; already-sent events cannot be recalled."
 msgstr "Estatísticas de utilização opcionais através do PostHog EU. Envia nomes aprovados de ações nas definições e um novo ID de evento aleatório para cada evento; os eventos não são associados à sua conta, dispositivo, sessão ou espaço de trabalho. Não são enviados registos de saúde nem texto livre. O PostHog guarda os eventos e os respetivos IDs e vê o IP de rede do nosso servidor, não o seu IP reencaminhado. Desligar esta opção impede novos envios; os eventos já enviados não podem ser recuperados."
+
+#: apps/native/components/get-started-card.tsx
+msgid "Optional. Shown beside your daily totals."
+msgstr "Opcional. Aparecem ao lado dos totais do dia."
 
 #: apps/web/src/components/magic-link-form.tsx
 #: apps/web/src/components/sign-up-form.tsx
@@ -11759,6 +11828,11 @@ msgstr "Guardar treino"
 msgid "Saved"
 msgstr "Guardado"
 
+#: apps/native/app/(drawer)/(tabs)/nutrition.tsx
+msgctxt "add food mode"
+msgid "Saved"
+msgstr "Guardados"
+
 #. placeholder {0}: quickUndo.name
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 msgid "Saved {0}"
@@ -11805,13 +11879,13 @@ msgstr "Refeições e receitas guardadas"
 msgid "Saved on this device. It will sync when you're online."
 msgstr "Guardado neste dispositivo. Será sincronizado quando tiver ligação."
 
+#: apps/native/components/onboarding/steps.tsx
+msgid "Saved to Goals, in the menu under Habits. You can change it there."
+msgstr "Guardado em Objetivos, no menu, em Hábitos. Pode alterá-lo aí."
+
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
 msgid "Saved to your Goals under Workouts, where you can add a target and date later."
 msgstr "Guardado nos seus Objetivos, em Treinos, onde pode adicionar uma meta e uma data mais tarde."
-
-#: apps/native/components/onboarding/steps.tsx
-msgid "Saved to your Goals. You can edit it under Workouts."
-msgstr "Guardado nos seus Objetivos. Pode editá-lo em Treinos."
 
 #: apps/web/src/utils/product-settings-form-state.ts
 msgid "Saved."
@@ -11908,6 +11982,11 @@ msgid "Screening dates"
 msgstr "Datas de rastreio"
 
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
+msgctxt "add food mode"
+msgid "Search"
+msgstr "Pesquisar"
+
+#: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 #: apps/web/src/routes/_auth/nutrition.tsx
 msgid "Search and recents"
 msgstr "Pesquisa e recentes"
@@ -11951,6 +12030,10 @@ msgstr "Pesquisar alimentos"
 #: apps/web/src/components/workout-session-editor.tsx
 msgid "Search the exercise catalog or enter a name. A session with no exercises is valid."
 msgstr "Pesquise no catálogo de exercícios ou introduza um nome. Uma sessão sem exercícios é válida."
+
+#: apps/native/components/get-started-card.tsx
+msgid "Search, scan a barcode or add it quickly."
+msgstr "Pesquise, leia um código de barras ou adicione rapidamente."
 
 #: apps/web/src/routes/_auth/-goal-editor.tsx
 msgid "Searching exercises…"
@@ -12203,6 +12286,10 @@ msgstr "Definir uma meta"
 msgid "Set notes"
 msgstr "Notas da série"
 
+#: apps/native/components/get-started-card.tsx
+msgid "Set nutrition targets"
+msgstr "Definir objetivos nutricionais"
+
 #: apps/native/components/change-server.tsx
 msgid "Set when this app was built"
 msgstr "Definido quando esta aplicação foi compilada"
@@ -12355,6 +12442,18 @@ msgstr "Mostrado apenas para contexto. Os passos e o volume de força nunca são
 #: packages/api/src/presenters/activity-load.ts
 msgid "Shown once at least {minimum} of the previous {considered} weeks have rated sessions (found {windows})."
 msgstr "Mostrado quando pelo menos {minimum} das {considered} semanas anteriores tiverem sessões avaliadas (encontradas {windows})."
+
+#: apps/native/app/(drawer)/(tabs)/index.tsx
+msgid "Shows after a night with your watch or health app"
+msgstr "Aparece após uma noite com o relógio ou a app de saúde"
+
+#: apps/native/app/(drawer)/(tabs)/index.tsx
+msgid "Shows once your heart rate syncs"
+msgstr "Aparece quando a frequência cardíaca sincronizar"
+
+#: apps/native/app/(drawer)/(tabs)/index.tsx
+msgid "Shows once your steps sync"
+msgstr "Aparece quando os passos sincronizarem"
 
 #: packages/api/src/presenters/body-map.ts
 msgid "Shows the measured change per region between two of your scans."
@@ -12680,6 +12779,10 @@ msgstr "Alguém pediu para criar uma conta OpenValens com este endereço de emai
 #: apps/web/src/components/onboarding/welcome-flow.tsx
 msgid "Something to work toward, in your own words."
 msgstr "Algo pelo qual trabalhar, por palavras suas."
+
+#: apps/native/components/get-started-card.tsx
+msgid "Something to work toward."
+msgstr "Algo por que trabalhar."
 
 #: apps/web/src/components/admin-invitations-view.tsx
 msgid "Something went wrong"
@@ -14703,6 +14806,10 @@ msgid "Use last"
 msgstr "Usar o último"
 
 #: apps/native/components/server-choice.tsx
+msgid "Use my own server"
+msgstr "Usar o meu próprio servidor"
+
+#: apps/native/components/server-choice.tsx
 msgid "Use OpenValens Cloud"
 msgstr "Usar o OpenValens Cloud"
 
@@ -15060,10 +15167,6 @@ msgstr "Vamos enviar-lhe por email uma ligação para concluir. Não precisa de 
 #: apps/web/src/components/magic-link-form.tsx
 msgid "We'll email you a link to sign in. No password needed."
 msgstr "Vamos enviar-lhe por email uma ligação para iniciar sessão. Não precisa de palavra-passe."
-
-#: apps/native/components/sign-in.tsx
-msgid "We'll email you a link. No password needed."
-msgstr "Vamos enviar-lhe uma ligação por email. Não precisa de palavra-passe."
 
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
 msgid "Wearable accounts such as Oura or WHOOP connect in Settings › Devices."
@@ -15683,6 +15786,10 @@ msgstr "O seu período experimental gratuito terminou. Escolha um plano para con
 msgid "Your free trial, plan and invoices"
 msgstr "O seu período experimental, plano e faturas"
 
+#: apps/native/components/get-started-card.tsx
+msgid "Your goal"
+msgstr "O seu objetivo"
+
 #: packages/email/src/templates/invitation-revoked.tsx
 msgid "Your invitation from {inviterName} to join {organizationName} has been revoked and can no longer be used."
 msgstr "O convite de {inviterName} para se juntar a {organizationName} foi revogado e já não pode ser utilizado."
@@ -15807,6 +15914,10 @@ msgstr "O seu perfil"
 #: packages/api/src/presenters/wellness-profile.ts
 msgid "Your profile was changed somewhere else. We've loaded the latest version. Check it and save again."
 msgstr "O seu perfil foi alterado noutro local. Carregámos a versão mais recente. Verifique-a e guarde novamente."
+
+#: apps/native/components/get-started-card.tsx
+msgid "Your readings then arrive by themselves."
+msgstr "As suas leituras passam a chegar sozinhas."
 
 #: apps/web/src/components/preventive-care-view.tsx
 msgid "Your record for {title}"

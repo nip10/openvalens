@@ -46,6 +46,7 @@ import { InsightsSection } from "@/components/insights-section";
 import { useModules } from "@/lib/modules/use-modules";
 import { ListRow } from "@/components/list-row";
 import { FinishSetupCard } from "@/components/finish-setup-card";
+import { GetStartedCard } from "@/components/get-started-card";
 import { CloudAccessNotice } from "@/components/cloud-access-notice";
 import { authClient } from "@/lib/auth-client";
 import { friendlyDate, pillTone } from "@/utils/friendly";
@@ -196,7 +197,7 @@ export default function CockpitScreen() {
               }
             : undefined
         }
-        note={sleepRow ? undefined : t`No reading yet`}
+        note={sleepRow ? undefined : t`Shows after a night with your watch or health app`}
       />
     ) : null,
     modules.isEnabled("activity") ? (
@@ -215,7 +216,7 @@ export default function CockpitScreen() {
             ? usualSteps
               ? t`Your usual: ${formatSteps(Math.round(usualSteps))}`
               : friendlyDate(i18n, activityRow.date)
-            : t`No activity logged`
+            : t`Shows once your steps sync`
         }
       />
     ) : null,
@@ -230,7 +231,7 @@ export default function CockpitScreen() {
         note={
           snapshot.vitals
             ? t`Average, ${friendlyDate(i18n, snapshot.vitals.date)}`
-            : t`No reading yet`
+            : t`Shows once your heart rate syncs`
         }
       />
     ) : null,
@@ -247,7 +248,7 @@ export default function CockpitScreen() {
             ? t`${formatKgDelta(i18n, weightSummary.change30d)} in 30 days`
             : snapshot.weight
               ? friendlyDate(i18n, snapshot.weight.date)
-              : t`No reading yet`
+              : t`Log a weight to see it here`
         }
       />
     ) : null,
@@ -295,6 +296,15 @@ export default function CockpitScreen() {
         />
 
         <FinishSetupCard />
+
+        <GetStartedCard
+          hasWeight={weight.isSuccess ? weight.data.length > 0 : weight.isError ? false : null}
+          hasDeviceData={
+            sleep.isPending || activity.isPending || vitals.isPending
+              ? null
+              : Boolean(snapshot.sleep || snapshot.activity || snapshot.vitals)
+          }
+        />
 
         <CloudAccessNotice />
 

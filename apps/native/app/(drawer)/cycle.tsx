@@ -6,13 +6,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Spinner } from "heroui-native";
 import { CalendarHeart, Droplet, History, Lock, Plus } from "lucide-react-native";
 import { useState } from "react";
-import { Alert, Pressable, Switch, Text, TextInput, View } from "react-native";
+import { Alert, Switch, Text, TextInput, View } from "react-native";
 
 import {
   Details,
   EmptyState,
   ErrorState,
-  Icon,
   InfoTip,
   ListCard,
   Page,
@@ -26,6 +25,7 @@ import {
   DISPLAY_MAX_FONT_SCALE,
 } from "@/components/bloom";
 import { Container } from "@/components/container";
+import { StepScale } from "@/components/step-scale";
 import { authClient } from "@/lib/auth-client";
 import { friendlyDate } from "@/utils/friendly";
 import { client } from "@/utils/orpc";
@@ -221,7 +221,9 @@ function CycleForMember({ scope }: { scope: string }) {
                     {t`Day ${current.dayOfCycle}`}
                   </Text>
                   <View className="flex-row flex-wrap items-center gap-2">
-                    <StatusPill tone="neutral">{i18n._(CYCLE_COPY.estimateLabel)}</StatusPill>
+                    <StatusPill tone="neutral" className="self-center">
+                      {i18n._(CYCLE_COPY.estimateLabel)}
+                    </StatusPill>
                     <Text className="font-sans text-sm text-ink-3">
                       {t`Started ${friendlyDate(i18n, current.startDate)}`}
                     </Text>
@@ -275,24 +277,13 @@ function CycleForMember({ scope }: { scope: string }) {
                 className={INPUT}
                 placeholderTextColor={placeholder}
               />
-              <View className="flex-row flex-wrap gap-2">
-                {FLOWS.map((value) => (
-                  <Pressable
-                    key={value}
-                    onPress={() => setFlow(flow === value ? null : value)}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: flow === value }}
-                    className={`min-h-11 flex-row items-center gap-1.5 rounded-full border px-4 ${flow === value ? "border-heart bg-heart-soft" : "border-rule-2 bg-sheet"}`}
-                  >
-                    <Icon icon={Droplet} size={14} color={flow === value ? "heart" : "ink-3"} />
-                    <Text
-                      className={`font-sans text-sm ${flow === value ? "font-semibold text-ink" : "text-ink-2"}`}
-                    >
-                      {flowLabel(value)}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
+              <StepScale
+                steps={FLOWS.map((value) => ({ value, label: flowLabel(value) }))}
+                value={flow}
+                onChange={setFlow}
+                accessibilityLabel={t`Flow`}
+                testID="cycle-flow"
+              />
               <Button
                 isDisabled={
                   !DATE.test(startDate) || (!!endDate && !DATE.test(endDate)) || log.isPending

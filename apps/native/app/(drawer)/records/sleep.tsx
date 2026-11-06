@@ -25,6 +25,7 @@ import {
   Sheet,
   StatTile,
   StatusPill,
+  TileGrid,
   TileRow,
   ToneIcon,
   useToneColor,
@@ -234,42 +235,38 @@ export default function SleepScreen() {
               </View>
             </Sheet>
 
-            <View className="gap-3">
-              <TileRow>
-                <StatTile
-                  tone="sleep"
-                  icon={CalendarDays}
-                  label={t`7-day average`}
-                  value={formatSleepDuration(summary.data.sevenDayAverageMinutes)}
-                />
-                <StatTile
-                  tone="steps"
-                  icon={Hourglass}
-                  label={t`Avg debt`}
-                  value={formatSleepDuration(summary.data.averageSleepDebtMinutes)}
-                />
-              </TileRow>
-              <TileRow>
-                <StatTile
-                  tone="weight"
-                  icon={Target}
-                  label={t`Target`}
-                  value={formatSleepDuration(last.targetMinutes)}
-                  meter={
-                    last.targetMinutes
-                      ? { value: last.asleepMinutes / last.targetMinutes }
-                      : undefined
-                  }
-                />
-                <StatTile
-                  tone="sleep"
-                  icon={Moon}
-                  label={t`In bed`}
-                  value={formatSleepDuration(last.timeInBedMinutes)}
-                  note={`${t`Efficiency`} ${formatSleepEfficiency(last.sleepEfficiencyPct)}`}
-                />
-              </TileRow>
-            </View>
+            <TileGrid>
+              <StatTile
+                tone="sleep"
+                icon={CalendarDays}
+                label={t`7-day average`}
+                value={formatSleepDuration(summary.data.sevenDayAverageMinutes)}
+              />
+              <StatTile
+                tone="steps"
+                icon={Hourglass}
+                label={t`Avg debt`}
+                value={formatSleepDuration(summary.data.averageSleepDebtMinutes)}
+              />
+              <StatTile
+                tone="weight"
+                icon={Target}
+                label={t`Target`}
+                value={formatSleepDuration(last.targetMinutes)}
+                meter={
+                  last.targetMinutes
+                    ? { value: last.asleepMinutes / last.targetMinutes }
+                    : undefined
+                }
+              />
+              <StatTile
+                tone="sleep"
+                icon={Moon}
+                label={t`In bed`}
+                value={formatSleepDuration(last.timeInBedMinutes)}
+                note={`${t`Efficiency`} ${formatSleepEfficiency(last.sleepEfficiencyPct)}`}
+              />
+            </TileGrid>
 
             {series.length > 0 ? (
               <Section icon={TrendingUp} tone="sleep" title={t`Last ${windowDays} days`}>

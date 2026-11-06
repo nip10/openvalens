@@ -43,5 +43,5 @@ appId: com.openvalens.app
                 timeout: 2000
 - extendedWaitUntil:
     visible:
-      id: "server-address-input"
+      id: "own-server-toggle"
     timeout: 15000

@@ -23,11 +23,10 @@ name: Screenshot tour
     env:
       ID: drawer-settings
 - runFlow:
-    file: ../subflows/find-id.yaml
+    file: ../subflows/pick-option.yaml
     env:
-      ID: "language-${LOCALE}"
-- tapOn:
-    id: "language-${LOCALE}"
+      SELECT: "language-select"
+      OPTION: "language-${LOCALE}"
 - waitForAnimationToEnd:
     timeout: 3000
 
@@ -58,6 +57,10 @@ name: Screenshot tour
 - takeScreenshot: ${PREFIX}-auth-01-sign-in
 - runFlow: ../subflows/change-server.yaml
 - takeScreenshot: ${PREFIX}-auth-02-server-choice
+- tapOn:
+    id: "own-server-toggle"
+- hideKeyboard
+- takeScreenshot: ${PREFIX}-auth-03-own-server
 - runFlow:
     file: ../subflows/server-address.yaml
     env:
@@ -104,6 +107,13 @@ name: Screenshot tour
 - waitForAnimationToEnd:
     timeout: 3000
 - takeScreenshot: ${PREFIX}-onboarding-5-basics
+- tapOn:
+    id: "select-region"
+- waitForAnimationToEnd:
+    timeout: 2000
+- takeScreenshot: ${PREFIX}-onboarding-5-basics-region
+- tapOn:
+    id: "select-region-declined"
 - runFlow: ../subflows/onboarding-continue.yaml
 - waitForAnimationToEnd:
     timeout: 3000

@@ -9,7 +9,7 @@ import { ArrowLeft, Check, Pencil, Plus, Trash2 } from "lucide-react-native";
 import { useState } from "react";
 import { Alert, Pressable, Text, TextInput, View } from "react-native";
 
-import { ErrorState, Page, PageHeader, Section, Sheet, StatusPill } from "@/components/bloom";
+import { ErrorState, Icon, Page, PageHeader, Section, Sheet, StatusPill } from "@/components/bloom";
 import { Container } from "@/components/container";
 import { GoalEditor } from "@/components/goal-editor";
 import { orpc } from "@/utils/orpc";
@@ -82,7 +82,7 @@ export default function GoalDetailScreen() {
       <Page>
         <Link href="/goals" asChild>
           <Pressable className="mb-2 flex-row items-center gap-2">
-            <ArrowLeft size={17} />
+            <Icon icon={ArrowLeft} size={17} color="ink-2" />
             <Text className="text-ink-3">{t`All goals`}</Text>
           </Pressable>
         </Link>
@@ -106,7 +106,7 @@ export default function GoalDetailScreen() {
           </StatusPill>
           {active ? (
             <Button size="sm" variant="outline" onPress={() => setEditing((value) => !value)}>
-              <Pencil size={14} />
+              <Icon icon={Pencil} size={14} color="ink-2" />
               <Button.Label>{editing ? t`Close editor` : t`Edit`}</Button.Label>
             </Button>
           ) : null}
@@ -157,7 +157,7 @@ export default function GoalDetailScreen() {
                 })
               }
             >
-              <Check size={15} />
+              <Icon icon={Check} size={15} color="ink-2" />
               <Button.Label>{t`Complete`}</Button.Label>
             </Button>
           ) : null}
@@ -182,12 +182,12 @@ export default function GoalDetailScreen() {
                 ])
               }
             >
-              <Trash2 size={15} />
+              <Icon icon={Trash2} size={15} color="ink-2" />
               <Button.Label>{t`Delete`}</Button.Label>
             </Button>
           ) : null}
           <Button size="sm" variant="outline" onPress={() => setReplacing((value) => !value)}>
-            <Plus size={15} />
+            <Icon icon={Plus} size={15} color="ink-2" />
             <Button.Label>{t`Create replacement`}</Button.Label>
           </Button>
         </View>
@@ -308,7 +308,7 @@ function TodaySection({
                 })
               }
             >
-              <Check size={16} />
+              <Icon icon={Check} size={16} color="primary-foreground" />
               <Button.Label>{t`Mark done`}</Button.Label>
             </Button>
           ) : (
@@ -615,7 +615,7 @@ function CheckinEditor({
             <Button.Label>{editing ? t`Cancel` : t`Correct`}</Button.Label>
           </Button>
           <Button size="sm" variant="ghost" onPress={onDelete}>
-            <Trash2 size={15} />
+            <Icon icon={Trash2} size={15} color="ink-2" />
             <Button.Label>{t`Delete`}</Button.Label>
           </Button>
         </View>

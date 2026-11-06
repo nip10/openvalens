@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
 
 import { Icon, InfoTip } from "@/components/bloom";
+import { SelectField } from "@/components/select-field";
 import {
   chipsFor,
   selectedChips,
@@ -28,19 +29,25 @@ export function QuestionLabel({ children, info }: { children: ReactNode; info?: 
   );
 }
 
+/** The choices as pills; `rows` puts each on its own full-width row. */
 export function Chips({
   field,
   draft,
   onChange,
+  layout = "wrap",
 }: {
   field: ChipField;
   draft: WellnessProfileDraft;
   onChange: (draft: WellnessProfileDraft) => void;
+  layout?: "wrap" | "rows";
 }) {
   const { i18n } = useLingui();
   const selected = selectedChips(field, draft.answers);
   return (
-    <View className="flex-row flex-wrap gap-2" accessibilityRole="radiogroup">
+    <View
+      className={layout === "rows" ? "gap-2" : "flex-row flex-wrap gap-2"}
+      accessibilityRole="radiogroup"
+    >
       {chipsFor(field).map((chip) => {
         const isSelected = selected.includes(chip.key);
         return (
@@ -52,6 +59,7 @@ export function Chips({
             accessibilityState={{ selected: isSelected, checked: isSelected }}
             className={cn(
               "min-h-11 justify-center rounded-full border px-4 active:opacity-70",
+              layout === "rows" && "min-h-12 px-5",
               isSelected ? "border-signal bg-sidebar-accent" : "border-rule bg-paper",
             )}
           >
@@ -67,6 +75,34 @@ export function Chips({
         );
       })}
     </View>
+  );
+}
+
+/** A single-choice question as a dropdown, for profile facts such as region or sex. */
+export function ChoiceSelect({
+  field,
+  draft,
+  onChange,
+  label,
+}: {
+  field: Exclude<ChipField, "focus">;
+  draft: WellnessProfileDraft;
+  onChange: (draft: WellnessProfileDraft) => void;
+  label: string;
+}) {
+  const { i18n } = useLingui();
+  return (
+    <SelectField
+      options={chipsFor(field).map((chip) => ({
+        value: chip.key,
+        label: i18n._(chip.label),
+        testID: `select-${field}-${chip.key}`,
+      }))}
+      value={selectedChips(field, draft.answers)[0]}
+      onChange={(key) => onChange(toggleChip(field, key, draft))}
+      accessibilityLabel={label}
+      testID={`select-${field}`}
+    />
   );
 }
 

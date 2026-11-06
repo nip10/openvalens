@@ -5,11 +5,15 @@ import { LOCALE_NAMES, LOCALES, reviewStatusOf } from "@openvalens/i18n";
 import { cn } from "heroui-native";
 import { CalendarClock, FlaskConical, Globe, Languages } from "lucide-react-native";
 import type { ReactNode } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Text, View } from "react-native";
 
 import { Icon, InfoTip, type LucideIcon, Section, Sheet, StatusPill } from "@/components/bloom";
+import { SelectField } from "@/components/select-field";
 import { useDisplayPreferences } from "@/lib/display-preferences";
 import { useAppLocale } from "@/lib/i18n/provider";
+
+/** The format option that follows the app's language. */
+const DEFAULT_FORMAT = "default";
 
 /**
  * Interface language (#67). Applies immediately, without a restart. A
@@ -57,44 +61,32 @@ export function LanguageSection() {
             ) : undefined
           }
         >
-          <View
-            accessibilityRole="radiogroup"
+          <SelectField
+            options={LOCALES.map((option) => ({
+              value: option,
+              label: LOCALE_NAMES[option],
+              testID: `language-${option}`,
+            }))}
+            value={locale}
+            onChange={setLocale}
             accessibilityLabel={t`Interface language`}
-            className="flex-row flex-wrap gap-2"
-          >
-            {LOCALES.map((option) => (
-              <Pressable
-                key={option}
-                testID={`language-${option}`}
-                accessibilityRole="radio"
-                accessibilityState={{ checked: locale === option }}
-                accessibilityLanguage={option}
-                onPress={() => setLocale(option)}
-                className={choiceChip(locale === option)}
-              >
-                <Text className={choiceText(locale === option)}>{LOCALE_NAMES[option]}</Text>
-              </Pressable>
-            ))}
-          </View>
+            testID="language-select"
+          />
         </SettingsRow>
         <SettingsRow icon={CalendarClock} label={t`Date and number format`} divider>
-          <View
-            accessibilityRole="radiogroup"
+          <SelectField
+            options={formats.map((option) => ({
+              value: option.value ?? DEFAULT_FORMAT,
+              label: option.label,
+              testID: `format-${option.value ?? DEFAULT_FORMAT}`,
+            }))}
+            value={formatLocale ?? DEFAULT_FORMAT}
+            onChange={(next) =>
+              setFormatLocale(next === DEFAULT_FORMAT ? null : (next as ProductLocale))
+            }
             accessibilityLabel={t`Date and number format`}
-            className="flex-row flex-wrap gap-2"
-          >
-            {formats.map((option) => (
-              <Pressable
-                key={option.value ?? "default"}
-                accessibilityRole="radio"
-                accessibilityState={{ checked: formatLocale === option.value }}
-                onPress={() => setFormatLocale(option.value)}
-                className={choiceChip(formatLocale === option.value)}
-              >
-                <Text className={choiceText(formatLocale === option.value)}>{option.label}</Text>
-              </Pressable>
-            ))}
-          </View>
+            testID="format-select"
+          />
         </SettingsRow>
         <SettingsRow
           icon={FlaskConical}
@@ -107,24 +99,17 @@ export function LanguageSection() {
             </Trans>
           }
         >
-          <View
-            accessibilityRole="radiogroup"
+          <SelectField
+            options={LAB_UNIT_CHOICES.map((value) => ({
+              value,
+              label: unitNames[value],
+              testID: `lab-units-${value}`,
+            }))}
+            value={labUnits}
+            onChange={setLabUnits}
             accessibilityLabel={t`Lab concentration units`}
-            className="flex-row flex-wrap gap-2"
-          >
-            {LAB_UNIT_CHOICES.map((value) => (
-              <Pressable
-                key={value}
-                testID={`lab-units-${value}`}
-                accessibilityRole="radio"
-                accessibilityState={{ checked: labUnits === value }}
-                onPress={() => setLabUnits(value)}
-                className={choiceChip(labUnits === value)}
-              >
-                <Text className={choiceText(labUnits === value)}>{unitNames[value]}</Text>
-              </Pressable>
-            ))}
-          </View>
+            testID="lab-units-select"
+          />
         </SettingsRow>
       </SettingsGroup>
     </Section>
@@ -199,15 +184,4 @@ export function SettingsRow({
       {children}
     </View>
   );
-}
-
-/** A choice pill in a radio group; the chosen one sits on the soft terracotta tint. */
-export function choiceChip(selected: boolean): string {
-  return `min-h-11 justify-center rounded-full border px-4 active:opacity-70 ${
-    selected ? "border-signal bg-sidebar-accent" : "border-rule bg-paper"
-  }`;
-}
-
-export function choiceText(selected: boolean): string {
-  return `font-sans text-sm ${selected ? "font-semibold text-ink" : "text-ink-2"}`;
 }

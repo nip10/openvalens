@@ -58,9 +58,10 @@ export function useServerProblemCopy(): (problem: ServerProblem, url: string) =>
 }
 
 /**
- * Issue #295 — first launch, before sign-in: OpenValens Cloud in one tap, or
- * the address of a server the person (or their organization) runs. A typed
- * address is checked against the server before it is saved.
+ * Issue #295 — first launch, before sign-in: OpenValens Cloud in one tap, or,
+ * behind "Use my own server", the address of a server the person (or their
+ * organization) runs. A typed address is checked against the server before it
+ * is saved.
  */
 export function ServerChoice() {
   const { t } = useLingui();
@@ -68,6 +69,7 @@ export function ServerChoice() {
   const [address, setAddress] = useState("");
   const [error, setError] = useState<ProblemCopy | null>(null);
   const [busy, setBusy] = useState<"cloud" | "own" | null>(null);
+  const [showOwn, setShowOwn] = useState(false);
   const inFlight = useRef(false);
   const cloudHost = serverLabel(CLOUD_SERVER_URL);
 
@@ -165,55 +167,72 @@ export function ServerChoice() {
           </Button>
         </Sheet>
 
-        <Sheet className="gap-4 p-5">
-          <View className="flex-row items-start gap-3">
-            <ToneIcon icon={Server} tone="neutral" />
-            <View className="min-w-0 flex-1 gap-1">
-              <Text className="font-display text-xl font-semibold text-ink">
-                <Trans>My own server</Trans>
-              </Text>
-              <Text className="font-sans text-sm text-ink-3">
-                <Trans>An OpenValens server you or your organization runs.</Trans>
-              </Text>
-            </View>
-          </View>
-          <TextField isInvalid={!!error}>
-            {/* heroui's Label takes a plain string; a <Trans> element is not one. */}
-            <Label>{t`Server address`}</Label>
-            <Input
-              testID="server-address-input"
-              value={address}
-              onChangeText={(next) => {
-                setAddress(next);
-                if (error) setError(null);
-              }}
-              placeholder="https://health.example.org"
-              keyboardType="url"
-              autoCapitalize="none"
-              autoCorrect={false}
-              autoComplete="url"
-              textContentType="URL"
-              returnKeyType="go"
-              onSubmitEditing={() => void connect()}
-              accessibilityLabel={t`Server address`}
-            />
-          </TextField>
-          {error ? (
-            <View accessibilityLiveRegion="polite" accessibilityRole="alert" className="gap-1">
-              <Text className="font-sans text-sm font-semibold text-danger">{error.title}</Text>
-              <Text className="font-sans text-sm text-ink-2">{error.description}</Text>
-            </View>
-          ) : null}
-          <Button variant="outline" onPress={() => void connect()} isDisabled={busy !== null}>
-            {busy === "own" ? (
-              <Spinner size="sm" />
-            ) : (
-              <Button.Label>
-                <Trans>Connect</Trans>
-              </Button.Label>
-            )}
+        {showOwn ? null : (
+          <Button
+            variant="ghost"
+            onPress={() => setShowOwn(true)}
+            isDisabled={busy !== null}
+            className="min-h-11 self-center"
+            testID="own-server-toggle"
+          >
+            <Button.Label>
+              <Trans>Use my own server</Trans>
+            </Button.Label>
           </Button>
-        </Sheet>
+        )}
+
+        {showOwn ? (
+          <Sheet className="gap-4 p-5">
+            <View className="flex-row items-start gap-3">
+              <ToneIcon icon={Server} tone="neutral" />
+              <View className="min-w-0 flex-1 gap-1">
+                <Text className="font-display text-xl font-semibold text-ink">
+                  <Trans>My own server</Trans>
+                </Text>
+                <Text className="font-sans text-sm text-ink-3">
+                  <Trans>An OpenValens server you or your organization runs.</Trans>
+                </Text>
+              </View>
+            </View>
+            <TextField isInvalid={!!error}>
+              {/* heroui's Label takes a plain string; a <Trans> element is not one. */}
+              <Label>{t`Server address`}</Label>
+              <Input
+                testID="server-address-input"
+                value={address}
+                onChangeText={(next) => {
+                  setAddress(next);
+                  if (error) setError(null);
+                }}
+                placeholder="https://health.example.org"
+                keyboardType="url"
+                autoCapitalize="none"
+                autoCorrect={false}
+                autoComplete="url"
+                autoFocus
+                textContentType="URL"
+                returnKeyType="go"
+                onSubmitEditing={() => void connect()}
+                accessibilityLabel={t`Server address`}
+              />
+            </TextField>
+            {error ? (
+              <View accessibilityLiveRegion="polite" accessibilityRole="alert" className="gap-1">
+                <Text className="font-sans text-sm font-semibold text-danger">{error.title}</Text>
+                <Text className="font-sans text-sm text-ink-2">{error.description}</Text>
+              </View>
+            ) : null}
+            <Button variant="outline" onPress={() => void connect()} isDisabled={busy !== null}>
+              {busy === "own" ? (
+                <Spinner size="sm" />
+              ) : (
+                <Button.Label>
+                  <Trans>Connect</Trans>
+                </Button.Label>
+              )}
+            </Button>
+          </Sheet>
+        ) : null}
       </View>
     </Container>
   );

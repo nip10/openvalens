@@ -62,7 +62,12 @@ import {
   type Tone,
 } from "@/components/bloom";
 import { SettingsGroup, SettingsRow } from "@/components/language-section";
-import { CheckboxToggle, Chips, QuestionLabel } from "@/components/wellness-profile-fields";
+import {
+  CheckboxToggle,
+  Chips,
+  ChoiceSelect,
+  QuestionLabel,
+} from "@/components/wellness-profile-fields";
 import { requestHealthAccess, rememberSyncModules } from "@/lib/health-sync";
 import { MODULE_ICON_COMPONENTS } from "@/lib/modules/icons";
 import {
@@ -309,7 +314,7 @@ export function AgeStep({ flow }: StepProps) {
       error={flow.error}
       onBack={flow.goBack}
     >
-      <Chips field="eligibility" draft={draft} onChange={setDraft} />
+      <Chips field="eligibility" draft={draft} onChange={setDraft} layout="rows" />
       {answered && !adult ? (
         <Note>
           <Trans>You can still keep a record, but personal guidance and references stay off.</Trans>
@@ -587,7 +592,12 @@ export function BasicsStep({ flow }: StepProps) {
         >
           {WELLNESS_FIELD_COPY.region.question}
         </QuestionLabel>
-        <Chips field="region" draft={draft} onChange={setDraft} />
+        <ChoiceSelect
+          field="region"
+          draft={draft}
+          onChange={setDraft}
+          label={WELLNESS_FIELD_COPY.region.question}
+        />
       </Sheet>
 
       {adult ? (
@@ -663,7 +673,12 @@ export function BasicsStep({ flow }: StepProps) {
             >
               {WELLNESS_FIELD_COPY.sex.question}
             </QuestionLabel>
-            <Chips field="sex" draft={draft} onChange={setDraft} />
+            <ChoiceSelect
+              field="sex"
+              draft={draft}
+              onChange={setDraft}
+              label={WELLNESS_FIELD_COPY.sex.question}
+            />
           </View>
         </Sheet>
       ) : (
@@ -721,7 +736,7 @@ export function GoalStep({ flow }: StepProps) {
   return (
     <StepFrame
       step="goal"
-      title={<Trans>One goal (optional)</Trans>}
+      title={<Trans>One goal</Trans>}
       description={<Trans>Something to work toward, in your own words.</Trans>}
       info={
         <Prose>
@@ -762,7 +777,7 @@ export function GoalStep({ flow }: StepProps) {
         className="rounded-xl border border-rule bg-paper px-3 py-2.5 font-sans text-base text-ink"
       />
       <Prose className="text-sm text-ink-3">
-        <Trans>Saved to your Goals. You can edit it under Workouts.</Trans>
+        <Trans>Saved to Goals, in the menu under Habits. You can change it there.</Trans>
       </Prose>
     </StepFrame>
   );

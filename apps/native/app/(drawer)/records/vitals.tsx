@@ -30,6 +30,7 @@ import {
   Section,
   Sheet,
   StatTile,
+  TileGrid,
   TileRow,
   ToneChip,
 } from "@/components/bloom";
@@ -251,35 +252,30 @@ export default function VitalsScreen() {
           />
         ) : (
           <>
-            <View className="gap-3" accessibilityLabel={t`Today`}>
-              <TileRow>
-                <StatTile
-                  icon={HeartPulse}
-                  tone="heart"
-                  label={t`Avg heart rate`}
-                  value={formatBpm(today.heartRate.avgBpm)}
-                  note={t`Your usual: ${formatBpm(summary.sevenDayAverageBpm)}`}
-                />
-                <StatTile
-                  icon={Activity}
-                  tone="heart"
-                  label={i18n._(MANUAL_ENTRY_FIELDS.resting_heart_rate.label)}
-                  value={formatBpm(today.restingHeartRate.avgBpm)}
-                />
-              </TileRow>
+            <TileGrid accessibilityLabel={t`Today`}>
+              <StatTile
+                icon={HeartPulse}
+                tone="heart"
+                label={t`Avg heart rate`}
+                value={formatBpm(today.heartRate.avgBpm)}
+                note={t`Your usual: ${formatBpm(summary.sevenDayAverageBpm)}`}
+              />
+              <StatTile
+                icon={Activity}
+                tone="heart"
+                label={i18n._(MANUAL_ENTRY_FIELDS.resting_heart_rate.label)}
+                value={formatBpm(today.restingHeartRate.avgBpm)}
+              />
               {summary.latestHrv ? (
-                <TileRow>
-                  <StatTile
-                    icon={Waves}
-                    tone="heart"
-                    label={t`Overnight HRV`}
-                    value={formatMs(summary.latestHrv.avgMs)}
-                    note={friendlyDate(i18n, summary.latestHrv.date)}
-                  />
-                  <View />
-                </TileRow>
+                <StatTile
+                  icon={Waves}
+                  tone="heart"
+                  label={t`Overnight HRV`}
+                  value={formatMs(summary.latestHrv.avgMs)}
+                  note={friendlyDate(i18n, summary.latestHrv.date)}
+                />
               ) : null}
-            </View>
+            </TileGrid>
 
             {series.length > 0 ? (
               <Section

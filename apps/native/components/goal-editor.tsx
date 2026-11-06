@@ -10,7 +10,7 @@ import { Button } from "heroui-native";
 import { Plus, Trash2 } from "lucide-react-native";
 import { useState } from "react";
 import { Text, TextInput, View } from "react-native";
-import { Sheet } from "@/components/bloom";
+import { Icon, Sheet } from "@/components/bloom";
 import { orpc } from "@/utils/orpc";
 import { canEditEvidenceSource } from "@/utils/goal-ui";
 
@@ -528,7 +528,7 @@ export function GoalEditor({ initial, seed, replacesId, replacesVersion, onSaved
           placeholder="YYYY-MM-DD"
         />
         <Button size="sm" variant="outline" onPress={addMilestone}>
-          <Plus size={16} />
+          <Icon icon={Plus} size={16} color="ink-2" />
           <Button.Label>{t`Add milestone`}</Button.Label>
         </Button>
         <Text className="text-xs text-ink-3">{t`Milestones are value-and-date checkpoints on this same metric.`}</Text>
@@ -649,7 +649,7 @@ function MilestoneRow({
       <View className="flex-row items-center justify-between">
         <Text className="font-semibold text-ink">{t`Checkpoint`}</Text>
         <Button size="sm" variant="ghost" onPress={onRemove}>
-          <Trash2 size={16} />
+          <Icon icon={Trash2} size={16} color="ink-2" />
           <Button.Label>{t`Remove`}</Button.Label>
         </Button>
       </View>
