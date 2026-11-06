@@ -157,6 +157,8 @@ import { NutritionDaySummary } from "@/components/nutrition-day-summary";
 import { NutritionWeekStrip } from "@/components/nutrition-week-strip";
 import { NutritionTrendCard } from "@/components/nutrition-trend-card";
 import { NutritionCheckInPrompt } from "@/components/nutrition-check-in-prompt";
+import { NutritionSelectionBar } from "@/components/nutrition-selection-bar";
+import { copyItems, moveRequests } from "@/lib/nutrition/selection";
 import { dayMark, weekOf } from "@/lib/nutrition/week";
 import { SwipeRow } from "@/components/swipe-row";
 import {
@@ -320,6 +322,9 @@ export default function NutritionScreen() {
       : undefined;
     return cached === "timeline" ? "timeline" : "meals";
   });
+  /** Selected rows while selecting (#398); `null` when not selecting. */
+  const [selection, setSelection] = useState<ReadonlySet<string> | null>(null);
+  useEffect(() => setSelection(null), [localDate]);
   const [summaryMode, setSummaryMode] = useState<SummaryMode>(() => {
     const cached = outbox.scope
       ? readCache<{ mode: SummaryMode }>(outbox.scope, SUMMARY_MODE_CACHE_KEY)?.data.mode
@@ -519,6 +524,19 @@ export default function NutritionScreen() {
     <EntryCard
       key={row.key}
       row={row}
+      selection={
+        selection === null
+          ? {
+              active: false,
+              selected: false,
+              onToggle: () => setSelection(new Set([row.key])),
+            }
+          : {
+              active: true,
+              selected: selection.has(row.key),
+              onToggle: () => toggleSelected(row.key),
+            }
+      }
       first={index === 0}
       outbox={outbox}
       onDelete={() => remove(row)}
@@ -535,6 +553,75 @@ export default function NutritionScreen() {
       }
     />
   );
+
+  const selectedRows = selection ? visible.filter((row) => selection.has(row.key)) : [];
+  const toggleSelected = (key: string) =>
+    setSelection((current) => {
+      const next = new Set(current ?? []);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+
+  /** Copies the selected foods to another day as frozen entries (#398). */
+  const copySelected = (toDate: string) => {
+    const { items, skipped } = copyItems(selectedRows);
+    if (!items.length || !outbox.scope || toDate === localDate) return;
+    const ticket = outbox.beginWrite();
+    if (!ticket) return;
+    const queued = outbox.enqueueForIntentWithHandle(
+      ticket,
+      cachedCopyDayInput({
+        clientMutationId: newClientMutationId(),
+        fromDate: localDate,
+        toDate,
+        timeZone,
+        entries: items,
+      }),
+    );
+    if (!queued) return;
+    const copied = t`Copying ${plural(items.length, { one: "# item", other: "# items" })} to ${toDate}`;
+    announce(
+      skipped
+        ? `${copied}. ${t`${plural(skipped, { one: "# food waiting to sync was not copied.", other: "# foods waiting to sync were not copied." })}`}`
+        : copied,
+    );
+    setSelection(null);
+  };
+
+  /** Moves the selected foods to another day (#398), each as a queued edit. */
+  const moveSelected = (toDate: string) => {
+    if (toDate === localDate) return;
+    let moved = 0;
+    for (const request of moveRequests(selectedRows)) {
+      const ticket = outbox.beginWrite();
+      if (!ticket) continue;
+      const result = outbox.updateEntry(
+        ticket,
+        request.ref,
+        {
+          clientMutationId: newClientMutationId(),
+          amount: request.amount,
+          unit: request.unit,
+          slot: request.slot,
+          localDate: toDate,
+          timeZone,
+        },
+        request.entry,
+      );
+      if (result) moved += 1;
+    }
+    announce(t`Moved ${plural(moved, { one: "# item", other: "# items" })} to ${toDate}`);
+    setSelection(null);
+  };
+
+  const deleteSelected = () => {
+    for (const row of selectedRows) remove(row);
+    announce(
+      t`${plural(selectedRows.length, { one: "# entry removed", other: "# entries removed" })}`,
+    );
+    setSelection(null);
+  };
 
   const copyMealEntries = (
     entries: readonly DiaryEntry[],
@@ -634,6 +721,7 @@ export default function NutritionScreen() {
                 statusDescription={i18n._(statusText.description)}
                 complete={status === "complete"}
                 onToggleComplete={toggleStatus}
+                onSelectFoods={visible.length > 0 ? () => setSelection(new Set()) : undefined}
               />
             </View>
             <NutritionWeekStrip days={weekDays} selected={localDate} today={today} onSelect={go} />
@@ -820,21 +908,34 @@ export default function NutritionScreen() {
           </Pressable>
         </Page>
       </Container>
-      <DiarySearchBar
-        label={
-          view === "timeline"
-            ? t`Search foods, logs at ${hourLabel(nowHour)}`
-            : t`Search foods, adds to ${i18n._(SLOT_LABELS[searchSlot])}`
-        }
-        onSearch={() =>
-          view === "timeline" ? openAddFood({ hour: nowHour }) : openAddFood({ slot: searchSlot })
-        }
-        onScan={() =>
-          view === "timeline"
-            ? openAddFood({ hour: nowHour }, "barcode")
-            : openAddFood({ slot: searchSlot }, "barcode")
-        }
-      />
+      {selection !== null ? (
+        <NutritionSelectionBar
+          count={selectedRows.length}
+          shownDate={localDate}
+          today={today}
+          tomorrow={shiftLocalDate(today, 1)}
+          onCopy={copySelected}
+          onMove={moveSelected}
+          onDelete={deleteSelected}
+          onCancel={() => setSelection(null)}
+        />
+      ) : (
+        <DiarySearchBar
+          label={
+            view === "timeline"
+              ? t`Search foods, logs at ${hourLabel(nowHour)}`
+              : t`Search foods, adds to ${i18n._(SLOT_LABELS[searchSlot])}`
+          }
+          onSearch={() =>
+            view === "timeline" ? openAddFood({ hour: nowHour }) : openAddFood({ slot: searchSlot })
+          }
+          onScan={() =>
+            view === "timeline"
+              ? openAddFood({ hour: nowHour }, "barcode")
+              : openAddFood({ slot: searchSlot }, "barcode")
+          }
+        />
+      )}
     </View>
   );
 }
@@ -1240,6 +1341,7 @@ function FavoriteButton({
 
 function EntryCard({
   row,
+  selection,
   first,
   outbox,
   onDelete,
@@ -1250,6 +1352,8 @@ function EntryCard({
   foods,
 }: {
   row: DiaryRow;
+  /** Multi-select (#398): long-press starts it; while active a tap toggles the row. */
+  selection?: { active: boolean; selected: boolean; onToggle: () => void };
   first: boolean;
   outbox: DiaryOutbox;
   onDelete: () => void;
@@ -1464,7 +1568,9 @@ function EntryCard({
   const syncLabel = row.sync === "synced" ? "" : i18n._(SYNC_STATE_LABELS[row.sync]);
   const rowLabel = [name, amountText, spokenMacros, syncLabel].filter(Boolean).join(", ");
   const favoriteLabel = favorite ? t`Remove from favourites` : t`Add to favourites`;
+  const selecting = selection?.active ?? false;
   const accessibilityActions = [
+    ...(selection ? [{ name: "select", label: selection.selected ? t`Deselect` : t`Select` }] : []),
     { name: "edit", label: t`Edit` },
     { name: "delete", label: t`Delete` },
     ...(row.kind === "server" ? [{ name: "favorite", label: favoriteLabel }] : []),
@@ -1509,14 +1615,20 @@ function EntryCard({
         }
       >
         <Pressable
-          onPress={openEditor}
-          accessibilityRole="button"
+          onPress={selecting ? selection?.onToggle : openEditor}
+          onLongPress={selecting ? undefined : selection?.onToggle}
+          accessibilityRole={selecting ? "checkbox" : "button"}
+          accessibilityState={selecting ? { checked: selection?.selected ?? false } : undefined}
           accessibilityLabel={rowLabel}
-          accessibilityHint={t`Opens the editor. Swipe left for more actions.`}
+          accessibilityHint={
+            selecting ? undefined : t`Opens the editor. Swipe left for more actions.`
+          }
           accessibilityActions={accessibilityActions}
           onAccessibilityAction={(event) => {
             const action = event.nativeEvent.actionName;
-            if (action === "edit" || action === "activate") openEditor();
+            if (action === "select") selection?.onToggle();
+            else if (action === "activate") (selecting ? selection?.onToggle : openEditor)?.();
+            else if (action === "edit") openEditor();
             else if (action === "delete") onDelete();
             else if (action === "favorite" && row.kind === "server")
               favoriteMutation.mutate(
@@ -1537,6 +1649,13 @@ function EntryCard({
             stacked ? "gap-0.5" : "flex-row items-center gap-2",
           )}
         >
+          {selecting ? (
+            <Icon
+              icon={selection?.selected ? SquareCheck : Square}
+              size={20}
+              color={selection?.selected ? "signal" : "ink-3"}
+            />
+          ) : null}
           <Text
             className={cn("font-sans text-base text-ink", !stacked && "min-w-0 flex-1")}
             numberOfLines={stacked ? undefined : 1}

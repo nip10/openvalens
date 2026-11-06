@@ -54,6 +54,11 @@ msgstr "{0, plural, one {# dia registado} other {# dias registados}} este mês"
 msgid "{0, plural, one {# day} other {# days}} of logging. Nicely done."
 msgstr "{0, plural, one {# dia} other {# dias}} de registo. Muito bem."
 
+#. placeholder {0}: selectedRows.length
+#: apps/native/app/(drawer)/(tabs)/nutrition.tsx
+msgid "{0, plural, one {# entry removed} other {# entries removed}}"
+msgstr "{0, plural, one {# registo removido} other {# registos removidos}}"
+
 #. placeholder {0}: counts.exercises
 #. placeholder {0}: draft.exercises.length
 #. placeholder {0}: exercises.length
@@ -466,6 +471,10 @@ msgstr "{count, plural, one {O acesso a {name} foi revogado. # registo está ocu
 #: packages/api/src/presenters/workouts.ts
 msgid "{count, plural, one {# exercise} other {# exercises}}"
 msgstr "{count, plural, one {# exercício} other {# exercícios}}"
+
+#: apps/native/components/nutrition-selection-bar.tsx
+msgid "{count, plural, one {# food selected} other {# foods selected}}"
+msgstr "{count, plural, one {# alimento selecionado} other {# alimentos selecionados}}"
 
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 msgid "{count, plural, one {# food} other {# foods}}"
@@ -938,6 +947,10 @@ msgstr "{serverVersion} em {host}"
 #: apps/native/components/workout-overview-sheet.tsx
 msgid "{setsDone} of {setsPlanned} sets done"
 msgstr "{setsDone} de {setsPlanned} séries feitas"
+
+#: apps/native/app/(drawer)/(tabs)/nutrition.tsx
+msgid "{skipped, plural, one {# food waiting to sync was not copied.} other {# foods waiting to sync were not copied.}}"
+msgstr "{skipped, plural, one {# alimento à espera de sincronizar não foi copiado.} other {# alimentos à espera de sincronizar não foram copiados.}}"
 
 #. safety
 #: packages/api/src/presenters/reference-comparison.ts
@@ -2570,6 +2583,7 @@ msgstr "Canadá"
 #: apps/native/components/ai-section.tsx
 #: apps/native/components/change-server.tsx
 #: apps/native/components/complete-export-card.tsx
+#: apps/native/components/nutrition-selection-bar.tsx
 #: apps/native/components/progress-photos.tsx
 #: apps/native/components/workout-routines.tsx
 #: apps/native/components/workout-session-detail.tsx
@@ -3508,6 +3522,10 @@ msgstr "{0} copiado para {toDate}"
 msgid "Copies of the database, checked every day"
 msgstr "Cópias da base de dados, verificadas todos os dias"
 
+#: apps/native/components/nutrition-selection-bar.tsx
+msgid "Copy"
+msgstr "Copiar"
+
 #. placeholder {0}: selected.size
 #: apps/web/src/routes/_auth/nutrition.tsx
 msgid "Copy {0, plural, one {# item} other {# items}} to {localDate}"
@@ -3551,6 +3569,11 @@ msgstr "Copiar para outra refeição"
 msgid "Copy set"
 msgstr "Copiar série"
 
+#: apps/native/components/nutrition-selection-bar.tsx
+msgid "Copy to"
+msgstr "Copiar para"
+
+#: apps/native/components/nutrition-selection-bar.tsx
 #: packages/api/src/presenters/nutrition-meal-actions.ts
 msgid "Copy to a date"
 msgstr "Copiar para uma data"
@@ -3563,6 +3586,11 @@ msgstr "Copiar para a data selecionada"
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 msgid "Copying {0, plural, one {# item} other {# items}} to {localDate}"
 msgstr "A copiar {0, plural, one {# item} other {# itens}} para {localDate}"
+
+#. placeholder {0}: items.length
+#: apps/native/app/(drawer)/(tabs)/nutrition.tsx
+msgid "Copying {0, plural, one {# item} other {# items}} to {toDate}"
+msgstr "A copiar {0, plural, one {# item} other {# itens}} para {toDate}"
 
 #: apps/native/app/(drawer)/goals/[goalId].tsx
 #: apps/native/app/(drawer)/supplements.tsx
@@ -4837,6 +4865,7 @@ msgstr "Degradado"
 #: apps/native/app/(drawer)/goals/[goalId].tsx
 #: apps/native/app/(drawer)/private-measurements.tsx
 #: apps/native/components/active-workout.tsx
+#: apps/native/components/nutrition-selection-bar.tsx
 #: apps/native/components/progress-photos.tsx
 #: apps/native/components/workout-routines.tsx
 #: apps/native/components/workout-session-detail.tsx
@@ -5018,6 +5047,10 @@ msgstr "Descrever"
 #: apps/web/src/routes/_auth/food-draft.tsx
 msgid "Describe a meal"
 msgstr "Descrever uma refeição"
+
+#: apps/native/app/(drawer)/(tabs)/nutrition.tsx
+msgid "Deselect"
+msgstr "Desmarcar"
 
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
@@ -5210,6 +5243,7 @@ msgstr "Domínios"
 #: apps/native/components/active-workout.tsx
 #: apps/native/components/date-field.tsx
 #: apps/native/components/nutrition-date-picker.tsx
+#: apps/native/components/nutrition-selection-bar.tsx
 #: apps/native/components/workout-overview-sheet.tsx
 #: apps/web/src/routes/_auth/goals.$goalId.tsx
 #: apps/web/src/routes/_auth/profile.tsx
@@ -8663,6 +8697,10 @@ msgstr "Manhã"
 msgid "Most reps at {0}"
 msgstr "Mais repetições a {0}"
 
+#: apps/native/components/nutrition-selection-bar.tsx
+msgid "Move"
+msgstr "Mover"
+
 #. placeholder {0}: exercise.name
 #: apps/web/src/components/workout-routine-exercise-editor.tsx
 #: apps/web/src/components/workout-session-editor.tsx
@@ -8680,10 +8718,22 @@ msgstr "Mover {0} para cima"
 msgid "Move down"
 msgstr "Mover para baixo"
 
+#: apps/native/components/nutrition-selection-bar.tsx
+msgid "Move to"
+msgstr "Mover para"
+
+#: apps/native/components/nutrition-selection-bar.tsx
+msgid "Move to a date"
+msgstr "Mover para uma data"
+
 #: apps/native/components/workout-overview-sheet.tsx
 #: apps/native/components/workout-routines.tsx
 msgid "Move up"
 msgstr "Mover para cima"
+
+#: apps/native/app/(drawer)/(tabs)/nutrition.tsx
+msgid "Moved {moved, plural, one {# item} other {# items}} to {toDate}"
+msgstr "{moved, plural, one {# item movido} other {# itens movidos}} para {toDate}"
 
 #: packages/api/src/presenters/score.ts
 msgid "Moved away from the target at the last check-in"
@@ -12490,6 +12540,10 @@ msgstr "Ver a análise completa"
 msgid "See what needs attention, then browse longer-term progress below."
 msgstr "Veja o que requer atenção e explore abaixo o progresso a longo prazo."
 
+#: apps/native/app/(drawer)/(tabs)/nutrition.tsx
+msgid "Select"
+msgstr "Selecionar"
+
 #: apps/web/src/routes/_auth/body-map.tsx
 msgid "Select a region to see its value."
 msgstr "Selecione uma região para ver o seu valor."
@@ -12502,6 +12556,10 @@ msgstr "Selecionar tudo na refeição"
 #: apps/web/src/routes/_auth/exports.tsx
 msgid "Select at least one domain."
 msgstr "Selecione pelo menos um domínio."
+
+#: apps/native/components/nutrition-day-menu.tsx
+msgid "Select foods"
+msgstr "Selecionar alimentos"
 
 #: apps/web/src/routes/_auth/-goal-editor.tsx
 msgid "Selected exercise"
@@ -14707,6 +14765,14 @@ msgstr "Para iniciar sessão, abra {url}."
 #: packages/api/src/presenters/food-draft.ts
 msgid "To speak, use your keyboard's dictation (microphone) key. This app never records or uploads audio."
 msgstr "Para falar, use a tecla de ditado (microfone) do teclado. Esta aplicação nunca grava nem carrega áudio."
+
+#: apps/native/components/nutrition-selection-bar.tsx
+msgid "To today"
+msgstr "Para hoje"
+
+#: apps/native/components/nutrition-selection-bar.tsx
+msgid "To tomorrow"
+msgstr "Para amanhã"
 
 #: apps/native/components/nutrition-week-strip.tsx
 msgid "today"

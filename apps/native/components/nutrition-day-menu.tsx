@@ -1,7 +1,7 @@
 import { DIARY_COPY } from "@openvalens/api/presenters/nutrition-diary";
 import { useLingui } from "@lingui/react/macro";
 import { Button } from "heroui-native";
-import { CircleCheck, MoreHorizontal } from "lucide-react-native";
+import { CircleCheck, ListChecks, MoreHorizontal } from "lucide-react-native";
 import { useState } from "react";
 import { Text, View } from "react-native";
 
@@ -16,11 +16,14 @@ export function NutritionDayMenu({
   statusDescription,
   complete,
   onToggleComplete,
+  onSelectFoods,
 }: {
   statusLabel: string;
   statusDescription: string;
   complete: boolean;
   onToggleComplete: () => void;
+  /** Starts selecting foods to copy, move or delete (#398); absent when the day is empty. */
+  onSelectFoods?: () => void;
 }) {
   const { t, i18n } = useLingui();
   const [open, setOpen] = useState(false);
@@ -60,6 +63,20 @@ export function NutritionDayMenu({
               {i18n._(complete ? DIARY_COPY.clearComplete : DIARY_COPY.markComplete)}
             </Button.Label>
           </Button>
+          {onSelectFoods ? (
+            <Button
+              variant="outline"
+              className="min-h-11 justify-start"
+              testID="diary-select-foods"
+              onPress={() => {
+                setOpen(false);
+                onSelectFoods();
+              }}
+            >
+              <Icon icon={ListChecks} size={16} color="ink-2" />
+              <Button.Label>{t`Select foods`}</Button.Label>
+            </Button>
+          ) : null}
         </Sheet>
       ) : null}
     </View>
