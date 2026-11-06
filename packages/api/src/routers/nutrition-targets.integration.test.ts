@@ -299,6 +299,7 @@ describe.skipIf(!url)("nutritionTargets over HTTP against disposable PostgreSQL"
       revision: 0,
       hideNumbers: false,
       energyDirection: "maintain",
+      energyRatePercent: null,
       activeProtein: false,
       streaksEnabled: false,
       recipeImportEnabled: false,
@@ -462,6 +463,24 @@ describe.skipIf(!url)("nutritionTargets over HTTP against disposable PostgreSQL"
     if (off.body.outcome !== "updated") throw new Error("expected updated");
     expect(off.body.settings.hideNumbers).toBe(false);
     expect(off.body.settings.revision).toBe(2);
+  });
+
+  test("a goal rate is stored with the direction, validated and clearable (#396)", async () => {
+    await resetSettings("user-a");
+    const set = await updateSettings({
+      expectedRevision: 0,
+      energyDirection: "lose",
+      energyRatePercent: 0.5,
+    });
+    if (set.body.outcome !== "updated") throw new Error("expected updated");
+    expect(set.body.settings).toMatchObject({ energyDirection: "lose", energyRatePercent: 0.5 });
+    expect((await overview("2026-03-28")).body.settings.energyRatePercent).toBe(0.5);
+    const bad = await updateSettings({ expectedRevision: 1, energyRatePercent: 0.3 });
+    expect(bad.status).toBe(400);
+    const cleared = await updateSettings({ expectedRevision: 1, energyRatePercent: null });
+    if (cleared.body.outcome !== "updated") throw new Error("expected updated");
+    expect(cleared.body.settings.energyRatePercent).toBeNull();
+    await resetSettings("user-a");
   });
 
   test("height and weight give a protein reference; the active opt-in raises it", async () => {

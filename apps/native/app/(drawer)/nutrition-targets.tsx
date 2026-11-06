@@ -13,7 +13,11 @@ import {
 } from "@openvalens/api/presenters/nutrition-diary";
 import {
   DIRECTION_LABELS,
+  GOAL_COPY,
   NUTRITION_SAFETY_COPY,
+  RATE_OPTIONS,
+  formatRate,
+  rateForDirection,
   TARGET_COPY,
   TARGET_NUTRIENTS,
   declarationChoices,
@@ -43,6 +47,7 @@ import {
   Beef,
   Check,
   Droplet,
+  Info,
   Leaf,
   LifeBuoy,
   type LucideIcon,
@@ -501,6 +506,7 @@ function SettingsCard({
 }) {
   const [hideNumbers, setHideNumbers] = useState(settings.hideNumbers);
   const [direction, setDirection] = useState<EnergyDirection>(settings.energyDirection);
+  const [rate, setRate] = useState<number | null>(settings.energyRatePercent);
   const [activeProtein, setActiveProtein] = useState(settings.activeProtein);
   const [streaksEnabled, setStreaksEnabled] = useState(settings.streaksEnabled);
   const [recipeImportEnabled, setRecipeImportEnabled] = useState(settings.recipeImportEnabled);
@@ -528,6 +534,7 @@ function SettingsCard({
   useEffect(() => {
     setHideNumbers(settings.hideNumbers);
     setDirection(settings.energyDirection);
+    setRate(settings.energyRatePercent);
     setActiveProtein(settings.activeProtein);
     setStreaksEnabled(settings.streaksEnabled);
     setRecipeImportEnabled(settings.recipeImportEnabled);
@@ -570,6 +577,7 @@ function SettingsCard({
       expectedRevision: settings.revision,
       hideNumbers,
       energyDirection: direction,
+      energyRatePercent: rateForDirection(direction, rate),
       activeProtein,
       streaksEnabled,
       recipeImportEnabled,
@@ -644,13 +652,42 @@ function SettingsCard({
                 key={key}
                 label={i18n._(DIRECTION_LABELS[key].label)}
                 selected={direction === key}
-                onPress={() => setDirection(key)}
+                onPress={() => {
+                  setDirection(key);
+                  setRate((current) => rateForDirection(key, current));
+                }}
               />
             ))}
           </View>
           <Text className="font-sans text-sm text-ink-3">
             {i18n._(DIRECTION_LABELS[direction].description)}
           </Text>
+          {direction !== "maintain" ? (
+            <View className="gap-2 pt-1" testID="goal-rate">
+              <View className="flex-row items-center gap-1">
+                <FieldLabel>{i18n._(GOAL_COPY.rateTitle)}</FieldLabel>
+                <InfoTip title={i18n._(GOAL_COPY.rateTitle)}>
+                  {i18n._(GOAL_COPY.rateDescription)}
+                </InfoTip>
+              </View>
+              <View className="flex-row flex-wrap gap-2">
+                {RATE_OPTIONS[direction].map((option) => (
+                  <Chip
+                    key={option}
+                    label={formatRate(option, i18n)}
+                    selected={rateForDirection(direction, rate) === option}
+                    onPress={() => setRate(option)}
+                  />
+                ))}
+              </View>
+            </View>
+          ) : null}
+          <View className="flex-row items-start gap-2 rounded-2xl bg-paper-2 p-3">
+            <Icon icon={Info} size={16} color="ink-2" />
+            <Text className="flex-1 font-sans text-xs text-ink-2">
+              {i18n._(GOAL_COPY.floorNote)}
+            </Text>
+          </View>
         </View>
 
         <View className="gap-1.5">

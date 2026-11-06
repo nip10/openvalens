@@ -956,6 +956,10 @@ msgstr "{type}: {amount} a {max} {unit} por dia"
 msgid "{value}"
 msgstr "{value}"
 
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "{value} % a week"
+msgstr "{value} % por semana"
+
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "{value} from {reported} of {count, plural, one {# entry} other {# entries}}"
 msgstr "{value} de {reported} de {count, plural, one {# registo} other {# registos}}"
@@ -6657,6 +6661,10 @@ msgstr "Como chegam os dados"
 msgid "How far you have moved toward the targets you set, weighted by your priorities."
 msgstr "O quanto avançou em direção aos alvos que definiu, ponderado pelas suas prioridades."
 
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "How fast suggestions aim to change your weight trend, as a share of body weight a week. The safeguards below always apply on top."
+msgstr "A rapidez com que as sugestões procuram alterar a sua tendência de peso, como percentagem do peso corporal por semana. As salvaguardas abaixo aplicam-se sempre por cima."
+
 #: packages/api/src/presenters/activity-load.ts
 msgid "How hard was the whole session? (0 to 10)"
 msgstr "Quão difícil foi a sessão completa? (0 a 10)"
@@ -10885,6 +10893,11 @@ msgstr "Intervalo"
 msgid "Rate"
 msgstr "Avaliar"
 
+#: packages/api/src/presenters/nutrition-targets.ts
+msgctxt "goal speed"
+msgid "Rate"
+msgstr "Ritmo"
+
 #: apps/native/app/(drawer)/workouts.tsx
 msgid "Rate effort"
 msgstr "Avaliar esforço"
@@ -13326,6 +13339,11 @@ msgstr "As sugestões são opcionais. Altere os objetivos futuros em Editar; os 
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Suggestions follow the estimated intake that keeps your weight trend steady."
 msgstr "As sugestões seguem a ingestão estimada que mantém estável a tendência do seu peso."
+
+#. safety
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Suggestions never go below 1,200 kcal a day, your profile's minimum or your estimated resting energy, whichever is highest. Reductions are turned off while any answer in About you is yes, and for anyone younger than 18. These safeguards come from published guidelines and have not been clinically reviewed."
+msgstr "As sugestões nunca ficam abaixo de 1200 kcal por dia, do mínimo do seu perfil ou da sua energia de repouso estimada, consoante o que for mais alto. As reduções ficam desligadas enquanto alguma resposta em Sobre si for sim, e para quem tem menos de 18 anos. Estas salvaguardas vêm de diretrizes publicadas e não foram revistas clinicamente."
 
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/web/src/routes/_auth/-goal-editor.tsx

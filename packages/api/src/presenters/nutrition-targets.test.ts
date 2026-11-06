@@ -14,7 +14,15 @@ import {
   updateSettingsInput,
   type NutritionTargetWire,
 } from "../contracts/nutrition-targets";
-import { readTotalAgainstTarget } from "./nutrition-targets";
+import {
+  GOAL_COPY,
+  RATE_OPTIONS,
+  formatRate,
+  rateForDirection,
+  readTotalAgainstTarget,
+} from "./nutrition-targets";
+import { NUTRITION_SAFETY_POLICY } from "@openvalens/nutrition/nutrition-safety";
+import { ENERGY_RATE_PERCENTS } from "../contracts/nutrition-targets";
 import {
   DIRECTION_LABELS,
   HIDDEN_VALUE,
@@ -326,5 +334,29 @@ describe("totals beside targets (#394)", () => {
       read("energyKcal", 1450, range, "consumed"),
     ].flatMap((reading) => [reading.figure, reading.note, reading.spoken]);
     expect(lines.flatMap((line) => findBannedCopy(line))).toEqual([]);
+  });
+});
+
+describe("goal rate (#396)", () => {
+  test("offered rates mirror the safety policy and the contract", () => {
+    expect([...RATE_OPTIONS.lose]).toEqual([...NUTRITION_SAFETY_POLICY.rate.loseWeeklyPercents]);
+    expect([...RATE_OPTIONS.gain]).toEqual([...NUTRITION_SAFETY_POLICY.rate.gainWeeklyPercents]);
+    expect([...ENERGY_RATE_PERCENTS]).toEqual([...RATE_OPTIONS.lose]);
+  });
+
+  test("a direction keeps an offered rate, else takes its default; maintain has none", () => {
+    expect(rateForDirection("lose", 0.75)).toBe(0.75);
+    expect(rateForDirection("gain", 0.75)).toBe(0.25);
+    expect(rateForDirection("gain", 0.5)).toBe(0.5);
+    expect(rateForDirection("lose", null)).toBe(0.5);
+    expect(rateForDirection("maintain", 0.5)).toBeNull();
+  });
+
+  test("copy is neutral and states the floor as a safeguard", () => {
+    expect(formatRate(0.5, englishI18n)).toBe("0.5 % a week");
+    const text = [GOAL_COPY.rateTitle, GOAL_COPY.rateDescription, GOAL_COPY.floorNote]
+      .map((m) => englishI18n._(m))
+      .join(" ");
+    expect(findBannedCopy(text)).toEqual([]);
   });
 });

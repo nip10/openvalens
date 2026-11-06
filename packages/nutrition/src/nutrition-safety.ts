@@ -46,9 +46,16 @@ export type NutritionDeclaration = (typeof NUTRITION_DECLARATIONS)[number];
 export const ENERGY_DIRECTIONS = ["maintain", "lose", "gain"] as const;
 export type EnergyDirection = (typeof ENERGY_DIRECTIONS)[number];
 
+/**
+ * Weekly rates a member can choose, in % of body weight (#396). Loss up to
+ * 1.0 %, gain up to 0.5 %; the hard caps below still apply on top.
+ */
+export const ENERGY_RATE_PERCENTS = [0.25, 0.5, 0.75, 1] as const;
+export type EnergyRatePercent = (typeof ENERGY_RATE_PERCENTS)[number];
+
 export const NUTRITION_SAFETY_POLICY = Object.freeze({
-  version: "nutrition-safety/v1" as const,
-  effectiveFrom: "2026-10-16",
+  version: "nutrition-safety/v2" as const,
+  effectiveFrom: "2026-11-06",
   /** New members: maintain, never an automated deficit. */
   defaultDirection: "maintain" as EnergyDirection,
   /** Never propose a target below this, under any setting (kcal/day). NICE NG246. */
@@ -82,6 +89,13 @@ export const NUTRITION_SAFETY_POLICY = Object.freeze({
     /** Days after an accepted change before the next proposal. */
     minDaysBetweenChanges: 7,
   }),
+  /** The member's chosen rate (#396), always inside the caps above. */
+  rate: Object.freeze({
+    loseWeeklyPercents: Object.freeze([0.25, 0.5, 0.75, 1] as const),
+    defaultLoseWeeklyPercent: 0.5,
+    gainWeeklyPercents: Object.freeze([0.25, 0.5] as const),
+    defaultGainWeeklyPercent: 0.25,
+  }),
   bmi: Object.freeze({
     /** No reduction if current BMI is below this (WHO underweight cut-off). */
     underweightBelow: 18.5,
@@ -111,6 +125,12 @@ export const NUTRITION_SAFETY_POLICY = Object.freeze({
       date: "2026-10-16",
       change:
         "First version: floors, deficit and gain caps, weekly step, BMI gate, self-declared exclusions and protein reference (Issue #80). Replaces energy-proposal/v1.",
+    }),
+    Object.freeze({
+      version: "nutrition-safety/v2",
+      date: "2026-11-06",
+      change:
+        "Member-chosen weekly rate (#396): loss 0.25–1.0 % of body weight a week, gain 0.25–0.5 %. A chosen rate replaces the default deficit or surplus size; floors, hard caps, weekly step, BMI gate and exclusions are unchanged. Clinical review of the floors is still pending.",
     }),
   ]),
 });
