@@ -1,0 +1,13 @@
+{
+  "extends": "@openvalens/config/tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "emitDeclarationOnly": true,
+    "resolveJsonModule": true,
+    "outDir": "dist"
+  },
+  "include": ["src/**/*.ts", "sample/*.json"],
+  "references": [{ "path": "../db" }]
+}

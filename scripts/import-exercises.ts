@@ -1,7 +1,7 @@
 import { readFile, stat } from "node:fs/promises";
 import { createDb } from "../packages/db/src/index";
-import { importWgerSnapshot } from "../apps/server/src/services/exercise-catalog-import";
-import { normalizeWgerSnapshot } from "../apps/server/src/services/exercise-catalog-normalization";
+import { importWgerSnapshot } from "../packages/exercise-catalog/src/import";
+import { normalizeWgerSnapshot } from "../packages/exercise-catalog/src/normalization";
 
 const MAX_SNAPSHOT_BYTES = 100 * 1024 * 1024;
 

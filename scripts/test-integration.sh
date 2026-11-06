@@ -91,6 +91,7 @@ SUITES=(
   "ANALYTICS_TEST_DATABASE_URL|analytics_consent_test|apps/server/src/services/analytics.integration.test.ts"
   "EXERCISE_CATALOG_TEST_DATABASE_URL|exercise_catalog_test|apps/server/src/services/exercise-catalog.integration.test.ts"
   "EXERCISE_CATALOG_API_TEST_DATABASE_URL|exercise_catalog_api_test|packages/api/src/services/exercise-catalog.integration.test.ts"
+  "EXERCISE_CATALOG_BOOTSTRAP_TEST_DATABASE_URL|exercise_catalog_bootstrap_test|apps/server/src/services/exercise-catalog-bootstrap.integration.test.ts"
   "FOOD_CATALOG_CLI_TEST_DATABASE_URL|food_catalog_cli_test|scripts/food-catalog-import.integration.test.ts"
   "DEMO_SEED_TEST_DATABASE_URL|openvalens_demo_test|packages/demo-seed/src/demo-seed.integration.test.ts"
   "DEMO_SEED_REVIEW_TEST_DATABASE_URL|review_seed_test|packages/demo-seed/src/review.integration.test.ts"

@@ -126,6 +126,7 @@
         "@openvalens/config": "workspace:*",
         "@openvalens/db": "workspace:*",
         "@openvalens/email": "workspace:*",
+        "@openvalens/exercise-catalog": "workspace:*",
         "@openvalens/i18n": "workspace:*",
         "@openvalens/nutrition": "workspace:*",
         "@openvalens/observability": "workspace:*",
@@ -447,6 +448,7 @@
         "@openvalens/billing": "workspace:*",
         "@openvalens/config": "workspace:*",
         "@openvalens/db": "workspace:*",
+        "@openvalens/exercise-catalog": "workspace:*",
         "@orpc/server": "catalog:",
         "drizzle-orm": "catalog:",
       },
@@ -471,6 +473,18 @@
         "@openvalens/config": "workspace:*",
         "@types/react": "^19.3.0",
         "@types/react-dom": "catalog:",
+        "typescript": "^6.0.3",
+      },
+    },
+    "packages/exercise-catalog": {
+      "name": "@openvalens/exercise-catalog",
+      "dependencies": {
+        "@openvalens/db": "workspace:*",
+        "drizzle-orm": "catalog:",
+      },
+      "devDependencies": {
+        "@openvalens/config": "workspace:*",
+        "@types/bun": "catalog:",
         "typescript": "^6.0.3",
       },
     },
@@ -1208,6 +1222,8 @@
     "@openvalens/demo-seed": ["@openvalens/demo-seed@workspace:packages/demo-seed"],
 
     "@openvalens/email": ["@openvalens/email@workspace:packages/email"],
+
+    "@openvalens/exercise-catalog": ["@openvalens/exercise-catalog@workspace:packages/exercise-catalog"],
 
     "@openvalens/health-record": ["@openvalens/health-record@workspace:packages/health-record"],
 
