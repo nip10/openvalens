@@ -25,6 +25,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
 import { progressionWhy } from "@openvalens/api/presenters/workout-progression";
 
 import { Sheet } from "@/components/bloom";
@@ -229,6 +230,7 @@ export function ActiveWorkout({
 }) {
   const { t, i18n } = useLingui();
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const placeholder = useThemeColor("ink-3");
   const ink = useThemeColor("ink");
   const signal = useThemeColor("signal");
@@ -514,7 +516,22 @@ export function ActiveWorkout({
             <>
               {/* Current exercise */}
               <View className="flex-row items-center gap-3">
-                <ExerciseThumbnail exerciseId={current.exerciseId} size={76} />
+                {current.exerciseId ? (
+                  <Pressable
+                    testID="workout-exercise-detail"
+                    accessibilityRole="link"
+                    accessibilityLabel={t`${current.name} details`}
+                    onPress={() => {
+                      // The workout is a modal: tuck it away, then open the exercise page.
+                      onMinimize();
+                      router.push(`/exercise/${current.exerciseId}`);
+                    }}
+                  >
+                    <ExerciseThumbnail exerciseId={current.exerciseId} size={76} />
+                  </Pressable>
+                ) : (
+                  <ExerciseThumbnail exerciseId={current.exerciseId} size={76} />
+                )}
                 <View className="flex-1 gap-1">
                   <Text
                     accessibilityRole="header"

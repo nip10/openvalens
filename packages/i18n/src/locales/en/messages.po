@@ -149,16 +149,6 @@ msgstr "{0, plural, one {# syncing} other {# syncing}}"
 msgid "{0, plural, one {# unsynced change will be removed from this device.} other {# unsynced changes will be removed from this device.}}"
 msgstr "{0, plural, one {# unsynced change will be removed from this device.} other {# unsynced changes will be removed from this device.}}"
 
-#. placeholder {0}: equipmentOptions.length
-#: apps/native/components/exercise-library.tsx
-msgid "{0, plural, one {Show # equipment option} other {Show all # equipment options}}"
-msgstr "{0, plural, one {Show # equipment option} other {Show all # equipment options}}"
-
-#. placeholder {0}: muscleOptions.length
-#: apps/native/components/exercise-library.tsx
-msgid "{0, plural, one {Show # muscle} other {Show all # muscles}}"
-msgstr "{0, plural, one {Show # muscle} other {Show all # muscles}}"
-
 #. placeholder {0}: target.source
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "{0, select, entered {Entered by you} proposal {Accepted suggestion} other {Target}}, from {from}"
@@ -212,6 +202,12 @@ msgstr "{0} (keeping {1} daily backups)"
 msgid "{0} {1}"
 msgstr "{0} {1}"
 
+#. placeholder {0}: weight(record.weightKg)
+#. placeholder {1}: record.reps
+#: apps/native/components/exercise-detail.tsx
+msgid "{0} × {1, plural, one {# rep} other {# reps}}"
+msgstr "{0} × {1, plural, one {# rep} other {# reps}}"
+
 #. placeholder {0}: result.name
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
@@ -252,6 +248,11 @@ msgstr "{0} days per Monday–Sunday week"
 #: apps/web/src/components/workout-routine-exercise-editor.tsx
 msgid "{0} deload percent"
 msgstr "{0} deload percent"
+
+#. placeholder {0}: current.name
+#: apps/native/components/active-workout.tsx
+msgid "{0} details"
+msgstr "{0} details"
 
 #. placeholder {0}: formatClock(elapsedSeconds)
 #: apps/native/components/active-workout.tsx
@@ -421,6 +422,11 @@ msgstr "{0} value"
 msgid "{0}-day streak"
 msgstr "{0}-day streak"
 
+#. placeholder {0}: assets.length
+#: apps/native/components/exercise-detail.tsx
+msgid "{0}-frame loop"
+msgstr "{0}-frame loop"
+
 #. placeholder {0}: formatLabDate(marker.latestSampledAt, dateSettings)
 #. placeholder {1}: marker.sampleCount
 #: apps/native/app/(drawer)/records/labs.tsx
@@ -575,12 +581,12 @@ msgstr "{doneSets, plural, one {# set done} other {# sets done}}"
 msgid "{entered} of {total} values entered"
 msgstr "{entered} of {total} values entered"
 
-#: apps/native/components/exercise-library.tsx
+#: apps/native/components/exercise-media-gallery.tsx
 #: apps/web/src/components/exercise-library.tsx
 msgid "{exerciseName} preview {number}"
 msgstr "{exerciseName} preview {number}"
 
-#: apps/native/components/exercise-library.tsx
+#: apps/native/components/exercise-media-gallery.tsx
 #: apps/web/src/components/exercise-library.tsx
 msgid "{exerciseName} previews"
 msgstr "{exerciseName} previews"
@@ -845,6 +851,15 @@ msgstr "{more, plural, one {+# more exercise} other {+# more exercises}}"
 msgid "{name} (live lookup)"
 msgstr "{name} (live lookup)"
 
+#: apps/native/components/exercise-detail.tsx
+msgid "{name}, illustration"
+msgstr "{name}, illustration"
+
+#. placeholder {0}: assets.length
+#: apps/native/components/exercise-detail.tsx
+msgid "{name}, illustration in {0} frames"
+msgstr "{name}, illustration in {0} frames"
+
 #: apps/native/app/(drawer)/body-map.tsx
 #: apps/web/src/routes/_auth/body-map.tsx
 msgid "{name}: {count} sets"
@@ -1063,6 +1078,10 @@ msgstr "% of reference"
 #: apps/native/app/(drawer)/coach/[conversationId].tsx
 msgid "← All conversations"
 msgstr "← All conversations"
+
+#: apps/native/components/exercise-library.tsx
+msgid "+ Custom"
+msgstr "+ Custom"
 
 #: apps/native/components/training-home.tsx
 msgid "+ Empty workout"
@@ -1492,6 +1511,12 @@ msgstr "Add"
 msgid "Add “{0}” as a custom exercise"
 msgstr "Add “{0}” as a custom exercise"
 
+#. placeholder {0}: addExercise.name
+#. placeholder {1}: r.name
+#: apps/native/components/workout-routines.tsx
+msgid "Add {0} to {1}"
+msgstr "Add {0} to {1}"
+
 #. placeholder {0}: candidate.name
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 msgid "Add {0} to {slotLabel}"
@@ -1595,6 +1620,10 @@ msgstr "Add food to {meal}"
 msgid "Add goal"
 msgstr "Add goal"
 
+#: apps/native/components/workout-routines.tsx
+msgid "Add here"
+msgstr "Add here"
+
 #: apps/native/components/recipe-draft-editor.tsx
 #: apps/web/src/components/recipe-draft-editor.tsx
 #: packages/api/src/presenters/nutrition-templates.ts
@@ -1646,6 +1675,11 @@ msgstr "Add to favourites"
 msgid "Add to favourites: {name}"
 msgstr "Add to favourites: {name}"
 
+#: apps/native/components/exercise-detail.tsx
+msgid "Add to routine"
+msgstr "Add to routine"
+
+#: apps/native/components/exercise-detail.tsx
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
 msgid "Add to workout"
@@ -1688,6 +1722,10 @@ msgstr "Added to favourites"
 #: apps/web/src/routes/_auth/profile.tsx
 msgid "Adding…"
 msgstr "Adding…"
+
+#: apps/native/components/exercise-detail.tsx
+msgid "Adds it to your active workout."
+msgstr "Adds it to your active workout."
 
 #. safety
 #. safety
@@ -2230,6 +2268,10 @@ msgstr "Back to meal diary"
 msgid "Back to settings"
 msgstr "Back to settings"
 
+#: apps/native/components/exercise-detail.tsx
+msgid "Back to the library"
+msgstr "Back to the library"
+
 #: apps/web/src/components/exercise-library.tsx
 msgid "Back to workouts"
 msgstr "Back to workouts"
@@ -2358,6 +2400,11 @@ msgstr "Below target so far"
 #: packages/api/src/presenters/activity-load.ts
 msgid "Below the WHO range of 150 to 300 minutes a week."
 msgstr "Below the WHO range of 150 to 300 minutes a week."
+
+#. placeholder {0}: weight(records.bestEstimated1RmKg)
+#: apps/native/components/exercise-detail.tsx
+msgid "Best est. 1RM {0}"
+msgstr "Best est. 1RM {0}"
 
 #: apps/web/src/components/workout-history.tsx
 msgid "Best estimated 1RM"
@@ -2500,10 +2547,6 @@ msgstr "Browse"
 #: apps/web/src/components/exercise-library.tsx
 msgid "Browse exercises"
 msgstr "Browse exercises"
-
-#: apps/native/components/exercise-library.tsx
-msgid "Browse licensed exercises or create one for your workspace."
-msgstr "Browse licensed exercises or create one for your workspace."
 
 #: apps/web/src/components/exercise-library.tsx
 msgid "Browse licensed library entries and exercises created for your workspace."
@@ -2958,6 +3001,11 @@ msgstr "Choose a recipe to review"
 msgid "Choose a recipe to review."
 msgstr "Choose a recipe to review."
 
+#. placeholder {0}: addExercise.name
+#: apps/native/components/workout-routines.tsx
+msgid "Choose a routine to add {0} to, or make a new one."
+msgstr "Choose a routine to add {0} to, or make a new one."
+
 #: apps/native/components/complete-export-card.tsx
 msgid "Choose a server and sign in to request an export."
 msgstr "Choose a server and sign in to request an export."
@@ -3114,7 +3162,6 @@ msgstr "Clear decision"
 msgid "Clear diary data on this device"
 msgstr "Clear diary data on this device"
 
-#: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
 msgid "Clear filters"
 msgstr "Clear filters"
@@ -4642,6 +4689,10 @@ msgstr "Current target: {currentTarget}"
 msgid "Current version: {0}."
 msgstr "Current version: {0}."
 
+#: apps/native/components/exercise-library.tsx
+msgid "Custom"
+msgstr "Custom"
+
 #: packages/api/src/presenters/coach-settings.ts
 msgid "Cut"
 msgstr "Cut"
@@ -5082,7 +5133,6 @@ msgstr "Describe a meal"
 msgid "Deselect"
 msgstr "Deselect"
 
-#: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Details"
@@ -5866,7 +5916,7 @@ msgstr "Environment configuration"
 msgid "Epley estimates use sets of 1–12 reps. Sets above 12 reps remain included in history and volume."
 msgstr "Epley estimates use sets of 1–12 reps. Sets above 12 reps remain included in history and volume."
 
-#: apps/native/components/exercise-library.tsx
+#: apps/native/components/exercise-detail.tsx
 #: apps/web/src/components/exercise-library.tsx
 msgid "Equipment"
 msgstr "Equipment"
@@ -5993,7 +6043,6 @@ msgstr "Evidence uncertain (USPSTF I)"
 msgid "Exam"
 msgstr "Exam"
 
-#: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
 msgid "Exercise"
 msgstr "Exercise"
@@ -6012,12 +6061,11 @@ msgstr "Exercise {0}"
 msgid "Exercise {0} of {1}. Show all exercises"
 msgstr "Exercise {0} of {1}. Show all exercises"
 
-#: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
 msgid "Exercise details"
 msgstr "Exercise details"
 
-#: apps/native/components/exercise-library.tsx
+#: apps/native/components/exercise-detail.tsx
 msgid "Exercise details are unavailable."
 msgstr "Exercise details are unavailable."
 
@@ -6063,7 +6111,7 @@ msgstr "Exercise name is required (200 characters max)."
 msgid "Exercise notes"
 msgstr "Exercise notes"
 
-#: apps/native/components/exercise-library.tsx
+#: apps/native/components/exercise-detail.tsx
 #: apps/web/src/components/exercise-library.tsx
 msgid "Exercise record"
 msgstr "Exercise record"
@@ -6421,12 +6469,10 @@ msgstr "From a device or app"
 msgid "From a photo"
 msgstr "From a photo"
 
-#: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
 msgid "From wger, {licenseText}"
 msgstr "From wger, {licenseText}"
 
-#: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
 msgid "From wger, {licenseText}, {author}"
 msgstr "From wger, {licenseText}, {author}"
@@ -6699,6 +6745,11 @@ msgstr "Heart-rate based load is not calculated in this version."
 msgid "Heaviest"
 msgstr "Heaviest"
 
+#. placeholder {0}: weight(records.heaviestWeightKg)
+#: apps/native/components/exercise-detail.tsx
+msgid "Heaviest {0}"
+msgstr "Heaviest {0}"
+
 #: apps/web/src/components/workout-history.tsx
 msgid "Heaviest weight PR"
 msgstr "Heaviest weight PR"
@@ -6816,7 +6867,7 @@ msgstr "Hips (front)"
 #: apps/native/app/(drawer)/cycle.tsx
 #: apps/native/app/(drawer)/goals/[goalId].tsx
 #: apps/native/app/(drawer)/private-measurements.tsx
-#: apps/native/components/exercise-library.tsx
+#: apps/native/components/exercise-detail.tsx
 #: apps/web/src/components/exercise-library.tsx
 #: apps/web/src/routes/_auth/cycle.tsx
 #: apps/web/src/routes/_auth/goals.$goalId.tsx
@@ -6916,6 +6967,10 @@ msgstr "How this is calculated"
 #: apps/web/src/components/energy-estimate-card.tsx
 msgid "How this is estimated"
 msgstr "How this is estimated"
+
+#: apps/native/components/exercise-detail.tsx
+msgid "How to"
+msgstr "How to"
 
 #: apps/web/src/routes/_auth/nutrition.tsx
 msgid "How to add"
@@ -7082,10 +7137,20 @@ msgstr "If you were not expecting this invitation, you can ignore this email."
 msgid "Illustration of muscles listed by the source"
 msgstr "Illustration of muscles listed by the source"
 
-#: apps/native/components/exercise-library.tsx
+#. placeholder {0}: credit.license
+#: apps/native/components/exercise-detail.tsx
+msgid "Illustration: Workout Guide by Bryl Lim, after Everkinetic, {0}. Re-encoded for the app."
+msgstr "Illustration: Workout Guide by Bryl Lim, after Everkinetic, {0}. Re-encoded for the app."
+
+#: apps/native/components/exercise-detail.tsx
+#: apps/native/components/exercise-media-gallery.tsx
 #: apps/web/src/components/exercise-library.tsx
 msgid "Image source"
 msgstr "Image source"
+
+#: apps/native/components/exercise-detail.tsx
+msgid "Image unavailable"
+msgstr "Image unavailable"
 
 #: apps/native/app/(drawer)/clinical.tsx
 #: apps/web/src/routes/_auth/clinical.tsx
@@ -7294,10 +7359,6 @@ msgstr "Instance-wide defaults affect how weight, distance, dates, and times app
 #: apps/web/src/components/exercise-library.tsx
 msgid "Instructions (optional)"
 msgstr "Instructions (optional)"
-
-#: apps/native/components/exercise-library.tsx
-msgid "Instructions & media"
-msgstr "Instructions & media"
 
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/native/app/(drawer)/settings/devices.tsx
@@ -7534,6 +7595,7 @@ msgid "Keys"
 msgstr "Keys"
 
 #. Unit symbol; keep as is.
+#: apps/native/components/exercise-detail.tsx
 #: apps/native/components/workout-history.tsx
 #: packages/api/src/presenters/manual-entry.ts
 msgid "kg"
@@ -7719,6 +7781,7 @@ msgstr "Lats"
 msgid "Layer"
 msgstr "Layer"
 
+#: apps/native/components/exercise-detail.tsx
 #: apps/native/components/workout-history.tsx
 msgid "lb"
 msgstr "lb"
@@ -7846,12 +7909,12 @@ msgid "Licence"
 msgstr "Licence"
 
 #: apps/native/components/exercise-attribution.tsx
-#: apps/native/components/exercise-library.tsx
+#: apps/native/components/exercise-detail.tsx
+#: apps/native/components/exercise-media-gallery.tsx
 #: apps/web/src/components/exercise-library.tsx
 msgid "License details"
 msgstr "License details"
 
-#: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
 msgid "License not listed"
 msgstr "License not listed"
@@ -7862,7 +7925,7 @@ msgid "License not listed."
 msgstr "License not listed."
 
 #: apps/native/components/exercise-attribution.tsx
-#: apps/native/components/exercise-library.tsx
+#: apps/native/components/exercise-media-gallery.tsx
 #: apps/web/src/components/exercise-library.tsx
 msgid "License: {license}"
 msgstr "License: {license}"
@@ -7872,7 +7935,7 @@ msgid "License: {license} · {author}"
 msgstr "License: {license} · {author}"
 
 #: apps/native/components/exercise-attribution.tsx
-#: apps/native/components/exercise-library.tsx
+#: apps/native/components/exercise-media-gallery.tsx
 msgid "License: {license}, {author}"
 msgstr "License: {license}, {author}"
 
@@ -7963,7 +8026,6 @@ msgstr "Loading insights…"
 msgid "Loading library…"
 msgstr "Loading library…"
 
-#: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
 msgid "Loading muscle and equipment filters…"
 msgstr "Loading muscle and equipment filters…"
@@ -7978,7 +8040,7 @@ msgstr "Loading observation setting…"
 msgid "Loading photos…"
 msgstr "Loading photos…"
 
-#: apps/native/components/exercise-library.tsx
+#: apps/native/components/exercise-media-gallery.tsx
 #: apps/web/src/components/exercise-library.tsx
 msgid "Loading preview…"
 msgstr "Loading preview…"
@@ -8782,7 +8844,6 @@ msgstr "Moved away from the target at the last check-in"
 msgid "ms"
 msgstr "ms"
 
-#: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
 msgid "Muscle"
 msgstr "Muscle"
@@ -9146,10 +9207,6 @@ msgstr "No eligible values for this measure."
 msgid "No energy target set"
 msgstr "No energy target set"
 
-#: apps/native/components/exercise-library.tsx
-msgid "No equipment filters available."
-msgstr "No equipment filters available."
-
 #: packages/api/src/presenters/workouts.ts
 msgid "No exercises"
 msgstr "No exercises"
@@ -9208,6 +9265,14 @@ msgstr "No history yet"
 msgid "No history yet. Log this exercise in a workout to see your progress here."
 msgstr "No history yet. Log this exercise in a workout to see your progress here."
 
+#: apps/native/components/exercise-detail.tsx
+msgid "No image for {name}"
+msgstr "No image for {name}"
+
+#: apps/native/components/exercise-detail.tsx
+msgid "No image for this exercise"
+msgstr "No image for this exercise"
+
 #: apps/native/app/(drawer)/clinical.tsx
 #: apps/web/src/routes/_auth/clinical.tsx
 msgid "No imaging studies recorded."
@@ -9217,7 +9282,7 @@ msgstr "No imaging studies recorded."
 msgid "No inputs could be used."
 msgstr "No inputs could be used."
 
-#: apps/native/components/exercise-library.tsx
+#: apps/native/components/exercise-detail.tsx
 #: apps/web/src/components/exercise-library.tsx
 msgid "No instructions provided."
 msgstr "No instructions provided."
@@ -9301,10 +9366,6 @@ msgstr "No modules picked. Your Today shows the timeline and scores, and you can
 msgid "No monthly cap"
 msgstr "No monthly cap"
 
-#: apps/native/components/exercise-library.tsx
-msgid "No muscle filters available."
-msgstr "No muscle filters available."
-
 #: packages/api/src/presenters/score.ts
 msgid "No numbers recorded yet."
 msgstr "No numbers recorded yet."
@@ -9341,7 +9402,7 @@ msgstr "No plan"
 msgid "No plan recorded"
 msgstr "No plan recorded"
 
-#: apps/native/components/exercise-library.tsx
+#: apps/native/components/exercise-media-gallery.tsx
 #: apps/web/src/components/exercise-library.tsx
 msgid "No preview image is provided."
 msgstr "No preview image is provided."
@@ -9415,6 +9476,10 @@ msgstr "No record yet"
 #: apps/web/src/routes/_auth/records/timeline.tsx
 msgid "No records yet"
 msgstr "No records yet"
+
+#: apps/native/components/exercise-detail.tsx
+msgid "No records yet. Log this exercise to set your first."
+msgstr "No records yet. Log this exercise to set your first."
 
 #: packages/api/src/presenters/micronutrients.ts
 msgid "No reference values chosen. Choose them in nutrition settings to see them here."
@@ -10730,6 +10795,17 @@ msgstr "Photo storage is not set up on this server, so photos cannot be added."
 msgid "Photo storage is not set up on this server."
 msgstr "Photo storage is not set up on this server."
 
+#. placeholder {0}: credit.license
+#. placeholder {1}: credit.author
+#: apps/native/components/exercise-detail.tsx
+msgid "Photo: wger, {0}, {1}. Re-encoded for the app."
+msgstr "Photo: wger, {0}, {1}. Re-encoded for the app."
+
+#. placeholder {0}: credit.license
+#: apps/native/components/exercise-detail.tsx
+msgid "Photo: wger, {0}. Re-encoded for the app."
+msgstr "Photo: wger, {0}. Re-encoded for the app."
+
 #: packages/api/src/presenters/score.ts
 msgid "Physiology-enhanced profile"
 msgstr "Physiology-enhanced profile"
@@ -10908,7 +10984,7 @@ msgstr "Prepare export"
 msgid "Prepare one ZIP file with your JSON records and stored attachments."
 msgstr "Prepare one ZIP file with your JSON records and stored attachments."
 
-#: apps/native/components/exercise-library.tsx
+#: apps/native/components/exercise-media-gallery.tsx
 #: apps/web/src/components/exercise-library.tsx
 msgid "Preparing preview…"
 msgstr "Preparing preview…"
@@ -10955,17 +11031,17 @@ msgstr "Preview of your Today"
 msgid "Preview ready. Suggestions are read-only; edit the routine to change future targets."
 msgstr "Preview ready. Suggestions are read-only; edit the routine to change future targets."
 
-#: apps/native/components/exercise-library.tsx
+#: apps/native/components/exercise-media-gallery.tsx
 #: apps/web/src/components/exercise-library.tsx
 msgid "Preview unavailable because image license details are incomplete."
 msgstr "Preview unavailable because image license details are incomplete."
 
-#: apps/native/components/exercise-library.tsx
+#: apps/native/components/exercise-media-gallery.tsx
 #: apps/web/src/components/exercise-library.tsx
 msgid "Preview unavailable on this connection."
 msgstr "Preview unavailable on this connection."
 
-#: apps/native/components/exercise-library.tsx
+#: apps/native/components/exercise-media-gallery.tsx
 #: apps/web/src/components/exercise-library.tsx
 msgid "Preview unavailable."
 msgstr "Preview unavailable."
@@ -10995,6 +11071,10 @@ msgstr "Previous: {previousText}"
 #: apps/web/src/components/billing-plan-view.tsx
 msgid "Prices include VAT. Payment is handled by Stripe; you can cancel at any time."
 msgstr "Prices include VAT. Payment is handled by Stripe; you can cancel at any time."
+
+#: apps/native/components/exercise-detail.tsx
+msgid "Primary"
+msgstr "Primary"
 
 #: apps/native/components/muscle-guide.tsx
 msgid "Primary: {primaryNames}"
@@ -11443,6 +11523,7 @@ msgstr "Recording streaks"
 
 #: apps/native/app/(drawer)/clinical.tsx
 #: apps/native/app/(drawer)/exports.tsx
+#: apps/native/components/exercise-detail.tsx
 msgid "Records"
 msgstr "Records"
 
@@ -12572,6 +12653,10 @@ msgstr "Searching exercises…"
 msgid "Searching…"
 msgstr "Searching…"
 
+#: apps/native/components/exercise-detail.tsx
+msgid "Secondary"
+msgstr "Secondary"
+
 #: apps/native/components/muscle-guide.tsx
 msgid "Secondary: {secondaryNames}"
 msgstr "Secondary: {secondaryNames}"
@@ -12960,14 +13045,6 @@ msgstr "Show all exercises in this workout"
 #: packages/api/src/presenters/custom-foods.ts
 msgid "Show archived foods"
 msgstr "Show archived foods"
-
-#: apps/native/components/exercise-library.tsx
-msgid "Show fewer muscles"
-msgstr "Show fewer muscles"
-
-#: apps/native/components/exercise-library.tsx
-msgid "Show less equipment"
-msgstr "Show less equipment"
 
 #: packages/api/src/presenters/preventive-care.ts
 msgid "Show the evidence-check library"
@@ -13468,6 +13545,10 @@ msgstr "Start date, YYYY-MM-DD"
 msgid "Start over"
 msgstr "Start over"
 
+#: apps/native/components/exercise-detail.tsx
+msgid "Start with this"
+msgstr "Start with this"
+
 #: apps/native/components/training-home.tsx
 #: apps/native/components/workout-routines.tsx
 msgid "Start workout"
@@ -13509,6 +13590,10 @@ msgstr "Starting value must start with a number, like \"70\" or \"70 kg\"."
 #: apps/web/src/routes/_auth/coach/route.tsx
 msgid "Starting…"
 msgstr "Starting…"
+
+#: apps/native/components/exercise-detail.tsx
+msgid "Starts a workout with it."
+msgstr "Starts a workout with it."
 
 #: apps/web/src/routes/_auth/-goal-editor.tsx
 msgid "Starts on"
@@ -16040,7 +16125,6 @@ msgstr "Workouts"
 msgid "Workspace"
 msgstr "Workspace"
 
-#: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
 msgid "Workspace exercise"
 msgstr "Workspace exercise"

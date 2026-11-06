@@ -124,6 +124,21 @@ if (mountedMode) {
     Spinner: "span",
   }));
   mock.module("@/components/container", () => ({ Container: "div" }));
+  // The detail page (#404) has its own tests; here it shows the instructions and the
+  // library's add-to-workout tool it is given.
+  mock.module("@/components/exercise-detail", () => ({
+    ExerciseDetailView: ({ extra }: { extra?: React.ReactNode }) =>
+      React.createElement(
+        "div",
+        null,
+        (fixtures.get as { instructions: string }).instructions,
+        extra,
+      ),
+  }));
+  mock.module("@/components/exercise-thumbnail", () => ({ ExerciseThumbnail: () => null }));
+  mock.module("@/components/select-field", () => ({ SelectField: () => null }));
+  mock.module("@/utils/theme", () => ({ useThemeColor: () => "#888" }));
+  mock.module("lucide-react-native", () => ({ ChevronRight: () => null }));
   // Exercise history renders gifted-charts, whose module body needs real React Native; it has its own suite.
   mock.module("@/components/workout-history", () => ({ WorkoutExerciseHistory: () => null }));
   mock.module("@/lib/auth-client", () => ({

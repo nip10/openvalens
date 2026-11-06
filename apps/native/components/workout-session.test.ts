@@ -142,6 +142,7 @@ if (mountedMode) {
   });
   // Thumbnails query the catalog and load images; they have no bearing on logging.
   mock.module("@/components/exercise-thumbnail", () => ({ ExerciseThumbnail: () => null }));
+  mock.module("expo-router", () => ({ useRouter: () => ({ push: () => {}, navigate: () => {} }) }));
   mock.module("react-native-svg", () => ({
     default: host("svg"),
     Circle: host("circle"),
