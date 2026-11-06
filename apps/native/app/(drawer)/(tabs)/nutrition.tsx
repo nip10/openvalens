@@ -55,6 +55,7 @@ import {
   formatTarget,
   resolveHideNumbers,
   formatNutrientSummaryLine,
+  type SummaryMode,
 } from "@openvalens/api/presenters/nutrition-targets";
 import type { I18n } from "@lingui/core";
 import { msg, plural } from "@lingui/core/macro";
@@ -90,7 +91,6 @@ import {
   Trash2,
   TriangleAlert,
   Utensils,
-  UtensilsCrossed,
   Zap,
 } from "lucide-react-native";
 import {
@@ -111,7 +111,6 @@ import {
   Details,
   ErrorState,
   Icon,
-  InfoTip,
   Page,
   PageHeader,
   Section,
@@ -153,6 +152,10 @@ import { useThemeColor } from "@/utils/theme";
 import { ModuleHiddenNote } from "@/components/module-hidden-note";
 import { NutritionEntryEditor } from "@/components/nutrition-entry-editor";
 import { MacroLine } from "@/components/nutrition-macro-line";
+import { NutritionDayMenu } from "@/components/nutrition-day-menu";
+import { NutritionDaySummary } from "@/components/nutrition-day-summary";
+import { NutritionWeekStrip } from "@/components/nutrition-week-strip";
+import { dayMark, weekOf } from "@/lib/nutrition/week";
 import { SwipeRow } from "@/components/swipe-row";
 import {
   consumedAtForHour,
@@ -243,6 +246,7 @@ function Chip({
 /** How the diary lists the day (#393): by meal (default) or by hour. */
 type DiaryView = "meals" | "timeline";
 const DIARY_VIEW_CACHE_KEY = "nutrition-diary-view";
+const SUMMARY_MODE_CACHE_KEY = "nutrition-summary-mode";
 
 export default function NutritionScreen() {
   /** `food` pre-fills the food search, e.g. from a voice draft (#73). Nothing is saved from it. */
@@ -257,6 +261,11 @@ export default function NutritionScreen() {
   const day = useCacheFirst(
     `${DIARY_CACHE_PREFIX}day:${localDate}`,
     orpc.nutritionDiary.getDay.queryOptions({ input: { localDate } }),
+  );
+  const week = weekOf(localDate);
+  const weekTotals = useCacheFirst(
+    `${DIARY_CACHE_PREFIX}week:${week[0]}`,
+    orpc.nutritionDiary.getTotals.queryOptions({ input: { from: week[0]!, to: week[6]! } }),
   );
   const yesterday = shiftLocalDate(localDate, -1);
   const yesterdayDay = useCacheFirst(
@@ -309,6 +318,16 @@ export default function NutritionScreen() {
       : undefined;
     return cached === "timeline" ? "timeline" : "meals";
   });
+  const [summaryMode, setSummaryMode] = useState<SummaryMode>(() => {
+    const cached = outbox.scope
+      ? readCache<{ mode: SummaryMode }>(outbox.scope, SUMMARY_MODE_CACHE_KEY)?.data.mode
+      : undefined;
+    return cached === "remaining" ? "remaining" : "consumed";
+  });
+  const chooseSummaryMode = (next: SummaryMode) => {
+    setSummaryMode(next);
+    if (outbox.scope) writeCache(outbox.scope, SUMMARY_MODE_CACHE_KEY, { mode: next });
+  };
   const chooseView = (next: DiaryView) => {
     setView(next);
     if (outbox.scope) writeCache(outbox.scope, DIARY_VIEW_CACHE_KEY, { view: next });
@@ -355,6 +374,16 @@ export default function NutritionScreen() {
       : (day.data?.status ?? "unmarked");
   const statusText = dayStatusText(status, visible.length);
   const attention = outbox.items.filter((item) => item.status === "needs_attention");
+  const today = localDateIn(timeZone);
+  // The shown day uses its live rows and marker (queued changes included);
+  // the other days use the week's cached totals.
+  const weekDays = week.map((date) => ({
+    localDate: date,
+    mark:
+      date === localDate
+        ? dayMark({ status, entryCount: visible.length })
+        : dayMark(weekTotals.data?.days.find((d) => d.localDate === date)),
+  }));
   const undoName = undo?.name ?? "";
 
   const go = (date: string) => {
@@ -468,7 +497,7 @@ export default function NutritionScreen() {
   const slotRows = (slot: MealSlot) => visible.filter((row) => rowSlot(row) === slot);
   const hours = groupByHour(visible, timeZone);
   const nowHour = currentHour(timeZone);
-  const isToday = localDate === localDateIn(timeZone);
+  const isToday = localDate === today;
 
   /** Opens Add food for a meal, or for an hour of the timeline (`hour` logs at that time). */
   const openAddFood = (target: { slot: MealSlot } | { hour: number }, mode?: "barcode") => {
@@ -563,11 +592,10 @@ export default function NutritionScreen() {
           ) : null}
 
           <View className="gap-4">
-            {/* Date and arrows on one row, the day status below at full width: in
-              one column beside the arrows, the date and Mark day complete
-              clipped at large text on a 375 pt phone (#373). */}
-            <View className="flex-row items-center gap-3">
-              <ToneIcon icon={UtensilsCrossed} tone="food" size="sm" />
+            {/* Date, arrows and the day's ⋯ menu on one row, then the week
+                (#394). The day marker moved into the menu; at large text the
+                date and Mark day complete used to clip on a 375 pt phone (#373). */}
+            <View className="flex-row items-center gap-2">
               <View className="min-w-0 flex-1" accessibilityRole="header">
                 <NutritionDatePicker
                   value={localDate}
@@ -581,6 +609,7 @@ export default function NutritionScreen() {
                 size="sm"
                 variant="outline"
                 isIconOnly
+                className="min-h-11 min-w-11"
                 accessibilityLabel={t`Previous`}
                 onPress={() => go(shiftLocalDate(localDate, -1))}
               >
@@ -590,29 +619,22 @@ export default function NutritionScreen() {
                 size="sm"
                 variant="outline"
                 isIconOnly
+                className="min-h-11 min-w-11"
                 accessibilityLabel={t`Next`}
                 onPress={() => go(shiftLocalDate(localDate, 1))}
               >
                 <Icon icon={ChevronRight} size={18} color="ink-2" />
               </Button>
+              <NutritionDayMenu
+                statusLabel={`${i18n._(statusText.label)}${
+                  pendingStatus ? `, ${i18n._(SYNC_STATE_LABELS[pendingStatus.status])}` : ""
+                }`}
+                statusDescription={i18n._(statusText.description)}
+                complete={status === "complete"}
+                onToggleComplete={toggleStatus}
+              />
             </View>
-            <View className="flex-row flex-wrap items-center gap-1.5">
-              <View accessibilityLiveRegion="polite">
-                <StatusPill tone={status === "complete" ? "good" : "neutral"}>
-                  {i18n._(statusText.label)}
-                  {pendingStatus ? `, ${i18n._(SYNC_STATE_LABELS[pendingStatus.status])}` : ""}
-                </StatusPill>
-              </View>
-              <InfoTip title={i18n._(statusText.label)}>{i18n._(statusText.description)}</InfoTip>
-              <Button size="sm" variant="outline" className="min-h-11" onPress={toggleStatus}>
-                <Icon icon={CircleCheck} size={16} color="ink-2" />
-                <Button.Label>
-                  {i18n._(
-                    status === "complete" ? DIARY_COPY.clearComplete : DIARY_COPY.markComplete,
-                  )}
-                </Button.Label>
-              </Button>
-            </View>
+            <NutritionWeekStrip days={weekDays} selected={localDate} today={today} onSelect={go} />
             {day.isPending && !day.data ? (
               <Sheet className="items-center">
                 <Spinner />
@@ -628,6 +650,14 @@ export default function NutritionScreen() {
               />
             ) : null}
 
+            <NutritionDaySummary
+              title={localDate === today ? t`Today so far` : t`Day summary`}
+              totals={summary.totals}
+              targets={targets.data?.targetsOn.targets ?? []}
+              mode={summaryMode}
+              onMode={chooseSummaryMode}
+              hideNumbers={hideNumbers}
+            />
             <NutritionDayTotals
               totals={summary.totals}
               sources={summarySources}

@@ -4,8 +4,10 @@
  * policy module — safe for app bundles.
  *
  * Copy rules (CONTRIBUTING health-copy rules, docs/nutrition-targets.md):
- * targets are shown separately from what was logged, never compared with it:
- * no "over"/"under", no colours, no verdicts, no moral food words. Refusals
+ * a target is written as text beside the total ("1,450 of 1,700–2,100 kcal",
+ * D1 in #390), or as what remains to it when the member picks that reading.
+ * No rings or bars, no "over"/"under", no colours that judge, no "met"
+ * highlight, no verdicts, no moral food words. Refusals
  * say what the app won't do, never a floor, BMI or weight. In hide-numbers
  * mode no intake or target number is shown anywhere.
  */
@@ -346,4 +348,102 @@ export function declarationsChange(
     removesEatingDisorder: before.includes("eating_disorder") && !after.includes("eating_disorder"),
     addsEatingDisorder: !before.includes("eating_disorder") && after.includes("eating_disorder"),
   };
+}
+
+// ─── Totals beside targets (#394) ─────────────────────────────
+
+/** How the day summary reads a total: what was logged, or what remains to the target. */
+export const SUMMARY_MODES = ["consumed", "remaining"] as const;
+export type SummaryMode = (typeof SUMMARY_MODES)[number];
+
+export const SUMMARY_COPY = Object.freeze({
+  consumed: msg({ message: "Logged", context: "day summary reading" }),
+  remaining: msg({ message: "Remaining", context: "day summary reading" }),
+  modeLabel: msg`How totals are shown`,
+  noTarget: msg`No target`,
+  targetSet: msg`Target set`,
+});
+
+/** A total in the day summary: the big figure, the line beside it, and both read out. */
+export type TotalReading = { figure: string; note: string; spoken: string };
+
+/**
+ * A day total with its target as text (#394, D1 in #390). `consumed`:
+ * "1,450 kcal" + "of 1,700–2,100 kcal". `remaining`: what is left to the
+ * target ("250–650 kcal" + "remaining to 1,700–2,100 kcal"); once nothing is
+ * left it falls back to the logged reading with the target beside it, never
+ * "over". Hide-numbers mode shows no number at all.
+ */
+export function readTotalAgainstTarget(
+  key: NutrientKey,
+  total: Pick<NutrientTotal, "known" | "reported" | "missing" | "coverage">,
+  target: Pick<NutritionTargetWire, "minAmount" | "maxAmount"> | undefined,
+  mode: SummaryMode,
+  hideNumbers: boolean,
+  i18n: I18n,
+): TotalReading {
+  const label = i18n._(NUTRIENT_LABELS[key].label);
+  const hasTarget = !!target && (target.minAmount !== null || target.maxAmount !== null);
+  if (hideNumbers) {
+    const note = i18n._(hasTarget ? SUMMARY_COPY.targetSet : SUMMARY_COPY.noTarget);
+    const figure = i18n._(HIDDEN_VALUE);
+    return { figure, note, spoken: i18n._(msg`${label}: ${figure}, ${note}`) };
+  }
+  const { unit } = NUTRIENT_LABELS[key];
+  const known = total.known;
+  const logged =
+    known === null
+      ? total.coverage === "no_entries"
+        ? `0 ${unit}`
+        : i18n._(msg`Unknown`)
+      : `${number(known, unit)} ${unit}`;
+  const min = target?.minAmount ?? null;
+  const max = target?.maxAmount ?? null;
+  /** "1,700–2,100 kcal", "at least 100 g" or "up to 2,000 mg", for use inside a sentence. */
+  const targetText = (): string => {
+    if (min !== null && max !== null) {
+      const range = min === max ? number(min, unit) : `${number(min, unit)}–${number(max, unit)}`;
+      return `${range} ${unit}`;
+    }
+    if (min !== null) {
+      const value = number(min, unit);
+      return i18n._(msg({ message: `at least ${value} ${unit}`, context: "inside a sentence" }));
+    }
+    const value = number(max ?? 0, unit);
+    return i18n._(msg({ message: `up to ${value} ${unit}`, context: "inside a sentence" }));
+  };
+  const ofTarget = (): string => {
+    const text = targetText();
+    return i18n._(msg`of ${text}`);
+  };
+  const consumedReading = (): TotalReading => {
+    const note = hasTarget ? ofTarget() : i18n._(SUMMARY_COPY.noTarget);
+    return { figure: logged, note, spoken: i18n._(msg`${label}: ${logged}, ${note}`) };
+  };
+  if (mode === "consumed" || !hasTarget) return consumedReading();
+  const eaten = known ?? 0;
+  if (known === null && total.coverage !== "no_entries") return consumedReading();
+  const toTarget = (): string => {
+    const text = targetText();
+    return i18n._(msg`remaining to ${text}`);
+  };
+  let figure: string | null = null;
+  if (min !== null && eaten < min) {
+    const low = number(min - eaten, unit);
+    figure =
+      max !== null && max !== min
+        ? `${low}–${number(max - eaten, unit)} ${unit}`
+        : `${low} ${unit}`;
+  } else if (max !== null && eaten <= max && (min === null || max !== min)) {
+    const high = number(max - eaten, unit);
+    figure = min !== null ? i18n._(msg`up to ${high} ${unit}`) : `${high} ${unit}`;
+  }
+  if (figure === null) {
+    // Nothing remains: show what was logged with the target beside it.
+    const text = targetText();
+    const note = i18n._(msg`logged, target ${text}`);
+    return { figure: logged, note, spoken: i18n._(msg`${label}: ${logged}, ${note}`) };
+  }
+  const note = toTarget();
+  return { figure, note, spoken: i18n._(msg`${label}: ${figure}, ${note}`) };
 }

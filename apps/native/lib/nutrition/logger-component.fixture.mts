@@ -141,6 +141,15 @@ mock.module("@/components/nutrition-entry-editor", () => ({
     );
   },
 }));
+mock.module("@/components/nutrition-week-strip", () => ({
+  NutritionWeekStrip: host("NutritionWeekStrip"),
+}));
+mock.module("@/components/nutrition-day-summary", () => ({
+  NutritionDaySummary: host("NutritionDaySummary"),
+}));
+mock.module("@/components/nutrition-day-menu", () => ({
+  NutritionDayMenu: host("NutritionDayMenu"),
+}));
 mock.module("@/components/swipe-row", () => ({
   SwipeRow: ({ children, actions }: { children?: React.ReactNode; actions?: React.ReactNode }) =>
     React.createElement("SwipeRow", null, children, actions),
@@ -213,6 +222,7 @@ mock.module("@/utils/orpc", () => ({
     nutritionFoods: { search: { queryOptions: () => ({ queryKey: ["search"] }) } },
     nutritionDiary: {
       getDay: { queryOptions: () => ({ queryKey: ["day"] }) },
+      getTotals: { queryOptions: () => ({ queryKey: ["totals"] }) },
       listFoods: { queryOptions: () => ({ queryKey: ["foods"] }), key: () => ["foods"] },
       setFavorite: { mutationOptions: () => ({}) },
     },
@@ -859,6 +869,38 @@ describe("production AddFood component", () => {
     expect(bar?.props.accessibilityLabel).toMatch(/^Search foods, logs at \d{2}:00$/);
     await TestRenderer.act(async () => bar?.props.onPress());
     expect(routeCalls.pushes.at(-1)).toMatchObject({ pathname: "/log-food" });
+  }, 30_000);
+
+  test("week strip, day summary and the day menu's marker (#394)", async () => {
+    renderRows = [];
+    diaryEntries = [];
+    const enqueued: unknown[] = [];
+    diaryOutbox = {
+      ...outbox,
+      counts: { queued: 0, syncing: 0, needs_attention: 0 },
+      items: [],
+      enqueue: (change: unknown) => enqueued.push(change),
+    };
+    const { root } = await renderDiary();
+    const strip = root.root.findByType("NutritionWeekStrip");
+    const days = strip.props.days as { localDate: string; mark: string }[];
+    expect(days).toHaveLength(7);
+    expect(days.find((day) => day.localDate === strip.props.selected)?.mark).toBe("none");
+    const summary = root.root.findByType("NutritionDaySummary");
+    expect(summary.props.mode).toBe("consumed");
+    await TestRenderer.act(async () => summary.props.onMode("remaining"));
+    expect(root.root.findByType("NutritionDaySummary").props.mode).toBe("remaining");
+    const menu = root.root.findByType("NutritionDayMenu");
+    expect(menu.props.complete).toBe(false);
+    await TestRenderer.act(async () => menu.props.onToggleComplete());
+    expect(enqueued).toEqual([
+      expect.objectContaining({
+        op: expect.objectContaining({
+          kind: "setDayStatus",
+          input: expect.objectContaining({ complete: true }),
+        }),
+      }),
+    ]);
   }, 30_000);
 
   test("retained editor Save and Favorite expire on diary date change; a reopened editor remains live", async () => {
