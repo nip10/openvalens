@@ -37,7 +37,6 @@ import {
   deviceTimeZone,
   foodSourceLabel,
   formatAmount,
-  formatNutrientValue,
   localDateIn,
   mealSlotForLocalTime,
   newClientMutationId,
@@ -63,13 +62,16 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { type Href, Link, useLocalSearchParams, useRouter } from "expo-router";
 import { Button, Spinner, cn } from "heroui-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   Apple,
   Bookmark,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
   CircleCheck,
+  Clock,
   CloudOff,
   Coffee,
   Copy,
@@ -112,11 +114,9 @@ import {
   InfoTip,
   Page,
   PageHeader,
-  Prose,
   Section,
   Sheet,
   StatusPill,
-  ToneChip,
   ToneIcon,
   useStackedLayout,
 } from "@/components/bloom";
@@ -152,6 +152,19 @@ import { client, orpc } from "@/utils/orpc";
 import { useThemeColor } from "@/utils/theme";
 import { ModuleHiddenNote } from "@/components/module-hidden-note";
 import { NutritionEntryEditor } from "@/components/nutrition-entry-editor";
+import { MacroLine } from "@/components/nutrition-macro-line";
+import { SwipeRow } from "@/components/swipe-row";
+import {
+  consumedAtForHour,
+  currentHour,
+  groupByHour,
+  hourLabel,
+  localHour,
+  rowNutrients,
+  rowSlot,
+  slotForHour,
+  sumMacros,
+} from "@/lib/nutrition/timeline";
 
 /**
  * Meal diary (Issue #77) with food search and barcode scan/lookup (#75).
@@ -172,13 +185,6 @@ const SLOT_ICONS: Record<MealSlot, LucideIcon> = {
   snack: Apple,
   other: Utensils,
 };
-
-/** Macros listed beside energy in each food's ⓘ, as on web. */
-const LEDGER_MACROS = [
-  "proteinG",
-  "carbohydrateG",
-  "fatG",
-] as const satisfies readonly NutrientKey[];
 
 /** The placeholder colour for text inputs, from the theme. */
 function usePlaceholderColor() {
@@ -234,10 +240,9 @@ function Chip({
   );
 }
 
-function rowNutrients(row: DiaryRow) {
-  if (row.kind === "server") return row.entry.nutrients;
-  return row.localEntry?.entry?.nutrients ?? row.change.preview?.nutrients ?? null;
-}
+/** How the diary lists the day (#393): by meal (default) or by hour. */
+type DiaryView = "meals" | "timeline";
+const DIARY_VIEW_CACHE_KEY = "nutrition-diary-view";
 
 export default function NutritionScreen() {
   /** `food` pre-fills the food search, e.g. from a voice draft (#73). Nothing is saved from it. */
@@ -298,6 +303,16 @@ export default function NutritionScreen() {
     targets.isSuccess ? targets.data.settings.hideNumbers : undefined,
     cachedDisplayPreference,
   );
+  const [view, setView] = useState<DiaryView>(() => {
+    const cached = outbox.scope
+      ? readCache<{ view: DiaryView }>(outbox.scope, DIARY_VIEW_CACHE_KEY)?.data.view
+      : undefined;
+    return cached === "timeline" ? "timeline" : "meals";
+  });
+  const chooseView = (next: DiaryView) => {
+    setView(next);
+    if (outbox.scope) writeCache(outbox.scope, DIARY_VIEW_CACHE_KEY, { view: next });
+  };
   useEffect(() => {
     if (!initialQuery) {
       deepLinkHandled.current = "";
@@ -450,50 +465,45 @@ export default function NutritionScreen() {
       ],
     );
 
-  /** Up to three recent foods last logged in this meal, for one-tap re-log (#276). */
-  const usualFoods = (slot: MealSlot) =>
-    (foods.data?.recents ?? [])
-      .filter((food) => !food.lastSlot || food.lastSlot === slot)
-      .slice(0, 3);
+  const slotRows = (slot: MealSlot) => visible.filter((row) => rowSlot(row) === slot);
+  const hours = groupByHour(visible, timeZone);
+  const nowHour = currentHour(timeZone);
+  const isToday = localDate === localDateIn(timeZone);
 
-  const slotRows = (slot: MealSlot) =>
-    visible.filter(
-      (row) =>
-        (row.kind === "server"
-          ? row.entry.slot
-          : (row.localEntry?.slot ??
-            (row.change.op.kind === "log" ? row.change.op.input.slot : null))) === slot,
-    );
-
-  const logUsual = (candidate: FoodCandidate, slot: MealSlot) => {
-    const ticket = outbox.beginWrite();
-    const mutationId = newClientMutationId();
-    if (!ticket || !outbox.scope) return;
-    const portion = defaultFoodPortion(candidate);
-    const input: LogEntryInput = {
-      clientMutationId: mutationId,
-      localDate,
-      timeZone,
-      slot,
-      food: candidate.ref,
-      amount: portion.amount,
-      unit: portion.unit,
-      method: candidate.method,
-    };
-    const nutrients = previewNutrients(
-      candidate.basis,
-      candidate.nutrientsPerBasis,
-      portion.amount,
-      portion.unit,
-    );
-    const stored = outbox.enqueueForIntentWithHandle(ticket, {
-      op: { kind: "log", input },
-      preview: { name: candidate.name, source: candidate.source, nutrients },
-    });
-    if (!stored) return;
-    setUndo({ localMutationId: mutationId, name: candidate.name });
-    announce(t`Saved ${candidate.name} to ${i18n._(SLOT_LABELS[slot])} on ${localDate}`);
+  /** Opens Add food for a meal, or for an hour of the timeline (`hour` logs at that time). */
+  const openAddFood = (target: { slot: MealSlot } | { hour: number }, mode?: "barcode") => {
+    const params: Record<string, string> = { localDate, timeZone };
+    if ("slot" in target) params.meal = target.slot;
+    else {
+      params.meal = slotForHour(target.hour);
+      // The current hour of today needs no picked time: the logged time is it.
+      if (!(isToday && target.hour === nowHour))
+        params.at = consumedAtForHour(localDate, target.hour, timeZone);
+    }
+    if (mode) params.mode = mode;
+    router.push({ pathname: "/log-food", params });
   };
+
+  const renderRow = (row: DiaryRow, index: number) => (
+    <EntryCard
+      key={row.key}
+      row={row}
+      first={index === 0}
+      outbox={outbox}
+      onDelete={() => remove(row)}
+      hideNumbers={hideNumbers}
+      localDate={localDate}
+      timeZone={timeZone}
+      foods={foods.data}
+      favorite={
+        row.kind === "server" &&
+        (foods.data?.favorites ?? []).some(
+          (food) =>
+            food.ref.kind === "snapshot" && food.ref.snapshotId === row.entry.food.snapshotId,
+        )
+      }
+    />
+  );
 
   const copyMealEntries = (
     entries: readonly DiaryEntry[],
@@ -524,247 +534,411 @@ export default function NutritionScreen() {
     if (result) announce(t`Copied ${i18n._(SLOT_LABELS[slot])} to ${toDate}`);
   };
 
+  const searchSlot = view === "timeline" ? slotForHour(nowHour) : mealSlotForLocalTime();
   return (
-    <Container>
-      <Page>
-        <ModuleHiddenNote module="food" />
-        <PageHeader title={i18n._(DIARY_COPY.title)} />
+    <View className="flex-1 bg-background">
+      <Container>
+        <Page>
+          <ModuleHiddenNote module="food" />
+          <PageHeader title={i18n._(DIARY_COPY.title)} />
 
-        <OutboxBanner outbox={outbox} />
+          <OutboxBanner outbox={outbox} />
 
-        {attention.map((item) => (
-          <AttentionCard key={item.id} item={item} outbox={outbox} hideNumbers={hideNumbers} />
-        ))}
+          {attention.map((item) => (
+            <AttentionCard key={item.id} item={item} outbox={outbox} hideNumbers={hideNumbers} />
+          ))}
 
-        {undo ? (
-          <Sheet className="flex-row items-center justify-between gap-3 p-4">
-            <Text className="flex-1 font-sans text-sm text-ink-2" accessibilityLiveRegion="polite">
-              {t`Entry removed. ${undoName}`}
-            </Text>
-            <Button size="sm" variant="outline" onPress={undoDelete}>
-              <Button.Label>{i18n._(DIARY_COPY.undo)}</Button.Label>
-            </Button>
-          </Sheet>
-        ) : null}
-
-        <View className="gap-4">
-          {/* Date and arrows on one row, the day status below at full width: in
-              one column beside the arrows, the date and Mark day complete
-              clipped at large text on a 375 pt phone (#373). */}
-          <View className="flex-row items-center gap-3">
-            <ToneIcon icon={UtensilsCrossed} tone="food" size="sm" />
-            <View className="min-w-0 flex-1" accessibilityRole="header">
-              <NutritionDatePicker
-                value={localDate}
-                onChange={go}
-                label={i18n._(DIARY_COPY.title)}
-                compact
-                accessibilityLabel={t`Choose diary date`}
-              />
-            </View>
-            <Button
-              size="sm"
-              variant="outline"
-              isIconOnly
-              accessibilityLabel={t`Previous`}
-              onPress={() => go(shiftLocalDate(localDate, -1))}
-            >
-              <Icon icon={ChevronLeft} size={18} color="ink-2" />
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              isIconOnly
-              accessibilityLabel={t`Next`}
-              onPress={() => go(shiftLocalDate(localDate, 1))}
-            >
-              <Icon icon={ChevronRight} size={18} color="ink-2" />
-            </Button>
-          </View>
-          <View className="flex-row flex-wrap items-center gap-1.5">
-            <View accessibilityLiveRegion="polite">
-              <StatusPill tone={status === "complete" ? "good" : "neutral"}>
-                {i18n._(statusText.label)}
-                {pendingStatus ? `, ${i18n._(SYNC_STATE_LABELS[pendingStatus.status])}` : ""}
-              </StatusPill>
-            </View>
-            <InfoTip title={i18n._(statusText.label)}>{i18n._(statusText.description)}</InfoTip>
-            <Button size="sm" variant="outline" className="min-h-11" onPress={toggleStatus}>
-              <Icon icon={CircleCheck} size={16} color="ink-2" />
-              <Button.Label>
-                {i18n._(status === "complete" ? DIARY_COPY.clearComplete : DIARY_COPY.markComplete)}
-              </Button.Label>
-            </Button>
-          </View>
-          {day.isPending && !day.data ? (
-            <Sheet className="items-center">
-              <Spinner />
+          {undo ? (
+            <Sheet className="flex-row items-center justify-between gap-3 p-4">
+              <Text
+                className="flex-1 font-sans text-sm text-ink-2"
+                accessibilityLiveRegion="polite"
+              >
+                {t`Entry removed. ${undoName}`}
+              </Text>
+              <Button size="sm" variant="outline" onPress={undoDelete}>
+                <Button.Label>{i18n._(DIARY_COPY.undo)}</Button.Label>
+              </Button>
             </Sheet>
-          ) : day.isError && !day.data ? (
-            <ErrorState
-              title={i18n._(DIARY_COPY.networkError)}
-              action={
-                <Button size="sm" variant="outline" onPress={() => void day.refetch()}>
-                  <Button.Label>{i18n._(DIARY_COPY.retry)}</Button.Label>
-                </Button>
-              }
-            />
           ) : null}
 
-          <NutritionDayTotals
-            totals={summary.totals}
-            sources={summarySources}
-            pending={pendingRows}
-            hideNumbers={hideNumbers}
-            targets={targets.data?.targetsOn.targets ?? []}
-            compact
-          />
-        </View>
-
-        <View className="gap-2">
-          {MEAL_SLOTS.map((slot) => {
-            const rowsInSlot = slotRows(slot);
-            return (
-              <Sheet key={slot} className={rowsInSlot.length ? "gap-3" : "px-3 py-1"}>
-                <View className="min-h-11 flex-row items-center gap-3">
-                  <ToneIcon icon={SLOT_ICONS[slot]} tone="food" size="sm" />
-                  <Text
-                    className="shrink font-display text-lg font-semibold text-ink"
-                    accessibilityRole="header"
-                    maxFontSizeMultiplier={DISPLAY_MAX_FONT_SCALE}
-                  >
-                    {i18n._(SLOT_LABELS[slot])}
-                  </Text>
-                  <Button
-                    variant="outline"
-                    isIconOnly
-                    className="min-h-11 min-w-11"
-                    accessibilityLabel={i18n._(addFoodToLabel(i18n._(SLOT_LABELS[slot])))}
-                    onPress={() =>
-                      router.push({
-                        pathname: "/log-food",
-                        params: { localDate, timeZone, meal: slot },
-                      })
-                    }
-                  >
-                    <Icon icon={Plus} size={18} color="food" />
+          <View className="gap-4">
+            {/* Date and arrows on one row, the day status below at full width: in
+              one column beside the arrows, the date and Mark day complete
+              clipped at large text on a 375 pt phone (#373). */}
+            <View className="flex-row items-center gap-3">
+              <ToneIcon icon={UtensilsCrossed} tone="food" size="sm" />
+              <View className="min-w-0 flex-1" accessibilityRole="header">
+                <NutritionDatePicker
+                  value={localDate}
+                  onChange={go}
+                  label={i18n._(DIARY_COPY.title)}
+                  compact
+                  accessibilityLabel={t`Choose diary date`}
+                />
+              </View>
+              <Button
+                size="sm"
+                variant="outline"
+                isIconOnly
+                accessibilityLabel={t`Previous`}
+                onPress={() => go(shiftLocalDate(localDate, -1))}
+              >
+                <Icon icon={ChevronLeft} size={18} color="ink-2" />
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                isIconOnly
+                accessibilityLabel={t`Next`}
+                onPress={() => go(shiftLocalDate(localDate, 1))}
+              >
+                <Icon icon={ChevronRight} size={18} color="ink-2" />
+              </Button>
+            </View>
+            <View className="flex-row flex-wrap items-center gap-1.5">
+              <View accessibilityLiveRegion="polite">
+                <StatusPill tone={status === "complete" ? "good" : "neutral"}>
+                  {i18n._(statusText.label)}
+                  {pendingStatus ? `, ${i18n._(SYNC_STATE_LABELS[pendingStatus.status])}` : ""}
+                </StatusPill>
+              </View>
+              <InfoTip title={i18n._(statusText.label)}>{i18n._(statusText.description)}</InfoTip>
+              <Button size="sm" variant="outline" className="min-h-11" onPress={toggleStatus}>
+                <Icon icon={CircleCheck} size={16} color="ink-2" />
+                <Button.Label>
+                  {i18n._(
+                    status === "complete" ? DIARY_COPY.clearComplete : DIARY_COPY.markComplete,
+                  )}
+                </Button.Label>
+              </Button>
+            </View>
+            {day.isPending && !day.data ? (
+              <Sheet className="items-center">
+                <Spinner />
+              </Sheet>
+            ) : day.isError && !day.data ? (
+              <ErrorState
+                title={i18n._(DIARY_COPY.networkError)}
+                action={
+                  <Button size="sm" variant="outline" onPress={() => void day.refetch()}>
+                    <Button.Label>{i18n._(DIARY_COPY.retry)}</Button.Label>
                   </Button>
-                  <NutritionMealActions
-                    mealLabel={i18n._(SLOT_LABELS[slot])}
-                    localDate={localDate}
-                    hasEntries={rowsInSlot.length > 0}
-                    onCopyYesterday={() =>
-                      copyMealEntries(yesterdayDay.data?.entries ?? [], yesterday, localDate, slot)
-                    }
-                    onCopyToDate={(date) =>
-                      copyMealEntries(day.data?.entries ?? [], localDate, date, slot)
-                    }
-                    onSaveAsMeal={() =>
-                      router.push({
-                        pathname: "/log-food",
-                        params: {
-                          mode: "templates",
-                          localDate,
-                          timeZone,
-                          meal: slot,
-                          seedDate: localDate,
-                          seedSlot: slot,
-                        },
-                      })
-                    }
-                  />
-                </View>
-                {usualFoods(slot).length > 0 ? (
-                  // One wrapped row of short pills, so the logged entries below
-                  // still fit on a 390 pt screen (#277).
-                  <View className="flex-row flex-wrap gap-2">
-                    {usualFoods(slot).map((food) => {
-                      const candidate = candidateFromChoice(food);
-                      return (
-                        <Pressable
-                          key={`usual-${candidate.key}`}
-                          onPress={() => logUsual(candidate, slot)}
-                          accessibilityRole="button"
-                          accessibilityLabel={t`Add usual: ${food.name}`}
-                          className="min-h-11 max-w-full flex-row items-center gap-1 rounded-full border border-rule bg-card px-3 active:opacity-80"
+                }
+              />
+            ) : null}
+
+            <NutritionDayTotals
+              totals={summary.totals}
+              sources={summarySources}
+              pending={pendingRows}
+              hideNumbers={hideNumbers}
+              targets={targets.data?.targetsOn.targets ?? []}
+              compact
+            />
+          </View>
+
+          <View className="gap-2">
+            <SegmentedTabs
+              value={view}
+              onChange={chooseView}
+              tabs={[
+                {
+                  value: "meals",
+                  icon: Utensils,
+                  label: t({ message: "Meals", context: "diary view" }),
+                  testID: "diary-view-meals",
+                },
+                {
+                  value: "timeline",
+                  icon: Clock,
+                  label: t({ message: "Timeline", context: "diary view" }),
+                  testID: "diary-view-timeline",
+                },
+              ]}
+            />
+            {view === "meals" ? (
+              MEAL_SLOTS.map((slot) => {
+                const rowsInSlot = slotRows(slot);
+                return (
+                  <Sheet key={slot} className={rowsInSlot.length ? "gap-1" : "px-3 py-1"}>
+                    <View className="min-h-11 flex-row items-center gap-3">
+                      <ToneIcon icon={SLOT_ICONS[slot]} tone="food" size="sm" />
+                      <View className="min-w-0 flex-1">
+                        <Text
+                          className="shrink font-display text-lg font-semibold text-ink"
+                          accessibilityRole="header"
+                          maxFontSizeMultiplier={DISPLAY_MAX_FONT_SCALE}
                         >
-                          <Icon icon={Plus} size={14} color="food" />
-                          <Text className="shrink font-sans text-sm text-ink-2" numberOfLines={1}>
-                            {food.name}
-                          </Text>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                ) : null}
-                {rowsInSlot.length > 0
-                  ? rowsInSlot.map((row, index) => (
-                      <EntryCard
-                        key={row.key}
-                        row={row}
-                        first={index === 0}
-                        outbox={outbox}
-                        onDelete={() => remove(row)}
-                        hideNumbers={hideNumbers}
+                          {i18n._(SLOT_LABELS[slot])}
+                        </Text>
+                        {rowsInSlot.length > 0 ? (
+                          <MacroLine
+                            values={sumMacros(rowsInSlot)}
+                            hideNumbers={hideNumbers}
+                            emphasis={false}
+                            className="text-xs"
+                          />
+                        ) : null}
+                      </View>
+                      <Button
+                        variant="outline"
+                        isIconOnly
+                        className="min-h-11 min-w-11"
+                        accessibilityLabel={i18n._(addFoodToLabel(i18n._(SLOT_LABELS[slot])))}
+                        onPress={() => openAddFood({ slot })}
+                      >
+                        <Icon icon={Plus} size={18} color="food" />
+                      </Button>
+                      <NutritionMealActions
+                        mealLabel={i18n._(SLOT_LABELS[slot])}
                         localDate={localDate}
-                        timeZone={timeZone}
-                        foods={foods.data}
-                        favorite={
-                          row.kind === "server" &&
-                          (foods.data?.favorites ?? []).some(
-                            (food) =>
-                              food.ref.kind === "snapshot" &&
-                              food.ref.snapshotId === row.entry.food.snapshotId,
+                        hasEntries={rowsInSlot.length > 0}
+                        onCopyYesterday={() =>
+                          copyMealEntries(
+                            yesterdayDay.data?.entries ?? [],
+                            yesterday,
+                            localDate,
+                            slot,
                           )
                         }
+                        onCopyToDate={(date) =>
+                          copyMealEntries(day.data?.entries ?? [], localDate, date, slot)
+                        }
+                        onSaveAsMeal={() =>
+                          router.push({
+                            pathname: "/log-food",
+                            params: {
+                              mode: "templates",
+                              localDate,
+                              timeZone,
+                              meal: slot,
+                              seedDate: localDate,
+                              seedSlot: slot,
+                            },
+                          })
+                        }
                       />
-                    ))
-                  : null}
-              </Sheet>
-            );
-          })}
+                    </View>
+                    {rowsInSlot.map(renderRow)}
+                  </Sheet>
+                );
+              })
+            ) : (
+              <Timeline
+                hours={hours}
+                nowHour={isToday ? nowHour : null}
+                hideNumbers={hideNumbers}
+                renderRow={renderRow}
+                onAddAt={(hour) => openAddFood({ hour })}
+              />
+            )}
 
-          <CopyDay
+            <CopyDay
+              localDate={localDate}
+              timeZone={timeZone}
+              outbox={outbox}
+              hideNumbers={hideNumbers}
+            />
+          </View>
+
+          {/* Below the meals, so the first logged meal fits on a 390 pt screen (#277). */}
+          <TargetsOnDay targets={targets.data?.targetsOn.targets ?? []} hideNumbers={hideNumbers} />
+
+          <View className="flex-row flex-wrap gap-2">
+            <HeaderLink href="/foods" icon={Bookmark} label={i18n._(CUSTOM_FOOD_COPY.manageLink)} />
+            <HeaderLink
+              href="/nutrition-targets"
+              icon={SlidersHorizontal}
+              label={i18n._(TARGET_COPY.settingsLink)}
+            />
+          </View>
+
+          <LoggingStreakCard streak={streak.isSuccess ? streak.data : undefined} />
+
+          <PlainWaterSection
+            key={`${outbox.scope ?? "signed-out"}:${localDate}:${timeZone}`}
             localDate={localDate}
             timeZone={timeZone}
-            outbox={outbox}
             hideNumbers={hideNumbers}
           />
-        </View>
 
-        {/* Below the meals, so the first logged meal fits on a 390 pt screen (#277). */}
-        <TargetsOnDay targets={targets.data?.targetsOn.targets ?? []} hideNumbers={hideNumbers} />
+          <Pressable
+            onPress={clearDeviceData}
+            accessibilityRole="button"
+            className="min-h-11 flex-row items-center gap-2 self-start rounded-full px-1 active:opacity-70"
+          >
+            <Icon icon={Trash2} size={16} color="ink-3" />
+            <Text className="font-sans text-sm text-ink-3 underline">
+              {i18n._(DIARY_COPY.clearCache)}
+            </Text>
+          </Pressable>
+        </Page>
+      </Container>
+      <DiarySearchBar
+        label={
+          view === "timeline"
+            ? t`Search foods, logs at ${hourLabel(nowHour)}`
+            : t`Search foods, adds to ${i18n._(SLOT_LABELS[searchSlot])}`
+        }
+        onSearch={() =>
+          view === "timeline" ? openAddFood({ hour: nowHour }) : openAddFood({ slot: searchSlot })
+        }
+        onScan={() =>
+          view === "timeline"
+            ? openAddFood({ hour: nowHour }, "barcode")
+            : openAddFood({ slot: searchSlot }, "barcode")
+        }
+      />
+    </View>
+  );
+}
 
-        <View className="flex-row flex-wrap gap-2">
-          <HeaderLink href="/foods" icon={Bookmark} label={i18n._(CUSTOM_FOOD_COPY.manageLink)} />
-          <HeaderLink
-            href="/nutrition-targets"
-            icon={SlidersHorizontal}
-            label={i18n._(TARGET_COPY.settingsLink)}
-          />
-        </View>
-
-        <LoggingStreakCard streak={streak.isSuccess ? streak.data : undefined} />
-
-        <PlainWaterSection
-          key={`${outbox.scope ?? "signed-out"}:${localDate}:${timeZone}`}
-          localDate={localDate}
-          timeZone={timeZone}
-          hideNumbers={hideNumbers}
-        />
-
+/**
+ * The search bar fixed under the diary (#393): one tap to Add food, logging
+ * to the current meal (Meals) or the current hour (Timeline). Recent and
+ * favourite foods are the search sheet's first list.
+ */
+function DiarySearchBar({
+  label,
+  onSearch,
+  onScan,
+}: {
+  label: string;
+  onSearch: () => void;
+  onScan: () => void;
+}) {
+  const { t } = useLingui();
+  return (
+    <View className="border-t border-rule bg-background px-4 py-2">
+      <View className="min-h-12 flex-row items-center rounded-full border border-rule-2 bg-card">
         <Pressable
-          onPress={clearDeviceData}
+          onPress={onSearch}
+          testID="diary-search-bar"
           accessibilityRole="button"
-          className="min-h-11 flex-row items-center gap-2 self-start rounded-full px-1 active:opacity-70"
+          accessibilityLabel={label}
+          className="min-h-12 flex-1 flex-row items-center gap-2 pl-4 active:opacity-70"
         >
-          <Icon icon={Trash2} size={16} color="ink-3" />
-          <Text className="font-sans text-sm text-ink-3 underline">
-            {i18n._(DIARY_COPY.clearCache)}
+          <Icon icon={Search} size={20} color="ink-2" />
+          <Text className="shrink font-sans text-base text-ink-3" numberOfLines={1}>
+            {label}
           </Text>
         </Pressable>
-      </Page>
-    </Container>
+        <Pressable
+          onPress={onScan}
+          accessibilityRole="button"
+          accessibilityLabel={t`Scan a barcode`}
+          className="min-h-12 min-w-12 items-center justify-center rounded-full active:opacity-70"
+        >
+          <Icon icon={ScanBarcode} size={20} color="ink-2" />
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+/**
+ * The day by hour (#393): each hour with its subtotal and its foods, earliest
+ * first. Hours collapse to one line; "Add at" logs a food at that hour. The
+ * current hour of today is listed even when empty, as the place to add next.
+ */
+function Timeline({
+  hours,
+  nowHour,
+  hideNumbers,
+  renderRow,
+  onAddAt,
+}: {
+  hours: ReturnType<typeof groupByHour>;
+  nowHour: number | null;
+  hideNumbers: boolean;
+  renderRow: (row: DiaryRow, index: number) => ReactNode;
+  onAddAt: (hour: number) => void;
+}) {
+  const { t } = useLingui();
+  const [collapsed, setCollapsed] = useState<ReadonlySet<number>>(new Set());
+  const listed =
+    nowHour !== null && !hours.some((h) => h.hour === nowHour)
+      ? [...hours, { hour: nowHour, rows: [], totals: sumMacros([]) }].sort(
+          (a, b) => a.hour - b.hour,
+        )
+      : hours;
+  const toggle = (hour: number) =>
+    setCollapsed((current) => {
+      const next = new Set(current);
+      if (next.has(hour)) next.delete(hour);
+      else next.add(hour);
+      return next;
+    });
+  if (listed.length === 0)
+    return (
+      <Sheet className="gap-2">
+        <Text className="font-sans text-sm text-ink-3">
+          <Trans>Nothing logged on this day yet.</Trans>
+        </Text>
+      </Sheet>
+    );
+  return (
+    <Sheet className="gap-0 px-3 py-1">
+      {listed.map((group, index) => {
+        const label = hourLabel(group.hour);
+        const isCollapsed = collapsed.has(group.hour);
+        const count = group.rows.length;
+        return (
+          <View
+            key={group.hour}
+            className={cn("gap-1 py-2", index > 0 && "border-t border-rule")}
+            testID={`timeline-hour-${group.hour}`}
+          >
+            <View className="min-h-11 flex-row items-center gap-2">
+              <Pressable
+                onPress={() => toggle(group.hour)}
+                disabled={count === 0}
+                accessibilityRole="button"
+                accessibilityLabel={t`${label}, ${plural(count, { one: "# food", other: "# foods" })}`}
+                accessibilityState={{ expanded: !isCollapsed, disabled: count === 0 }}
+                className="min-h-11 min-w-0 flex-1 flex-row flex-wrap items-center gap-x-2"
+              >
+                <Text
+                  className="font-sans text-base font-semibold text-ink"
+                  accessibilityRole="header"
+                  style={{ fontVariant: ["tabular-nums"] }}
+                >
+                  {label}
+                </Text>
+                {count > 0 ? (
+                  <MacroLine
+                    values={group.totals}
+                    hideNumbers={hideNumbers}
+                    emphasis={false}
+                    className="text-xs"
+                  />
+                ) : null}
+                {count > 0 ? (
+                  <Icon icon={isCollapsed ? ChevronDown : ChevronUp} size={16} color="ink-3" />
+                ) : null}
+              </Pressable>
+              <Button
+                variant="ghost"
+                isIconOnly
+                className="min-h-11 min-w-11"
+                accessibilityLabel={t`Add food at ${label}`}
+                onPress={() => onAddAt(group.hour)}
+              >
+                <Icon icon={Plus} size={18} color="food" />
+              </Button>
+            </View>
+            {isCollapsed ? (
+              <Text className="font-sans text-sm text-ink-3">
+                {t`${plural(count, { one: "# food", other: "# foods" })}`}
+              </Text>
+            ) : (
+              group.rows.map(renderRow)
+            )}
+          </View>
+        );
+      })}
+    </Sheet>
   );
 }
 
@@ -1229,44 +1403,112 @@ function EntryCard({
   const attribution =
     row.kind === "server" && row.entry.food.source === "off" ? row.entry.food.attribution : null;
   const brand = row.kind === "server" ? row.entry.food.brand : null;
-  const figure = (key: NutrientKey) =>
-    hideNumbers ? i18n._(HIDDEN_VALUE) : formatNutrientValue(key, nutrients?.[key] ?? null, i18n);
+
+  const amountText = hideNumbers
+    ? i18n._(HIDDEN_VALUE)
+    : amount === null
+      ? ""
+      : formatAmount(amount, unit, i18n);
+  const macros = {
+    energyKcal: nutrients?.energyKcal ?? null,
+    proteinG: nutrients?.proteinG ?? null,
+    carbohydrateG: nutrients?.carbohydrateG ?? null,
+    fatG: nutrients?.fatG ?? null,
+  };
+  const spokenMacros = formatNutrientSummaryLine(macros, hideNumbers, i18n);
+  const syncLabel = row.sync === "synced" ? "" : i18n._(SYNC_STATE_LABELS[row.sync]);
+  const rowLabel = [name, amountText, spokenMacros, syncLabel].filter(Boolean).join(", ");
+  const favoriteLabel = favorite ? t`Remove from favourites` : t`Add to favourites`;
+  const accessibilityActions = [
+    { name: "edit", label: t`Edit` },
+    { name: "delete", label: t`Delete` },
+    ...(row.kind === "server" ? [{ name: "favorite", label: favoriteLabel }] : []),
+  ];
 
   return (
-    <View className={cn("gap-2", !first && "border-t border-rule pt-3")}>
-      {/* The energy under the name at the accessibility text sizes: beside it,
-          the name had a word's width and broke every word (#379). */}
-      <View className={stacked ? "gap-1" : "flex-row items-start justify-between gap-2"}>
-        <View className={stacked ? "gap-0.5" : "min-w-0 flex-1 gap-0.5"}>
-          <View className="flex-row items-center gap-1">
-            <Text className="shrink font-sans text-base font-semibold text-ink">{name}</Text>
-            <InfoTip label={t`Nutrients and source`} title={name}>
-              {LEDGER_MACROS.map((key) => (
-                <View key={key} className="flex-row justify-between gap-4">
-                  <Prose>{i18n._(NUTRIENT_LABELS[key].label)}</Prose>
-                  <Prose className="text-ink">{figure(key)}</Prose>
-                </View>
-              ))}
-              <Prose className="text-ink-3">
-                {i18n._(foodSourceLabel(source))}
-                {brand ? `, ${brand}` : ""}
-              </Prose>
-              {attribution ? <Prose className="text-ink-3">{attribution}</Prose> : null}
-            </InfoTip>
-          </View>
-          <Text className="font-sans text-sm text-ink-3" style={{ fontVariant: ["tabular-nums"] }}>
-            {hideNumbers
-              ? i18n._(HIDDEN_VALUE)
-              : amount === null
-                ? ""
-                : formatAmount(amount, unit, i18n)}
+    <View className={cn(!first && "border-t border-rule")}>
+      {/* One line per food (#393): name and amount, then energy and P/C/F in
+          their identity colours. Tap edits; swipe left shows edit, delete and
+          favourite, and the same actions are accessibility actions. */}
+      <SwipeRow
+        actions={
+          <>
+            <Button
+              size="sm"
+              variant="ghost"
+              isIconOnly
+              className="min-h-11 min-w-11"
+              onPress={openEditor}
+              accessibilityLabel={t`Edit ${name}`}
+            >
+              <Icon icon={Pencil} size={18} color="ink-2" />
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              isIconOnly
+              className="min-h-11 min-w-11"
+              onPress={onDelete}
+              accessibilityLabel={t`Delete ${name}`}
+            >
+              <Icon icon={Trash2} size={18} color="ink-2" />
+            </Button>
+            {row.kind === "server" ? (
+              <FavoriteButton
+                snapshotId={row.entry.food.snapshotId}
+                name={name}
+                favorite={favorite}
+              />
+            ) : null}
+          </>
+        }
+      >
+        <Pressable
+          onPress={openEditor}
+          accessibilityRole="button"
+          accessibilityLabel={rowLabel}
+          accessibilityHint={t`Opens the editor. Swipe left for more actions.`}
+          accessibilityActions={accessibilityActions}
+          onAccessibilityAction={(event) => {
+            const action = event.nativeEvent.actionName;
+            if (action === "edit" || action === "activate") openEditor();
+            else if (action === "delete") onDelete();
+            else if (action === "favorite" && row.kind === "server")
+              favoriteMutation.mutate(
+                { snapshotId: row.entry.food.snapshotId, favorite: !favorite },
+                {
+                  onSuccess: () => {
+                    announce(favorite ? t`Removed from favourites` : t`Added to favourites`);
+                    void queryClient.invalidateQueries({
+                      queryKey: orpc.nutritionDiary.listFoods.key(),
+                    });
+                  },
+                  onError: () => announce(i18n._(DIARY_COPY.networkError)),
+                },
+              );
+          }}
+          className={cn(
+            "min-h-11 py-2 active:opacity-70",
+            stacked ? "gap-0.5" : "flex-row items-center gap-2",
+          )}
+        >
+          <Text
+            className={cn("font-sans text-base text-ink", !stacked && "min-w-0 flex-1")}
+            numberOfLines={stacked ? undefined : 1}
+          >
+            {name}
+            {amountText ? (
+              <Text className="text-sm text-ink-3" style={{ fontVariant: ["tabular-nums"] }}>
+                {` · ${amountText}`}
+              </Text>
+            ) : null}
           </Text>
-        </View>
-        <View className={stacked ? "flex-row items-center gap-2" : "items-end gap-1"}>
-          <ToneChip tone="food">{figure("energyKcal")}</ToneChip>
-          <SyncBadge state={row.sync} />
-        </View>
-      </View>
+          <View className="flex-row items-center gap-1.5">
+            <MacroLine values={macros} hideNumbers={hideNumbers} />
+            <SyncBadge state={row.sync} />
+          </View>
+        </Pressable>
+      </SwipeRow>
       <NutritionEntryEditor
         visible={editing}
         name={name}
@@ -1307,30 +1549,11 @@ function EntryCard({
         }}
         onFavorite={editorFavorite}
         onClose={closeEditor}
+        sourceNote={[
+          `${i18n._(foodSourceLabel(source))}${brand ? `, ${brand}` : ""}`,
+          ...(attribution ? [attribution] : []),
+        ]}
       />
-      <View className="flex-row flex-wrap gap-1">
-        <Button
-          size="sm"
-          variant="ghost"
-          isIconOnly
-          onPress={openEditor}
-          accessibilityLabel={t`Edit ${name}`}
-        >
-          <Icon icon={Pencil} size={18} color="ink-3" />
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          isIconOnly
-          onPress={onDelete}
-          accessibilityLabel={t`Delete ${name}`}
-        >
-          <Icon icon={Trash2} size={18} color="ink-3" />
-        </Button>
-        {row.kind === "server" ? (
-          <FavoriteButton snapshotId={row.entry.food.snapshotId} name={name} favorite={favorite} />
-        ) : null}
-      </View>
     </View>
   );
 }
@@ -1448,7 +1671,9 @@ export type AddFoodLoggerProps = {
   outbox: DiaryOutbox;
   hideNumbers: boolean;
   initialMeal: MealSlot;
-  initialMode?: "choose" | "describe" | "templates";
+  initialMode?: "choose" | "describe" | "templates" | "barcode";
+  /** When the food was eaten, picked on the timeline (#393); omitted = when it is logged. */
+  consumedAt?: string;
   recipeImportEnabled?: boolean;
   seedIngredients?: readonly (import("@openvalens/api/presenters/nutrition-templates").NutritionTemplateIngredientInput & {
     name?: string;
@@ -1468,6 +1693,7 @@ export function AddFood({
   hideNumbers,
   initialMeal,
   initialMode = "choose",
+  consumedAt,
   recipeImportEnabled = false,
   seedIngredients,
   voiceDraftsEnabled = false,
@@ -1694,6 +1920,7 @@ export function AddFood({
           amount: portion.amount,
           unit: portion.unit,
           method: candidate.method,
+          ...(consumedAt ? { consumedAt } : {}),
         },
       },
       preview: {
@@ -1799,6 +2026,7 @@ export function AddFood({
                   amount: Number(amount),
                   unit,
                   method,
+                  ...(consumedAt ? { consumedAt } : {}),
                 },
               },
               preview: { name, source, nutrients: preview },
@@ -1840,6 +2068,7 @@ export function AddFood({
           amount: Number(amount),
           unit,
           method,
+          ...(consumedAt ? { consumedAt } : {}),
         },
       },
       preview: { name, source, nutrients: preview },
@@ -1874,6 +2103,11 @@ export function AddFood({
             <Button.Label>{t`Cancel`}</Button.Label>
           </Button>
         </View>
+        {consumedAt ? (
+          <Text className="px-4 pb-1 font-sans text-sm text-ink-3">
+            {t`Logs at ${hourLabel(localHour(consumedAt, timeZone))}`}
+          </Text>
+        ) : null}
         <ScrollView
           className="flex-1"
           keyboardShouldPersistTaps="handled"

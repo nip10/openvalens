@@ -68,9 +68,12 @@ mock.module("lucide-react-native", () =>
     [
       "Apple",
       "Bookmark",
+      "ChevronDown",
       "ChevronLeft",
       "ChevronRight",
+      "ChevronUp",
       "CircleCheck",
+      "Clock",
       "CloudOff",
       "Coffee",
       "Copy",
@@ -137,6 +140,10 @@ mock.module("@/components/nutrition-entry-editor", () => ({
       React.createElement("Button", { onPress: props.onDelete as () => void }, "Delete editor"),
     );
   },
+}));
+mock.module("@/components/swipe-row", () => ({
+  SwipeRow: ({ children, actions }: { children?: React.ReactNode; actions?: React.ReactNode }) =>
+    React.createElement("SwipeRow", null, children, actions),
 }));
 mock.module("@/components/nutrition-meal-actions", () => ({
   NutritionMealActions: host("NutritionMealActions"),
@@ -804,6 +811,54 @@ describe("production AddFood component", () => {
     }
     expect(deletionCalls).toEqual([copyRef, templateRef, movedRef]);
     expect(deletionTickets).toEqual([ticket, ticket, ticket]);
+  }, 30_000);
+
+  test("timeline view groups rows by hour, adds at an hour, and the search bar opens Add food", async () => {
+    const early = { ...diaryEntry(51, "Porridge"), createdAt: "2026-10-27T08:10:00.000Z" };
+    const late = {
+      ...diaryEntry(52, "Salmon"),
+      createdAt: "2026-10-27T20:00:00.000Z",
+      consumedAt: "2026-10-27T12:00:00.000Z",
+    };
+    renderRows = [late, early].map((entry) => ({
+      kind: "server",
+      key: `server:${entry.id}`,
+      entry,
+      sync: "synced",
+      pendingKind: null,
+    }));
+    diaryEntries = [];
+    diaryOutbox = { ...outbox, counts: { queued: 0, syncing: 0, needs_attention: 0 }, items: [] };
+    routeCalls.pushes.length = 0;
+    const { root } = await renderDiary();
+    const timelineTab = root.root
+      .findAllByType("Pressable")
+      .find((node) => node.props.testID === "diary-view-timeline");
+    await TestRenderer.act(async () => timelineTab?.props.onPress());
+    const hours = [
+      ...new Set(
+        root.root
+          .findAll((node) => typeof node.props.testID === "string")
+          .map((node) => node.props.testID as string)
+          .filter((id) => id === "timeline-hour-8" || id === "timeline-hour-12"),
+      ),
+    ];
+    // The current hour of today may also be listed; these two keep their order.
+    expect(hours).toEqual(["timeline-hour-8", "timeline-hour-12"]);
+    const addAtEight = root.root
+      .findAllByType("Button")
+      .find((button) => button.props.accessibilityLabel === "Add food at 08:00");
+    await TestRenderer.act(async () => addAtEight?.props.onPress());
+    const pushed = routeCalls.pushes.at(-1) as { pathname: string; params: Record<string, string> };
+    expect(pushed).toMatchObject({ pathname: "/log-food", params: { meal: "breakfast" } });
+    // 08:00 of the shown day (UTC), unless 08:00 is now: then the logged time is used.
+    if (new Date().getUTCHours() !== 8) expect(pushed.params.at).toMatch(/T08:00:00\.000Z$/);
+    const bar = root.root
+      .findAllByType("Pressable")
+      .find((node) => node.props.testID === "diary-search-bar");
+    expect(bar?.props.accessibilityLabel).toMatch(/^Search foods, logs at \d{2}:00$/);
+    await TestRenderer.act(async () => bar?.props.onPress());
+    expect(routeCalls.pushes.at(-1)).toMatchObject({ pathname: "/log-food" });
   }, 30_000);
 
   test("retained editor Save and Favorite expire on diary date change; a reopened editor remains live", async () => {

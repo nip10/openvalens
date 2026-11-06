@@ -479,6 +479,57 @@ describe.skipIf(!url)("nutritionDiary over HTTP against disposable PostgreSQL", 
     expect(rows.length).toBeGreaterThan(0);
     expect(JSON.stringify(rows)).not.toContain("Synthetic");
   });
+
+  test("an eaten-at time is stored when picked, can be moved or cleared, and is null otherwise (#393)", async () => {
+    const date = "2026-09-01";
+    const plain = await log({ clientMutationId: "time-plain", localDate: date });
+    expect(plain.body.entry.consumedAt).toBeNull();
+    const picked = await log({
+      clientMutationId: "time-picked",
+      localDate: date,
+      consumedAt: "2026-09-01T08:00:00+01:00",
+    });
+    expect(picked.status).toBe(200);
+    expect(picked.body.entry.consumedAt).toBe("2026-09-01T07:00:00.000Z");
+    expect((await day(date)).entries.map((entry) => entry.consumedAt)).toEqual([
+      null,
+      "2026-09-01T07:00:00.000Z",
+    ]);
+    const moved = await call<{ outcome: string; entry: DiaryEntry }>("updateEntry", {
+      clientMutationId: "time-move",
+      entryId: picked.body.entry.id,
+      expectedRevision: picked.body.entry.revision,
+      amount: 50,
+      unit: "g",
+      consumedAt: "2026-09-01T12:00:00.000Z",
+    });
+    expect(moved.body.entry.consumedAt).toBe("2026-09-01T12:00:00.000Z");
+    // Leaving it out keeps the time; null clears it.
+    const kept = await call<{ outcome: string; entry: DiaryEntry }>("updateEntry", {
+      clientMutationId: "time-keep",
+      entryId: picked.body.entry.id,
+      expectedRevision: moved.body.entry.revision,
+      amount: 60,
+      unit: "g",
+    });
+    expect(kept.body.entry.consumedAt).toBe("2026-09-01T12:00:00.000Z");
+    const cleared = await call<{ outcome: string; entry: DiaryEntry }>("updateEntry", {
+      clientMutationId: "time-clear",
+      entryId: picked.body.entry.id,
+      expectedRevision: kept.body.entry.revision,
+      amount: 60,
+      unit: "g",
+      consumedAt: null,
+    });
+    expect(cleared.body.entry.consumedAt).toBeNull();
+    const malformed = await log({
+      clientMutationId: "time-bad",
+      localDate: date,
+      consumedAt: "08:00",
+    });
+    expect(malformed.status).toBe(400);
+  });
+
   describe("daily totals (#79)", () => {
     const T0 = "2026-11-01";
     const T1 = "2026-11-02";
