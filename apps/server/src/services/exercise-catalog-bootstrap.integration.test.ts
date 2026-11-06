@@ -21,7 +21,10 @@ import {
 import { pngWithMetadata } from "@openvalens/body/sanitize-image.fixtures";
 import { LocalObjectStorage } from "@openvalens/storage/providers/local";
 
-import { runExerciseCatalogBootstrap, type CatalogBootstrapDeps } from "./exercise-catalog-bootstrap";
+import {
+  runExerciseCatalogBootstrap,
+  type CatalogBootstrapDeps,
+} from "./exercise-catalog-bootstrap";
 import { createExerciseCatalogAssetService } from "./exercise-catalog-assets";
 
 /**
@@ -249,12 +252,8 @@ describe.skipIf(!url)("exercise catalog bootstrap (#400)", () => {
       ]),
     );
     // Workout Guide wins where it has a match; the bench press photo is not published.
-    expect(previews.get(squat)!.map((item) => item.source)).toEqual(
-      Array(3).fill("workout-guide"),
-    );
-    expect(previews.get(bench)!.map((item) => item.source)).toEqual(
-      Array(3).fill("workout-guide"),
-    );
+    expect(previews.get(squat)!.map((item) => item.source)).toEqual(Array(3).fill("workout-guide"));
+    expect(previews.get(bench)!.map((item) => item.source)).toEqual(Array(3).fill("workout-guide"));
     expect(calls).not.toContain("https://wger.de/media/exercise-images/73/bench.png");
     // wger photo only where Workout Guide has nothing; WebP is never fetched.
     expect(previews.get(unmatched)!.map((item) => item.source)).toEqual(["wger"]);
@@ -323,18 +322,18 @@ describe.skipIf(!url)("exercise catalog bootstrap (#400)", () => {
       .set({ leaseUntil: new Date(Date.now() + 60_000) })
       .where(eq(exerciseCatalogBootstrap.id, 1));
     const calls: string[] = [];
-    expect(await runExerciseCatalogBootstrap(deps({ fetch: fakeNetwork(photo, calls) }))).toEqual(
-      { status: "busy" },
-    );
+    expect(await runExerciseCatalogBootstrap(deps({ fetch: fakeNetwork(photo, calls) }))).toEqual({
+      status: "busy",
+    });
     expect(calls).toEqual([]);
 
     await db
       .update(exerciseCatalogBootstrap)
       .set({ leaseUntil: new Date(Date.now() - 1) })
       .where(eq(exerciseCatalogBootstrap.id, 1));
-    expect(await runExerciseCatalogBootstrap(deps({ fetch: fakeNetwork(photo, calls) }))).toEqual(
-      { status: "done" },
-    );
+    expect(await runExerciseCatalogBootstrap(deps({ fetch: fakeNetwork(photo, calls) }))).toEqual({
+      status: "done",
+    });
   });
 
   test("without object storage the catalog imports and the images wait", async () => {

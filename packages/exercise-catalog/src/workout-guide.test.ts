@@ -144,8 +144,8 @@ describe("download allowlists", () => {
     expect(
       isAllowedWgerImageUrl(new URL("http://wger.de/media/exercise-images/192/Bench-press-1.png")),
     ).toBe(false);
-    expect(
-      isAllowedWgerImageUrl(new URL("https://evil.test/media/exercise-images/1/a.png")),
-    ).toBe(false);
+    expect(isAllowedWgerImageUrl(new URL("https://evil.test/media/exercise-images/1/a.png"))).toBe(
+      false,
+    );
   });
 });
