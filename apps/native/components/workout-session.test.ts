@@ -347,8 +347,9 @@ if (mountedMode) {
         el.dispatchEvent(new Event("change", { bubbles: true }));
       });
     try {
+      // Workouts start from the Training home (#402); the session shows the active one.
+      savedDraft = createWorkoutDraft();
       await render();
-      await click("Start workout");
       await click("Add exercise");
       await change(
         container.querySelector(
@@ -473,8 +474,9 @@ if (mountedMode) {
         el.dispatchEvent(new Event("change", { bubbles: true }));
       });
     try {
+      // Workouts start from the Training home (#402); the session shows the active one.
+      savedDraft = createWorkoutDraft();
       await render();
-      await click("Start workout");
       await click("Add exercise");
       await change(
         container.querySelector(

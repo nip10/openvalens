@@ -8,8 +8,6 @@ import { Alert, Text, View } from "react-native";
 
 import { ActiveWorkout } from "@/components/active-workout";
 import { Section, Sheet } from "@/components/bloom";
-import { WorkoutRoutineStart } from "@/components/workout-routines";
-import { createWorkoutDraft } from "@/lib/workouts/model";
 import { useWorkoutRestTimer } from "@/lib/workouts/rest-timer";
 import { useWorkoutSession, type WorkoutQueueItem } from "@/lib/workouts/sync";
 import { client, orpc } from "@/utils/orpc";
@@ -135,35 +133,44 @@ export function WorkoutSession() {
   useEffect(() => {
     setMinimized(false);
   }, [session.scope]);
-  return (
-    <Section icon={Plus} tone="steps" title={t`Workout session`}>
-      {!draft ? (
+  if (!draft) {
+    // The Training home holds the start actions (#402); only queued changes show here.
+    if (session.items.length === 0) return null;
+    return (
+      <Section icon={Plus} tone="steps" title={t`Waiting to sync`}>
         <View className="gap-3">
-          <Text className="font-sans text-sm text-ink-3">
-            <Trans>Start a workout and log each set as you go.</Trans>
-          </Text>
-          <Button testID="workout-start" onPress={() => session.saveDraft(createWorkoutDraft())}>
-            <Button.Label>{t`Start workout`}</Button.Label>
-          </Button>
-          <WorkoutRoutineStart onStart={(next) => session.saveDraft(next)} />
           {session.items.map((item) => (
             <QueuedWorkoutItem key={item.id} item={item} session={session} canRepair />
           ))}
         </View>
-      ) : minimized ? (
+      </Section>
+    );
+  }
+  if (minimized)
+    return (
+      <Sheet className="flex-row items-center gap-3">
+        <View className="flex-1 gap-0.5">
+          <Text className="font-sans text-base font-semibold text-ink">
+            <Trans>Workout in progress</Trans>
+          </Text>
+          <Text className="font-sans text-sm text-ink-3">
+            {draft.routineSnapshot?.name ??
+              t`${plural(draft.exercises.length, { one: "# exercise", other: "# exercises" })}`}
+          </Text>
+        </View>
         <Button testID="workout-resume" onPress={() => setMinimized(false)}>
           <Button.Label>{t`Resume workout`}</Button.Label>
         </Button>
-      ) : (
-        <ActiveWorkout
-          key={draft.id}
-          draft={draft}
-          session={session}
-          rest={rest}
-          units={units}
-          onMinimize={() => setMinimized(true)}
-        />
-      )}
-    </Section>
+      </Sheet>
+    );
+  return (
+    <ActiveWorkout
+      key={draft.id}
+      draft={draft}
+      session={session}
+      rest={rest}
+      units={units}
+      onMinimize={() => setMinimized(true)}
+    />
   );
 }

@@ -19,22 +19,9 @@ import {
   workoutTypeLabel,
 } from "@openvalens/api/presenters/workouts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "expo-router";
+import { Link, useRouter } from "expo-router";
 import { Button, Spinner } from "heroui-native";
-import {
-  Activity,
-  Bike,
-  BookOpen,
-  Dumbbell,
-  Flame,
-  Footprints,
-  type LucideIcon,
-  Timer,
-  TrendingUp,
-  Trophy,
-  Waves,
-  Zap,
-} from "lucide-react-native";
+import { BookOpen, Dumbbell, Flame, Footprints, Timer, TrendingUp, Zap } from "lucide-react-native";
 import { useState } from "react";
 import { Alert, Pressable, RefreshControl, Text, View } from "react-native";
 
@@ -44,7 +31,6 @@ import {
   ErrorState,
   Icon,
   InfoTip,
-  ListCard,
   Page,
   PageHeader,
   Prose,
@@ -61,6 +47,7 @@ import { orpc } from "@/utils/orpc";
 import { useThemeColor } from "@/utils/theme";
 import { ModuleHiddenNote } from "@/components/module-hidden-note";
 import { WorkoutSession } from "@/components/workout-session";
+import { SessionCard, TrainingStart, TrainingWeek } from "@/components/training-home";
 import { toggleEffort } from "@/utils/activity-load-screen";
 import { WorkoutSessionDetail } from "@/components/workout-session-detail";
 import { useWorkoutSession } from "@/lib/workouts/sync";
@@ -97,18 +84,6 @@ function Pill({
 
 /** How many sessions show as cards; the rest are in the full log. */
 const RECENT_SESSIONS = 6;
-
-const WORKOUT_ICONS: Record<string, LucideIcon> = {
-  weights: Dumbbell,
-  running: Footprints,
-  cycling: Bike,
-  swimming: Waves,
-  tennis: Trophy,
-};
-
-function workoutIcon(type: string): LucideIcon {
-  return WORKOUT_ICONS[type] ?? Activity;
-}
 
 /** Issue #99 — 0–10 effort choices (CR-10); tapping the selected one clears it. */
 function EffortPills({
@@ -365,6 +340,7 @@ export default function WorkoutsScreen() {
   const { t, i18n } = useLingui();
   const { _ } = useLinguiRuntime();
   const queryClient = useQueryClient();
+  const router = useRouter();
   const foreground = useThemeColor("foreground");
   const session = useWorkoutSession();
   const { data: auth } = authClient.useSession();
@@ -391,7 +367,7 @@ export default function WorkoutsScreen() {
         <Link href="/exercise-library" asChild>
           <Button variant="outline" size="sm" accessibilityRole="link">
             <Icon icon={BookOpen} size={16} color="ink-2" />
-            <Button.Label>{t`Exercise library`}</Button.Label>
+            <Button.Label>{t`Library`}</Button.Label>
           </Button>
         </Link>
       }
@@ -432,38 +408,49 @@ export default function WorkoutsScreen() {
         {header}
 
         <WorkoutSession />
-        <Button
-          variant="outline"
-          onPress={() => {
-            const start = () => session.saveDraft(createWorkoutDraft());
-            if (!session.draft) {
-              start();
-              return;
-            }
-            Alert.alert(
-              t`Active workout in progress`,
-              t`Save or discard your active workout before starting a past session.`,
-              [
-                { text: t`Cancel`, style: "cancel" },
-                {
-                  text: t`Discard and continue`,
-                  style: "destructive",
-                  onPress: () => {
-                    if (session.discardDraft()) start();
+        {session.draft ? null : (
+          <TrainingStart
+            workouts={workoutItems}
+            today={today}
+            onStartDraft={(draft) => session.saveDraft(draft)}
+            onEmptyWorkout={() => session.saveDraft(createWorkoutDraft())}
+            onPastSession={() => session.saveDraft(createWorkoutDraft())}
+            onNewRoutine={() => router.push("/routines")}
+          />
+        )}
+        {session.draft ? (
+          <Button
+            variant="outline"
+            testID="workout-log-past-busy"
+            onPress={() =>
+              Alert.alert(
+                t`Active workout in progress`,
+                t`Save or discard your active workout before starting a past session.`,
+                [
+                  { text: t`Cancel`, style: "cancel" },
+                  {
+                    text: t`Discard and continue`,
+                    style: "destructive",
+                    onPress: () => {
+                      if (session.discardDraft()) session.saveDraft(createWorkoutDraft());
+                    },
                   },
-                },
-              ],
-            );
-          }}
-        >
-          <Button.Label>{t`Log past session`}</Button.Label>
-        </Button>
+                ],
+              )
+            }
+          >
+            <Button.Label>{t`Log past session`}</Button.Label>
+          </Button>
+        ) : null}
         <WorkoutSessionDetail
           workout={auth?.user?.id && auth.session.activeOrganizationId ? selectedWorkout : null}
           units={units === "lb" ? "imperial" : "metric"}
           onClose={() => setSelectedWorkout(null)}
         />
 
+        {workoutItems.length > 0 ? (
+          <TrainingWeek workouts={workoutItems} today={today} units={units} />
+        ) : null}
         <Section
           icon={Dumbbell}
           tone="steps"
@@ -513,74 +500,28 @@ export default function WorkoutsScreen() {
                   workout.ownership === "mine" &&
                   rating === null &&
                   canRateEffortToday(workout.date, today);
-                const exercises = workout.exercises;
-                const setCount = exercises.reduce(
-                  (count, exercise) => count + exercise.sets.length,
-                  0,
-                );
-                const volumeKg = exercises.reduce(
-                  (total, exercise) =>
-                    total +
-                    exercise.sets.reduce(
-                      (sum, set) => sum + (set.weightKg ?? 0) * (set.reps ?? 0),
-                      0,
-                    ),
-                  0,
-                );
-                const volume = units === "lb" ? volumeKg * 2.2046226218 : volumeKg;
                 return (
-                  <ListCard
+                  <SessionCard
                     key={workout.id}
-                    icon={workoutIcon(workout.type)}
-                    tone="steps"
-                    title={_(workoutTypeLabel(workout.type))}
-                    subtitle={`${friendlyDate(i18n, workout.date)}${
-                      workout.intensity ? `, ${_(INTENSITY_LABELS[workout.intensity])}` : ""
-                    }`}
-                    chip={workoutDurationLabel(workout.duration)}
-                    status={
-                      rating !== null
-                        ? { label: `${rating}/10`, tone: "neutral" }
-                        : canRate
-                          ? undefined
-                          : { label: t`Not rated`, tone: "neutral" }
-                    }
+                    workout={workout}
+                    typeLabel={_(workoutTypeLabel(workout.type))}
+                    durationLabel={workoutDurationLabel(workout.duration)}
+                    units={units}
+                    onPress={() => setSelectedWorkout(workout)}
                   >
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={t`View workout details`}
-                      onPress={() => setSelectedWorkout(workout)}
-                      className="min-h-10 justify-center"
-                    >
-                      <Text className="font-sans text-sm font-semibold text-signal">
-                        <Trans>View details</Trans>
+                    {rating !== null ? (
+                      <Text className="font-sans text-sm text-ink-3">
+                        {t`Effort ${rating}/10`}
+                        {workout.intensity ? ` · ${_(INTENSITY_LABELS[workout.intensity])}` : ""}
                       </Text>
-                    </Pressable>
+                    ) : null}
                     {workout.notes ? (
                       <Text className="font-sans text-sm text-ink-2">{workout.notes}</Text>
-                    ) : null}
-                    {exercises.length > 0 ? (
-                      <View className="gap-1">
-                        <Text className="font-sans text-sm text-ink-2">
-                          {t`${plural(exercises.length, { one: "# exercise", other: "# exercises" })}`}{" "}
-                          · {t`${plural(setCount, { one: "# set", other: "# sets" })}`}
-                          {volumeKg > 0 ? ` · ${Math.round(volume)} ${units}` : ""}
-                        </Text>
-                        <Text className="font-sans text-sm text-ink-3">
-                          {exercises.map((exercise) => exercise.name).join(", ")}
-                        </Text>
-                      </View>
-                    ) : workout.type === "running" ||
-                      workout.type === "cycling" ||
-                      workout.type === "swimming" ? (
-                      <Text className="font-sans text-sm text-ink-3">
-                        <Trans>Cardio session · no exercises logged</Trans>
-                      </Text>
                     ) : null}
                     {canRate ? (
                       <RateEffort workoutId={workout.id} onSaved={reloadWorkouts} />
                     ) : null}
-                  </ListCard>
+                  </SessionCard>
                 );
               })}
               <Details summary={<Trans>Full log</Trans>}>
@@ -626,16 +567,6 @@ export default function WorkoutsScreen() {
         <Link href="/goals" asChild>
           <Button variant="outline">
             <Button.Label>{t`Goals`}</Button.Label>
-          </Button>
-        </Link>
-        <Link href="/routines" asChild>
-          <Button variant="outline">
-            <Button.Label>{t`Routines`}</Button.Label>
-          </Button>
-        </Link>
-        <Link href="/exercise-library" asChild>
-          <Button variant="outline">
-            <Button.Label>{t`Exercise library`}</Button.Label>
           </Button>
         </Link>
         <Link href="/body-map" asChild>

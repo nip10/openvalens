@@ -91,8 +91,14 @@ export async function setupMountedHarness() {
   }));
   mock.module("react-native-svg", () => ({
     default: host("svg"),
+    Svg: host("svg"),
     Circle: host("circle"),
+    Ellipse: host("ellipse"),
+    G: host("g"),
+    Line: host("line"),
     Path: host("path"),
+    Polygon: host("polygon"),
+    Polyline: host("polyline"),
     Rect: host("rect"),
   }));
   mock.module("react-native-gifted-charts", () => ({}));
