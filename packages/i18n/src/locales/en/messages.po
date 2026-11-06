@@ -403,6 +403,10 @@ msgstr "{0}. {1} reps × {2}"
 msgid "{amount, plural, one {{value} serving} other {{value} servings}}"
 msgstr "{amount, plural, one {{value} serving} other {{value} servings}}"
 
+#: packages/api/src/presenters/energy-estimate.ts
+msgid "{amount} kg over {days} days, from {weighIns} weigh-ins"
+msgstr "{amount} kg over {days} days, from {weighIns} weigh-ins"
+
 #: apps/web/src/components/billing-plan-view.tsx
 msgid "{amount} per month"
 msgstr "{amount} per month"
@@ -854,7 +858,6 @@ msgstr "{priority, select, low {Low priority} normal {Normal priority} other {Hi
 msgid "{queued, plural, one {# queued} other {# queued}}"
 msgstr "{queued, plural, one {# queued} other {# queued}}"
 
-#: apps/native/components/energy-estimate-card.tsx
 #: apps/web/src/components/energy-estimate-card.tsx
 msgid "{range} (arithmetic range, not a confidence interval)"
 msgstr "{range} (arithmetic range, not a confidence interval)"
@@ -1931,6 +1934,11 @@ msgstr "Archiving hides a food from search and logging. Meals you already logged
 #: apps/native/components/onboarding/steps.tsx
 msgid "Are you 18 or older?"
 msgstr "Are you 18 or older?"
+
+#. safety
+#: packages/api/src/presenters/energy-estimate.ts
+msgid "Arithmetic range {low} to {high} kcal a day"
+msgstr "Arithmetic range {low} to {high} kcal a day"
 
 #. safety
 #. safety
@@ -5709,6 +5717,10 @@ msgstr "Estimated activity energy was recorded on {activityDays, plural, one {# 
 msgid "Estimated cost"
 msgstr "Estimated cost"
 
+#: packages/api/src/presenters/energy-estimate.ts
+msgid "Estimated expenditure"
+msgstr "Estimated expenditure"
+
 #. safety
 #: packages/api/src/presenters/cycle.ts
 msgid "Estimated luteal phase (about the last 12 to 14 days before your period)"
@@ -5865,6 +5877,7 @@ msgstr "Exercises"
 msgid "Expect your invitation"
 msgstr "Expect your invitation"
 
+#: packages/api/src/presenters/energy-estimate.ts
 #: packages/api/src/presenters/score.ts
 msgid "Experimental"
 msgstr "Experimental"
@@ -6129,6 +6142,10 @@ msgstr "For you"
 #: packages/api/src/presenters/cycle.ts
 msgid "For your own reference only. This is not a contraception or fertility tool and does not change your nutrition targets."
 msgstr "For your own reference only. This is not a contraception or fertility tool and does not change your nutrition targets."
+
+#: packages/api/src/presenters/energy-estimate.ts
+msgid "For your own reference. These estimates never change your targets on their own."
+msgstr "For your own reference. These estimates never change your targets on their own."
 
 #: apps/web/src/routes/_auth/settings/index.tsx
 msgid "For your security, confirm it's you with a fresh sign-in."
@@ -6656,6 +6673,10 @@ msgstr "How it was measured"
 msgid "How it works"
 msgstr "How it works"
 
+#: packages/api/src/presenters/energy-estimate.ts
+msgid "How it's calculated"
+msgstr "How it's calculated"
+
 #. safety
 #: packages/api/src/presenters/preventive-care.ts
 msgid "How popular longevity practices and tests hold up in published trials and guidelines. For information only: no doses, no reminders, and not personal medical advice. Most trial participants were 50 or older, so results apply less directly to younger adults. Talk to your clinician before starting or stopping anything."
@@ -6668,7 +6689,6 @@ msgstr "How popular longevity practices and tests hold up in published trials an
 msgid "How this is calculated"
 msgstr "How this is calculated"
 
-#: apps/native/components/energy-estimate-card.tsx
 #: apps/web/src/components/energy-estimate-card.tsx
 msgid "How this is estimated"
 msgstr "How this is estimated"
@@ -7235,6 +7255,10 @@ msgstr "just now"
 msgid "kcal"
 msgstr "kcal"
 
+#: apps/native/components/nutrition-trend-card.tsx
+msgid "kcal a day"
+msgstr "kcal a day"
+
 #: apps/native/components/sign-in-methods.tsx
 #: apps/web/src/components/sign-in-methods-section.tsx
 msgid "Keep at least one way to sign in: this server cannot send email links."
@@ -7679,6 +7703,7 @@ msgid "Loading display defaults…"
 msgstr "Loading display defaults…"
 
 #: apps/native/components/energy-estimate-card.tsx
+#: apps/native/components/nutrition-trend-card.tsx
 #: apps/web/src/components/energy-estimate-card.tsx
 msgid "Loading estimate…"
 msgstr "Loading estimate…"
@@ -7766,6 +7791,7 @@ msgstr "Loading your workspace…"
 #: apps/native/app/(drawer)/nutrition-targets.tsx
 #: apps/native/components/ai-section.tsx
 #: apps/native/components/insights-section.tsx
+#: apps/native/components/nutrition-trend-card.tsx
 #: apps/native/components/onboarding/steps.tsx
 #: apps/native/components/plain-water-section.tsx
 #: apps/native/components/workout-history.tsx
@@ -9314,6 +9340,10 @@ msgstr "Not enough earlier days yet"
 #: packages/api/src/presenters/insights.ts
 msgid "Not enough recent days"
 msgstr "Not enough recent days"
+
+#: packages/api/src/presenters/energy-estimate.ts
+msgid "Not enough weigh-ins for a trend yet."
+msgstr "Not enough weigh-ins for a trend yet."
 
 #: packages/api/src/presenters/micronutrients.ts
 msgid "Not every food reported this, so the amount is at least this much."
@@ -13518,6 +13548,10 @@ msgstr "Target: {targetText}"
 msgid "Targets and display"
 msgstr "Targets and display"
 
+#: packages/api/src/presenters/energy-estimate.ts
+msgid "Targets and suggestions"
+msgstr "Targets and suggestions"
+
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Targets are yours to set, change or clear. They are shown next to what you logged, not compared with it."
 msgstr "Targets are yours to set, change or clear. They are shown next to what you logged, not compared with it."
@@ -13662,6 +13696,10 @@ msgstr "The DGS has not reviewed or endorsed this app."
 #: packages/api/src/presenters/plain-water.ts
 msgid "the entry values."
 msgstr "the entry values."
+
+#: apps/native/components/energy-estimate-card.tsx
+msgid "The estimate and how it is worked out are on the Food tab."
+msgstr "The estimate and how it is worked out are on the Food tab."
 
 #: packages/api/src/presenters/preventive-care.ts
 msgid "The evidence-check library is off. Turn it on in the preventive-care settings to see it."
@@ -14489,6 +14527,14 @@ msgstr "Training this week"
 #: packages/api/src/presenters/body-map.ts
 msgid "Traps"
 msgstr "Traps"
+
+#: packages/api/src/presenters/energy-estimate.ts
+msgid "Trend weight"
+msgstr "Trend weight"
+
+#: packages/api/src/presenters/energy-estimate.ts
+msgid "Trends"
+msgstr "Trends"
 
 #: apps/web/src/components/billing-plan-view.tsx
 msgid "Trial ended"
@@ -15493,6 +15539,10 @@ msgstr "women aged {minAge} and over"
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "women aged {minAge} to {maxAge}"
 msgstr "women aged {minAge} to {maxAge}"
+
+#: packages/api/src/presenters/energy-estimate.ts
+msgid "Worked out from {used} of the last {days} days of food logs and your trend weight. Days not marked complete are left out."
+msgstr "Worked out from {used} of the last {days} days of food logs and your trend weight. Days not marked complete are left out."
 
 #: packages/api/src/presenters/body-map.ts
 msgid "Working sets in the last 7 days. A muscle the exercise mainly works counts 1 per set; a muscle it also works counts 0.5. Exercises not linked to the catalog are listed below and not counted."

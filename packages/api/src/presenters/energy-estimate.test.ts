@@ -2,7 +2,12 @@ import { describe, expect, test } from "bun:test";
 import { englishI18n } from "@openvalens/i18n/testing";
 
 import type { EnergyEstimateOutput, EnergyProposalWire } from "../contracts/energy-estimate";
-import { presentEnergyEstimate, presentProposal } from "./energy-estimate";
+import {
+  presentEnergyEstimate,
+  presentProposal,
+  presentTrendEstimate,
+  presentTrendWeight,
+} from "./energy-estimate";
 
 const estimated = {
   status: "estimated",
@@ -85,5 +90,79 @@ describe("energy estimate client presenter", () => {
       current: "1,800 kcal/day",
     });
     expect(proposal.status).toBe("pending");
+  });
+});
+
+describe("Food tab trend card (#395)", () => {
+  const withInputs = {
+    ...estimated,
+    estimate: {
+      ...(estimated as Extract<EnergyEstimateOutput, { status: "estimated" }>).estimate!,
+      kcalPerDay: 2240,
+      range: { lowKcal: 2090, highKcal: 2390 },
+    },
+    inputs: { intake: { usedDays: 19 } },
+  } as unknown as EnergyEstimateOutput;
+
+  test("the estimate, its range and the days it used", () => {
+    expect(presentTrendEstimate(withInputs, false, englishI18n)).toEqual({
+      figure: "2,240",
+      range: "Arithmetic range 2,090 to 2,390 kcal a day",
+      basis:
+        "Worked out from 19 of the last 21 days of food logs and your trend weight. Days not marked complete are left out.",
+    });
+    expect(presentTrendEstimate(withInputs, true, englishI18n)).toBeNull();
+  });
+
+  const trend = {
+    status: "provisional" as const,
+    points: [
+      {
+        date: "2026-10-01",
+        observedKg: 72.4,
+        source: "auto" as const,
+        manualCorrection: false,
+        trendKg: 72.2,
+        windowObservations: 3,
+      },
+      {
+        date: "2026-10-28",
+        observedKg: 71.6,
+        source: "auto" as const,
+        manualCorrection: false,
+        trendKg: 71.8,
+        windowObservations: 7,
+      },
+      {
+        date: "2026-10-29",
+        observedKg: 71.5,
+        source: "auto" as const,
+        manualCorrection: false,
+        trendKg: null,
+        windowObservations: 1,
+      },
+    ],
+    change: { from: "2026-10-01", to: "2026-10-28", days: 27, kg: -0.4 },
+    completeness: {
+      days: 28,
+      observedDays: 14,
+      missingDays: 14,
+      trendDays: 10,
+      manualCorrectionDays: 0,
+      longestGapDays: 3,
+      firstObservedDate: "2026-10-01",
+      lastObservedDate: "2026-10-29",
+    },
+  };
+
+  test("the latest trend value and its change, without a verdict", () => {
+    expect(presentTrendWeight(trend, false, englishI18n)).toEqual({
+      figure: "71.8",
+      change: "−0.4 kg over 27 days, from 14 weigh-ins",
+    });
+    expect(
+      presentTrendWeight({ ...trend, status: "insufficient_data" }, false, englishI18n),
+    ).toBeNull();
+    expect(presentTrendWeight(trend, true, englishI18n)).toBeNull();
   });
 });

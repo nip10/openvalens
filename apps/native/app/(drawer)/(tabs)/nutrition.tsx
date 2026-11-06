@@ -155,6 +155,7 @@ import { MacroLine } from "@/components/nutrition-macro-line";
 import { NutritionDayMenu } from "@/components/nutrition-day-menu";
 import { NutritionDaySummary } from "@/components/nutrition-day-summary";
 import { NutritionWeekStrip } from "@/components/nutrition-week-strip";
+import { NutritionTrendCard } from "@/components/nutrition-trend-card";
 import { dayMark, weekOf } from "@/lib/nutrition/week";
 import { SwipeRow } from "@/components/swipe-row";
 import {
@@ -783,6 +784,14 @@ export default function NutritionScreen() {
               label={i18n._(TARGET_COPY.settingsLink)}
             />
           </View>
+
+          <NutritionTrendCard
+            scope={outbox.scope}
+            today={today}
+            hideNumbers={hideNumbers}
+            preferenceKnown={targets.isSuccess}
+            energyOff={targets.data?.safety?.energyTargets === "off"}
+          />
 
           <LoggingStreakCard streak={streak.isSuccess ? streak.data : undefined} />
 
