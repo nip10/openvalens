@@ -12,13 +12,14 @@ import {
 import { readinessView } from "@openvalens/api/presenters/score";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "heroui-native";
-import { Sparkles, X } from "lucide-react-native";
+import { Gauge, Sparkles, X } from "lucide-react-native";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
 import {
   Details,
+  EmptyState,
   Icon,
   InfoTip,
   Prose,
@@ -173,18 +174,39 @@ function SubjectInsightsSection({
           </Pressable>
         }
       >
-        {[
-          {
-            key: "readiness",
-            tone: "sleep" as const,
-            title: ready?.title ?? t`Readiness index`,
-            badge: ready?.badge,
-            score: ready?.scoreText ?? "—",
-            label: ready?.accessibilityLabel ?? t`Readiness index not loaded.`,
-            note: readyNote,
-            flagged: null,
-          },
-        ].map((summary) => (
+        {ready && !ready.available ? (
+          // A new account: say what will appear here rather than an empty ring.
+          <EmptyState
+            icon={Gauge}
+            tone="sleep"
+            title={ready.title}
+            description={
+              ready.withheldExplanation ??
+              ready.wouldHelpText ??
+              t`It appears once there are a few days of sleep and heart data.`
+            }
+            action={
+              <Button variant="outline" size="sm" onPress={() => router.push("/scores")}>
+                <Button.Label>{t`How it works`}</Button.Label>
+              </Button>
+            }
+          />
+        ) : null}
+        {(ready && !ready.available
+          ? []
+          : [
+              {
+                key: "readiness",
+                tone: "sleep" as const,
+                title: ready?.title ?? t`Readiness index`,
+                badge: ready?.badge,
+                score: ready?.scoreText ?? "—",
+                label: ready?.accessibilityLabel ?? t`Readiness index not loaded.`,
+                note: readyNote,
+                flagged: null,
+              },
+            ]
+        ).map((summary) => (
           <Sheet key={summary.key} className="gap-2 p-4">
             <View className="flex-row items-center gap-4">
               <Ring value={(Number.parseFloat(summary.score) || 0) / 100} tone={summary.tone} />

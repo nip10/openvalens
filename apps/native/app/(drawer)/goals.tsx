@@ -138,6 +138,7 @@ export default function GoalsScreen() {
             description={<Trans>Create a goal or review paused and completed goals below.</Trans>}
           />
         ) : null}
+        <WrittenGoals trackedIds={(goals.data ?? []).map((goal) => goal.id)} />
         <GoalArchive title={t`Paused`} goals={paused} />
         <GoalArchive title={t`Completed`} goals={completed} />
         {status.isError || remove.isError ? (
@@ -147,6 +148,28 @@ export default function GoalsScreen() {
         ) : null}
       </Page>
     </Container>
+  );
+}
+
+/**
+ * Goals written in plain words (onboarding's "One goal", Profile's "Add a
+ * goal"): they have no metric to track, so they are listed, not evaluated.
+ */
+function WrittenGoals({ trackedIds }: { trackedIds: number[] }) {
+  const { t } = useLingui();
+  const written = useQuery(orpc.plans.goals.listGoals.queryOptions({ input: {} }));
+  const goals = (written.data ?? []).filter(
+    (goal) => goal.status === "active" && !trackedIds.includes(goal.id),
+  );
+  if (goals.length === 0) return null;
+  return (
+    <Section title={t`In your own words`}>
+      <View className="gap-3">
+        {goals.map((goal) => (
+          <ListCard key={goal.id} icon={Target} tone="signal" title={goal.title} />
+        ))}
+      </View>
+    </Section>
   );
 }
 

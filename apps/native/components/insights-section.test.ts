@@ -87,6 +87,7 @@ if (!childMode) {
     React.createElement("button", { type: "button" }, summary);
   mock.module("@/components/bloom", () => ({
     Details: ClosedDetails,
+    EmptyState: ({ title }: { title?: React.ReactNode }) => React.createElement("div", null, title),
     Icon: () => null,
     InfoTip: Closed,
     Prose: Text,
@@ -96,7 +97,11 @@ if (!childMode) {
     StatusPill: Text,
     ToneIcon: () => null,
   }));
-  mock.module("lucide-react-native", () => ({ Sparkles: () => null, X: () => null }));
+  mock.module("lucide-react-native", () => ({
+    Gauge: () => null,
+    Sparkles: () => null,
+    X: () => null,
+  }));
   const unexpected = () => {
     throw new Error("Unexpected navigation, push, or RPC call");
   };

@@ -28,9 +28,11 @@ import {
   Sheet,
 } from "@/components/bloom";
 import { Container } from "@/components/container";
+import { LabReading } from "@/components/lab-reading";
 import { SyncStatusBadge } from "@/components/sync-status-badge";
 import { useDisplayPreferences } from "@/lib/display-preferences";
 import { enqueueMetricSample, useCacheFirst } from "@/lib/offline/sync";
+import { labRangeBar } from "@/utils/lab-range-bar";
 import { orpc } from "@/utils/orpc";
 import { useThemeColor } from "@/utils/theme";
 import { ModuleHiddenNote } from "@/components/module-hidden-note";
@@ -181,16 +183,20 @@ export default function LabsScreen() {
         icon={TestTube}
         tone="water"
         title={marker.displayName}
-        chip={marker.latestValue === null ? undefined : formatLabValue(display.value, display.unit)}
         subtitle={
           marker.latestValue === null
             ? t`No readings yet`
             : t`${formatLabDate(marker.latestSampledAt, dateSettings)}, ${plural(marker.sampleCount, { one: "# reading", other: "# readings" })}`
         }
       >
-        {range ? (
-          <Text className="font-sans text-sm text-ink-2">{formatLabRange(i18n, range)}</Text>
-        ) : null}
+        {marker.latestValue === null ? null : (
+          <LabReading
+            valueText={formatLabValue(display.value, display.unit)}
+            rangeText={range ? formatLabRange(i18n, range) : null}
+            bar={labRangeBar(display.value, display.unit, range)}
+            testID={`lab-reading-${marker.code}`}
+          />
+        )}
         {marker.unit && display.converted ? (
           <Text className="font-sans text-xs text-ink-3">
             {t({ message: `Converted from ${marker.unit}`, comment: "safety" })}
