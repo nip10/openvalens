@@ -668,6 +668,10 @@ msgstr "Objetivo de {label}: {value}, {source}"
 msgid "{label}, {count, plural, one {# food} other {# foods}}"
 msgstr "{label}, {count, plural, one {# alimento} other {# alimentos}}"
 
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "{label}, {value}"
+msgstr "{label}, {value}"
+
 #: apps/web/src/routes/_auth/micronutrients.tsx
 msgid "{label}: {amount}"
 msgstr "{label}: {amount}"
@@ -1267,6 +1271,10 @@ msgstr "Aceitar"
 #: packages/email/src/templates/invitation.tsx
 msgid "Accept invitation"
 msgstr "Aceitar convite"
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Accept proposal"
+msgstr "Aceitar proposta"
 
 #: packages/api/src/presenters/energy-estimate.ts
 msgid "Accept suggestion"
@@ -2260,6 +2268,14 @@ msgstr "Com base em {days, plural, one {# pesagem} other {# pesagens}} nos últi
 msgid "Based on {recentDays} of the last {recentWindowDays} days, compared with {baselineDays, plural, one {# day} other {# days}} in the {baselineWindowDays} days before."
 msgstr "Com base em {recentDays} dos últimos {recentWindowDays} dias, em comparação com {baselineDays, plural, one {# dia} other {# dias}} nos {baselineWindowDays} dias anteriores."
 
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Based on an experimental estimate that has not been validated."
+msgstr "Baseado numa estimativa experimental que não foi validada."
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Based on your expenditure estimate ({kcal} kcal a day) and your goal: {goal}."
+msgstr "Com base na sua estimativa de gasto ({kcal} kcal por dia) e no seu objetivo: {goal}."
+
 #: apps/web/src/components/admin-backup-status.tsx
 msgid "before an upgrade"
 msgstr "antes de uma atualização"
@@ -2738,6 +2754,22 @@ msgstr "Verifique a ligação e depois recarregue a página."
 msgid "Check your email"
 msgstr "Verifique o seu email"
 
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Check-in day"
+msgstr "Dia do balanço"
+
+#: apps/native/components/nutrition-check-in-prompt.tsx
+msgid "Check-in day: {date}. You can do it now."
+msgstr "Dia do balanço: {date}. Pode fazê-lo já."
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Check-in done. Your energy target is updated."
+msgstr "Balanço feito. O seu objetivo de energia foi atualizado."
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Check-in done. Your targets are unchanged."
+msgstr "Balanço feito. Os seus objetivos não mudaram."
+
 #: apps/native/app/(drawer)/goals/[goalId].tsx
 msgid "Check-in value"
 msgstr "Valor do registo"
@@ -3071,6 +3103,7 @@ msgid "Clinician decision for specific situations"
 msgstr "Decisão do profissional de saúde em situações específicas"
 
 #: apps/native/app/(drawer)/goals.tsx
+#: apps/native/app/check-in.tsx
 #: apps/native/app/modal.tsx
 #: apps/native/components/change-server.tsx
 #: apps/native/components/select-field.tsx
@@ -3622,6 +3655,7 @@ msgstr "Não foi possível confirmar a alteração. Atualize os itens guardados 
 msgid "Could not confirm the result. Refresh and review before trying again."
 msgstr "Não foi possível confirmar o resultado. Atualize e reveja antes de tentar novamente."
 
+#: apps/native/app/check-in.tsx
 #: apps/native/components/energy-estimate-card.tsx
 #: apps/web/src/components/energy-estimate-card.tsx
 msgid "Could not confirm the result. Refresh to check its status."
@@ -4150,6 +4184,10 @@ msgstr "Não foi possível guardar a preferência de descanso. O treino não foi
 #: apps/native/components/workout-routines.tsx
 msgid "Could not save routine"
 msgstr "Não foi possível guardar a rotina"
+
+#: apps/native/app/check-in.tsx
+msgid "Could not save the check-in. Try again."
+msgstr "Não foi possível guardar o balanço. Tente novamente."
 
 #: apps/web/src/components/workout-routines.tsx
 msgid "Could not save the routine. Your finished workout is unchanged."
@@ -5305,6 +5343,10 @@ msgstr "Cada regra compara os seus últimos 7 dias com o seu habitual (a mediana
 msgid "Each session's effort rating (0 to 10) × its minutes, added up over the last 7 days (session-RPE)."
 msgstr "A avaliação de esforço de cada sessão (0 a 10) × os seus minutos, somada nos últimos 7 dias (session-RPE)."
 
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Each week the app proposes an energy target from your estimate and your goal. Nothing changes until you accept."
+msgstr "Todas as semanas a app propõe um objetivo de energia a partir da sua estimativa e do seu objetivo. Nada muda até aceitar."
+
 #: apps/native/app/(drawer)/insight-settings.tsx
 msgid "Earlier"
 msgstr "Mais cedo"
@@ -5509,6 +5551,7 @@ msgstr "Data de fim, opcional, AAAA-MM-DD"
 msgid "Ended · history retained"
 msgstr "Terminado · histórico preservado"
 
+#: apps/native/app/check-in.tsx
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Energy"
 msgstr "Energia"
@@ -5520,6 +5563,10 @@ msgstr "Estimativa de energia"
 #: packages/api/src/presenters/nutrition-templates.ts
 msgid "Energy: {energyKnown}/{total} ingredients; protein: {proteinKnown}/{total} ingredients"
 msgstr "Energia: {energyKnown}/{total} ingredientes; proteínas: {proteinKnown}/{total} ingredientes"
+
+#: apps/native/app/check-in.tsx
+msgid "Energy: now {nowText}, proposed {proposedText}"
+msgstr "Energia: agora {nowText}, proposto {proposedText}"
 
 #: apps/web/src/components/admission-form.tsx
 msgid "Enrollment complete"
@@ -6835,6 +6882,8 @@ msgstr "Consinto que a OpenValens trate os meus dados de saúde para prestar o s
 
 #. safety
 #. safety
+#. safety
+#: apps/native/app/check-in.tsx
 #: apps/native/components/energy-estimate-card.tsx
 #: apps/web/src/components/energy-estimate-card.tsx
 msgid "I have read this and want to accept the suggestion."
@@ -7345,6 +7394,10 @@ msgstr "kcal por dia"
 msgid "Keep at least one way to sign in: this server cannot send email links."
 msgstr "Mantenha pelo menos uma forma de iniciar sessão: este servidor não consegue enviar ligações por email."
 
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Keep current targets"
+msgstr "Manter os objetivos atuais"
+
 #: packages/api/src/presenters/custom-foods.ts
 #: packages/api/src/presenters/nutrition-diary.ts
 #: packages/api/src/presenters/plain-water.ts
@@ -7524,6 +7577,10 @@ msgstr "Último envio {0}"
 #: apps/web/src/components/admin-backup-status.tsx
 msgid "Last verify"
 msgstr "Última verificação"
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Last week's intake against your target doesn't change the proposal."
+msgstr "A ingestão da semana passada face ao seu objetivo não altera a proposta."
 
 #: apps/native/app/(drawer)/insight-settings.tsx
 msgid "Later"
@@ -8123,6 +8180,11 @@ msgstr "Manual"
 
 #: packages/api/src/presenters/timeline.ts
 msgctxt "data source"
+msgid "Manual"
+msgstr "Manual"
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgctxt "targets mode"
 msgid "Manual"
 msgstr "Manual"
 
@@ -9171,6 +9233,10 @@ msgstr "Sem progressão"
 msgid "No progression rule is set, so the prescription stays the same."
 msgstr "Não está definida uma regra de progressão, por isso a prescrição mantém-se."
 
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "No proposal this week. You can keep your targets and check in again next week."
+msgstr "Sem proposta esta semana. Pode manter os seus objetivos e fazer o balanço na próxima semana."
+
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 msgid "No quantity"
 msgstr "Sem quantidade"
@@ -9684,6 +9750,11 @@ msgstr "As notificações chegam aos telemóveis onde as permitir na aplicação
 msgid "Now"
 msgstr "Agora"
 
+#: packages/api/src/presenters/nutrition-targets.ts
+msgctxt "check-in column"
+msgid "Now"
+msgstr "Agora"
+
 #: packages/api/src/presenters/score.ts
 msgid "Now: {now}."
 msgstr "Agora: {now}."
@@ -9695,6 +9766,10 @@ msgstr "Os números estão ocultos. A cobertura continua visível."
 #: packages/api/src/presenters/energy-estimate.ts
 msgid "Numbers are hidden. Estimate details are not shown."
 msgstr "Os números estão ocultos. Os detalhes da estimativa não são mostrados."
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Numbers are hidden. Turn them on in Targets and display to review a proposal."
+msgstr "Os números estão ocultos. Ative-os em Objetivos e apresentação para rever uma proposta."
 
 #: packages/api/src/presenters/plain-water.ts
 msgid "Numbers are hidden. You can still log water."
@@ -9978,6 +10053,10 @@ msgstr "Em aberto"
 #: apps/native/app/(drawer)/exports.tsx
 msgid "Open {fileName}"
 msgstr "Abrir {fileName}"
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Open check-in"
+msgstr "Abrir balanço"
 
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Open Goals"
@@ -10858,6 +10937,15 @@ msgstr "Progressão"
 #: apps/native/components/workout-routines.tsx
 msgid "Progression rule"
 msgstr "Regra de progressão"
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgctxt "check-in column"
+msgid "Proposed"
+msgstr "Proposto"
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Proposed target for next week"
+msgstr "Objetivo proposto para a próxima semana"
 
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Protein"
@@ -13630,6 +13718,11 @@ msgid "Target"
 msgstr "Objetivo"
 
 #: packages/api/src/presenters/nutrition-targets.ts
+msgctxt "check-in column"
+msgid "Target"
+msgstr "Objetivo"
+
+#: packages/api/src/presenters/nutrition-targets.ts
 msgid "Target cleared."
 msgstr "Objetivo limpo."
 
@@ -13699,6 +13792,10 @@ msgstr "Alvo: {target}."
 #: apps/web/src/components/nutrition-day-totals.tsx
 msgid "Target: {targetText}"
 msgstr "Meta: {targetText}"
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Targets"
+msgstr "Objetivos"
 
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Targets and display"
@@ -13856,6 +13953,10 @@ msgstr "os valores do registo."
 #: apps/native/components/energy-estimate-card.tsx
 msgid "The estimate and how it is worked out are on the Food tab."
 msgstr "A estimativa e a forma como é calculada estão no separador Alimento."
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "The estimate pauses when more than 3 of the last 7 days have no usable log."
+msgstr "A estimativa fica em pausa quando mais de 3 dos últimos 7 dias não têm registos utilizáveis."
 
 #: packages/api/src/presenters/preventive-care.ts
 msgid "The evidence-check library is off. Turn it on in the preventive-care settings to see it."
@@ -15104,6 +15205,10 @@ msgstr "Adultos civis dos EUA não institucionalizados (NHANES), excluindo gravi
 msgid "US federal government work in the public domain (NHANES material may be reproduced without permission; citation requested)."
 msgstr "Obra do governo federal dos EUA em domínio público (o material do NHANES pode ser reproduzido sem autorização; pede-se a citação)."
 
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Usable logs on {logged} of the last {of} days."
+msgstr "Registos utilizáveis em {logged} dos últimos {of} dias."
+
 #: apps/native/components/analytics-consent-section.tsx
 #: apps/web/src/components/analytics-consent-section.tsx
 #: apps/web/src/routes/_auth/settings/index.tsx
@@ -15541,6 +15646,19 @@ msgstr "Atividade semanal"
 msgid "Weekly activity is for adults 18 and over, based on your profile answer."
 msgstr "A atividade semanal é para adultos com 18 anos ou mais, com base na resposta do seu perfil."
 
+#: packages/api/src/presenters/nutrition-targets.ts
+msgctxt "targets mode"
+msgid "Weekly check-in"
+msgstr "Balanço semanal"
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Weekly check-in, {dateText}"
+msgstr "Balanço semanal, {dateText}"
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Weekly check-ins are not available for this profile."
+msgstr "Os balanços semanais não estão disponíveis para este perfil."
+
 #: packages/api/src/presenters/insights.ts
 msgid "Weekly email"
 msgstr "Email semanal"
@@ -15964,6 +16082,10 @@ msgstr "É quem gere este servidor OpenValens. Algumas coisas a verificar e depo
 msgid "You said neither option fits you."
 msgstr "Indicou que nenhuma opção se aplica a si."
 
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "You set every target yourself. Suggestions only come when you ask."
+msgstr "Define todos os objetivos. As sugestões só aparecem quando pede."
+
 #: apps/web/src/components/onboarding/server-checklist.tsx
 msgid "You set up this server. A quick look at what it reports, then your own setup."
 msgstr "Configurou este servidor. Uma vista rápida do que ele indica e depois a sua própria configuração."
@@ -16189,6 +16311,10 @@ msgstr "O seu último pagamento do OpenValens Cloud não foi concluído."
 msgid "Your modules"
 msgstr "Os seus módulos"
 
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Your next check-in is not open yet."
+msgstr "O seu próximo balanço ainda não está disponível."
+
 #: packages/email/src/templates/billing.tsx
 msgid "Your OpenValens Cloud access ended some time ago. As our privacy policy explains, accounts that stay inactive are deleted."
 msgstr "O seu acesso ao OpenValens Cloud terminou há algum tempo. Como explica a nossa política de privacidade, as contas que ficam inativas são eliminadas."
@@ -16403,6 +16529,10 @@ msgstr "Os seus valores incluem leituras de dispositivos. Os dispositivos medem 
 #: packages/email/src/templates/admission-verification.tsx
 msgid "Your verification code is {code}."
 msgstr "O seu código de verificação é {code}."
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Your weekly check-in is ready"
+msgstr "O seu balanço semanal está pronto"
 
 #: packages/api/src/presenters/insights.ts
 msgid "Your weekly insights"

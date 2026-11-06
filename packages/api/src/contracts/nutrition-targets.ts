@@ -38,6 +38,16 @@ export const ENERGY_RATE_PERCENTS = [0.25, 0.5, 0.75, 1] as const;
 export type EnergyRatePercent = (typeof ENERGY_RATE_PERCENTS)[number];
 const energyRatePercent = z.union([z.literal(0.25), z.literal(0.5), z.literal(0.75), z.literal(1)]);
 
+const checkInDay = z.union([
+  z.literal(1),
+  z.literal(2),
+  z.literal(3),
+  z.literal(4),
+  z.literal(5),
+  z.literal(6),
+  z.literal(7),
+]);
+
 export const TARGET_SOURCES = ["entered", "proposal"] as const;
 export type TargetSource = (typeof TARGET_SOURCES)[number];
 
@@ -64,6 +74,9 @@ export const targetSettings = z.object({
   hideNumbers: z.boolean(),
   energyDirection: z.enum(ENERGY_DIRECTIONS),
   energyRatePercent: energyRatePercent.nullable(),
+  /** Weekly check-in day, ISO weekday 1–7 (#397); `null` = manual mode. */
+  checkInDay: checkInDay.nullable(),
+  lastCheckInOn: localDate.nullable(),
   activeProtein: z.boolean(),
   streaksEnabled: z.boolean(),
   recipeImportEnabled: z.boolean(),
@@ -155,6 +168,9 @@ export const updateSettingsInput = z.strictObject({
   hideNumbers: z.boolean().optional(),
   energyDirection: z.enum(ENERGY_DIRECTIONS).optional(),
   energyRatePercent: energyRatePercent.nullable().optional(),
+  checkInDay: checkInDay.nullable().optional(),
+  /** Records a finished check-in (accepted or kept) on the member's local date. */
+  lastCheckInOn: localDate.optional(),
   activeProtein: z.boolean().optional(),
   streaksEnabled: z.boolean().optional(),
   recipeImportEnabled: z.boolean().optional(),

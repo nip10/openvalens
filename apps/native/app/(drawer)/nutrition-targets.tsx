@@ -12,12 +12,16 @@ import {
   localDateIn,
 } from "@openvalens/api/presenters/nutrition-diary";
 import {
+  CHECK_IN_COPY,
+  CHECK_IN_DAYS,
+  type CheckInDay,
   DIRECTION_LABELS,
   GOAL_COPY,
   NUTRITION_SAFETY_COPY,
   RATE_OPTIONS,
   formatRate,
   rateForDirection,
+  weekdayName,
   TARGET_COPY,
   TARGET_NUTRIENTS,
   declarationChoices,
@@ -111,15 +115,18 @@ function Chip({
   label,
   selected,
   onPress,
+  accessibilityLabel,
 }: {
   label: string;
   selected: boolean;
   onPress: () => void;
+  accessibilityLabel?: string;
 }) {
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
       accessibilityState={{ selected }}
       className={`min-h-11 justify-center rounded-full border px-4 ${selected ? "border-food bg-food-soft" : "border-rule bg-sheet"}`}
     >
@@ -507,6 +514,7 @@ function SettingsCard({
   const [hideNumbers, setHideNumbers] = useState(settings.hideNumbers);
   const [direction, setDirection] = useState<EnergyDirection>(settings.energyDirection);
   const [rate, setRate] = useState<number | null>(settings.energyRatePercent);
+  const [checkInDay, setCheckInDay] = useState<CheckInDay | null>(settings.checkInDay);
   const [activeProtein, setActiveProtein] = useState(settings.activeProtein);
   const [streaksEnabled, setStreaksEnabled] = useState(settings.streaksEnabled);
   const [recipeImportEnabled, setRecipeImportEnabled] = useState(settings.recipeImportEnabled);
@@ -535,6 +543,7 @@ function SettingsCard({
     setHideNumbers(settings.hideNumbers);
     setDirection(settings.energyDirection);
     setRate(settings.energyRatePercent);
+    setCheckInDay(settings.checkInDay);
     setActiveProtein(settings.activeProtein);
     setStreaksEnabled(settings.streaksEnabled);
     setRecipeImportEnabled(settings.recipeImportEnabled);
@@ -578,6 +587,7 @@ function SettingsCard({
       hideNumbers,
       energyDirection: direction,
       energyRatePercent: rateForDirection(direction, rate),
+      checkInDay,
       activeProtein,
       streaksEnabled,
       recipeImportEnabled,
@@ -633,6 +643,47 @@ function SettingsCard({
             onHideNumbersChange(value);
           }}
         />
+
+        <View className="gap-2" testID="targets-mode">
+          <Text className="font-display text-base font-medium text-ink" accessibilityRole="header">
+            {i18n._(CHECK_IN_COPY.modeTitle)}
+          </Text>
+          <View className="flex-row flex-wrap gap-2">
+            <Chip
+              label={i18n._(CHECK_IN_COPY.manual)}
+              selected={checkInDay === null}
+              onPress={() => setCheckInDay(null)}
+            />
+            <Chip
+              label={i18n._(CHECK_IN_COPY.weekly)}
+              selected={checkInDay !== null}
+              onPress={() => setCheckInDay((day) => day ?? 1)}
+            />
+          </View>
+          <Text className="font-sans text-sm text-ink-3">
+            {i18n._(
+              checkInDay === null
+                ? CHECK_IN_COPY.manualDescription
+                : CHECK_IN_COPY.weeklyDescription,
+            )}
+          </Text>
+          {checkInDay !== null ? (
+            <View className="gap-2 pt-1">
+              <FieldLabel>{i18n._(CHECK_IN_COPY.dayTitle)}</FieldLabel>
+              <View className="flex-row flex-wrap gap-2">
+                {CHECK_IN_DAYS.map((day) => (
+                  <Chip
+                    key={day}
+                    label={weekdayName(day, i18n.locale, "short")}
+                    accessibilityLabel={weekdayName(day, i18n.locale)}
+                    selected={checkInDay === day}
+                    onPress={() => setCheckInDay(day)}
+                  />
+                ))}
+              </View>
+            </View>
+          ) : null}
+        </View>
 
         <View className="gap-2">
           <View className="flex-row items-center gap-1">

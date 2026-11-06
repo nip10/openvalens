@@ -39,6 +39,27 @@ published guidelines and trials plus a few documented product choices.
 - After an eating-disorder declaration, energy targets are hidden and cannot
   be set (they are not deleted), and every energy suggestion is off.
 
+## Weekly check-in (#397)
+
+Two modes: **Manual** (the default: the member sets every target, and
+suggestions only come on request) and **Weekly check-in**. The check-in is
+collaborative (D2 in #390): there is no mode that changes a target on its own.
+
+- The member picks a check-in day (`check_in_day`, ISO weekday 1–7). The
+  check-in is open on that day and every day after until it is finished, and
+  can be opened up to 2 days early. A check-in finished in the 5 days before
+  the day counts for that week (`checkInState` in
+  `packages/nutrition/src/check-in.ts`).
+- Opening it asks the server for a proposal from the experimental estimate
+  (#76) and the goal and rate (#396), under the safety policy above. The
+  screen shows Now and Proposed with **Accept proposal** or **Keep current
+  targets**; either finishes the check-in (`last_check_in_on`).
+- Adherence-neutral: how close last week's intake was to the target never
+  enters the proposal. The estimate pauses (no proposal) when more than 3 of
+  the last 7 days have no usable log, and the check-in says so.
+- Accepting goes through `acceptProposal`, which re-checks the floors,
+  caps, step, exclusions and soft-gate confirmation.
+
 ## Hide-numbers mode
 
 A per-member setting (`nutrition_target_settings.hide_numbers`). When on, web

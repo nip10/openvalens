@@ -8,6 +8,7 @@ import type { Database } from "@openvalens/db";
 import { nutritionTargetSettings } from "@openvalens/db/schema/nutrition";
 import { and, eq } from "drizzle-orm";
 
+import { CHECK_IN_DAYS, type CheckInDay } from "./check-in";
 import { NutritionError } from "./errors";
 import {
   ENERGY_DIRECTIONS,
@@ -35,6 +36,10 @@ export type NutritionTargetSettings = {
   energyDirection: EnergyDirection;
   /** Chosen weekly rate, % of body weight (#396); `null` = the default size. */
   energyRatePercent: EnergyRatePercent | null;
+  /** Weekly check-in day, ISO weekday 1–7 (#397); `null` = manual mode. */
+  checkInDay: CheckInDay | null;
+  /** Local date of the last finished check-in (accepted or kept), or `null`. */
+  lastCheckInOn: string | null;
   activeProtein: boolean;
   /** Opt-in to the logging streak (Issue #90). */
   streaksEnabled: boolean;
@@ -59,6 +64,8 @@ export const DEFAULT_TARGET_SETTINGS: Readonly<NutritionTargetSettings> = Object
   hideNumbers: false,
   energyDirection: NUTRITION_SAFETY_POLICY.defaultDirection,
   energyRatePercent: null,
+  checkInDay: null,
+  lastCheckInOn: null,
   activeProtein: false,
   streaksEnabled: false,
   recipeImportEnabled: false,
@@ -94,6 +101,10 @@ function toSettings(row: typeof nutritionTargetSettings.$inferSelect): Nutrition
     energyRatePercent: ENERGY_RATE_PERCENTS.includes(row.energyRatePercent as EnergyRatePercent)
       ? (row.energyRatePercent as EnergyRatePercent)
       : null,
+    checkInDay: CHECK_IN_DAYS.includes(row.checkInDay as CheckInDay)
+      ? (row.checkInDay as CheckInDay)
+      : null,
+    lastCheckInOn: row.lastCheckInOn,
     activeProtein: row.activeProtein,
     streaksEnabled: row.streaksEnabled,
     recipeImportEnabled: row.recipeImportEnabled,
@@ -160,6 +171,8 @@ export async function updateNutritionTargetSettingsInTransaction(
     hideNumbers: next.hideNumbers,
     energyDirection: next.energyDirection,
     energyRatePercent: next.energyRatePercent,
+    checkInDay: next.checkInDay,
+    lastCheckInOn: next.lastCheckInOn,
     activeProtein: next.activeProtein,
     streaksEnabled: next.streaksEnabled,
     recipeImportEnabled: next.recipeImportEnabled,
@@ -194,6 +207,18 @@ function validate(patch: TargetSettingsPatch): void {
     !ENERGY_RATE_PERCENTS.includes(patch.energyRatePercent)
   )
     throw new NutritionError("INVALID_INPUT", "Unknown rate");
+  if (
+    patch.checkInDay !== undefined &&
+    patch.checkInDay !== null &&
+    !CHECK_IN_DAYS.includes(patch.checkInDay)
+  )
+    throw new NutritionError("INVALID_INPUT", "Unknown check-in day");
+  if (
+    patch.lastCheckInOn !== undefined &&
+    patch.lastCheckInOn !== null &&
+    !/^\d{4}-\d{2}-\d{2}$/.test(patch.lastCheckInOn)
+  )
+    throw new NutritionError("INVALID_INPUT", "Use YYYY-MM-DD");
   if (
     patch.heightCm !== undefined &&
     patch.heightCm !== null &&

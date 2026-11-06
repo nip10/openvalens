@@ -156,6 +156,7 @@ import { NutritionDayMenu } from "@/components/nutrition-day-menu";
 import { NutritionDaySummary } from "@/components/nutrition-day-summary";
 import { NutritionWeekStrip } from "@/components/nutrition-week-strip";
 import { NutritionTrendCard } from "@/components/nutrition-trend-card";
+import { NutritionCheckInPrompt } from "@/components/nutrition-check-in-prompt";
 import { dayMark, weekOf } from "@/lib/nutrition/week";
 import { SwipeRow } from "@/components/swipe-row";
 import {
@@ -658,6 +659,11 @@ export default function NutritionScreen() {
               mode={summaryMode}
               onMode={chooseSummaryMode}
               hideNumbers={hideNumbers}
+            />
+            <NutritionCheckInPrompt
+              settings={targets.data?.settings}
+              today={today}
+              suggestionsOff={targets.data?.safety?.energySuggestions === "off"}
             />
             <NutritionDayTotals
               totals={summary.totals}
