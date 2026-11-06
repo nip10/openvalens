@@ -2911,6 +2911,10 @@ msgstr "Choose which recipe to continue with."
 msgid "Choose your region in your profile to see guidance from public-health authorities there. Without a region, no list is shown."
 msgstr "Choose your region in your profile to see guidance from public-health authorities there. Without a region, no list is shown."
 
+#: apps/native/components/wellness-profile-fields.tsx
+msgid "Choose…"
+msgstr "Choose…"
+
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 #: apps/native/components/date-field.tsx
 #: apps/native/components/recipe-draft-editor.tsx
@@ -6207,6 +6211,9 @@ msgid "Goal"
 msgstr "Goal"
 
 #: apps/native/app/(drawer)/profile.tsx
+msgid "Goal added. You can change it in Goals, in the menu under Habits."
+msgstr "Goal added. You can change it in Goals, in the menu under Habits."
+
 #: apps/web/src/routes/_auth/profile.tsx
 msgid "Goal added. You can edit it under Workouts."
 msgstr "Goal added. You can edit it under Workouts."
@@ -11805,13 +11812,13 @@ msgstr "Saved meals and recipes"
 msgid "Saved on this device. It will sync when you're online."
 msgstr "Saved on this device. It will sync when you're online."
 
+#: apps/native/components/onboarding/steps.tsx
+msgid "Saved to Goals, in the menu under Habits. You can change it there."
+msgstr "Saved to Goals, in the menu under Habits. You can change it there."
+
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
 msgid "Saved to your Goals under Workouts, where you can add a target and date later."
 msgstr "Saved to your Goals under Workouts, where you can add a target and date later."
-
-#: apps/native/components/onboarding/steps.tsx
-msgid "Saved to your Goals. You can edit it under Workouts."
-msgstr "Saved to your Goals. You can edit it under Workouts."
 
 #: apps/web/src/utils/product-settings-form-state.ts
 msgid "Saved."
@@ -14701,6 +14708,10 @@ msgstr "Use at most 200 characters for the name."
 #: apps/native/components/workout-session.tsx
 msgid "Use last"
 msgstr "Use last"
+
+#: apps/native/components/server-choice.tsx
+msgid "Use my own server"
+msgstr "Use my own server"
 
 #: apps/native/components/server-choice.tsx
 msgid "Use OpenValens Cloud"

@@ -64,7 +64,12 @@ import {
 import { Container } from "@/components/container";
 import { authClient } from "@/lib/auth-client";
 import { client, orpc } from "@/utils/orpc";
-import { CheckboxToggle, Chips, QuestionLabel } from "@/components/wellness-profile-fields";
+import {
+  CheckboxToggle,
+  Chips,
+  ChoiceSelect,
+  QuestionLabel,
+} from "@/components/wellness-profile-fields";
 
 /**
  * Issue #98 — optional wellness profile (native). Same sections, meaning,
@@ -283,7 +288,7 @@ function ProfileEditor({
 
         <View className="gap-4">
           <Section {...sectionProps} section="eligibility" fields={["eligibility"]}>
-            <Chips field="eligibility" draft={draft} onChange={change} />
+            <Chips field="eligibility" draft={draft} onChange={change} layout="rows" />
           </Section>
 
           <Section {...sectionProps} section="focus" fields={["focus"]}>
@@ -297,7 +302,12 @@ function ProfileEditor({
           <GoalSection draft={draft} />
 
           <Section {...sectionProps} section="region" fields={["region"]}>
-            <Chips field="region" draft={draft} onChange={change} />
+            <ChoiceSelect
+              field="region"
+              draft={draft}
+              onChange={change}
+              label={WELLNESS_FIELD_COPY.region.question}
+            />
           </Section>
 
           {adult ? (
@@ -373,7 +383,12 @@ function ProfileEditor({
                 >
                   {WELLNESS_FIELD_COPY.sex.question}
                 </QuestionLabel>
-                <Chips field="sex" draft={draft} onChange={change} />
+                <ChoiceSelect
+                  field="sex"
+                  draft={draft}
+                  onChange={change}
+                  label={WELLNESS_FIELD_COPY.sex.question}
+                />
               </View>
             </Section>
           ) : (
@@ -546,7 +561,10 @@ function GoalSection({ draft }: { draft: WellnessProfileDraft }) {
     orpc.plans.goals.upsertGoal.mutationOptions({
       onSuccess: () => {
         setTitle("");
-        setMessage({ ok: true, text: msg`Goal added. You can edit it under Workouts.` });
+        setMessage({
+          ok: true,
+          text: msg`Goal added. You can change it in Goals, in the menu under Habits.`,
+        });
         void queryClient.invalidateQueries({ queryKey: orpc.plans.goals.key() });
       },
       onError: (error) => setMessage({ ok: false, text: describeProfileSaveError(error).message }),

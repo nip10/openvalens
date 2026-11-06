@@ -1,6 +1,6 @@
 import { useLingui } from "@lingui/react/macro";
 import type { WellnessProfileDraft } from "@openvalens/api/presenters/wellness-profile";
-import { cn } from "heroui-native";
+import { cn, Select } from "heroui-native";
 import { Check } from "lucide-react-native";
 import type { ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
@@ -28,19 +28,25 @@ export function QuestionLabel({ children, info }: { children: ReactNode; info?: 
   );
 }
 
+/** The choices as pills; `rows` puts each on its own full-width row. */
 export function Chips({
   field,
   draft,
   onChange,
+  layout = "wrap",
 }: {
   field: ChipField;
   draft: WellnessProfileDraft;
   onChange: (draft: WellnessProfileDraft) => void;
+  layout?: "wrap" | "rows";
 }) {
   const { i18n } = useLingui();
   const selected = selectedChips(field, draft.answers);
   return (
-    <View className="flex-row flex-wrap gap-2" accessibilityRole="radiogroup">
+    <View
+      className={layout === "rows" ? "gap-2" : "flex-row flex-wrap gap-2"}
+      accessibilityRole="radiogroup"
+    >
       {chipsFor(field).map((chip) => {
         const isSelected = selected.includes(chip.key);
         return (
@@ -52,6 +58,7 @@ export function Chips({
             accessibilityState={{ selected: isSelected, checked: isSelected }}
             className={cn(
               "min-h-11 justify-center rounded-full border px-4 active:opacity-70",
+              layout === "rows" && "min-h-12 px-5",
               isSelected ? "border-signal bg-sidebar-accent" : "border-rule bg-paper",
             )}
           >
@@ -67,6 +74,52 @@ export function Chips({
         );
       })}
     </View>
+  );
+}
+
+/** A single-choice question as a dropdown, for profile facts such as region or sex. */
+export function ChoiceSelect({
+  field,
+  draft,
+  onChange,
+  label,
+}: {
+  field: Exclude<ChipField, "focus">;
+  draft: WellnessProfileDraft;
+  onChange: (draft: WellnessProfileDraft) => void;
+  label: string;
+}) {
+  const { t, i18n } = useLingui();
+  const options = chipsFor(field).map((chip) => ({ value: chip.key, label: i18n._(chip.label) }));
+  const key = selectedChips(field, draft.answers)[0];
+  const value = options.find((option) => option.value === key);
+  return (
+    <Select
+      value={value}
+      onValueChange={(next) => {
+        // Picking the current choice again keeps it (a pill would clear it).
+        if (next && !Array.isArray(next) && next.value !== key)
+          onChange(toggleChip(field, next.value, draft));
+      }}
+    >
+      <Select.Trigger testID={`select-${field}`} accessibilityLabel={label}>
+        <Select.Value placeholder={t`Choose…`} />
+        <Select.TriggerIndicator />
+      </Select.Trigger>
+      <Select.Portal>
+        <Select.Overlay />
+        <Select.Content presentation="popover" width="trigger">
+          {options.map((option) => (
+            <Select.Item
+              key={option.value}
+              value={option.value}
+              label={option.label}
+              testID={`select-${field}-${option.value}`}
+            />
+          ))}
+        </Select.Content>
+      </Select.Portal>
+    </Select>
   );
 }
 

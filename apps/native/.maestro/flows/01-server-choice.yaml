@@ -18,6 +18,8 @@ tags: [auth]
 - takeScreenshot: 01-server-choice
 
 # Empty address
+- tapOn:
+    id: "own-server-toggle"
 - tapOn: "Connect"
 - assertVisible: "Enter your server's address"
 

@@ -2911,6 +2911,10 @@ msgstr "Escolha com que receita quer continuar."
 msgid "Choose your region in your profile to see guidance from public-health authorities there. Without a region, no list is shown."
 msgstr "Escolha a sua região no seu perfil para ver as orientações das autoridades de saúde pública dessa região. Sem uma região, não é mostrada nenhuma lista."
 
+#: apps/native/components/wellness-profile-fields.tsx
+msgid "Choose…"
+msgstr "Escolher…"
+
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 #: apps/native/components/date-field.tsx
 #: apps/native/components/recipe-draft-editor.tsx
@@ -6207,6 +6211,9 @@ msgid "Goal"
 msgstr "Objetivo"
 
 #: apps/native/app/(drawer)/profile.tsx
+msgid "Goal added. You can change it in Goals, in the menu under Habits."
+msgstr "Objetivo adicionado. Pode alterá-lo em Objetivos, no menu, em Hábitos."
+
 #: apps/web/src/routes/_auth/profile.tsx
 msgid "Goal added. You can edit it under Workouts."
 msgstr "Objetivo adicionado. Pode editá-lo em Treinos."
@@ -11805,13 +11812,13 @@ msgstr "Refeições e receitas guardadas"
 msgid "Saved on this device. It will sync when you're online."
 msgstr "Guardado neste dispositivo. Será sincronizado quando tiver ligação."
 
+#: apps/native/components/onboarding/steps.tsx
+msgid "Saved to Goals, in the menu under Habits. You can change it there."
+msgstr "Guardado em Objetivos, no menu, em Hábitos. Pode alterá-lo aí."
+
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
 msgid "Saved to your Goals under Workouts, where you can add a target and date later."
 msgstr "Guardado nos seus Objetivos, em Treinos, onde pode adicionar uma meta e uma data mais tarde."
-
-#: apps/native/components/onboarding/steps.tsx
-msgid "Saved to your Goals. You can edit it under Workouts."
-msgstr "Guardado nos seus Objetivos. Pode editá-lo em Treinos."
 
 #: apps/web/src/utils/product-settings-form-state.ts
 msgid "Saved."
@@ -14701,6 +14708,10 @@ msgstr "Use no máximo 200 caracteres para o nome."
 #: apps/native/components/workout-session.tsx
 msgid "Use last"
 msgstr "Usar o último"
+
+#: apps/native/components/server-choice.tsx
+msgid "Use my own server"
+msgstr "Usar o meu próprio servidor"
 
 #: apps/native/components/server-choice.tsx
 msgid "Use OpenValens Cloud"

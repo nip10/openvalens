@@ -12,7 +12,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { Button } from "heroui-native";
 import { type ReactNode, useState } from "react";
-import { Text, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
+import { KeyboardStickyView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Meter, Page, PageHeader } from "@/components/bloom";
@@ -116,7 +117,8 @@ export function useOnboardingFlow(step: OnboardingRoute) {
 
 /**
  * One step on its own screen: the progress bar and "Step 3 of 8", the step's
- * head, its content, then Continue (the one filled button), Skip and Back.
+ * head and its content scroll; Continue (the one filled button), Skip and Back
+ * stay at the bottom, within thumb reach, and above the keyboard.
  */
 export function StepFrame({
   step,
@@ -155,8 +157,13 @@ export function StepFrame({
   const position = index + 1;
 
   return (
-    <Container scrollViewProps={{ contentInsetAdjustmentBehavior: "never" }}>
-      <View style={{ paddingTop: insets.top }}>
+    <Container isScrollable={false}>
+      <ScrollView
+        className="flex-1"
+        contentInsetAdjustmentBehavior="never"
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ paddingTop: insets.top }}
+      >
         <Page>
           <View className="gap-2">
             <Meter
@@ -181,14 +188,18 @@ export function StepFrame({
               {i18n._(error)}
             </Text>
           ) : null}
-          <View className="flex-row flex-wrap items-center gap-2">
-            <Button
-              onPress={onContinue}
-              isDisabled={continueDisabled || busy}
-              testID="onboarding-continue"
-            >
-              <Button.Label>{busy ? t`Saving…` : (continueLabel ?? t`Continue`)}</Button.Label>
-            </Button>
+        </Page>
+      </ScrollView>
+      <KeyboardStickyView offset={{ opened: insets.bottom }}>
+        <View className="gap-1 border-t border-rule bg-background px-4 pb-2 pt-3">
+          <Button
+            onPress={onContinue}
+            isDisabled={continueDisabled || busy}
+            testID="onboarding-continue"
+          >
+            <Button.Label>{busy ? t`Saving…` : (continueLabel ?? t`Continue`)}</Button.Label>
+          </Button>
+          <View className="flex-row flex-wrap items-center justify-center gap-2">
             {onSkip && canSkip(step) ? (
               <Button variant="ghost" onPress={onSkip} isDisabled={busy} testID="onboarding-skip">
                 <Button.Label>{t`Skip`}</Button.Label>
@@ -201,8 +212,8 @@ export function StepFrame({
             ) : null}
             {extraActions}
           </View>
-        </Page>
-      </View>
+        </View>
+      </KeyboardStickyView>
     </Container>
   );
 }
