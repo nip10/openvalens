@@ -1,9 +1,21 @@
 import { plural } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { Play, Plus } from "lucide-react-native";
+import { MoreHorizontal, Play, Plus } from "lucide-react-native";
 import * as Crypto from "expo-crypto";
 import { useEffect, useRef, useState } from "react";
-import { Alert, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import {
+  ActionSheetIOS,
+  Alert,
+  Platform,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import { RoutineEditor } from "@/components/routine-editor";
+import { useWorkoutSession } from "@/lib/workouts/sync";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { client, orpc } from "@/utils/orpc";
 import { useOfflineScope } from "@/lib/offline/sync";
@@ -14,7 +26,6 @@ import {
   type RoutineExerciseSnapshot,
 } from "@/lib/workouts/model";
 import { useThemeColor } from "@/utils/theme";
-import { weightFromKg, weightToKg } from "@/lib/workouts/model";
 import { progressionWhy } from "@openvalens/api/presenters/workout-progression";
 
 type Exercise = RoutineExerciseSnapshot;
@@ -26,17 +37,6 @@ type Routine = {
   exercises: Exercise[];
 };
 const uuid = () => Crypto.randomUUID();
-const initial = (): Exercise => ({
-  key: uuid(),
-  exerciseId: null,
-  name: "",
-  targetSets: 3,
-  repsMin: 8,
-  repsMax: 12,
-  targetWeightKg: null,
-  restSeconds: 90,
-  progression: { kind: "none" },
-});
 const bounded = (n: number, min: number, max: number) =>
   Math.max(min, Math.min(max, Number.isFinite(n) ? n : min));
 function fields(name: string, notes: string | null | undefined, exercises: Exercise[]) {
@@ -291,61 +291,66 @@ export function SaveWorkoutAsRoutine({
   );
 }
 
-export function WorkoutRoutines() {
+/**
+ * Issue #403 — Routines inside Training (mockup h): each routine with its
+ * exercises, one-tap Start and a ⋯ menu (Edit, Duplicate, Delete with a
+ * confirm); pull to refresh; New and Edit open the full-screen editor.
+ * Folders come later (owner decision). Saves keep the idempotent
+ * create/update/delete mutations and their retry-safe client ids.
+ */
+export function WorkoutRoutines({
+  startNew = false,
+  onStarted,
+}: {
+  startNew?: boolean;
+  onStarted?: () => void;
+}) {
   const { t } = useLingui();
   const scope = useOfflineScope();
+  const session = useWorkoutSession();
   const unitsQuery = useQuery(orpc.adminSettings.productSettings.queryOptions({ input: {} }));
   const units = unitsQuery.data?.units === "imperial" ? "imperial" : "metric";
-  const base = orpc.plans.routines.listRoutines.queryOptions({ input: {} });
-  const list = useQuery({ ...base, queryKey: [...base.queryKey, scope] });
-  const [name, setName] = useState("");
-  const [exercises, setExercises] = useState<Exercise[]>([initial()]);
-  const [editing, setEditing] = useState<Routine | null>(null);
+  const {
+    routines: list,
+    start,
+    busy,
+    error: startError,
+  } = useRoutineStarter((draft) => {
+    if (session.draft) {
+      Alert.alert(
+        t`Active workout in progress`,
+        t`Finish or discard your active workout before starting another.`,
+      );
+      return false;
+    }
+    const saved = session.saveDraft(draft);
+    if (saved) onStarted?.();
+    return saved;
+  });
+  const ink = useThemeColor("ink");
+  const foreground = useThemeColor("foreground");
+  const signalInk = useThemeColor("signal-ink");
+  const [editor, setEditor] = useState<{ routine: Routine | null; seed: number } | null>(
+    startNew ? { routine: null, seed: 0 } : null,
+  );
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [search, setSearch] = useState("");
-  const [pendingId, setPendingId] = useState<string | null>(null);
-  const [decimalText, setDecimalText] = useState<Record<string, string>>({});
   const pendingSave = useRef<{ fingerprint: string; input: any } | null>(null);
   const pendingDeletes = useRef(new Map<string, any>());
-  const searchQuery = useQuery(
-    orpc.exerciseCatalog.search.queryOptions({
-      input: { query: search.trim() || undefined, language: "en", limit: 15 },
-    }),
-  );
   useEffect(() => {
-    setName("");
-    setExercises([initial()]);
-    setEditing(null);
-    setPendingId(null);
+    setEditor(null);
     pendingSave.current = null;
     pendingDeletes.current.clear();
     setError("");
   }, [scope]);
-  const ink = useThemeColor("ink");
-  const muted = useThemeColor("ink-2");
-  const paper = useThemeColor("paper");
-  const panel = useThemeColor("paper-2");
-  const rule = useThemeColor("rule-2");
   useEffect(() => {
-    if (list.data) setError("");
-  }, [list.data]);
-  const patch = (index: number, update: Partial<Exercise>) =>
-    setExercises((xs) => xs.map((x, i) => (i === index ? { ...x, ...update } : x)));
-  const reset = () => {
-    setName("");
-    setExercises([initial()]);
-    setEditing(null);
-    setPendingId(null);
-    pendingSave.current = null;
-  };
-  const save = async () => {
-    if (
-      !scope ||
-      !name.trim() ||
-      exercises.some((e) => !e.name.trim()) ||
-      Object.values(decimalText).some((v) => v !== "" && !/^\d+(?:\.\d+)?$/.test(v))
-    )
-      return;
+    if (startNew) setEditor({ routine: null, seed: Date.now() });
+  }, [startNew]);
+  const refresh = () => void list.refetch();
+
+  const save = async (name: string, exercises: Exercise[]) => {
+    if (!scope) return;
+    const editing = editor?.routine ?? null;
     const fingerprint = JSON.stringify({
       scope,
       id: editing?.id,
@@ -353,37 +358,50 @@ export function WorkoutRoutines() {
       name: name.trim(),
       exercises,
     });
-    if (pendingSave.current && pendingSave.current.fingerprint !== fingerprint) {
-      setError(
-        t`Your edits changed while a save may still be in progress. Retry the original request or cancel and start a new save.`,
-      );
-      return;
-    }
-    const input = pendingSave.current?.input ?? {
-      ...fields(name, null, exercises),
-      ...(editing ? { id: editing.id, expectedVersion: editing.version } : {}),
-      clientMutationId: pendingId ?? uuid(),
-      expectedScope: scope,
-    };
+    // A retry of the same edits reuses the same client id (idempotent).
+    const input =
+      pendingSave.current?.fingerprint === fingerprint
+        ? pendingSave.current.input
+        : {
+            ...fields(name, editing?.notes ?? null, exercises),
+            ...(editing ? { id: editing.id, expectedVersion: editing.version } : {}),
+            clientMutationId: uuid(),
+            expectedScope: scope,
+          };
     pendingSave.current = { fingerprint, input };
-    setPendingId(input.clientMutationId);
+    setSaving(true);
     setError("");
     try {
       if (editing) await client.plans.routines.updateRoutine(input);
       else await client.plans.routines.createRoutine(input);
-      reset();
+      pendingSave.current = null;
+      setEditor(null);
       await list.refetch();
     } catch {
       setError(t`Routine wasn’t saved. Your edits are still here; retry or refresh.`);
+    } finally {
+      setSaving(false);
     }
   };
-  const edit = (r: Routine) => {
-    pendingSave.current = null;
-    setEditing(r);
-    setName(r.name);
-    setExercises(r.exercises.map((e) => ({ ...e })));
-    setPendingId(null);
+
+  const duplicate = async (r: Routine) => {
+    if (!scope) return;
+    try {
+      await client.plans.routines.createRoutine({
+        ...fields(
+          t`${r.name} (copy)`,
+          r.notes,
+          r.exercises.map((e) => ({ ...e, key: uuid(), suggestion: undefined })),
+        ),
+        clientMutationId: uuid(),
+        expectedScope: scope,
+      });
+      await list.refetch();
+    } catch {
+      setError(t`Couldn’t duplicate the routine. Try again when connected.`);
+    }
   };
+
   const remove = (r: Routine) =>
     Alert.alert(t`Delete ${r.name}?`, t`Past workouts stay unchanged.`, [
       { text: t`Cancel`, style: "cancel" },
@@ -409,361 +427,143 @@ export function WorkoutRoutines() {
         },
       },
     ]);
-  const fieldStyle = {
-    backgroundColor: panel,
-    borderWidth: 1,
-    borderColor: rule,
-    borderRadius: 12,
-    padding: 11,
-    color: ink,
-    marginVertical: 4,
-  } as const;
-  const setNum = (
-    i: number,
-    key: "targetSets" | "repsMin" | "repsMax" | "restSeconds",
-    v: string,
-  ) =>
-    patch(i, {
-      [key]: bounded(Number(v), 0, key === "restSeconds" ? 3600 : key === "targetSets" ? 20 : 1000),
-    });
+
+  const menu = (r: Routine) => {
+    const actions = [
+      { label: t`Edit`, run: () => setEditor({ routine: r, seed: Date.now() }) },
+      { label: t`Duplicate`, run: () => void duplicate(r) },
+      { label: t`Delete`, run: () => remove(r) },
+    ];
+    if (Platform.OS === "ios")
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          title: r.name,
+          options: [...actions.map((a) => a.label), t`Cancel`],
+          destructiveButtonIndex: 2,
+          cancelButtonIndex: 3,
+        },
+        (index) => actions[index]?.run(),
+      );
+    else
+      Alert.alert(
+        r.name,
+        undefined,
+        actions.map((a, index) => ({
+          text: a.label,
+          style: index === 2 ? ("destructive" as const) : ("default" as const),
+          onPress: a.run,
+        })),
+        { cancelable: true },
+      );
+  };
+
+  const routines = (list.data ?? []) as Routine[];
   return (
     <ScrollView
-      contentContainerStyle={{
-        padding: 20,
-        backgroundColor: paper,
-        flexGrow: 1,
-      }}
+      contentContainerClassName="gap-3.5 bg-paper px-4 pb-10 pt-5"
+      refreshControl={
+        <RefreshControl refreshing={list.isRefetching} onRefresh={refresh} tintColor={foreground} />
+      }
     >
-      <Text
-        accessibilityRole="header"
-        className="font-display"
-        style={{ fontSize: 30, fontWeight: "600", color: ink }}
-      >
-        <Trans>Your routines</Trans>
-      </Text>
-      <Text style={{ color: muted, marginBottom: 12 }}>
-        <Trans>Private plans for workouts you want to repeat.</Trans>
-      </Text>
-      {list.isLoading ? <Text style={{ color: muted }}>{t`Loading routines…`}</Text> : null}
-      {list.error || error ? (
-        <Text accessibilityRole="alert" style={{ color: "#a34235", marginVertical: 8 }}>
+      <View className="flex-row items-center justify-between">
+        <Text accessibilityRole="header" className="font-display text-3xl font-semibold text-ink">
+          <Trans>Routines</Trans>
+        </Text>
+        <Pressable
+          testID="routines-new"
+          accessibilityRole="button"
+          accessibilityLabel={t`New routine`}
+          onPress={() => setEditor({ routine: null, seed: Date.now() })}
+          className="min-h-11 flex-row items-center gap-1 rounded-full bg-signal px-4"
+        >
+          <Plus size={16} color={signalInk} />
+          <Text className="font-sans text-base font-semibold" style={{ color: signalInk }}>
+            <Trans>New</Trans>
+          </Text>
+        </Pressable>
+      </View>
+      {list.isLoading ? (
+        <Text className="font-sans text-sm text-ink-3">{t`Loading routines…`}</Text>
+      ) : null}
+      {list.error || error || startError ? (
+        <Text accessibilityRole="alert" className="font-sans text-sm text-destructive">
           {error ||
+            startError ||
             t`Couldn’t load your routines. Cached routines remain available; try refreshing.`}
         </Text>
       ) : null}
-      <Pressable accessibilityRole="button" onPress={() => list.refetch()} style={{ padding: 12 }}>
-        <Text style={{ color: ink }}>
-          <Trans>Refresh routines</Trans>
-        </Text>
-      </Pressable>
-      {list.data?.map((r) => (
-        <View
-          key={r.id}
-          style={{
-            backgroundColor: panel,
-            padding: 15,
-            borderRadius: 18,
-            marginVertical: 6,
-          }}
-        >
-          <Text style={{ fontSize: 20, fontWeight: "700", color: ink }}>{r.name}</Text>
-          {r.exercises.map((e, i) => (
-            <Text key={e.key} style={{ color: muted, marginTop: 4 }}>
-              {i + 1}. {e.name} · {e.targetSets} {t`sets`} · {e.repsMin}–{e.repsMax} {t`reps`}
-            </Text>
-          ))}
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
-            <Pressable accessibilityRole="button" onPress={() => edit(r as Routine)}>
-              <Text style={{ color: ink, padding: 10 }}>
-                <Trans>Edit</Trans>
-              </Text>
-            </Pressable>
-            <Pressable accessibilityRole="button" onPress={() => remove(r as Routine)}>
-              <Text style={{ color: "#a34235", padding: 10 }}>
-                <Trans>Delete</Trans>
-              </Text>
-            </Pressable>
-          </View>
+      {routines.length === 0 && !list.isLoading ? (
+        <View className="sheet items-center gap-2 p-6">
+          <Text className="font-display text-xl text-ink">
+            <Trans>No routines yet</Trans>
+          </Text>
+          <Text className="text-center font-sans text-sm text-ink-2">
+            <Trans>Plan a workout you want to repeat, then start it in one tap.</Trans>
+          </Text>
         </View>
-      ))}
-      <View
-        style={{
-          backgroundColor: panel,
-          padding: 16,
-          borderRadius: 18,
-          marginTop: 18,
-        }}
-      >
-        <Text style={{ fontSize: 22, fontWeight: "700", color: ink }}>
-          {editing ? <Trans>Edit routine</Trans> : <Trans>Make a routine</Trans>}
-        </Text>
-        <TextInput
-          accessibilityLabel={t`Routine name`}
-          placeholder={t`Routine name`}
-          value={name}
-          onChangeText={setName}
-          style={fieldStyle}
-        />
-        {exercises.map((e, i) => (
-          <View
-            key={e.key}
-            style={{
-              paddingVertical: 10,
-              borderBottomWidth: 1,
-              borderColor: rule,
-            }}
-          >
-            <Text style={{ color: ink, fontWeight: "700" }}>
-              <Trans>Exercise</Trans> {i + 1}
-            </Text>
-            <TextInput
-              accessibilityLabel={t`Search exercise or enter a name`}
-              placeholder={t`Search exercise or enter a name`}
-              value={e.name}
-              onChangeText={(v) => {
-                patch(i, { name: v, exerciseId: null });
-                setSearch(v);
-              }}
-              style={fieldStyle}
-            />
-            {search.trim() && search === e.name
-              ? searchQuery.data?.map((result: any) => (
-                  <Pressable
-                    key={result.id}
-                    accessibilityRole="button"
-                    onPress={() => {
-                      patch(i, { name: result.name, exerciseId: result.id });
-                      setSearch("");
-                    }}
-                  >
-                    <Text style={{ color: ink, padding: 9 }}>{result.name}</Text>
-                  </Pressable>
-                ))
-              : null}
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 5 }}>
-              {(
-                [
-                  ["targetSets", t`Sets`],
-                  ["repsMin", t`Min reps`],
-                  ["repsMax", t`Max reps`],
-                  ["restSeconds", t`Rest seconds`],
-                ] as const
-              ).map(([key, label]) => (
-                <View key={key} style={{ flexGrow: 1, width: "45%" }}>
-                  <Text style={{ color: muted }}>{label}</Text>
-                  <TextInput
-                    accessibilityLabel={label}
-                    keyboardType="number-pad"
-                    value={String(e[key])}
-                    onChangeText={(v) => setNum(i, key, v)}
-                    style={fieldStyle}
-                  />
-                </View>
-              ))}
-            </View>
-            <Text style={{ color: muted }}>
-              {units === "imperial" ? t`Target weight (lb)` : t`Target weight (kg)`}
-            </Text>
-            <TextInput
-              accessibilityLabel={t`Target weight`}
-              keyboardType="decimal-pad"
-              placeholder={t`Optional`}
-              value={
-                decimalText[`${e.key}:weight`] ??
-                (e.targetWeightKg == null
-                  ? ""
-                  : String(Number(weightFromKg(e.targetWeightKg, units).toFixed(2))))
-              }
-              onChangeText={(v) => {
-                setDecimalText((raw) => ({ ...raw, [`${e.key}:weight`]: v }));
-                if (v === "") patch(i, { targetWeightKg: null });
-                else if (/^\d+(?:\.\d+)?$/.test(v) && Number.isFinite(Number(v)))
-                  patch(i, { targetWeightKg: weightToKg(Number(v), units) });
-              }}
-              style={fieldStyle}
-            />
-            <Text style={{ color: muted }}>
-              <Trans>Progression rule</Trans>
-            </Text>
-            {(
-              [
-                ["none", t`No progression`],
-                ["double", t`Double progression`],
-                ["linear", t`Linear progression`],
-              ] as const
-            ).map(([kind, label]) => (
-              <Pressable
-                key={kind}
-                accessibilityRole="radio"
-                accessibilityState={{ checked: e.progression.kind === kind }}
-                onPress={() =>
-                  patch(i, {
-                    progression:
-                      kind === "none"
-                        ? { kind: "none" }
-                        : kind === "double"
-                          ? { kind, incrementKg: 0.5 }
-                          : {
-                              kind,
-                              incrementKg: 0.5,
-                              deloadPercent: 10,
-                              failureThreshold: 2,
-                            },
-                  })
-                }
-              >
-                <Text style={{ color: ink, paddingVertical: 5 }}>
-                  {e.progression.kind === kind ? "◉" : "○"} {label}
+      ) : (
+        <View className="sheet py-1 pl-4 pr-1.5">
+          {routines.map((r, index) => (
+            <View
+              key={r.id}
+              className={`min-h-[68px] flex-row items-center gap-2 ${
+                index < routines.length - 1 ? "border-b border-rule" : ""
+              }`}
+            >
+              <View className="min-w-0 flex-1 gap-0.5 py-2">
+                <Text numberOfLines={1} className="font-sans text-base font-semibold text-ink">
+                  {r.name}
                 </Text>
-              </Pressable>
-            ))}
-            {e.progression.kind !== "none" ? (
-              <View>
-                <Text style={{ color: muted }}>
-                  {units === "imperial" ? t`Increment (lb)` : t`Increment (kg)`}
+                <Text numberOfLines={1} className="font-sans text-sm text-ink-3">
+                  {t`${plural(r.exercises.length, { one: "# exercise", other: "# exercises" })}`}
+                  {r.exercises.length > 0 ? ` · ${r.exercises.map((e) => e.name).join(", ")}` : ""}
                 </Text>
-                <TextInput
-                  accessibilityLabel={t`Increment`}
-                  keyboardType="decimal-pad"
-                  value={
-                    decimalText[`${e.key}:increment`] ??
-                    String(Number(weightFromKg(e.progression.incrementKg, units).toFixed(2)))
-                  }
-                  onChangeText={(v) => {
-                    setDecimalText((raw) => ({ ...raw, [`${e.key}:increment`]: v }));
-                    if (!/^(?:\d+(?:\.\d*)?)?$/.test(v) || v === "") return;
-                    const incrementKg = weightToKg(Number(v), units);
-                    if (!Number.isFinite(incrementKg) || incrementKg <= 0) return;
-                    const progression = e.progression;
-                    if (progression.kind === "double" || progression.kind === "linear")
-                      patch(i, { progression: { ...progression, incrementKg } });
-                  }}
-                  style={fieldStyle}
-                />
               </View>
-            ) : null}
-            {e.progression.kind === "linear" ? (
-              <View style={{ flexDirection: "row", gap: 8 }}>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ color: muted }}>
-                    <Trans>Deload percent</Trans>
-                  </Text>
-                  <TextInput
-                    accessibilityLabel={t`Deload percent`}
-                    keyboardType="number-pad"
-                    value={String(e.progression.deloadPercent)}
-                    onChangeText={(v) => {
-                      const progression = e.progression;
-                      if (progression.kind === "linear")
-                        patch(i, {
-                          progression: {
-                            ...progression,
-                            deloadPercent: bounded(Number(v), 0, 100),
-                          },
-                        });
-                    }}
-                    style={fieldStyle}
-                  />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ color: muted }}>
-                    <Trans>Failure threshold</Trans>
-                  </Text>
-                  <TextInput
-                    accessibilityLabel={t`Failure threshold`}
-                    keyboardType="number-pad"
-                    value={String(e.progression.failureThreshold)}
-                    onChangeText={(v) => {
-                      const progression = e.progression;
-                      if (progression.kind === "linear")
-                        patch(i, {
-                          progression: {
-                            ...progression,
-                            failureThreshold: bounded(Number(v), 1, 20),
-                          },
-                        });
-                    }}
-                    style={fieldStyle}
-                  />
-                </View>
-              </View>
-            ) : null}
-            <View style={{ flexDirection: "row", gap: 12 }}>
               <Pressable
+                testID={`routines-start-${index + 1}`}
                 accessibilityRole="button"
-                disabled={i === 0}
-                onPress={() =>
-                  setExercises((xs) => {
-                    const a = [...xs];
-                    [a[i - 1], a[i]] = [a[i], a[i - 1]];
-                    return a;
-                  })
-                }
+                accessibilityLabel={t`Start ${r.name}`}
+                accessibilityState={{ busy: busy === r.id, disabled: busy !== null }}
+                disabled={busy !== null}
+                onPress={() => start(r)}
+                className="min-h-11 justify-center rounded-full border border-rule-2 px-3.5"
               >
-                <Text style={{ color: ink, padding: 8 }}>
-                  <Trans>Move up</Trans>
+                <Text className="font-sans text-sm font-semibold text-signal">
+                  {busy === r.id ? t`Preparing…` : t`Start`}
                 </Text>
               </Pressable>
               <Pressable
+                testID={`routines-menu-${index + 1}`}
                 accessibilityRole="button"
-                disabled={i === exercises.length - 1}
-                onPress={() =>
-                  setExercises((xs) => {
-                    const a = [...xs];
-                    [a[i], a[i + 1]] = [a[i + 1], a[i]];
-                    return a;
-                  })
-                }
+                accessibilityLabel={t`${r.name} options`}
+                onPress={() => menu(r)}
+                className="h-11 w-11 items-center justify-center"
               >
-                <Text style={{ color: ink, padding: 8 }}>
-                  <Trans>Move down</Trans>
-                </Text>
-              </Pressable>
-              <Pressable
-                accessibilityRole="button"
-                onPress={() =>
-                  setExercises((xs) => (xs.length > 1 ? xs.filter((_, j) => j !== i) : [initial()]))
-                }
-              >
-                <Text style={{ color: "#a34235", padding: 8 }}>
-                  <Trans>Remove</Trans>
-                </Text>
+                <MoreHorizontal size={20} color={ink} />
               </Pressable>
             </View>
-          </View>
-        ))}
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => setExercises((xs) => [...xs, initial()])}
-          style={{ padding: 12 }}
-        >
-          <Text style={{ color: ink }}>
-            <Trans>Add exercise</Trans>
-          </Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          disabled={!name.trim() || exercises.some((e) => !e.name.trim())}
-          onPress={save}
-          style={{
-            backgroundColor: "#526b53",
-            padding: 14,
-            borderRadius: 14,
-            marginTop: 8,
+          ))}
+        </View>
+      )}
+      {editor ? (
+        <RoutineEditor
+          key={`${editor.routine?.id ?? "new"}-${editor.seed}`}
+          visible
+          title={editor.routine ? t`Edit routine` : t`New routine`}
+          initialName={editor.routine?.name ?? ""}
+          initialExercises={(editor.routine?.exercises ?? []).map((e) => ({ ...e }))}
+          units={units}
+          saving={saving}
+          error={error}
+          newKey={uuid}
+          onCancel={() => {
+            pendingSave.current = null;
+            setError("");
+            setEditor(null);
           }}
-        >
-          <Text style={{ color: "white", textAlign: "center" }}>
-            {editing ? t`Save changes` : t`Save routine`}
-          </Text>
-        </Pressable>
-        {editing ? (
-          <Pressable accessibilityRole="button" onPress={reset} style={{ padding: 12 }}>
-            <Text style={{ color: ink, textAlign: "center" }}>
-              <Trans>Cancel editing</Trans>
-            </Text>
-          </Pressable>
-        ) : null}
-      </View>
+          onSave={(name, exercises) => void save(name, exercises)}
+        />
+      ) : null}
     </ScrollView>
   );
 }

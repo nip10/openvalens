@@ -415,7 +415,7 @@ export default function WorkoutsScreen() {
             onStartDraft={(draft) => session.saveDraft(draft)}
             onEmptyWorkout={() => session.saveDraft(createWorkoutDraft())}
             onPastSession={() => session.saveDraft(createWorkoutDraft())}
-            onNewRoutine={() => router.push("/routines")}
+            onNewRoutine={() => router.push("/routines?new=1")}
           />
         )}
         {session.draft ? (
