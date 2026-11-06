@@ -956,6 +956,10 @@ msgstr "{type}: {amount} to {max} {unit} a day"
 msgid "{value}"
 msgstr "{value}"
 
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "{value} % a week"
+msgstr "{value} % a week"
+
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "{value} from {reported} of {count, plural, one {# entry} other {# entries}}"
 msgstr "{value} from {reported} of {count, plural, one {# entry} other {# entries}}"
@@ -6657,6 +6661,10 @@ msgstr "How data arrives"
 msgid "How far you have moved toward the targets you set, weighted by your priorities."
 msgstr "How far you have moved toward the targets you set, weighted by your priorities."
 
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "How fast suggestions aim to change your weight trend, as a share of body weight a week. The safeguards below always apply on top."
+msgstr "How fast suggestions aim to change your weight trend, as a share of body weight a week. The safeguards below always apply on top."
+
 #: packages/api/src/presenters/activity-load.ts
 msgid "How hard was the whole session? (0 to 10)"
 msgstr "How hard was the whole session? (0 to 10)"
@@ -10885,6 +10893,11 @@ msgstr "Range"
 msgid "Rate"
 msgstr "Rate"
 
+#: packages/api/src/presenters/nutrition-targets.ts
+msgctxt "goal speed"
+msgid "Rate"
+msgstr "Rate"
+
 #: apps/native/app/(drawer)/workouts.tsx
 msgid "Rate effort"
 msgstr "Rate effort"
@@ -13326,6 +13339,11 @@ msgstr "Suggestions are optional. Change future targets in Edit; recorded workou
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Suggestions follow the estimated intake that keeps your weight trend steady."
 msgstr "Suggestions follow the estimated intake that keeps your weight trend steady."
+
+#. safety
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Suggestions never go below 1,200 kcal a day, your profile's minimum or your estimated resting energy, whichever is highest. Reductions are turned off while any answer in About you is yes, and for anyone younger than 18. These safeguards come from published guidelines and have not been clinically reviewed."
+msgstr "Suggestions never go below 1,200 kcal a day, your profile's minimum or your estimated resting energy, whichever is highest. Reductions are turned off while any answer in About you is yes, and for anyone younger than 18. These safeguards come from published guidelines and have not been clinically reviewed."
 
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/web/src/routes/_auth/-goal-editor.tsx

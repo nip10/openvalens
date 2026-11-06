@@ -33,6 +33,11 @@ export type Declaration = (typeof DECLARATIONS)[number];
 export const ENERGY_DIRECTIONS = ["maintain", "lose", "gain"] as const;
 export type EnergyDirection = (typeof ENERGY_DIRECTIONS)[number];
 
+/** Mirrors `ENERGY_RATE_PERCENTS` (#396): weekly % of body weight. Loss up to 1.0, gain up to 0.5. */
+export const ENERGY_RATE_PERCENTS = [0.25, 0.5, 0.75, 1] as const;
+export type EnergyRatePercent = (typeof ENERGY_RATE_PERCENTS)[number];
+const energyRatePercent = z.union([z.literal(0.25), z.literal(0.5), z.literal(0.75), z.literal(1)]);
+
 export const TARGET_SOURCES = ["entered", "proposal"] as const;
 export type TargetSource = (typeof TARGET_SOURCES)[number];
 
@@ -58,6 +63,7 @@ export const targetSettings = z.object({
   revision: z.number().int().nonnegative(),
   hideNumbers: z.boolean(),
   energyDirection: z.enum(ENERGY_DIRECTIONS),
+  energyRatePercent: energyRatePercent.nullable(),
   activeProtein: z.boolean(),
   streaksEnabled: z.boolean(),
   recipeImportEnabled: z.boolean(),
@@ -148,6 +154,7 @@ export const updateSettingsInput = z.strictObject({
   expectedRevision: z.int().nonnegative(),
   hideNumbers: z.boolean().optional(),
   energyDirection: z.enum(ENERGY_DIRECTIONS).optional(),
+  energyRatePercent: energyRatePercent.nullable().optional(),
   activeProtein: z.boolean().optional(),
   streaksEnabled: z.boolean().optional(),
   recipeImportEnabled: z.boolean().optional(),

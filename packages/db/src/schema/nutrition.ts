@@ -874,6 +874,8 @@ export const nutritionTargetSettings = pgTable(
       .$type<"maintain" | "lose" | "gain">()
       .notNull()
       .default("maintain"),
+    /** Chosen weekly rate in % of body weight (#396); null = the policy's default size. */
+    energyRatePercent: real("energy_rate_percent"),
     activeProtein: boolean("active_protein").notNull().default(false),
     /** Opt-in to the logging streak (Issue #90); hidden regardless under the #80 safeguards. */
     streaksEnabled: boolean("streaks_enabled").notNull().default(false),
@@ -912,6 +914,10 @@ export const nutritionTargetSettings = pgTable(
     nutritionTargetSettingsDirectionCheck: check(
       "nutrition_target_settings_direction_check",
       sql`${table.energyDirection} in ('maintain', 'lose', 'gain')`,
+    ),
+    nutritionTargetSettingsRateCheck: check(
+      "nutrition_target_settings_rate_check",
+      sql`${table.energyRatePercent} is null or ${table.energyRatePercent} in (0.25, 0.5, 0.75, 1)`,
     ),
     nutritionTargetSettingsHeightCheck: check(
       "nutrition_target_settings_height_check",

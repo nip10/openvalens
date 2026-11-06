@@ -85,6 +85,7 @@ export const SAFETY_MESSAGE_IDS: ReadonlySet<string> = new Set<string>([
   "SR2e1B",
   "ShcWml",
   "SnfirM",
+  "SuSBr0",
   "THXlqo",
   "TuDtsp",
   "U0sC6H",

@@ -30,7 +30,7 @@ import {
   type NutritionDeclaration,
 } from "./nutrition-safety";
 
-/** Synthetic tests for `nutrition-safety/v1` (Issue #80). No real person's data. */
+/** Synthetic tests for `nutrition-safety/v2` (Issue #80). No real person's data. */
 
 const NOW = new Date("2026-03-28T12:00:00.000Z");
 const P = NUTRITION_SAFETY_POLICY;
@@ -93,7 +93,7 @@ describe("defaults", () => {
   });
 
   test("policy is versioned with a changelog entry for the current version", () => {
-    expect(P.version).toBe("nutrition-safety/v1");
+    expect(P.version).toBe("nutrition-safety/v2");
     expect(P.changelog.at(-1)?.version).toBe(P.version);
     expect(Object.isFrozen(P)).toBe(true);
     expect(Object.isFrozen(P.deficit)).toBe(true);
@@ -422,6 +422,8 @@ describe("property: no proposal violates floor, caps, step size or BMI gate", ()
       const declarations = NUTRITION_DECLARATIONS.filter(() => random() < 0.05);
       const adultConfirmed = random() < 0.95;
       const direction = pick(ENERGY_DIRECTIONS);
+      // Any chosen rate (#396), including none and an unknown value.
+      const ratePercent = pick([null, 0.25, 0.5, 0.75, 1, 3] as const);
       const safety = evaluateNutritionSafety({
         adultConfirmed,
         minAge: body.minAge,
@@ -436,6 +438,7 @@ describe("property: no proposal violates floor, caps, step size or BMI gate", ()
         lastAcceptedAt: null,
         now: NOW,
         direction,
+        ratePercent,
         safety,
         body,
       });

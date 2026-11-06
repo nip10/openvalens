@@ -220,6 +220,7 @@ export function createEnergyEstimateService(deps: { db: Database; now?: () => Da
             lastAcceptedAt,
             now: at,
             direction: context.settings.energyDirection,
+            ratePercent: context.settings.energyRatePercent,
             safety: context.safety,
             body: context.body,
           });
@@ -287,6 +288,7 @@ export function createEnergyEstimateService(deps: { db: Database; now?: () => Da
             lastAcceptedAt: lastAccepted?.decidedAt ?? null,
             now: at,
             direction: context.settings.energyDirection,
+            ratePercent: context.settings.energyRatePercent,
             safety: context.safety,
             body: context.body,
           });

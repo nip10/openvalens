@@ -447,3 +447,39 @@ export function readTotalAgainstTarget(
   const note = toTarget();
   return { figure, note, spoken: i18n._(msg`${label}: ${figure}, ${note}`) };
 }
+
+// ─── Goal rate (#396) ─────────────────────────────────────────
+
+/** Rates offered per direction, in % of body weight a week (mirrors the safety policy). */
+export const RATE_OPTIONS = Object.freeze({
+  lose: [0.25, 0.5, 0.75, 1] as const,
+  gain: [0.25, 0.5] as const,
+});
+export const DEFAULT_RATE = Object.freeze({ lose: 0.5, gain: 0.25 } as const);
+
+export const GOAL_COPY = Object.freeze({
+  rateTitle: msg({ message: "Rate", context: "goal speed" }),
+  rateDescription: msg`How fast suggestions aim to change your weight trend, as a share of body weight a week. The safeguards below always apply on top.`,
+  floorNote: msg({
+    message:
+      "Suggestions never go below 1,200 kcal a day, your profile's minimum or your estimated resting energy, whichever is highest. Reductions are turned off while any answer in About you is yes, and for anyone younger than 18. These safeguards come from published guidelines and have not been clinically reviewed.",
+    comment: "safety",
+  }),
+});
+
+/** `"0.5 % a week"`. */
+export function formatRate(percent: number, i18n: I18n): string {
+  const value = percent.toLocaleString("en-US", { maximumFractionDigits: 2 });
+  return i18n._(msg`${value} % a week`);
+}
+
+/** The rate to keep when the direction changes: the current one if offered, else the default. */
+export function rateForDirection(
+  direction: EnergyDirection,
+  current: number | null,
+): 0.25 | 0.5 | 0.75 | 1 | null {
+  if (direction === "maintain") return null;
+  const options: readonly number[] = RATE_OPTIONS[direction];
+  if (current !== null && options.includes(current)) return current as 0.25 | 0.5 | 0.75 | 1;
+  return DEFAULT_RATE[direction];
+}
