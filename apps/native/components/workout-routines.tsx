@@ -1,4 +1,6 @@
+import { plural } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
+import { Play, Plus } from "lucide-react-native";
 import * as Crypto from "expo-crypto";
 import { useEffect, useRef, useState } from "react";
 import { Alert, Pressable, ScrollView, Text, TextInput, View } from "react-native";
@@ -41,14 +43,18 @@ function fields(name: string, notes: string | null | undefined, exercises: Exerc
   return { name: name.trim(), notes: notes ?? null, exercises };
 }
 
-export function WorkoutRoutineStart({ onStart }: { onStart: (draft: WorkoutDraft) => boolean }) {
+/**
+ * Starting a routine (#402): fetch its preview with progression suggestions
+ * (falling back to the cached routine offline), build the draft, and confirm
+ * suggested changes. Shared by the Training home and the routines screen.
+ */
+export function useRoutineStarter(onStart: (draft: WorkoutDraft) => boolean) {
   const { t, i18n } = useLingui();
   const scope = useOfflineScope();
   const [error, setError] = useState("");
   const [busy, setBusy] = useState<number | null>(null);
   const unitsQuery = useQuery(orpc.adminSettings.productSettings.queryOptions({ input: {} }));
   const units = unitsQuery.data?.units === "imperial" ? "imperial" : "metric";
-  const muted = useThemeColor("ink-2");
   const routines = useQuery({
     ...orpc.plans.routines.listRoutines.queryOptions({ input: {} }),
     queryKey: [...orpc.plans.routines.listRoutines.queryOptions({ input: {} }).queryKey, scope],
@@ -100,35 +106,86 @@ export function WorkoutRoutineStart({ onStart }: { onStart: (draft: WorkoutDraft
       setBusy(null);
     }
   };
+  return { routines, start: (r: Routine) => void start(r), busy, error };
+}
+
+export type StartableRoutine = Routine;
+
+/**
+ * Issue #402 — routine cards (Hevy): tappable, one tap to start, in a
+ * horizontal row, with "+ New" at the end. Replaces the green banners.
+ */
+export function WorkoutRoutineStart({
+  onStart,
+  onNew,
+}: {
+  onStart: (draft: WorkoutDraft) => boolean;
+  onNew?: () => void;
+}) {
+  const { t } = useLingui();
+  const { routines, start, busy, error } = useRoutineStarter(onStart);
+  const signal = useThemeColor("signal");
+  const list = (routines.data ?? []) as Routine[];
   return (
-    <View>
-      {routines.data?.map((r) => (
-        <View key={r.id}>
-          <Pressable
-            accessibilityRole="button"
-            disabled={busy !== null}
-            onPress={() => start(r as Routine)}
-            style={{
-              backgroundColor: "#526b53",
-              padding: 14,
-              borderRadius: 14,
-              marginVertical: 5,
-            }}
-          >
-            <Text style={{ color: "white", fontWeight: "700" }}>
-              {busy === r.id ? t`Preparing…` : r.name}
-            </Text>
-          </Pressable>
-          {r.exercises.map((e) => (
-            <Text key={e.key} style={{ color: muted }}>
-              {e.name}
-            </Text>
+    <View className="gap-2">
+      {list.length > 0 || onNew ? (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerClassName="gap-2.5 pr-4"
+        >
+          {list.map((r, index) => (
+            <Pressable
+              key={r.id}
+              testID={`routine-card-${index + 1}`}
+              accessibilityRole="button"
+              accessibilityLabel={t`Start ${r.name}`}
+              accessibilityState={{ busy: busy === r.id, disabled: busy !== null }}
+              disabled={busy !== null}
+              onPress={() => start(r)}
+              className="sheet w-40 gap-1 p-3.5"
+            >
+              <Text numberOfLines={1} className="font-sans text-base font-semibold text-ink">
+                {r.name}
+              </Text>
+              <Text className="font-sans text-sm text-ink-3">
+                {t`${plural(r.exercises.length, { one: "# exercise", other: "# exercises" })}`}
+              </Text>
+              <Text numberOfLines={2} className="font-sans text-xs text-ink-3">
+                {r.exercises
+                  .slice(0, 3)
+                  .map((e) => e.name)
+                  .join(" · ")}
+              </Text>
+              <View className="mt-1 min-h-10 flex-row items-center gap-1.5">
+                <Play size={12} color={signal} fill={signal} />
+                <Text className="font-sans text-sm font-semibold text-signal">
+                  {busy === r.id ? t`Preparing…` : t`Start`}
+                </Text>
+              </View>
+            </Pressable>
           ))}
-        </View>
-      ))}
-      {routines.isLoading ? <Text>{t`Loading routines…`}</Text> : null}
+          {onNew ? (
+            <Pressable
+              testID="routine-card-new"
+              accessibilityRole="button"
+              accessibilityLabel={t`New routine`}
+              onPress={onNew}
+              className="w-28 items-center justify-center gap-1 rounded-3xl border border-dashed border-rule-2 p-3.5"
+            >
+              <Plus size={18} color={signal} />
+              <Text className="font-sans text-sm font-semibold text-signal">
+                <Trans>New</Trans>
+              </Text>
+            </Pressable>
+          ) : null}
+        </ScrollView>
+      ) : null}
+      {routines.isLoading ? (
+        <Text className="font-sans text-sm text-ink-3">{t`Loading routines…`}</Text>
+      ) : null}
       {error || routines.error ? (
-        <Text accessibilityRole="alert" style={{ color: "#a34235" }}>
+        <Text accessibilityRole="alert" className="font-sans text-sm text-destructive">
           {error || t`Couldn’t load routines. Try again when connected.`}
         </Text>
       ) : null}
