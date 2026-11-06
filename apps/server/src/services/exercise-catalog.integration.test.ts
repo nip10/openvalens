@@ -21,8 +21,8 @@ import {
   registerExerciseCatalogAssetRoute,
   type ExerciseCatalogAssetReader,
 } from "../exercise-catalog-asset-route";
-import { importWgerSnapshot } from "./exercise-catalog-import";
-import { normalizeWgerSnapshot } from "./exercise-catalog-normalization";
+import { importWgerSnapshot } from "@openvalens/exercise-catalog/import";
+import { normalizeWgerSnapshot } from "@openvalens/exercise-catalog/normalization";
 import { createExerciseCatalogAssetService } from "./exercise-catalog-assets";
 import { pngWithMetadata } from "@openvalens/body/sanitize-image.fixtures";
 import { LocalObjectStorage } from "@openvalens/storage/providers/local";
@@ -725,7 +725,7 @@ describe.skipIf(!url)("exercise catalog using disposable PostgreSQL and real RPC
         expect(response.status).toBe(200);
         expect(response.headers.get("content-type")).toBe("image/png");
         expect(response.headers.get("content-length")).toBe(String(readback!.size));
-        expect(response.headers.get("cache-control")).toBe("no-store");
+        expect(response.headers.get("cache-control")).toBe("public, max-age=3600");
         expect(response.headers.get("x-content-type-options")).toBe("nosniff");
         expect(response.headers.get("cross-origin-resource-policy")).toBe("same-origin");
         expect(response.headers.get("content-security-policy")).toContain("default-src");

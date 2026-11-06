@@ -79,6 +79,8 @@ export type SignInOptions = {
 
 /** Public, key-free preview metadata for licensed global exercise assets. */
 export type ExerciseCatalogMediaPreview = {
+  /** Image source (#400); one source per exercise, Workout Guide frames in order. */
+  source: "wger" | "workout-guide";
   assetId: string;
   path: string;
   contentType: "image/jpeg" | "image/png";

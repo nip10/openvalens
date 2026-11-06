@@ -345,6 +345,11 @@ export const DATA_RIGHTS_REGISTRY: Readonly<Record<string, TableEntry>> = Object
     reason:
       "Global wger publication manifest and storage inventory; contains no subject-owned object or operator identity.",
   },
+  exercise_catalog_bootstrap: {
+    kind: "reference",
+    reason:
+      "Instance-wide record of the one automatic exercise catalog import (#400); holds no person or workspace data.",
+  },
   exercise_catalog_mutation: { kind: "user", redact: ["fingerprint"] },
   workout_set: { kind: "child", parent: "workout_exercise" },
   workout_mutation: { kind: "user", redact: ["fingerprint"] },

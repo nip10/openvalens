@@ -48,6 +48,15 @@ There is also one pending admission invitation (`jordan.lee@example.com`) so
 the admin screen has something to list. Both people finished setup with every
 module on, so they land on the dashboard, not `/welcome`.
 
+## Exercise catalog sample
+
+Before the accounts, the seed imports the small committed exercise sample from
+`packages/exercise-catalog/sample/` (Issue #400): 12 wger exercises with their
+Workout Guide frames. It also marks the database as a _sample instance_, so
+when the server starts it publishes those frames from disk and never fetches
+the full catalog, which keeps e2e and screenshots offline. Licences are in
+`DATA-LICENSES.md` and `REUSE.toml`.
+
 ## How the data is written
 
 Accounts go through the admission core (`createAdmissionService`): setup

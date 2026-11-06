@@ -57,7 +57,12 @@ type SourceRow = {
 const sha256 = (bytes: Uint8Array): string => createHash("sha256").update(bytes).digest("hex");
 const sameDate = (a: Date | null, b: Date): boolean =>
   a instanceof Date && a.getTime() === b.getTime();
+const isWorkoutGuide = (row: SourceRow): boolean => row.media.source === "workout-guide";
 const normalizedMetadata = (row: SourceRow) => ({
+  // Workout Guide frames (#400) carry their own pinned snapshot, so a later
+  // wger re-import of the parent does not unpublish them. wger rows keep the
+  // exact fingerprint shape they had before.
+  ...(isWorkoutGuide(row) ? { mediaSource: row.media.source } : {}),
   exerciseId: row.parent.id,
   source: row.parent.source,
   organizationId: row.parent.organizationId,
@@ -65,8 +70,8 @@ const normalizedMetadata = (row: SourceRow) => ({
   mediaId: row.media.id,
   externalMediaId: row.media.sourceExternalMediaId,
   kind: row.media.kind,
-  snapshotVersion: row.parent.snapshotVersion,
-  snapshotAt: row.parent.snapshotAt?.toISOString() ?? null,
+  snapshotVersion: isWorkoutGuide(row) ? null : row.parent.snapshotVersion,
+  snapshotAt: isWorkoutGuide(row) ? null : (row.parent.snapshotAt?.toISOString() ?? null),
   mediaSnapshotVersion: row.media.snapshotVersion,
   mediaSnapshotAt: row.media.snapshotAt?.toISOString() ?? null,
   publicationActive: row.media.publicationActive,
@@ -80,10 +85,32 @@ const normalizedMetadata = (row: SourceRow) => ({
 const fingerprint = (row: SourceRow): string =>
   sha256(Buffer.from(JSON.stringify(normalizedMetadata(row))));
 
+/** The snapshot an asset is bound to: wger's for wger media, the pinned revision for Workout Guide. */
+const bindingSnapshot = (row: SourceRow) =>
+  isWorkoutGuide(row)
+    ? { version: row.media.snapshotVersion, at: row.media.snapshotAt }
+    : { version: row.parent.snapshotVersion, at: row.parent.snapshotAt };
+
 function approved(row: SourceRow): boolean {
   const expectedUrl = row.media.licenseCode ? LICENSE_URLS[row.media.licenseCode] : undefined;
   const cc0 = row.media.licenseCode === "CC0-1.0";
+  if (isWorkoutGuide(row)) {
+    return (
+      row.parent.source === "wger" &&
+      row.parent.organizationId === null &&
+      Boolean(row.parent.externalId) &&
+      row.media.kind === "image" &&
+      row.media.publicationActive &&
+      Number.isSafeInteger(row.media.publicationRevision) &&
+      row.media.publicationRevision >= 0 &&
+      row.media.licenseCode === "CC-BY-SA-4.0" &&
+      row.media.licenseUrl === expectedUrl &&
+      Boolean(row.media.snapshotVersion?.startsWith("workout-guide-") && row.media.snapshotAt) &&
+      Boolean(row.media.sourceMediaUrl && row.media.author && row.media.rawAttribution)
+    );
+  }
   return (
+    row.media.source === "wger" &&
     row.parent.source === "wger" &&
     row.parent.organizationId === null &&
     row.media.kind === "image" &&
@@ -98,6 +125,43 @@ function approved(row: SourceRow): boolean {
   );
 }
 
+/**
+ * The publication evidence for a catalog image as it stands in the database.
+ * The automatic setup (#400) uses it: the rows are this instance's own
+ * import, so the evidence is read back rather than supplied by an operator.
+ */
+export function currentPublicationEvidence(
+  media: typeof exerciseMedia.$inferSelect,
+  parent: typeof exercise.$inferSelect,
+): ExerciseAssetPublicationEvidence | null {
+  const row = { media, parent };
+  const snapshot = bindingSnapshot(row);
+  if (
+    !approved(row) ||
+    !parent.externalId ||
+    !snapshot.version ||
+    !snapshot.at ||
+    !media.licenseCode ||
+    !media.licenseUrl ||
+    !media.sourceMediaUrl
+  )
+    return null;
+  return {
+    sourceExerciseId: parent.id,
+    sourceExternalExerciseId: parent.externalId,
+    exerciseMediaId: media.id,
+    sourceExternalMediaId: media.sourceExternalMediaId,
+    snapshotVersion: snapshot.version,
+    snapshotAt: snapshot.at,
+    licenseCode: media.licenseCode,
+    licenseUrl: media.licenseUrl,
+    author: media.author,
+    attribution: media.rawAttribution,
+    sourceUrl: media.sourceMediaUrl,
+    transformationNotice: TRANSFORMATION_NOTICE,
+  };
+}
+
 function evidenceMatches(row: SourceRow, evidence: ExerciseAssetPublicationEvidence): boolean {
   return (
     approved(row) &&
@@ -105,8 +169,8 @@ function evidenceMatches(row: SourceRow, evidence: ExerciseAssetPublicationEvide
     evidence.sourceExternalExerciseId === row.parent.externalId &&
     evidence.exerciseMediaId === row.media.id &&
     evidence.sourceExternalMediaId === row.media.sourceExternalMediaId &&
-    evidence.snapshotVersion === row.parent.snapshotVersion &&
-    sameDate(evidence.snapshotAt, row.parent.snapshotAt!) &&
+    evidence.snapshotVersion === bindingSnapshot(row).version &&
+    sameDate(evidence.snapshotAt, bindingSnapshot(row).at!) &&
     evidence.licenseCode === row.media.licenseCode &&
     evidence.licenseUrl === row.media.licenseUrl &&
     evidence.author === row.media.author &&
@@ -486,8 +550,11 @@ export function createExerciseCatalogAssetService(args: {
         ),
       )
       .orderBy(exercise.id, exerciseCatalogAsset.createdAt)
-      .limit(200);
-    const grouped = new Map<number, ExerciseCatalogMediaPreview[]>();
+      .limit(400);
+    const grouped = new Map<
+      number,
+      Array<{ order: string; preview: ExerciseCatalogMediaPreview }>
+    >();
     for (const row of rows) {
       const asset = row.asset;
       const source = { media: row.media, parent: row.parent };
@@ -527,23 +594,34 @@ export function createExerciseCatalogAssetService(args: {
       )
         continue;
       const list = grouped.get(row.parent.id) ?? [];
-      if (list.length >= 4) continue;
       list.push({
-        assetId: asset.id,
-        path: `/api/exercise-assets/${asset.id}`,
-        contentType: asset.contentType,
-        width: asset.width,
-        height: asset.height,
-        license: asset.licenseCode,
-        licenseUrl: asset.licenseUrl,
-        author: asset.author,
-        attribution: asset.attribution,
-        sourceUrl: asset.sourceUrl,
-        transformationNotice: asset.transformationNotice,
+        order: row.media.sourceExternalMediaId,
+        preview: {
+          source: row.media.source,
+          assetId: asset.id,
+          path: `/api/exercise-assets/${asset.id}`,
+          contentType: asset.contentType,
+          width: asset.width,
+          height: asset.height,
+          license: asset.licenseCode,
+          licenseUrl: asset.licenseUrl,
+          author: asset.author,
+          attribution: asset.attribution,
+          sourceUrl: asset.sourceUrl,
+          transformationNotice: asset.transformationNotice,
+        },
       });
       grouped.set(row.parent.id, list);
     }
-    return [...grouped].map(([exerciseId, media]) => ({ exerciseId, media }));
+    // One source per exercise (#400): Workout Guide frames in frame order when
+    // the exercise has them, otherwise up to four wger images.
+    return [...grouped].map(([exerciseId, list]) => {
+      const guide = list
+        .filter((item) => item.preview.source === "workout-guide")
+        .sort((a, b) => a.order.localeCompare(b.order));
+      const chosen = guide.length > 0 ? guide.slice(0, 3) : list.slice(0, 4);
+      return { exerciseId, media: chosen.map((item) => item.preview) };
+    });
   }
 
   return Object.freeze({ ingestLocalAsset, readPublishedAsset, listPublishedMetadata });

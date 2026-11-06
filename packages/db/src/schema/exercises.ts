@@ -147,6 +147,8 @@ export const exerciseMedia = pgTable(
     exerciseId: integer("exercise_id")
       .notNull()
       .references(() => exercise.id, { onDelete: "cascade" }),
+    /** Image source (#400): wger, or Workout Guide frames attached to a wger exercise. */
+    source: text("source").$type<"wger" | "workout-guide">().notNull().default("wger"),
     sourceExternalMediaId: text("source_external_media_id").notNull(),
     kind: text("kind").$type<"image" | "video">().notNull(),
     licenseCode: text("license_code"),
@@ -175,6 +177,10 @@ export const exerciseMedia = pgTable(
     exerciseMediaPublicationRevisionCheck: check(
       "exercise_media_publication_revision_check",
       sql`${table.publicationRevision} >= 0`,
+    ),
+    exerciseMediaSourceCheck: check(
+      "exercise_media_source_check",
+      sql`${table.source} in ('wger', 'workout-guide')`,
     ),
   }),
 );
@@ -234,6 +240,33 @@ export const exerciseCatalogAsset = pgTable(
     exerciseCatalogAssetContentCheck: check(
       "exercise_catalog_asset_content_check",
       sql`${table.contentType} in ('image/jpeg', 'image/png') and ${table.sizeBytes} > 0 and ${table.width} > 0 and ${table.height} > 0 and ${table.sha256} ~ '^[0-9a-f]{64}$' and ${table.originalFileSha256} ~ '^[0-9a-f]{64}$' and ${table.bindingFingerprint} ~ '^[0-9a-f]{64}$'`,
+    ),
+  }),
+);
+
+/**
+ * Issue #400: the one automatic catalog setup per instance (singleton row).
+ * `mode` is `upstream` (wger + Workout Guide fetched once) or `sample` (the
+ * small committed sample, written by the demo seed so e2e stays offline).
+ */
+export const exerciseCatalogBootstrap = pgTable(
+  "exercise_catalog_bootstrap",
+  {
+    id: integer("id").primaryKey(),
+    mode: text("mode").$type<"upstream" | "sample">().notNull(),
+    catalogImportedAt: timestamp("catalog_imported_at", { withTimezone: true, mode: "date" }),
+    mediaPublishedAt: timestamp("media_published_at", { withTimezone: true, mode: "date" }),
+    /** One server works on the setup at a time; others skip while the lease holds. */
+    leaseUntil: timestamp("lease_until", { withTimezone: true, mode: "date" }),
+    attempts: integer("attempts").notNull().default(0),
+    lastAttemptAt: timestamp("last_attempt_at", { withTimezone: true, mode: "date" }),
+    lastError: text("last_error"),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => ({
+    exerciseCatalogBootstrapSingleton: check(
+      "exercise_catalog_bootstrap_singleton_check",
+      sql`${table.id} = 1 and ${table.mode} in ('upstream', 'sample') and ${table.attempts} >= 0`,
     ),
   }),
 );

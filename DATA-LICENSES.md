@@ -4,8 +4,9 @@ OpenValens code is AGPL-3.0-or-later (see [`LICENSE`](LICENSE)). Third-party
 datasets keep their own licenses and are recorded here. Non-commercial data
 (for example CC BY-NC) is not accepted.
 
-**No third-party dataset is bundled in this repository.** Tests use small
-synthetic fixtures only. Operators import public food catalogs into their own
+**No full third-party dataset is bundled in this repository.** Tests use small
+synthetic fixtures, and the demo seed uses one small licensed exercise sample
+(see [Exercise library](#exercise-library-issue-93-and-400)). Operators import public food catalogs into their own
 database with [`scripts/food-catalog-import.ts`](scripts/food-catalog-import.ts);
 each import records the exact artifact, its SHA-256, the license and the
 attribution notice in `nutrition_catalog_release`.
@@ -62,23 +63,60 @@ every result carries its source, version, release and attribution.
 INSA/PortFIR and other regional databases are not used without written
 permission and a license review. Commercial food databases are not used.
 
-## Exercise library (Issue #93)
+## Exercise library (Issue #93 and #400)
 
-| Source                   | Tables                                                                                                       | License                                                                                                                                                                                                      | Attribution                                                    |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------- |
-| [wger](https://wger.de/) | `exercise`, `exercise_translation`, `exercise_media`, `exercise_catalog_asset` (rows with `source = 'wger'`) | Per entry: [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/), [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/) or [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | "From wger · <licence> · <author>" on every exercise and image |
+| Source                                                    | Tables                                                                                                       | License                                                                                                                                                                                                                                   | Attribution                                                                                                                |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| [wger](https://wger.de/)                                  | `exercise`, `exercise_translation`, `exercise_media`, `exercise_catalog_asset` (rows with `source = 'wger'`) | Per entry: [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/), [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/) or [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/)                              | "From wger · <licence> · <author>" on every exercise and image                                                             |
+| [Workout Guide](https://github.com/bryllim/workout-guide) | `exercise_media` and `exercise_catalog_asset` rows with `source = 'workout-guide'`                           | Artwork: [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) ([LICENSE-ASSETS](https://github.com/bryllim/workout-guide/blob/main/LICENSE-ASSETS)); based on [Everkinetic](https://github.com/everkinetic/data), CC BY-SA 4.0 | "Illustration: Workout Guide by Bryl Lim, after Everkinetic · CC BY-SA 4.0", with the upstream changes and our re-encoding |
 
-- Operators capture a wger snapshot with `bun run exercises:prepare` and import
-  it with `bun run exercises:import`; nothing from wger is committed here.
+- **Automatic, once per server.** A new server imports the wger catalog,
+  attaches Workout Guide frames and publishes the images by itself, once
+  (see [`docs/exercise-catalog-assets.md`](docs/exercise-catalog-assets.md)).
+  The manual `exercises:*` commands remain as optional maintenance tools.
 - Each exercise, translation and image keeps its own licence, author, source URL
   and snapshot version. Records without a recognised licence, or CC BY-SA
   records without an author, are rejected rather than imported.
+- **One image source per exercise.** Workout Guide frames are used when the
+  exercise has a match (a committed, hand-checked map); wger images only when
+  it has none. No custom or generated drawings are used as exercise images;
+  the muscle guide (#94) is only the muscles diagram.
 - Images are served from the instance's own storage, never hotlinked. They are
   re-encoded before publication, so each published image carries a
   modification notice and stays under its original CC BY-SA licence
   (share-alike).
 - When a later snapshot rejects a record, its rights fields are cleared and its
-  images are withdrawn from publication.
+  images are withdrawn from publication. A wger re-import never withdraws
+  Workout Guide frames.
+
+### Workout Guide (CC BY-SA 4.0)
+
+- Checked on 2026-11-06 in the repository itself: `LICENSE-ASSETS` (artwork
+  under CC BY-SA 4.0, © 2026 Bryl Lim except where `ATTRIBUTION.md` names an
+  upstream source), `ATTRIBUTION.md` (pose artwork from Everkinetic, CC BY-SA
+  4.0) and `LICENSES.md` (code and metadata MIT). Everkinetic's own
+  `LICENSE.md` is CC BY-SA 4.0.
+- Pinned to commit `aac599224bb9780305239607ef98540b7e0ce389`; the manifest is
+  checked against its SHA-256 before use, and every frame must declare the
+  expected creator and licence.
+- Each stored frame credits Bryl Lim and Everkinetic, links the licence, names
+  the source drawing and upstream changes where the manifest records them, and
+  notes our re-encoding.
+
+### Committed sample
+
+`packages/exercise-catalog/sample/` holds 12 wger records (CC BY-SA 3.0 and
+4.0, author per record), their 36 Workout Guide frames (CC BY-SA 4.0, copied
+unmodified) and the matching manifest entries (MIT). It is used by the demo
+seed and e2e only; `REUSE.toml` and the folder's `ATTRIBUTION.md` record the
+licences.
+
+### Not used
+
+[hasaneyldrm/exercises-dataset](https://github.com/hasaneyldrm/exercises-dataset)
+(the media is © Gym visual, not redistributable; the same media as ExerciseDB)
+and [RepDB/exercise-dataset](https://github.com/RepDB/exercise-dataset) (no
+republishing as a dataset, AI-generated images) are not used.
 
 ## Micronutrient reference values (Issue #78)
 

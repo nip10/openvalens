@@ -36,7 +36,9 @@ import {
   resolveMaxBodyBytes,
 } from "./body-limit";
 import { registerBillingWebhookRoute } from "./billing-webhook-route";
+import { sampleFrameDir } from "@openvalens/exercise-catalog/sample";
 import { registerExerciseCatalogAssetRoute } from "./exercise-catalog-asset-route";
+import { scheduleExerciseCatalogBootstrap } from "./services/exercise-catalog-bootstrap";
 import { createContext } from "./context";
 import { reportError } from "./error-reporting";
 import { ENV } from "./env.server";
@@ -50,7 +52,6 @@ import {
   db,
   deploymentConfig,
   deploymentInfo,
-  exerciseCatalogAssetsEnabled,
   getBillingService,
   getExerciseCatalogAssetService,
   signInOptions,
@@ -334,8 +335,17 @@ app.get("/api/data-rights/exports/:jobId/download", async (c) => {
 // Public media route consumes only the dedicated global manifest capability.
 // Its opt-in registration does not modify the app's shared middleware stack.
 registerExerciseCatalogAssetRoute(app, {
-  enabled: exerciseCatalogAssetsEnabled,
+  enabled: true,
   getService: getExerciseCatalogAssetService,
+});
+
+// Issue #400 — the exercise catalog and its images import once, automatically,
+// on every new server (Cloud and self-hosted); finished steps never repeat.
+scheduleExerciseCatalogBootstrap({
+  db,
+  getAssets: getExerciseCatalogAssetService,
+  logger,
+  sampleFrameDir: sampleFrameDir(),
 });
 
 // Issue #295 — public server check the mobile app reads before connecting.

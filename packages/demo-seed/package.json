@@ -17,6 +17,7 @@
     "@openvalens/billing": "workspace:*",
     "@openvalens/config": "workspace:*",
     "@openvalens/db": "workspace:*",
+    "@openvalens/exercise-catalog": "workspace:*",
     "@orpc/server": "catalog:",
     "drizzle-orm": "catalog:"
   },

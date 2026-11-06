@@ -23,6 +23,7 @@
     "@openvalens/config": "workspace:*",
     "@openvalens/db": "workspace:*",
     "@openvalens/email": "workspace:*",
+    "@openvalens/exercise-catalog": "workspace:*",
     "@openvalens/i18n": "workspace:*",
     "@openvalens/nutrition": "workspace:*",
     "@openvalens/observability": "workspace:*",
