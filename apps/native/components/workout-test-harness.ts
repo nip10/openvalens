@@ -64,12 +64,23 @@ export async function setupMountedHarness() {
     buttons?: Array<{ text: string; onPress?: () => void }>,
   ) => alerts.push({ title, message, buttons });
   const { mock } = await import("bun:test");
+  class AnimatedValue {
+    constructor(public value: number) {}
+    setValue(next: number) {
+      this.value = next;
+    }
+  }
   mock.module("react-native", () => ({
     View,
     Text,
     TextInput,
     Pressable,
     ScrollView: View,
+    KeyboardAvoidingView: View,
+    RefreshControl: () => null,
+    Image: () => null,
+    Animated: { View, Value: AnimatedValue },
+    ActionSheetIOS: { showActionSheetWithOptions: () => {} },
     Modal: ({ visible, children }: Record<string, any>) =>
       visible ? React.createElement("div", { role: "dialog" }, children) : null,
     Alert: { alert },
@@ -102,6 +113,19 @@ export async function setupMountedHarness() {
     Rect: host("rect"),
   }));
   mock.module("react-native-gifted-charts", () => ({}));
+  mock.module("react-native-safe-area-context", () => ({
+    useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+  }));
+  mock.module("react-native-gesture-handler", () => {
+    const chain: Record<string, unknown> = {};
+    for (const name of ["runOnJS", "activeOffsetY", "onStart", "onUpdate", "onEnd", "onFinalize"])
+      chain[name] = () => chain;
+    return {
+      Gesture: { Pan: () => chain },
+      GestureDetector: ({ children }: { children: React.ReactNode }) => children,
+    };
+  });
+  mock.module("@/components/exercise-thumbnail", () => ({ ExerciseThumbnail: () => null }));
   mock.module("expo-crypto", () => ({ randomUUID: () => "12345678-1234-4234-8234-123456789abc" }));
   mock.module("@/utils/theme", () => ({ useThemeColor: () => "#333" }));
   mock.module("@lingui/react/macro", () => ({

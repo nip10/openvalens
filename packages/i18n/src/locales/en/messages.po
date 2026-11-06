@@ -195,6 +195,11 @@ msgstr "{0} ({1}) at step \"{2}\", {3}"
 msgid "{0} ({formattedAmount} {unit})"
 msgstr "{0} ({formattedAmount} {unit})"
 
+#. placeholder {0}: r.name
+#: apps/native/components/workout-routines.tsx
+msgid "{0} (copy)"
+msgstr "{0} (copy)"
+
 #. placeholder {0}: when(backups.schedule.nextRunAt)
 #. placeholder {1}: backups.schedule.dailyRetain
 #: apps/web/src/components/admin-backup-status.tsx
@@ -338,7 +343,9 @@ msgid "{0} of {1} sets done"
 msgstr "{0} of {1} sets done"
 
 #. placeholder {0}: current.name
+#. placeholder {0}: r.name
 #: apps/native/components/active-workout.tsx
+#: apps/native/components/workout-routines.tsx
 msgid "{0} options"
 msgstr "{0} options"
 
@@ -373,6 +380,14 @@ msgstr "{0} sensitive"
 #: apps/web/src/components/workout-routine-exercise-editor.tsx
 msgid "{0} sets"
 msgstr "{0} sets"
+
+#. placeholder {0}: exercise.targetSets
+#. placeholder {1}: exercise.repsMin
+#. placeholder {2}: exercise.repsMax
+#. placeholder {3}: restLabel(exercise.restSeconds)
+#: apps/native/components/routine-editor.tsx
+msgid "{0} sets · {1}–{2} reps · rest {3}"
+msgstr "{0} sets · {1}–{2} reps · rest {3}"
 
 #. safety
 #. placeholder {0}: formatSteps(day.steps)
@@ -1419,6 +1434,7 @@ msgid "Active minutes, last 7 days: {value} minutes. {statusText}"
 msgstr "Active minutes, last 7 days: {value} minutes. {statusText}"
 
 #: apps/native/app/(drawer)/workouts.tsx
+#: apps/native/components/workout-routines.tsx
 #: apps/native/components/workout-session-detail.tsx
 msgid "Active workout in progress"
 msgstr "Active workout in progress"
@@ -1470,6 +1486,11 @@ msgstr "Actual supplement intake"
 #: apps/web/src/components/workout-session-editor.tsx
 msgid "Add"
 msgstr "Add"
+
+#. placeholder {0}: search.trim()
+#: apps/native/components/routine-editor.tsx
+msgid "Add “{0}” as a custom exercise"
+msgstr "Add “{0}” as a custom exercise"
 
 #. placeholder {0}: candidate.name
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
@@ -1538,6 +1559,7 @@ msgid "Add an entry"
 msgstr "Add an entry"
 
 #: apps/native/components/active-workout.tsx
+#: apps/native/components/routine-editor.tsx
 msgid "Add an exercise"
 msgstr "Add an exercise"
 
@@ -1548,10 +1570,13 @@ msgstr "Add custom exercise"
 #: apps/native/components/active-workout.tsx
 #: apps/native/components/exercise-library.tsx
 #: apps/native/components/workout-overview-sheet.tsx
-#: apps/native/components/workout-routines.tsx
 #: apps/web/src/components/exercise-library.tsx
 msgid "Add exercise"
 msgstr "Add exercise"
+
+#: apps/native/components/routine-editor.tsx
+msgid "Add exercises from the library"
+msgstr "Add exercises from the library"
 
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Add food"
@@ -2585,6 +2610,7 @@ msgstr "Canada"
 #: apps/native/components/complete-export-card.tsx
 #: apps/native/components/nutrition-selection-bar.tsx
 #: apps/native/components/progress-photos.tsx
+#: apps/native/components/routine-editor.tsx
 #: apps/native/components/workout-routines.tsx
 #: apps/native/components/workout-session-detail.tsx
 #: apps/native/components/workout-session.tsx
@@ -2610,10 +2636,6 @@ msgstr "Cancel"
 #: apps/native/components/complete-export-card.tsx
 msgid "Cancel download"
 msgstr "Cancel download"
-
-#: apps/native/components/workout-routines.tsx
-msgid "Cancel editing"
-msgstr "Cancel editing"
 
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
@@ -3197,6 +3219,10 @@ msgstr "Coach is thinking…"
 #: apps/native/app/(drawer)/(tabs)/_layout.tsx
 msgid "Cockpit"
 msgstr "Cockpit"
+
+#: apps/native/components/routine-editor.tsx
+msgid "Collapse"
+msgstr "Collapse"
 
 #: packages/api/src/presenters/body-map.ts
 msgid "Colours come only from regions the selected scan measured. Regions the scan did not report stay grey; nothing is estimated."
@@ -4499,6 +4525,10 @@ msgid "Could not verify admin access."
 msgstr "Could not verify admin access."
 
 #: apps/native/components/workout-routines.tsx
+msgid "Couldn’t duplicate the routine. Try again when connected."
+msgstr "Couldn’t duplicate the routine. Try again when connected."
+
+#: apps/native/components/workout-routines.tsx
 msgid "Couldn’t load routines. Try again when connected."
 msgstr "Couldn’t load routines. Try again when connected."
 
@@ -5030,7 +5060,7 @@ msgstr "Deleting…"
 msgid "Deload (%)"
 msgstr "Deload (%)"
 
-#: apps/native/components/workout-routines.tsx
+#: apps/native/components/routine-editor.tsx
 msgid "Deload percent"
 msgstr "Deload percent"
 
@@ -5277,7 +5307,7 @@ msgstr "Dose actually taken"
 msgid "Dose taken"
 msgstr "Dose taken"
 
-#: apps/native/components/workout-routines.tsx
+#: apps/native/components/routine-editor.tsx
 #: apps/web/src/components/workout-routine-exercise-editor.tsx
 msgid "Double progression"
 msgstr "Double progression"
@@ -5343,13 +5373,17 @@ msgstr "Draft discarded. Nothing was saved."
 msgid "Draft ready. Nothing has been logged yet."
 msgstr "Draft ready. Nothing has been logged yet."
 
-#: apps/native/components/workout-overview-sheet.tsx
+#: apps/native/components/draggable-row.tsx
 msgid "Drag to move, or use the actions to move up or down."
 msgstr "Drag to move, or use the actions to move up or down."
 
 #: apps/native/components/workout-overview-sheet.tsx
 msgid "Drag to reorder. Tap an exercise to go to it."
 msgstr "Drag to reorder. Tap an exercise to go to it."
+
+#: apps/native/components/workout-routines.tsx
+msgid "Duplicate"
+msgstr "Duplicate"
 
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Duration"
@@ -5426,8 +5460,10 @@ msgstr "Earliest delivery time"
 msgid "Edit"
 msgstr "Edit"
 
+#. placeholder {0}: exercise.name
 #. placeholder {0}: food.name
 #: apps/native/app/(drawer)/foods.tsx
+#: apps/native/components/routine-editor.tsx
 msgid "Edit {0}"
 msgstr "Edit {0}"
 
@@ -5958,13 +5994,13 @@ msgid "Exam"
 msgstr "Exam"
 
 #: apps/native/components/exercise-library.tsx
-#: apps/native/components/workout-routines.tsx
 #: apps/web/src/components/exercise-library.tsx
 msgid "Exercise"
 msgstr "Exercise"
 
 #. placeholder {0}: ei + 1
 #. placeholder {0}: index + 1
+#: apps/native/components/routine-editor.tsx
 #: apps/web/src/components/workout-routine-exercise-editor.tsx
 #: apps/web/src/components/workout-session-editor.tsx
 msgid "Exercise {0}"
@@ -6041,6 +6077,10 @@ msgstr "exercises"
 msgid "Exercises"
 msgstr "Exercises"
 
+#: apps/native/components/routine-editor.tsx
+msgid "Expand"
+msgstr "Expand"
+
 #: packages/api/src/presenters/preventive-care.ts
 msgid "Expect your invitation"
 msgstr "Expect your invitation"
@@ -6115,7 +6155,7 @@ msgstr "Failed ({pending})"
 msgid "Failed {0}"
 msgstr "Failed {0}"
 
-#: apps/native/components/workout-routines.tsx
+#: apps/native/components/routine-editor.tsx
 msgid "Failure threshold"
 msgstr "Failure threshold"
 
@@ -6202,6 +6242,10 @@ msgstr "Fine-tune what appears. Hidden parts keep their data."
 #: apps/native/components/active-workout.tsx
 msgid "Finish"
 msgstr "Finish"
+
+#: apps/native/components/workout-routines.tsx
+msgid "Finish or discard your active workout before starting another."
+msgstr "Finish or discard your active workout before starting another."
 
 #. placeholder {0}: progress.done
 #. placeholder {1}: progress.total
@@ -7133,15 +7177,15 @@ msgstr "Includes changes waiting to sync. Totals are confirmed after sync."
 msgid "Increase"
 msgstr "Increase"
 
-#: apps/native/components/workout-routines.tsx
+#: apps/native/components/routine-editor.tsx
 msgid "Increment"
 msgstr "Increment"
 
-#: apps/native/components/workout-routines.tsx
+#: apps/native/components/routine-editor.tsx
 msgid "Increment (kg)"
 msgstr "Increment (kg)"
 
-#: apps/native/components/workout-routines.tsx
+#: apps/native/components/routine-editor.tsx
 msgid "Increment (lb)"
 msgstr "Increment (lb)"
 
@@ -7857,7 +7901,7 @@ msgstr "Light"
 msgid "Light: {light} min (not counted)"
 msgstr "Light: {light} min (not counted)"
 
-#: apps/native/components/workout-routines.tsx
+#: apps/native/components/routine-editor.tsx
 #: apps/web/src/components/workout-routine-exercise-editor.tsx
 msgid "Linear progression"
 msgstr "Linear progression"
@@ -8198,10 +8242,6 @@ msgstr "Make a draft"
 msgid "Make a draft from this photo"
 msgstr "Make a draft from this photo"
 
-#: apps/native/components/workout-routines.tsx
-msgid "Make a routine"
-msgstr "Make a routine"
-
 #: packages/api/src/presenters/food-draft.ts
 msgid "Make food drafts from a meal photo"
 msgstr "Make food drafts from a meal photo"
@@ -8347,7 +8387,7 @@ msgstr "Matched workout lifts are counted automatically."
 msgid "Matches the age, sex and answers you shared."
 msgstr "Matches the age, sex and answers you shared."
 
-#: apps/native/components/workout-routines.tsx
+#: apps/native/components/routine-editor.tsx
 msgid "Max reps"
 msgstr "Max reps"
 
@@ -8557,7 +8597,7 @@ msgstr "Milestones are value-and-date checkpoints on this same metric."
 msgid "min"
 msgstr "min"
 
-#: apps/native/components/workout-routines.tsx
+#: apps/native/components/routine-editor.tsx
 msgid "Min reps"
 msgstr "Min reps"
 
@@ -8713,8 +8753,7 @@ msgstr "Move {0} down"
 msgid "Move {0} up"
 msgstr "Move {0} up"
 
-#: apps/native/components/workout-overview-sheet.tsx
-#: apps/native/components/workout-routines.tsx
+#: apps/native/components/draggable-row.tsx
 msgid "Move down"
 msgstr "Move down"
 
@@ -8726,8 +8765,7 @@ msgstr "Move to"
 msgid "Move to a date"
 msgstr "Move to a date"
 
-#: apps/native/components/workout-overview-sheet.tsx
-#: apps/native/components/workout-routines.tsx
+#: apps/native/components/draggable-row.tsx
 msgid "Move up"
 msgstr "Move up"
 
@@ -8789,6 +8827,7 @@ msgstr "My phone's health app"
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/native/components/exercise-library.tsx
 #: apps/native/components/goal-editor.tsx
+#: apps/native/components/routine-editor.tsx
 #: apps/web/src/components/admin-settings-view.tsx
 #: apps/web/src/components/exercise-library.tsx
 #: apps/web/src/components/workout-routines.tsx
@@ -9320,7 +9359,7 @@ msgstr "No private entries yet."
 msgid "No profile applies yet"
 msgstr "No profile applies yet"
 
-#: apps/native/components/workout-routines.tsx
+#: apps/native/components/routine-editor.tsx
 msgid "No progression"
 msgstr "No progression"
 
@@ -9388,6 +9427,10 @@ msgstr "No reps-at-weight records yet."
 #: apps/web/src/components/workout-history.tsx
 msgid "No result"
 msgstr "No result"
+
+#: apps/native/components/workout-routines.tsx
+msgid "No routines yet"
+msgstr "No routines yet"
 
 #: apps/web/src/components/workout-routines.tsx
 msgid "No routines yet. Create one to reuse a plan."
@@ -10266,7 +10309,7 @@ msgstr "OpenValens shows public information from these authorities. They have no
 msgid "Optimal"
 msgstr "Optimal"
 
-#: apps/native/components/workout-routines.tsx
+#: apps/native/components/routine-editor.tsx
 #: apps/web/src/components/workout-routine-exercise-editor.tsx
 #: packages/api/src/presenters/plain-water.ts
 msgid "Optional"
@@ -10779,6 +10822,10 @@ msgstr "Plain water subtotal: {value}"
 msgid "Plan & billing"
 msgstr "Plan & billing"
 
+#: apps/native/components/workout-routines.tsx
+msgid "Plan a workout you want to repeat, then start it in one tap."
+msgstr "Plan a workout you want to repeat, then start it in one tap."
+
 #: packages/api/src/presenters/coach-settings.ts
 msgid "Plays it safe; avoids pushing limits."
 msgstr "Plays it safe; avoids pushing limits."
@@ -10987,10 +11034,6 @@ msgstr "Private measurements are on"
 msgid "Private measurements are on."
 msgstr "Private measurements are on."
 
-#: apps/native/components/workout-routines.tsx
-msgid "Private plans for workouts you want to repeat."
-msgstr "Private plans for workouts you want to repeat."
-
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/web/src/components/profile-summary-card.tsx
@@ -11029,9 +11072,25 @@ msgstr "Progress photos"
 msgid "Progression"
 msgstr "Progression"
 
-#: apps/native/components/workout-routines.tsx
+#: apps/native/components/routine-editor.tsx
 msgid "Progression rule"
 msgstr "Progression rule"
+
+#. placeholder {0}: Number(weightFromKg(exercise.progression.incrementKg, units).toFixed(2))
+#. placeholder {1}: units === "metric" ? "kg" : "lb"
+#: apps/native/components/routine-editor.tsx
+msgid "Progression: double, +{0} {1}"
+msgstr "Progression: double, +{0} {1}"
+
+#. placeholder {0}: Number(weightFromKg(exercise.progression.incrementKg, units).toFixed(2))
+#. placeholder {1}: units === "metric" ? "kg" : "lb"
+#: apps/native/components/routine-editor.tsx
+msgid "Progression: linear, +{0} {1}"
+msgstr "Progression: linear, +{0} {1}"
+
+#: apps/native/components/routine-editor.tsx
+msgid "Progression: none"
+msgstr "Progression: none"
 
 #: packages/api/src/presenters/nutrition-targets.ts
 msgctxt "check-in column"
@@ -11446,10 +11505,6 @@ msgstr "Refresh and review"
 msgid "Refresh diary"
 msgstr "Refresh diary"
 
-#: apps/native/components/workout-routines.tsx
-msgid "Refresh routines"
-msgstr "Refresh routines"
-
 #: packages/api/src/presenters/modules.ts
 msgid "Regimens, reminders"
 msgstr "Regimens, reminders"
@@ -11524,7 +11579,6 @@ msgstr "Reminders for each day are sent once, from this time in your time zone. 
 #: apps/native/app/(drawer)/sharing.tsx
 #: apps/native/components/active-workout.tsx
 #: apps/native/components/goal-editor.tsx
-#: apps/native/components/workout-routines.tsx
 #: apps/native/utils/sharing-confirm.ts
 #: apps/web/src/components/sharing-confirm-dialog.tsx
 #: apps/web/src/routes/_auth/food-draft.tsx
@@ -11533,6 +11587,7 @@ msgid "Remove"
 msgstr "Remove"
 
 #. placeholder {0}: exercise.name
+#: apps/native/components/routine-editor.tsx
 #: apps/web/src/components/workout-routine-exercise-editor.tsx
 #: apps/web/src/components/workout-session-editor.tsx
 msgid "Remove {0}"
@@ -11592,7 +11647,7 @@ msgstr "Removed from favourites"
 msgid "Renews on {periodEnd}."
 msgstr "Renews on {periodEnd}."
 
-#: apps/native/components/workout-overview-sheet.tsx
+#: apps/native/components/draggable-row.tsx
 msgid "Reorder {label}"
 msgstr "Reorder {label}"
 
@@ -11624,7 +11679,6 @@ msgstr "Replacement goal"
 msgid "Report a problem with this guidance"
 msgstr "Report a problem with this guidance"
 
-#: apps/native/components/workout-routines.tsx
 #: apps/web/src/components/workout-routines.tsx
 msgid "reps"
 msgstr "reps"
@@ -11690,7 +11744,7 @@ msgstr "Rest duration in seconds"
 msgid "Rest preference saved."
 msgstr "Rest preference saved."
 
-#: apps/native/components/workout-routines.tsx
+#: apps/native/components/routine-editor.tsx
 msgid "Rest seconds"
 msgstr "Rest seconds"
 
@@ -12043,6 +12097,7 @@ msgstr "Routine changed or couldn’t be deleted. Refresh and try again."
 msgid "Routine created."
 msgstr "Routine created."
 
+#: apps/native/components/routine-editor.tsx
 #: apps/native/components/workout-routines.tsx
 #: apps/web/src/components/workout-routines.tsx
 msgid "Routine name"
@@ -12058,6 +12113,7 @@ msgstr "Routine wasn’t saved. Your edits are still here; retry or refresh."
 
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/components/training-home.tsx
+#: apps/native/components/workout-routines.tsx
 msgid "Routines"
 msgstr "Routines"
 
@@ -12134,6 +12190,7 @@ msgstr "Saturated fat"
 #: apps/native/app/(drawer)/records/vitals.tsx
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/native/components/active-workout.tsx
+#: apps/native/components/routine-editor.tsx
 #: apps/native/components/workout-exercise-tools.tsx
 #: apps/web/src/components/product-settings-form.tsx
 #: apps/web/src/components/wellness-profile-editor.tsx
@@ -12172,7 +12229,6 @@ msgstr "Save cancelled. A food creation already sent may still complete."
 
 #: apps/native/app/(drawer)/private-measurements.tsx
 #: apps/native/components/active-workout.tsx
-#: apps/native/components/workout-routines.tsx
 #: apps/web/src/routes/_auth/private-measurements.tsx
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Save changes"
@@ -12368,6 +12424,7 @@ msgstr "Saving photo…"
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/native/components/goal-editor.tsx
 #: apps/native/components/onboarding/flow.tsx
+#: apps/native/components/routine-editor.tsx
 #: apps/native/components/workout-routines.tsx
 #: apps/web/src/components/health-data-consent-prompt.tsx
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
@@ -12473,7 +12530,7 @@ msgstr "Search exercise catalog"
 msgid "Search exercise name"
 msgstr "Search exercise name"
 
-#: apps/native/components/workout-routines.tsx
+#: apps/native/components/routine-editor.tsx
 msgid "Search exercise or enter a name"
 msgstr "Search exercise or enter a name"
 
@@ -12792,11 +12849,7 @@ msgstr "Set nutrition targets"
 msgid "Set when this app was built"
 msgstr "Set when this app was built"
 
-#: apps/native/components/workout-routines.tsx
-msgid "sets"
-msgstr "sets"
-
-#: apps/native/components/workout-routines.tsx
+#: apps/native/components/routine-editor.tsx
 #: apps/web/src/components/workout-routine-exercise-editor.tsx
 #: apps/web/src/components/workout-session-editor.tsx
 msgid "Sets"
@@ -13874,7 +13927,7 @@ msgstr "Target set"
 msgid "Target value"
 msgstr "Target value"
 
-#: apps/native/components/workout-routines.tsx
+#: apps/native/components/routine-editor.tsx
 msgid "Target weight"
 msgstr "Target weight"
 
@@ -13883,11 +13936,11 @@ msgstr "Target weight"
 msgid "Target weight ({0})"
 msgstr "Target weight ({0})"
 
-#: apps/native/components/workout-routines.tsx
+#: apps/native/components/routine-editor.tsx
 msgid "Target weight (kg)"
 msgstr "Target weight (kg)"
 
-#: apps/native/components/workout-routines.tsx
+#: apps/native/components/routine-editor.tsx
 msgid "Target weight (lb)"
 msgstr "Target weight (lb)"
 
@@ -16357,7 +16410,6 @@ msgstr "Your data stays on this phone"
 msgid "Your decision about {title}"
 msgstr "Your decision about {title}"
 
-#: apps/native/components/workout-routines.tsx
 #: apps/web/src/components/workout-routines.tsx
 msgid "Your edits changed while a save may still be in progress. Retry the original request or cancel and start a new save."
 msgstr "Your edits changed while a save may still be in progress. Retry the original request or cancel and start a new save."
@@ -16559,10 +16611,6 @@ msgstr "Your role: {0}"
 #: apps/web/src/routes/_auth/sharing.tsx
 msgid "Your role: <0>{0}</0>"
 msgstr "Your role: <0>{0}</0>"
-
-#: apps/native/components/workout-routines.tsx
-msgid "Your routines"
-msgstr "Your routines"
 
 #: packages/api/src/presenters/plain-water.ts
 msgid "Your saved amount is hidden. Enter a new amount to replace it."
