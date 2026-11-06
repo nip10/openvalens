@@ -15,8 +15,12 @@ import {
   type NutritionTargetWire,
 } from "../contracts/nutrition-targets";
 import {
+  CHECK_IN_COPY,
   GOAL_COPY,
   RATE_OPTIONS,
+  checkInBasis,
+  goalLine,
+  weekdayName,
   formatRate,
   rateForDirection,
   readTotalAgainstTarget,
@@ -358,5 +362,25 @@ describe("goal rate (#396)", () => {
       .map((m) => englishI18n._(m))
       .join(" ");
     expect(findBannedCopy(text)).toEqual([]);
+  });
+});
+
+describe("weekly check-in copy (#397)", () => {
+  test("weekday names, the goal and the basis", () => {
+    expect(weekdayName(1, "en")).toBe("Monday");
+    expect(weekdayName(7, "en", "short")).toBe("Sun");
+    expect(goalLine("lose", 0.5, englishI18n)).toBe("Reduce, 0.5 % a week");
+    expect(goalLine("maintain", 0.5, englishI18n)).toBe("Maintain");
+    expect(checkInBasis(2240, "Maintain", englishI18n)).toBe(
+      "Based on your expenditure estimate (2,240 kcal a day) and your goal: Maintain.",
+    );
+  });
+
+  test("copy is collaborative and neutral", () => {
+    const text = Object.values(CHECK_IN_COPY)
+      .map((m) => englishI18n._(m))
+      .join(" ");
+    expect(findBannedCopy(text)).toEqual([]);
+    expect(text).toContain("Nothing changes until you accept");
   });
 });

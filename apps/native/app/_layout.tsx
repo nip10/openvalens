@@ -102,6 +102,10 @@ function StackLayout() {
         name="log-food"
         options={{ headerShown: false, presentation: "fullScreenModal" }}
       />
+      <Stack.Screen
+        name="check-in"
+        options={{ headerShown: false, presentation: "fullScreenModal" }}
+      />
       <Stack.Screen name="onboarding" options={{ headerShown: false }} />
       <Stack.Screen name="modal" options={{ title: t`Modal`, presentation: "modal" }} />
     </Stack>

@@ -300,6 +300,8 @@ describe.skipIf(!url)("nutritionTargets over HTTP against disposable PostgreSQL"
       hideNumbers: false,
       energyDirection: "maintain",
       energyRatePercent: null,
+      checkInDay: null,
+      lastCheckInOn: null,
       activeProtein: false,
       streaksEnabled: false,
       recipeImportEnabled: false,
@@ -480,6 +482,24 @@ describe.skipIf(!url)("nutritionTargets over HTTP against disposable PostgreSQL"
     const cleared = await updateSettings({ expectedRevision: 1, energyRatePercent: null });
     if (cleared.body.outcome !== "updated") throw new Error("expected updated");
     expect(cleared.body.settings.energyRatePercent).toBeNull();
+    await resetSettings("user-a");
+  });
+
+  test("a weekly check-in day and the last finished check-in are stored (#397)", async () => {
+    await resetSettings("user-a");
+    const on = await updateSettings({ expectedRevision: 0, checkInDay: 1 });
+    if (on.body.outcome !== "updated") throw new Error("expected updated");
+    expect(on.body.settings).toMatchObject({ checkInDay: 1, lastCheckInOn: null });
+    const done = await updateSettings({ expectedRevision: 1, lastCheckInOn: "2026-03-30" });
+    if (done.body.outcome !== "updated") throw new Error("expected updated");
+    expect(done.body.settings.lastCheckInOn).toBe("2026-03-30");
+    expect((await updateSettings({ expectedRevision: 2, checkInDay: 8 })).status).toBe(400);
+    expect((await updateSettings({ expectedRevision: 2, lastCheckInOn: "30/03" })).status).toBe(
+      400,
+    );
+    const manual = await updateSettings({ expectedRevision: 2, checkInDay: null });
+    if (manual.body.outcome !== "updated") throw new Error("expected updated");
+    expect(manual.body.settings.checkInDay).toBeNull();
     await resetSettings("user-a");
   });
 

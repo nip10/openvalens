@@ -668,6 +668,10 @@ msgstr "{label} target: {value}, {source}"
 msgid "{label}, {count, plural, one {# food} other {# foods}}"
 msgstr "{label}, {count, plural, one {# food} other {# foods}}"
 
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "{label}, {value}"
+msgstr "{label}, {value}"
+
 #: apps/web/src/routes/_auth/micronutrients.tsx
 msgid "{label}: {amount}"
 msgstr "{label}: {amount}"
@@ -1267,6 +1271,10 @@ msgstr "Accept"
 #: packages/email/src/templates/invitation.tsx
 msgid "Accept invitation"
 msgstr "Accept invitation"
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Accept proposal"
+msgstr "Accept proposal"
 
 #: packages/api/src/presenters/energy-estimate.ts
 msgid "Accept suggestion"
@@ -2260,6 +2268,14 @@ msgstr "Based on {days, plural, one {# weigh-in} other {# weigh-ins}} in the las
 msgid "Based on {recentDays} of the last {recentWindowDays} days, compared with {baselineDays, plural, one {# day} other {# days}} in the {baselineWindowDays} days before."
 msgstr "Based on {recentDays} of the last {recentWindowDays} days, compared with {baselineDays, plural, one {# day} other {# days}} in the {baselineWindowDays} days before."
 
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Based on an experimental estimate that has not been validated."
+msgstr "Based on an experimental estimate that has not been validated."
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Based on your expenditure estimate ({kcal} kcal a day) and your goal: {goal}."
+msgstr "Based on your expenditure estimate ({kcal} kcal a day) and your goal: {goal}."
+
 #: apps/web/src/components/admin-backup-status.tsx
 msgid "before an upgrade"
 msgstr "before an upgrade"
@@ -2738,6 +2754,22 @@ msgstr "Check your connection, then reload the page."
 msgid "Check your email"
 msgstr "Check your email"
 
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Check-in day"
+msgstr "Check-in day"
+
+#: apps/native/components/nutrition-check-in-prompt.tsx
+msgid "Check-in day: {date}. You can do it now."
+msgstr "Check-in day: {date}. You can do it now."
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Check-in done. Your energy target is updated."
+msgstr "Check-in done. Your energy target is updated."
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Check-in done. Your targets are unchanged."
+msgstr "Check-in done. Your targets are unchanged."
+
 #: apps/native/app/(drawer)/goals/[goalId].tsx
 msgid "Check-in value"
 msgstr "Check-in value"
@@ -3071,6 +3103,7 @@ msgid "Clinician decision for specific situations"
 msgstr "Clinician decision for specific situations"
 
 #: apps/native/app/(drawer)/goals.tsx
+#: apps/native/app/check-in.tsx
 #: apps/native/app/modal.tsx
 #: apps/native/components/change-server.tsx
 #: apps/native/components/select-field.tsx
@@ -3622,6 +3655,7 @@ msgstr "Could not confirm the change. Refresh saved items before retrying."
 msgid "Could not confirm the result. Refresh and review before trying again."
 msgstr "Could not confirm the result. Refresh and review before trying again."
 
+#: apps/native/app/check-in.tsx
 #: apps/native/components/energy-estimate-card.tsx
 #: apps/web/src/components/energy-estimate-card.tsx
 msgid "Could not confirm the result. Refresh to check its status."
@@ -4150,6 +4184,10 @@ msgstr "Could not save rest preference. Your workout is unchanged."
 #: apps/native/components/workout-routines.tsx
 msgid "Could not save routine"
 msgstr "Could not save routine"
+
+#: apps/native/app/check-in.tsx
+msgid "Could not save the check-in. Try again."
+msgstr "Could not save the check-in. Try again."
 
 #: apps/web/src/components/workout-routines.tsx
 msgid "Could not save the routine. Your finished workout is unchanged."
@@ -5305,6 +5343,10 @@ msgstr "Each rule compares your last 7 days with your own usual (the median of t
 msgid "Each session's effort rating (0 to 10) × its minutes, added up over the last 7 days (session-RPE)."
 msgstr "Each session's effort rating (0 to 10) × its minutes, added up over the last 7 days (session-RPE)."
 
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Each week the app proposes an energy target from your estimate and your goal. Nothing changes until you accept."
+msgstr "Each week the app proposes an energy target from your estimate and your goal. Nothing changes until you accept."
+
 #: apps/native/app/(drawer)/insight-settings.tsx
 msgid "Earlier"
 msgstr "Earlier"
@@ -5509,6 +5551,7 @@ msgstr "End date, optional, YYYY-MM-DD"
 msgid "Ended · history retained"
 msgstr "Ended · history retained"
 
+#: apps/native/app/check-in.tsx
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Energy"
 msgstr "Energy"
@@ -5520,6 +5563,10 @@ msgstr "Energy estimate"
 #: packages/api/src/presenters/nutrition-templates.ts
 msgid "Energy: {energyKnown}/{total} ingredients; protein: {proteinKnown}/{total} ingredients"
 msgstr "Energy: {energyKnown}/{total} ingredients; protein: {proteinKnown}/{total} ingredients"
+
+#: apps/native/app/check-in.tsx
+msgid "Energy: now {nowText}, proposed {proposedText}"
+msgstr "Energy: now {nowText}, proposed {proposedText}"
 
 #: apps/web/src/components/admission-form.tsx
 msgid "Enrollment complete"
@@ -6835,6 +6882,8 @@ msgstr "I consent to OpenValens processing my health data to provide the service
 
 #. safety
 #. safety
+#. safety
+#: apps/native/app/check-in.tsx
 #: apps/native/components/energy-estimate-card.tsx
 #: apps/web/src/components/energy-estimate-card.tsx
 msgid "I have read this and want to accept the suggestion."
@@ -7345,6 +7394,10 @@ msgstr "kcal a day"
 msgid "Keep at least one way to sign in: this server cannot send email links."
 msgstr "Keep at least one way to sign in: this server cannot send email links."
 
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Keep current targets"
+msgstr "Keep current targets"
+
 #: packages/api/src/presenters/custom-foods.ts
 #: packages/api/src/presenters/nutrition-diary.ts
 #: packages/api/src/presenters/plain-water.ts
@@ -7524,6 +7577,10 @@ msgstr "Last upload {0}"
 #: apps/web/src/components/admin-backup-status.tsx
 msgid "Last verify"
 msgstr "Last verify"
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Last week's intake against your target doesn't change the proposal."
+msgstr "Last week's intake against your target doesn't change the proposal."
 
 #: apps/native/app/(drawer)/insight-settings.tsx
 msgid "Later"
@@ -8123,6 +8180,11 @@ msgstr "Manual"
 
 #: packages/api/src/presenters/timeline.ts
 msgctxt "data source"
+msgid "Manual"
+msgstr "Manual"
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgctxt "targets mode"
 msgid "Manual"
 msgstr "Manual"
 
@@ -9171,6 +9233,10 @@ msgstr "No progression"
 msgid "No progression rule is set, so the prescription stays the same."
 msgstr "No progression rule is set, so the prescription stays the same."
 
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "No proposal this week. You can keep your targets and check in again next week."
+msgstr "No proposal this week. You can keep your targets and check in again next week."
+
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 msgid "No quantity"
 msgstr "No quantity"
@@ -9684,6 +9750,11 @@ msgstr "Notifications arrive on phones where you allow them in the mobile app."
 msgid "Now"
 msgstr "Now"
 
+#: packages/api/src/presenters/nutrition-targets.ts
+msgctxt "check-in column"
+msgid "Now"
+msgstr "Now"
+
 #: packages/api/src/presenters/score.ts
 msgid "Now: {now}."
 msgstr "Now: {now}."
@@ -9695,6 +9766,10 @@ msgstr "Numbers are hidden. Coverage is still shown."
 #: packages/api/src/presenters/energy-estimate.ts
 msgid "Numbers are hidden. Estimate details are not shown."
 msgstr "Numbers are hidden. Estimate details are not shown."
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Numbers are hidden. Turn them on in Targets and display to review a proposal."
+msgstr "Numbers are hidden. Turn them on in Targets and display to review a proposal."
 
 #: packages/api/src/presenters/plain-water.ts
 msgid "Numbers are hidden. You can still log water."
@@ -9978,6 +10053,10 @@ msgstr "Open"
 #: apps/native/app/(drawer)/exports.tsx
 msgid "Open {fileName}"
 msgstr "Open {fileName}"
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Open check-in"
+msgstr "Open check-in"
 
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Open Goals"
@@ -10858,6 +10937,15 @@ msgstr "Progression"
 #: apps/native/components/workout-routines.tsx
 msgid "Progression rule"
 msgstr "Progression rule"
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgctxt "check-in column"
+msgid "Proposed"
+msgstr "Proposed"
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Proposed target for next week"
+msgstr "Proposed target for next week"
 
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Protein"
@@ -13630,6 +13718,11 @@ msgid "Target"
 msgstr "Target"
 
 #: packages/api/src/presenters/nutrition-targets.ts
+msgctxt "check-in column"
+msgid "Target"
+msgstr "Target"
+
+#: packages/api/src/presenters/nutrition-targets.ts
 msgid "Target cleared."
 msgstr "Target cleared."
 
@@ -13699,6 +13792,10 @@ msgstr "Target: {target}."
 #: apps/web/src/components/nutrition-day-totals.tsx
 msgid "Target: {targetText}"
 msgstr "Target: {targetText}"
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Targets"
+msgstr "Targets"
 
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Targets and display"
@@ -13856,6 +13953,10 @@ msgstr "the entry values."
 #: apps/native/components/energy-estimate-card.tsx
 msgid "The estimate and how it is worked out are on the Food tab."
 msgstr "The estimate and how it is worked out are on the Food tab."
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "The estimate pauses when more than 3 of the last 7 days have no usable log."
+msgstr "The estimate pauses when more than 3 of the last 7 days have no usable log."
 
 #: packages/api/src/presenters/preventive-care.ts
 msgid "The evidence-check library is off. Turn it on in the preventive-care settings to see it."
@@ -15104,6 +15205,10 @@ msgstr "US civilian, non-institutionalised adults (NHANES), excluding pregnancy,
 msgid "US federal government work in the public domain (NHANES material may be reproduced without permission; citation requested)."
 msgstr "US federal government work in the public domain (NHANES material may be reproduced without permission; citation requested)."
 
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Usable logs on {logged} of the last {of} days."
+msgstr "Usable logs on {logged} of the last {of} days."
+
 #: apps/native/components/analytics-consent-section.tsx
 #: apps/web/src/components/analytics-consent-section.tsx
 #: apps/web/src/routes/_auth/settings/index.tsx
@@ -15541,6 +15646,19 @@ msgstr "Weekly activity"
 msgid "Weekly activity is for adults 18 and over, based on your profile answer."
 msgstr "Weekly activity is for adults 18 and over, based on your profile answer."
 
+#: packages/api/src/presenters/nutrition-targets.ts
+msgctxt "targets mode"
+msgid "Weekly check-in"
+msgstr "Weekly check-in"
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Weekly check-in, {dateText}"
+msgstr "Weekly check-in, {dateText}"
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Weekly check-ins are not available for this profile."
+msgstr "Weekly check-ins are not available for this profile."
+
 #: packages/api/src/presenters/insights.ts
 msgid "Weekly email"
 msgstr "Weekly email"
@@ -15964,6 +16082,10 @@ msgstr "You run this OpenValens server. A few things to check, then your own set
 msgid "You said neither option fits you."
 msgstr "You said neither option fits you."
 
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "You set every target yourself. Suggestions only come when you ask."
+msgstr "You set every target yourself. Suggestions only come when you ask."
+
 #: apps/web/src/components/onboarding/server-checklist.tsx
 msgid "You set up this server. A quick look at what it reports, then your own setup."
 msgstr "You set up this server. A quick look at what it reports, then your own setup."
@@ -16189,6 +16311,10 @@ msgstr "Your latest OpenValens Cloud payment didn’t go through."
 msgid "Your modules"
 msgstr "Your modules"
 
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Your next check-in is not open yet."
+msgstr "Your next check-in is not open yet."
+
 #: packages/email/src/templates/billing.tsx
 msgid "Your OpenValens Cloud access ended some time ago. As our privacy policy explains, accounts that stay inactive are deleted."
 msgstr "Your OpenValens Cloud access ended some time ago. As our privacy policy explains, accounts that stay inactive are deleted."
@@ -16403,6 +16529,10 @@ msgstr "Your values include device readings. Devices often measure resting heart
 #: packages/email/src/templates/admission-verification.tsx
 msgid "Your verification code is {code}."
 msgstr "Your verification code is {code}."
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Your weekly check-in is ready"
+msgstr "Your weekly check-in is ready"
 
 #: packages/api/src/presenters/insights.ts
 msgid "Your weekly insights"

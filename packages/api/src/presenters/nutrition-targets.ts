@@ -483,3 +483,80 @@ export function rateForDirection(
   if (current !== null && options.includes(current)) return current as 0.25 | 0.5 | 0.75 | 1;
   return DEFAULT_RATE[direction];
 }
+
+// ─── Weekly check-in (#397) ───────────────────────────────────
+
+export {
+  CHECK_IN_DAYS,
+  checkInState,
+  loggedDaysOfLastWeek,
+  type CheckInDay,
+  type CheckInState,
+} from "@openvalens/nutrition/check-in";
+
+export const CHECK_IN_COPY = Object.freeze({
+  modeTitle: msg`Targets`,
+  manual: msg({ message: "Manual", context: "targets mode" }),
+  weekly: msg({ message: "Weekly check-in", context: "targets mode" }),
+  manualDescription: msg`You set every target yourself. Suggestions only come when you ask.`,
+  weeklyDescription: msg`Each week the app proposes an energy target from your estimate and your goal. Nothing changes until you accept.`,
+  dayTitle: msg`Check-in day`,
+  title: msg`Proposed target for next week`,
+  ready: msg`Your weekly check-in is ready`,
+  open: msg`Open check-in`,
+  accept: msg`Accept proposal`,
+  keep: msg`Keep current targets`,
+  target: msg({ message: "Target", context: "check-in column" }),
+  now: msg({ message: "Now", context: "check-in column" }),
+  proposed: msg({ message: "Proposed", context: "check-in column" }),
+  adherence: msg`Last week's intake against your target doesn't change the proposal.`,
+  pauseRule: msg`The estimate pauses when more than 3 of the last 7 days have no usable log.`,
+  paused: msg`No proposal this week. You can keep your targets and check in again next week.`,
+  hidden: msg`Numbers are hidden. Turn them on in Targets and display to review a proposal.`,
+  off: msg`Weekly check-ins are not available for this profile.`,
+  kept: msg`Check-in done. Your targets are unchanged.`,
+  accepted: msg`Check-in done. Your energy target is updated.`,
+  notDue: msg`Your next check-in is not open yet.`,
+  experimental: msg`Based on an experimental estimate that has not been validated.`,
+});
+
+/** `"Monday"` for ISO weekday 1, in the reader's language. */
+export function weekdayName(
+  isoDay: number,
+  locale: string,
+  width: "long" | "short" = "long",
+): string {
+  // 2026-11-09 is a Monday.
+  const date = new Date(Date.UTC(2026, 10, 8 + isoDay, 12));
+  try {
+    return new Intl.DateTimeFormat(locale, { weekday: width, timeZone: "UTC" }).format(date);
+  } catch {
+    return new Intl.DateTimeFormat("en", { weekday: width, timeZone: "UTC" }).format(date);
+  }
+}
+
+/** `"Logged on 6 of the last 7 days."` */
+export function loggedDaysLine(logged: number, of: number, i18n: I18n): string {
+  return i18n._(msg`Usable logs on ${logged} of the last ${of} days.`);
+}
+
+/** `"Weekly check-in, Monday 10 Nov"`-style header line. */
+export function checkInHeader(dateText: string, i18n: I18n): string {
+  return i18n._(msg`Weekly check-in, ${dateText}`);
+}
+
+/** The goal in words for the check-in explanation: `"reduce, 0.5 % a week"`. */
+export function goalLine(direction: EnergyDirection, rate: number | null, i18n: I18n): string {
+  const label = i18n._(DIRECTION_LABELS[direction].label);
+  if (direction === "maintain") return label;
+  const value = formatRate(rateForDirection(direction, rate) ?? 0, i18n);
+  return i18n._(msg`${label}, ${value}`);
+}
+
+/** `"Based on your estimate (2,240 kcal a day) and your goal: Reduce, 0.5 % a week."` */
+export function checkInBasis(estimateKcal: number, goal: string, i18n: I18n): string {
+  const kcal = Math.round(estimateKcal).toLocaleString("en-US");
+  return i18n._(
+    msg`Based on your expenditure estimate (${kcal} kcal a day) and your goal: ${goal}.`,
+  );
+}
