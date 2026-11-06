@@ -9,6 +9,7 @@ const {
   weightToKg,
   workoutSummary,
   createDraftFromWorkout,
+  createDraftFromRoutinePreview,
 } = await import("./model");
 
 describe("workout draft model", () => {
@@ -171,5 +172,47 @@ describe("workout draft model", () => {
         },
       ],
     });
+  });
+  test("routine sets open prefilled from the progression suggestion (#401)", () => {
+    const target = {
+      key: "k",
+      exerciseId: 7,
+      name: "Bench press",
+      targetSets: 3,
+      repsMin: 8,
+      repsMax: 12,
+      targetWeightKg: 60,
+      restSeconds: 120,
+      progression: { kind: "double" as const, incrementKg: 2.5 },
+    };
+    let n = 0;
+    const id = () => `00000000-0000-4000-8000-${String(++n).padStart(12, "0")}`;
+    const suggested = createDraftFromRoutinePreview(
+      {
+        routine: { id: 1, version: 1, name: "A", exercises: [target] },
+        suggestions: [{ key: "k", suggestion: { weightKg: 62.5, reps: 8, reason: "increase" } }],
+      },
+      new Date("2026-11-06T10:00:00Z"),
+      id,
+    );
+    expect(suggested.exercises[0]!.sets.map((s) => [s.weightKg, s.reps])).toEqual([
+      [62.5, "8"],
+      [62.5, "8"],
+      [62.5, "8"],
+    ]);
+    const plain = createDraftFromRoutinePreview(
+      { routine: { id: 1, version: 1, name: "A", exercises: [target] } },
+      new Date("2026-11-06T10:00:00Z"),
+      id,
+    );
+    expect(plain.exercises[0]!.sets[0]).toMatchObject({ weightKg: 60, reps: "8" });
+  });
+  test("addDraftSet uses an explicit prefill when given", () => {
+    const next = addDraftSet(newDraftExercise("A"), () => "x", {
+      weightKg: 50,
+      reps: "6",
+      rpe: "",
+    });
+    expect(next.sets[0]).toMatchObject({ id: "x", weightKg: 50, reps: "6", done: false });
   });
 });
