@@ -26,10 +26,14 @@ published guidelines and trials plus a few documented product choices.
   or `proposal` (accepted from a #76 proposal) — and the local date it is
   **effective from**. Replacing or clearing a target stamps `effective_to`,
   so the target that applied on any past day can be shown for that day.
-- Targets are shown **separately from observed totals** and only when set.
-  Totals and targets are never compared: no "over"/"under", no colours, no
-  verdicts. A day with missing or partial logging is shown as such, never as
-  being below a target.
+- A target is written **as text beside its total** and only when set
+  ("1,450 of 1,700–2,100 kcal"; D1 in #390). The member can switch the day
+  summary to what remains to each target ("250–650 kcal remaining to
+  1,700–2,100 kcal"); once nothing remains it shows the logged total with the
+  target beside it. No rings or bars, no "over"/"under", no colours that
+  judge (the protein/carbs/fat colours are identity only), no "met"
+  highlight, no verdicts. A day with missing or partial logging is shown as
+  such, never as being below a target.
 - New members have no targets and the default direction is **maintain**.
   There is no automated deficit.
 - After an eating-disorder declaration, energy targets are hidden and cannot

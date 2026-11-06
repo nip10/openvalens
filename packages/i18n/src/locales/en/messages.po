@@ -642,6 +642,14 @@ msgstr "{label}, {count, plural, one {# food} other {# foods}}"
 msgid "{label}: {amount}"
 msgstr "{label}: {amount}"
 
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "{label}: {figure}, {note}"
+msgstr "{label}: {figure}, {note}"
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "{label}: {logged}, {note}"
+msgstr "{label}: {logged}, {note}"
+
 #: packages/api/src/presenters/activity-load.ts
 msgid "{label}: {points} effort points (+{unrated, plural, one {# unrated session} other {# unrated sessions}})."
 msgstr "{label}: {points} effort points (+{unrated, plural, one {# unrated session} other {# unrated sessions}})."
@@ -1983,6 +1991,11 @@ msgstr "At least"
 #: apps/web/src/routes/_auth/goals.index.tsx
 msgid "At least {0}{suffix}"
 msgstr "At least {0}{suffix}"
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgctxt "inside a sentence"
+msgid "at least {value} {unit}"
+msgstr "at least {value} {unit}"
 
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "At least {value} {unit}"
@@ -4649,6 +4662,14 @@ msgstr "Day {0} of the current cycle."
 msgid "Day marker for {date}"
 msgstr "Day marker for {date}"
 
+#: apps/native/components/nutrition-day-menu.tsx
+msgid "Day options"
+msgstr "Day options"
+
+#: apps/native/app/(drawer)/(tabs)/nutrition.tsx
+msgid "Day summary"
+msgstr "Day summary"
+
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Day totals"
 msgstr "Day totals"
@@ -6045,6 +6066,10 @@ msgstr "Food database results"
 msgid "Food databases"
 msgstr "Food databases"
 
+#: apps/native/components/nutrition-week-strip.tsx
+msgid "food logged"
+msgstr "food logged"
+
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 #: apps/native/app/(drawer)/foods.tsx
 #: apps/web/src/routes/_auth/foods.tsx
@@ -6651,6 +6676,10 @@ msgstr "How this is estimated"
 #: apps/web/src/routes/_auth/nutrition.tsx
 msgid "How to add"
 msgstr "How to add"
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "How totals are shown"
+msgstr "How totals are shown"
 
 #: apps/web/src/routes/_auth/-goal-editor.tsx
 msgid "How will you track it?"
@@ -7850,6 +7879,11 @@ msgstr "Log today"
 msgid "Log water"
 msgstr "Log water"
 
+#: packages/api/src/presenters/nutrition-targets.ts
+msgctxt "day summary reading"
+msgid "Logged"
+msgstr "Logged"
+
 #. safety
 #: packages/api/src/presenters/insights.ts
 msgid "Logged meals and workouts occurred on {daysWithBoth, plural, one {# day} other {# days}} in this {windowDays}-day window. This describes co-occurrence in your records only and does not establish a relationship between them."
@@ -7858,6 +7892,10 @@ msgstr "Logged meals and workouts occurred on {daysWithBoth, plural, one {# day}
 #: apps/native/components/workout-history.tsx
 msgid "Logged sessions for this exercise will appear here."
 msgstr "Logged sessions for this exercise will appear here."
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "logged, target {text}"
+msgstr "logged, target {text}"
 
 #: packages/api/src/presenters/logging-streak.ts
 msgid "Logging streak"
@@ -8031,6 +8069,10 @@ msgstr "Mark done each day"
 #: apps/web/src/routes/_auth/goals.index.tsx
 msgid "Mark done today"
 msgstr "Mark done today"
+
+#: apps/native/components/nutrition-week-strip.tsx
+msgid "marked complete"
+msgstr "marked complete"
 
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Marked complete"
@@ -9124,6 +9166,10 @@ msgid "No supported Recipe entry was found."
 msgstr "No supported Recipe entry was found."
 
 #: packages/api/src/presenters/nutrition-targets.ts
+msgid "No target"
+msgstr "No target"
+
+#: packages/api/src/presenters/nutrition-targets.ts
 msgid "No targets set. Logging works the same without them."
 msgstr "No targets set. Logging works the same without them."
 
@@ -9456,6 +9502,10 @@ msgstr "Nothing is compared with other OpenValens users, and you are never place
 msgid "Nothing is due."
 msgstr "Nothing is due."
 
+#: apps/native/components/nutrition-week-strip.tsx
+msgid "nothing logged"
+msgstr "nothing logged"
+
 #: packages/api/src/presenters/micronutrients.ts
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Nothing logged"
@@ -9607,6 +9657,10 @@ msgstr "Observed at (local time)"
 #: apps/native/app/(drawer)/private-measurements.tsx
 msgid "Observed at local time"
 msgstr "Observed at local time"
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "of {text}"
+msgstr "of {text}"
 
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/native/app/(drawer)/insight-settings.tsx
@@ -11113,6 +11167,15 @@ msgstr "Reload latest"
 #: packages/api/src/presenters/sleep.ts
 msgid "REM"
 msgstr "REM"
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgctxt "day summary reading"
+msgid "Remaining"
+msgstr "Remaining"
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "remaining to {text}"
+msgstr "remaining to {text}"
 
 #: packages/api/src/presenters/preventive-care.ts
 msgid "Remind me on this date (push or email, if turned on in insight notifications)"
@@ -13409,6 +13472,10 @@ msgstr "Target reached: {goalTitle}"
 msgid "Target saved."
 msgstr "Target saved."
 
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Target set"
+msgstr "Target set"
+
 #: apps/web/src/routes/_auth/-goal-editor.tsx
 msgid "Target value"
 msgstr "Target value"
@@ -14284,6 +14351,10 @@ msgstr "To sign in, open {url}."
 msgid "To speak, use your keyboard's dictation (microphone) key. This app never records or uploads audio."
 msgstr "To speak, use your keyboard's dictation (microphone) key. This app never records or uploads audio."
 
+#: apps/native/components/nutrition-week-strip.tsx
+msgid "today"
+msgstr "today"
+
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/(tabs)/index.tsx
 #: apps/native/app/(drawer)/goals.tsx
@@ -14303,6 +14374,10 @@ msgstr "Today"
 #: apps/web/src/routes/_auth/goals.index.tsx
 msgid "Today ({0})"
 msgstr "Today ({0})"
+
+#: apps/native/app/(drawer)/(tabs)/nutrition.tsx
+msgid "Today so far"
+msgstr "Today so far"
 
 #: apps/native/app/(drawer)/goals.tsx
 msgid "Today's goal met"
@@ -14728,6 +14803,7 @@ msgstr "unknown"
 #: apps/web/src/routes/_auth/goals.$goalId.tsx
 #: apps/web/src/routes/_auth/micronutrients.tsx
 #: packages/api/src/presenters/nutrition-diary.ts
+#: packages/api/src/presenters/nutrition-targets.ts
 msgid "Unknown"
 msgstr "Unknown"
 
@@ -14754,6 +14830,15 @@ msgstr "Untitled recipe"
 #: packages/api/src/presenters/sleep.ts
 msgid "Untracked"
 msgstr "Untracked"
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "up to {high} {unit}"
+msgstr "up to {high} {unit}"
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgctxt "inside a sentence"
+msgid "up to {value} {unit}"
+msgstr "up to {value} {unit}"
 
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Up to {value} {unit}"
