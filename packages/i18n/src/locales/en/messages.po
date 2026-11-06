@@ -15061,10 +15061,6 @@ msgstr "We'll email you a link to finish. No password needed."
 msgid "We'll email you a link to sign in. No password needed."
 msgstr "We'll email you a link to sign in. No password needed."
 
-#: apps/native/components/sign-in.tsx
-msgid "We'll email you a link. No password needed."
-msgstr "We'll email you a link. No password needed."
-
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
 msgid "Wearable accounts such as Oura or WHOOP connect in Settings › Devices."
 msgstr "Wearable accounts such as Oura or WHOOP connect in Settings › Devices."

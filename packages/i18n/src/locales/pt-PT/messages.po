@@ -15061,10 +15061,6 @@ msgstr "Vamos enviar-lhe por email uma ligação para concluir. Não precisa de 
 msgid "We'll email you a link to sign in. No password needed."
 msgstr "Vamos enviar-lhe por email uma ligação para iniciar sessão. Não precisa de palavra-passe."
 
-#: apps/native/components/sign-in.tsx
-msgid "We'll email you a link. No password needed."
-msgstr "Vamos enviar-lhe uma ligação por email. Não precisa de palavra-passe."
-
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
 msgid "Wearable accounts such as Oura or WHOOP connect in Settings › Devices."
 msgstr "Contas de dispositivos como Oura ou WHOOP ligam-se em Definições › Dispositivos."
