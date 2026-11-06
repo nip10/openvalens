@@ -46,7 +46,9 @@ export default function LogFoodRoute() {
     : mealSlotForLocalTime();
   // A time picked on the timeline (#393): an ISO instant, ignored when malformed.
   const consumedAt =
-    params.at && !Number.isNaN(Date.parse(params.at)) ? new Date(params.at).toISOString() : undefined;
+    params.at && !Number.isNaN(Date.parse(params.at))
+      ? new Date(params.at).toISOString()
+      : undefined;
   const initialQuery = (Array.isArray(params.food) ? params.food[0] : (params.food ?? ""))
     .trim()
     .slice(0, 200);
@@ -129,10 +131,10 @@ export default function LogFoodRoute() {
               : params.mode === "barcode"
                 ? "barcode"
                 : params.mode === "describe" &&
-                  (targets.data?.settings.voiceDraftsEnabled ??
-                    cachedPreference?.voiceDraftsEnabled)
-                ? "describe"
-                : "choose"
+                    (targets.data?.settings.voiceDraftsEnabled ??
+                      cachedPreference?.voiceDraftsEnabled)
+                  ? "describe"
+                  : "choose"
           }
           recipeImportEnabled={
             targets.data?.settings.recipeImportEnabled ??

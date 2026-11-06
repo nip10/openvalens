@@ -73,7 +73,9 @@ export function MacroLine({
       {ROW_MACRO_KEYS.map((key) => (
         <Text key={key}>
           {" · "}
-          <Text className={cn("font-semibold", MACRO_TEXT[key])}>{i18n._(MACRO_LETTERS[key])}</Text>{" "}
+          <Text className={cn("font-semibold", MACRO_TEXT[key])}>
+            {i18n._(MACRO_LETTERS[key])}
+          </Text>{" "}
           {compactNutrientFigure(key, values[key])}
         </Text>
       ))}

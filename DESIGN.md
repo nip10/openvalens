@@ -11,16 +11,16 @@ The locked system for the web app (and the colours of the native app). Every scr
 
 `packages/ui/src/styles/tokens.css` is the source of truth (shared with `apps/native`); `globals.css` adds fonts, the paper glow, `.sheet` (the card) and `.well`. Tailwind names:
 
-| Role     | Utility                                                                                                                                                 |
-| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Paper    | `bg-paper`, `bg-paper-2`, `bg-paper-3` (wells, tracks, hover)                                                                                           |
-| Card     | `.sheet` (soft white, 24px corners, warm shadow), or `<Card>` / `Section sheet`                                                                         |
-| Ink      | `text-ink` (heads, figures), `text-ink-2` (text), `text-ink-3` (labels, notes)                                                                          |
-| Lines    | `border-rule` (hairline), `border-rule-2` (a firmer edge)                                                                                               |
-| Primary  | `bg-primary` / `text-signal` (terracotta): the main action, the current page                                                                            |
-| Measures | `sleep`, `steps`, `heart`, `weight`, `water`, `food`, each with `-soft`: `text-sleep`, `bg-sleep-soft`, `bg-sleep`, … and `var(--tone-sleep)` in charts |
+| Role      | Utility                                                                                                                                                                                 |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Paper     | `bg-paper`, `bg-paper-2`, `bg-paper-3` (wells, tracks, hover)                                                                                                                           |
+| Card      | `.sheet` (soft white, 24px corners, warm shadow), or `<Card>` / `Section sheet`                                                                                                         |
+| Ink       | `text-ink` (heads, figures), `text-ink-2` (text), `text-ink-3` (labels, notes)                                                                                                          |
+| Lines     | `border-rule` (hairline), `border-rule-2` (a firmer edge)                                                                                                                               |
+| Primary   | `bg-primary` / `text-signal` (terracotta): the main action, the current page                                                                                                            |
+| Measures  | `sleep`, `steps`, `heart`, `weight`, `water`, `food`, each with `-soft`: `text-sleep`, `bg-sleep-soft`, `bg-sleep`, … and `var(--tone-sleep)` in charts                                 |
 | Nutrients | `text-protein`, `text-carbs`, `text-fat` (energy stays `text-ink`): identity colours beside the P/C/F letter in diary rows and totals. Never a verdict, never progress against a target |
-| States   | `StatusPill` tones `good`, `warn`, `bad`, `neutral` (always a word, never colour alone)                                                                 |
+| States    | `StatusPill` tones `good`, `warn`, `bad`, `neutral` (always a word, never colour alone)                                                                                                 |
 
 Never a literal colour in a component (`bg-green-500`, `text-white`, `#fff`): a token or nothing. Measure colours are for their measure only; terracotta is for actions and the current place.
 

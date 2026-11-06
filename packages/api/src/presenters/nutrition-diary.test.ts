@@ -1,8 +1,4 @@
-import {
-  MACRO_LETTERS,
-  ROW_MACRO_KEYS,
-  compactNutrientFigure,
-} from "./nutrition-diary";
+import { MACRO_LETTERS, ROW_MACRO_KEYS, compactNutrientFigure } from "./nutrition-diary";
 import { describe, expect, test } from "bun:test";
 import { englishI18n, inEnglish } from "@openvalens/i18n/testing";
 import { computeNutrientFactor } from "@openvalens/nutrition/nutrients";

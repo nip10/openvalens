@@ -498,7 +498,8 @@ export default function NutritionScreen() {
       favorite={
         row.kind === "server" &&
         (foods.data?.favorites ?? []).some(
-          (food) => food.ref.kind === "snapshot" && food.ref.snapshotId === row.entry.food.snapshotId,
+          (food) =>
+            food.ref.kind === "snapshot" && food.ref.snapshotId === row.entry.food.snapshotId,
         )
       }
     />
@@ -536,123 +537,128 @@ export default function NutritionScreen() {
   const searchSlot = view === "timeline" ? slotForHour(nowHour) : mealSlotForLocalTime();
   return (
     <View className="flex-1 bg-background">
-    <Container>
-      <Page>
-        <ModuleHiddenNote module="food" />
-        <PageHeader title={i18n._(DIARY_COPY.title)} />
+      <Container>
+        <Page>
+          <ModuleHiddenNote module="food" />
+          <PageHeader title={i18n._(DIARY_COPY.title)} />
 
-        <OutboxBanner outbox={outbox} />
+          <OutboxBanner outbox={outbox} />
 
-        {attention.map((item) => (
-          <AttentionCard key={item.id} item={item} outbox={outbox} hideNumbers={hideNumbers} />
-        ))}
+          {attention.map((item) => (
+            <AttentionCard key={item.id} item={item} outbox={outbox} hideNumbers={hideNumbers} />
+          ))}
 
-        {undo ? (
-          <Sheet className="flex-row items-center justify-between gap-3 p-4">
-            <Text className="flex-1 font-sans text-sm text-ink-2" accessibilityLiveRegion="polite">
-              {t`Entry removed. ${undoName}`}
-            </Text>
-            <Button size="sm" variant="outline" onPress={undoDelete}>
-              <Button.Label>{i18n._(DIARY_COPY.undo)}</Button.Label>
-            </Button>
-          </Sheet>
-        ) : null}
-
-        <View className="gap-4">
-          {/* Date and arrows on one row, the day status below at full width: in
-              one column beside the arrows, the date and Mark day complete
-              clipped at large text on a 375 pt phone (#373). */}
-          <View className="flex-row items-center gap-3">
-            <ToneIcon icon={UtensilsCrossed} tone="food" size="sm" />
-            <View className="min-w-0 flex-1" accessibilityRole="header">
-              <NutritionDatePicker
-                value={localDate}
-                onChange={go}
-                label={i18n._(DIARY_COPY.title)}
-                compact
-                accessibilityLabel={t`Choose diary date`}
-              />
-            </View>
-            <Button
-              size="sm"
-              variant="outline"
-              isIconOnly
-              accessibilityLabel={t`Previous`}
-              onPress={() => go(shiftLocalDate(localDate, -1))}
-            >
-              <Icon icon={ChevronLeft} size={18} color="ink-2" />
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              isIconOnly
-              accessibilityLabel={t`Next`}
-              onPress={() => go(shiftLocalDate(localDate, 1))}
-            >
-              <Icon icon={ChevronRight} size={18} color="ink-2" />
-            </Button>
-          </View>
-          <View className="flex-row flex-wrap items-center gap-1.5">
-            <View accessibilityLiveRegion="polite">
-              <StatusPill tone={status === "complete" ? "good" : "neutral"}>
-                {i18n._(statusText.label)}
-                {pendingStatus ? `, ${i18n._(SYNC_STATE_LABELS[pendingStatus.status])}` : ""}
-              </StatusPill>
-            </View>
-            <InfoTip title={i18n._(statusText.label)}>{i18n._(statusText.description)}</InfoTip>
-            <Button size="sm" variant="outline" className="min-h-11" onPress={toggleStatus}>
-              <Icon icon={CircleCheck} size={16} color="ink-2" />
-              <Button.Label>
-                {i18n._(status === "complete" ? DIARY_COPY.clearComplete : DIARY_COPY.markComplete)}
-              </Button.Label>
-            </Button>
-          </View>
-          {day.isPending && !day.data ? (
-            <Sheet className="items-center">
-              <Spinner />
+          {undo ? (
+            <Sheet className="flex-row items-center justify-between gap-3 p-4">
+              <Text
+                className="flex-1 font-sans text-sm text-ink-2"
+                accessibilityLiveRegion="polite"
+              >
+                {t`Entry removed. ${undoName}`}
+              </Text>
+              <Button size="sm" variant="outline" onPress={undoDelete}>
+                <Button.Label>{i18n._(DIARY_COPY.undo)}</Button.Label>
+              </Button>
             </Sheet>
-          ) : day.isError && !day.data ? (
-            <ErrorState
-              title={i18n._(DIARY_COPY.networkError)}
-              action={
-                <Button size="sm" variant="outline" onPress={() => void day.refetch()}>
-                  <Button.Label>{i18n._(DIARY_COPY.retry)}</Button.Label>
-                </Button>
-              }
-            />
           ) : null}
 
-          <NutritionDayTotals
-            totals={summary.totals}
-            sources={summarySources}
-            pending={pendingRows}
-            hideNumbers={hideNumbers}
-            targets={targets.data?.targetsOn.targets ?? []}
-            compact
-          />
-        </View>
+          <View className="gap-4">
+            {/* Date and arrows on one row, the day status below at full width: in
+              one column beside the arrows, the date and Mark day complete
+              clipped at large text on a 375 pt phone (#373). */}
+            <View className="flex-row items-center gap-3">
+              <ToneIcon icon={UtensilsCrossed} tone="food" size="sm" />
+              <View className="min-w-0 flex-1" accessibilityRole="header">
+                <NutritionDatePicker
+                  value={localDate}
+                  onChange={go}
+                  label={i18n._(DIARY_COPY.title)}
+                  compact
+                  accessibilityLabel={t`Choose diary date`}
+                />
+              </View>
+              <Button
+                size="sm"
+                variant="outline"
+                isIconOnly
+                accessibilityLabel={t`Previous`}
+                onPress={() => go(shiftLocalDate(localDate, -1))}
+              >
+                <Icon icon={ChevronLeft} size={18} color="ink-2" />
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                isIconOnly
+                accessibilityLabel={t`Next`}
+                onPress={() => go(shiftLocalDate(localDate, 1))}
+              >
+                <Icon icon={ChevronRight} size={18} color="ink-2" />
+              </Button>
+            </View>
+            <View className="flex-row flex-wrap items-center gap-1.5">
+              <View accessibilityLiveRegion="polite">
+                <StatusPill tone={status === "complete" ? "good" : "neutral"}>
+                  {i18n._(statusText.label)}
+                  {pendingStatus ? `, ${i18n._(SYNC_STATE_LABELS[pendingStatus.status])}` : ""}
+                </StatusPill>
+              </View>
+              <InfoTip title={i18n._(statusText.label)}>{i18n._(statusText.description)}</InfoTip>
+              <Button size="sm" variant="outline" className="min-h-11" onPress={toggleStatus}>
+                <Icon icon={CircleCheck} size={16} color="ink-2" />
+                <Button.Label>
+                  {i18n._(
+                    status === "complete" ? DIARY_COPY.clearComplete : DIARY_COPY.markComplete,
+                  )}
+                </Button.Label>
+              </Button>
+            </View>
+            {day.isPending && !day.data ? (
+              <Sheet className="items-center">
+                <Spinner />
+              </Sheet>
+            ) : day.isError && !day.data ? (
+              <ErrorState
+                title={i18n._(DIARY_COPY.networkError)}
+                action={
+                  <Button size="sm" variant="outline" onPress={() => void day.refetch()}>
+                    <Button.Label>{i18n._(DIARY_COPY.retry)}</Button.Label>
+                  </Button>
+                }
+              />
+            ) : null}
 
-        <View className="gap-2">
-          <SegmentedTabs
-            value={view}
-            onChange={chooseView}
-            tabs={[
-              {
-                value: "meals",
-                icon: Utensils,
-                label: t({ message: "Meals", context: "diary view" }),
-                testID: "diary-view-meals",
-              },
-              {
-                value: "timeline",
-                icon: Clock,
-                label: t({ message: "Timeline", context: "diary view" }),
-                testID: "diary-view-timeline",
-              },
-            ]}
-          />
-          {view === "meals"
-            ? MEAL_SLOTS.map((slot) => {
+            <NutritionDayTotals
+              totals={summary.totals}
+              sources={summarySources}
+              pending={pendingRows}
+              hideNumbers={hideNumbers}
+              targets={targets.data?.targetsOn.targets ?? []}
+              compact
+            />
+          </View>
+
+          <View className="gap-2">
+            <SegmentedTabs
+              value={view}
+              onChange={chooseView}
+              tabs={[
+                {
+                  value: "meals",
+                  icon: Utensils,
+                  label: t({ message: "Meals", context: "diary view" }),
+                  testID: "diary-view-meals",
+                },
+                {
+                  value: "timeline",
+                  icon: Clock,
+                  label: t({ message: "Timeline", context: "diary view" }),
+                  testID: "diary-view-timeline",
+                },
+              ]}
+            />
+            {view === "meals" ? (
+              MEAL_SLOTS.map((slot) => {
                 const rowsInSlot = slotRows(slot);
                 return (
                   <Sheet key={slot} className={rowsInSlot.length ? "gap-1" : "px-3 py-1"}>
@@ -718,57 +724,57 @@ export default function NutritionScreen() {
                   </Sheet>
                 );
               })
-            : (
-                <Timeline
-                  hours={hours}
-                  nowHour={isToday ? nowHour : null}
-                  hideNumbers={hideNumbers}
-                  renderRow={renderRow}
-                  onAddAt={(hour) => openAddFood({ hour })}
-                />
-              )}
+            ) : (
+              <Timeline
+                hours={hours}
+                nowHour={isToday ? nowHour : null}
+                hideNumbers={hideNumbers}
+                renderRow={renderRow}
+                onAddAt={(hour) => openAddFood({ hour })}
+              />
+            )}
 
-          <CopyDay
+            <CopyDay
+              localDate={localDate}
+              timeZone={timeZone}
+              outbox={outbox}
+              hideNumbers={hideNumbers}
+            />
+          </View>
+
+          {/* Below the meals, so the first logged meal fits on a 390 pt screen (#277). */}
+          <TargetsOnDay targets={targets.data?.targetsOn.targets ?? []} hideNumbers={hideNumbers} />
+
+          <View className="flex-row flex-wrap gap-2">
+            <HeaderLink href="/foods" icon={Bookmark} label={i18n._(CUSTOM_FOOD_COPY.manageLink)} />
+            <HeaderLink
+              href="/nutrition-targets"
+              icon={SlidersHorizontal}
+              label={i18n._(TARGET_COPY.settingsLink)}
+            />
+          </View>
+
+          <LoggingStreakCard streak={streak.isSuccess ? streak.data : undefined} />
+
+          <PlainWaterSection
+            key={`${outbox.scope ?? "signed-out"}:${localDate}:${timeZone}`}
             localDate={localDate}
             timeZone={timeZone}
-            outbox={outbox}
             hideNumbers={hideNumbers}
           />
-        </View>
 
-        {/* Below the meals, so the first logged meal fits on a 390 pt screen (#277). */}
-        <TargetsOnDay targets={targets.data?.targetsOn.targets ?? []} hideNumbers={hideNumbers} />
-
-        <View className="flex-row flex-wrap gap-2">
-          <HeaderLink href="/foods" icon={Bookmark} label={i18n._(CUSTOM_FOOD_COPY.manageLink)} />
-          <HeaderLink
-            href="/nutrition-targets"
-            icon={SlidersHorizontal}
-            label={i18n._(TARGET_COPY.settingsLink)}
-          />
-        </View>
-
-        <LoggingStreakCard streak={streak.isSuccess ? streak.data : undefined} />
-
-        <PlainWaterSection
-          key={`${outbox.scope ?? "signed-out"}:${localDate}:${timeZone}`}
-          localDate={localDate}
-          timeZone={timeZone}
-          hideNumbers={hideNumbers}
-        />
-
-        <Pressable
-          onPress={clearDeviceData}
-          accessibilityRole="button"
-          className="min-h-11 flex-row items-center gap-2 self-start rounded-full px-1 active:opacity-70"
-        >
-          <Icon icon={Trash2} size={16} color="ink-3" />
-          <Text className="font-sans text-sm text-ink-3 underline">
-            {i18n._(DIARY_COPY.clearCache)}
-          </Text>
-        </Pressable>
-      </Page>
-    </Container>
+          <Pressable
+            onPress={clearDeviceData}
+            accessibilityRole="button"
+            className="min-h-11 flex-row items-center gap-2 self-start rounded-full px-1 active:opacity-70"
+          >
+            <Icon icon={Trash2} size={16} color="ink-3" />
+            <Text className="font-sans text-sm text-ink-3 underline">
+              {i18n._(DIARY_COPY.clearCache)}
+            </Text>
+          </Pressable>
+        </Page>
+      </Container>
       <DiarySearchBar
         label={
           view === "timeline"

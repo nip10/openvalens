@@ -142,9 +142,7 @@ describe("timeline", () => {
   test("an hour's time is that wall-clock hour in the zone, across daylight saving", () => {
     expect(consumedAtForHour("2026-11-06", 8, "Europe/Lisbon")).toBe("2026-11-06T08:00:00.000Z");
     expect(consumedAtForHour("2026-07-06", 8, "Europe/Lisbon")).toBe("2026-07-06T07:00:00.000Z");
-    expect(consumedAtForHour("2026-11-06", 8, "America/New_York")).toBe(
-      "2026-11-06T13:00:00.000Z",
-    );
+    expect(consumedAtForHour("2026-11-06", 8, "America/New_York")).toBe("2026-11-06T13:00:00.000Z");
     const at = consumedAtForHour("2026-03-29", 13, "Europe/Lisbon");
     expect(localHour(at, "Europe/Lisbon")).toBe(13);
   });

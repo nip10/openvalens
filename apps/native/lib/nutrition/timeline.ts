@@ -147,9 +147,7 @@ export function groupByHour(rows: readonly DiaryRow[], timeZone: string): Timeli
     const instant = rowInstant(row);
     return { row, instant, at: Date.parse(instant) || 0 };
   });
-  timed.sort(
-    (a, b) => a.at - b.at || (a.row.key < b.row.key ? -1 : a.row.key > b.row.key ? 1 : 0),
-  );
+  timed.sort((a, b) => a.at - b.at || (a.row.key < b.row.key ? -1 : a.row.key > b.row.key ? 1 : 0));
   const byHour = new Map<number, DiaryRow[]>();
   for (const { row, instant } of timed) {
     const hour = localHour(instant, timeZone);
