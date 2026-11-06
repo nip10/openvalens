@@ -77,6 +77,7 @@ function entry(id: number, revision: number, extra: Partial<DiaryEntry> = {}): D
     unit: "g",
     method: "manual",
     clientMutationId: null,
+    consumedAt: null,
     revision,
     deleted: false,
     createdAt: "2026-10-12T12:00:00.000Z",

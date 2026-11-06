@@ -50,14 +50,14 @@ export const HIDDEN_VALUE: MessageDescriptor = msg`Hidden`;
  * food's values uses this, so none can show a number the mode hides (#88).
  */
 export function formatNutrientSummaryLine(
-  values: Pick<NutrientValues, (typeof SUMMARY_NUTRIENTS)[number]>,
+  values: Partial<Pick<NutrientValues, (typeof SUMMARY_NUTRIENTS)[number]>>,
   hideNumbers: boolean,
   i18n: I18n,
 ): string {
   if (hideNumbers) return i18n._(HIDDEN_VALUE);
   return SUMMARY_NUTRIENTS.map((key) => {
     const label = i18n._(NUTRIENT_LABELS[key].label);
-    const value = formatNutrientValue(key, values[key], i18n);
+    const value = formatNutrientValue(key, values[key] ?? null, i18n);
     return i18n._(msg`${label} ${value}`);
   }).join(", ");
 }

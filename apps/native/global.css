@@ -79,6 +79,9 @@
   --color-water-soft: var(--tone-water-soft);
   --color-food: var(--tone-food);
   --color-food-soft: var(--tone-food-soft);
+  --color-protein: var(--nutrient-protein);
+  --color-carbs: var(--nutrient-carbs);
+  --color-fat: var(--nutrient-fat);
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
   --color-warning: var(--warning);
@@ -115,6 +118,9 @@
       --tone-water-soft: #e1f0f6;
       --tone-food: #b9821c;
       --tone-food-soft: #faefd6;
+      --nutrient-protein: #1f5fa8;
+      --nutrient-carbs: #8f5300;
+      --nutrient-fat: #7a3e9d;
       --background: #fbf1ea;
       --foreground: #2e211c;
       --card: #fffbf8;
@@ -179,6 +185,9 @@
       --tone-water-soft: #1f3540;
       --tone-food: #e8b65a;
       --tone-food-soft: #43341a;
+      --nutrient-protein: #8fb8e8;
+      --nutrient-carbs: #e8b46a;
+      --nutrient-fat: #d0a2ec;
       --background: #1d1613;
       --foreground: #f6ebe4;
       --card: #2a201c;

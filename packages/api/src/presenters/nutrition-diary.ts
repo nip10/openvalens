@@ -118,6 +118,34 @@ function round(value: number, unit: string): string {
   return value.toLocaleString("en-US", { maximumFractionDigits: digits });
 }
 
+/** The macros a diary row shows beside energy, in display order (#393). */
+export const ROW_MACRO_KEYS = ["proteinG", "carbohydrateG", "fatG"] as const;
+export type RowMacroKey = (typeof ROW_MACRO_KEYS)[number];
+
+/**
+ * The one letter each macro keeps beside its grams and its identity colour
+ * (#393), so colour is never the only cue.
+ */
+export const MACRO_LETTERS: Readonly<Record<RowMacroKey, MessageDescriptor>> = Object.freeze({
+  proteinG: msg({ message: "P", context: "protein letter", comment: "Protein, one letter" }),
+  carbohydrateG: msg({
+    message: "C",
+    context: "carbohydrate letter",
+    comment: "Carbohydrate, one letter",
+  }),
+  fatG: msg({ message: "F", context: "fat letter", comment: "Fat, one letter" }),
+});
+
+/**
+ * A compact figure for a diary row: `"1,240 kcal"` for energy, whole grams
+ * without the unit for the macros (`"12"`), and `"–"` when unknown.
+ */
+export function compactNutrientFigure(key: NutrientKey, value: number | null): string {
+  if (value === null || !Number.isFinite(value)) return "–";
+  const rounded = Math.round(value).toLocaleString("en-US");
+  return key === "energyKcal" ? `${rounded} kcal` : rounded;
+}
+
 /** `"412 kcal"` or `"Unknown"`. */
 export function formatNutrientValue(key: NutrientKey, value: number | null, i18n: I18n): string {
   if (value === null) return i18n._(msg`Unknown`);

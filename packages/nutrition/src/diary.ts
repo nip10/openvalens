@@ -104,6 +104,8 @@ export type UpdateEntryInput = EntryChangeInput & {
   slot?: MealSlot;
   localDate?: string;
   timeZone?: string;
+  /** A new eaten-at time (#393); `null` clears it, omitted keeps it. */
+  consumedAt?: Date | null;
 };
 
 export type CopyDayInput = {
@@ -413,6 +415,7 @@ export function createNutritionDiary(db: Database, options: NutritionDiaryOption
             timeZone: input.timeZone ?? current.timeZone,
             nutrientFactor,
             mealId,
+            ...(input.consumedAt !== undefined ? { consumedAt: input.consumedAt } : {}),
             ...bump(),
           })
           .where(ownEntry(scope, current.id));

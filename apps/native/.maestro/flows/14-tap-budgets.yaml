@@ -1,5 +1,5 @@
 # 14. The tap budgets from the fast-logging epic (#271), counted from a fresh
-# launch: a recent food in 3 taps or fewer, a new food (search, pick, amount,
+# launch: a recent food in 3 taps or fewer (from the diary's search bar), a new food (search, pick, amount,
 # save) in 5 taps or fewer plus typing. Every user tap is a numbered `tapOn`;
 # waits and asserts are not taps. Runs after 05, so Baked salmon is a recent
 # breakfast food; the food database search finds the e2e catalog fixture.
@@ -19,17 +19,25 @@ tags: [logging]
       id: tab-nutrition
     timeout: 20000
 
-# Recent food from the diary's "usual" row: 2 taps.
+# Recent food from the diary's search bar (#393): 3 taps. Recents and
+# favourites are the search sheet's first list.
 - tapOn:
     id: tab-nutrition # tap 1
 - extendedWaitUntil:
-    visible: "Add usual: Baked salmon"
+    visible:
+      id: diary-search-bar
     timeout: 20000
-- tapOn: "Add usual: Baked salmon" # tap 2
+- tapOn:
+    id: diary-search-bar # tap 2
+- extendedWaitUntil:
+    visible: "Add Baked salmon to .*"
+    timeout: 15000
+- tapOn: "Add Baked salmon to .*" # tap 3
 - extendedWaitUntil:
     visible: "Undo"
     timeout: 10000
 - takeScreenshot: 14-recent-food-logged
+- runFlow: ../subflows/close-add-food.yaml
 
 # Recent food from Add food: 3 taps.
 - runFlow: ../subflows/fresh-start.yaml
@@ -88,6 +96,7 @@ tags: [logging]
 - extendedWaitUntil:
     visible: "Add food to Breakfast"
     timeout: 15000
-# The first logged entry is on screen without scrolling (#277).
-- assertVisible: "Edit .*"
+# The first logged entry is on screen without scrolling (#277): one line per
+# food, read out as its name, amount and nutrients (#393).
+- assertVisible: "E2E banana, .*"
 - takeScreenshot: 14-new-food-logged

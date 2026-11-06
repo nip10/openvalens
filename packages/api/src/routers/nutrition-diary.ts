@@ -92,6 +92,7 @@ export function toWireEntry(entry: DomainEntry): DiaryEntry {
     clientMutationId: entry.clientMutationId,
     revision: entry.revision,
     deleted: entry.deletedAt !== null,
+    consumedAt: entry.consumedAt?.toISOString() ?? null,
     createdAt: entry.createdAt.toISOString(),
     updatedAt: entry.updatedAt.toISOString(),
     food: {
@@ -201,6 +202,7 @@ export const nutritionDiaryRouter = {
         const result = await diaryFor(context).logEntry(scopeOf(context), {
           ...input,
           food: toDomainFood(input.food),
+          consumedAt: input.consumedAt ? new Date(input.consumedAt) : null,
         });
         return {
           entry: toWireEntry(result.entry),
@@ -216,7 +218,19 @@ export const nutritionDiaryRouter = {
     .input(updateEntryInput)
     .output(entryOutcome)
     .handler(({ input, context }) =>
-      run(async () => toWireOutcome(await diaryFor(context).updateEntry(scopeOf(context), input))),
+      run(async () =>
+        toWireOutcome(
+          await diaryFor(context).updateEntry(scopeOf(context), {
+            ...input,
+            consumedAt:
+              input.consumedAt === undefined
+                ? undefined
+                : input.consumedAt === null
+                  ? null
+                  : new Date(input.consumedAt),
+          }),
+        ),
+      ),
     ),
 
   /** Soft delete (undo with `restoreEntry`). */
