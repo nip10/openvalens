@@ -86,6 +86,7 @@ import { useOfflineScope } from "@/lib/offline/sync";
 import { orpc } from "@/utils/orpc";
 import { useThemeColor } from "@/utils/theme";
 import { EnergyEstimateCard } from "@/components/energy-estimate-card";
+import { MacroPresetCard } from "@/components/macro-preset-card";
 import { ModuleHiddenNote } from "@/components/module-hidden-note";
 
 /**
@@ -272,6 +273,15 @@ export default function NutritionTargetsScreen() {
               energyOff={data.safety.energyTargets === "off"}
               onChanged={() => void refresh()}
             />
+
+            {data.safety.energyTargets !== "off" && !hideNumbers ? (
+              <MacroPresetCard
+                targets={data.targets}
+                proteinReference={data.proteinReference}
+                proteinCapped={data.safety.proteinCapped}
+                onSaved={() => void refresh()}
+              />
+            ) : null}
 
             <EnergyEstimateCard
               scope={scope}

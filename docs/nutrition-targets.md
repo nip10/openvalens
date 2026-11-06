@@ -60,6 +60,18 @@ collaborative (D2 in #390): there is no mode that changes a target on its own.
 - Accepting goes through `acceptProposal`, which re-checks the floors,
   caps, step, exclusions and soft-gate confirmation.
 
+## Macro presets (#399)
+
+Balanced, Lower carb and Lower fat work out protein, carbohydrate and fat
+targets from the member's energy target (midpoint of a range) and recent
+trend weight. Fat takes 30 / 40 / 20 % of energy; protein is chosen in g per
+kg, only from the member's protein reference (0.8 g/kg by default, 1.2–1.6
+with the active opt-in, at least 1.0 at 65+, at most 0.8 with a kidney
+declaration); carbohydrate takes the rest, and a split that leaves under
+50 g is refused. It is a proposal: nothing is saved until the member saves
+the targets, which are then "entered by you". Off while energy targets are
+off and in hide-numbers mode. An uneven weekly split is not offered.
+
 ## Hide-numbers mode
 
 A per-member setting (`nutrition_target_settings.hide_numbers`). When on, web

@@ -1015,6 +1015,10 @@ msgstr "{syncing, plural, one {# syncing} other {# syncing}}"
 msgid "{text}"
 msgstr "{text}"
 
+#: packages/api/src/presenters/macro-presets.ts
+msgid "{text} g per kg"
+msgstr "{text} g per kg"
+
 #. placeholder {0}: friendlyDate(i18n, workout.date)
 #: apps/native/components/training-home.tsx
 msgid "{title}, {0}. View workout details"
@@ -1269,6 +1273,10 @@ msgstr "A photo can be misread. Check each item, fix or remove anything wrong, t
 #: packages/api/src/presenters/micronutrients.ts
 msgid "A PRI or RDA covers the needs of nearly all people in the group; your own needs may be lower. An adequate intake (AI) is used when there is too little evidence for that; it is not a cutoff for deficiency. An upper level is not a goal."
 msgstr "A PRI or RDA covers the needs of nearly all people in the group; your own needs may be lower. An adequate intake (AI) is used when there is too little evidence for that; it is not a cutoff for deficiency. An upper level is not a goal."
+
+#: packages/api/src/presenters/macro-presets.ts
+msgid "A recent weight is needed to work out protein."
+msgstr "A recent weight is needed to work out protein."
 
 #: packages/api/src/presenters/recipe-draft.ts
 msgid "A Recipe entry contains unsupported or oversized ingredient data."
@@ -2140,6 +2148,11 @@ msgstr "Assertiveness ({0})"
 msgid "At least"
 msgstr "At least"
 
+#. placeholder {0}: grams[key]
+#: apps/native/components/macro-preset-card.tsx
+msgid "at least {0} g"
+msgstr "at least {0} g"
+
 #. placeholder {0}: comparator.value
 #: apps/native/app/(drawer)/goals.tsx
 #: apps/web/src/routes/_auth/goals.index.tsx
@@ -2322,6 +2335,11 @@ msgid "Backups healthy"
 msgstr "Backups healthy"
 
 #: packages/api/src/presenters/coach-settings.ts
+msgid "Balanced"
+msgstr "Balanced"
+
+#: packages/api/src/presenters/macro-presets.ts
+msgctxt "macro preset"
 msgid "Balanced"
 msgstr "Balanced"
 
@@ -6851,6 +6869,10 @@ msgstr "High sleep debt"
 msgid "Higher by more than {strong}"
 msgstr "Higher by more than {strong}"
 
+#: packages/api/src/presenters/macro-presets.ts
+msgid "Higher protein options appear when you turn on the active reference."
+msgstr "Higher protein options appear when you turn on the active reference."
+
 #: apps/web/src/components/admin-ai-usage.tsx
 msgid "Highest usage this month"
 msgstr "Highest usage this month"
@@ -8267,6 +8289,16 @@ msgstr "Lower back"
 msgid "Lower by more than {strong}"
 msgstr "Lower by more than {strong}"
 
+#: packages/api/src/presenters/macro-presets.ts
+msgctxt "macro preset"
+msgid "Lower carb"
+msgstr "Lower carb"
+
+#: packages/api/src/presenters/macro-presets.ts
+msgctxt "macro preset"
+msgid "Lower fat"
+msgstr "Lower fat"
+
 #. safety
 #: packages/api/src/presenters/nutrition-diary.ts
 #: packages/api/src/presenters/supplements.ts
@@ -8277,6 +8309,14 @@ msgstr "Lunch"
 #: packages/api/src/presenters/manual-entry.ts
 msgid "m"
 msgstr "m"
+
+#: packages/api/src/presenters/macro-presets.ts
+msgid "Macro targets from a style"
+msgstr "Macro targets from a style"
+
+#: packages/api/src/presenters/macro-presets.ts
+msgid "Macro targets saved."
+msgstr "Macro targets saved."
 
 #: packages/api/src/presenters/micronutrients.ts
 msgid "Magnesium"
@@ -11185,9 +11225,18 @@ msgstr "Proposed target for next week"
 msgid "Protein"
 msgstr "Protein"
 
+#: packages/api/src/presenters/macro-presets.ts
+msgid "Protein per kg of body weight"
+msgstr "Protein per kg of body weight"
+
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Protein reference"
 msgstr "Protein reference"
+
+#. safety
+#: packages/api/src/presenters/macro-presets.ts
+msgid "Protein stays at 0.8 g per kg or less because of your chronic kidney disease answer."
+msgstr "Protein stays at 0.8 g per kg or less because of your chronic kidney disease answer."
 
 #: apps/web/src/components/admin-ai-usage.tsx
 msgid "Provider calls"
@@ -12395,6 +12444,10 @@ msgstr "Save routine"
 msgid "Save target"
 msgstr "Save target"
 
+#: packages/api/src/presenters/macro-presets.ts
+msgid "Save these targets"
+msgstr "Save these targets"
+
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 #: apps/web/src/routes/_auth/nutrition.tsx
 msgid "Save to {slotLabel}"
@@ -12921,6 +12974,10 @@ msgstr "Set a goal"
 #: apps/web/src/routes/_auth/nutrition-targets.tsx
 msgid "Set a target"
 msgstr "Set a target"
+
+#: packages/api/src/presenters/macro-presets.ts
+msgid "Set an energy target first."
+msgstr "Set an energy target first."
 
 #: apps/web/src/components/workout-session-editor.tsx
 msgid "Set notes"
@@ -14460,6 +14517,10 @@ msgstr "There is no previous session to compare, so the prescription stays the s
 #: packages/api/src/presenters/score.ts
 msgid "There is not enough recent data to compare with your usual pattern, so no number is shown."
 msgstr "There is not enough recent data to compare with your usual pattern, so no number is shown."
+
+#: packages/api/src/presenters/macro-presets.ts
+msgid "These choices don't fit inside your energy target. Try a lower protein or another style."
+msgstr "These choices don't fit inside your energy target. Try a lower protein or another style."
 
 #. safety
 #: packages/api/src/presenters/insights.ts
@@ -16120,6 +16181,10 @@ msgstr "Workout type"
 #: packages/api/src/presenters/clinical-export.ts
 msgid "Workouts"
 msgstr "Workouts"
+
+#: packages/api/src/presenters/macro-presets.ts
+msgid "Works out protein, carbohydrate and fat targets from your energy target and recent weight. Nothing changes until you save them."
+msgstr "Works out protein, carbohydrate and fat targets from your energy target and recent weight. Nothing changes until you save them."
 
 #: apps/native/app/(drawer)/invitations.tsx
 msgid "Workspace"
