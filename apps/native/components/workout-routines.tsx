@@ -301,9 +301,14 @@ export function SaveWorkoutAsRoutine({
 export function WorkoutRoutines({
   startNew = false,
   onStarted,
+  addExercise,
+  onAddDone,
 }: {
   startNew?: boolean;
   onStarted?: () => void;
+  /** "Add to routine" from an exercise page (#404): pick a routine (or New) to add it to. */
+  addExercise?: { id: number; name: string } | null;
+  onAddDone?: () => void;
 }) {
   const { t } = useLingui();
   const scope = useOfflineScope();
@@ -330,9 +335,11 @@ export function WorkoutRoutines({
   const ink = useThemeColor("ink");
   const foreground = useThemeColor("foreground");
   const signalInk = useThemeColor("signal-ink");
-  const [editor, setEditor] = useState<{ routine: Routine | null; seed: number } | null>(
-    startNew ? { routine: null, seed: 0 } : null,
-  );
+  const [editor, setEditor] = useState<{
+    routine: Routine | null;
+    seed: number;
+    append?: { id: number; name: string };
+  } | null>(startNew ? { routine: null, seed: 0 } : null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const pendingSave = useRef<{ fingerprint: string; input: any } | null>(null);
@@ -375,8 +382,10 @@ export function WorkoutRoutines({
       if (editing) await client.plans.routines.updateRoutine(input);
       else await client.plans.routines.createRoutine(input);
       pendingSave.current = null;
+      const appended = Boolean(editor?.append);
       setEditor(null);
       await list.refetch();
+      if (appended) onAddDone?.();
     } catch {
       setError(t`Routine wasn’t saved. Your edits are still here; retry or refresh.`);
     } finally {
@@ -473,7 +482,13 @@ export function WorkoutRoutines({
           testID="routines-new"
           accessibilityRole="button"
           accessibilityLabel={t`New routine`}
-          onPress={() => setEditor({ routine: null, seed: Date.now() })}
+          onPress={() =>
+            setEditor({
+              routine: null,
+              seed: Date.now(),
+              ...(addExercise ? { append: addExercise } : {}),
+            })
+          }
           className="min-h-11 flex-row items-center gap-1 rounded-full bg-signal px-4"
         >
           <Plus size={16} color={signalInk} />
@@ -482,6 +497,22 @@ export function WorkoutRoutines({
           </Text>
         </Pressable>
       </View>
+      {addExercise ? (
+        <View className="sheet flex-row items-center gap-3 p-4">
+          <Text className="flex-1 font-sans text-sm text-ink">
+            {t`Choose a routine to add ${addExercise.name} to, or make a new one.`}
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => onAddDone?.()}
+            className="min-h-11 justify-center px-2"
+          >
+            <Text className="font-sans text-sm font-semibold text-ink-2">
+              <Trans>Cancel</Trans>
+            </Text>
+          </Pressable>
+        </View>
+      ) : null}
       {list.isLoading ? (
         <Text className="font-sans text-sm text-ink-3">{t`Loading routines…`}</Text>
       ) : null}
@@ -519,19 +550,33 @@ export function WorkoutRoutines({
                   {r.exercises.length > 0 ? ` · ${r.exercises.map((e) => e.name).join(", ")}` : ""}
                 </Text>
               </View>
-              <Pressable
-                testID={`routines-start-${index + 1}`}
-                accessibilityRole="button"
-                accessibilityLabel={t`Start ${r.name}`}
-                accessibilityState={{ busy: busy === r.id, disabled: busy !== null }}
-                disabled={busy !== null}
-                onPress={() => start(r)}
-                className="min-h-11 justify-center rounded-full border border-rule-2 px-3.5"
-              >
-                <Text className="font-sans text-sm font-semibold text-signal">
-                  {busy === r.id ? t`Preparing…` : t`Start`}
-                </Text>
-              </Pressable>
+              {addExercise ? (
+                <Pressable
+                  testID={`routines-add-${index + 1}`}
+                  accessibilityRole="button"
+                  accessibilityLabel={t`Add ${addExercise.name} to ${r.name}`}
+                  onPress={() => setEditor({ routine: r, seed: Date.now(), append: addExercise })}
+                  className="min-h-11 justify-center rounded-full border border-rule-2 px-3.5"
+                >
+                  <Text className="font-sans text-sm font-semibold text-signal">
+                    <Trans>Add here</Trans>
+                  </Text>
+                </Pressable>
+              ) : (
+                <Pressable
+                  testID={`routines-start-${index + 1}`}
+                  accessibilityRole="button"
+                  accessibilityLabel={t`Start ${r.name}`}
+                  accessibilityState={{ busy: busy === r.id, disabled: busy !== null }}
+                  disabled={busy !== null}
+                  onPress={() => start(r)}
+                  className="min-h-11 justify-center rounded-full border border-rule-2 px-3.5"
+                >
+                  <Text className="font-sans text-sm font-semibold text-signal">
+                    {busy === r.id ? t`Preparing…` : t`Start`}
+                  </Text>
+                </Pressable>
+              )}
               <Pressable
                 testID={`routines-menu-${index + 1}`}
                 accessibilityRole="button"
@@ -551,7 +596,24 @@ export function WorkoutRoutines({
           visible
           title={editor.routine ? t`Edit routine` : t`New routine`}
           initialName={editor.routine?.name ?? ""}
-          initialExercises={(editor.routine?.exercises ?? []).map((e) => ({ ...e }))}
+          initialExercises={[
+            ...(editor.routine?.exercises ?? []).map((e) => ({ ...e })),
+            ...(editor.append
+              ? [
+                  {
+                    key: uuid(),
+                    exerciseId: editor.append.id,
+                    name: editor.append.name,
+                    targetSets: 3,
+                    repsMin: 8,
+                    repsMax: 12,
+                    targetWeightKg: null,
+                    restSeconds: 90,
+                    progression: { kind: "none" as const },
+                  },
+                ]
+              : []),
+          ]}
           units={units}
           saving={saving}
           error={error}

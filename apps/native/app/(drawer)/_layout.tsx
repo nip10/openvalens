@@ -299,7 +299,9 @@ function DrawerLayout() {
     ? "/coach"
     : pathname.startsWith("/goals/")
       ? "/goals"
-      : pathname;
+      : pathname.startsWith("/exercise/")
+        ? "/exercise-library"
+        : pathname;
   const headerTitle = _(HEADER_TITLES[titleKey] ?? msg`Cockpit`);
 
   return (
@@ -473,6 +475,10 @@ function DrawerLayout() {
         />
         <Drawer.Screen
           name="exercise-library"
+          options={{ headerTitle, drawerItemStyle: { display: "none" } }}
+        />
+        <Drawer.Screen
+          name="exercise/[exerciseId]"
           options={{ headerTitle, drawerItemStyle: { display: "none" } }}
         />
         <Drawer.Screen
