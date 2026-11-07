@@ -1,5 +1,6 @@
 import type { Database } from "@openvalens/db";
-import { exerciseMuscle } from "@openvalens/db/schema/exercises";
+import { and, eq, inArray, isNull } from "drizzle-orm";
+import { exercise, exerciseMuscle } from "@openvalens/db/schema/exercises";
 
 import type { DemoApi, DemoActor } from "./api";
 import type { DemoCalendar } from "./dates";
@@ -7,13 +8,16 @@ import { demoUuid } from "./ids";
 import { round, type Random } from "./random";
 
 /**
- * Strength training for the demo person (Issue #301): custom exercises, two
+ * Strength training for the demo person (Issue #301): catalog exercises from
+ * the licensed sample (#400; workspace exercises when missing), two
  * routines and twice-weekly sessions with progressing sets, all through the
  * workout logger's procedures. Cardio comes from the watch (`device.ts`).
  */
 
 type Lift = {
   name: string;
+  /** The wger id of the matching catalog exercise (in the committed sample, #400). */
+  catalogId: string;
   muscles: { name: string; role: "primary" | "secondary" }[];
   /** Working weight on day one and the weekly increase, in kg. */
   startKg: number;
@@ -24,6 +28,7 @@ type Lift = {
 const DAY_A: Lift[] = [
   {
     name: "Back squat",
+    catalogId: "615",
     muscles: [
       { name: "quadriceps", role: "primary" },
       { name: "gluteus maximus", role: "secondary" },
@@ -34,6 +39,7 @@ const DAY_A: Lift[] = [
   },
   {
     name: "Bench press",
+    catalogId: "73",
     muscles: [
       { name: "chest", role: "primary" },
       { name: "triceps", role: "secondary" },
@@ -45,6 +51,7 @@ const DAY_A: Lift[] = [
   },
   {
     name: "Seated cable row",
+    catalogId: "1117",
     muscles: [
       { name: "latissimus dorsi", role: "primary" },
       { name: "biceps", role: "secondary" },
@@ -58,6 +65,7 @@ const DAY_A: Lift[] = [
 const DAY_B: Lift[] = [
   {
     name: "Romanian deadlift",
+    catalogId: "507",
     muscles: [
       { name: "hamstrings", role: "primary" },
       { name: "gluteus maximus", role: "primary" },
@@ -69,6 +77,7 @@ const DAY_B: Lift[] = [
   },
   {
     name: "Overhead press",
+    catalogId: "687",
     muscles: [
       { name: "shoulders", role: "primary" },
       { name: "triceps", role: "secondary" },
@@ -79,6 +88,7 @@ const DAY_B: Lift[] = [
   },
   {
     name: "Lat pulldown",
+    catalogId: "355",
     muscles: [
       { name: "latissimus dorsi", role: "primary" },
       { name: "biceps", role: "secondary" },
@@ -89,6 +99,7 @@ const DAY_B: Lift[] = [
   },
   {
     name: "Standing calf raise",
+    catalogId: "622",
     muscles: [{ name: "calves", role: "primary" }],
     startKg: 40,
     weeklyKg: 1.25,
@@ -108,26 +119,53 @@ export async function seedStrengthTraining(
 ): Promise<void> {
   const scope = `${actor.userId}:${actor.organizationId}`;
   const ids = new Map<string, number>();
-  for (const lift of [...DAY_A, ...DAY_B]) {
+  // Catalog exercises (#400 sample, or a real instance's catalog) carry their
+  // images, muscles and attribution, so demo workouts and screenshots show
+  // them. A lift whose catalog row is missing falls back to a workspace
+  // exercise, as before.
+  const lifts = [...DAY_A, ...DAY_B];
+  const catalog = await db
+    .select({ id: exercise.id, externalId: exercise.externalId })
+    .from(exercise)
+    .where(
+      and(
+        eq(exercise.source, "wger"),
+        isNull(exercise.organizationId),
+        inArray(
+          exercise.externalId,
+          lifts.map((lift) => lift.catalogId),
+        ),
+      ),
+    );
+  const byExternalId = new Map(catalog.map((row) => [row.externalId, row.id]));
+  const custom: Lift[] = [];
+  for (const lift of lifts) {
+    const catalogExerciseId = byExternalId.get(lift.catalogId);
+    if (catalogExerciseId) {
+      ids.set(lift.name, catalogExerciseId);
+      continue;
+    }
     const created = await api.call<{ id: number }>(
       "exerciseCatalog/createCustom",
       { name: lift.name, language: "en" },
       actor,
     );
     ids.set(lift.name, created.id);
+    custom.push(lift);
   }
   // Custom exercises have no muscle data in the app; the wger catalog does.
   // Add the same rows the catalog import writes, so the body map can show
   // which muscles were trained.
-  await db.insert(exerciseMuscle).values(
-    [...DAY_A, ...DAY_B].flatMap((lift) =>
-      lift.muscles.map((muscle) => ({
-        exerciseId: ids.get(lift.name)!,
-        name: muscle.name,
-        role: muscle.role,
-      })),
-    ),
-  );
+  if (custom.length > 0)
+    await db.insert(exerciseMuscle).values(
+      custom.flatMap((lift) =>
+        lift.muscles.map((muscle) => ({
+          exerciseId: ids.get(lift.name)!,
+          name: muscle.name,
+          role: muscle.role,
+        })),
+      ),
+    );
 
   const routines = new Map<Lift[], number>();
   for (const [index, [name, lifts]] of (

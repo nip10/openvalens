@@ -57,3 +57,18 @@ export function rowChips(item: {
   const equipment = item.equipment.map((e) => e.name).filter((n) => !/^none\b/i.test(n));
   return [...new Set([...muscles, ...equipment.slice(0, 1)])];
 }
+
+/**
+ * A language-independent test id for an exercise in a picker: catalog
+ * exercises use their stable wger id (`exercise-pick-wger-73`), so e2e
+ * flows work in en and pt-PT; workspace exercises use their row id.
+ */
+export function exercisePickTestId(item: {
+  id: number;
+  source?: string | null;
+  sourceRecordUrl?: string | null;
+}): string {
+  const wger =
+    item.source === "wger" ? /\/exerciseinfo\/(\d+)\/?$/.exec(item.sourceRecordUrl ?? "") : null;
+  return wger ? `exercise-pick-wger-${wger[1]}` : `exercise-pick-${item.id}`;
+}
