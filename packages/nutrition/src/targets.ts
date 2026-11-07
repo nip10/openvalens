@@ -11,6 +11,12 @@ import { and, eq } from "drizzle-orm";
 import { CHECK_IN_DAYS, type CheckInDay } from "./check-in";
 import { NutritionError } from "./errors";
 import {
+  MACRO_PRESET_KEYS,
+  PROTEIN_G_PER_KG_CHOICES,
+  type MacroPresetKey,
+  type ProteinGPerKg,
+} from "./macro-preset-keys";
+import {
   ENERGY_DIRECTIONS,
   ENERGY_RATE_PERCENTS,
   NUTRITION_DECLARATIONS,
@@ -40,6 +46,10 @@ export type NutritionTargetSettings = {
   checkInDay: CheckInDay | null;
   /** Local date of the last finished check-in (accepted or kept), or `null`. */
   lastCheckInOn: string | null;
+  /** The preset the check-in uses to propose P/C/F with energy; `null` = energy only. */
+  macroPreset: MacroPresetKey | null;
+  /** Protein per kg for that preset; narrowed to the protein reference when used. */
+  proteinGPerKg: ProteinGPerKg | null;
   activeProtein: boolean;
   /** Opt-in to the logging streak (Issue #90). */
   streaksEnabled: boolean;
@@ -66,6 +76,8 @@ export const DEFAULT_TARGET_SETTINGS: Readonly<NutritionTargetSettings> = Object
   energyRatePercent: null,
   checkInDay: null,
   lastCheckInOn: null,
+  macroPreset: null,
+  proteinGPerKg: null,
   activeProtein: false,
   streaksEnabled: false,
   recipeImportEnabled: false,
@@ -105,6 +117,12 @@ function toSettings(row: typeof nutritionTargetSettings.$inferSelect): Nutrition
       ? (row.checkInDay as CheckInDay)
       : null,
     lastCheckInOn: row.lastCheckInOn,
+    macroPreset: MACRO_PRESET_KEYS.includes(row.macroPreset as MacroPresetKey)
+      ? (row.macroPreset as MacroPresetKey)
+      : null,
+    proteinGPerKg: PROTEIN_G_PER_KG_CHOICES.includes(row.proteinGPerKg as ProteinGPerKg)
+      ? (row.proteinGPerKg as ProteinGPerKg)
+      : null,
     activeProtein: row.activeProtein,
     streaksEnabled: row.streaksEnabled,
     recipeImportEnabled: row.recipeImportEnabled,
@@ -173,6 +191,8 @@ export async function updateNutritionTargetSettingsInTransaction(
     energyRatePercent: next.energyRatePercent,
     checkInDay: next.checkInDay,
     lastCheckInOn: next.lastCheckInOn,
+    macroPreset: next.macroPreset,
+    proteinGPerKg: next.proteinGPerKg,
     activeProtein: next.activeProtein,
     streaksEnabled: next.streaksEnabled,
     recipeImportEnabled: next.recipeImportEnabled,
@@ -219,6 +239,18 @@ function validate(patch: TargetSettingsPatch): void {
     !/^\d{4}-\d{2}-\d{2}$/.test(patch.lastCheckInOn)
   )
     throw new NutritionError("INVALID_INPUT", "Use YYYY-MM-DD");
+  if (
+    patch.macroPreset !== undefined &&
+    patch.macroPreset !== null &&
+    !MACRO_PRESET_KEYS.includes(patch.macroPreset)
+  )
+    throw new NutritionError("INVALID_INPUT", "Unknown macro preset");
+  if (
+    patch.proteinGPerKg !== undefined &&
+    patch.proteinGPerKg !== null &&
+    !PROTEIN_G_PER_KG_CHOICES.includes(patch.proteinGPerKg)
+  )
+    throw new NutritionError("INVALID_INPUT", "Unknown protein per kg");
   if (
     patch.heightCm !== undefined &&
     patch.heightCm !== null &&

@@ -95,3 +95,41 @@ export function formatGPerKg(value: number, i18n: I18n): string {
   const text = value.toLocaleString("en-US", { maximumFractionDigits: 1 });
   return i18n._(msg`${text} g per kg`);
 }
+
+/**
+ * The P/C/F the weekly check-in proposes with its energy proposal (#390
+ * follow-up), from the member's stored preset and protein per kg. `null`
+ * when no preset is stored: the check-in then proposes energy only. The
+ * stored g/kg is narrowed to the member's current protein reference (the
+ * nearest offered value), so a reference that changed since, such as a new
+ * kidney declaration, always wins.
+ */
+export function checkInMacros(input: {
+  preset: MacroPreset | null;
+  proteinGPerKg: number | null;
+  reference: { minGPerKg: number; maxGPerKg: number } | null;
+  energyKcal: number | null;
+  weightKg: number | null;
+}): (PresetTargets & { proteinGPerKg: number | null }) | null {
+  if (input.preset === null) return null;
+  const options = proteinOptions(input.reference);
+  if (options.length === 0) return { ok: false, reason: "needs_weight", proteinGPerKg: null };
+  const wanted = input.proteinGPerKg ?? options[0]!;
+  const chosen = options.reduce((best, value) =>
+    Math.abs(value - wanted) < Math.abs(best - wanted) ? value : best,
+  );
+  return {
+    ...presetTargets({
+      preset: input.preset,
+      energyKcal: input.energyKcal,
+      weightKg: input.weightKg,
+      proteinGPerKg: chosen,
+    }),
+    proteinGPerKg: chosen,
+  };
+}
+
+export const CHECK_IN_MACRO_COPY = Object.freeze({
+  fromPreset: msg`Protein, carbohydrate and fat follow your style and protein per kg, worked out from the proposed energy.`,
+  energyOnly: msg`Pick a style in Macro targets from a style to have check-ins propose protein, carbohydrate and fat too.`,
+});

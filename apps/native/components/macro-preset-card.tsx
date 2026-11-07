@@ -65,18 +65,22 @@ export function MacroPresetCard({
   targets,
   proteinReference,
   proteinCapped,
+  stored,
   onSaved,
 }: {
   targets: readonly NutritionTargetWire[];
   proteinReference: { minGPerKg: number; maxGPerKg: number } | null;
   proteinCapped: boolean;
+  /** The member's stored choice, reused by the weekly check-in (#390 follow-up). */
+  stored: { revision: number; macroPreset: MacroPreset | null; proteinGPerKg: number | null };
   onSaved: () => void;
 }) {
   const { t, i18n } = useLingui();
   const today = localDateIn(deviceTimeZone());
-  const [preset, setPreset] = useState<MacroPreset>("balanced");
+  const [preset, setPreset] = useState<MacroPreset>(stored.macroPreset ?? "balanced");
   const options = proteinOptions(proteinReference);
-  const [perKg, setPerKg] = useState<number | null>(null);
+  const [perKg, setPerKg] = useState<number | null>(stored.proteinGPerKg);
+  const remember = useMutation(orpc.nutritionTargets.updateSettings.mutationOptions());
   const chosenPerKg = perKg !== null && options.includes(perKg) ? perKg : (options[0] ?? null);
   const trend = useQuery({
     ...orpc.body.weightTrend.queryOptions({
@@ -116,6 +120,12 @@ export function MacroPresetCard({
         minAmount: result.fatG,
         maxAmount: result.fatG,
         effectiveFrom: today,
+      });
+      // The weekly check-in proposes P/C/F from this choice from now on.
+      await remember.mutateAsync({
+        expectedRevision: stored.revision,
+        macroPreset: preset,
+        proteinGPerKg: chosenPerKg as 0.8 | 1 | 1.2 | 1.4 | 1.6,
       });
       const text = i18n._(PRESET_COPY.saved);
       setStatus(text);

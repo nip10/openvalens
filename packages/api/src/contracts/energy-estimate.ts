@@ -175,7 +175,7 @@ export const PROPOSAL_DECLINE_REASONS = [
   "needs_confirmation",
 ] as const;
 
-/** `deficit` and `gain` only through the nutrition safety policy (#80, `nutrition-safety/v2`). */
+/** `deficit` and `gain` only through the nutrition safety policy (#80, `nutrition-safety/v3`). */
 export const PROPOSAL_KINDS = ["maintenance", "deficit", "gain"] as const;
 
 export const energyProposal = z.object({

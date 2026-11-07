@@ -1,5 +1,17 @@
 import { presentProposal } from "@openvalens/api/presenters/energy-estimate";
-import { deviceTimeZone, localDateIn } from "@openvalens/api/presenters/nutrition-diary";
+import {
+  CHECK_IN_MACRO_COPY,
+  PRESET_COPY,
+  checkInMacros,
+} from "@openvalens/api/presenters/macro-presets";
+import {
+  MACRO_LETTERS,
+  NUTRIENT_LABELS,
+  ROW_MACRO_KEYS,
+  deviceTimeZone,
+  localDateIn,
+  shiftLocalDate,
+} from "@openvalens/api/presenters/nutrition-diary";
 import {
   CHECK_IN_COPY,
   HIDDEN_VALUE,
@@ -22,6 +34,7 @@ import { AccessibilityInfo, Pressable, ScrollView, Text, View } from "react-nati
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { DISPLAY_MAX_FONT_SCALE, Icon, Sheet } from "@/components/bloom";
+import { MACRO_TEXT } from "@/components/nutrition-macro-line";
 import { authClient } from "@/lib/auth-client";
 import { useModuleEnabled } from "@/lib/modules/use-modules";
 import { friendlyDate } from "@/utils/friendly";
@@ -70,6 +83,14 @@ export default function CheckInRoute() {
   const accept = useMutation(orpc.nutritionEnergy.acceptProposal.mutationOptions());
   const dismiss = useMutation(orpc.nutritionEnergy.dismissProposal.mutationOptions());
   const record = useMutation(orpc.nutritionTargets.updateSettings.mutationOptions());
+  const setTarget = useMutation(orpc.nutritionTargets.setTarget.mutationOptions());
+  const trend = useQuery({
+    ...orpc.body.weightTrend.queryOptions({
+      input: { from: shiftLocalDate(today, -27), to: today },
+    }),
+    enabled: open && !hideNumbers && !safetyOff && Boolean(settings?.macroPreset),
+    retry: false,
+  });
   const [declined, setDeclined] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState(false);
   const [message, setMessage] = useState("");
@@ -140,7 +161,36 @@ export default function CheckInRoute() {
             AccessibilityInfo.announceForAccessibility(result.note);
             return;
           }
-          finish(i18n._(CHECK_IN_COPY.accepted));
+          if (!macros?.ok) {
+            finish(i18n._(CHECK_IN_COPY.accepted));
+            return;
+          }
+          // The same accept also saves the proposed P/C/F, each "entered by you".
+          void (async () => {
+            try {
+              await setTarget.mutateAsync({
+                nutrient: "proteinG",
+                minAmount: macros.proteinG,
+                maxAmount: null,
+                effectiveFrom: today,
+              });
+              await setTarget.mutateAsync({
+                nutrient: "carbohydrateG",
+                minAmount: macros.carbohydrateG,
+                maxAmount: macros.carbohydrateG,
+                effectiveFrom: today,
+              });
+              await setTarget.mutateAsync({
+                nutrient: "fatG",
+                minAmount: macros.fatG,
+                maxAmount: macros.fatG,
+                effectiveFrom: today,
+              });
+              finish(i18n._(CHECK_IN_COPY.acceptedWithMacros));
+            } catch {
+              setMessage(i18n._(CHECK_IN_COPY.macrosNotSaved));
+            }
+          })();
         },
         onError: () => setMessage(t`Could not confirm the result. Refresh to check its status.`),
       },
@@ -168,7 +218,29 @@ export default function CheckInRoute() {
     pending?.estimate?.inputs.intake.days ??
     (estimate.data && "inputs" in estimate.data ? estimate.data.inputs.intake.days : []);
   const logged = loggedDaysOfLastWeek(intakeDays);
-  const busy = accept.isPending || dismiss.isPending || record.isPending;
+  const busy = accept.isPending || dismiss.isPending || record.isPending || setTarget.isPending;
+  const weightKg =
+    [...(trend.data?.points ?? [])].reverse().find((point) => point.trendKg !== null)?.trendKg ??
+    null;
+  const macros =
+    settings && pending
+      ? checkInMacros({
+          preset: settings.macroPreset,
+          proteinGPerKg: settings.proteinGPerKg,
+          reference: overview.data?.proteinReference ?? null,
+          energyKcal: pending.targetKcal,
+          weightKg,
+        })
+      : null;
+  const nowFor = (key: (typeof ROW_MACRO_KEYS)[number]) => {
+    const target = overview.data?.targets.find((item) => item.nutrient === key);
+    return target ? formatTarget(target, hideNumbers, i18n) : "—";
+  };
+  const proposedFor = (key: (typeof ROW_MACRO_KEYS)[number]) => {
+    if (hideNumbers) return i18n._(HIDDEN_VALUE);
+    if (!macros?.ok) return "—";
+    return key === "proteinG" ? t`at least ${macros.proteinG} g` : `${macros[key]} g`;
+  };
   const dateText = state && state.state !== "off" ? friendlyDate(i18n, state.checkInDate) : "";
 
   return (
@@ -247,10 +319,57 @@ export default function CheckInRoute() {
                     {proposedText}
                   </Text>
                 </View>
+                {macros?.ok
+                  ? ROW_MACRO_KEYS.map((key) => {
+                      const label = i18n._(NUTRIENT_LABELS[key].label);
+                      const now = nowFor(key);
+                      const proposed = proposedFor(key);
+                      return (
+                        <View
+                          key={key}
+                          testID={`check-in-${key}`}
+                          className="min-h-12 flex-row items-center gap-2 border-t border-rule"
+                          accessible
+                          accessibilityLabel={t`${label}: now ${now}, proposed ${proposed}`}
+                        >
+                          <Text className={`flex-[1.2] font-sans text-base ${MACRO_TEXT[key]}`}>
+                            {i18n._(MACRO_LETTERS[key])} · {label}
+                          </Text>
+                          <Text
+                            className="flex-1 font-sans text-sm text-ink-3"
+                            style={{ fontVariant: ["tabular-nums"] }}
+                          >
+                            {now}
+                          </Text>
+                          <Text
+                            className="flex-1 font-sans text-base font-semibold text-ink"
+                            style={{ fontVariant: ["tabular-nums"] }}
+                          >
+                            {proposed}
+                          </Text>
+                        </View>
+                      );
+                    })
+                  : null}
               </Sheet>
             ) : declined ? (
               <Text className="font-sans text-base text-ink-2" accessibilityLiveRegion="polite">
                 {declined} {i18n._(CHECK_IN_COPY.paused)}
+              </Text>
+            ) : null}
+            {pending && !hideNumbers ? (
+              <Text className="font-sans text-sm text-ink-3">
+                {macros === null
+                  ? i18n._(CHECK_IN_MACRO_COPY.energyOnly)
+                  : macros.ok
+                    ? i18n._(CHECK_IN_MACRO_COPY.fromPreset)
+                    : i18n._(
+                        macros.reason === "does_not_fit"
+                          ? PRESET_COPY.doesNotFit
+                          : macros.reason === "needs_energy"
+                            ? PRESET_COPY.needsEnergy
+                            : PRESET_COPY.needsWeight,
+                      )}
               </Text>
             ) : null}
             <View className="flex-row items-start gap-2 rounded-2xl bg-paper-2 p-3">

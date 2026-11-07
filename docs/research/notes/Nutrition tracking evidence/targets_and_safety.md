@@ -117,6 +117,8 @@ Labels only require a small set of nutrients, so branded or label-derived databa
 
 ---
 
+> **Owner sign-off (2026-11-07, #390 D4):** the owner signed off the calorie floors and self-declared exclusions as implemented in `nutrition-safety/v3` (see `docs/nutrition-targets.md`). The review flags below are kept as the research record of what these notes did not source; they are not clinical validation.
+
 ## 5. Goal modes: recomposition, safe deficits/surpluses, minimum intake floors
 
 ### Takeaway
@@ -184,6 +186,8 @@ Tracker use is consistently _associated_ with disordered eating in cross-section
 - I did not find validated short ED screeners suitable for in-app use, or their licensing (e.g. SCOFF, ESP).
 
 ---
+
+> **Owner sign-off (2026-11-07, #390 D4):** the owner signed off the calorie floors and self-declared exclusions as implemented in `nutrition-safety/v3` (see `docs/nutrition-targets.md`). The review flags below are kept as the research record of what these notes did not source; they are not clinical validation.
 
 ## 7. Conditions and populations where calorie targets should not be auto-generated
 

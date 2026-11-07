@@ -5,7 +5,9 @@ import { findBannedCopy } from "@openvalens/nutrition/nutrition-safety";
 import {
   MACRO_PRESETS,
   PRESET_COPY,
+  CHECK_IN_MACRO_COPY,
   PRESET_LABELS,
+  checkInMacros,
   formatGPerKg,
   presetTargets,
   proteinOptions,
@@ -71,6 +73,72 @@ describe("macro presets (#399)", () => {
       ...MACRO_PRESETS.map((key) => englishI18n._(PRESET_LABELS[key])),
       ...Object.values(PRESET_COPY).map((m) => englishI18n._(m)),
     ].join(" ");
+    expect(findBannedCopy(text)).toEqual([]);
+  });
+});
+
+describe("check-in macros (#390 follow-up)", () => {
+  const active = { minGPerKg: 1.2, maxGPerKg: 1.6 };
+  test("no stored preset: the check-in proposes energy only", () => {
+    expect(
+      checkInMacros({
+        preset: null,
+        proteinGPerKg: 1.2,
+        reference: active,
+        energyKcal: 2000,
+        weightKg: 70,
+      }),
+    ).toBeNull();
+  });
+
+  test("a stored preset follows the proposed energy", () => {
+    expect(
+      checkInMacros({
+        preset: "balanced",
+        proteinGPerKg: 1.2,
+        reference: active,
+        energyKcal: 2000,
+        weightKg: 70,
+      }),
+    ).toEqual({ ok: true, proteinG: 85, carbohydrateG: 270, fatG: 65, proteinGPerKg: 1.2 });
+    const lower = checkInMacros({
+      preset: "balanced",
+      proteinGPerKg: 1.2,
+      reference: active,
+      energyKcal: 1800,
+      weightKg: 70,
+    });
+    if (!lower?.ok) throw new Error("expected targets");
+    expect(lower.proteinG).toBe(85);
+    expect(lower.carbohydrateG).toBeLessThan(270);
+  });
+
+  test("the current protein reference always wins over a stored g/kg", () => {
+    // A kidney declaration since: the reference is capped at 0.8 g/kg.
+    expect(
+      checkInMacros({
+        preset: "balanced",
+        proteinGPerKg: 1.6,
+        reference: { minGPerKg: 0.8, maxGPerKg: 0.8 },
+        energyKcal: 2000,
+        weightKg: 70,
+      }),
+    ).toMatchObject({ ok: true, proteinG: 55, proteinGPerKg: 0.8 });
+    expect(
+      checkInMacros({
+        preset: "lower_fat",
+        proteinGPerKg: 1.6,
+        reference: null,
+        energyKcal: 2000,
+        weightKg: 70,
+      }),
+    ).toEqual({ ok: false, reason: "needs_weight", proteinGPerKg: null });
+  });
+
+  test("copy is neutral", () => {
+    const text = Object.values(CHECK_IN_MACRO_COPY)
+      .map((m) => englishI18n._(m))
+      .join(" ");
     expect(findBannedCopy(text)).toEqual([]);
   });
 });

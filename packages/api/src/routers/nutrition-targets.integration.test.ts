@@ -302,6 +302,8 @@ describe.skipIf(!url)("nutritionTargets over HTTP against disposable PostgreSQL"
       energyRatePercent: null,
       checkInDay: null,
       lastCheckInOn: null,
+      macroPreset: null,
+      proteinGPerKg: null,
       activeProtein: false,
       streaksEnabled: false,
       recipeImportEnabled: false,
@@ -482,6 +484,27 @@ describe.skipIf(!url)("nutritionTargets over HTTP against disposable PostgreSQL"
     const cleared = await updateSettings({ expectedRevision: 1, energyRatePercent: null });
     if (cleared.body.outcome !== "updated") throw new Error("expected updated");
     expect(cleared.body.settings.energyRatePercent).toBeNull();
+    await resetSettings("user-a");
+  });
+
+  test("a macro preset and protein per kg are stored for the check-in, validated and clearable", async () => {
+    await resetSettings("user-a");
+    const set = await updateSettings({
+      expectedRevision: 0,
+      macroPreset: "lower_carb",
+      proteinGPerKg: 1.2,
+    });
+    if (set.body.outcome !== "updated") throw new Error("expected updated");
+    expect(set.body.settings).toMatchObject({ macroPreset: "lower_carb", proteinGPerKg: 1.2 });
+    expect((await updateSettings({ expectedRevision: 1, macroPreset: "keto" })).status).toBe(400);
+    expect((await updateSettings({ expectedRevision: 1, proteinGPerKg: 2.2 })).status).toBe(400);
+    const cleared = await updateSettings({
+      expectedRevision: 1,
+      macroPreset: null,
+      proteinGPerKg: null,
+    });
+    if (cleared.body.outcome !== "updated") throw new Error("expected updated");
+    expect(cleared.body.settings).toMatchObject({ macroPreset: null, proteinGPerKg: null });
     await resetSettings("user-a");
   });
 

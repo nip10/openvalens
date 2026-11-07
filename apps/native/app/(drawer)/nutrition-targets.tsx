@@ -279,6 +279,11 @@ export default function NutritionTargetsScreen() {
                 targets={data.targets}
                 proteinReference={data.proteinReference}
                 proteinCapped={data.safety.proteinCapped}
+                stored={{
+                  revision: data.settings.revision,
+                  macroPreset: data.settings.macroPreset,
+                  proteinGPerKg: data.settings.proteinGPerKg,
+                }}
                 onSaved={() => void refresh()}
               />
             ) : null}
