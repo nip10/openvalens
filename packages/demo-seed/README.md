@@ -54,7 +54,10 @@ Before the accounts, the seed imports the small committed exercise sample from
 `packages/exercise-catalog/sample/` (Issue #400): 12 wger exercises with their
 Workout Guide frames. It also marks the database as a _sample instance_, so
 when the server starts it publishes those frames from disk and never fetches
-the full catalog, which keeps e2e and screenshots offline. Licences are in
+the full catalog, which keeps e2e and screenshots offline. The demo routines and
+workouts use these catalog exercises, so they show their images; the review
+seed does the same when the instance has the catalog and falls back to
+workspace exercises when it doesn't. Licences are in
 `DATA-LICENSES.md` and `REUSE.toml`.
 
 ## How the data is written

@@ -59,6 +59,7 @@ import {
 import type { WorkoutRestTimer } from "@/lib/workouts/rest-timer";
 import type { useWorkoutSession } from "@/lib/workouts/sync";
 import { orpc } from "@/utils/orpc";
+import { exercisePickTestId } from "@/lib/exercises/detail";
 import { useThemeColor } from "@/utils/theme";
 
 const input =
@@ -979,6 +980,7 @@ export function ActiveWorkout({
             {(catalog.data ?? []).map((item) => (
               <Pressable
                 key={item.id}
+                testID={exercisePickTestId(item)}
                 accessibilityRole="button"
                 onPress={() => addExercise(newDraftExercise(item.name, item.id))}
                 className="min-h-14 flex-row items-center gap-3 border-b border-rule"

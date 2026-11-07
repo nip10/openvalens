@@ -53,7 +53,10 @@ tags: [logging]
 - extendedWaitUntil:
     visible: "Add an exercise"
     timeout: 10000
-- tapOn: "Bench press"
+# Bench press from the licensed exercise sample (#400), picked by its stable
+# wger id so the flow works in en and pt-PT.
+- tapOn:
+    id: "exercise-pick-wger-73"
 
 # One exercise per screen with a SET · PREVIOUS · KG · REPS · ✓ table (#401).
 # Set 1, then set 2 (a rest timer starts after each finished set)

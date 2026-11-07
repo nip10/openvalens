@@ -20,6 +20,7 @@ import { ExerciseThumbnail } from "@/components/exercise-thumbnail";
 import { moveItem } from "@/lib/workouts/active";
 import { weightFromKg, weightToKg, type RoutineExerciseSnapshot } from "@/lib/workouts/model";
 import { orpc } from "@/utils/orpc";
+import { exercisePickTestId } from "@/lib/exercises/detail";
 import { useThemeColor } from "@/utils/theme";
 
 export type EditorExercise = RoutineExerciseSnapshot;
@@ -445,17 +446,26 @@ export function RoutineEditor({
               onChangeText={setSearch}
               className={field}
             />
-            {(results.data ?? []).map((item: { id: number; name: string; media?: unknown }) => (
-              <Pressable
-                key={item.id}
-                accessibilityRole="button"
-                onPress={() => add(item.name, item.id)}
-                className="min-h-14 flex-row items-center gap-3 border-b border-rule"
-              >
-                <ExerciseThumbnail exerciseId={item.id} media={item.media} size={40} />
-                <Text className="flex-1 font-sans text-base text-ink">{item.name}</Text>
-              </Pressable>
-            ))}
+            {(results.data ?? []).map(
+              (item: {
+                id: number;
+                name: string;
+                media?: unknown;
+                source?: string;
+                sourceRecordUrl?: string | null;
+              }) => (
+                <Pressable
+                  key={item.id}
+                  testID={exercisePickTestId(item)}
+                  accessibilityRole="button"
+                  onPress={() => add(item.name, item.id)}
+                  className="min-h-14 flex-row items-center gap-3 border-b border-rule"
+                >
+                  <ExerciseThumbnail exerciseId={item.id} media={item.media} size={40} />
+                  <Text className="flex-1 font-sans text-base text-ink">{item.name}</Text>
+                </Pressable>
+              ),
+            )}
             {search.trim() ? (
               <Button variant="secondary" onPress={() => add(search.trim(), null)}>
                 <Button.Label>{t`Add “${search.trim()}” as a custom exercise`}</Button.Label>

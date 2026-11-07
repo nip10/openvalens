@@ -1,7 +1,8 @@
 import { describe, expect, mock, test } from "bun:test";
 
 mock.module("react-native", () => ({ Platform: { OS: "ios" } }));
-const { displayAssets, imageCredit, mediaSource, rowChips } = await import("./detail");
+const { displayAssets, exercisePickTestId, imageCredit, mediaSource, rowChips } =
+  await import("./detail");
 
 const asset = (source: "wger" | "workout-guide", n: number) => ({
   source,
@@ -50,6 +51,18 @@ describe("exercise detail helpers (#404)", () => {
     ).toEqual(["Quads", "Glutes", "Barbell"]);
     expect(rowChips({ muscles: [], equipment: [{ name: "none (bodyweight exercise)" }] })).toEqual(
       [],
+    );
+  });
+  test("picker test ids are language independent", () => {
+    expect(
+      exercisePickTestId({
+        id: 2,
+        source: "wger",
+        sourceRecordUrl: "https://wger.de/api/v2/exerciseinfo/73/",
+      }),
+    ).toBe("exercise-pick-wger-73");
+    expect(exercisePickTestId({ id: 9, source: "user", sourceRecordUrl: null })).toBe(
+      "exercise-pick-9",
     );
   });
 });
