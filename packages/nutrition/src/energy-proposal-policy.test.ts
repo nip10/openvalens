@@ -50,7 +50,7 @@ describe("planEnergyProposal", () => {
       currentTargetKcal: null,
       stepLimited: false,
       needsConfirmation: false,
-      policyVersion: "nutrition-safety/v2",
+      policyVersion: "nutrition-safety/v3",
     });
   });
 

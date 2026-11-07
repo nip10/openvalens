@@ -462,7 +462,7 @@ export const GOAL_COPY = Object.freeze({
   rateDescription: msg`How fast suggestions aim to change your weight trend, as a share of body weight a week. The safeguards below always apply on top.`,
   floorNote: msg({
     message:
-      "Suggestions never go below 1,200 kcal a day, your profile's minimum or your estimated resting energy, whichever is highest. Reductions are turned off while any answer in About you is yes, and for anyone younger than 18. These safeguards come from published guidelines and have not been clinically reviewed.",
+      "Suggestions never go below 1,200 kcal a day, your profile's minimum or your estimated resting energy, whichever is highest. Reductions are turned off while any answer in About you is yes, and for anyone younger than 18. These safeguards come from published guidelines. They are not medical advice and are not clinically validated.",
     comment: "safety",
   }),
 });
@@ -516,6 +516,8 @@ export const CHECK_IN_COPY = Object.freeze({
   off: msg`Weekly check-ins are not available for this profile.`,
   kept: msg`Check-in done. Your targets are unchanged.`,
   accepted: msg`Check-in done. Your energy target is updated.`,
+  acceptedWithMacros: msg`Check-in done. Your energy, protein, carbohydrate and fat targets are updated.`,
+  macrosNotSaved: msg`Your energy target is updated, but the protein, carbohydrate and fat targets could not be saved. Try again from Macro targets from a style.`,
   notDue: msg`Your next check-in is not open yet.`,
   experimental: msg`Based on an experimental estimate that has not been validated.`,
 });

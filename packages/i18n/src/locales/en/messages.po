@@ -758,6 +758,10 @@ msgstr "{label}: no rated sessions."
 msgid "{label}: nothing logged"
 msgstr "{label}: nothing logged"
 
+#: apps/native/app/check-in.tsx
+msgid "{label}: now {now}, proposed {proposed}"
+msgstr "{label}: now {now}, proposed {proposed}"
+
 #: packages/api/src/presenters/activity-load.ts
 msgid "{label}: sessions not rated."
 msgstr "{label}: sessions not rated."
@@ -2149,6 +2153,8 @@ msgid "At least"
 msgstr "At least"
 
 #. placeholder {0}: grams[key]
+#. placeholder {0}: macros.proteinG
+#: apps/native/app/check-in.tsx
 #: apps/native/components/macro-preset-card.tsx
 msgid "at least {0} g"
 msgstr "at least {0} g"
@@ -2881,6 +2887,10 @@ msgstr "Check-in day: {date}. You can do it now."
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Check-in done. Your energy target is updated."
 msgstr "Check-in done. Your energy target is updated."
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Check-in done. Your energy, protein, carbohydrate and fat targets are updated."
+msgstr "Check-in done. Your energy, protein, carbohydrate and fat targets are updated."
 
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Check-in done. Your targets are unchanged."
@@ -10854,6 +10864,10 @@ msgstr "Physiology-enhanced profile"
 msgid "Pick a photo of your meal. You get a draft list of what the provider could see; nothing is logged until you confirm each item."
 msgstr "Pick a photo of your meal. You get a draft list of what the provider could see; nothing is logged until you confirm each item."
 
+#: packages/api/src/presenters/macro-presets.ts
+msgid "Pick a style in Macro targets from a style to have check-ins propose protein, carbohydrate and fat too."
+msgstr "Pick a style in Macro targets from a style to have check-ins propose protein, carbohydrate and fat too."
+
 #: apps/native/components/onboarding/steps.tsx
 msgid "Pick all that apply."
 msgstr "Pick all that apply."
@@ -11237,6 +11251,10 @@ msgstr "Protein reference"
 #: packages/api/src/presenters/macro-presets.ts
 msgid "Protein stays at 0.8 g per kg or less because of your chronic kidney disease answer."
 msgstr "Protein stays at 0.8 g per kg or less because of your chronic kidney disease answer."
+
+#: packages/api/src/presenters/macro-presets.ts
+msgid "Protein, carbohydrate and fat follow your style and protein per kg, worked out from the proposed energy."
+msgstr "Protein, carbohydrate and fat follow your style and protein per kg, worked out from the proposed energy."
 
 #: apps/web/src/components/admin-ai-usage.tsx
 msgid "Provider calls"
@@ -13878,8 +13896,8 @@ msgstr "Suggestions follow the estimated intake that keeps your weight trend ste
 
 #. safety
 #: packages/api/src/presenters/nutrition-targets.ts
-msgid "Suggestions never go below 1,200 kcal a day, your profile's minimum or your estimated resting energy, whichever is highest. Reductions are turned off while any answer in About you is yes, and for anyone younger than 18. These safeguards come from published guidelines and have not been clinically reviewed."
-msgstr "Suggestions never go below 1,200 kcal a day, your profile's minimum or your estimated resting energy, whichever is highest. Reductions are turned off while any answer in About you is yes, and for anyone younger than 18. These safeguards come from published guidelines and have not been clinically reviewed."
+msgid "Suggestions never go below 1,200 kcal a day, your profile's minimum or your estimated resting energy, whichever is highest. Reductions are turned off while any answer in About you is yes, and for anyone younger than 18. These safeguards come from published guidelines. They are not medical advice and are not clinically validated."
+msgstr "Suggestions never go below 1,200 kcal a day, your profile's minimum or your estimated resting energy, whichever is highest. Reductions are turned off while any answer in About you is yes, and for anyone younger than 18. These safeguards come from published guidelines. They are not medical advice and are not clinically validated."
 
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/web/src/routes/_auth/-goal-editor.tsx
@@ -16562,6 +16580,10 @@ msgstr "Your decision about {title}"
 #: apps/web/src/components/workout-routines.tsx
 msgid "Your edits changed while a save may still be in progress. Retry the original request or cancel and start a new save."
 msgstr "Your edits changed while a save may still be in progress. Retry the original request or cancel and start a new save."
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Your energy target is updated, but the protein, carbohydrate and fat targets could not be saved. Try again from Macro targets from a style."
+msgstr "Your energy target is updated, but the protein, carbohydrate and fat targets could not be saved. Try again from Macro targets from a style."
 
 #: apps/native/components/complete-export-card.tsx
 #: apps/web/src/components/complete-export-card.tsx

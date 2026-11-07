@@ -758,6 +758,10 @@ msgstr "{label}: sem sessões avaliadas."
 msgid "{label}: nothing logged"
 msgstr "{label}: nada registado"
 
+#: apps/native/app/check-in.tsx
+msgid "{label}: now {now}, proposed {proposed}"
+msgstr "{label}: agora {now}, proposto {proposed}"
+
 #: packages/api/src/presenters/activity-load.ts
 msgid "{label}: sessions not rated."
 msgstr "{label}: sessões não avaliadas."
@@ -2149,6 +2153,8 @@ msgid "At least"
 msgstr "Pelo menos"
 
 #. placeholder {0}: grams[key]
+#. placeholder {0}: macros.proteinG
+#: apps/native/app/check-in.tsx
 #: apps/native/components/macro-preset-card.tsx
 msgid "at least {0} g"
 msgstr "pelo menos {0} g"
@@ -2881,6 +2887,10 @@ msgstr "Dia do balanço: {date}. Pode fazê-lo já."
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Check-in done. Your energy target is updated."
 msgstr "Balanço feito. O seu objetivo de energia foi atualizado."
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Check-in done. Your energy, protein, carbohydrate and fat targets are updated."
+msgstr "Balanço feito. Os seus objetivos de energia, proteína, hidratos de carbono e lípidos foram atualizados."
 
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Check-in done. Your targets are unchanged."
@@ -10854,6 +10864,10 @@ msgstr "Perfil com dados fisiológicos"
 msgid "Pick a photo of your meal. You get a draft list of what the provider could see; nothing is logged until you confirm each item."
 msgstr "Escolha uma fotografia da sua refeição. Obtém uma lista de rascunho do que o fornecedor conseguiu ver; nada é registado até confirmar cada item."
 
+#: packages/api/src/presenters/macro-presets.ts
+msgid "Pick a style in Macro targets from a style to have check-ins propose protein, carbohydrate and fat too."
+msgstr "Escolha um estilo em Objetivos de macronutrientes a partir de um estilo para que os balanços também proponham proteína, hidratos de carbono e lípidos."
+
 #: apps/native/components/onboarding/steps.tsx
 msgid "Pick all that apply."
 msgstr "Escolha todas as que se aplicam."
@@ -11237,6 +11251,10 @@ msgstr "Referência de proteína"
 #: packages/api/src/presenters/macro-presets.ts
 msgid "Protein stays at 0.8 g per kg or less because of your chronic kidney disease answer."
 msgstr "A proteína fica em 0,8 g por kg ou menos devido à sua resposta sobre doença renal crónica."
+
+#: packages/api/src/presenters/macro-presets.ts
+msgid "Protein, carbohydrate and fat follow your style and protein per kg, worked out from the proposed energy."
+msgstr "A proteína, os hidratos de carbono e os lípidos seguem o seu estilo e a proteína por kg, calculados a partir da energia proposta."
 
 #: apps/web/src/components/admin-ai-usage.tsx
 msgid "Provider calls"
@@ -13878,8 +13896,8 @@ msgstr "As sugestões seguem a ingestão estimada que mantém estável a tendên
 
 #. safety
 #: packages/api/src/presenters/nutrition-targets.ts
-msgid "Suggestions never go below 1,200 kcal a day, your profile's minimum or your estimated resting energy, whichever is highest. Reductions are turned off while any answer in About you is yes, and for anyone younger than 18. These safeguards come from published guidelines and have not been clinically reviewed."
-msgstr "As sugestões nunca ficam abaixo de 1200 kcal por dia, do mínimo do seu perfil ou da sua energia de repouso estimada, consoante o que for mais alto. As reduções ficam desligadas enquanto alguma resposta em Sobre si for sim, e para quem tem menos de 18 anos. Estas salvaguardas vêm de diretrizes publicadas e não foram revistas clinicamente."
+msgid "Suggestions never go below 1,200 kcal a day, your profile's minimum or your estimated resting energy, whichever is highest. Reductions are turned off while any answer in About you is yes, and for anyone younger than 18. These safeguards come from published guidelines. They are not medical advice and are not clinically validated."
+msgstr "As sugestões nunca ficam abaixo de 1200 kcal por dia, do mínimo do seu perfil ou da sua energia de repouso estimada, consoante o que for mais alto. As reduções ficam desligadas enquanto alguma resposta em Sobre si for sim, e para quem tem menos de 18 anos. Estas salvaguardas vêm de diretrizes publicadas. Não são aconselhamento médico e não estão validadas clinicamente."
 
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/web/src/routes/_auth/-goal-editor.tsx
@@ -16562,6 +16580,10 @@ msgstr "A sua decisão sobre {title}"
 #: apps/web/src/components/workout-routines.tsx
 msgid "Your edits changed while a save may still be in progress. Retry the original request or cancel and start a new save."
 msgstr "As suas alterações mudaram enquanto uma gravação pode ainda estar em curso. Repita o pedido original ou cancele e inicie uma nova gravação."
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Your energy target is updated, but the protein, carbohydrate and fat targets could not be saved. Try again from Macro targets from a style."
+msgstr "O seu objetivo de energia foi atualizado, mas não foi possível guardar os objetivos de proteína, hidratos de carbono e lípidos. Tente novamente em Objetivos de macronutrientes a partir de um estilo."
 
 #: apps/native/components/complete-export-card.tsx
 #: apps/web/src/components/complete-export-card.tsx

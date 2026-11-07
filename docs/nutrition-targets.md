@@ -104,7 +104,7 @@ stored (`packages/nutrition/src/logging-streak.ts`):
 - Entries logged offline count from when the server receives them.
 - There is no reminder notification yet.
 
-## Safety policy `nutrition-safety/v2`
+## Safety policy `nutrition-safety/v3`
 
 | Parameter         | Value                                                                                      | Basis                                                  |
 | ----------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------ |
@@ -112,7 +112,7 @@ stored (`packages/nutrition/src/logging-streak.ts`):
 | Sex floor         | 1,200 female · 1,500 male · 1,500 not declared                                             | AHA/ACC/TOS 2013; undeclared = higher (product choice) |
 | Resting estimate  | Mifflin–St Jeor; needs weight, height and age; undeclared sex and age ranges conservative  | Mifflin 1990                                           |
 | Never propose     | < 1,200 kcal/d under any setting                                                           | NICE NG246                                             |
-| Default deficit   | min(500 kcal/d, 20% of estimate, 0.7% body weight/week)                                    | AHA; Garthe 2011                                       |
+| Default deficit   | min(500 kcal/d, 20% of estimate, 0.5% body weight/week)                                    | AHA; Helms 2014                                        |
 | Hard deficit cap  | min(750 kcal/d, 25% of estimate); loss ≤ 1.0% body weight/week (0.5% at 65+)               | AHA; Helms 2014                                        |
 | Gain              | +10% default, at most +20% of estimate; ≤ 0.5% body weight/week                            | Decision 15; Iraki 2019                                |
 | Chosen rate       | lose 0.25 / 0.5 / 0.75 / 1.0 % body weight/week; gain 0.25 / 0.5 %; inside every cap above | Decision 14 (≤ 1.0 %); #396                            |
@@ -120,9 +120,9 @@ stored (`packages/nutrition/src/logging-streak.ts`):
 | BMI gate          | no reduction if current BMI < 18.5; no undefined projected-horizon test                    | Decision 16; WHO                                       |
 | Protein reference | 0.8 g/kg; 1.2–1.6 g/kg only if opted in as active; ≥ 1.0 g/kg at 65+; ≤ 0.8 g/kg with CKD  | NASEM/EFSA; PROT-AGE 2013; KDIGO 2024 3.3.1.1          |
 
-Clinical review: the floors and exclusions ship as hard limits, but no
-clinician has reviewed their values yet (D4 in #390). They stay labelled as
-not clinically validated.
+Sign-off: the owner signed off the floor and exclusion values on 2026-11-07
+(D4 in #390, `nutrition-safety/v3`). They ship as hard limits. The policy is
+general wellness and stays labelled as not clinically validated.
 
 Rules the planner adds:
 
@@ -202,6 +202,7 @@ Changing any value is a reviewed config change: bump the version in
 | --------------------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `nutrition-safety/v1` | 2026-10-16 | First version: floors, deficit and gain caps, weekly step, BMI gate, self-declared exclusions and protein reference. Replaces `energy-proposal/v1` (#76).                                                                                                                    |
 | `nutrition-safety/v2` | 2026-11-06 | Member-chosen weekly rate (#396): loss 0.25–1.0 % of body weight a week, gain 0.25–0.5 %. A chosen rate replaces the default deficit or surplus size; floors, hard caps, weekly step, BMI gate and exclusions are unchanged. Clinical review of the floors is still pending. |
+| `nutrition-safety/v3` | 2026-11-07 | Owner sign-off of the floor and exclusion values (2026-11-07). Default loss without a chosen rate is 0.5 % of body weight a week (was 0.7 %), matching the default rate. Values unchanged otherwise; the policy is still not clinically validated.                           |
 
 ## Data and privacy
 
