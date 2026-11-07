@@ -3,6 +3,8 @@ import { cancelPendingMagicLink } from "@/lib/magic-link";
 import { clearAllServerData, countQueuedWrites } from "@/lib/offline/cache";
 import { signOutOfThisPhone } from "@/lib/sign-out";
 import { queryClient } from "@/utils/orpc";
+import { beginDirectDeviceAuthorityTransition } from "@/lib/direct-devices/authority";
+import { getDirectDeviceStore } from "@/lib/direct-devices/persistence/sqlite";
 
 import { forgetServerUrl, saveServerUrl } from "./server-url";
 import { createSwitchServer } from "./switch-server-steps";
@@ -14,8 +16,12 @@ import { createSwitchServer } from "./switch-server-steps";
  * starts from a clean phone even if an earlier address could not be read.
  */
 export const switchServer = createSwitchServer({
+  invalidateDirectDevices: beginDirectDeviceAuthorityTransition,
   signOut: signOutOfThisPhone,
-  clearLocalData: clearAllServerData,
+  clearLocalData: () => {
+    clearAllServerData();
+    getDirectDeviceStore().purgeAll();
+  },
   clearSession: clearStoredAuthSession,
   cancelPendingMagicLink,
   clearQueries: () => queryClient.clear(),
@@ -28,7 +34,7 @@ export const switchServer = createSwitchServer({
  */
 export function unsyncedWriteCount(): number | null {
   try {
-    return countQueuedWrites();
+    return countQueuedWrites() + getDirectDeviceStore().countUnaccepted();
   } catch {
     return null;
   }

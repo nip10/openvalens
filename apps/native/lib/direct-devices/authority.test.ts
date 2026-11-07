@@ -2,9 +2,12 @@ import { expect, test } from "bun:test";
 
 import {
   canonicalDirectDeviceScope,
+  beginDirectDeviceAuthorityTransition,
   createAuthorityTicket,
   directDeviceScopeKey,
+  installDirectDeviceAuthority,
   invalidateDirectDeviceAuthority,
+  createCurrentDirectDeviceTicket,
   isAuthorityTicketCurrent,
 } from "./authority";
 
@@ -15,6 +18,19 @@ test("authority scope canonicalization preserves server base paths and uses tupl
   expect(canonical.serverUrl).toBe("https://example.test/openvalens/api");
   expect(directDeviceScopeKey(scope)).toBe(JSON.stringify([canonical.serverUrl, "user-1", "org-1"]));
   expect(directDeviceScopeKey({ ...scope, organizationId: "org-2" })).not.toBe(directDeviceScopeKey(scope));
+});
+
+test("only the installed session can mint tickets and synchronous transition revokes them", () => {
+  beginDirectDeviceAuthorityTransition();
+  expect(() => createCurrentDirectDeviceTicket()).toThrow("DIRECT_DEVICE_AUTHORITY_UNAVAILABLE");
+  installDirectDeviceAuthority(scope, "installed-session");
+  const ticket = createCurrentDirectDeviceTicket();
+  expect(ticket.sessionIdentity).toBe("installed-session");
+  beginDirectDeviceAuthorityTransition();
+  expect(isAuthorityTicketCurrent(ticket)).toBe(false);
+  expect(() => createCurrentDirectDeviceTicket()).toThrow("DIRECT_DEVICE_AUTHORITY_UNAVAILABLE");
+  installDirectDeviceAuthority(scope, "installed-session");
+  expect(() => createCurrentDirectDeviceTicket()).toThrow("DIRECT_DEVICE_AUTHORITY_UNAVAILABLE");
 });
 
 test("tickets are immutable and invalidation never revives same-account tickets", () => {

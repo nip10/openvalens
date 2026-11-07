@@ -8,6 +8,8 @@ function recorder(failPush = false) {
     calls.push(name);
   };
   const signOut = createSignOut({
+    invalidateDirectDevices: () => calls.push("invalidateDirectDevices"),
+    purgeDirectDevices: () => calls.push("purgeDirectDevices"),
     disablePush: async () => {
       calls.push("disablePush");
       if (failPush) throw new Error("offline");
@@ -20,7 +22,7 @@ function recorder(failPush = false) {
   return { calls, signOut };
 }
 
-const ORDER = ["disablePush", "resetHealthSync", "prepareOffline", "signOut", "clearQueries"];
+const ORDER = ["invalidateDirectDevices", "disablePush", "resetHealthSync", "prepareOffline", "purgeDirectDevices", "signOut", "clearQueries"];
 
 test("signs out after switching off push, health sync and offline data", async () => {
   const { calls, signOut } = recorder();

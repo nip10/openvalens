@@ -14,7 +14,7 @@ type Cipher = {
 /** Narrow injection point so this exact probe can be exercised with independent crypto. */
 export type CryptoProbeProvider = {
   createECDH(curve: string): Ecdh;
-  createCipheriv(algorithm: string, key: Uint8Array, iv: Uint8Array): Cipher;
+  createCipheriv(algorithm: string, key: Uint8Array, iv: Uint8Array | null): Cipher;
 };
 
 function fromHex(value: string): Uint8Array {
@@ -81,7 +81,9 @@ async function loadNativeCryptoProvider(): Promise<CryptoProbeProvider> {
       };
     },
     createCipheriv(algorithm, key, iv) {
-      const cipher = native.createCipheriv(algorithm, key, iv);
+      // quick-crypto's BinaryLike IV conversion accepts a zero-length view, not
+      // null. Empty IV bytes retain the no-IV semantics of AES-ECB.
+      const cipher = native.createCipheriv(algorithm, key, iv ?? new Uint8Array(0));
       return {
         setAutoPadding(value) { cipher.setAutoPadding(value); },
         update(input) { return cipher.update(input); },

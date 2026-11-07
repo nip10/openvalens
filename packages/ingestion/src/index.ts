@@ -12,3 +12,4 @@ export * from "./healthkit-sleep";
 export * from "./mobile-batch";
 export * from "./direct-device";
 export * from "./phone-first";
+export * from "./direct-steps-fallback";

@@ -19,6 +19,7 @@ import { bodyMapRouter } from "./body-map";
 import { nutritionMicronutrientsRouter } from "./nutrition-micronutrients";
 import { cycleRouter } from "./cycle";
 import { dataRightsRouter } from "./data-rights";
+import { directDeviceRouter } from "./direct-device";
 import { exampleRouter } from "./example";
 import { exerciseCatalogRouter } from "./exercise-catalog";
 import { exportsRouter } from "./exports";
@@ -78,6 +79,7 @@ type AppRouterShape = {
   bodyMap: typeof bodyMapRouter;
   nutritionMicronutrients: typeof nutritionMicronutrientsRouter;
   dataRights: typeof dataRightsRouter;
+  directDevice: typeof directDeviceRouter;
   example: typeof exampleRouter;
   exerciseCatalog: typeof exerciseCatalogRouter;
   exports: typeof exportsRouter;
@@ -134,6 +136,7 @@ export const appRouter: AppRouterShape = {
   bodyMap: bodyMapRouter,
   nutritionMicronutrients: nutritionMicronutrientsRouter,
   dataRights: dataRightsRouter,
+  directDevice: directDeviceRouter,
   example: exampleRouter,
   exerciseCatalog: exerciseCatalogRouter,
   exports: exportsRouter,

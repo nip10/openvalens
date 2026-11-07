@@ -11,6 +11,7 @@ function recorder(fail: Failure[] = []) {
     if (fail.includes(name)) throw new Error(`${name} failed`);
   };
   const steps: SwitchServerSteps = {
+    invalidateDirectDevices: () => calls.push("invalidateDirectDevices"),
     signOut: step("signOut"),
     cancelPendingMagicLink: step("cancelPendingMagicLink"),
     clearLocalData: () => {
@@ -27,6 +28,7 @@ function recorder(fail: Failure[] = []) {
 }
 
 const CLEANUP = [
+  "invalidateDirectDevices",
   "signOut",
   "cancelPendingMagicLink",
   "clearLocalData",

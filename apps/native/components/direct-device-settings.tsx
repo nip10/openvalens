@@ -1,105 +1,168 @@
 import { Button } from "heroui-native";
 import { Bluetooth, ShieldCheck } from "lucide-react-native";
-import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
-import { AppState, Text, View } from "react-native";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { AppState, Linking, Text, TextInput, View } from "react-native";
 import { useFocusEffect } from "expo-router";
+import { useLingui } from "@lingui/react/macro";
 
 import { Icon, Section, Sheet, StatusPill } from "@/components/bloom";
 import { ListRow } from "@/components/list-row";
-import { createHelioSetupController } from "@/lib/direct-devices/setup/controller";
-import type { HelioSetupController, HelioSetupSnapshot } from "@/lib/direct-devices/setup/types";
+import { createHelioSyncController } from "@/lib/direct-devices/sync/controller";
+import type { HelioSyncContext, HelioSyncController, HelioSyncSnapshot } from "@/lib/direct-devices/sync/types";
 
-const initialSnapshot: HelioSetupSnapshot = Object.freeze({
-  phase: "idle", bluetooth: "unknown", devices: Object.freeze([]), connectedDeviceId: null,
-  errorCode: null, crypto: Object.freeze({ status: "not_checked", code: null }),
+const initialSnapshot: HelioSyncSnapshot = Object.freeze({
+  phase: "idle", bindings: Object.freeze([]), selectedBindingId: null,
+  nearbyDevices: Object.freeze([]), connectedDeviceId: null, bluetooth: "unknown",
+  errorCode: null, capturedMinutes: 0, pendingEnvelopes: 0, acceptedEnvelopes: 0,
+  queuedEnvelopes: 0, publication: null, isBusy: false, canSync: false,
 });
 
-export function DirectDeviceSettings({ scopeKey }: { scopeKey: string | null }) {
-  const [controller, setController] = useState<HelioSetupController | null>(null);
-  useEffect(() => {
-    if (!__DEV__ || !scopeKey) return;
-    const instance = createHelioSetupController();
-    setController(instance);
-    // Controller is memory-only; scope changes replace it, without creating identity or uploads.
-    const subscription = AppState.addEventListener("change", (state) => {
-      if (state !== "active") void instance.disconnect();
-    });
-    return () => {
-      subscription.remove();
-      void instance.dispose();
-    };
+export function DirectDeviceSettings({ context }: { context: HelioSyncContext | null }) {
+  const scopeKey = context ? `${context.serverUrl}:${context.sessionId}:${context.userId}:${context.organizationId}` : null;
+  const controller = useMemo(() => {
+    if (!__DEV__ || !context) return null;
+    return createHelioSyncController(context);
   }, [scopeKey]);
+
+  useEffect(() => {
+    if (!controller) return;
+    const appState = AppState.addEventListener("change", (state) => {
+      if (state !== "active") {
+        void controller.cancel().catch(() => {});
+      }
+    });
+    void controller.refreshBindings().catch(() => {});
+    return () => {
+      appState.remove();
+      void controller.dispose().catch(() => {});
+    };
+  }, [controller]);
   useFocusEffect(useCallback(() => () => {
-    if (controller) void controller.disconnect();
+    if (controller) void controller.cancel().catch(() => {});
   }, [controller]));
+
   if (!__DEV__) return null;
   return <HelioPanel controller={controller} />;
 }
 
-function HelioPanel({ controller }: { controller: HelioSetupController | null }) {
+function HelioPanel({ controller }: { controller: HelioSyncController | null }) {
   const snapshot = useSyncExternalStore(
     controller?.subscribe ?? (() => () => {}),
     controller?.getSnapshot ?? (() => initialSnapshot),
     () => initialSnapshot,
   );
-  const [busy, setBusy] = useState(false);
-  const run = async (action: () => Promise<void>) => {
-    setBusy(true);
-    try { await action(); } catch { /* Fixed generic UI copy; never surface native exceptions. */ }
-    finally { setBusy(false); }
+  const { t } = useLingui();
+  const [authKey, setAuthKey] = useState("");
+  const [working, setWorking] = useState(false);
+  const validKey = /^(?:0x)?[0-9a-fA-F]{32}$/.test(authKey.trim());
+  const busy = working || snapshot.isBusy;
+  const run = (action: () => Promise<void>, allowWhileBusy = false) => {
+    if (busy && !allowWhileBusy) return;
+    setWorking(true);
+    void action().catch(() => {}).finally(() => setWorking(false));
   };
-  const status = snapshot.phase === "scanning" ? "Looking for straps…"
-    : snapshot.phase === "connecting" ? "Checking connection…"
-      : snapshot.phase === "connected" ? "Connected; service found"
-        : snapshot.bluetooth === "unsupported" ? "Bluetooth is not supported on this device"
-          : snapshot.bluetooth === "unauthorized" ? "Bluetooth permission is needed"
-            : snapshot.bluetooth === "powered_off" ? "Turn on Bluetooth to find a strap"
-              : snapshot.phase === "error" ? friendlyError(snapshot.errorCode)
-                : "Ready to check a nearby strap";
+  const handoff = () => {
+    if (!controller || !validKey || busy || !snapshot.canSync) return;
+    const key = authKey.trim();
+    setAuthKey("");
+    if (working) return;
+    setWorking(true);
+    void controller.syncSteps(key).catch(() => {}).finally(() => setWorking(false));
+  };
+  const phaseLabel: Record<HelioSyncSnapshot["phase"], string> = {
+    idle: t`Ready`, loading_bindings: t`Loading saved straps…`, scanning: t`Finding nearby straps…`,
+    connecting: t`Connecting…`, connected: t`Strap connected`, authenticating: t`Authenticating…`,
+    discovering_services: t`Checking strap services…`, fetching: t`Reading step history…`,
+    capturing: t`Saving captured minutes…`, uploading: t`Sending saved minutes…`,
+    processing: t`Server is processing minutes…`, cancelled: t`Sync cancelled`, error: t`Sync needs attention`,
+  };
+  const selected = snapshot.bindings.find((binding) => binding.deviceId === snapshot.selectedBindingId);
+  const statusTone = snapshot.phase === "error" ? "warn" : snapshot.phase === "connected" || snapshot.phase === "processing" ? "good" : "neutral";
+  const policy = snapshot.publication;
+
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state !== "active") setAuthKey("");
+    });
+    return () => sub.remove();
+  }, []);
+  useFocusEffect(useCallback(() => () => setAuthKey(""), []));
+  useEffect(() => {
+    setAuthKey("");
+  }, [controller, snapshot.selectedBindingId, snapshot.connectedDeviceId]);
 
   return (
-    <Section title="Direct device setup" icon={Bluetooth} tone="signal">
+    <Section title={t`Direct device steps`} icon={Bluetooth} tone="signal">
       <Sheet className="gap-3">
         <Text className="font-sans text-sm leading-relaxed text-ink-2">
-          Development check for an Amazfit Helio Strap. Connection checks only. History sync is not available yet.
+          {t`Experimental foreground steps sync for an already-paired Amazfit Helio Strap. No vendor login is requested. The first sync asks for the last 24 hours; later syncs resume from the saved checkpoint.`}
         </Text>
-        <View className="flex-row items-center gap-2">
-          <StatusPill tone={snapshot.phase === "connected" ? "good" : snapshot.phase === "error" ? "warn" : "neutral"}>{status}</StatusPill>
-        </View>
-        {snapshot.devices.length === 0 && snapshot.phase === "idle" ? (
-          <Text className="font-sans text-sm text-ink-3">No straps found yet. Keep the strap nearby and try again.</Text>
-        ) : null}
-        {snapshot.devices.filter((device) => device.id !== snapshot.connectedDeviceId).map((device) => (
-          <ListRow key={device.id} icon={<Icon icon={Bluetooth} size={18} color="ink-2" />} title="Helio Strap" subtitle="Nearby" onPress={() => controller && !busy && snapshot.phase === "idle" && void run(() => controller.connect(device.id))} trailing={<Text className="font-sans text-sm text-signal">Connect</Text>} />
+        <Text className="font-sans text-sm leading-relaxed text-ink-3">
+          {t`Use the same saved strap on both phones. Choose an existing binding to avoid duplicates, or add another only when you mean to create a separate binding. Nearby connection is a separate step.`}
+        </Text>
+        <StatusPill tone={statusTone}>{phaseLabel[snapshot.phase]}</StatusPill>
+
+        {snapshot.bindings.map((binding) => (
+          <ListRow key={binding.deviceId} icon={<Icon icon={Bluetooth} size={18} color="ink-2" />}
+            title={`Helio Strap #${binding.providerConnectionId}`}
+            subtitle={t`Added ${new Date(binding.connectedAt).toLocaleDateString()}`}
+            onPress={() => !busy && controller?.selectBinding(binding.deviceId)}
+            trailing={<Text className="font-sans text-sm text-signal">{selected?.deviceId === binding.deviceId ? t`Selected` : t`Use existing`}</Text>} />
+        ))}
+        {controller && !busy ? <Button variant="outline" onPress={() => run(() => controller.createBinding())}><Button.Label>{t`Add another binding`}</Button.Label></Button> : null}
+
+        {snapshot.nearbyDevices.map((device) => (
+          <ListRow key={device.id} icon={<Icon icon={Bluetooth} size={18} color="ink-2" />}
+            title={device.name || t`Helio Strap`} subtitle={t`Nearby strap`}
+            onPress={() => controller && run(() => controller.connect(device.id))}
+            trailing={<Text className="font-sans text-sm text-signal">{t`Connect`}</Text>} />
         ))}
         <View className="flex-row flex-wrap gap-2">
-          {snapshot.phase === "connected" ? (
-            <Button variant="outline" onPress={() => controller && void run(() => controller.disconnect())} isDisabled={busy}><Button.Label>Disconnect</Button.Label></Button>
-          ) : snapshot.phase === "scanning" ? (
-            <Button variant="outline" onPress={() => controller && void run(() => controller.stopScan())}><Button.Label>Stop finding</Button.Label></Button>
+          {snapshot.phase === "scanning" ? (
+            <Button variant="outline" onPress={() => controller && run(() => controller.stopScan(), true)}><Button.Label>{t`Stop finding`}</Button.Label></Button>
+          ) : snapshot.isBusy && !snapshot.connectedDeviceId ? (
+            <Button variant="outline" onPress={() => controller && run(() => controller.cancel(), true)}><Button.Label>{t`Cancel`}</Button.Label></Button>
+          ) : snapshot.connectedDeviceId ? (
+            <Button variant="outline" onPress={() => controller && run(() => controller.cancel(), true)}><Button.Label>{t`Disconnect`}</Button.Label></Button>
           ) : (
-            <Button onPress={() => controller && void run(() => controller.startScan())} isDisabled={!controller || busy || snapshot.phase === "connecting"}><Button.Label>{busy ? "Please wait…" : "Find strap"}</Button.Label></Button>
+            <Button onPress={() => controller && run(() => controller.startScan())} isDisabled={!controller || busy}><Button.Label>{t`Find nearby strap`}</Button.Label></Button>
           )}
-          <Button variant="outline" onPress={() => controller && void run(() => controller.runCryptoSelfTest())} isDisabled={!controller || busy || snapshot.crypto.status === "running"}>
-            <Button.Label>{snapshot.crypto.status === "running" ? "Checking…" : "Check encryption support"}</Button.Label>
-          </Button>
         </View>
-        <View className="flex-row items-center gap-2">
-          <Icon icon={ShieldCheck} size={16} color="ink-2" />
-          <Text accessibilityLiveRegion="polite" className="font-sans text-sm text-ink-2">
-            Encryption check: {snapshot.crypto.status === "passed" ? "passed" : snapshot.crypto.status === "failed" ? "failed" : snapshot.crypto.status === "unavailable" ? "not available on this build" : snapshot.crypto.status === "running" ? "in progress" : "not run"}
-          </Text>
-        </View>
+        {selected && snapshot.connectedDeviceId ? (
+          <>
+            <View className="gap-2">
+              <Text className="font-sans text-sm font-medium text-ink-2">{t`Strap authentication key`}</Text>
+              <TextInput value={authKey} onChangeText={setAuthKey} maxLength={34}
+                secureTextEntry autoCapitalize="none" autoCorrect={false} autoComplete="off" textContentType="none"
+                accessibilityLabel={t`Strap authentication key`} placeholder={t`32 hexadecimal characters (16 bytes)`}
+                className="rounded-xl border border-rule bg-paper px-3 py-2.5 font-sans text-base text-ink" />
+              <Text className="font-sans text-sm text-ink-3">{t`Enter the 16-byte (32 hexadecimal character) key already configured for this strap. Do not enter your vendor account password.`}</Text>
+              <Text onPress={() => void Linking.openURL("https://gadgetbridge.org/basics/pairing/huami-xiaomi-server/")} className="font-sans text-sm font-medium text-signal underline">{t`Gadgetbridge pairing help`}</Text>
+            </View>
+            <View className="flex-row flex-wrap gap-2">
+              <Button onPress={handoff} isDisabled={!validKey || !snapshot.canSync || busy}><Button.Label>{t`Sync steps`}</Button.Label></Button>
+              {snapshot.isBusy || snapshot.phase === "scanning" || snapshot.connectedDeviceId ? <Button variant="outline" onPress={() => controller && run(() => controller.cancel(), true)}><Button.Label>{t`Cancel / disconnect`}</Button.Label></Button> : null}
+            </View>
+          </>
+        ) : null}
+        {snapshot.pendingEnvelopes > 0 && snapshot.phase !== "uploading" ? <Button variant="outline" onPress={() => controller && run(() => controller.retryUpload())}><Button.Label>{t`Retry upload`}</Button.Label></Button> : null}
+        <Text accessibilityLiveRegion="polite" className="font-sans text-sm text-ink-2">
+          {t`Captured minutes: ${snapshot.capturedMinutes} · Pending: ${snapshot.pendingEnvelopes} · Accepted: ${snapshot.acceptedEnvelopes} · Queued for processing: ${snapshot.queuedEnvelopes}`}
+        </Text>
+        {policy ? <Text className="font-sans text-sm text-ink-3">
+          {t`Published minute records: ${policy.publishedRecords} · Shadowed minute records (stored, not added to totals): ${policy.shadowedRecords}. Step publication follows UTC-day coverage: phone and cloud steps take priority for the whole day, including partial days. Of multiple direct straps, the earliest registered binding is used on uncovered days.`}
+        </Text> : null}
+        {snapshot.errorCode ? <Text className="font-sans text-sm text-destructive">{friendlyError(snapshot.errorCode)}</Text> : null}
+        <View className="flex-row items-center gap-2"><Icon icon={ShieldCheck} size={16} color="ink-2" /><Text className="font-sans text-xs text-ink-3">{t`Experimental; foreground use only. Physical strap support has not been verified.`}</Text></View>
       </Sheet>
     </Section>
   );
 }
 
-function friendlyError(code: string | null) {
-  if (code === "PERMISSION_DENIED") return "Bluetooth permission was not granted. Check app permissions and try again.";
-  if (code === "BLUETOOTH_POWEREDOFF") return "Turn on Bluetooth to find a strap.";
-  if (code === "BLUETOOTH_UNAUTHORIZED") return "Allow Bluetooth access in your device settings.";
-  if (code === "BLUETOOTH_UNSUPPORTED") return "Bluetooth is not supported on this device.";
-  if (code === "HUAMI_SERVICE_MISSING") return "This strap did not provide the expected service.";
-  return "Could not check the connection. Try again.";
+function friendlyError(code: string) {
+  if (code === "BLUETOOTH_UNAUTHORIZED") return "Allow Bluetooth access in device settings.";
+  if (code === "BLUETOOTH_POWERED_OFF") return "Turn on Bluetooth and try again.";
+  if (code === "INVALID_INPUT") return "The strap key or captured data was not accepted. Check the key and try again.";
+  if (code === "MINUTE_CONFLICT") return "This strap reported different steps for a minute already stored. No duplicate was added.";
+  return "Could not sync strap steps. Try again.";
 }

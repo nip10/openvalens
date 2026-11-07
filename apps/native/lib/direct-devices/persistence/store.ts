@@ -45,8 +45,15 @@ export type CaptureInput = Readonly<{
   nextCheckpoint: string;
   envelopes: readonly IngestDirectDeviceBatchInput[];
 }>;
+export type DirectBinding = Readonly<{
+  deviceId: string;
+  providerConnectionId: number | null;
+  captureCheckpoint: string | null;
+}>;
 
 export interface DirectDeviceStore {
+  listBindings(ticket: AuthorityTicket): DirectBinding[];
+  getBinding(ticket: AuthorityTicket, deviceId: string): DirectBinding | null;
   createBinding(ticket: AuthorityTicket, deviceId: string): void;
   markRegistered(ticket: AuthorityTicket, deviceId: string, providerConnectionId: number): void;
   commitCapture(ticket: AuthorityTicket, input: CaptureInput): void;
@@ -227,6 +234,30 @@ export function createSqliteDirectDeviceStore(db: SyncSqliteDatabase, now = Date
   };
 
   const store: DirectDeviceStore = {
+    listBindings(ticket) {
+      const scope = requireTicketScope(ticket);
+      return db.getAllSync<{ device_id: string; provider_connection_id: number | null; capture_checkpoint: string | null }>(
+        `SELECT device_id, provider_connection_id, capture_checkpoint FROM direct_device_binding WHERE scope = ? ORDER BY device_id`, scope,
+      ).map((row) => Object.freeze({
+        deviceId: row.device_id,
+        providerConnectionId: row.provider_connection_id,
+        captureCheckpoint: row.capture_checkpoint,
+      }));
+    },
+
+    getBinding(ticket, deviceId) {
+      validateDeviceId(deviceId);
+      const scope = requireTicketScope(ticket);
+      const row = db.getFirstSync<{ device_id: string; provider_connection_id: number | null; capture_checkpoint: string | null }>(
+        `SELECT device_id, provider_connection_id, capture_checkpoint FROM direct_device_binding WHERE scope = ? AND device_id = ?`, scope, deviceId,
+      );
+      return row ? Object.freeze({
+        deviceId: row.device_id,
+        providerConnectionId: row.provider_connection_id,
+        captureCheckpoint: row.capture_checkpoint,
+      }) : null;
+    },
+
     createBinding(ticket, deviceId) {
       validateDeviceId(deviceId);
       const scope = requireTicketScope(ticket);

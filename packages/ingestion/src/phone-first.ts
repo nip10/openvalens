@@ -1,5 +1,6 @@
 import type { Database } from "@openvalens/db";
 import { sql } from "drizzle-orm";
+import { lockActivityPublication, reconcileDirectStepsFallback } from "./direct-steps-fallback";
 
 /**
  * Phone-first dedupe between phone and cloud wearable rows (Issue #60).
@@ -53,6 +54,7 @@ export async function reconcilePhoneFirst(
   tx: Tx,
   input: { organizationId: string; from: Date; to: Date; now: Date },
 ): Promise<PhoneFirstResult> {
+  await lockActivityPublication(tx, input.organizationId);
   const org = input.organizationId;
   // Whole UTC days around the window, so a day's rows are judged together.
   const from = new Date(
@@ -158,5 +160,6 @@ export async function reconcilePhoneFirst(
       shadowed += rows.length;
     }
   }
+  await reconcileDirectStepsFallback(tx, input);
   return { shadowed, restored };
 }

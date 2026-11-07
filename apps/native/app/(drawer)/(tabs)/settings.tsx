@@ -56,6 +56,7 @@ import {
   StatusPill,
 } from "@/components/bloom";
 import { CloudAccessNotice } from "@/components/cloud-access-notice";
+import { useConfirmedSignOut } from "@/components/confirm-sign-out";
 import { ListRow } from "@/components/list-row";
 import { Container } from "@/components/container";
 import { HealthSyncSettings } from "@/components/health-sync-settings";
@@ -91,6 +92,7 @@ export default function SettingsScreen() {
 
   const { t } = useLingui();
   const displayName = session?.user ? (session.user.name ?? session.user.email) : null;
+  const confirmSignOut = useConfirmedSignOut(signOutOfThisPhone);
 
   return (
     <Container scrollRef={settingsScroll}>
@@ -126,7 +128,7 @@ export default function SettingsScreen() {
               <Button
                 variant="outline"
                 size="sm"
-                onPress={() => void signOutOfThisPhone()}
+                onPress={() => void confirmSignOut()}
                 accessibilityLabel={t`Sign out`}
                 testID="sign-out"
               >
@@ -187,16 +189,11 @@ export default function SettingsScreen() {
 
         {__DEV__ && (
           <DirectDeviceSettings
-            key={
-              session?.user?.id && session.session.activeOrganizationId && directDeviceServer.status === "set"
-                ? `${directDeviceServer.url}:${session.user.id}:${session.session.activeOrganizationId}`
-                : "no-scope"
-            }
-            scopeKey={
-              session?.user?.id && session.session.activeOrganizationId && directDeviceServer.status === "set"
-                ? `${directDeviceServer.url}:${session.user.id}:${session.session.activeOrganizationId}`
-                : null
-            }
+            key={session?.user?.id && session.session.id && session.session.activeOrganizationId && directDeviceServer.status === "set"
+              ? `${directDeviceServer.url}:${session.session.id}:${session.user.id}:${session.session.activeOrganizationId}` : "no-scope"}
+            context={session?.user?.id && session.session.id && session.session.activeOrganizationId && directDeviceServer.status === "set"
+              ? { serverUrl: directDeviceServer.url, userId: session.user.id, organizationId: session.session.activeOrganizationId, sessionId: session.session.id }
+              : null}
           />
         )}
 
@@ -264,7 +261,7 @@ export default function SettingsScreen() {
 
         {session?.user ? (
           <View onLayout={(event) => (deleteAccountOffset.current = event.nativeEvent.layout.y)}>
-            <DeleteAccountSection onSignOut={signOutOfThisPhone} />
+          <DeleteAccountSection onSignOut={signOutOfThisPhone} />
           </View>
         ) : null}
 

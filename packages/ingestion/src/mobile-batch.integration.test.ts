@@ -24,6 +24,7 @@ import {
   MOBILE_INGEST_JOB_TYPE,
   MobileDeviceNotRegisteredError,
   MobileDeviceRevokedError,
+  DirectDeviceMinuteConflictError,
   registerMobileDevice,
   runMobileIngestBatchJob,
   type MobileIngestBatch,
@@ -211,6 +212,35 @@ describe.skipIf(!url)("mobile ingest batch on disposable PostgreSQL", () => {
     expect(sources.every((source) => source.importChannel === "direct_device")).toBe(true);
     const [artifact] = await db.select().from(ingestionRawArtifact).where(eq(ingestionRawArtifact.id, first.rawArtifactId));
     expect(artifact?.payloadJson).toMatchObject({ upserts: [{ externalRecordId: `dd:v1:${DEVICE}:steps:same-local-id`, sourceApp: null, sourceDevice: { model: "Amazfit Helio Strap" } }] });
+  });
+
+  test("direct step minutes deduplicate across local ids and reject conflicting values", async () => {
+    await registerDirect();
+    const publish = (externalRecordId: string, count: number, traceId: string) => ingestDirectDeviceBatch(db, {
+      expectedContext: directContext, authenticatedContext: directContext,
+      batch: { ...directBatch(), upserts: [{ ...directBatch().upserts[0]!, externalRecordId, count }] }, traceId, now,
+    });
+    const first = await publish("page-a", 10, "minute-a");
+    expect(first.status).toBe("applied");
+    const duplicate = await publish("page-b", 10, "minute-b");
+    expect(duplicate.status).toBe("applied");
+    expect(duplicate.duplicates).toBe(0);
+    expect(await db.select().from(metricSample)).toHaveLength(1);
+    await expect(publish("page-c", 11, "minute-c")).rejects.toBeInstanceOf(DirectDeviceMinuteConflictError);
+    expect(await db.select().from(metricSample)).toHaveLength(1);
+  });
+
+  test("concurrent contradictory direct uploads serialize to one published value", async () => {
+    await registerDirect();
+    const upload = (externalRecordId: string, count: number, traceId: string) => ingestDirectDeviceBatch(db, {
+      expectedContext: directContext, authenticatedContext: directContext,
+      batch: { ...directBatch(), upserts: [{ ...directBatch().upserts[0]!, externalRecordId, count }] }, traceId, now,
+    });
+    const outcomes = await Promise.allSettled([upload("race-a", 10, "race-a"), upload("race-b", 11, "race-b")]);
+    expect(outcomes.filter((outcome) => outcome.status === "fulfilled")).toHaveLength(1);
+    const rejected = outcomes.find((outcome) => outcome.status === "rejected");
+    expect(rejected?.status === "rejected" && rejected.reason).toBeInstanceOf(DirectDeviceMinuteConflictError);
+    expect(await db.select().from(metricSample)).toHaveLength(1);
   });
 
   test("registerDevice creates one active connection and is idempotent", async () => {

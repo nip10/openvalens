@@ -10,6 +10,8 @@ import { directDeviceRepositoryIdentity, type DirectDeviceErrorCode, type Direct
 
 export type DirectUploadSummary = Readonly<{
   sent: number;
+  applied: number;
+  queued: number;
   blocked: number;
   stopped: "already_draining" | "stale_authority" | "retryable_error" | null;
 }>;
@@ -22,6 +24,10 @@ export function classifyDirectDeviceUploadError(error: unknown): {
 } {
   const shaped = error && typeof error === "object" ? error as { code?: unknown; data?: unknown } : {};
   const raw = String(shaped.code ?? "");
+  if (shaped.data && typeof shaped.data === "object" &&
+    String((shaped.data as { reason?: unknown }).reason ?? "") === "MINUTE_CONFLICT") {
+    return { state: "blocked", code: "INVALID_INPUT" };
+  }
   if (raw.toUpperCase() === "PERMISSION_DENIED" && shaped.data && typeof shaped.data === "object") {
     const data = shaped.data as { reason?: unknown };
     const parsed = directDeviceRefusalReason.safeParse(data.reason);
@@ -61,33 +67,35 @@ export async function drainDirectDeviceOutbox(
   },
 ): Promise<DirectUploadSummary> {
   const repository = directDeviceRepositoryIdentity(deps.store);
-  if (inFlight.has(repository)) return { sent: 0, blocked: 0, stopped: "already_draining" };
+  if (inFlight.has(repository)) return { sent: 0, applied: 0, queued: 0, blocked: 0, stopped: "already_draining" };
   inFlight.add(repository);
   let sent = 0;
+  let applied = 0;
+  let queued = 0;
   let blocked = 0;
   try {
     while (isAuthorityTicketCurrent(ticket)) {
       const [row] = deps.store.listPending(ticket, 1);
-      if (!row) return { sent, blocked, stopped: null };
+      if (!row) return { sent, applied, queued, blocked, stopped: null };
 
       // Read, don't pop: the exact serialized request remains retryable after ambiguity.
-      if (!isAuthorityTicketCurrent(ticket)) return { sent, blocked, stopped: "stale_authority" };
+      if (!isAuthorityTicketCurrent(ticket)) return { sent, applied, queued, blocked, stopped: "stale_authority" };
       let response: IngestDirectDeviceBatchOutput;
       try {
         response = await deps.send(row.request);
       } catch (error) {
-        if (!isAuthorityTicketCurrent(ticket)) return { sent, blocked, stopped: "stale_authority" };
+        if (!isAuthorityTicketCurrent(ticket)) return { sent, applied, queued, blocked, stopped: "stale_authority" };
         const classified = classifyDirectDeviceUploadError(error);
         if (classified.state === "blocked") {
           deps.store.markBlocked(ticket, row.ref, classified.code);
           blocked += 1;
           continue;
         }
-        return { sent, blocked, stopped: "retryable_error" };
+        return { sent, applied, queued, blocked, stopped: "retryable_error" };
       }
 
       // Never persist a late receipt under a revoked account/session authority.
-      if (!isAuthorityTicketCurrent(ticket)) return { sent, blocked, stopped: "stale_authority" };
+      if (!isAuthorityTicketCurrent(ticket)) return { sent, applied, queued, blocked, stopped: "stale_authority" };
       const parsed = ingestDirectDeviceBatchOutput.safeParse(response);
       if (!parsed.success) {
         deps.store.markBlocked(ticket, row.ref, "INVALID_RECEIPT");
@@ -96,8 +104,10 @@ export async function drainDirectDeviceOutbox(
       }
       deps.store.recordServerReceipt(ticket, row.ref, parsed.data);
       sent += 1;
+      if (parsed.data.status === "applied") applied += 1;
+      if (parsed.data.status === "queued") queued += 1;
     }
-    return { sent, blocked, stopped: "stale_authority" };
+    return { sent, applied, queued, blocked, stopped: "stale_authority" };
   } finally {
     inFlight.delete(repository);
   }

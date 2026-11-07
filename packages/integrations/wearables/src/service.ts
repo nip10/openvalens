@@ -17,6 +17,7 @@ import {
   persistCanonicalIntents,
   PHONE_FIRST_RELATION,
   reconcilePhoneFirst,
+  lockActivityPublication,
   type CanonicalRowRef,
   type CanonicalWriteIntent,
 } from "@openvalens/ingestion";
@@ -665,6 +666,7 @@ export function createWearablesService(deps: WearablesServiceDeps) {
 
     const outcome = await db.transaction(async (tx) => {
       const organizationId = row.organizationId;
+      await lockActivityPublication(tx, organizationId);
       const startedAt = now();
       const [job] = await tx
         .insert(ingestionJob)
@@ -881,6 +883,7 @@ export function createWearablesService(deps: WearablesServiceDeps) {
     }
     const deletedRows = await db.transaction(async (tx) => {
       const at = now();
+      await lockActivityPublication(tx, row.organizationId);
       await tx.delete(wearableConnection).where(eq(wearableConnection.id, row.id));
       await tx
         .update(providerConnection)
@@ -915,6 +918,7 @@ export function createWearablesService(deps: WearablesServiceDeps) {
     if (!row || row.status !== "quarantined") throw new WearableNotConnectedError();
     const affectedRows = await db.transaction(async (tx) => {
       const at = now();
+      await lockActivityPublication(tx, row.organizationId);
       const count =
         input.action === "keep"
           ? await restoreQuarantined(tx, row.organizationId, row.providerConnectionId)
@@ -944,6 +948,7 @@ export function createWearablesService(deps: WearablesServiceDeps) {
   async function quarantine(row: ConnectionRow): Promise<number> {
     return db.transaction(async (tx) => {
       const at = now();
+      await lockActivityPublication(tx, row.organizationId);
       const [locked] = await tx
         .update(wearableConnection)
         .set({
@@ -1000,6 +1005,23 @@ export function createWearablesService(deps: WearablesServiceDeps) {
             })),
           )
           .onConflictDoNothing();
+      }
+      if (hidden) {
+        const bounds = await tx.execute(sql`
+          select min(at) as from_at, max(at) as to_at from (
+            select r.sampled_at as at from metric_sample r join data_source d
+              on d.id=r.data_source_id and d.organization_id=r.organization_id
+            where r.organization_id=${row.organizationId} and d.provider_connection_id=${row.providerConnectionId}
+            union all
+            select r.event_at as at from health_event r join data_source d
+              on d.id=r.data_source_id and d.organization_id=r.organization_id
+            where r.organization_id=${row.organizationId} and d.provider_connection_id=${row.providerConnectionId}
+          ) affected`);
+        const range = bounds.rows[0] as { from_at: Date | string | null; to_at: Date | string | null } | undefined;
+        if (range?.from_at && range.to_at) await reconcilePhoneFirst(tx, {
+          organizationId: row.organizationId,
+          from: new Date(range.from_at), to: new Date(range.to_at), now: at,
+        });
       }
       return hidden;
     });
@@ -1085,21 +1107,33 @@ export function createWearablesService(deps: WearablesServiceDeps) {
 
   async function supersedeRecord(row: ConnectionRow, externalRecordId: string) {
     const at = now();
-    for (const [table, column] of [
-      ["metric_sample", "external_sample_id"],
-      ["health_event", "source_event_id"],
-    ] as const) {
-      const touch = table === "health_event" ? sql`, updated_at = ${at}` : sql``;
-      await db.execute(sql`
-        update ${sql.identifier(table)} r set superseded_at = ${at} ${touch}
-        from data_source d
-        where d.id = r.data_source_id and d.organization_id = r.organization_id
-          and r.organization_id = ${row.organizationId}
-          and d.provider_connection_id = ${row.providerConnectionId}
-          and (r.${sql.identifier(column)} = ${externalRecordId}
-            or r.${sql.identifier(column)} like ${`${externalRecordId}-%`})
-          and r.superseded_at is null`);
-    }
+    await db.transaction(async (tx) => {
+      await lockActivityPublication(tx, row.organizationId);
+      let from: Date | null = null;
+      let to: Date | null = null;
+      for (const [table, column, timeColumn] of [
+        ["metric_sample", "external_sample_id", "sampled_at"],
+        ["health_event", "source_event_id", "event_at"],
+      ] as const) {
+        const touch = table === "health_event" ? sql`, updated_at = ${at}` : sql``;
+        const changed = await tx.execute(sql`
+          update ${sql.identifier(table)} r set superseded_at = ${at} ${touch}
+          from data_source d
+          where d.id = r.data_source_id and d.organization_id = r.organization_id
+            and r.organization_id = ${row.organizationId}
+            and d.provider_connection_id = ${row.providerConnectionId}
+            and (r.${sql.identifier(column)} = ${externalRecordId}
+              or r.${sql.identifier(column)} like ${`${externalRecordId}-%`})
+            and r.superseded_at is null
+          returning r.${sql.identifier(timeColumn)} as at`);
+        for (const item of changed.rows as { at: Date | string }[]) {
+          const time = new Date(item.at);
+          if (!from || time < from) from = time;
+          if (!to || time > to) to = time;
+        }
+      }
+      if (from && to) await reconcilePhoneFirst(tx, { organizationId: row.organizationId, from, to, now: at });
+    });
   }
 
   return {
@@ -1213,6 +1247,7 @@ async function restoreQuarantined(
   organizationId: string,
   providerConnectionId: number,
 ): Promise<number> {
+  await lockActivityPublication(tx, organizationId);
   let restored = 0;
   const times: number[] = [];
   for (const [table, column] of [
@@ -1258,6 +1293,12 @@ async function deleteConnectionData(
 ): Promise<number> {
   const org = organizationId;
   const pc = providerConnectionId;
+  await lockActivityPublication(tx as Tx, org);
+  const boundsResult = await tx.execute(sql`
+    select min(r.sampled_at) as from_at, max(r.sampled_at) as to_at
+    from metric_sample r join data_source d on d.id=r.data_source_id and d.organization_id=r.organization_id
+    where r.organization_id=${org} and d.provider_connection_id=${pc}`);
+  const bounds = boundsResult.rows[0] as { from_at: Date | string | null; to_at: Date | string | null } | undefined;
   const rowsOf = (table: "metric_sample" | "health_event") => sql`
     select r.id from ${sql.identifier(table)} r
     join data_source d on d.id = r.data_source_id and d.organization_id = r.organization_id
@@ -1290,5 +1331,11 @@ async function deleteConnectionData(
     where organization_id = ${org} and provider_connection_id = ${pc}`);
   await tx.execute(sql`
     delete from data_source where organization_id = ${org} and provider_connection_id = ${pc}`);
+  if (bounds?.from_at && bounds.to_at) await reconcilePhoneFirst(tx as Tx, {
+    organizationId: org,
+    from: new Date(bounds.from_at),
+    to: new Date(bounds.to_at),
+    now: new Date(),
+  });
   return deleted;
 }

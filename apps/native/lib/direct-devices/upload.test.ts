@@ -38,6 +38,8 @@ function setup() {
 const duplicateReceipt = {
   status: "duplicate" as const, rawArtifactId: 1, accepted: 1, duplicates: 1, rejected: 0, superseded: 0, targetId: "target",
 };
+const appliedReceipt = { ...duplicateReceipt, status: "applied" as const };
+const queuedReceipt = { ...duplicateReceipt, status: "queued" as const };
 
 test("authentication and read-only failures pause; contract-invalid and ownership failures block", () => {
   expect(classifyDirectDeviceUploadError({ code: "UNAUTHENTICATED" })).toEqual({ state: "pending", code: "UNAUTHENTICATED" });
@@ -45,6 +47,8 @@ test("authentication and read-only failures pause; contract-invalid and ownershi
   expect(classifyDirectDeviceUploadError({ code: "ACCESS_READ_ONLY" })).toEqual({ state: "pending", code: "READ_ONLY" });
   expect(classifyDirectDeviceUploadError({ code: "BAD_REQUEST" })).toEqual({ state: "blocked", code: "INVALID_INPUT" });
   expect(classifyDirectDeviceUploadError({ code: "DIRECT_DEVICE_WRONG_OWNER" })).toEqual({ state: "blocked", code: "WRONG_OWNER" });
+  expect(classifyDirectDeviceUploadError({ code: "BAD_REQUEST", data: { reason: "MINUTE_CONFLICT" } }))
+    .toEqual({ state: "blocked", code: "INVALID_INPUT" });
 });
 
 test("serialized backend device refusals block safely and generic permission errors remain retryable", async () => {
@@ -150,6 +154,26 @@ test("late receipt after purge is ignored and stale ticket cannot recreate data"
   expect(await draining).toMatchObject({ sent: 0, stopped: "stale_authority" });
   expect(store.countUnaccepted()).toBe(0);
   expect(() => store.createBinding(ticket, deviceId)).toThrow("STALE_DIRECT_DEVICE_AUTHORITY");
+});
+
+test("stale authority summaries retain applied and queued counts accumulated before invalidation", async () => {
+  const { store, ticket } = setup();
+  store.commitCapture(ticket, {
+    deviceId, captureId: "capture-2", expectedPreviousCheckpoint: "cursor", nextCheckpoint: "cursor-2",
+    envelopes: [request("row-3")],
+  });
+  let calls = 0;
+  const summary = await drainDirectDeviceOutbox(ticket, {
+    store,
+    send: async () => {
+      calls += 1;
+      if (calls === 1) return appliedReceipt;
+      if (calls === 2) return queuedReceipt;
+      store.purgeScope(scope);
+      return duplicateReceipt;
+    },
+  });
+  expect(summary).toEqual({ sent: 2, applied: 1, queued: 1, blocked: 0, stopped: "stale_authority" });
 });
 
 test("invalid receipt blocks fixed error code; revoked/wrong-owner failures block without leaking messages", async () => {

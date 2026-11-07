@@ -21,6 +21,7 @@ import { AppThemeProvider } from "@/contexts/app-theme-context";
 import { DisplayPreferencesProvider } from "@/lib/display-preferences";
 import { AppI18nProvider } from "@/lib/i18n/provider";
 import { getAuthClient } from "@/lib/auth-client";
+import { installDirectDeviceAuthority, invalidateDirectDeviceAuthority } from "@/lib/direct-devices/authority";
 import { initErrorReporting } from "@/lib/error-reporting";
 // Defines the background sync task on every launch, including headless ones.
 import "@/lib/health-sync/scheduler";
@@ -85,7 +86,26 @@ function ServerGate({ children }: { children: ReactNode }) {
   // Create the auth client up front: a magic link that cold-starts the app
   // installs its session into this client's store.
   getAuthClient();
-  return <Fragment key={server.url}>{children}</Fragment>;
+  return <Fragment key={server.url}><DirectDeviceSessionObserver serverUrl={server.url} />{children}</Fragment>;
+}
+
+/** Headless authority observer lives inside the server gate and follows auth-session installs. */
+function DirectDeviceSessionObserver({ serverUrl }: { serverUrl: string }) {
+  const auth = getAuthClient();
+  const { data } = auth.useSession();
+  const userId = data?.user?.id;
+  const session = data?.session as ({ id?: string; activeOrganizationId?: string | null } | undefined);
+  const organizationId = session?.activeOrganizationId;
+  const sessionId = session?.id;
+  useEffect(() => {
+    if (userId && organizationId && sessionId) {
+      installDirectDeviceAuthority({ serverUrl, userId, organizationId }, sessionId);
+    } else {
+      invalidateDirectDeviceAuthority();
+    }
+    return () => invalidateDirectDeviceAuthority();
+  }, [serverUrl, userId, organizationId, sessionId]);
+  return null;
 }
 
 function StackLayout() {

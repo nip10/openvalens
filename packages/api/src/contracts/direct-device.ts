@@ -6,7 +6,7 @@ export const DIRECT_DEVICE_PROVIDER = "direct_device" as const;
 export const DIRECT_DEVICE_FAMILY = "amazfit_helio_strap" as const;
 
 /** Safe, stable refusal categories for clients; deliberately excludes identity details. */
-export const directDeviceRefusalReason = z.enum(["REVOKED", "UNAVAILABLE"]);
+export const directDeviceRefusalReason = z.enum(["REVOKED", "UNAVAILABLE", "MINUTE_CONFLICT"]);
 export type DirectDeviceRefusalReason = z.infer<typeof directDeviceRefusalReason>;
 
 export const directDeviceContext = z.strictObject({
@@ -14,6 +14,28 @@ export const directDeviceContext = z.strictObject({
   organizationId: z.string().min(1),
 });
 export type DirectDeviceContext = z.infer<typeof directDeviceContext>;
+
+export const directDevicePublication = z.strictObject({
+  policy: z.literal("phone_cloud_first_utc_day"),
+  publishedRecords: z.number().int().nonnegative(),
+  shadowedRecords: z.number().int().nonnegative(),
+});
+export type DirectDevicePublication = z.infer<typeof directDevicePublication>;
+
+export const directDeviceBindingSummary = z.strictObject({
+  deviceId: z.uuid(),
+  providerConnectionId: z.number().int().positive(),
+  family: z.literal(DIRECT_DEVICE_FAMILY),
+  connectedAt: isoUtc,
+  lastSyncedAt: isoUtc.nullable(),
+  publication: directDevicePublication,
+});
+export type DirectDeviceBindingSummary = z.infer<typeof directDeviceBindingSummary>;
+
+export const listDirectDevicesInput = z.strictObject({ expectedContext: directDeviceContext });
+export type ListDirectDevicesInput = z.infer<typeof listDirectDevicesInput>;
+export const listDirectDevicesOutput = z.strictObject({ devices: z.array(directDeviceBindingSummary) });
+export type ListDirectDevicesOutput = z.infer<typeof listDirectDevicesOutput>;
 
 export const registerDirectDeviceInput = z.strictObject({
   deviceId: z.uuid(),

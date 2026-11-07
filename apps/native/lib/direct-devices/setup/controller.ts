@@ -1,9 +1,11 @@
 import type { BleManager, Device, State, Subscription } from "react-native-ble-plx";
 
 import type { HelioSetupController, HelioSetupSnapshot } from "./types";
+import { NativeHelioLink } from "../transport/helio-link";
+import { runHelioStepsHistory } from "../protocol/history";
 
 type Radio = {
-  manager: Pick<BleManager, "state" | "onStateChange" | "startDeviceScan" | "stopDeviceScan" | "destroy" | "onDeviceDisconnected">;
+  manager: Pick<BleManager, "state" | "onStateChange" | "startDeviceScan" | "stopDeviceScan" | "destroy" | "onDeviceDisconnected" | "cancelTransaction">;
   devices: Map<string, Device>;
 };
 type Runtime = { platform: string; version: number; requestPermissions(permissions: string[]): Promise<Record<string, string>>; granted: string };
@@ -68,6 +70,8 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
   let scanControlBarrier: Promise<void> = Promise.resolve();
   let scanTimer: ReturnType<typeof setTimeout> | null = null;
   let cancelReadyWait: (() => void) | null = null;
+  let historyAbort: AbortController | null = null;
+  let historyCompletion: Promise<import("../protocol/types").HelioHistoryResult> | null = null;
 
   const publish = (patch: Partial<HelioSetupSnapshot>) => {
     snapshot = Object.freeze({ ...snapshot, ...patch });
@@ -258,6 +262,8 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
       finally { if (connectionCompletion === work) connectionCompletion = null; }
     },
     async disconnect() {
+      historyAbort?.abort();
+      const pendingHistory = historyCompletion;
       ++generation; busy = false; scanRequested = false; cancelReadiness();
       cancelLeaseWait?.(); cancelLeaseWait = null;
       const stopPromise = stopRadioScan();
@@ -271,7 +277,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
       connecting = null; connected = null; connectionAttempt = null;
       connectingLease = null; connectedLease = null;
       const cancellations = [...handles].map(cancelDevice);
-      await Promise.all([stopPromise, ...cancellations, pendingConnection?.catch(() => undefined)]);
+      await Promise.all([stopPromise, ...cancellations, pendingConnection?.catch(() => undefined), pendingHistory?.catch(() => undefined)]);
       for (const lease of leases) lease.release();
       if (!disposed && current === generation) publish({ phase: "idle", connectedDeviceId: null });
     },
@@ -288,9 +294,31 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
         if (current === generation && !disposed) publish({ crypto: Object.freeze({ status: passed ? "passed" : "failed", code: passed ? null : "CRYPTO_VECTOR_MISMATCH" }) });
       } catch { if (current === generation && !disposed) publish({ crypto: Object.freeze({ status: "unavailable", code: "CRYPTO_UNAVAILABLE" }) }); }
     },
+    async fetchSteps(options) {
+      if (disposed) throw new Error("CANCELLED");
+      if (!connected) throw new Error("NOT_CONNECTED");
+      if (historyCompletion) throw new Error("HISTORY_BUSY");
+      const device = connected;
+      const abortController = new AbortController();
+      historyAbort = abortController;
+      const forwardAbort = () => abortController.abort();
+      options.signal.addEventListener("abort", forwardAbort, { once: true });
+      const linked = { ...options, signal: abortController.signal };
+      const workLink = new NativeHelioLink(device, radio?.manager);
+      const work = runHelioStepsHistory(workLink, linked).finally(() => workLink.close());
+      historyCompletion = work;
+      try { return await work; }
+      finally {
+        options.signal.removeEventListener("abort", forwardAbort);
+        if (historyCompletion === work) historyCompletion = null;
+        if (historyAbort === abortController) historyAbort = null;
+      }
+    },
     async dispose() {
       if (disposed) return;
       disposed = true; ++generation; busy = false; scanRequested = false; scanToken = null; cancelReadiness();
+      historyAbort?.abort();
+      const pendingHistory = historyCompletion;
       cancelLeaseWait?.(); cancelLeaseWait = null;
       clearStateSubscription();
       disconnectSubscription?.remove(); disconnectSubscription = null;
@@ -309,6 +337,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
           await pendingStart?.catch(() => undefined);
           await pendingStop;
           await pendingConnection?.catch(() => undefined);
+          await pendingHistory?.catch(() => undefined);
           await Promise.all(cancellations);
           await ownedRadio.manager.destroy();
           for (const lease of leases) lease.release();
@@ -317,6 +346,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
         await managerTeardownBarrier;
       } else {
         await pendingConnection?.catch(() => undefined);
+        await pendingHistory?.catch(() => undefined);
         await Promise.all(cancellations);
         for (const lease of leases) lease.release();
       }

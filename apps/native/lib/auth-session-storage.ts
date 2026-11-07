@@ -6,6 +6,7 @@ import {
   type expoClient,
 } from "@better-auth/expo/client";
 import * as SecureStore from "expo-secure-store";
+import { beginDirectDeviceAuthorityTransition } from "./direct-devices/authority";
 
 type ExpoPlugin = ReturnType<typeof expoClient>;
 type ExpoOptions = Parameters<typeof import("@better-auth/expo/client").expoClient>[0];
@@ -118,6 +119,8 @@ export class AuthSessionStorageCoordinator {
   }
 
   async installVerifiedSessionCookie(candidateJar: string): Promise<void> {
+    // A new cookie may replace the authenticated principal; fence old callbacks now.
+    beginDirectDeviceAuthorityTransition();
     const store = this.clientStore;
     if (!store || !this.cookieKey || !this.sessionCacheKey) throw new Error(INSTALL_ERROR);
     if (!safeJarHasSingleSessionToken(candidateJar, this.tokenCookieNames)) {
@@ -153,6 +156,7 @@ export class AuthSessionStorageCoordinator {
    * and leaves the coordinator in a known (signed-out) state.
    */
   async clearStoredSession(): Promise<void> {
+    beginDirectDeviceAuthorityTransition();
     const result = this.operationTail.then(async () => {
       const cookieKey = this.cookieKey;
       const sessionCacheKey = this.sessionCacheKey;
@@ -170,6 +174,17 @@ export class AuthSessionStorageCoordinator {
       () => undefined,
     );
     return result;
+  }
+
+  /** Captures only the single currently installed Better Auth session token. */
+  async captureVerifiedSessionCookie(): Promise<string> {
+    const cookieKey = this.cookieKey;
+    if (!cookieKey || this.uncertainState) throw new Error("DIRECT_DEVICE_AUTH_UNAVAILABLE");
+    const jar = (await this.managedStorage.getItemAsync(cookieKey)) ?? "{}";
+    const cookie = getCookie(jar);
+    const tokens = cookiePairs(cookie).filter(({ name }) => this.tokenCookieNames.includes(name));
+    if (tokens.length !== 1 || !tokens[0]?.value) throw new Error("DIRECT_DEVICE_AUTH_UNAVAILABLE");
+    return `${tokens[0].name}=${tokens[0].value}`;
   }
 
   private withLock<T>(operation: () => Promise<T>): Promise<T> {

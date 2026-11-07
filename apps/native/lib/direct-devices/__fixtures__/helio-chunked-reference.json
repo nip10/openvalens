@@ -1,0 +1,150 @@
+{
+  "source": "Gadgetbridge Codeberg 8976702fc3d00e6008c91fe994668cb4027f7bc2",
+  "sourceFile": "service/devices/huami/Huami2021ChunkedEncoder.java",
+  "sourceSha256": "9ef26462fbf1d6b55ceb0bbfe2512a089b067f8b5b19e14e5b50d4cb16ade176",
+  "license": "AGPL-3.0-or-later",
+  "generator": "Unchanged upstream Java Huami2021ChunkedEncoder; independent Node AES-128-ECB/CRC-32 comparison passed",
+  "vectors": [
+    {
+      "name": "auth52-mtu23",
+      "mtu": 23,
+      "type": 1,
+      "extendedFlags": true,
+      "encrypted": false,
+      "inputLength": 52,
+      "initialSequence": 0,
+      "chunks": [
+        {
+          "handle": 1,
+          "count": 0,
+          "hex": "0301000100340000000100000102030405060708"
+        },
+        {
+          "handle": 1,
+          "count": 1,
+          "hex": "0300000101090a0b0c0d0e0f1011121314151617"
+        },
+        {
+          "handle": 1,
+          "count": 2,
+          "hex": "030000010218191a1b1c1d1e1f20212223242526"
+        },
+        {
+          "handle": 1,
+          "count": 3,
+          "hex": "03060001032728292a2b2c2d2e2f30313233"
+        }
+      ]
+    },
+    {
+      "name": "endpoint004b-short10-mtu23",
+      "mtu": 23,
+      "type": 75,
+      "extendedFlags": true,
+      "encrypted": true,
+      "inputLength": 10,
+      "initialSequence": 305419896,
+      "chunks": [
+        {
+          "handle": 1,
+          "count": 0,
+          "hex": "03090001000a0000004b00403fea1710072e1ea9"
+        },
+        {
+          "handle": 1,
+          "count": 1,
+          "hex": "03080001019a08539e382b55cf45984578f0c754"
+        },
+        {
+          "handle": 1,
+          "count": 2,
+          "hex": "030e0001020989d2ca23577a0c"
+        }
+      ]
+    },
+    {
+      "name": "encrypted-empty",
+      "mtu": 23,
+      "type": 75,
+      "extendedFlags": true,
+      "encrypted": true,
+      "inputLength": 0,
+      "initialSequence": 0,
+      "chunks": [
+        {
+          "handle": 1,
+          "count": 0,
+          "hex": "0309000100000000004b00a7610cedf8c9134afd"
+        },
+        {
+          "handle": 1,
+          "count": 1,
+          "hex": "030e00010154cd7b42afda9a"
+        }
+      ]
+    },
+    {
+      "name": "encrypted-8-exact-block-boundary",
+      "mtu": 23,
+      "type": 75,
+      "extendedFlags": true,
+      "encrypted": true,
+      "inputLength": 8,
+      "initialSequence": 7,
+      "chunks": [
+        {
+          "handle": 1,
+          "count": 0,
+          "hex": "0309000100080000004b009062842330b4a6e8bf"
+        },
+        {
+          "handle": 1,
+          "count": 1,
+          "hex": "030e0001017c6c822991b889"
+        }
+      ]
+    },
+    {
+      "name": "encrypted-9-multi-block",
+      "mtu": 23,
+      "type": 75,
+      "extendedFlags": true,
+      "encrypted": true,
+      "inputLength": 9,
+      "initialSequence": 8,
+      "chunks": [
+        {
+          "handle": 1,
+          "count": 0,
+          "hex": "0309000100090000004b0037e7ffd4b013ffd1a8"
+        },
+        {
+          "handle": 1,
+          "count": 1,
+          "hex": "0308000101ca972e587f4539edfa686d2872b138"
+        },
+        {
+          "handle": 1,
+          "count": 2,
+          "hex": "030e000102bb6f29cc007242fe"
+        }
+      ]
+    },
+    {
+      "name": "unencrypted-9-multi-chunk",
+      "mtu": 23,
+      "type": 75,
+      "extendedFlags": true,
+      "encrypted": false,
+      "inputLength": 9,
+      "initialSequence": 0,
+      "chunks": [
+        {
+          "handle": 1,
+          "count": 0,
+          "hex": "0307000100090000004b00000102030405060708"
+        }
+      ]
+    }
+  ]
+}

@@ -3,10 +3,16 @@ import { expect, test } from "bun:test";
 import { appRouter } from "./index";
 import { directDeviceRouter } from "./direct-device";
 
-test("direct-device procedures are intentionally not mounted", () => {
+test("direct-device procedures are mounted only at the root directDevice namespace", () => {
   expect(directDeviceRouter).toHaveProperty("registerDirectDevice");
   expect(directDeviceRouter).toHaveProperty("ingestDirectDeviceBatch");
-  expect((appRouter as Record<string, unknown>).directDevice).toBeUndefined();
+  expect(directDeviceRouter).toHaveProperty("listDirectDevices");
+  expect(appRouter.directDevice).toBe(directDeviceRouter);
+  expect(appRouter.mobile).not.toHaveProperty("directDevice");
+  expect(appRouter).not.toHaveProperty("ingestDirectDeviceBatch");
+  expect(Object.keys(appRouter.directDevice).sort()).toEqual([
+    "ingestDirectDeviceBatch", "listDirectDevices", "registerDirectDevice",
+  ]);
 });
 
 test("direct-device wire procedures reject client provenance and tenant fields", async () => {

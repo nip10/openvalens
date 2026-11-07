@@ -24,6 +24,7 @@ import {
 } from "./mobile-records";
 import { directSourceIdentity, resolveDataSource, sourceIdentity, type SourceIdentity } from "./mobile-data-source";
 import { hasCloudWearableSources, reconcilePhoneFirst } from "./phone-first";
+import { lockActivityPublication, reconcileDirectStepsFallback } from "./direct-steps-fallback";
 import { persistCanonicalIntents, type CanonicalRowRef } from "./persist-canonical-records";
 import type { RunClaimedJobResult } from "./run-job";
 
@@ -83,6 +84,14 @@ export class MobileDeviceRevokedError extends Error {
   constructor() {
     super("Mobile device access has been revoked.");
     this.name = "MobileDeviceRevokedError";
+  }
+}
+
+/** A direct binding already published a different value for this UTC minute. */
+export class DirectDeviceMinuteConflictError extends Error {
+  constructor() {
+    super("A direct-device step minute conflicts with an existing value.");
+    this.name = "DirectDeviceMinuteConflictError";
   }
 }
 
@@ -299,6 +308,7 @@ export async function runMobileIngestBatchJob(
 ): Promise<RunClaimedJobResult> {
   return db.transaction(async (tx) => {
     const { organizationId } = input;
+    await lockActivityPublication(tx, organizationId);
     const [job] = await tx
       .select({ id: ingestionJob.id, providerConnectionId: ingestionJob.providerConnectionId })
       .from(ingestionJob)
@@ -384,9 +394,58 @@ export async function runMobileIngestBatchJob(
         errorCode: "mobile_batch_unreadable",
       };
     }
-    const batch = artifact.payloadJson;
+    let batch = artifact.payloadJson;
     if (job.providerConnectionId === null)
       throw new IngestionStateError("mobile ingest job has no provider connection");
+
+    // Direct-device step identity is the owned binding plus normalized UTC
+    // minute, not a client record id or pagination window. Do this under the
+    // publication lock and before any canonical mutations in this transaction.
+    if (batch.provider === "direct_device" && batch.recordType === "steps") {
+      const [binding] = await tx.select({ userId: providerConnection.userId, status: providerConnection.status })
+        .from(providerConnection)
+        .where(and(eq(providerConnection.id, job.providerConnectionId), eq(providerConnection.organizationId, organizationId)))
+        .limit(1);
+      if (!binding || binding.status !== "active" || binding.userId === null)
+        throw new MobileDeviceNotRegisteredError();
+      const uniqueRecords = new Map<string, MobileHealthRecord>();
+      for (const record of batch.upserts) {
+        if (record.type !== "steps") continue;
+        const minuteMs = Math.floor(new Date(record.startTime).getTime() / 60_000) * 60_000;
+        const minute = new Date(minuteMs).toISOString();
+        const key = `${minute}`;
+        const previous = uniqueRecords.get(key);
+        if (previous && previous.type === "steps" && previous.count !== record.count)
+          throw new DirectDeviceMinuteConflictError();
+        if (!previous) uniqueRecords.set(key, record);
+      }
+      const existingMinutes = new Set<string>();
+      for (const [minute, record] of uniqueRecords) {
+        const existing = await tx.execute(sql`
+          select ms.numeric_value from metric_sample ms
+          join data_source ds on ds.id=ms.data_source_id and ds.organization_id=ms.organization_id
+          join metric_definition md on md.id=ms.metric_definition_id and md.organization_id=ms.organization_id
+          where ms.organization_id=${organizationId} and ds.provider_connection_id=${job.providerConnectionId}
+            and ds.import_channel='direct_device' and md.code='steps' and ms.superseded_at is null
+            and ms.sampled_at >= ${new Date(minute)} and ms.sampled_at < ${new Date(new Date(minute).getTime() + 60_000)}
+          limit 1`);
+        const row = existing.rows[0] as { numeric_value: number | string } | undefined;
+        if (row && Number(row.numeric_value) !== (record.type === "steps" ? record.count : NaN))
+          throw new DirectDeviceMinuteConflictError();
+        if (row) existingMinutes.add(minute);
+      }
+      const filtered = batch.upserts.filter((record) => {
+        if (record.type !== "steps") return true;
+        const minute = new Date(Math.floor(new Date(record.startTime).getTime() / 60_000) * 60_000).toISOString();
+        const canonical = uniqueRecords.get(minute);
+        // A second client id for an already-seen logical minute is not an
+        // upsert and must not supersede/rewrite the canonical provenance.
+        return canonical === record && !existingMinutes.has(minute);
+      }).map((record) => record.type === "steps"
+        ? { ...record, startTime: new Date(Math.floor(new Date(record.startTime).getTime() / 60_000) * 60_000).toISOString() }
+        : record);
+      batch = { ...batch, upserts: filtered };
+    }
 
     const containsWeight =
       batch.recordType === "weight" || batch.upserts.some((record) => record.type === "weight");
@@ -552,6 +611,10 @@ export async function runMobileIngestBatchJob(
     if (batch.provider !== "direct_device" && await hasCloudWearableSources(tx, organizationId)) {
       const window = await touchedWindow(tx, organizationId, target.table, batch, superseded);
       if (window) await reconcilePhoneFirst(tx, { organizationId, ...window, now: scope.now });
+    }
+    if (batch.recordType === "steps") {
+      const window = await touchedWindow(tx, organizationId, target.table, batch, superseded);
+      if (window) await reconcileDirectStepsFallback(tx, { organizationId, ...window, now: scope.now });
     }
 
     const accepted = totals.metricSampleCount + totals.healthEventCount;
@@ -753,7 +816,14 @@ export async function ingestMobileBatch(
       { jobId: accepted.jobId, organizationId: input.organizationId },
       clock,
     );
-  } catch {
+  } catch (error) {
+    if (error instanceof DirectDeviceMinuteConflictError) {
+      const failedAt = input.now ?? new Date();
+      await db.update(ingestionJob)
+        .set({ status: "failed", completedAt: failedAt, updatedAt: failedAt })
+        .where(and(eq(ingestionJob.id, accepted.jobId), eq(ingestionJob.organizationId, input.organizationId)));
+      throw error;
+    }
     return queued;
   }
   if (result.status !== "succeeded" || !result.counts) return queued;

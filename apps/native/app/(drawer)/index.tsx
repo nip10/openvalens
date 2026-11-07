@@ -15,6 +15,7 @@ import { Text, View } from "react-native";
 import { BloomMark, Details, Icon, Page, Sheet, StatusPill, ToneIcon } from "@/components/bloom";
 import { Container } from "@/components/container";
 import { SignIn } from "@/components/sign-in";
+import { useConfirmedSignOut } from "@/components/confirm-sign-out";
 import { authClient } from "@/lib/auth-client";
 import { signOutOfThisPhone } from "@/lib/sign-out";
 import { orpc } from "@/utils/orpc";
@@ -28,6 +29,7 @@ export default function Home() {
   const isLoading = readiness?.isLoading;
   const { data: session } = authClient.useSession();
   const { t } = useLingui();
+  const confirmSignOut = useConfirmedSignOut(signOutOfThisPhone);
 
   return (
     <Container>
@@ -61,7 +63,7 @@ export default function Home() {
                 <Button.Label>{t`Cockpit`}</Button.Label>
               </Button>
             </Link>
-            <Button variant="danger-soft" onPress={() => void signOutOfThisPhone()}>
+            <Button variant="danger-soft" onPress={() => void confirmSignOut()}>
               <Icon icon={LogOut} size={18} color="danger" />
               <Button.Label>{t`Sign Out`}</Button.Label>
             </Button>

@@ -17,5 +17,7 @@ export interface HelioSetupController {
   connect(deviceId: string): Promise<void>;
   disconnect(): Promise<void>;
   runCryptoSelfTest(): Promise<void>;
+  fetchSteps(options: HelioHistoryOptions): Promise<HelioHistoryResult>;
   dispose(): Promise<void>;
 }
+import type { HelioHistoryOptions, HelioHistoryResult } from "../protocol/types";

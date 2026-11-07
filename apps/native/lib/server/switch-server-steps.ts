@@ -8,6 +8,7 @@
  * saved, so it can never be sent to the next server.
  */
 export type SwitchServerSteps = {
+  invalidateDirectDevices: () => void;
   /** The usual sign-out (push, health sync, offline data, session, cache). */
   signOut: () => Promise<unknown>;
   /** Every cached read and queued write on this phone, in all lanes. */
@@ -24,6 +25,7 @@ export function createSwitchServer(
   steps: SwitchServerSteps,
 ): (next: string | null) => Promise<void> {
   return async (next) => {
+    steps.invalidateDirectDevices();
     // Best effort: the old server may be unreachable, which must not keep
     // its data on this phone.
     await steps.signOut().catch(() => undefined);

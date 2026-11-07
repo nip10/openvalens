@@ -3,6 +3,7 @@ import { providerConnection } from "@openvalens/db/schema/ingestion";
 import { and, eq } from "drizzle-orm";
 
 import { ingestMobileBatch, MobileDeviceNotRegisteredError, MobileDeviceRevokedError } from "./mobile-batch";
+import { lockActivityPublication } from "./direct-steps-fallback";
 
 const DIRECT_DEVICE_PROVIDER = "direct_device";
 const DIRECT_DEVICE_FAMILY = "amazfit_helio_strap";
@@ -19,6 +20,9 @@ export class DirectDeviceContextMismatchError extends Error {
 export class DirectDeviceOwnershipError extends Error {
   constructor() { super("Direct device is not owned by the active user."); this.name = "DirectDeviceOwnershipError"; }
 }
+export class DirectDeviceRecordTypeUnavailableError extends Error {
+  constructor() { super("Only direct-device steps publication is enabled."); this.name = "DirectDeviceRecordTypeUnavailableError"; }
+}
 
 export async function registerDirectDevice(
   db: Database,
@@ -27,6 +31,9 @@ export async function registerDirectDevice(
   assertExpectedContext(input.expectedContext, input.authenticatedContext);
   const now = input.now ?? new Date();
   return db.transaction(async (tx) => {
+    // Binding activation changes which direct source may publish an uncovered
+    // day; serialize it with all canonical activity publication/reconciliation.
+    await lockActivityPublication(tx, input.authenticatedContext.organizationId);
     await tx.insert(providerConnection).values({
       organizationId: input.authenticatedContext.organizationId,
       provider: DIRECT_DEVICE_PROVIDER,
@@ -54,6 +61,7 @@ export async function ingestDirectDeviceBatch(
 ) {
   assertExpectedContext(input.expectedContext, input.authenticatedContext);
   const { batch } = input;
+  if (batch.recordType !== "steps") throw new DirectDeviceRecordTypeUnavailableError();
   const normalized = {
     ...batch,
     upserts: batch.upserts.map((record) => ({

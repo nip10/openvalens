@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { directDeviceBatch, directDeviceRefusalReason, ingestDirectDeviceBatchInput, registerDirectDeviceInput } from "./direct-device";
+import { directDeviceBatch, directDeviceRefusalReason, directDeviceBindingSummary, listDirectDevicesInput, listDirectDevicesOutput, ingestDirectDeviceBatchInput, registerDirectDeviceInput } from "./direct-device";
 import { ingestBatchInput } from "./mobile-ingest";
 
 const context = { userId: "u1", organizationId: "o1" };
@@ -9,6 +9,20 @@ test("direct-device refusal reasons are fixed safe categories", () => {
   expect(directDeviceRefusalReason.parse("REVOKED")).toBe("REVOKED");
   expect(directDeviceRefusalReason.parse("UNAVAILABLE")).toBe("UNAVAILABLE");
   expect(directDeviceRefusalReason.safeParse("user-123").success).toBe(false);
+});
+
+test("direct-device binding publication contract exposes only owned public binding metadata", () => {
+  expect(directDeviceRefusalReason.parse("MINUTE_CONFLICT")).toBe("MINUTE_CONFLICT");
+  const expectedContext = { userId: "user", organizationId: "org" };
+  expect(listDirectDevicesInput.parse({ expectedContext })).toEqual({ expectedContext });
+  const binding = {
+    deviceId: "6f1c2a3e-9b2d-4c1e-8f3a-2d7e5b9c0a11", providerConnectionId: 1,
+    family: "amazfit_helio_strap", connectedAt: "2026-10-01T12:00:00.000Z", lastSyncedAt: null,
+    publication: { policy: "phone_cloud_first_utc_day", publishedRecords: 4, shadowedRecords: 2 },
+  } as const;
+  expect(directDeviceBindingSummary.parse(binding)).toEqual(binding);
+  expect(listDirectDevicesOutput.parse({ devices: [binding] })).toEqual({ devices: [binding] });
+  expect(directDeviceBindingSummary.safeParse({ ...binding, macAddress: "must-not-be-public" }).success).toBe(false);
 });
 const steps = {
   type: "steps",
