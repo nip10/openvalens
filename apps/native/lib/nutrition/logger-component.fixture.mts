@@ -68,9 +68,12 @@ mock.module("lucide-react-native", () =>
     [
       "Apple",
       "Bookmark",
+      "ChevronDown",
       "ChevronLeft",
       "ChevronRight",
+      "ChevronUp",
       "CircleCheck",
+      "Clock",
       "CloudOff",
       "Coffee",
       "Copy",
@@ -138,6 +141,28 @@ mock.module("@/components/nutrition-entry-editor", () => ({
     );
   },
 }));
+mock.module("@/components/nutrition-week-strip", () => ({
+  NutritionWeekStrip: host("NutritionWeekStrip"),
+}));
+mock.module("@/components/nutrition-day-summary", () => ({
+  NutritionDaySummary: host("NutritionDaySummary"),
+}));
+mock.module("@/components/nutrition-selection-bar", () => ({
+  NutritionSelectionBar: host("NutritionSelectionBar"),
+}));
+mock.module("@/components/nutrition-check-in-prompt", () => ({
+  NutritionCheckInPrompt: host("NutritionCheckInPrompt"),
+}));
+mock.module("@/components/nutrition-trend-card", () => ({
+  NutritionTrendCard: host("NutritionTrendCard"),
+}));
+mock.module("@/components/nutrition-day-menu", () => ({
+  NutritionDayMenu: host("NutritionDayMenu"),
+}));
+mock.module("@/components/swipe-row", () => ({
+  SwipeRow: ({ children, actions }: { children?: React.ReactNode; actions?: React.ReactNode }) =>
+    React.createElement("SwipeRow", null, children, actions),
+}));
 mock.module("@/components/nutrition-meal-actions", () => ({
   NutritionMealActions: host("NutritionMealActions"),
 }));
@@ -160,6 +185,7 @@ mock.module("@/components/bloom", () => ({
   StatusPill: host("StatusPill"),
   ToneChip: host("ToneChip"),
   ToneIcon: host("ToneIcon"),
+  useStackedLayout: () => false,
 }));
 mock.module("@/components/container", () => ({ Container: host("Container") }));
 mock.module("@/components/logging-streak-card", () => ({
@@ -205,6 +231,7 @@ mock.module("@/utils/orpc", () => ({
     nutritionFoods: { search: { queryOptions: () => ({ queryKey: ["search"] }) } },
     nutritionDiary: {
       getDay: { queryOptions: () => ({ queryKey: ["day"] }) },
+      getTotals: { queryOptions: () => ({ queryKey: ["totals"] }) },
       listFoods: { queryOptions: () => ({ queryKey: ["foods"] }), key: () => ["foods"] },
       setFavorite: { mutationOptions: () => ({}) },
     },
@@ -587,8 +614,10 @@ describe("production AddFood component", () => {
     ).toBe(true);
     for (const key of changes) {
       await TestRenderer.act(async () => root.update(rerender(key)));
-      const freshSave = findButton(root, "Save to").props.onPress as () => void;
-      await TestRenderer.act(async () => freshSave());
+      // The selection is gone, so search mode offers no Save to press (#373).
+      expect(
+        root.root.findAllByType("Button").some((button) => findText(button).includes("Save to")),
+      ).toBe(false);
       expect(captured.enqueues).toBe(0);
       expect(
         root.root.findAllByType("Button").some((button) => findText(button).includes("Change")),
@@ -801,6 +830,144 @@ describe("production AddFood component", () => {
     }
     expect(deletionCalls).toEqual([copyRef, templateRef, movedRef]);
     expect(deletionTickets).toEqual([ticket, ticket, ticket]);
+  }, 30_000);
+
+  test("timeline view groups rows by hour, adds at an hour, and the search bar opens Add food", async () => {
+    const early = { ...diaryEntry(51, "Porridge"), createdAt: "2026-10-27T08:10:00.000Z" };
+    const late = {
+      ...diaryEntry(52, "Salmon"),
+      createdAt: "2026-10-27T20:00:00.000Z",
+      consumedAt: "2026-10-27T12:00:00.000Z",
+    };
+    renderRows = [late, early].map((entry) => ({
+      kind: "server",
+      key: `server:${entry.id}`,
+      entry,
+      sync: "synced",
+      pendingKind: null,
+    }));
+    diaryEntries = [];
+    diaryOutbox = { ...outbox, counts: { queued: 0, syncing: 0, needs_attention: 0 }, items: [] };
+    routeCalls.pushes.length = 0;
+    const { root } = await renderDiary();
+    const timelineTab = root.root
+      .findAllByType("Pressable")
+      .find((node) => node.props.testID === "diary-view-timeline");
+    await TestRenderer.act(async () => timelineTab?.props.onPress());
+    const hours = [
+      ...new Set(
+        root.root
+          .findAll((node) => typeof node.props.testID === "string")
+          .map((node) => node.props.testID as string)
+          .filter((id) => id === "timeline-hour-8" || id === "timeline-hour-12"),
+      ),
+    ];
+    // The current hour of today may also be listed; these two keep their order.
+    expect(hours).toEqual(["timeline-hour-8", "timeline-hour-12"]);
+    const addAtEight = root.root
+      .findAllByType("Button")
+      .find((button) => button.props.accessibilityLabel === "Add food at 08:00");
+    await TestRenderer.act(async () => addAtEight?.props.onPress());
+    const pushed = routeCalls.pushes.at(-1) as { pathname: string; params: Record<string, string> };
+    expect(pushed).toMatchObject({ pathname: "/log-food", params: { meal: "breakfast" } });
+    // 08:00 of the shown day (UTC), unless 08:00 is now: then the logged time is used.
+    if (new Date().getUTCHours() !== 8) expect(pushed.params.at).toMatch(/T08:00:00\.000Z$/);
+    const bar = root.root
+      .findAllByType("Pressable")
+      .find((node) => node.props.testID === "diary-search-bar");
+    expect(bar?.props.accessibilityLabel).toMatch(/^Search foods, logs at \d{2}:00$/);
+    await TestRenderer.act(async () => bar?.props.onPress());
+    expect(routeCalls.pushes.at(-1)).toMatchObject({ pathname: "/log-food" });
+  }, 30_000);
+
+  test("week strip, day summary and the day menu's marker (#394)", async () => {
+    renderRows = [];
+    diaryEntries = [];
+    const enqueued: unknown[] = [];
+    diaryOutbox = {
+      ...outbox,
+      counts: { queued: 0, syncing: 0, needs_attention: 0 },
+      items: [],
+      enqueue: (change: unknown) => enqueued.push(change),
+    };
+    const { root } = await renderDiary();
+    const strip = root.root.findByType("NutritionWeekStrip");
+    const days = strip.props.days as { localDate: string; mark: string }[];
+    expect(days).toHaveLength(7);
+    expect(days.find((day) => day.localDate === strip.props.selected)?.mark).toBe("none");
+    const summary = root.root.findByType("NutritionDaySummary");
+    expect(summary.props.mode).toBe("consumed");
+    await TestRenderer.act(async () => summary.props.onMode("remaining"));
+    expect(root.root.findByType("NutritionDaySummary").props.mode).toBe("remaining");
+    const menu = root.root.findByType("NutritionDayMenu");
+    expect(menu.props.complete).toBe(false);
+    await TestRenderer.act(async () => menu.props.onToggleComplete());
+    expect(enqueued).toEqual([
+      expect.objectContaining({
+        op: expect.objectContaining({
+          kind: "setDayStatus",
+          input: expect.objectContaining({ complete: true }),
+        }),
+      }),
+    ]);
+  }, 30_000);
+
+  test("multi-select: long-press starts it, rows toggle, and the bar moves, copies and deletes (#398)", async () => {
+    const first = diaryEntry(61, "Rice");
+    const second = diaryEntry(62, "Beans");
+    renderRows = [first, second].map((entry) => ({
+      kind: "server",
+      key: `server:${entry.id}`,
+      entry,
+      sync: "synced",
+      pendingKind: null,
+    }));
+    diaryEntries = [];
+    const handles: unknown[] = [];
+    diaryOutbox = {
+      ...outbox,
+      counts: { queued: 0, syncing: 0, needs_attention: 0 },
+      items: [],
+      enqueueForIntentWithHandle: (_ticket: unknown, payload: unknown) => {
+        handles.push(payload);
+        return { id: "copy", action: "queued" };
+      },
+      enqueueForIntent: () => true,
+    };
+    const { root } = await renderDiary();
+    const rowPress = (name: string) =>
+      root.root
+        .findAllByType("Pressable")
+        .find((node) => String(node.props.accessibilityLabel ?? "").startsWith(`${name}, `))!;
+    await TestRenderer.act(async () => rowPress("Rice").props.onLongPress());
+    expect(root.root.findByType("NutritionSelectionBar").props.count).toBe(1);
+    expect(rowPress("Rice").props.accessibilityState).toEqual({ checked: true });
+    await TestRenderer.act(async () => rowPress("Beans").props.onPress());
+    expect(root.root.findByType("NutritionSelectionBar").props.count).toBe(2);
+    expect(editorProps?.visible).not.toBe(true);
+
+    updateCalls = [];
+    await TestRenderer.act(async () =>
+      root.root.findByType("NutritionSelectionBar").props.onMove("2026-10-28"),
+    );
+    expect(updateCalls).toEqual([
+      expect.objectContaining({ localDate: "2026-10-28", amount: 100, slot: "dinner" }),
+      expect.objectContaining({ localDate: "2026-10-28", amount: 100, slot: "dinner" }),
+    ]);
+    expect(root.root.findAllByType("NutritionSelectionBar")).toHaveLength(0);
+
+    await TestRenderer.act(async () => rowPress("Rice").props.onLongPress());
+    await TestRenderer.act(async () =>
+      root.root.findByType("NutritionSelectionBar").props.onCopy("2026-10-29"),
+    );
+    expect(handles).toHaveLength(1);
+
+    deletionCalls = [];
+    await TestRenderer.act(async () => rowPress("Beans").props.onLongPress());
+    await TestRenderer.act(async () =>
+      root.root.findByType("NutritionSelectionBar").props.onDelete(),
+    );
+    expect(root.root.findAllByType("NutritionSelectionBar")).toHaveLength(0);
   }, 30_000);
 
   test("retained editor Save and Favorite expire on diary date change; a reopened editor remains live", async () => {

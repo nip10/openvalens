@@ -1,9 +1,10 @@
 import { useLingui } from "@lingui/react/macro";
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute, notFound } from "@tanstack/react-router";
+import { createFileRoute, notFound, redirect } from "@tanstack/react-router";
 import z from "zod";
 
 import SignUpForm from "@/components/sign-up-form";
+import { authClient } from "@/lib/auth-client";
 import { orpc } from "@/utils/orpc";
 import { isSocialProvider, signInOptionsQueryOptions } from "@/utils/sign-in-options";
 import { SIGN_UP_LINK_ERRORS, signUpOptionsQueryOptions } from "@/utils/sign-up";
@@ -19,6 +20,17 @@ export const Route = createFileRoute("/signup")({
     error: z.string().max(64).optional().catch(undefined),
     via: z.string().max(16).optional().catch(undefined),
   }),
+  // Signed in already: the sign-up form would sit inside the signed-in app
+  // shell. Same rule as /login: only with an active workspace.
+  beforeLoad: async () => {
+    let signedIn = false;
+    try {
+      signedIn = Boolean((await authClient.getSession()).data?.session.activeOrganizationId);
+    } catch {
+      return;
+    }
+    if (signedIn) throw redirect({ to: "/dashboard" });
+  },
   loader: async ({ context }) => {
     const options = await context.queryClient.ensureQueryData(signUpOptionsQueryOptions());
     if (!options.signUp || !options.terms || !options.privacy) throw notFound();

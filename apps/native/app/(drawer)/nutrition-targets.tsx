@@ -12,8 +12,16 @@ import {
   localDateIn,
 } from "@openvalens/api/presenters/nutrition-diary";
 import {
+  CHECK_IN_COPY,
+  CHECK_IN_DAYS,
+  type CheckInDay,
   DIRECTION_LABELS,
+  GOAL_COPY,
   NUTRITION_SAFETY_COPY,
+  RATE_OPTIONS,
+  formatRate,
+  rateForDirection,
+  weekdayName,
   TARGET_COPY,
   TARGET_NUTRIENTS,
   declarationChoices,
@@ -43,6 +51,7 @@ import {
   Beef,
   Check,
   Droplet,
+  Info,
   Leaf,
   LifeBuoy,
   type LucideIcon,
@@ -69,6 +78,7 @@ import {
   Prose,
   Section,
   Sheet,
+  DISPLAY_MAX_FONT_SCALE,
 } from "@/components/bloom";
 import { Container } from "@/components/container";
 import { readCache, writeCache } from "@/lib/offline/cache";
@@ -76,6 +86,7 @@ import { useOfflineScope } from "@/lib/offline/sync";
 import { orpc } from "@/utils/orpc";
 import { useThemeColor } from "@/utils/theme";
 import { EnergyEstimateCard } from "@/components/energy-estimate-card";
+import { MacroPresetCard } from "@/components/macro-preset-card";
 import { ModuleHiddenNote } from "@/components/module-hidden-note";
 
 /**
@@ -105,15 +116,18 @@ function Chip({
   label,
   selected,
   onPress,
+  accessibilityLabel,
 }: {
   label: string;
   selected: boolean;
   onPress: () => void;
+  accessibilityLabel?: string;
 }) {
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
       accessibilityState={{ selected }}
       className={`min-h-11 justify-center rounded-full border px-4 ${selected ? "border-food bg-food-soft" : "border-rule bg-sheet"}`}
     >
@@ -260,6 +274,20 @@ export default function NutritionTargetsScreen() {
               onChanged={() => void refresh()}
             />
 
+            {data.safety.energyTargets !== "off" && !hideNumbers ? (
+              <MacroPresetCard
+                targets={data.targets}
+                proteinReference={data.proteinReference}
+                proteinCapped={data.safety.proteinCapped}
+                stored={{
+                  revision: data.settings.revision,
+                  macroPreset: data.settings.macroPreset,
+                  proteinGPerKg: data.settings.proteinGPerKg,
+                }}
+                onSaved={() => void refresh()}
+              />
+            ) : null}
+
             <EnergyEstimateCard
               scope={scope}
               hideNumbers={hideNumbers}
@@ -286,6 +314,7 @@ export default function NutritionTargetsScreen() {
                     : "font-sans text-sm text-ink-2"
                 }
                 style={data.proteinReference ? { fontVariant: ["tabular-nums"] } : undefined}
+                maxFontSizeMultiplier={DISPLAY_MAX_FONT_SCALE}
               >
                 {data.proteinReference
                   ? formatProteinReference(data.proteinReference, hideNumbers, i18n)
@@ -499,6 +528,8 @@ function SettingsCard({
 }) {
   const [hideNumbers, setHideNumbers] = useState(settings.hideNumbers);
   const [direction, setDirection] = useState<EnergyDirection>(settings.energyDirection);
+  const [rate, setRate] = useState<number | null>(settings.energyRatePercent);
+  const [checkInDay, setCheckInDay] = useState<CheckInDay | null>(settings.checkInDay);
   const [activeProtein, setActiveProtein] = useState(settings.activeProtein);
   const [streaksEnabled, setStreaksEnabled] = useState(settings.streaksEnabled);
   const [recipeImportEnabled, setRecipeImportEnabled] = useState(settings.recipeImportEnabled);
@@ -526,6 +557,8 @@ function SettingsCard({
   useEffect(() => {
     setHideNumbers(settings.hideNumbers);
     setDirection(settings.energyDirection);
+    setRate(settings.energyRatePercent);
+    setCheckInDay(settings.checkInDay);
     setActiveProtein(settings.activeProtein);
     setStreaksEnabled(settings.streaksEnabled);
     setRecipeImportEnabled(settings.recipeImportEnabled);
@@ -568,6 +601,8 @@ function SettingsCard({
       expectedRevision: settings.revision,
       hideNumbers,
       energyDirection: direction,
+      energyRatePercent: rateForDirection(direction, rate),
+      checkInDay,
       activeProtein,
       streaksEnabled,
       recipeImportEnabled,
@@ -624,6 +659,47 @@ function SettingsCard({
           }}
         />
 
+        <View className="gap-2" testID="targets-mode">
+          <Text className="font-display text-base font-medium text-ink" accessibilityRole="header">
+            {i18n._(CHECK_IN_COPY.modeTitle)}
+          </Text>
+          <View className="flex-row flex-wrap gap-2">
+            <Chip
+              label={i18n._(CHECK_IN_COPY.manual)}
+              selected={checkInDay === null}
+              onPress={() => setCheckInDay(null)}
+            />
+            <Chip
+              label={i18n._(CHECK_IN_COPY.weekly)}
+              selected={checkInDay !== null}
+              onPress={() => setCheckInDay((day) => day ?? 1)}
+            />
+          </View>
+          <Text className="font-sans text-sm text-ink-3">
+            {i18n._(
+              checkInDay === null
+                ? CHECK_IN_COPY.manualDescription
+                : CHECK_IN_COPY.weeklyDescription,
+            )}
+          </Text>
+          {checkInDay !== null ? (
+            <View className="gap-2 pt-1">
+              <FieldLabel>{i18n._(CHECK_IN_COPY.dayTitle)}</FieldLabel>
+              <View className="flex-row flex-wrap gap-2">
+                {CHECK_IN_DAYS.map((day) => (
+                  <Chip
+                    key={day}
+                    label={weekdayName(day, i18n.locale, "short")}
+                    accessibilityLabel={weekdayName(day, i18n.locale)}
+                    selected={checkInDay === day}
+                    onPress={() => setCheckInDay(day)}
+                  />
+                ))}
+              </View>
+            </View>
+          ) : null}
+        </View>
+
         <View className="gap-2">
           <View className="flex-row items-center gap-1">
             <Text
@@ -642,13 +718,42 @@ function SettingsCard({
                 key={key}
                 label={i18n._(DIRECTION_LABELS[key].label)}
                 selected={direction === key}
-                onPress={() => setDirection(key)}
+                onPress={() => {
+                  setDirection(key);
+                  setRate((current) => rateForDirection(key, current));
+                }}
               />
             ))}
           </View>
           <Text className="font-sans text-sm text-ink-3">
             {i18n._(DIRECTION_LABELS[direction].description)}
           </Text>
+          {direction !== "maintain" ? (
+            <View className="gap-2 pt-1" testID="goal-rate">
+              <View className="flex-row items-center gap-1">
+                <FieldLabel>{i18n._(GOAL_COPY.rateTitle)}</FieldLabel>
+                <InfoTip title={i18n._(GOAL_COPY.rateTitle)}>
+                  {i18n._(GOAL_COPY.rateDescription)}
+                </InfoTip>
+              </View>
+              <View className="flex-row flex-wrap gap-2">
+                {RATE_OPTIONS[direction].map((option) => (
+                  <Chip
+                    key={option}
+                    label={formatRate(option, i18n)}
+                    selected={rateForDirection(direction, rate) === option}
+                    onPress={() => setRate(option)}
+                  />
+                ))}
+              </View>
+            </View>
+          ) : null}
+          <View className="flex-row items-start gap-2 rounded-2xl bg-paper-2 p-3">
+            <Icon icon={Info} size={16} color="ink-2" />
+            <Text className="flex-1 font-sans text-xs text-ink-2">
+              {i18n._(GOAL_COPY.floorNote)}
+            </Text>
+          </View>
         </View>
 
         <View className="gap-1.5">

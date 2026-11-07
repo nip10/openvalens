@@ -25,6 +25,11 @@ import {
   readOutbox,
   writeCache,
 } from "./cache";
+import {
+  ServerLeaveBlockedError,
+  type PreserveServerLeaveOptions,
+  type ServerLeaveOptions,
+} from "../server/server-leave-policy";
 
 /**
  * Native sync engine (Issue #43). Drains the manual-entry outbox through
@@ -149,8 +154,8 @@ export async function drainOutbox(): Promise<void> {
   const scope = currentScope;
   if (syncing || !online || !scope) return;
   syncing = true;
-  emit();
   try {
+    emit();
     let queued: OutboxEntry | null = popOutbox(scope);
     while (queued) {
       if (currentScope !== scope) {
@@ -172,6 +177,11 @@ export async function drainOutbox(): Promise<void> {
     syncing = false;
     emit();
   }
+}
+
+/** True while a metric row may be between dequeue and transport settlement. */
+export function isMetricOutboxBusy(): boolean {
+  return syncing;
 }
 
 /** Manual sync, used by the status badge's press handler. */
@@ -209,7 +219,20 @@ export function enqueueMetricSample(payload: MetricSamplePayload, error?: unknow
  * Call before `authClient.signOut()`: tries to send pending writes for a few
  * seconds, then wipes every cached read and queued write from this device.
  */
-export async function prepareOfflineSignOut(): Promise<void> {
+export async function prepareOfflineSignOut(options?: ServerLeaveOptions): Promise<void> {
+  if (options?.pendingDataPolicy === "preserve") {
+    if (!options.hasInFlightWrites) throw new ServerLeaveBlockedError({ kind: "unknown" });
+    // Preserve mode does not drain and then clear. Its atomic SQLite boundary
+    // either proves empty/idle and deletes, or refuses without revoking writes.
+    clearOfflineData(options as PreserveServerLeaveOptions);
+    const signingOutSessionId = currentSessionId;
+    if (signingOutSessionId) revokedSessionIds.add(signingOutSessionId);
+    cacheAuthorityGeneration += 1;
+    currentScope = null;
+    currentSessionId = null;
+    emit();
+    return;
+  }
   // Revoke in-flight cache writes before any await; hooks observing the same
   // still-mounted session must not re-arm authority during sign-out.
   const signingOutSessionId = currentSessionId;

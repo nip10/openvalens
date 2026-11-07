@@ -15,6 +15,19 @@ import {
   type NutritionTargetWire,
 } from "../contracts/nutrition-targets";
 import {
+  CHECK_IN_COPY,
+  GOAL_COPY,
+  RATE_OPTIONS,
+  checkInBasis,
+  goalLine,
+  weekdayName,
+  formatRate,
+  rateForDirection,
+  readTotalAgainstTarget,
+} from "./nutrition-targets";
+import { NUTRITION_SAFETY_POLICY } from "@openvalens/nutrition/nutrition-safety";
+import { ENERGY_RATE_PERCENTS } from "../contracts/nutrition-targets";
+import {
   DIRECTION_LABELS,
   HIDDEN_VALUE,
   NUTRITION_SAFETY_COPY,
@@ -247,5 +260,127 @@ describe("neutral copy", () => {
       expect(findBannedCopy(text)).toEqual([]);
       expect(text).not.toMatch(/\b(BMI|18\.5|1,?200|1,?500)\b/);
     }
+  });
+});
+
+describe("totals beside targets (#394)", () => {
+  const total = (known: number | null, coverage: "full" | "partial" | "no_entries" = "full") => ({
+    known,
+    reported: known === null ? 0 : 1,
+    missing: 0,
+    coverage,
+  });
+  const range = { minAmount: 1700, maxAmount: 2100 };
+  const atLeast = { minAmount: 100, maxAmount: null };
+  const upTo = { minAmount: null, maxAmount: 2000 };
+  const read = (
+    key: "energyKcal" | "proteinG" | "sodiumMg",
+    known: number | null,
+    target: { minAmount: number | null; maxAmount: number | null } | undefined,
+    mode: "consumed" | "remaining",
+    hide = false,
+  ) => readTotalAgainstTarget(key, total(known), target, mode, hide, englishI18n);
+
+  test("logged reading writes the target beside the total", () => {
+    expect(read("energyKcal", 1450, range, "consumed")).toMatchObject({
+      figure: "1,450 kcal",
+      note: "of 1,700–2,100 kcal",
+    });
+    expect(read("proteinG", 92, atLeast, "consumed").note).toBe("of at least 100 g");
+    expect(read("sodiumMg", 900, upTo, "consumed").note).toBe("of up to 2,000 mg");
+    expect(read("proteinG", 92, undefined, "remaining")).toMatchObject({
+      figure: "92 g",
+      note: "No target",
+    });
+  });
+
+  test("remaining reading counts what is left, then falls back without verdicts", () => {
+    expect(read("energyKcal", 1450, range, "remaining")).toMatchObject({
+      figure: "250–650 kcal",
+      note: "remaining to 1,700–2,100 kcal",
+    });
+    expect(read("energyKcal", 1800, range, "remaining").figure).toBe("up to 300 kcal");
+    expect(read("energyKcal", 2300, range, "remaining")).toMatchObject({
+      figure: "2,300 kcal",
+      note: "logged, target 1,700–2,100 kcal",
+    });
+    expect(read("proteinG", 60, atLeast, "remaining")).toMatchObject({
+      figure: "40 g",
+      note: "remaining to at least 100 g",
+    });
+    expect(read("proteinG", 120, atLeast, "remaining").note).toBe("logged, target at least 100 g");
+    expect(read("sodiumMg", 500, upTo, "remaining").figure).toBe("1,500 mg");
+    expect(read("sodiumMg", 2500, upTo, "remaining").figure).toBe("2,500 mg");
+  });
+
+  test("hide-numbers mode shows no number, and nothing logged is never unknown", () => {
+    const hidden = read("energyKcal", 1450, range, "remaining", true);
+    expect(hidden.figure).toBe("Hidden");
+    expect(hidden.note).toBe("Target set");
+    expect(`${hidden.figure} ${hidden.note} ${hidden.spoken}`).not.toMatch(/\d/);
+    const empty = readTotalAgainstTarget(
+      "energyKcal",
+      total(null, "no_entries"),
+      range,
+      "consumed",
+      false,
+      englishI18n,
+    );
+    expect(empty.figure).toBe("0 kcal");
+  });
+
+  test("copy passes the nutrition banned-words lint", () => {
+    const lines = [
+      read("energyKcal", 1450, range, "remaining"),
+      read("energyKcal", 2300, range, "remaining"),
+      read("proteinG", 120, atLeast, "remaining"),
+      read("sodiumMg", 2500, upTo, "remaining"),
+      read("energyKcal", 1450, range, "consumed"),
+    ].flatMap((reading) => [reading.figure, reading.note, reading.spoken]);
+    expect(lines.flatMap((line) => findBannedCopy(line))).toEqual([]);
+  });
+});
+
+describe("goal rate (#396)", () => {
+  test("offered rates mirror the safety policy and the contract", () => {
+    expect([...RATE_OPTIONS.lose]).toEqual([...NUTRITION_SAFETY_POLICY.rate.loseWeeklyPercents]);
+    expect([...RATE_OPTIONS.gain]).toEqual([...NUTRITION_SAFETY_POLICY.rate.gainWeeklyPercents]);
+    expect([...ENERGY_RATE_PERCENTS]).toEqual([...RATE_OPTIONS.lose]);
+  });
+
+  test("a direction keeps an offered rate, else takes its default; maintain has none", () => {
+    expect(rateForDirection("lose", 0.75)).toBe(0.75);
+    expect(rateForDirection("gain", 0.75)).toBe(0.25);
+    expect(rateForDirection("gain", 0.5)).toBe(0.5);
+    expect(rateForDirection("lose", null)).toBe(0.5);
+    expect(rateForDirection("maintain", 0.5)).toBeNull();
+  });
+
+  test("copy is neutral and states the floor as a safeguard", () => {
+    expect(formatRate(0.5, englishI18n)).toBe("0.5 % a week");
+    const text = [GOAL_COPY.rateTitle, GOAL_COPY.rateDescription, GOAL_COPY.floorNote]
+      .map((m) => englishI18n._(m))
+      .join(" ");
+    expect(findBannedCopy(text)).toEqual([]);
+  });
+});
+
+describe("weekly check-in copy (#397)", () => {
+  test("weekday names, the goal and the basis", () => {
+    expect(weekdayName(1, "en")).toBe("Monday");
+    expect(weekdayName(7, "en", "short")).toBe("Sun");
+    expect(goalLine("lose", 0.5, englishI18n)).toBe("Reduce, 0.5 % a week");
+    expect(goalLine("maintain", 0.5, englishI18n)).toBe("Maintain");
+    expect(checkInBasis(2240, "Maintain", englishI18n)).toBe(
+      "Based on your expenditure estimate (2,240 kcal a day) and your goal: Maintain.",
+    );
+  });
+
+  test("copy is collaborative and neutral", () => {
+    const text = Object.values(CHECK_IN_COPY)
+      .map((m) => englishI18n._(m))
+      .join(" ");
+    expect(findBannedCopy(text)).toEqual([]);
+    expect(text).toContain("Nothing changes until you accept");
   });
 });

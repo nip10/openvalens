@@ -92,7 +92,7 @@ it.
 ```bash
 git clone https://github.com/nip10/openvalens.git
 cd openvalens
-git checkout v0.9.0          # the newest release tag
+git checkout v1.0.1          # the newest release tag
 deploy/setup.sh install
 ```
 

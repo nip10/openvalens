@@ -33,6 +33,33 @@ export type Declaration = (typeof DECLARATIONS)[number];
 export const ENERGY_DIRECTIONS = ["maintain", "lose", "gain"] as const;
 export type EnergyDirection = (typeof ENERGY_DIRECTIONS)[number];
 
+/** Mirrors `ENERGY_RATE_PERCENTS` (#396): weekly % of body weight. Loss up to 1.0, gain up to 0.5. */
+export const ENERGY_RATE_PERCENTS = [0.25, 0.5, 0.75, 1] as const;
+export type EnergyRatePercent = (typeof ENERGY_RATE_PERCENTS)[number];
+const energyRatePercent = z.union([z.literal(0.25), z.literal(0.5), z.literal(0.75), z.literal(1)]);
+
+const checkInDay = z.union([
+  z.literal(1),
+  z.literal(2),
+  z.literal(3),
+  z.literal(4),
+  z.literal(5),
+  z.literal(6),
+  z.literal(7),
+]);
+
+/** Mirrors `MACRO_PRESET_KEYS` / `PROTEIN_G_PER_KG_CHOICES` in `@openvalens/nutrition`. */
+export const MACRO_PRESET_KEYS = ["balanced", "lower_carb", "lower_fat"] as const;
+export const PROTEIN_G_PER_KG_CHOICES = [0.8, 1, 1.2, 1.4, 1.6] as const;
+const macroPreset = z.enum(MACRO_PRESET_KEYS);
+const proteinGPerKg = z.union([
+  z.literal(0.8),
+  z.literal(1),
+  z.literal(1.2),
+  z.literal(1.4),
+  z.literal(1.6),
+]);
+
 export const TARGET_SOURCES = ["entered", "proposal"] as const;
 export type TargetSource = (typeof TARGET_SOURCES)[number];
 
@@ -58,6 +85,13 @@ export const targetSettings = z.object({
   revision: z.number().int().nonnegative(),
   hideNumbers: z.boolean(),
   energyDirection: z.enum(ENERGY_DIRECTIONS),
+  energyRatePercent: energyRatePercent.nullable(),
+  /** Weekly check-in day, ISO weekday 1–7 (#397); `null` = manual mode. */
+  checkInDay: checkInDay.nullable(),
+  lastCheckInOn: localDate.nullable(),
+  /** Preset the check-in uses to propose P/C/F with energy; `null` = energy only. */
+  macroPreset: macroPreset.nullable(),
+  proteinGPerKg: proteinGPerKg.nullable(),
   activeProtein: z.boolean(),
   streaksEnabled: z.boolean(),
   recipeImportEnabled: z.boolean(),
@@ -148,6 +182,12 @@ export const updateSettingsInput = z.strictObject({
   expectedRevision: z.int().nonnegative(),
   hideNumbers: z.boolean().optional(),
   energyDirection: z.enum(ENERGY_DIRECTIONS).optional(),
+  energyRatePercent: energyRatePercent.nullable().optional(),
+  checkInDay: checkInDay.nullable().optional(),
+  /** Records a finished check-in (accepted or kept) on the member's local date. */
+  lastCheckInOn: localDate.optional(),
+  macroPreset: macroPreset.nullable().optional(),
+  proteinGPerKg: proteinGPerKg.nullable().optional(),
   activeProtein: z.boolean().optional(),
   streaksEnabled: z.boolean().optional(),
   recipeImportEnabled: z.boolean().optional(),

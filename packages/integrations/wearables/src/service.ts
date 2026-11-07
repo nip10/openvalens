@@ -16,6 +16,7 @@ import {
   mobileIntentDedupeHash,
   persistCanonicalIntents,
   PHONE_FIRST_RELATION,
+  latchSleepGoalEvidence,
   reconcilePhoneFirst,
   lockActivityPublication,
   type CanonicalRowRef,
@@ -717,14 +718,17 @@ export function createWearablesService(deps: WearablesServiceDeps) {
         dataSourceId,
         ingestionBatchId: batch!.id,
         provider,
+        ownerUserId: row.userId,
         intents,
         dedupe: "mobile",
       });
       await linkProvenance(tx, organizationId, persisted.inserted, artifact!.id);
+      await latchSleepGoalEvidence(tx, organizationId, from, to);
       const superseded = await reconcileVersions(tx, {
         organizationId,
         providerConnectionId: row.providerConnectionId,
         provider,
+        ownerUserId: row.userId,
         intents,
         now: startedAt,
       });
@@ -1192,6 +1196,7 @@ async function reconcileVersions(
     organizationId: string;
     providerConnectionId: number;
     provider: WearableProviderId;
+    ownerUserId: string;
     intents: CanonicalWriteIntent[];
     now: Date;
   },
@@ -1205,7 +1210,7 @@ async function reconcileVersions(
     for (const intent of input.intents) {
       if (intent.kind !== kind) continue;
       const externalId = intent.kind === "metric_sample" ? intent.externalId : intent.sourceEventId;
-      const hash = mobileIntentDedupeHash(input.provider, intent);
+      const hash = mobileIntentDedupeHash(input.provider, intent, input.ownerUserId);
       if (externalId && hash) pairs.push({ externalId, hash });
     }
     if (!pairs.length) continue;
@@ -1214,6 +1219,10 @@ async function reconcileVersions(
       sql`, `,
     );
     const touch = table === "health_event" ? sql`, updated_at = ${input.now}` : sql``;
+    const ownerScope =
+      table === "health_event"
+        ? sql`and (r.event_type <> 'sleep_session' or r.user_id = ${input.ownerUserId})`
+        : sql``;
     const result = await tx.execute(sql`
       update ${sql.identifier(table)} r
       set superseded_at = case when r.dedupe_hash = v.hash then null else ${input.now}::timestamptz end ${touch}
@@ -1222,21 +1231,41 @@ async function reconcileVersions(
         and r.organization_id = ${input.organizationId}
         and d.provider_connection_id = ${input.providerConnectionId}
         and r.${sql.identifier(column)} = v.external_id
+        ${ownerScope}
         and ((r.superseded_at is null and r.dedupe_hash <> v.hash)
           or (r.superseded_at is not null and r.dedupe_hash = v.hash))
       returning r.id`);
     const ids = (result.rows as { id: number }[]).map((row) => Number(row.id));
-    if (!ids.length) continue;
     changed += ids.length;
     // Version changes reset any phone-first shadow; phone-first runs next.
     await tx.execute(sql`
       delete from provenance_link
       where organization_id = ${input.organizationId} and target_table = ${table}
         and relation = ${PHONE_FIRST_RELATION}
-        and target_id in (${sql.join(
-          ids.map((id) => sql`${id}`),
-          sql`, `,
-        )})`);
+        and (${
+          ids.length
+            ? sql`target_id in (${sql.join(
+                ids.map((id) => sql`${id}`),
+                sql`, `,
+              )})`
+            : sql`false`
+        } or exists (
+          select 1 from ${sql.identifier(table)} obsolete
+          join data_source od on od.id = obsolete.data_source_id
+            and od.organization_id = obsolete.organization_id
+          where obsolete.id = provenance_link.target_id
+            and obsolete.organization_id = ${input.organizationId}
+            and od.provider_connection_id = ${input.providerConnectionId}
+            and obsolete.${sql.identifier(column)} in (${sql.join(
+              pairs.map((pair) => sql`${pair.externalId}`),
+              sql`, `,
+            )})
+            ${table === "health_event" ? sql`and (obsolete.event_type <> 'sleep_session' or obsolete.user_id = ${input.ownerUserId})` : sql``}
+            and obsolete.dedupe_hash not in (${sql.join(
+              pairs.map((pair) => sql`${pair.hash}`),
+              sql`, `,
+            )})
+        ))`);
   }
   return changed;
 }
@@ -1299,6 +1328,20 @@ async function deleteConnectionData(
     from metric_sample r join data_source d on d.id=r.data_source_id and d.organization_id=r.organization_id
     where r.organization_id=${org} and d.provider_connection_id=${pc}`);
   const bounds = boundsResult.rows[0] as { from_at: Date | string | null; to_at: Date | string | null } | undefined;
+  // A hard delete cannot be consulted later as historical evidence. Latch
+  // matching owned sleep goals while the source rows and owner are available.
+  await tx.execute(sql`
+    update goal g set ever_had_evidence = true
+    where g.organization_id = ${org} and g.source = 'sleep' and g.user_id is not null
+      and g.ever_had_evidence = false and g.deleted_at is null
+      and exists (
+        select 1 from health_event e
+        join data_source d on d.id = e.data_source_id and d.organization_id = e.organization_id
+        where e.organization_id = g.organization_id and e.user_id = g.user_id
+          and d.provider_connection_id = ${pc} and e.event_type = 'sleep_session'
+          and (coalesce((e.payload_json->>'endAt')::timestamptz, e.event_at)
+            at time zone coalesce(g.timezone, 'UTC'))::date::text >= coalesce(g.start_date, '0001-01-01')
+      )`);
   const rowsOf = (table: "metric_sample" | "health_event") => sql`
     select r.id from ${sql.identifier(table)} r
     join data_source d on d.id = r.data_source_id and d.organization_id = r.organization_id

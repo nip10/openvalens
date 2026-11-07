@@ -8,6 +8,9 @@ import {
   index,
   uniqueIndex,
   foreignKey,
+  uuid,
+  jsonb,
+  check,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
@@ -163,5 +166,55 @@ export const dailyReminder = pgTable(
       foreignColumns: [member.organizationId, member.userId],
       name: "daily_reminder_org_user_member_fk",
     }).onDelete("restrict"),
+  }),
+);
+
+export const dailyReminderEmailDigest = pgTable(
+  "daily_reminder_email_digest",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: orgId(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    date: text("date").notNull(),
+    reminderIds: integer("reminder_ids").array().notNull(),
+    renderedEmail: jsonb("rendered_email")
+      .$type<{
+        to: string | string[];
+        from?: string;
+        replyTo?: string;
+        bcc?: string | string[];
+        subject: string;
+        html: string;
+        text: string;
+        templateName?: string;
+        tags?: string[];
+        headers?: Record<string, string>;
+      }>()
+      .notNull(),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`now()`),
+    deliveredAt: text("delivered_at"),
+    providerMessageId: text("provider_message_id"),
+  },
+  (table) => ({
+    dailyReminderEmailDigestOrgUserDateUnique: uniqueIndex(
+      "daily_reminder_email_digest_org_user_date_key",
+    ).on(table.organizationId, table.userId, table.date),
+    dailyReminderEmailDigestDeliveryIdx: index("daily_reminder_email_digest_delivery_idx").on(
+      table.deliveredAt,
+      table.createdAt,
+    ),
+    dailyReminderEmailDigestMemberFk: foreignKey({
+      columns: [table.organizationId, table.userId],
+      foreignColumns: [member.organizationId, member.userId],
+      name: "daily_reminder_email_digest_org_user_member_fk",
+    }).onDelete("restrict"),
+    dailyReminderEmailDigestReminderIdsNonempty: check(
+      "daily_reminder_email_digest_nonempty_reminder_ids",
+      sql`cardinality(${table.reminderIds}) > 0`,
+    ),
   }),
 );

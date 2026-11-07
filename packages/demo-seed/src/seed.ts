@@ -1,4 +1,5 @@
 import type { Database } from "@openvalens/db";
+import { importExerciseCatalogSample } from "@openvalens/exercise-catalog/sample";
 
 import { createDemoAccounts, type DemoAccounts } from "./accounts";
 import { createDemoApi } from "./api";
@@ -34,6 +35,11 @@ export type DemoSeedResult = DemoAccounts & {
  */
 export async function seedDemo(db: Database, options: DemoSeedOptions): Promise<DemoSeedResult> {
   await resetDemoDatabase(db);
+  // Issue #400: the small licensed exercise sample (12 wger exercises with
+  // their Workout Guide frames). It marks the database as a sample instance,
+  // so the server publishes the committed frames and never fetches the full
+  // catalog — e2e stays offline.
+  await importExerciseCatalogSample(db);
   const calendar = createCalendar(options.today);
   const random = createRandom();
   const accounts = await createDemoAccounts(db, calendar.at(0, 12));

@@ -1,6 +1,14 @@
 # Types ADDRESS into "My own server" and submits it with the keyboard's Go key.
+# Opens the form first when it is still behind "Use my own server".
 appId: com.openvalens.app
 ---
+- runFlow:
+    when:
+      visible:
+        id: "own-server-toggle"
+    commands:
+      - tapOn:
+          id: "own-server-toggle"
 - scrollUntilVisible:
     element:
       id: "server-address-input"

@@ -31,6 +31,12 @@ export type SecurityHeadersOptions = {
    */
   allowDevScriptEval?: boolean;
   /**
+   * Whether `'unsafe-inline'` is allowed in `script-src`. Defaults to `true`,
+   * which the server needs for its API reference page. The web document has
+   * no inline scripts, so its renderer passes `false`.
+   */
+  allowInlineScripts?: boolean;
+  /**
    * Reporting group name (Issue #127). CSP3 defines `report-to` as a *group
    * name token* — not a URL — that browsers look up in the `Report-To`
    * JSON-document header to find the endpoint. When set and `cspMode` is
@@ -52,6 +58,11 @@ export type SecurityHeadersOptions = {
    * served from different origins (`VITE_SERVER_URL`).
    */
   additionalConnectSrc?: readonly string[];
+  /**
+   * Extra `script-src` sources, after `'self'`. The server adds the pinned
+   * Scalar bundle for its API reference page (#369). Use exact file URLs.
+   */
+  additionalScriptSrc?: readonly string[];
 };
 
 /** Allowlisted third-party origins the app connects to. */
@@ -70,11 +81,18 @@ export const CSP_CONNECT_SRC = ["'self'", "api.resend.com", "api.telegram.org"] 
 export function buildSecurityHeaders({
   cspMode,
   allowDevScriptEval = true,
+  allowInlineScripts = true,
   reportToGroup,
   reportToUrl,
   additionalConnectSrc = [],
+  additionalScriptSrc = [],
 }: SecurityHeadersOptions): Record<string, string> {
-  const scriptSrc = ["'self'", "'unsafe-inline'", ...(allowDevScriptEval ? ["'unsafe-eval'"] : [])];
+  const scriptSrc = [
+    "'self'",
+    ...additionalScriptSrc,
+    ...(allowInlineScripts ? ["'unsafe-inline'"] : []),
+    ...(allowDevScriptEval ? ["'unsafe-eval'"] : []),
+  ];
 
   const directives = [
     "default-src 'self'",

@@ -6,10 +6,17 @@ import {
   plainWaterMutation,
   plainWaterPreference,
 } from "@openvalens/db/schema/nutrition";
+import { goalWaterCutover } from "@openvalens/db/schema/plans";
 import { and, eq, gte, isNull, lt, sql } from "drizzle-orm";
 
+import {
+  GoalWaterLinkConflictError,
+  lockGoalOwner,
+  reconcileWaterLink,
+} from "@openvalens/plans/goal-water-link";
 import { NutritionError } from "./errors";
 import { isLocalDate, isValidTimeZone } from "./local-day";
+import { resolvePlainWaterGoal } from "./plain-water-goal";
 import type { NutritionScope } from "./repository";
 
 export type WaterUnit = "ml" | "l" | "fl_oz";
@@ -85,6 +92,19 @@ export function createPlainWaterDiary(db: Database) {
       eq(plainWaterPreference.userId, scope.userId),
     );
 
+  async function reconcileGoals(
+    tx: Parameters<Parameters<Database["transaction"]>[0]>[0],
+    scope: NutritionScope,
+  ) {
+    try {
+      return await reconcileWaterLink(tx, scope, { now: new Date() });
+    } catch (error) {
+      if (error instanceof GoalWaterLinkConflictError)
+        throw new NutritionError("CONFLICT", error.message);
+      throw error;
+    }
+  }
+
   async function lockMutation(
     tx: Parameters<Parameters<Database["transaction"]>[0]>[0],
     scope: NutritionScope,
@@ -159,16 +179,12 @@ export function createPlainWaterDiary(db: Database) {
 
   return {
     async getPreference(scope: NutritionScope) {
-      const [preference] = await db
-        .select({
-          enabled: plainWaterPreference.enabled,
-          personalGoalMl: plainWaterPreference.personalGoalMl,
-        })
-        .from(plainWaterPreference)
-        .where(preferenceWhere(scope));
+      const goals = await resolvePlainWaterGoal(db, scope);
       return {
-        enabled: preference?.enabled ?? false,
-        personalGoalMl: preference?.personalGoalMl ?? null,
+        enabled: goals.enabled,
+        personalGoalMl: goals.personalGoalManagedByGoals
+          ? goals.personalGoalMl
+          : goals.legacyPersonalGoalMl,
       };
     },
     async add(scope: NutritionScope, input: WaterInput): Promise<WaterMutationOutcome> {
@@ -180,6 +196,7 @@ export function createPlainWaterDiary(db: Database) {
         const previous = await replay<WaterMutationOutcome>(tx, scope, id, "add", fingerprint);
         if (previous)
           return previous.outcome === "conflict" ? previous : { ...previous, outcome: "replayed" };
+        await lockGoalOwner(tx, scope);
         requireEnabled(await isEnabled(tx, scope));
         const [entry] = await tx
           .insert(plainWaterEntry)
@@ -187,6 +204,7 @@ export function createPlainWaterDiary(db: Database) {
           .returning();
         if (!entry) throw new Error("Water entry insert returned no row");
         const result = { outcome: "applied" as const, entry };
+        await reconcileGoals(tx, scope);
         await saveReceipt(tx, scope, id, "add", fingerprint, result);
         return result;
       });
@@ -238,6 +256,7 @@ export function createPlainWaterDiary(db: Database) {
         const previous = await replay<WaterMutationOutcome>(tx, scope, id, kind, fingerprint);
         if (previous)
           return previous.outcome === "conflict" ? previous : { ...previous, outcome: "replayed" };
+        await lockGoalOwner(tx, scope);
 
         // Owners may delete their own records even after opting out. Listing
         // and editing remain hidden/disabled; this is a data-control operation.
@@ -282,6 +301,7 @@ export function createPlainWaterDiary(db: Database) {
         const [entry] = await tx.update(plainWaterEntry).set(changes).where(where).returning();
         if (!entry) throw new NutritionError("NOT_FOUND", "Water entry not found");
         const result = { outcome: "applied" as const, entry };
+        await reconcileGoals(tx, scope);
         await saveReceipt(tx, scope, id, kind, fingerprint, result);
         return result;
       });
@@ -294,14 +314,8 @@ export function createPlainWaterDiary(db: Database) {
       const nextDate = new Date(`${date}T00:00:00.000Z`);
       nextDate.setUTCDate(nextDate.getUTCDate() + 1);
       const end = firstInstantOfLocalDate(nextDate.toISOString().slice(0, 10), timeZone);
-      const [preference] = await db
-        .select({
-          enabled: plainWaterPreference.enabled,
-          personalGoalMl: plainWaterPreference.personalGoalMl,
-        })
-        .from(plainWaterPreference)
-        .where(preferenceWhere(scope));
-      if (!preference?.enabled)
+      const goals = await resolvePlainWaterGoal(db, scope, date);
+      if (!goals.enabled)
         return {
           date,
           timeZone,
@@ -309,7 +323,9 @@ export function createPlainWaterDiary(db: Database) {
           enabled: false,
           quantityMl: null,
           entries: [],
-          personalGoalMl: null,
+          personalGoalMl: goals.personalGoalManagedByGoals
+            ? goals.personalGoalMl
+            : goals.legacyPersonalGoalMl,
         };
       const entries =
         start.getTime() === end.getTime()
@@ -333,7 +349,9 @@ export function createPlainWaterDiary(db: Database) {
         enabled: true,
         quantityMl: entries.reduce((sum, row) => sum + row.quantityMl, 0),
         entries,
-        personalGoalMl: preference.personalGoalMl,
+        personalGoalMl: goals.personalGoalManagedByGoals
+          ? goals.personalGoalMl
+          : goals.legacyPersonalGoalMl,
       };
     },
 
@@ -343,27 +361,53 @@ export function createPlainWaterDiary(db: Database) {
     ) {
       if (input.personalGoalMl !== undefined && !validGoal(input.personalGoalMl))
         throw new NutritionError("INVALID_INPUT", "Personal goal is invalid");
-      const [current] = await db.select().from(plainWaterPreference).where(preferenceWhere(scope));
-      const [row] = await db
-        .insert(plainWaterPreference)
-        .values({
-          ...scope,
-          enabled: input.enabled ?? current?.enabled ?? false,
-          personalGoalMl:
-            input.personalGoalMl === undefined
-              ? (current?.personalGoalMl ?? null)
-              : input.personalGoalMl,
-        })
-        .onConflictDoUpdate({
-          target: [plainWaterPreference.organizationId, plainWaterPreference.userId],
-          set: {
-            ...(input.enabled === undefined ? {} : { enabled: input.enabled }),
-            ...(input.personalGoalMl === undefined ? {} : { personalGoalMl: input.personalGoalMl }),
-            updatedAt: new Date(),
-          },
-        })
-        .returning();
-      return row;
+      return db.transaction(async (tx) => {
+        await lockGoalOwner(tx, scope);
+        await reconcileGoals(tx, scope);
+        if (input.personalGoalMl !== undefined) {
+          const [cutover] = await tx
+            .select({ userId: goalWaterCutover.userId })
+            .from(goalWaterCutover)
+            .where(
+              and(
+                eq(goalWaterCutover.organizationId, scope.organizationId),
+                eq(goalWaterCutover.userId, scope.userId),
+              ),
+            )
+            .limit(1);
+          if (cutover)
+            throw new NutritionError(
+              "CONFLICT",
+              "The water target is managed in Goals. Update it there instead.",
+            );
+        }
+        const [current] = await tx
+          .select()
+          .from(plainWaterPreference)
+          .where(preferenceWhere(scope));
+        const [row] = await tx
+          .insert(plainWaterPreference)
+          .values({
+            ...scope,
+            enabled: input.enabled ?? current?.enabled ?? false,
+            personalGoalMl:
+              input.personalGoalMl === undefined
+                ? (current?.personalGoalMl ?? null)
+                : input.personalGoalMl,
+          })
+          .onConflictDoUpdate({
+            target: [plainWaterPreference.organizationId, plainWaterPreference.userId],
+            set: {
+              ...(input.enabled === undefined ? {} : { enabled: input.enabled }),
+              ...(input.personalGoalMl === undefined
+                ? {}
+                : { personalGoalMl: input.personalGoalMl }),
+              updatedAt: new Date(),
+            },
+          })
+          .returning();
+        return row;
+      });
     },
   };
 }

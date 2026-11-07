@@ -72,7 +72,7 @@ export const readinessOutput = z.object({
  * reported as `unreachable`; the underlying error is never surfaced (it could
  * echo connection details).
  */
-async function pingDatabase(db: Database): Promise<"ok" | "unreachable"> {
+export async function pingDatabase(db: Database): Promise<"ok" | "unreachable"> {
   let timer: ReturnType<typeof setTimeout> | undefined;
 
   try {

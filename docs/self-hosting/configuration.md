@@ -1,6 +1,6 @@
 # Configuration
 
-**Applies to:** OpenValens 0.9.1 · Last updated: 2026-10-25
+**Applies to:** OpenValens 1.1.0 · Last updated: 2026-10-25
 
 A self-hosted instance is configured in three places:
 
@@ -69,7 +69,6 @@ the value already in `deploy/.env`; add any other key by hand
 | `ANALYTICS_ENABLED`                          | no                      | `false`             | Optional product analytics; remains off unless explicitly enabled. Requires the PostHog token and IP-capture attestation below.                                                                                                                                                                                                                |
 | `POSTHOG_PROJECT_TOKEN_FILE`                 | yes (secret file)       | empty               | Optional EU PostHog project token file path; keep the token in `deploy/secrets/server/POSTHOG_PROJECT_TOKEN`, not `deploy/.env`.                                                                                                                                                                                                               |
 | `POSTHOG_IP_CAPTURE_DISABLED`                | no                      | `false`             | Operator attestation only; set `true` only after disabling IP capture in the EU PostHog project. This setting does not configure PostHog.                                                                                                                                                                                                      |
-| `EXERCISE_CATALOG_ASSETS_ENABLED`            | no                      | `false`             | Metadata-gated own-origin exercise media publication; requires configured storage. See [exercise catalog assets](../exercise-catalog-assets.md).                                                                                                                                                                                               |
 | `SENTRY_DSN`                                 | no                      | —                   | Optional server error reporting to Sentry; off when unset. See [error reporting](#error-reporting-sentry).                                                                                                                                                                                                                                     |
 | `SENTRY_ENVIRONMENT`                         | no                      | `NODE_ENV`          | Sentry environment for server, web and mobile events, e.g. `production` or `staging`.                                                                                                                                                                                                                                                          |
 | `SENTRY_RELEASE`                             | no                      | —                   | Release tag (e.g. the deployed commit) shared by server and web events.                                                                                                                                                                                                                                                                        |
@@ -319,6 +318,14 @@ If the job misses runs, a member's reminders go out at the next run on the same
 local day. Reminders for a day that has already ended are never sent, so an
 outage does not end in a burst of old reminders.
 
+Email-only members receive one daily grouped digest. Its immutable snapshot
+includes all eligible pending reminders present at preparation time; items added
+after that cutoff remain pending and are not sent in another email that day.
+Retries reuse the frozen message and provider idempotency key for up to 23 hours
+after snapshot creation. Apply the digest table migration with the normal
+pre-migration backup procedure before deploying this worker, and stop/drain old
+cron workers before switching to the new worker to avoid mixed-version races.
+
 1. Create a bot with [@BotFather](https://t.me/BotFather) (`/newbot`) and keep
    the token it gives you private.
 2. Save the token as a secret and apply it:
@@ -395,8 +402,16 @@ Every event is reduced to the error type, code locations, release and
 environment before it leaves the instance: no error messages, request data,
 headers, cookies, URLs, user, device details or breadcrumbs, and no performance
 tracing. The readiness probe reports `"sentry": true` while server reporting is
-on. Uploading source maps is optional and happens on your build machine with
-`SENTRY_AUTH_TOKEN`; never put that token in `deploy/.env` or the running stack.
+on. Events also keep the source-map debug ids (no personal data), so Sentry
+can match browser errors to uploaded source maps.
+
+**Web source maps (optional).** Building the web image with the build argument
+`SENTRY_AUTH_TOKEN` (an organization auth token) turns on the Sentry Vite
+plugin: the build makes hidden source maps, uploads them to `SENTRY_ORG` /
+`SENTRY_PROJECT` (also build arguments), then deletes them, so they are never
+served. A failed upload doesn't fail the build. The token is used by the
+builder stage only and is not in the final image. Never put it in `deploy/.env`
+or the running stack. Without it, the build makes no source maps.
 
 ## Product settings
 

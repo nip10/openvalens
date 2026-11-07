@@ -12,7 +12,6 @@ import {
   formatWaterGoal,
   formatWaterSubtotal,
   parseWaterAmount,
-  parseWaterGoal,
   waterAmountValue,
   waterDateInstant,
   type WaterAttention,
@@ -22,6 +21,7 @@ import {
 import type { MessageDescriptor } from "@lingui/core";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
+import { Link } from "expo-router";
 import { Button } from "heroui-native";
 import { GlassWater, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react-native";
 import { useQueryClient } from "@tanstack/react-query";
@@ -39,6 +39,7 @@ import { usePlainWaterOutbox, type PlainWaterOutbox } from "@/lib/plain-water/sy
 import { canDiscardWaterItem } from "@/lib/plain-water/outbox";
 import { editAmountChanged, editUnitChanged, waterEditAmountPatch } from "@/lib/plain-water/form";
 import { useCacheFirst } from "@/lib/offline/sync";
+import { DISPLAY_MAX_FONT_SCALE } from "@/components/bloom";
 import { client, orpc } from "@/utils/orpc";
 import { useThemeColor } from "@/utils/theme";
 
@@ -158,30 +159,14 @@ export function PlainWaterSection({
    * Settings are not queued: they are a direct write with a clear failure, so
    * the switch never pretends to have saved.
    */
-  const saveSettings = async (input: { enabled: boolean } | { personalGoal: number | null }) => {
+  const saveSettings = async (input: { enabled: boolean }) => {
     if (outbox.error) return false;
     setNotice(null);
     setSavingSettings(true);
     try {
-      await client.plainWater.updatePreferences(
-        "personalGoal" in input
-          ? input.personalGoal === null
-            ? { personalGoal: null }
-            : { personalGoal: input.personalGoal, personalGoalUnit: "ml" }
-          : input,
-      );
+      await client.plainWater.updatePreferences(input);
       if (!active.current) return false;
-      announce(
-        i18n._(
-          "enabled" in input
-            ? input.enabled
-              ? WATER_COPY.turnedOn
-              : WATER_COPY.turnedOff
-            : "personalGoal" in input && input.personalGoal === null
-              ? WATER_COPY.goalCleared
-              : WATER_COPY.goalSaved,
-        ),
-      );
+      announce(i18n._(input.enabled ? WATER_COPY.turnedOn : WATER_COPY.turnedOff));
       void refresh();
       return true;
     } catch {
@@ -394,8 +379,6 @@ export function PlainWaterSection({
               onUnitChange={setUnit}
               outbox={outbox}
               onEnqueue={onEnqueue}
-              settingsBusy={savingSettings}
-              onSaveGoal={(personalGoalMl) => saveSettings({ personalGoal: personalGoalMl })}
               settingsSwitch={
                 <View className="min-h-11 flex-row items-center justify-between gap-3">
                   <Text className="flex-1 font-sans text-sm text-ink-2">
@@ -431,8 +414,6 @@ function PlainWaterDayPanel({
   onUnitChange,
   outbox,
   onEnqueue,
-  settingsBusy,
-  onSaveGoal,
   settingsSwitch,
 }: {
   view: ReturnType<typeof buildWaterDayView> | null;
@@ -443,8 +424,6 @@ function PlainWaterDayPanel({
   onUnitChange: (unit: WaterUnit) => void;
   outbox: PlainWaterOutbox;
   onEnqueue: (op: Parameters<PlainWaterOutbox["enqueue"]>[0]) => boolean;
-  settingsBusy: boolean;
-  onSaveGoal: (personalGoalMl: number | null) => Promise<boolean>;
   settingsSwitch: ReactNode;
 }) {
   const { t, i18n } = useLingui();
@@ -466,8 +445,6 @@ function PlainWaterDayPanel({
     originalClock: string;
   } | null>(null);
   const [confirming, setConfirming] = useState<string | null>(null);
-  const [goalText, setGoalText] = useState("");
-  const [goalError, setGoalError] = useState<string | null>(null);
 
   if (!view) {
     return <Loading />;
@@ -568,21 +545,6 @@ function PlainWaterDayPanel({
     setConfirming(null);
   };
 
-  const submitGoal = async (clear: boolean) => {
-    if (clear) {
-      setGoalError(null);
-      await onSaveGoal(null);
-      return;
-    }
-    const parsed = parseWaterGoal(goalText, unit);
-    if (!parsed.ok) {
-      fail(setGoalError, parsed.error);
-      return;
-    }
-    setGoalError(null);
-    await onSaveGoal(parsed.personalGoalMl);
-  };
-
   const canDiscard = (row: WaterDayRow) => {
     if (row.state === "synced" || !row.pendingOpId) return false;
     const item = outbox.items.find((entry) => entry.id === row.pendingOpId);
@@ -608,6 +570,7 @@ function PlainWaterDayPanel({
                 : "font-display text-lg font-medium text-ink-2"
             }
             style={{ fontVariant: ["tabular-nums"] }}
+            maxFontSizeMultiplier={DISPLAY_MAX_FONT_SCALE}
           >
             {subtotalText}
           </Text>
@@ -824,6 +787,7 @@ function PlainWaterDayPanel({
             placeholderTextColor={placeholder}
             keyboardType="decimal-pad"
             accessibilityLabel={i18n._(WATER_COPY.amountLabel)}
+            testID="water-amount"
           />
           <UnitChoice value={addUnit} onChange={setAddUnit} />
           <View className="flex-row items-center gap-2">
@@ -881,51 +845,12 @@ function PlainWaterDayPanel({
             <Text className="font-display text-sm font-medium text-ink">
               {i18n._(WATER_COPY.goalLabel)}
             </Text>
-            {hideNumbers ? (
-              <Text className="font-sans text-sm text-ink-3">
-                {i18n._(WATER_COPY.editGoalHiddenNote)}
-              </Text>
-            ) : null}
-            <View className="flex-row items-center gap-2">
-              <TextInput
-                className={`${inputClass} flex-1`}
-                value={goalText}
-                onChangeText={setGoalText}
-                placeholder={i18n._(WATER_COPY.goalAmountPlaceholder)}
-                placeholderTextColor={placeholder}
-                keyboardType="decimal-pad"
-                accessibilityLabel={i18n._(WATER_COPY.goalAmountLabel)}
-              />
-              {hideNumbers ? null : (
-                <Text className="font-sans text-sm text-ink-3">{WATER_UNIT_LABELS[unit]}</Text>
-              )}
-            </View>
-            <View className="flex-row flex-wrap gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onPress={() => void submitGoal(false)}
-                isDisabled={settingsBusy}
-              >
-                <Button.Label>
-                  {i18n._(settingsBusy ? WATER_COPY.saving : WATER_COPY.setGoal)}
-                </Button.Label>
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                onPress={() => void submitGoal(true)}
-                isDisabled={settingsBusy || (view.personalGoalMl === null && !hideNumbers)}
-              >
-                <Button.Label>{i18n._(WATER_COPY.clearGoal)}</Button.Label>
-              </Button>
-            </View>
-            {goalError ? (
-              <Text className="font-sans text-sm text-destructive" accessibilityLiveRegion="polite">
-                {goalError}
-              </Text>
-            ) : null}
-            <Text className="font-sans text-sm text-ink-3">{i18n._(WATER_COPY.goalNote)}</Text>
+            <Text className="font-sans text-sm text-ink-3">{t`The daily water target is managed by one linked goal. Ending it also ends the target; water entries stay in your diary.`}</Text>
+            <Link href="/goals" asChild>
+              <Pressable className="w-fit rounded-xl bg-food-soft px-4 py-3">
+                <Text className="font-sans font-semibold text-ink">{t`Manage water goal`}</Text>
+              </Pressable>
+            </Link>
           </View>
         </View>
       </Details>

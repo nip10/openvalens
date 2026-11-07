@@ -34,6 +34,7 @@ export function NutritionEntryEditor({
   onDelete,
   onFavorite,
   onClose,
+  sourceNote = [],
 }: {
   visible: boolean;
   name: string;
@@ -63,6 +64,8 @@ export function NutritionEntryEditor({
   onDelete: () => void;
   onFavorite?: () => void;
   onClose: () => void;
+  /** Where the food's values come from, with any database attribution (#393). */
+  sourceNote?: readonly string[];
 }) {
   const insets = useSafeAreaInsets();
   return (
@@ -130,6 +133,11 @@ export function NutritionEntryEditor({
             <Text accessibilityLiveRegion="polite" className="font-sans text-sm text-ink-2">
               {preview}
             </Text>
+            {sourceNote.map((line) => (
+              <Text key={line} className="font-sans text-xs text-ink-3">
+                {line}
+              </Text>
+            ))}
             {onFavorite ? (
               <Button variant="outline" className="min-h-11 self-start" onPress={onFavorite}>
                 <Button.Label>{labels.favorite}</Button.Label>

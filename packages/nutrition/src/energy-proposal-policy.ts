@@ -203,6 +203,42 @@ export function maxSurplusKcal(
   return Math.min(...caps);
 }
 
+/**
+ * The reduction for a member-chosen weekly rate (#396): the rate's kcal/day,
+ * never above the hard caps (750 kcal, 25 %, 1.0 %/week, 0.5 % at 65+).
+ * Without a rate or a weight, the default size.
+ */
+export function chosenDeficitKcal(
+  estimateKcal: number,
+  body: ProposalBody,
+  ratePercent: number | null,
+  policy: EnergyProposalPolicy = ENERGY_PROPOSAL_POLICY,
+): number {
+  const rates: readonly number[] = policy.rate.loseWeeklyPercents;
+  if (ratePercent === null || body.weightKg === null || !rates.includes(ratePercent))
+    return defaultDeficitKcal(estimateKcal, body, policy);
+  return Math.min(
+    kcalPerDayForWeeklyFraction(body.weightKg, ratePercent / 100, policy),
+    maxDeficitKcal(estimateKcal, body, policy),
+  );
+}
+
+/** The surplus for a chosen weekly rate, capped at 0.5 %/week and +20 %; else the default aim. */
+export function chosenSurplusKcal(
+  estimateKcal: number,
+  body: ProposalBody,
+  ratePercent: number | null,
+  policy: EnergyProposalPolicy = ENERGY_PROPOSAL_POLICY,
+): number {
+  const cap = maxSurplusKcal(estimateKcal, body, policy);
+  const rates: readonly number[] = policy.rate.gainWeeklyPercents;
+  if (ratePercent === null || body.weightKg === null)
+    return Math.min(policy.gain.aimFractionOfEstimate * estimateKcal, cap);
+  // A loss rate above the gain range counts as the largest gain rate.
+  const rate = rates.includes(ratePercent) ? ratePercent : Math.max(...rates);
+  return Math.min(kcalPerDayForWeeklyFraction(body.weightKg, rate / 100, policy), cap);
+}
+
 /** True when `targetKcal` meets every safety limit, regardless of requested direction. */
 export function isSafeTarget(
   targetKcal: number,
@@ -244,6 +280,8 @@ export function planEnergyProposal(input: {
   now: Date;
   /** The member's chosen direction; defaults to maintain. */
   direction?: EnergyDirection;
+  /** The member's chosen weekly rate in % of body weight (#396); `null` uses the default size. */
+  ratePercent?: number | null;
   /** The evaluated safety state; absent means suggestions are available and no exclusion is declared. */
   safety?: Pick<NutritionSafety, "energySuggestions" | "reductionSuggestions" | "softGates">;
   body?: ProposalBody;
@@ -280,10 +318,9 @@ export function planEnergyProposal(input: {
     if (bmiOf(body.weightKg, body.heightCm) < policy.bmi.underweightBelow)
       return { outcome: "declined", reason: "not_suggested_for_profile" };
     kind = "deficit";
+    const deficit = chosenDeficitKcal(estimateKcal, body, input.ratePercent ?? null, policy);
     // Round towards the estimate so rounding never enlarges the deficit.
-    desired =
-      Math.ceil((estimateKcal - defaultDeficitKcal(estimateKcal, body, policy)) / precision) *
-      precision;
+    desired = Math.ceil((estimateKcal - deficit) / precision) * precision;
     if (desired >= estimateKcal) return { outcome: "declined", reason: "no_change" };
     if (!isSafeTarget(desired, kind, estimateKcal, body, policy))
       return {
@@ -292,10 +329,7 @@ export function planEnergyProposal(input: {
       };
   } else if (direction === "gain") {
     kind = "gain";
-    const surplus = Math.min(
-      policy.gain.aimFractionOfEstimate * estimateKcal,
-      maxSurplusKcal(estimateKcal, body, policy),
-    );
+    const surplus = chosenSurplusKcal(estimateKcal, body, input.ratePercent ?? null, policy);
     // Round towards the estimate so rounding never enlarges the surplus.
     desired = Math.floor((estimateKcal + surplus) / precision) * precision;
     if (desired <= estimateKcal) return { outcome: "declined", reason: "no_change" };

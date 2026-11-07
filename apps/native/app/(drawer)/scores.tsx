@@ -1,10 +1,11 @@
 import { useLingui } from "@lingui/react/macro";
-import { goalProgressView, readinessView, SCORE_COPY } from "@openvalens/api/presenters/score";
-import type { GoalProgressResult, ReadinessResult } from "@openvalens/api/score-contract";
+import { readinessView, SCORE_COPY } from "@openvalens/api/presenters/score";
+import type { ReadinessResult } from "@openvalens/api/score-contract";
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "expo-router";
 import { Button } from "heroui-native";
-import { Flag, Gauge, type LucideIcon, Target } from "lucide-react-native";
-import { RefreshControl, Text, View } from "react-native";
+import { Flag, Gauge, type LucideIcon } from "lucide-react-native";
+import { Pressable, RefreshControl, Text, View } from "react-native";
 
 import {
   ErrorState,
@@ -17,18 +18,14 @@ import {
   Ring,
   Sheet,
   StatusPill,
-  type Tone,
   ToneIcon,
+  type Tone,
+  DISPLAY_MAX_FONT_SCALE,
 } from "@/components/bloom";
 import { Container } from "@/components/container";
 import { ReferenceComparisonsSection } from "@/components/reference-comparisons-section";
 import { orpc } from "@/utils/orpc";
-import {
-  goalProgressCard,
-  readinessCard,
-  type ScoreCard,
-  type ScoreRow,
-} from "@/utils/score-screen";
+import { readinessCard, type ScoreCard, type ScoreRow } from "@/utils/score-screen";
 import { useThemeColor } from "@/utils/theme";
 
 /**
@@ -81,17 +78,6 @@ function readinessPlacement(result: ReadinessResult, i18n: Parameters<typeof rea
         }
       : null,
     counted: Object.fromEntries(view.components.map((c) => [String(c.key), c.used])),
-  } satisfies NotePlacement;
-}
-
-function goalPlacement(result: GoalProgressResult, i18n: Parameters<typeof goalProgressView>[1]) {
-  const view = goalProgressView(result, i18n);
-  return {
-    unit: view.coverageText,
-    visible: [view.withheldExplanation].filter((line): line is string => line !== null),
-    warning: view.flaggedText,
-    chip: null,
-    counted: Object.fromEntries(view.goals.map((g) => [String(g.key), g.counted])),
   } satisfies NotePlacement;
 }
 
@@ -190,6 +176,7 @@ function ScoreCardView({
             style={{ fontVariant: ["tabular-nums"] }}
             accessible
             accessibilityLabel={card.scoreAccessibilityLabel}
+            maxFontSizeMultiplier={DISPLAY_MAX_FONT_SCALE}
           >
             {card.scoreText}
           </Text>
@@ -247,7 +234,6 @@ function ScoreCardView({
 
 export default function ScoresScreen() {
   const readiness = useQuery(orpc.score.readiness.queryOptions({ input: {} }));
-  const goals = useQuery(orpc.score.goalProgress.queryOptions({ input: {} }));
   const { t, i18n } = useLingui();
   const foreground = useThemeColor("foreground");
 
@@ -263,7 +249,7 @@ export default function ScoresScreen() {
     />
   );
 
-  if (readiness.isPending || goals.isPending)
+  if (readiness.isPending)
     return (
       <Container>
         <Page>
@@ -274,7 +260,7 @@ export default function ScoresScreen() {
       </Container>
     );
 
-  if (readiness.isError || !readiness.data || goals.isError || !goals.data)
+  if (readiness.isError || !readiness.data)
     return (
       <Container>
         <Page>
@@ -287,7 +273,6 @@ export default function ScoresScreen() {
                 size="sm"
                 onPress={() => {
                   void readiness.refetch();
-                  void goals.refetch();
                 }}
               >
                 <Button.Label>{t`Retry`}</Button.Label>
@@ -303,10 +288,9 @@ export default function ScoresScreen() {
       scrollViewProps={{
         refreshControl: (
           <RefreshControl
-            refreshing={readiness.isRefetching || goals.isRefetching}
+            refreshing={readiness.isRefetching}
             onRefresh={() => {
               void readiness.refetch();
-              void goals.refetch();
             }}
             tintColor={foreground}
           />
@@ -322,19 +306,12 @@ export default function ScoresScreen() {
           tone="sleep"
           breakdownTitle={t`Breakdown`}
         />
-        <ScoreCardView
-          card={goalProgressCard(goals.data, i18n)}
-          placement={goalPlacement(goals.data, i18n)}
-          icon={Target}
-          tone="weight"
-        />
         <ReferenceComparisonsSection />
-        <View className="flex-row items-center gap-2">
-          <ToneIcon icon={Target} tone="weight" size="sm" />
-          <Text className="shrink font-sans text-sm text-ink-3">
-            {t`Set targets, directions and priorities for your goals under Workouts.`}
-          </Text>
-        </View>
+        <Link href="/goals" asChild>
+          <Pressable className="flex-row items-center gap-2">
+            <Text className="text-sm text-signal">{t`Manage personal goals`}</Text>
+          </Pressable>
+        </Link>
       </Page>
     </Container>
   );

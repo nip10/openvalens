@@ -150,7 +150,7 @@ test("captured sender policy preserves server basepath/cookie and enforces omit,
   const fetcher = immutableOperationFetch(async (input, init) => { captured = { input, init }; throw new Error("synthetic transport stop"); }, abort.signal);
   await expect(fetcher(new Request("https://old.example.test/base/path/rpc/directDevice/listDirectDevices", { headers: { Cookie: "session=old" } }))).rejects.toThrow();
   expect(captured?.input instanceof Request ? captured.input.url : String(captured?.input)).toContain("/base/path/rpc/directDevice/");
-  expect(captured?.input instanceof Request ? captured.input.headers.get("cookie") : (captured?.init?.headers as Headers).get("cookie")).toBe("session=old");
+  expect(captured?.input instanceof Request ? captured.input.headers.get("cookie") : new Headers(captured?.init?.headers).get("cookie")).toBe("session=old");
   expect(captured?.init?.credentials).toBe("omit");
   expect(captured?.init?.redirect).toBe("error");
   expect(captured?.init?.signal).toBe(abort.signal);

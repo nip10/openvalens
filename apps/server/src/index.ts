@@ -3,6 +3,7 @@
 import "./csp-mode-capture";
 import { Readable } from "node:stream";
 import { CSP_REPORT_PATH, createCspReportHandler, resolveCspMode } from "./security-csp-report";
+import { pingDatabase } from "@openvalens/api/routers/health";
 import { appRouter } from "@openvalens/api/routers/index";
 import { ensureActiveOrganization, personalWorkspaceSlug } from "@openvalens/auth/authz/auth-org";
 import { InMemoryRateLimiter } from "@openvalens/ai/rate-limit";
@@ -35,10 +36,14 @@ import {
   resolveMaxBodyBytes,
 } from "./body-limit";
 import { registerBillingWebhookRoute } from "./billing-webhook-route";
+import { sampleFrameDir } from "@openvalens/exercise-catalog/sample";
 import { registerExerciseCatalogAssetRoute } from "./exercise-catalog-asset-route";
+import { scheduleExerciseCatalogBootstrap } from "./services/exercise-catalog-bootstrap";
 import { createContext } from "./context";
 import { reportError } from "./error-reporting";
 import { ENV } from "./env.server";
+import { SCALAR_CONFIG, SCALAR_SCRIPT_URL } from "./api-reference";
+import { registerHealthRoute } from "./health-route";
 import { registerServerMetaRoute } from "./server-meta-route";
 import { createDataExportWorker, cleanupExportArtifacts } from "./data-export-worker";
 import { openAuthorizedExportArchive } from "./data-export-download";
@@ -47,7 +52,6 @@ import {
   db,
   deploymentConfig,
   deploymentInfo,
-  exerciseCatalogAssetsEnabled,
   getBillingService,
   getExerciseCatalogAssetService,
   signInOptions,
@@ -127,6 +131,7 @@ app.use(
     allowDevScriptEval: ENV.NODE_ENV === "development",
     reportToGroup: "csp-endpoint",
     reportToUrl: CSP_REPORT_PATH,
+    additionalScriptSrc: [SCALAR_SCRIPT_URL],
   }),
 );
 
@@ -330,13 +335,25 @@ app.get("/api/data-rights/exports/:jobId/download", async (c) => {
 // Public media route consumes only the dedicated global manifest capability.
 // Its opt-in registration does not modify the app's shared middleware stack.
 registerExerciseCatalogAssetRoute(app, {
-  enabled: exerciseCatalogAssetsEnabled,
+  enabled: true,
   getService: getExerciseCatalogAssetService,
+});
+
+// Issue #400 — the exercise catalog and its images import once, automatically,
+// on every new server (Cloud and self-hosted); finished steps never repeat.
+scheduleExerciseCatalogBootstrap({
+  db,
+  getAssets: getExerciseCatalogAssetService,
+  logger,
+  sampleFrameDir: sampleFrameDir(),
 });
 
 // Issue #295 — public server check the mobile app reads before connecting.
 // Issue #294 — mode and sign-up come from the validated `DEPLOYMENT_MODE`.
 registerServerMetaRoute(app, { signInOptions, profile: () => deploymentInfo });
+
+// Issue #308 — GET liveness with a database ping, for uptime monitors.
+registerHealthRoute(app, { pingDatabase: () => pingDatabase(db) });
 
 // Issue #297 — Stripe webhook (Cloud only). Registered before the oRPC
 // catch-all; reads the raw body for signature verification.
@@ -417,6 +434,8 @@ export const apiHandler = new OpenAPIHandler(appRouter, {
   plugins: [
     new OpenAPIReferencePlugin({
       schemaConverters: [new ZodToJsonSchemaConverter()],
+      docsScriptUrl: SCALAR_SCRIPT_URL,
+      docsConfig: { ...SCALAR_CONFIG },
     }),
   ],
   interceptors: [

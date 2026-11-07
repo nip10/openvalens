@@ -8,7 +8,7 @@ import {
   exerciseMuscle,
   exerciseTranslation,
 } from "@openvalens/db/schema/exercises";
-import type { NormalizationResult, NormalizedExercise } from "./exercise-catalog-normalization";
+import type { NormalizationResult, NormalizedExercise } from "./normalization";
 
 export type ImportCounts = {
   inserted: number;
@@ -23,7 +23,7 @@ export type ImportCounts = {
 };
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
-/** Writes only fully-normalized wger records; call only after explicit operator --apply. */
+/** Writes only fully-normalized wger records (the automatic setup in #400, or an operator --apply). */
 export async function importWgerSnapshot(
   db: Database,
   snapshot: NormalizationResult,
@@ -183,6 +183,9 @@ export async function importWgerSnapshot(
         .from(exerciseMedia)
         .where(eq(exerciseMedia.exerciseId, exerciseId));
       for (const old of existingMedia) {
+        // Workout Guide frames (#400) are linked separately; a wger snapshot
+        // only withdraws wger media.
+        if (old.source !== "wger") continue;
         if (!includedMediaIds.has(old.sourceExternalMediaId) && old.publicationActive) {
           await tx
             .update(exerciseMedia)
@@ -207,6 +210,7 @@ export async function importWgerSnapshot(
           .where(
             and(
               eq(exerciseMedia.exerciseId, exerciseId),
+              eq(exerciseMedia.source, "wger"),
               eq(exerciseMedia.sourceExternalMediaId, media.sourceExternalMediaId),
             ),
           )
@@ -228,6 +232,7 @@ export async function importWgerSnapshot(
         if (!old) {
           await tx.insert(exerciseMedia).values({
             exerciseId,
+            source: "wger",
             sourceExternalMediaId: media.sourceExternalMediaId,
             ...data,
             storedObjectId: null,

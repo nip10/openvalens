@@ -46,6 +46,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Linking, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 
 import {
+  DISPLAY_MAX_FONT_SCALE,
   ErrorState,
   Icon,
   Page,
@@ -62,8 +63,6 @@ import { Container } from "@/components/container";
 import { HealthSyncSettings } from "@/components/health-sync-settings";
 import { DirectDeviceSettings } from "@/components/direct-device-settings";
 import {
-  choiceChip,
-  choiceText,
   LanguageSection,
   SettingsGroup,
   SettingsIcon,
@@ -71,6 +70,7 @@ import {
 import { AnalyticsConsentSection } from "@/components/analytics-consent-section";
 import { AiSection } from "@/components/ai-section";
 import { ServerSection } from "@/components/change-server";
+import { SelectField } from "@/components/select-field";
 import { SignInMethodsSection } from "@/components/sign-in-methods";
 import { useAppTheme } from "@/contexts/app-theme-context";
 import { appBuildInfo } from "@/lib/app-version";
@@ -111,12 +111,22 @@ export default function SettingsScreen() {
                     accessibilityElementsHidden
                     importantForAccessibility="no-hide-descendants"
                   >
-                    <Text className="font-display text-xl font-medium text-signal">
+                    <Text
+                      className="font-display text-xl font-medium text-signal"
+                      maxFontSizeMultiplier={DISPLAY_MAX_FONT_SCALE}
+                    >
                       {(displayName ?? "?").trim().charAt(0).toUpperCase()}
                     </Text>
                   </View>
-                  <View className="min-w-0 flex-1 gap-0.5">
-                    <Text className="font-display text-lg font-medium text-ink">{displayName}</Text>
+                  {/* At least 10rem wide, or Sign out wraps below it: beside it at
+                      the accessibility text sizes the name broke every word (#379). */}
+                  <View className="min-w-40 flex-1 gap-0.5">
+                    <Text
+                      className="font-display text-lg font-medium text-ink"
+                      maxFontSizeMultiplier={DISPLAY_MAX_FONT_SCALE}
+                    >
+                      {displayName}
+                    </Text>
                     {session.user.email && (
                       <Text className="font-sans text-sm text-ink-3" numberOfLines={1}>
                         {session.user.email}
@@ -747,22 +757,12 @@ function CoachSelect<V extends string>({
   return (
     <View className="gap-2">
       <Text className="font-sans text-sm font-medium text-ink-2">{label}</Text>
-      <View className="flex-row flex-wrap gap-2">
-        {values.map((option) => {
-          const selected = option === value;
-          return (
-            <Pressable
-              key={option}
-              onPress={() => onChange(option)}
-              accessibilityRole="button"
-              accessibilityState={{ selected }}
-              className={choiceChip(selected)}
-            >
-              <Text className={choiceText(selected)}>{format(option)}</Text>
-            </Pressable>
-          );
-        })}
-      </View>
+      <SelectField
+        options={values.map((option) => ({ value: option, label: format(option) }))}
+        value={value}
+        onChange={onChange}
+        accessibilityLabel={label}
+      />
       {hint ? <Text className="font-sans text-sm text-ink-3">{hint}</Text> : null}
     </View>
   );

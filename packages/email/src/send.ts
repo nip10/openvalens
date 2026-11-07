@@ -28,6 +28,8 @@ export type SendEmailInput = {
    * service headers belong here — no personal data.
    */
   headers?: Record<string, string>;
+  /** Optional Resend request-level idempotency key; never logged. */
+  idempotencyKey?: string;
 };
 
 export type SendEmailOptions = {
@@ -54,6 +56,8 @@ export type SendEmailFn = (
  */
 export type EmailService = {
   readonly sendEmail: SendEmailFn;
+  /** Resolves stable sender defaults for persisted/replayed delivery inputs. */
+  readonly prepareEmail: (input: SendEmailInput) => SendEmailInput;
   readonly organizationName: string;
 };
 
@@ -63,8 +67,8 @@ export type EmailService = {
  * The five config fields are copied into a frozen snapshot behind a closure, so
  * later mutation of the original object cannot change delivery. `defaults` are
  * merged first, then per-call options, then `config` (the snapshot unless the
- * call supplies its own). The returned object is frozen and exposes only
- * `sendEmail` and `organizationName`.
+ * call supplies its own). `prepareEmail` snapshots sender defaults into an input
+ * for stable later replay. The returned object is frozen.
  */
 export function createEmailService(
   config: EmailConfig,
@@ -85,8 +89,19 @@ export function createEmailService(
       config: options?.config ?? snapshot,
     });
 
+  const prepareEmail = (input: SendEmailInput): SendEmailInput => ({
+    ...input,
+    from: input.from ?? snapshot.EMAIL_FROM,
+    replyTo: input.replyTo ?? snapshot.EMAIL_REPLY_TO ?? "",
+    ...(Array.isArray(input.to) ? { to: [...input.to] } : {}),
+    ...(Array.isArray(input.bcc) ? { bcc: [...input.bcc] } : {}),
+    ...(input.tags ? { tags: [...input.tags] } : {}),
+    ...(input.headers ? { headers: { ...input.headers } } : {}),
+  });
+
   return Object.freeze({
     sendEmail: boundSend,
+    prepareEmail,
     organizationName: extractDisplayName(snapshot.EMAIL_FROM) ?? "OpenValens",
   });
 }
@@ -195,6 +210,7 @@ export async function sendEmail(
       text: input.text,
       tags,
       ...(input.headers ? { headers: input.headers } : {}),
+      ...(input.idempotencyKey !== undefined ? { idempotencyKey: input.idempotencyKey } : {}),
     });
 
     logger.info("email.send.queued", {

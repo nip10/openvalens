@@ -50,7 +50,7 @@ describe("planEnergyProposal", () => {
       currentTargetKcal: null,
       stepLimited: false,
       needsConfirmation: false,
-      policyVersion: "nutrition-safety/v1",
+      policyVersion: "nutrition-safety/v3",
     });
   });
 
@@ -169,5 +169,70 @@ describe("copy", () => {
       expect(text).not.toMatch(/\b(1,?200|BMI|good|bad|cheat|earn\w*|fail\w*|over|under)\b/i);
       expect(findBannedCopy(text)).toEqual([]);
     }
+  });
+});
+
+describe("chosen weekly rate (#396)", () => {
+  // 80 kg: 0.25 %/wk = 220 kcal/d, 0.5 % = 440, 0.75 % = 660, 1.0 % = 880 (7,700 kcal/kg).
+  const lose = (ratePercent: number | null, extra: Partial<Parameters<typeof plan>[0]> = {}) =>
+    plan({ estimate: estimated(2800), direction: "lose", body: BODY, ratePercent, ...extra });
+
+  test("a chosen loss rate sets the reduction, rounded towards the estimate", () => {
+    expect(lose(0.25)).toMatchObject({ outcome: "proposal", kind: "deficit", targetKcal: 2600 });
+    expect(lose(0.5)).toMatchObject({ targetKcal: 2400 });
+    expect(lose(0.75)).toMatchObject({ targetKcal: 2150 });
+  });
+
+  test("the hard caps win over a faster rate: never more than 25 % or 750 kcal", () => {
+    // 1.0 %/wk = 880 kcal/d, capped at min(750, 25 % of 2,800 = 700).
+    expect(lose(1)).toMatchObject({ targetKcal: 2100 });
+    const older = lose(1, { body: { ...BODY, minAge: 70, maxAge: 71 } });
+    // 65+: 0.5 %/wk cap (440 kcal/d).
+    expect(older).toMatchObject({ targetKcal: 2400 });
+  });
+
+  test("the floor still holds whatever the rate", () => {
+    const small = { weightKg: 60, heightCm: 165, sex: "female" as const, minAge: 30, maxAge: 31 };
+    const result = plan({
+      estimate: estimated(1600),
+      direction: "lose",
+      body: small,
+      ratePercent: 1,
+    });
+    if (result.outcome === "proposal")
+      expect(result.targetKcal).toBeGreaterThanOrEqual(
+        calorieFloorKcal({ sex: "female", restingKcal: 10 * 60 + 6.25 * 165 - 5 * 30 - 161 }),
+      );
+    // Refused rather than going under the floor.
+    else expect(["below_floor", "not_suggested_for_profile"]).toContain(result.reason);
+  });
+
+  test("an unknown rate or no weight falls back to the default size", () => {
+    expect(lose(0.3)).toEqual(lose(null));
+    expect(
+      plan({
+        estimate: estimated(2800),
+        direction: "lose",
+        body: { ...BODY, weightKg: null },
+        ratePercent: 1,
+      }),
+    ).toMatchObject({ outcome: "declined", reason: "needs_body_details" });
+  });
+
+  test("gain rates stay at or under 0.5 %/week and +20 %", () => {
+    const gain = (ratePercent: number | null) =>
+      plan({ estimate: estimated(2800), direction: "gain", body: BODY, ratePercent });
+    expect(gain(0.25)).toMatchObject({ kind: "gain", targetKcal: 3000 });
+    expect(gain(0.5)).toMatchObject({ targetKcal: 3200 });
+    // A loss-only rate counts as the largest gain rate.
+    expect(gain(1)).toEqual(gain(0.5));
+  });
+
+  test("exclusions still turn reductions off at any rate", () => {
+    expect(
+      lose(0.5, {
+        safety: { energySuggestions: "available", reductionSuggestions: "off", softGates: [] },
+      }),
+    ).toMatchObject({ outcome: "declined", reason: "not_suggested_for_profile" });
   });
 });

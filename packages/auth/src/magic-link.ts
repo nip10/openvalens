@@ -165,7 +165,7 @@ export async function sendAuthMagicLink(
   const logger = options.logger ?? createStructuredLogger({ level: "info" });
   const emailSender = options.sendEmail;
 
-  const rendered = renderMagicLinkEmail(
+  const rendered = await renderMagicLinkEmail(
     {
       url: payload.url,
       correlationId,

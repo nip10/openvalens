@@ -11,7 +11,7 @@ import { Button } from "heroui-native";
 import { Gauge, Sparkles, Square, SquareCheck } from "lucide-react-native";
 
 import { deviceTimeZone, localDateIn } from "@openvalens/api/presenters/nutrition-diary";
-import { Icon, InfoTip, Prose, Section } from "@/components/bloom";
+import { Icon, Section } from "@/components/bloom";
 import { orpc } from "@/utils/orpc";
 
 export function EnergyEstimateCard({
@@ -58,7 +58,6 @@ export function EnergyEstimateCard({
   const pending = proposals.data?.proposals.find((p) => p.status === "pending");
   const display = authorized ? presentEnergyEstimate(estimate.data, false, i18n) : null;
   const proposalDisplay = pending ? presentProposal(pending, false, i18n) : null;
-  const range = display?.range ?? "";
   const suggestion = proposalDisplay?.suggestion ?? t`Unavailable`;
   const currentTarget = proposalDisplay?.current ?? i18n._(ENERGY_ESTIMATE_COPY.noTarget);
   useEffect(() => {
@@ -110,25 +109,10 @@ export function EnergyEstimateCard({
           <Trans>Loading estimate…</Trans>
         </Text>
       ) : display ? (
-        <View className="gap-1">
-          <Text
-            className="font-display text-[34px] font-medium leading-[40px] text-ink"
-            style={{ fontVariant: ["tabular-nums"] }}
-          >
-            {display.value}
-          </Text>
-          <View className="flex-row flex-wrap items-center gap-1">
-            <Text className="shrink font-sans text-sm text-ink-3">
-              {t`${range} (arithmetic range, not a confidence interval)`}
-            </Text>
-            <InfoTip label={t`How this is estimated`}>
-              <Prose>{display.window}</Prose>
-              {display.notes.map((note, i) => (
-                <Prose key={i}>{note}</Prose>
-              ))}
-            </InfoTip>
-          </View>
-        </View>
+        // The figure, range and method live on the Food tab's trend card (#395).
+        <Text className="font-sans text-sm text-ink-2">
+          {t`The estimate and how it is worked out are on the Food tab.`}
+        </Text>
       ) : (
         <View className="gap-1">
           <Text className="font-sans text-sm text-ink-2">

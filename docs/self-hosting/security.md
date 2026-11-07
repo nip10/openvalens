@@ -1,6 +1,6 @@
 # Security model and reporting
 
-**Applies to:** OpenValens 0.9.1 · Last updated: 2026-10-16
+**Applies to:** OpenValens 1.1.0 · Last updated: 2026-10-16
 
 OpenValens stores personal health data. This page describes what the supported
 install ([Install](install.md)) does to protect it, what it leaves to you, and

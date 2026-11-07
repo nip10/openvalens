@@ -4,7 +4,8 @@
  * copy, the exclusion list and the helplines.
  *
  * This is general wellness, not therapeutic diet planning, and the policy is
- * not clinically validated. No clinician reviews it; the values come from
+ * not clinically validated. The owner signed off the floor and exclusion
+ * values on 2026-11-07 (nutrition-safety/v3); the values come from
  * published guidelines and trials (see {@link NUTRITION_SAFETY_SOURCES}) and
  * a few documented product choices. They live in one frozen, versioned
  * config: changing any value is a reviewed change that bumps `version` and
@@ -46,9 +47,16 @@ export type NutritionDeclaration = (typeof NUTRITION_DECLARATIONS)[number];
 export const ENERGY_DIRECTIONS = ["maintain", "lose", "gain"] as const;
 export type EnergyDirection = (typeof ENERGY_DIRECTIONS)[number];
 
+/**
+ * Weekly rates a member can choose, in % of body weight (#396). Loss up to
+ * 1.0 %, gain up to 0.5 %; the hard caps below still apply on top.
+ */
+export const ENERGY_RATE_PERCENTS = [0.25, 0.5, 0.75, 1] as const;
+export type EnergyRatePercent = (typeof ENERGY_RATE_PERCENTS)[number];
+
 export const NUTRITION_SAFETY_POLICY = Object.freeze({
-  version: "nutrition-safety/v1" as const,
-  effectiveFrom: "2026-10-16",
+  version: "nutrition-safety/v3" as const,
+  effectiveFrom: "2026-11-07",
   /** New members: maintain, never an automated deficit. */
   defaultDirection: "maintain" as EnergyDirection,
   /** Never propose a target below this, under any setting (kcal/day). NICE NG246. */
@@ -61,7 +69,7 @@ export const NUTRITION_SAFETY_POLICY = Object.freeze({
     /** Default deficit: the smallest of these (AHA 500 kcal/d; Garthe 2011 ~19%). */
     defaultMaxKcal: 500,
     defaultMaxFractionOfEstimate: 0.2,
-    defaultMaxWeeklyLossFraction: 0.007,
+    defaultMaxWeeklyLossFraction: 0.005,
     /** Hard caps: no deficit proposal exceeds any of these (AHA 750 kcal/d; Helms 2014). */
     hardMaxKcal: 750,
     hardMaxFractionOfEstimate: 0.25,
@@ -81,6 +89,13 @@ export const NUTRITION_SAFETY_POLICY = Object.freeze({
     maxFraction: 0.1,
     /** Days after an accepted change before the next proposal. */
     minDaysBetweenChanges: 7,
+  }),
+  /** The member's chosen rate (#396), always inside the caps above. */
+  rate: Object.freeze({
+    loseWeeklyPercents: Object.freeze([0.25, 0.5, 0.75, 1] as const),
+    defaultLoseWeeklyPercent: 0.5,
+    gainWeeklyPercents: Object.freeze([0.25, 0.5] as const),
+    defaultGainWeeklyPercent: 0.25,
   }),
   bmi: Object.freeze({
     /** No reduction if current BMI is below this (WHO underweight cut-off). */
@@ -111,6 +126,18 @@ export const NUTRITION_SAFETY_POLICY = Object.freeze({
       date: "2026-10-16",
       change:
         "First version: floors, deficit and gain caps, weekly step, BMI gate, self-declared exclusions and protein reference (Issue #80). Replaces energy-proposal/v1.",
+    }),
+    Object.freeze({
+      version: "nutrition-safety/v2",
+      date: "2026-11-06",
+      change:
+        "Member-chosen weekly rate (#396): loss 0.25–1.0 % of body weight a week, gain 0.25–0.5 %. A chosen rate replaces the default deficit or surplus size; floors, hard caps, weekly step, BMI gate and exclusions are unchanged. Clinical review of the floors is still pending.",
+    }),
+    Object.freeze({
+      version: "nutrition-safety/v3",
+      date: "2026-11-07",
+      change:
+        "Owner sign-off of the floor and exclusion values (2026-11-07). Default loss without a chosen rate is 0.5 % of body weight a week (was 0.7 %), matching the default rate. Values unchanged otherwise; the policy is still not clinically validated.",
     }),
   ]),
 });

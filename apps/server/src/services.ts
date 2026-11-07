@@ -407,11 +407,12 @@ export const storageService = objectStorage
     })
   : null;
 
-// Catalog asset support is opt-in and bypasses the organization-bound generic
-// StorageService only through its dedicated global manifest service. No storage
-// calls occur while binding this inactive capability.
-export const exerciseCatalogAssetsEnabled =
-  ENV.EXERCISE_CATALOG_ASSETS_ENABLED && Boolean(objectStorage && exerciseCatalogStorageIdentity);
+// Issue #400 — catalog images are always on when object storage has a stable
+// identity (no flag). They bypass the organization-bound generic StorageService
+// only through their dedicated global manifest service.
+export const exerciseCatalogAssetsEnabled = Boolean(
+  objectStorage && exerciseCatalogStorageIdentity,
+);
 type ExerciseCatalogAssetService = ReturnType<
   typeof import("./services/exercise-catalog-assets").createExerciseCatalogAssetService
 >;

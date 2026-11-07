@@ -13,3 +13,35 @@ path = "packages/api/src/presenters/body-map-paths/*.ts"
 precedence = "override"
 SPDX-FileCopyrightText = "2022 ELABBASSI Hicham"
 SPDX-License-Identifier = "MIT"
+
+# Google's official "Get it on Google Play" badge, used unmodified under the
+# Google Play badge guidelines (#361).
+[[annotations]]
+path = "apps/site/src/badges/google-play.png"
+precedence = "override"
+SPDX-FileCopyrightText = "Google LLC"
+SPDX-License-Identifier = "LicenseRef-Google-Play-Badge"
+
+# Exercise catalog sample (Issue #400). 12 wger records, unmodified apart from
+# trimming to the fields the importer reads; each record and translation names
+# its own licence (CC BY-SA 3.0 or 4.0) and author.
+[[annotations]]
+path = "packages/exercise-catalog/sample/wger-sample.json"
+precedence = "override"
+SPDX-FileCopyrightText = "wger contributors, authors named per record (https://wger.de)"
+SPDX-License-Identifier = "CC-BY-SA-3.0 AND CC-BY-SA-4.0"
+
+# Workout Guide frames by Bryl Lim, after Everkinetic, copied unmodified from
+# bryllim/workout-guide at aac599224bb9780305239607ef98540b7e0ce389.
+[[annotations]]
+path = "packages/exercise-catalog/sample/workout-guide/**"
+precedence = "override"
+SPDX-FileCopyrightText = ["2026 Bryl Lim", "Everkinetic contributors"]
+SPDX-License-Identifier = "CC-BY-SA-4.0"
+
+# Workout Guide manifest entries (package metadata, MIT) for the sample frames.
+[[annotations]]
+path = "packages/exercise-catalog/sample/workout-guide-sample.json"
+precedence = "override"
+SPDX-FileCopyrightText = "2026 Bryl Lim"
+SPDX-License-Identifier = "MIT"

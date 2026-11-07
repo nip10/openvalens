@@ -1,7 +1,7 @@
 import { createCipheriv, createDecipheriv } from "node:crypto";
 import { expect, test } from "bun:test";
 import fixture from "../__fixtures__/b163-reference.json";
-import { publicPointToWire, reverseHexBytes } from "../crypto/encoding";
+import { reverseHexBytes } from "../crypto/encoding";
 import { encodeChunkedMessage, ChunkReassembler, crc32 } from "./chunked";
 import { openHelioChannel } from "./channel";
 import type { HelioLink } from "./types";

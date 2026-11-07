@@ -7,7 +7,7 @@ import { SERVER_META_PATH, serverMetaSchema, type ServerMeta } from "@openvalens
  */
 
 /** The server API versions this app speaks. */
-export const APP_API_RANGE = { min: 1, max: 1 } as const;
+export const APP_API_RANGE = { min: 2, max: 2 } as const;
 
 const PROBE_TIMEOUT_MS = 10_000;
 

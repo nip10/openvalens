@@ -196,6 +196,7 @@ export const DATA_RIGHTS_REGISTRY: Readonly<Record<string, TableEntry>> = Object
     reason: "Telegram update ids kept only to de-duplicate webhooks; no message content.",
   },
   daily_reminder: organization,
+  daily_reminder_email_digest: organization,
   // Cloud wearables (#60): OAuth link per person and vendor. Token ciphertext
   // and the OAuth state hash are never exported; deleting the subject removes
   // them with the workspace (the vendor grant is revoked on disconnect).
@@ -316,8 +317,18 @@ export const DATA_RIGHTS_REGISTRY: Readonly<Record<string, TableEntry>> = Object
   supplement_schedule: organization,
   supplement_change: organization,
   medication: organization,
+  // Goal identity/history is private to its author; the organization scope is
+  // retained for container erasure, with explicit owner filtering in export.
   goal: organization,
   goal_checkin: organization,
+  goal_definition: organization,
+  goal_milestone: organization,
+  goal_lifecycle: organization,
+  goal_mutation: { kind: "organization", redact: ["fingerprint"] },
+  goal_ownership_assignment: organization,
+  goal_water_link: organization,
+  goal_water_cutover: organization,
+  supplement_intake: organization,
   workout: organization,
   workout_exercise: { kind: "child", parent: "workout" },
   workout_routine: { kind: "user" },
@@ -333,6 +344,11 @@ export const DATA_RIGHTS_REGISTRY: Readonly<Record<string, TableEntry>> = Object
     kind: "reference",
     reason:
       "Global wger publication manifest and storage inventory; contains no subject-owned object or operator identity.",
+  },
+  exercise_catalog_bootstrap: {
+    kind: "reference",
+    reason:
+      "Instance-wide record of the one automatic exercise catalog import (#400); holds no person or workspace data.",
   },
   exercise_catalog_mutation: { kind: "user", redact: ["fingerprint"] },
   workout_set: { kind: "child", parent: "workout_exercise" },

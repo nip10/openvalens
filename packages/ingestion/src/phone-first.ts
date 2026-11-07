@@ -41,6 +41,26 @@ type Tx = Pick<Database, "execute">;
 
 export type PhoneFirstResult = { shadowed: number; restored: number };
 
+export async function latchSleepGoalEvidence(
+  tx: Tx,
+  organizationId: string,
+  from: Date,
+  to: Date,
+): Promise<void> {
+  await tx.execute(sql`
+    update goal g set ever_had_evidence = true
+    where g.organization_id = ${organizationId} and g.source = 'sleep'
+      and g.user_id is not null and g.ever_had_evidence = false and g.deleted_at is null
+      and exists (
+        select 1 from health_event e
+        where e.organization_id = g.organization_id and e.user_id = g.user_id
+          and e.event_type = 'sleep_session'
+          and e.event_at >= ${from} and e.event_at < ${to}
+          and (coalesce((e.payload_json->>'endAt')::timestamptz, e.event_at)
+            at time zone coalesce(g.timezone, 'UTC'))::date::text >= coalesce(g.start_date, '0001-01-01')
+      )`);
+}
+
 /** `true` when the organization has any cloud wearable data source (cheap guard for the phone path). */
 export async function hasCloudWearableSources(tx: Tx, organizationId: string): Promise<boolean> {
   const result = await tx.execute(sql`
@@ -63,6 +83,9 @@ export async function reconcilePhoneFirst(
   const to = new Date(
     Date.UTC(input.to.getUTCFullYear(), input.to.getUTCMonth(), input.to.getUTCDate() + 2),
   );
+  // Latch evidence before any reconciliation can restore/retire a canonical
+  // row. The owner join is intentional: shared external IDs never cross users.
+  await latchSleepGoalEvidence(tx, org, from, to);
   const codes = sql.join(
     PHONE_FIRST_METRIC_CODES.map((code) => sql`${code}`),
     sql`, `,
@@ -94,6 +117,8 @@ export async function reconcilePhoneFirst(
     where p.organization_id = ${org}
       and pd.import_channel = ${PHONE_IMPORT_CHANNEL}
       and p.event_type = 'sleep_session'
+      and c.user_id is not null
+      and p.user_id = c.user_id
       and p.superseded_at is null
       and least(${endOf("p")}, ${endOf("c")}) - greatest(p.event_at, c.event_at)
         >= least(${endOf("p")} - p.event_at, ${endOf("c")} - c.event_at) / 2

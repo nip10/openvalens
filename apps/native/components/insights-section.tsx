@@ -9,16 +9,17 @@ import {
   privateInsightsSubject,
   shouldShowObservations,
 } from "@openvalens/api/presenters/insights";
-import { goalProgressView, readinessView } from "@openvalens/api/presenters/score";
+import { readinessView } from "@openvalens/api/presenters/score";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "heroui-native";
-import { Sparkles, X } from "lucide-react-native";
+import { Gauge, Sparkles, X } from "lucide-react-native";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
 import {
   Details,
+  EmptyState,
   Icon,
   InfoTip,
   Prose,
@@ -28,6 +29,7 @@ import {
   StatusPill,
   ToneIcon,
 } from "@/components/bloom";
+import { DISPLAY_MAX_FONT_SCALE } from "@/components/font-scale";
 import { describePushRegistration, enablePushOnThisPhone } from "@/lib/push-notifications";
 import { insightsSectionModel } from "@/utils/insight-screen";
 import { client, orpc } from "@/utils/orpc";
@@ -73,17 +75,12 @@ function SubjectInsightsSection({
   const queryClient = useQueryClient();
   const { t, i18n } = useLingui();
   const readinessOptions = orpc.score.readiness.queryOptions({ input: {} });
-  const goalsOptions = orpc.score.goalProgress.queryOptions({ input: {} });
   const insightsOptions = orpc.insights.list.queryOptions({ input: {} });
   const observationPrefsOptions = orpc.insights.preferences.get.queryOptions({ input: {} });
   const consentOptions = orpc.ai.consent.get.queryOptions({ input: {} });
   const readiness = useQuery({
     ...readinessOptions,
     queryKey: privateInsightsQueryKey(readinessOptions.queryKey, userId, organizationId),
-  });
-  const goals = useQuery({
-    ...goalsOptions,
-    queryKey: privateInsightsQueryKey(goalsOptions.queryKey, userId, organizationId),
   });
   const insights = useQuery({
     ...insightsOptions,
@@ -157,11 +154,9 @@ function SubjectInsightsSection({
   );
 
   const ready = readiness.data ? readinessView(readiness.data, i18n) : null;
-  const progress = goals.data ? goalProgressView(goals.data, i18n) : null;
   const model = insights.data ? insightsSectionModel(i18n, insights.data) : null;
 
   const readyNote = ready?.withheldExplanation ?? ready?.coverageText ?? null;
-  const progressNote = progress?.withheldExplanation ?? progress?.coverageText ?? null;
 
   return (
     <View className="gap-7">
@@ -179,28 +174,39 @@ function SubjectInsightsSection({
           </Pressable>
         }
       >
-        {[
-          {
-            key: "readiness",
-            tone: "sleep" as const,
-            title: ready?.title ?? t`Readiness index`,
-            badge: ready?.badge,
-            score: ready?.scoreText ?? "—",
-            label: ready?.accessibilityLabel ?? t`Readiness index not loaded.`,
-            note: readyNote,
-            flagged: null,
-          },
-          {
-            key: "goals",
-            tone: "weight" as const,
-            title: progress?.title ?? t`Goal progress`,
-            badge: undefined,
-            score: progress?.scoreText ?? "—",
-            label: progress?.accessibilityLabel ?? t`Goal progress not loaded.`,
-            note: progressNote,
-            flagged: progress?.flaggedText ?? null,
-          },
-        ].map((summary) => (
+        {ready && !ready.available ? (
+          // A new account: say what will appear here rather than an empty ring.
+          <EmptyState
+            icon={Gauge}
+            tone="sleep"
+            title={ready.title}
+            description={
+              ready.withheldExplanation ??
+              ready.wouldHelpText ??
+              t`It appears once there are a few days of sleep and heart data.`
+            }
+            action={
+              <Button variant="outline" size="sm" onPress={() => router.push("/scores")}>
+                <Button.Label>{t`How it works`}</Button.Label>
+              </Button>
+            }
+          />
+        ) : null}
+        {(ready && !ready.available
+          ? []
+          : [
+              {
+                key: "readiness",
+                tone: "sleep" as const,
+                title: ready?.title ?? t`Readiness index`,
+                badge: ready?.badge,
+                score: ready?.scoreText ?? "—",
+                label: ready?.accessibilityLabel ?? t`Readiness index not loaded.`,
+                note: readyNote,
+                flagged: null,
+              },
+            ]
+        ).map((summary) => (
           <Sheet key={summary.key} className="gap-2 p-4">
             <View className="flex-row items-center gap-4">
               <Ring value={(Number.parseFloat(summary.score) || 0) / 100} tone={summary.tone} />
@@ -220,6 +226,7 @@ function SubjectInsightsSection({
                   <Text
                     className="font-display text-[32px] font-medium leading-[38px] text-ink"
                     style={{ fontVariant: ["tabular-nums"] }}
+                    maxFontSizeMultiplier={DISPLAY_MAX_FONT_SCALE}
                   >
                     {summary.score}
                   </Text>
@@ -231,6 +238,13 @@ function SubjectInsightsSection({
             ) : null}
           </Sheet>
         ))}
+        <Pressable
+          onPress={() => router.push("/goals")}
+          accessibilityRole="link"
+          className="self-start px-1 py-2"
+        >
+          <Text className="font-display text-sm font-medium text-ink underline">{t`View goals`}</Text>
+        </Pressable>
       </Section>
 
       <Section

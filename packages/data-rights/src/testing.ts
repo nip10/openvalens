@@ -173,6 +173,22 @@ export async function seedEveryModule(db: Database, who: string): Promise<void> 
     `insert into provenance_link (organization_id, target_table, target_id, source_table, source_id) values ('${org}', 'metric_sample', 1, 'health_event', 1)`,
     `insert into telegram_account (organization_id, user_id, telegram_chat_id, telegram_user_id, connected_at, created_at) values ('${org}', '${user}', 'chat-${who}', 'tg-${who}', '2026-09-01', '2026-09-01')`,
     `insert into daily_reminder (organization_id, user_id, date, source_type, source_id, label, created_at) values ('${org}', '${user}', '2026-09-01', 'activity', 1, 'Seeded reminder', '2026-09-01')`,
+    `insert into daily_reminder_email_digest
+       (organization_id, user_id, date, reminder_ids, rendered_email, created_at, delivered_at, provider_message_id)
+       select r.organization_id, r.user_id, '2026-09-01', array_agg(r.id order by r.id),
+         jsonb_build_object(
+           'to', u.email,
+           'from', 'OpenValens <reminders@example.test>',
+           'subject', 'Your daily reminders',
+           'html', '<p>Seeded daily reminder digest</p>',
+           'text', 'Seeded daily reminder digest',
+           'templateName', 'daily-reminder'
+         ),
+         '2026-09-01T08:00:00.000Z', '2026-09-01T08:00:01.000Z', 'digest-provider-${who}'
+       from daily_reminder r
+       join "user" u on u.id = r.user_id
+       where r.organization_id = '${org}' and r.user_id = '${user}'
+       group by r.organization_id, r.user_id, u.email`,
     // Plans, goals and training
     `with goal_row as (insert into goal (organization_id, title, category) values ('${org}', 'Seeded goal', 'fitness') returning organization_id, id)
        insert into goal_checkin (organization_id, goal_id, date, created_at) select organization_id, id, '2026-09-01', '2026-09-01' from goal_row`,
@@ -188,4 +204,100 @@ export async function seedEveryModule(db: Database, who: string): Promise<void> 
        insert into workout_set (organization_id, exercise_id) select organization_id, id from exercise_row`,
   ];
   for (const statement of statements) await db.execute(sql.raw(statement));
+  await seedPersonalGoals(db, who);
+}
+
+/** Seeds complete, explicitly owned goal history and source-linked fixtures. */
+export async function seedPersonalGoals(db: Database, who: string): Promise<void> {
+  const org = `org-${who}`;
+  const owner = `user-${who}`;
+  const definition = JSON.stringify({
+    id: `rights-goal-${who}`,
+    title: `Personal goal ${who}`,
+    source: "water",
+    metric: "water_ml",
+    unit: "ml",
+    rule: { kind: "recurring", cadence: "daily" },
+    startDate: "2026-09-01",
+    timeZone: "UTC",
+    status: "active",
+    milestones: [{ id: "milestone-1", value: 1000, targetDate: "2026-09-10" }],
+    versions: [],
+    pauses: [],
+  });
+  const created = (
+    await db.execute(sql`
+    insert into goal (organization_id, user_id, title, category, status, source,
+      ever_had_evidence, definition, timezone, start_date)
+    values (${org}, ${owner}, ${`Personal goal ${who}`}, 'health', 'in_progress', 'water', true,
+      ${definition}::jsonb,
+      'UTC', '2026-09-01') returning id
+  `)
+  ).rows[0] as { id: number } | undefined;
+  if (!created) throw new Error(`personal goal fixture missing for ${who}`);
+  const goalId = created.id;
+  const checkin = (
+    await db.execute(sql`
+    insert into goal_checkin (organization_id, user_id, goal_id, date, value, notes, created_at)
+    values (${org}, ${owner}, ${goalId}, '2026-09-01', '1200', 'original evidence', '2026-09-01T08:00:00Z') returning id
+  `)
+  ).rows[0] as { id: number } | undefined;
+  if (!checkin) throw new Error(`goal check-in fixture missing for ${who}`);
+  await db.execute(
+    sql`update goal_checkin set deleted_at = '2026-09-01T10:00:00Z' where id = ${checkin.id}`,
+  );
+  await db.execute(sql`
+    insert into goal_checkin
+      (organization_id, user_id, goal_id, date, value, notes, version, corrected_from_id, created_at)
+    values (${org}, ${owner}, ${goalId}, '2026-09-01', '1500', 'corrected evidence', 2, ${checkin.id}, '2026-09-01T10:01:00Z')
+  `);
+  await db.execute(sql`
+    insert into goal_ownership_assignment
+      (organization_id, goal_id, assigned_user_id, assigned_by_user_id, reason)
+    select ${org}, id, ${owner}, ${owner}, 'verified fixture assignment'
+    from goal where organization_id = ${org} and title = 'Seeded goal'
+  `);
+  const queries = [
+    sql`insert into goal_definition
+      (organization_id, user_id, goal_id, revision, definition, effective_from, effective_until)
+      values (${org}, ${owner}, ${goalId}, 1,
+        ${definition}::jsonb,
+        '2026-09-01', '2026-09-15'),
+        (${org}, ${owner}, ${goalId}, 2,
+        ${definition}::jsonb,
+        '2026-09-16', null)`,
+    sql`insert into goal_milestone (organization_id, user_id, goal_id, value, target_date, achieved_at)
+      values (${org}, ${owner}, ${goalId}, '1000', '2026-09-10', '2026-09-10T12:00:00Z')`,
+    sql`insert into goal_lifecycle (organization_id, user_id, goal_id, event, occurred_at, effective_date, details)
+      values (${org}, ${owner}, ${goalId}, 'created', '2026-09-01T00:00:00Z', '2026-09-01', '{"fixture":true}'::jsonb)`,
+    sql`insert into goal_mutation
+      (organization_id, user_id, client_mutation_id, operation, target_id, fingerprint, result)
+      values (${org}, ${owner}, ${who === "a" ? "90000000-0000-4000-8000-000000000001" : "90000000-0000-4000-8000-000000000002"}::uuid,
+        'create', ${goalId}, repeat('a', 64), '{"id":1}'::jsonb)`,
+    sql`insert into goal_water_link (organization_id, user_id, goal_id, linked_at)
+      values (${org}, ${owner}, ${goalId}, '2026-09-01T00:00:00Z')`,
+    sql`insert into goal_water_cutover (organization_id, user_id, cutover_at)
+      values (${org}, ${owner}, '2026-09-01T00:00:00Z')`,
+    sql`insert into supplement_intake
+      (organization_id, user_id, supplement_id, occurred_at, timezone, dose, note)
+      select ${org}, ${owner}, id, '2026-09-01T08:00:00Z', 'UTC', '1 capsule', 'original intake'
+      from supplement where name = ${`Supplement ${who}`}`,
+  ];
+  for (const query of queries) await db.execute(query);
+  const intake = (
+    await db.execute(sql`
+    select id from supplement_intake where organization_id = ${org} and user_id = ${owner}
+      and note = 'original intake' order by id desc limit 1
+  `)
+  ).rows[0] as { id: number } | undefined;
+  if (!intake) throw new Error(`supplement intake fixture missing for ${who}`);
+  await db.execute(
+    sql`update supplement_intake set deleted_at = '2026-09-01T09:00:00Z' where id = ${intake.id}`,
+  );
+  await db.execute(sql`
+    insert into supplement_intake
+      (organization_id, user_id, supplement_id, occurred_at, timezone, dose, note, version, corrected_from_id)
+    select organization_id, user_id, supplement_id, '2026-09-01T08:00:00Z', timezone,
+      '2 capsules', 'corrected intake', 2, id from supplement_intake where id = ${intake.id}
+  `);
 }

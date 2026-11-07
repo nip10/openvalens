@@ -38,6 +38,7 @@ import {
   Sheet,
   StatTile,
   TileRow,
+  useStackedLayout,
 } from "@/components/bloom";
 import { TrendChart } from "@/components/chart";
 import { Container } from "@/components/container";
@@ -45,6 +46,7 @@ import { InsightsSection } from "@/components/insights-section";
 import { useModules } from "@/lib/modules/use-modules";
 import { ListRow } from "@/components/list-row";
 import { FinishSetupCard } from "@/components/finish-setup-card";
+import { GetStartedCard } from "@/components/get-started-card";
 import { CloudAccessNotice } from "@/components/cloud-access-notice";
 import { authClient } from "@/lib/auth-client";
 import { friendlyDate, pillTone } from "@/utils/friendly";
@@ -89,6 +91,7 @@ export default function CockpitScreen() {
   const readiness = useHealthReadiness();
   const { data: session } = authClient.useSession();
   const modules = useModules();
+  const stacked = useStackedLayout();
 
   const foreground = useThemeColor("foreground");
 
@@ -194,7 +197,7 @@ export default function CockpitScreen() {
               }
             : undefined
         }
-        note={sleepRow ? undefined : t`No reading yet`}
+        note={sleepRow ? undefined : t`Shows after a night with your watch or health app`}
       />
     ) : null,
     modules.isEnabled("activity") ? (
@@ -213,7 +216,7 @@ export default function CockpitScreen() {
             ? usualSteps
               ? t`Your usual: ${formatSteps(Math.round(usualSteps))}`
               : friendlyDate(i18n, activityRow.date)
-            : t`No activity logged`
+            : t`Shows once your steps sync`
         }
       />
     ) : null,
@@ -228,7 +231,7 @@ export default function CockpitScreen() {
         note={
           snapshot.vitals
             ? t`Average, ${friendlyDate(i18n, snapshot.vitals.date)}`
-            : t`No reading yet`
+            : t`Shows once your heart rate syncs`
         }
       />
     ) : null,
@@ -245,7 +248,7 @@ export default function CockpitScreen() {
             ? t`${formatKgDelta(i18n, weightSummary.change30d)} in 30 days`
             : snapshot.weight
               ? friendlyDate(i18n, snapshot.weight.date)
-              : t`No reading yet`
+              : t`Log a weight to see it here`
         }
       />
     ) : null,
@@ -294,6 +297,15 @@ export default function CockpitScreen() {
 
         <FinishSetupCard />
 
+        <GetStartedCard
+          hasWeight={weight.isSuccess ? weight.data.length > 0 : weight.isError ? false : null}
+          hasDeviceData={
+            sleep.isPending || activity.isPending || vitals.isPending
+              ? null
+              : Boolean(snapshot.sleep || snapshot.activity || snapshot.vitals)
+          }
+        />
+
         <CloudAccessNotice />
 
         {dataPending && !snapshot.weight && !snapshot.sleep && !snapshot.activity ? (
@@ -317,14 +329,18 @@ export default function CockpitScreen() {
             title={t`Weight, last ${WEIGHT_TREND_DAYS} days`}
           >
             <Sheet className="gap-4">
-              <View className="flex-row">
+              {/* Side by side, three columns break every word at the accessibility
+                  text sizes (#379): one under the other there. */}
+              <View className={stacked ? "gap-3" : "flex-row"}>
                 <Figure
-                  className="flex-1 pr-3"
+                  className={stacked ? undefined : "flex-1 pr-3"}
                   label={friendlyDate(i18n, weightSummary.latest.date)}
                   value={formatKg(weightSummary.latest.weightKg)}
                 />
                 <Figure
-                  className="flex-1 border-l border-rule px-3"
+                  className={
+                    stacked ? "border-t border-rule pt-3" : "flex-1 border-l border-rule px-3"
+                  }
                   label={t`7 days`}
                   value={
                     weightSummary.change7d === null
@@ -333,7 +349,9 @@ export default function CockpitScreen() {
                   }
                 />
                 <Figure
-                  className="flex-1 border-l border-rule pl-3"
+                  className={
+                    stacked ? "border-t border-rule pt-3" : "flex-1 border-l border-rule pl-3"
+                  }
                   label={t`30 days`}
                   value={
                     weightSummary.change30d === null

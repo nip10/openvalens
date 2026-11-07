@@ -1,6 +1,11 @@
 import { OUTBOX_MAX_ENTRIES, type OutboxEntry } from "@openvalens/api/presenters/offline";
 import * as SQLite from "expo-sqlite";
 
+import {
+  ServerLeaveBlockedError,
+  type PreserveServerLeaveOptions,
+  type ServerLeaveSafety,
+} from "../server/server-leave-policy";
 import { OFFLINE_SCHEMA_SQL } from "./schema";
 
 /**
@@ -27,7 +32,13 @@ import { OFFLINE_SCHEMA_SQL } from "./schema";
 const DB_NAME = "openvalens-offline.db";
 
 let database: SQLite.SQLiteDatabase | null = null;
+let schemaReady = false;
 let offlineCleanupGeneration = 0;
+
+function openDb(): SQLite.SQLiteDatabase {
+  database ??= SQLite.openDatabaseSync(DB_NAME);
+  return database;
+}
 
 /** Generation used to fence asynchronous writes across offline-data cleanup. */
 export function getOfflineCleanupGeneration(): number {
@@ -41,18 +52,19 @@ export function invalidateOfflineCleanupWrites(): void {
 
 /** The shared offline database (also holds the meal-diary outbox, Issue #77). */
 export function getDb(): SQLite.SQLiteDatabase {
-  if (!database) {
-    database = SQLite.openDatabaseSync(DB_NAME);
+  const db = openDb();
+  if (!schemaReady) {
     // Meal-diary (Issue #77) and plain-water outboxes are never size-capped;
     // rows leave only after the server confirms them or the member discards
     // them. They are separate tables so each lane owns only its own rows.
-    database.execSync(OFFLINE_SCHEMA_SQL);
-    const columns = database.getAllSync<{ name: string }>("PRAGMA table_info(outbox)");
+    db.execSync(OFFLINE_SCHEMA_SQL);
+    const columns = db.getAllSync<{ name: string }>("PRAGMA table_info(outbox)");
     if (!columns.some((column) => column.name === "scope")) {
-      database.execSync("ALTER TABLE outbox ADD COLUMN scope TEXT");
+      db.execSync("ALTER TABLE outbox ADD COLUMN scope TEXT");
     }
+    schemaReady = true;
   }
-  return database;
+  return db;
 }
 
 type OutboxRow = {
@@ -165,10 +177,7 @@ export function clearCachePrefix(scope: string, prefix: string): void {
   getDb().runSync("DELETE FROM query_cache WHERE key LIKE ? ESCAPE '\\'", `${pattern}%`);
 }
 
-/** Wipes every cached read and queued write, for all accounts (sign-out). */
-export function clearOfflineData(): void {
-  invalidateOfflineCleanupWrites();
-  const db = getDb();
+function clearOfflineDataRows(db: SQLite.SQLiteDatabase): void {
   db.runSync("DELETE FROM query_cache");
   db.runSync("DELETE FROM outbox");
   db.runSync("DELETE FROM nutrition_outbox");
@@ -179,6 +188,17 @@ export function clearOfflineData(): void {
   );
   db.runSync("DELETE FROM nutrition_entry_receipt");
   db.runSync("DELETE FROM plain_water_outbox");
+}
+
+/** Wipes every cached read and queued write, for all accounts (sign-out). */
+export function clearOfflineData(options?: PreserveServerLeaveOptions): void {
+  if (options?.pendingDataPolicy === "preserve") {
+    const db = getDb();
+    runPreservingCleanup(db, options, () => clearOfflineDataRows(db));
+    return;
+  }
+  invalidateOfflineCleanupWrites();
+  clearOfflineDataRows(getDb());
 }
 
 /**
@@ -198,13 +218,108 @@ export function countQueuedWrites(): number {
 }
 
 /**
+ * Counts every durable item that a server switch would erase. Unlike the
+ * settings badge count, this includes legacy unscoped metrics and drafts.
+ * Query the existing tables without initializing/migrating the schema: a
+ * missing table or unreadable database must not look like an empty phone.
+ */
+export function countServerLeaveData(): { records: number; drafts: number } {
+  return countServerLeaveDataFromDb(openDb());
+}
+
+function countServerLeaveDataFromDb(db: SQLite.SQLiteDatabase): {
+  records: number;
+  drafts: number;
+} {
+  const row = db.getFirstSync<{ records: number; drafts: number }>(
+    `SELECT
+      (SELECT COUNT(*) FROM outbox) +
+      (SELECT COUNT(*) FROM nutrition_outbox) +
+      (SELECT COUNT(*) FROM plain_water_outbox) +
+      (SELECT COUNT(*) FROM workout_outbox) AS records,
+      (SELECT COUNT(*) FROM workout_drafts) AS drafts`,
+  );
+  if (
+    !row ||
+    !Number.isSafeInteger(row.records) ||
+    row.records < 0 ||
+    !Number.isSafeInteger(row.drafts) ||
+    row.drafts < 0
+  )
+    throw new Error("Could not read server-leave data counts.");
+  return { records: row.records, drafts: row.drafts };
+}
+
+function transactionSafety(
+  db: SQLite.SQLiteDatabase,
+  options: PreserveServerLeaveOptions,
+): ServerLeaveSafety {
+  const checkBusy = (): boolean | null => {
+    try {
+      return options.hasInFlightWrites();
+    } catch {
+      return null;
+    }
+  };
+  const before = checkBusy();
+  if (before === null) return { kind: "unknown" };
+  if (before) return { kind: "busy" };
+
+  let counts: { records: number; drafts: number } | null = null;
+  try {
+    counts = countServerLeaveDataFromDb(db);
+  } catch {}
+
+  const after = checkBusy();
+  if (after === null) return { kind: "unknown" };
+  if (after) return { kind: "busy" };
+  if (!counts) return { kind: "unknown" };
+  if (counts.records > 0 || counts.drafts > 0) return { kind: "pending", ...counts };
+  return { kind: "safe" };
+}
+
+function runPreservingCleanup(
+  db: SQLite.SQLiteDatabase,
+  options: PreserveServerLeaveOptions,
+  cleanup: () => void,
+): void {
+  let cleanupSucceeded = false;
+  try {
+    db.withTransactionSync(() => {
+      const safety = transactionSafety(db, options);
+      if (safety.kind !== "safe") throw new ServerLeaveBlockedError(safety);
+      cleanup();
+    });
+    cleanupSucceeded = true;
+  } catch (error) {
+    if (error instanceof ServerLeaveBlockedError) throw error;
+    throw new ServerLeaveBlockedError({ kind: "unknown" });
+  }
+  // Revoke only after the guarded transaction commits; a refusal/rollback must
+  // leave cache write authority untouched.
+  if (cleanupSucceeded) invalidateOfflineCleanupWrites();
+}
+
+/**
  * Issue #295 — on a server switch, wipe everything `clearOfflineData` does plus
  * workout drafts, queued workouts and their acknowledgements: none of it
  * belongs on the next server.
  */
-export function clearAllServerData(): void {
+export function clearAllServerData(options?: PreserveServerLeaveOptions): void {
+  if (options?.pendingDataPolicy === "preserve") {
+    const db = getDb();
+    runPreservingCleanup(db, options, () => clearAllServerDataRows(db));
+    return;
+  }
   clearOfflineData();
   const db = getDb();
+  db.runSync("DELETE FROM workout_drafts");
+  db.runSync("DELETE FROM workout_outbox");
+  db.runSync("DELETE FROM workout_acks");
+}
+
+function clearAllServerDataRows(db: SQLite.SQLiteDatabase): void {
+  clearOfflineDataRows(db);
   db.runSync("DELETE FROM workout_drafts");
   db.runSync("DELETE FROM workout_outbox");
   db.runSync("DELETE FROM workout_acks");

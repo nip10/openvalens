@@ -8,12 +8,21 @@ import type { Database } from "@openvalens/db";
 import { nutritionTargetSettings } from "@openvalens/db/schema/nutrition";
 import { and, eq } from "drizzle-orm";
 
+import { CHECK_IN_DAYS, type CheckInDay } from "./check-in";
 import { NutritionError } from "./errors";
 import {
+  MACRO_PRESET_KEYS,
+  PROTEIN_G_PER_KG_CHOICES,
+  type MacroPresetKey,
+  type ProteinGPerKg,
+} from "./macro-preset-keys";
+import {
   ENERGY_DIRECTIONS,
+  ENERGY_RATE_PERCENTS,
   NUTRITION_DECLARATIONS,
   NUTRITION_SAFETY_POLICY,
   type EnergyDirection,
+  type EnergyRatePercent,
   type NutritionDeclaration,
 } from "./nutrition-safety";
 import type { NutritionScope, Tx } from "./repository";
@@ -31,6 +40,16 @@ export type NutritionTargetSettings = {
   revision: number;
   hideNumbers: boolean;
   energyDirection: EnergyDirection;
+  /** Chosen weekly rate, % of body weight (#396); `null` = the default size. */
+  energyRatePercent: EnergyRatePercent | null;
+  /** Weekly check-in day, ISO weekday 1–7 (#397); `null` = manual mode. */
+  checkInDay: CheckInDay | null;
+  /** Local date of the last finished check-in (accepted or kept), or `null`. */
+  lastCheckInOn: string | null;
+  /** The preset the check-in uses to propose P/C/F with energy; `null` = energy only. */
+  macroPreset: MacroPresetKey | null;
+  /** Protein per kg for that preset; narrowed to the protein reference when used. */
+  proteinGPerKg: ProteinGPerKg | null;
   activeProtein: boolean;
   /** Opt-in to the logging streak (Issue #90). */
   streaksEnabled: boolean;
@@ -54,6 +73,11 @@ export const DEFAULT_TARGET_SETTINGS: Readonly<NutritionTargetSettings> = Object
   revision: 0,
   hideNumbers: false,
   energyDirection: NUTRITION_SAFETY_POLICY.defaultDirection,
+  energyRatePercent: null,
+  checkInDay: null,
+  lastCheckInOn: null,
+  macroPreset: null,
+  proteinGPerKg: null,
   activeProtein: false,
   streaksEnabled: false,
   recipeImportEnabled: false,
@@ -86,6 +110,19 @@ function toSettings(row: typeof nutritionTargetSettings.$inferSelect): Nutrition
     revision: row.revision,
     hideNumbers: row.hideNumbers,
     energyDirection: row.energyDirection,
+    energyRatePercent: ENERGY_RATE_PERCENTS.includes(row.energyRatePercent as EnergyRatePercent)
+      ? (row.energyRatePercent as EnergyRatePercent)
+      : null,
+    checkInDay: CHECK_IN_DAYS.includes(row.checkInDay as CheckInDay)
+      ? (row.checkInDay as CheckInDay)
+      : null,
+    lastCheckInOn: row.lastCheckInOn,
+    macroPreset: MACRO_PRESET_KEYS.includes(row.macroPreset as MacroPresetKey)
+      ? (row.macroPreset as MacroPresetKey)
+      : null,
+    proteinGPerKg: PROTEIN_G_PER_KG_CHOICES.includes(row.proteinGPerKg as ProteinGPerKg)
+      ? (row.proteinGPerKg as ProteinGPerKg)
+      : null,
     activeProtein: row.activeProtein,
     streaksEnabled: row.streaksEnabled,
     recipeImportEnabled: row.recipeImportEnabled,
@@ -151,6 +188,11 @@ export async function updateNutritionTargetSettingsInTransaction(
     revision: next.revision,
     hideNumbers: next.hideNumbers,
     energyDirection: next.energyDirection,
+    energyRatePercent: next.energyRatePercent,
+    checkInDay: next.checkInDay,
+    lastCheckInOn: next.lastCheckInOn,
+    macroPreset: next.macroPreset,
+    proteinGPerKg: next.proteinGPerKg,
     activeProtein: next.activeProtein,
     streaksEnabled: next.streaksEnabled,
     recipeImportEnabled: next.recipeImportEnabled,
@@ -179,6 +221,36 @@ export async function updateNutritionTargetSettingsInTransaction(
 function validate(patch: TargetSettingsPatch): void {
   if (patch.energyDirection !== undefined && !ENERGY_DIRECTIONS.includes(patch.energyDirection))
     throw new NutritionError("INVALID_INPUT", "Unknown direction");
+  if (
+    patch.energyRatePercent !== undefined &&
+    patch.energyRatePercent !== null &&
+    !ENERGY_RATE_PERCENTS.includes(patch.energyRatePercent)
+  )
+    throw new NutritionError("INVALID_INPUT", "Unknown rate");
+  if (
+    patch.checkInDay !== undefined &&
+    patch.checkInDay !== null &&
+    !CHECK_IN_DAYS.includes(patch.checkInDay)
+  )
+    throw new NutritionError("INVALID_INPUT", "Unknown check-in day");
+  if (
+    patch.lastCheckInOn !== undefined &&
+    patch.lastCheckInOn !== null &&
+    !/^\d{4}-\d{2}-\d{2}$/.test(patch.lastCheckInOn)
+  )
+    throw new NutritionError("INVALID_INPUT", "Use YYYY-MM-DD");
+  if (
+    patch.macroPreset !== undefined &&
+    patch.macroPreset !== null &&
+    !MACRO_PRESET_KEYS.includes(patch.macroPreset)
+  )
+    throw new NutritionError("INVALID_INPUT", "Unknown macro preset");
+  if (
+    patch.proteinGPerKg !== undefined &&
+    patch.proteinGPerKg !== null &&
+    !PROTEIN_G_PER_KG_CHOICES.includes(patch.proteinGPerKg)
+  )
+    throw new NutritionError("INVALID_INPUT", "Unknown protein per kg");
   if (
     patch.heightCm !== undefined &&
     patch.heightCm !== null &&

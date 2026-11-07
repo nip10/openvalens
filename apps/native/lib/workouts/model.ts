@@ -182,12 +182,22 @@ export function createDraftFromRoutinePreview(
   draft.exercises = snapshot.exercises.map((target) => {
     const exercise = newDraftExercise(target.name, target.exerciseId, idGenerator);
     exercise.routineExerciseKey = target.key;
+    // Liftosaur-style (#401): sets open prefilled with the progression
+    // suggestion (#289) when there is one, else the routine target.
+    const weightKg =
+      target.suggestion && target.suggestion.weightKg !== undefined
+        ? target.suggestion.weightKg
+        : target.targetWeightKg;
+    const reps =
+      target.suggestion && Number.isInteger(target.suggestion.reps) && target.suggestion.reps > 0
+        ? target.suggestion.reps
+        : target.repsMin;
     for (let i = 0; i < target.targetSets; i++) {
       const id = idGenerator();
       exercise.sets.push({
         id,
-        weightKg: target.targetWeightKg,
-        reps: String(target.repsMin),
+        weightKg,
+        reps: String(reps),
         rpe: "",
         done: false,
       });
@@ -206,6 +216,7 @@ export function newDraftExercise(
 export function addDraftSet(
   exercise: DraftExercise,
   idGenerator: IdGenerator = secureUuid,
+  prefill?: Pick<DraftSet, "weightKg" | "reps" | "rpe">,
 ): DraftExercise {
   const last = exercise.sets.at(-1);
   return {
@@ -214,9 +225,9 @@ export function addDraftSet(
       ...exercise.sets,
       {
         id: idGenerator(),
-        weightKg: last?.weightKg ?? null,
-        reps: last?.reps ?? "",
-        rpe: last?.rpe ?? "",
+        weightKg: prefill ? prefill.weightKg : (last?.weightKg ?? null),
+        reps: prefill ? prefill.reps : (last?.reps ?? ""),
+        rpe: prefill ? prefill.rpe : (last?.rpe ?? ""),
         done: false,
       },
     ],

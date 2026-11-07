@@ -28,6 +28,7 @@ export default function LogFoodRoute() {
     mode?: string;
     seedDate?: string;
     seedSlot?: string;
+    at?: string;
   }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -43,6 +44,11 @@ export default function LogFoodRoute() {
   const initialMeal = MEAL_SLOTS.includes(params.meal as MealSlot)
     ? (params.meal as MealSlot)
     : mealSlotForLocalTime();
+  // A time picked on the timeline (#393): an ISO instant, ignored when malformed.
+  const consumedAt =
+    params.at && !Number.isNaN(Date.parse(params.at))
+      ? new Date(params.at).toISOString()
+      : undefined;
   const initialQuery = (Array.isArray(params.food) ? params.food[0] : (params.food ?? ""))
     .trim()
     .slice(0, 200);
@@ -122,11 +128,13 @@ export default function LogFoodRoute() {
           initialMode={
             params.mode === "templates"
               ? "templates"
-              : params.mode === "describe" &&
-                  (targets.data?.settings.voiceDraftsEnabled ??
-                    cachedPreference?.voiceDraftsEnabled)
-                ? "describe"
-                : "choose"
+              : params.mode === "barcode"
+                ? "barcode"
+                : params.mode === "describe" &&
+                    (targets.data?.settings.voiceDraftsEnabled ??
+                      cachedPreference?.voiceDraftsEnabled)
+                  ? "describe"
+                  : "choose"
           }
           recipeImportEnabled={
             targets.data?.settings.recipeImportEnabled ??
@@ -134,6 +142,7 @@ export default function LogFoodRoute() {
             false
           }
           seedIngredients={seedIngredients}
+          consumedAt={consumedAt}
           voiceDraftsEnabled={
             targets.data?.settings.voiceDraftsEnabled ??
             cachedPreference?.voiceDraftsEnabled ??

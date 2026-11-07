@@ -88,7 +88,7 @@ const mounted = mountedMode
   ? await Promise.all([
       import(reactDomClientModule),
       import("./exercise-attribution"),
-      import("./exercise-library"),
+      import("./exercise-media-gallery"),
     ])
   : null;
 const i18nModules = mountedMode

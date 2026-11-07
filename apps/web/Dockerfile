@@ -13,7 +13,14 @@ ARG VITE_SENTRY_ENVIRONMENT=
 ARG VITE_SENTRY_RELEASE=
 ENV VITE_SENTRY_DSN=${VITE_SENTRY_DSN} VITE_SENTRY_ENVIRONMENT=${VITE_SENTRY_ENVIRONMENT} VITE_SENTRY_RELEASE=${VITE_SENTRY_RELEASE}
 ENV NODE_ENV=production
-RUN --mount=type=secret,id=web_env,target=/app/apps/web/.env.local --mount=type=secret,id=server_env,target=/app/apps/server/.env.local cd apps/web && bun run build
+# Optional source-map upload to Sentry (vite.config.ts). The token is a build
+# argument of this builder stage only; it is not in the final nginx image, and
+# the maps are deleted from dist after the upload.
+ARG SENTRY_AUTH_TOKEN=
+ARG SENTRY_ORG=
+ARG SENTRY_PROJECT=
+RUN --mount=type=secret,id=web_env,target=/app/apps/web/.env.local --mount=type=secret,id=server_env,target=/app/apps/server/.env.local cd apps/web && SENTRY_AUTH_TOKEN="$SENTRY_AUTH_TOKEN" SENTRY_ORG="$SENTRY_ORG" SENTRY_PROJECT="$SENTRY_PROJECT" bun run build \
+  && if find dist -name '*.map' | grep -q .; then echo "source maps left in dist" >&2; exit 1; fi
 # Issue #127 — render the web document's security headers for VITE_SERVER_URL
 # (and the Sentry DSN origin when VITE_SENTRY_DSN is set, Issue #54).
 RUN --mount=type=secret,id=web_env,target=/app/apps/web/.env.local cd apps/web && bun ../../scripts/render-web-security-headers.ts security-headers

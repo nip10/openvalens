@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 
+import { ServerLeaveBlockedError } from "./server/server-leave-policy";
 import { createSignOut } from "./sign-out-steps";
 
 function recorder(failPush = false) {
@@ -34,4 +35,44 @@ test("still signs out when push cannot be switched off", async () => {
   const { calls, signOut } = recorder(true);
   await signOut();
   expect(calls).toEqual(ORDER);
+});
+
+test("preserve policy reaches offline preparation after push and health preparation", async () => {
+  const calls: string[] = [];
+  const options = { pendingDataPolicy: "preserve" as const, hasInFlightWrites: () => false };
+  const signOut = createSignOut({
+    invalidateDirectDevices: () => calls.push("invalidateDirectDevices"),
+    purgeDirectDevices: () => calls.push("purgeDirectDevices"),
+    disablePush: async () => calls.push("disablePush"),
+    resetHealthSync: async () => calls.push("resetHealthSync"),
+    prepareOffline: async (received) => {
+      calls.push("prepareOffline");
+      expect(received).toBe(options);
+    },
+    signOut: async () => calls.push("signOut"),
+    clearQueries: () => calls.push("clearQueries"),
+  });
+  await signOut(options);
+  expect(calls).toEqual(ORDER);
+});
+
+test("typed data-preservation refusal stops before clearing auth and queries", async () => {
+  const calls: string[] = [];
+  const blocked = new ServerLeaveBlockedError({ kind: "pending", records: 1, drafts: 0 });
+  const signOut = createSignOut({
+    invalidateDirectDevices: () => calls.push("invalidateDirectDevices"),
+    purgeDirectDevices: () => calls.push("purgeDirectDevices"),
+    disablePush: async () => calls.push("disablePush"),
+    resetHealthSync: async () => calls.push("resetHealthSync"),
+    prepareOffline: async () => {
+      calls.push("prepareOffline");
+      throw blocked;
+    },
+    signOut: async () => calls.push("signOut"),
+    clearQueries: () => calls.push("clearQueries"),
+  });
+  await expect(
+    signOut({ pendingDataPolicy: "preserve", hasInFlightWrites: () => false }),
+  ).rejects.toBe(blocked);
+  expect(calls).toEqual(["invalidateDirectDevices", "disablePush", "resetHealthSync", "prepareOffline"]);
 });

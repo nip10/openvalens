@@ -10,7 +10,7 @@ export type ExerciseCatalogAssetReader = {
   readPublishedAsset(assetId: string): Promise<PublishedAsset | null>;
 };
 
-/** Registers the production public route; disabled capability installs no route. */
+/** Registers the public catalog image route (#400: always on; 404 without storage). */
 export function registerExerciseCatalogAssetRoute(
   app: Hono,
   options: {
@@ -35,7 +35,9 @@ export function registerExerciseCatalogAssetRoute(
         "X-Content-Type-Options": "nosniff",
         "Content-Security-Policy": "default-src 'none'; sandbox",
         "Cross-Origin-Resource-Policy": "same-origin",
-        "Cache-Control": "no-store",
+        // Asset ids are immutable; an hour keeps list thumbnails cheap while a
+        // withdrawn image still disappears soon.
+        "Cache-Control": "public, max-age=3600",
       });
     } catch {
       return c.json({ error: "INTERNAL" }, 500);

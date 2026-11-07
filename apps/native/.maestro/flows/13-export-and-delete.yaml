@@ -61,10 +61,10 @@ tags: [data-rights]
     env:
       TEXT: "Delete everything"
 - tapOn: "Delete everything"
-# Deleted and signed out: a fresh start shows the sign-in screen, and the
-# account can no longer get a sign-in link through.
+# Deleted and signed out: the app opens the sign-in screen by itself (#380),
+# and a fresh start shows it too.
 - extendedWaitUntil:
-    notVisible: "Delete everything"
+    visible: "Email me a sign-in link"
     timeout: 30000
 - stopApp
 - launchApp:

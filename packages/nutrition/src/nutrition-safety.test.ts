@@ -30,7 +30,7 @@ import {
   type NutritionDeclaration,
 } from "./nutrition-safety";
 
-/** Synthetic tests for `nutrition-safety/v1` (Issue #80). No real person's data. */
+/** Synthetic tests for `nutrition-safety/v3` (Issue #80). No real person's data. */
 
 const NOW = new Date("2026-03-28T12:00:00.000Z");
 const P = NUTRITION_SAFETY_POLICY;
@@ -93,7 +93,7 @@ describe("defaults", () => {
   });
 
   test("policy is versioned with a changelog entry for the current version", () => {
-    expect(P.version).toBe("nutrition-safety/v1");
+    expect(P.version).toBe("nutrition-safety/v3");
     expect(P.changelog.at(-1)?.version).toBe(P.version);
     expect(Object.isFrozen(P)).toBe(true);
     expect(Object.isFrozen(P.deficit)).toBe(true);
@@ -254,13 +254,13 @@ describe("exclusions", () => {
 });
 
 describe("deficit and gain proposals", () => {
-  test("lose: default deficit is the smallest of 500 kcal, 20% and 0.7%/week", () => {
-    // 80 kg × 0.7% × 7700 / 7 = 616 kcal; 20% of 2500 = 500; so 500.
-    expect(defaultDeficitKcal(2500, BODY)).toBe(500);
-    expect(plan("lose")).toMatchObject({ kind: "deficit", targetKcal: 2000, stepLimited: false });
-    // Smaller person: 55 kg → 423 kcal; target rounds towards the estimate.
+  test("lose: default deficit is the smallest of 500 kcal, 20% and 0.5%/week (v3)", () => {
+    // 80 kg × 0.5% × 7700 / 7 = 440 kcal; 20% of 2500 = 500; so 440.
+    expect(defaultDeficitKcal(2500, BODY)).toBeCloseTo(440);
+    expect(plan("lose")).toMatchObject({ kind: "deficit", targetKcal: 2100, stepLimited: false });
+    // Smaller person: 55 kg → 302.5 kcal; target rounds towards the estimate.
     const small = { ...BODY, weightKg: 55, heightCm: 160 };
-    expect(plan("lose", { body: small })).toMatchObject({ kind: "deficit", targetKcal: 2100 });
+    expect(plan("lose", { body: small })).toMatchObject({ kind: "deficit", targetKcal: 2200 });
   });
 
   test("lose needs a weight and height, and respects the BMI gate", () => {
@@ -422,6 +422,8 @@ describe("property: no proposal violates floor, caps, step size or BMI gate", ()
       const declarations = NUTRITION_DECLARATIONS.filter(() => random() < 0.05);
       const adultConfirmed = random() < 0.95;
       const direction = pick(ENERGY_DIRECTIONS);
+      // Any chosen rate (#396), including none and an unknown value.
+      const ratePercent = pick([null, 0.25, 0.5, 0.75, 1, 3] as const);
       const safety = evaluateNutritionSafety({
         adultConfirmed,
         minAge: body.minAge,
@@ -436,6 +438,7 @@ describe("property: no proposal violates floor, caps, step size or BMI gate", ()
         lastAcceptedAt: null,
         now: NOW,
         direction,
+        ratePercent,
         safety,
         body,
       });

@@ -28,6 +28,7 @@ import {
   Scale,
   Settings,
   ShieldCheck,
+  Target,
   Users,
   UtensilsCrossed,
 } from "lucide-react";
@@ -87,6 +88,7 @@ const NAV_GROUPS: readonly NavGroup[] = [
       { to: "/recipe-drafts", label: msg`Recipe draft`, icon: ChefHat },
       { to: "/micronutrients", label: msg`Micronutrients`, icon: Leaf },
       { to: "/workouts", label: msg`Workouts`, icon: Dumbbell },
+      { to: "/goals", label: msg`Goals`, icon: Target },
       { to: "/supplements", label: msg`Supplements`, icon: Pill },
     ],
   },

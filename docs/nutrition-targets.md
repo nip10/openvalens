@@ -26,14 +26,51 @@ published guidelines and trials plus a few documented product choices.
   or `proposal` (accepted from a #76 proposal) — and the local date it is
   **effective from**. Replacing or clearing a target stamps `effective_to`,
   so the target that applied on any past day can be shown for that day.
-- Targets are shown **separately from observed totals** and only when set.
-  Totals and targets are never compared: no "over"/"under", no colours, no
-  verdicts. A day with missing or partial logging is shown as such, never as
-  being below a target.
+- A target is written **as text beside its total** and only when set
+  ("1,450 of 1,700–2,100 kcal"; D1 in #390). The member can switch the day
+  summary to what remains to each target ("250–650 kcal remaining to
+  1,700–2,100 kcal"); once nothing remains it shows the logged total with the
+  target beside it. No rings or bars, no "over"/"under", no colours that
+  judge (the protein/carbs/fat colours are identity only), no "met"
+  highlight, no verdicts. A day with missing or partial logging is shown as
+  such, never as being below a target.
 - New members have no targets and the default direction is **maintain**.
   There is no automated deficit.
 - After an eating-disorder declaration, energy targets are hidden and cannot
   be set (they are not deleted), and every energy suggestion is off.
+
+## Weekly check-in (#397)
+
+Two modes: **Manual** (the default: the member sets every target, and
+suggestions only come on request) and **Weekly check-in**. The check-in is
+collaborative (D2 in #390): there is no mode that changes a target on its own.
+
+- The member picks a check-in day (`check_in_day`, ISO weekday 1–7). The
+  check-in is open on that day and every day after until it is finished, and
+  can be opened up to 2 days early. A check-in finished in the 5 days before
+  the day counts for that week (`checkInState` in
+  `packages/nutrition/src/check-in.ts`).
+- Opening it asks the server for a proposal from the experimental estimate
+  (#76) and the goal and rate (#396), under the safety policy above. The
+  screen shows Now and Proposed with **Accept proposal** or **Keep current
+  targets**; either finishes the check-in (`last_check_in_on`).
+- Adherence-neutral: how close last week's intake was to the target never
+  enters the proposal. The estimate pauses (no proposal) when more than 3 of
+  the last 7 days have no usable log, and the check-in says so.
+- Accepting goes through `acceptProposal`, which re-checks the floors,
+  caps, step, exclusions and soft-gate confirmation.
+
+## Macro presets (#399)
+
+Balanced, Lower carb and Lower fat work out protein, carbohydrate and fat
+targets from the member's energy target (midpoint of a range) and recent
+trend weight. Fat takes 30 / 40 / 20 % of energy; protein is chosen in g per
+kg, only from the member's protein reference (0.8 g/kg by default, 1.2–1.6
+with the active opt-in, at least 1.0 at 65+, at most 0.8 with a kidney
+declaration); carbohydrate takes the rest, and a split that leaves under
+50 g is refused. It is a proposal: nothing is saved until the member saves
+the targets, which are then "entered by you". Off while energy targets are
+off and in hide-numbers mode. An uneven weekly split is not offered.
 
 ## Hide-numbers mode
 
@@ -67,22 +104,32 @@ stored (`packages/nutrition/src/logging-streak.ts`):
 - Entries logged offline count from when the server receives them.
 - There is no reminder notification yet.
 
-## Safety policy `nutrition-safety/v1`
+## Safety policy `nutrition-safety/v3`
 
-| Parameter         | Value                                                                                     | Basis                                                  |
-| ----------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------ |
-| Calorie floor     | max(1,200, sex floor, estimated resting expenditure)                                      | AHA/ACC/TOS 2013; resting part is a product choice     |
-| Sex floor         | 1,200 female · 1,500 male · 1,500 not declared                                            | AHA/ACC/TOS 2013; undeclared = higher (product choice) |
-| Resting estimate  | Mifflin–St Jeor; needs weight, height and age; undeclared sex and age ranges conservative | Mifflin 1990                                           |
-| Never propose     | < 1,200 kcal/d under any setting                                                          | NICE NG246                                             |
-| Default deficit   | min(500 kcal/d, 20% of estimate, 0.7% body weight/week)                                   | AHA; Garthe 2011                                       |
-| Hard deficit cap  | min(750 kcal/d, 25% of estimate); loss ≤ 1.0% body weight/week (0.5% at 65+)              | AHA; Helms 2014                                        |
-| Gain              | +10% default, at most +20% of estimate; ≤ 0.5% body weight/week                           | Decision 15; Iraki 2019                                |
-| Weekly step       | each change ≤ min(200 kcal, 10% of current); one accepted change per 7 days               | Decision 15 [PRODUCT CHOICE]                           |
-| BMI gate          | no reduction if current BMI < 18.5; no undefined projected-horizon test                   | Decision 16; WHO                                       |
-| Protein reference | 0.8 g/kg; 1.2–1.6 g/kg only if opted in as active; ≥ 1.0 g/kg at 65+; ≤ 0.8 g/kg with CKD | NASEM/EFSA; PROT-AGE 2013; KDIGO 2024 3.3.1.1          |
+| Parameter         | Value                                                                                      | Basis                                                  |
+| ----------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------ |
+| Calorie floor     | max(1,200, sex floor, estimated resting expenditure)                                       | AHA/ACC/TOS 2013; resting part is a product choice     |
+| Sex floor         | 1,200 female · 1,500 male · 1,500 not declared                                             | AHA/ACC/TOS 2013; undeclared = higher (product choice) |
+| Resting estimate  | Mifflin–St Jeor; needs weight, height and age; undeclared sex and age ranges conservative  | Mifflin 1990                                           |
+| Never propose     | < 1,200 kcal/d under any setting                                                           | NICE NG246                                             |
+| Default deficit   | min(500 kcal/d, 20% of estimate, 0.5% body weight/week)                                    | AHA; Helms 2014                                        |
+| Hard deficit cap  | min(750 kcal/d, 25% of estimate); loss ≤ 1.0% body weight/week (0.5% at 65+)               | AHA; Helms 2014                                        |
+| Gain              | +10% default, at most +20% of estimate; ≤ 0.5% body weight/week                            | Decision 15; Iraki 2019                                |
+| Chosen rate       | lose 0.25 / 0.5 / 0.75 / 1.0 % body weight/week; gain 0.25 / 0.5 %; inside every cap above | Decision 14 (≤ 1.0 %); #396                            |
+| Weekly step       | each change ≤ min(200 kcal, 10% of current); one accepted change per 7 days                | Decision 15 [PRODUCT CHOICE]                           |
+| BMI gate          | no reduction if current BMI < 18.5; no undefined projected-horizon test                    | Decision 16; WHO                                       |
+| Protein reference | 0.8 g/kg; 1.2–1.6 g/kg only if opted in as active; ≥ 1.0 g/kg at 65+; ≤ 0.8 g/kg with CKD  | NASEM/EFSA; PROT-AGE 2013; KDIGO 2024 3.3.1.1          |
+
+Sign-off: the owner signed off the floor and exclusion values on 2026-11-07
+(D4 in #390, `nutrition-safety/v3`). They ship as hard limits. The policy is
+general wellness and stays labelled as not clinically validated.
 
 Rules the planner adds:
+
+- A chosen rate (#396) sets the deficit or surplus as that share of the
+  recent trend weight per week (7,700 kcal/kg), then the hard caps, the
+  floor and the weekly step apply on top. With no rate or no weight the
+  default size is used.
 
 - Reductions are proposed only when the member chose **lose**, is a confirmed
   adult, declared no exclusion, and has a recent weight trend and a
@@ -151,9 +198,11 @@ service's own page.
 Changing any value is a reviewed config change: bump the version in
 `NUTRITION_SAFETY_POLICY`, add a `changelog` entry there and a row here.
 
-| Version               | Date       | Change                                                                                                                                                    |
-| --------------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `nutrition-safety/v1` | 2026-10-16 | First version: floors, deficit and gain caps, weekly step, BMI gate, self-declared exclusions and protein reference. Replaces `energy-proposal/v1` (#76). |
+| Version               | Date       | Change                                                                                                                                                                                                                                                                       |
+| --------------------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `nutrition-safety/v1` | 2026-10-16 | First version: floors, deficit and gain caps, weekly step, BMI gate, self-declared exclusions and protein reference. Replaces `energy-proposal/v1` (#76).                                                                                                                    |
+| `nutrition-safety/v2` | 2026-11-06 | Member-chosen weekly rate (#396): loss 0.25–1.0 % of body weight a week, gain 0.25–0.5 %. A chosen rate replaces the default deficit or surplus size; floors, hard caps, weekly step, BMI gate and exclusions are unchanged. Clinical review of the floors is still pending. |
+| `nutrition-safety/v3` | 2026-11-07 | Owner sign-off of the floor and exclusion values (2026-11-07). Default loss without a chosen rate is 0.5 % of body weight a week (was 0.7 %), matching the default rate. Values unchanged otherwise; the policy is still not clinically validated.                           |
 
 ## Data and privacy
 

@@ -97,3 +97,49 @@ for their age group and sex (below, within or above the middle half of a
 published reference group). Opt-in per metric, adults only, never a rank,
 percentile or community aggregate (`docs/reference-comparisons.md`).
 _Avoid_: Benchmark, percentile, ranking, "people like you" score
+
+**Goal**:
+A person's private, time-zoned definition of a desired outcome, with one
+metric, one evidence source, and a rule for evaluating progress.
+_Avoid_: Task, plan phase
+
+**Evidence**:
+A person-owned observation or explicit manual entry that can support a goal's
+metric and rule. An absent or incomplete observation is unknown, never zero.
+_Avoid_: Schedule, assumption
+
+**Check-in**:
+A manual, person-entered value or completion assertion for a goal day; it is
+distinct from automatically collected source evidence.
+_Avoid_: Reminder, scheduled completion
+
+**Milestone**:
+A dated checkpoint on the same metric and source as its goal. Passing its date
+without reaching it means overdue, not failed.
+_Avoid_: Phase, subgoal
+
+**Recurrence**:
+A rule for daily completion, selected weekdays, or any specified number of
+distinct qualifying days in a Monday–Sunday week.
+_Avoid_: Supplement schedule, reminder cadence
+
+**Rule revision**:
+A future-effective change to how a goal is evaluated. Past evidence remains
+interpreted by the rule effective at its occurrence unless that evidence is
+corrected.
+_Avoid_: Retroactive edit
+
+**Intake**:
+An actual, timestamped supplement dose recorded by the person; a planned or
+scheduled dose is not an intake.
+_Avoid_: Supplement schedule, planned dose
+
+**Achievement**:
+A goal outcome supported by its qualifying evidence and rule; correcting or
+removing supporting evidence can change that outcome.
+_Avoid_: Completion assertion (a lifecycle action)
+
+**Goal day**:
+A calendar day in the goal's stable timezone, adjusted by its optional local
+cutoff; sleep evidence is assigned to its local wake-up date.
+_Avoid_: UTC day, device-local day

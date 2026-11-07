@@ -275,6 +275,12 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
     expect(await count("plain_water_preference", sql`organization_id = 'org-a'`)).toBe(0);
     expect(await count("plain_water_mutation", sql`organization_id = 'org-a'`)).toBe(0);
     expect(
+      await count(
+        "daily_reminder_email_digest",
+        sql`organization_id = 'org-a' and user_id = 'user-a'`,
+      ),
+    ).toBe(0);
+    expect(
       await count("nutrition_template", sql`user_id = 'user-a' or organization_id = 'org-a'`),
     ).toBe(0);
     expect(
@@ -335,6 +341,12 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
       await count("plain_water_mutation", sql`organization_id = 'org-b' and user_id = 'user-b'`),
     ).toBe(1);
     expect(
+      await count(
+        "daily_reminder_email_digest",
+        sql`organization_id = 'org-b' and user_id = 'user-b'`,
+      ),
+    ).toBe(1);
+    expect(
       await count("plain_water_preference", sql`organization_id = 'org-c' and user_id = 'user-b'`),
     ).toBe(1);
     expect(
@@ -342,6 +354,30 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
     ).toBe(1);
     expect(
       await count("plain_water_mutation", sql`organization_id = 'org-c' and user_id = 'user-b'`),
+    ).toBe(1);
+    // Goal history and evidence belong to their author, not the workspace
+    // container. Erasing A must leave B's complete personal history intact.
+    expect(await count("goal", sql`organization_id = 'org-b' and user_id = 'user-b'`)).toBe(1);
+    expect(await count("goal_checkin", sql`organization_id = 'org-b' and user_id = 'user-b'`)).toBe(
+      2,
+    );
+    for (const table of [
+      "goal_definition",
+      "goal_milestone",
+      "goal_lifecycle",
+      "goal_mutation",
+      "goal_water_link",
+      "goal_water_cutover",
+      "supplement_intake",
+    ])
+      expect(await count(table, sql`organization_id = 'org-b' and user_id = 'user-b'`)).toBe(
+        table === "goal_definition" || table === "supplement_intake" ? 2 : 1,
+      );
+    expect(
+      await count(
+        "goal_ownership_assignment",
+        sql`organization_id = 'org-b' and assigned_user_id = 'user-b'`,
+      ),
     ).toBe(1);
     expect(
       await count("access_audit_log", sql`organization_id = 'org-b' and actor_user_id is null`),
@@ -358,6 +394,7 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
       { user_id: "user-b", declarations: ["chronic_kidney_disease"] },
     ]);
     expect(report.rowCounts.nutrition_target_settings).toBe(3);
+    expect(report.rowCounts.daily_reminder_email_digest).toBe(1);
   });
 
   test("supplements: own removed, shared and other-account kept", async () => {
@@ -509,6 +546,46 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
     await db.execute(sql`delete from member where id = 'routine-owner-member'`);
     await db.execute(sql`delete from organization where id = 'routine-org'`);
     await db.execute(sql`delete from "user" where id in ('routine-owner', 'routine-member')`);
+  });
+
+  test("owner erasure conflicts rather than cascading another member's private goal history", async () => {
+    await db.execute(
+      sql.raw(`
+      insert into "user" (id, email) values
+        ('goal-owner', 'goal-owner@example.test'), ('goal-member', 'goal-member@example.test');
+      insert into organization (id, name, slug) values ('private-goal-org', 'Private goal org', 'private-goal-org');
+      insert into member (id, organization_id, user_id, role) values
+        ('goal-owner-member', 'private-goal-org', 'goal-owner', 'owner'),
+        ('goal-other-member', 'private-goal-org', 'goal-member', 'collaborator');
+      with personal as (
+        insert into goal (organization_id, user_id, title, category)
+        values ('private-goal-org', 'goal-member', 'Other member private goal', 'health') returning id
+      )
+      insert into goal_checkin (organization_id, user_id, goal_id, date, value, created_at)
+        select 'private-goal-org', 'goal-member', id, '2026-10-01', 'private evidence', '2026-10-01T08:00:00Z' from personal;
+    `),
+    );
+    try {
+      await expect(
+        deleteSubjectData(db, { userId: "goal-owner", organizationIds: ["private-goal-org"] }),
+      ).rejects.toMatchObject({ code: "CONFLICT" });
+      expect(
+        await count("goal", sql`organization_id = 'private-goal-org' and user_id = 'goal-member'`),
+      ).toBe(1);
+      expect(
+        await count(
+          "goal_checkin",
+          sql`organization_id = 'private-goal-org' and user_id = 'goal-member'`,
+        ),
+      ).toBe(1);
+      expect(await count("user", sql`id = 'goal-owner'`)).toBe(1);
+    } finally {
+      await db.execute(sql`delete from goal_checkin where organization_id = 'private-goal-org'`);
+      await db.execute(sql`delete from goal where organization_id = 'private-goal-org'`);
+      await db.execute(sql`delete from member where organization_id = 'private-goal-org'`);
+      await db.execute(sql`delete from organization where id = 'private-goal-org'`);
+      await db.execute(sql`delete from "user" where id in ('goal-owner', 'goal-member')`);
+    }
   });
 
   test("photo uploader across memberships is blocked before account erasure", async () => {

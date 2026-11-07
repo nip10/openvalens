@@ -1,3 +1,4 @@
+import { MACRO_LETTERS, ROW_MACRO_KEYS, compactNutrientFigure } from "./nutrition-diary";
 import { describe, expect, test } from "bun:test";
 import { englishI18n, inEnglish } from "@openvalens/i18n/testing";
 import { computeNutrientFactor } from "@openvalens/nutrition/nutrients";
@@ -300,5 +301,18 @@ describe("portion preview", () => {
     expect(
       parseQuickAdd({ name: "x", basisAmount: "1", basisUnit: "g", nutrients: { fatG: "-1" } }),
     ).toMatchObject({ ok: false });
+  });
+});
+
+describe("diary row figures (#393)", () => {
+  test("energy keeps its unit, macros are whole grams, unknown is a dash", () => {
+    expect(compactNutrientFigure("energyKcal", 1240.4)).toBe("1,240 kcal");
+    expect(compactNutrientFigure("proteinG", 12.6)).toBe("13");
+    expect(compactNutrientFigure("fatG", 0)).toBe("0");
+    expect(compactNutrientFigure("carbohydrateG", null)).toBe("–");
+  });
+
+  test("each macro keeps one letter beside its colour", () => {
+    expect(ROW_MACRO_KEYS.map((key) => englishI18n._(MACRO_LETTERS[key]))).toEqual(["P", "C", "F"]);
   });
 });

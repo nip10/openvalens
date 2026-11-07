@@ -7,6 +7,7 @@ import {
   ALLOWED_TIME_OF_DAY,
   createCalendarRepository,
   createGoalRepository,
+  LegacyGoalConflictError,
   createPlansRepository,
   createWorkoutRepository,
   WorkoutMutationConflictError,
@@ -572,6 +573,10 @@ async function requirePlansAuthz(
     throw raiseApiError("INTERNAL", "Authorization failed.");
   }
 }
+function mapLegacyGoalError(error: unknown): never {
+  if (error instanceof LegacyGoalConflictError) throw raiseApiError("CONFLICT", error.message);
+  throw error;
+}
 
 export const plansRouter = {
   // ─── supplements ────────────────────────────────────────────
@@ -1127,7 +1132,9 @@ export const plansRouter = {
       .input(z.object({}).optional())
       .output(z.array(goalShape))
       .handler(async ({ context }) =>
-        createGoalRepository(context.db).listGoals(context.authz.activeOrganizationId),
+        createGoalRepository(context.db, context.authz.user.id).listGoals(
+          context.authz.activeOrganizationId,
+        ),
       ),
 
     upsertGoal: protectedProcedure
@@ -1136,39 +1143,44 @@ export const plansRouter = {
       .output(goalUpsertResultSchema)
       .handler(async ({ input, context }) => {
         const authz = await requirePlansAuthz(context, "goals", "write");
-        const result = await createGoalRepository(context.db).upsertGoal(
-          authz.activeOrganizationId,
-          // The discriminated union narrows naturally; the only key the
-          // update branch honours is `id`.
-          "id" in input
-            ? {
-                id: input.id,
-                title: input.title,
-                category: input.category,
-                horizon: input.horizon,
-                status: input.status,
-                currentValue: input.currentValue,
-                targetValue: input.targetValue,
-                targetDate: input.targetDate,
-                notes: input.notes,
-                direction: input.direction,
-                baselineValue: input.baselineValue,
-                priority: input.priority,
-              }
-            : {
-                title: input.title,
-                category: input.category,
-                horizon: input.horizon,
-                status: input.status,
-                currentValue: input.currentValue,
-                targetValue: input.targetValue,
-                targetDate: input.targetDate,
-                notes: input.notes,
-                direction: input.direction,
-                baselineValue: input.baselineValue,
-                priority: input.priority,
-              },
-        );
+        let result;
+        try {
+          result = await createGoalRepository(context.db, authz.user.id).upsertGoal(
+            authz.activeOrganizationId,
+            // The discriminated union narrows naturally; the only key the
+            // update branch honours is `id`.
+            "id" in input
+              ? {
+                  id: input.id,
+                  title: input.title,
+                  category: input.category,
+                  horizon: input.horizon,
+                  status: input.status,
+                  currentValue: input.currentValue,
+                  targetValue: input.targetValue,
+                  targetDate: input.targetDate,
+                  notes: input.notes,
+                  direction: input.direction,
+                  baselineValue: input.baselineValue,
+                  priority: input.priority,
+                }
+              : {
+                  title: input.title,
+                  category: input.category,
+                  horizon: input.horizon,
+                  status: input.status,
+                  currentValue: input.currentValue,
+                  targetValue: input.targetValue,
+                  targetDate: input.targetDate,
+                  notes: input.notes,
+                  direction: input.direction,
+                  baselineValue: input.baselineValue,
+                  priority: input.priority,
+                },
+          );
+        } catch (error) {
+          mapLegacyGoalError(error);
+        }
 
         await writeAuditLog({
           db: context.db,
@@ -1188,12 +1200,16 @@ export const plansRouter = {
       .use(validateInput(goalCheckinListInputSchema))
       .input(goalCheckinListInputSchema)
       .output(z.array(goalCheckinShape))
-      .handler(async ({ input, context }) =>
-        createGoalRepository(context.db).listCheckins(
-          context.authz.activeOrganizationId,
-          input.goalId,
-        ),
-      ),
+      .handler(async ({ input, context }) => {
+        try {
+          return await createGoalRepository(context.db, context.authz.user.id).listCheckins(
+            context.authz.activeOrganizationId,
+            input.goalId,
+          );
+        } catch (error) {
+          mapLegacyGoalError(error);
+        }
+      }),
 
     upsertCheckin: protectedProcedure
       .use(validateInput(goalCheckinUpsertSchema))
@@ -1203,7 +1219,7 @@ export const plansRouter = {
         const authz = await requirePlansAuthz(context, "goals", "write");
         let result;
         try {
-          result = await createGoalRepository(context.db).upsertCheckin(
+          result = await createGoalRepository(context.db, authz.user.id).upsertCheckin(
             authz.activeOrganizationId,
             {
               goalId: input.goalId,
@@ -1216,6 +1232,8 @@ export const plansRouter = {
           if (error instanceof Error && error.message === "Goal not found") {
             throw raiseApiError("NOT_FOUND", "Goal not found");
           }
+          if (error instanceof LegacyGoalConflictError)
+            throw raiseApiError("CONFLICT", error.message);
           throw error;
         }
 
@@ -1243,10 +1261,15 @@ export const plansRouter = {
       .output(deleteResultWithTarget.nullable())
       .handler(async ({ input, context }) => {
         const authz = await requirePlansAuthz(context, "goals", "write");
-        const result = await createGoalRepository(context.db).deleteGoal(
-          authz.activeOrganizationId,
-          input.id,
-        );
+        let result;
+        try {
+          result = await createGoalRepository(context.db, authz.user.id).deleteGoal(
+            authz.activeOrganizationId,
+            input.id,
+          );
+        } catch (error) {
+          mapLegacyGoalError(error);
+        }
         if (!result) return null;
         await writeAuditLog({
           db: context.db,

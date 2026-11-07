@@ -83,7 +83,7 @@ export async function openHelioChannel(link: HelioLink, options: OpenHelioChanne
     } catch (e) { current.settle(undefined, e instanceof Error ? e : new Error("CHANNEL_WRITE_FAILED")); }
   });
   const services = new Map<number, boolean>();
-  const channel: HelioSessionChannel = { services, request, async close() { if (closed) return; closed = true; lifecycle.abort(); unsub(); reassembler.reset(); waiter?.settle(undefined, new Error("CANCELLED")); key.fill(0); sessionKey?.fill(0); await Promise.allSettled([...pendingWrites]); } };
+  const channel: HelioSessionChannel = { services, request, async close() { if (closed) return; closed = true; lifecycle.abort(); unsub(); reassembler.reset(); waiter?.settle(undefined, new Error("CANCELLED")); key.fill(0); sessionKey?.fill(0); await Promise.allSettled(pendingWrites); } };
   try {
     options.onPhase("authenticating");
     const ec = crypto.createECDH("sect163r2");

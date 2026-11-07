@@ -332,6 +332,7 @@ describe.skipIf(!url)("Google and Apple sign-in against mock providers and Postg
   const sent: SendEmailInput[] = [];
   const email: EmailService = {
     organizationName: "OpenValens",
+    prepareEmail: (input) => input,
     sendEmail: async (input) => {
       sent.push(input);
       return { id: "msg-1", dryRun: false };

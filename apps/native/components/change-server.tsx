@@ -5,18 +5,26 @@ import { ArrowLeftRight, Server } from "lucide-react-native";
 import { useRef } from "react";
 import { Alert } from "react-native";
 
-import { Icon, Section, Sheet } from "@/components/bloom";
-import { ListRow } from "@/components/list-row";
-import { serverLabel } from "@/lib/server/server-address";
-import { isServerLocked, useServer } from "@/lib/server/server-url";
-import { switchServer, unsyncedWriteCount } from "@/lib/server/switch-server";
+import { Icon, Section, Sheet } from "./bloom";
+import { ListRow } from "./list-row";
+import { serverLabel } from "../lib/server/server-address";
+import { isServerLocked, useServer } from "../lib/server/server-url";
+import { switchServer, unsyncedWriteCount } from "../lib/server/switch-server";
+import {
+  guardServerLeave,
+  readServerLeaveSafety,
+  type ServerLeaveSafety,
+} from "../lib/server/server-leave-safety";
+import { queryClient } from "../utils/orpc";
+
+type ChangeServerOptions = { pendingDataPolicy?: "preserve" };
 
 /**
  * Issue #295 — "Change server": confirm (warning first when writes are still
  * queued for this server), then sign out, wipe this server's data from the
  * phone and return to the server choice.
  */
-export function useChangeServer(): () => void {
+export function useChangeServer(options: ChangeServerOptions = {}): () => void {
   const { t } = useLingui();
   const { toast } = useToast();
   const server = useServer();
@@ -38,8 +46,67 @@ export function useChangeServer(): () => void {
     }
   };
 
+  const runPreserving = async () => {
+    if (running.current) return;
+    running.current = true;
+    try {
+      const hasInFlightWrites = () => queryClient.isMutating() > 0;
+      const result = await guardServerLeave(
+        () => switchServer(null, { pendingDataPolicy: "preserve", hasInFlightWrites }),
+        { hasInFlightWrites },
+      );
+      if (result.kind !== "safe") {
+        const message =
+          result.kind === "pending"
+            ? t`New changes are still on this phone (${result.records} waiting records and ${result.drafts} drafts). Nothing was removed. Send them before changing servers.`
+            : result.kind === "busy"
+              ? t`A change is being sent right now. Nothing was removed. Try again when it finishes.`
+              : t`The app could not confirm that this phone has no unsent changes. Nothing was removed. Try again later.`;
+        Alert.alert(t`Your data stays on this phone`, message, [
+          { text: t`Close`, style: "cancel" },
+        ]);
+      }
+    } catch {
+      toast.show({
+        variant: "danger",
+        label: t`Could not change server. Your data on this phone was kept. Try again.`,
+      });
+    } finally {
+      running.current = false;
+    }
+  };
+
   return () => {
     if (isServerLocked() || server.status !== "set") return;
+    if (options.pendingDataPolicy === "preserve") {
+      let safety: ServerLeaveSafety;
+      try {
+        safety = readServerLeaveSafety({ hasInFlightWrites: () => queryClient.isMutating() > 0 });
+      } catch {
+        safety = { kind: "unknown" as const };
+      }
+      if (safety.kind !== "safe") {
+        const message =
+          safety.kind === "pending"
+            ? t`Some changes are still on this phone (${safety.records} waiting records and ${safety.drafts} drafts). They will stay here. Retry the server check, or finish sending them before changing servers.`
+            : safety.kind === "busy"
+              ? t`A change is being sent right now. Nothing has been removed. Try again when it finishes.`
+              : t`The app could not confirm that this phone has no unsent changes. Nothing has been removed. Try again later.`;
+        Alert.alert(t`Keep your data on this phone`, message, [
+          { text: t`Close`, style: "cancel" },
+        ]);
+        return;
+      }
+      Alert.alert(
+        t`Change server?`,
+        t`You will be signed out of ${host}. This server's saved data on this phone will be removed. You can cancel and keep using this server.`,
+        [
+          { text: t`Cancel`, style: "cancel" },
+          { text: t`Change server`, style: "destructive", onPress: () => void runPreserving() },
+        ],
+      );
+      return;
+    }
     const pending = unsyncedWriteCount();
     const title = pending === 0 ? t`Change server?` : t`Changes not sent to ${host}`;
     const message =

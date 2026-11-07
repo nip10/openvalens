@@ -22,7 +22,7 @@ import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import Svg, { G, Path } from "react-native-svg";
 
-import { ErrorState } from "@/components/bloom";
+import { ErrorState, DISPLAY_MAX_FONT_SCALE } from "@/components/bloom";
 import { CardStack } from "@/components/list-row";
 import { Container } from "@/components/container";
 import { client } from "@/utils/orpc";
@@ -243,6 +243,7 @@ export default function BodyMapScreen() {
           <Text
             accessibilityRole="header"
             className="font-display text-[30px] font-semibold leading-[36px] text-ink"
+            maxFontSizeMultiplier={DISPLAY_MAX_FONT_SCALE}
           >
             {t`Body map`}
           </Text>

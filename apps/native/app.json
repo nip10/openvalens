@@ -2,7 +2,7 @@
   "expo": {
     "name": "OpenValens",
     "slug": "openvalens",
-    "version": "0.9.1",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "openvalens",
@@ -69,7 +69,9 @@
         "expo-build-properties",
         {
           "android": {
-            "minSdkVersion": 26
+            "minSdkVersion": 26,
+            "enableMinifyInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true
           }
         }
       ],
@@ -80,7 +82,7 @@
         "@kingstinct/react-native-healthkit",
         {
           "NSHealthShareUsageDescription": "OpenValens reads your health data from Apple Health to keep your health record up to date.",
-          "NSHealthUpdateUsageDescription": false,
+          "NSHealthUpdateUsageDescription": "OpenValens only reads from Apple Health and never writes or changes your health data.",
           "background": true
         }
       ],

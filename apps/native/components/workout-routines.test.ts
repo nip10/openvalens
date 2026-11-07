@@ -60,6 +60,9 @@ if (child) {
   let previewFails = false;
   let created: any;
   mock.module("@/lib/offline/sync", () => ({ useOfflineScope: () => "user-a:org-a" }));
+  mock.module("@/lib/workouts/sync", () => ({
+    useWorkoutSession: () => ({ draft: null, saveDraft: () => true }),
+  }));
   mock.module("@/lib/workouts/model", () => ({
     createDraftFromRoutinePreview: ({ routine }: any) => ({
       id: "draft",
@@ -182,9 +185,13 @@ if (child) {
       await h.render(React.createElement(WorkoutRoutines));
       const input = (label: string) =>
         h.container.querySelector(`input[aria-label="${label}"]`) as HTMLInputElement;
+      // New opens the full-screen editor (#403); exercises come from the library picker.
+      await h.click("New");
       await h.change(input("Routine name"), "My progression");
+      await h.click("Add exercises from the library");
       await h.change(input("Search exercise or enter a name"), "Bench");
       expect(h.container.textContent).toContain("Bench");
+      await h.click("Bench");
       await h.change(input("Sets"), "4");
       await h.change(input("Min reps"), "6");
       await h.change(input("Max reps"), "10");
@@ -193,7 +200,7 @@ if (child) {
       await h.change(input("Increment"), "2.5");
       await h.change(input("Deload percent"), "15");
       await h.change(input("Failure threshold"), "3");
-      await h.click("Save routine");
+      await h.click("Save");
       expect(created).toMatchObject({
         name: "My progression",
         expectedScope: "user-a:org-a",

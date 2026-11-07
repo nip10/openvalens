@@ -48,14 +48,33 @@ tags: [logging]
     visible: "Quick add"
     timeout: 10000
 - tapOn: "Quick add"
-- tapOn: "Food name"
+- tapOn:
+    id: quick-name
 - inputText: "Trail mix"
-- tapOn: "Energy \\(kcal, optional\\)"
-- inputText: "180"
+# Close the keyboard first: on a shorter phone (iPhone 17e) it pushes the Save
+# bar over the Energy field, and Maestro, which ignores the overlap, taps Save
+# and saves the food without calories (#373). Closing it also lets the
+# keyboard settle, or the tap on Energy is lost and "180" lands in the name.
 - runFlow: ../subflows/hide-keyboard.yaml
 - scrollUntilVisible:
-    element: "Snack"
-- tapOn: "Snack"
+    element: "Energy \\(kcal, optional\\)"
+    centerElement: true
+- tapOn: "Energy \\(kcal, optional\\)"
+- waitForAnimationToEnd:
+    timeout: 2000
+- inputText: "180"
+- runFlow: ../subflows/hide-keyboard.yaml
+# By id: the diary behind the sheet also reads "Snack". Centred: at the bottom
+# edge the chip sits under the Save bar.
+- scrollUntilVisible:
+    element:
+      id: meal-slot-snack
+    centerElement: true
+- tapOn:
+    id: meal-slot-snack
+# The calories reached the Energy field, not the name.
+- scrollUntilVisible:
+    element: "Energy 180 kcal.*"
 - takeScreenshot: 05-quick-add
 - scrollUntilVisible:
     element: "Save to Snack"
@@ -92,21 +111,30 @@ tags: [logging]
     timeout: 10000
 - runFlow: ../subflows/close-add-food.yaml
 
-# Plain water
+# Plain water: below the meals, targets and streak. On a shorter phone the
+# default speed runs out of time before it gets there. Centred: at the bottom
+# edge the button sits under the tab bar and the tap opens nothing.
 - scrollUntilVisible:
     element: "Add plain water"
-    timeout: 30000
+    speed: 80
+    timeout: 60000
+    centerElement: true
 - tapOn: "Add plain water"
 - extendedWaitUntil:
     visible: "Amount"
     timeout: 10000
+# Let the form settle first: tapped while it still scrolled into view, the
+# field never took focus and "300" went nowhere.
+- waitForAnimationToEnd:
+    timeout: 2000
 - tapOn:
-    text: "Amount"
-    index: 0
+    id: water-amount
 - inputText: "300"
 - runFlow: ../subflows/hide-keyboard.yaml
+# Centred: on a short phone, Save stops just under the tab bar.
 - scrollUntilVisible:
     element: "Save"
+    centerElement: true
 - takeScreenshot: 05-water-add
 - tapOn: "Save"
 # The form closes and the entry is listed (the saved toast is brief).

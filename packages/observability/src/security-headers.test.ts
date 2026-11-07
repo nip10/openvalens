@@ -37,6 +37,29 @@ describe("buildSecurityHeaders", () => {
     expect(csp).not.toContain("'unsafe-eval'");
   });
 
+  test("allowInlineScripts=false drops 'unsafe-inline' from script-src only", () => {
+    const csp = buildSecurityHeaders({
+      cspMode: "enforce",
+      allowDevScriptEval: false,
+      allowInlineScripts: false,
+    })[ENFORCE_HEADER];
+
+    expect(csp).toContain("script-src 'self';");
+    expect(csp).toContain("style-src 'self' 'unsafe-inline'");
+  });
+
+  test("additionalScriptSrc adds exact sources after 'self'", () => {
+    const url = "https://cdn.example.test/lib@1.0.0/dist/app.js";
+    const csp = buildSecurityHeaders({
+      cspMode: "enforce",
+      allowDevScriptEval: false,
+      allowInlineScripts: false,
+      additionalScriptSrc: [url],
+    })[ENFORCE_HEADER];
+
+    expect(csp).toContain(`script-src 'self' ${url};`);
+  });
+
   test("defaults to allowing dev script eval when the flag is omitted", () => {
     const csp = buildSecurityHeaders({ cspMode: "enforce" })[ENFORCE_HEADER];
 

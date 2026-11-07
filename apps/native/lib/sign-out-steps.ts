@@ -1,3 +1,5 @@
+import type { ServerLeaveOptions } from "./server/server-leave-policy";
+
 /**
  * The order of a sign-out on this phone, kept free of app imports so it can
  * be tested. The wiring lives in `sign-out.ts`.
@@ -8,19 +10,21 @@ export type SignOutSteps = {
   /** Issue #92 — stop insight pushes to this phone (needs the session). */
   disablePush: () => Promise<unknown>;
   resetHealthSync: () => Promise<unknown>;
-  prepareOffline: () => Promise<unknown>;
+  prepareOffline: (options?: ServerLeaveOptions) => Promise<unknown>;
   signOut: () => Promise<unknown>;
   clearQueries: () => void;
 };
 
-export function createSignOut(steps: SignOutSteps): () => Promise<void> {
-  return async () => {
+export function createSignOut(
+  steps: SignOutSteps,
+): (options?: ServerLeaveOptions) => Promise<void> {
+  return async (options) => {
     // Revoke the old UI's ability to mint tickets before the first await.
     steps.invalidateDirectDevices();
     // Best effort: an unreachable server must not keep the member signed in.
     await steps.disablePush().catch(() => undefined);
     await steps.resetHealthSync();
-    await steps.prepareOffline();
+    await steps.prepareOffline(options);
     // Direct-device captures contain personal activity data and are never kept across sign-out.
     steps.purgeDirectDevices();
     await steps.signOut();

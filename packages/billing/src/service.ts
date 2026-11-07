@@ -388,7 +388,7 @@ export function createBillingService(deps: BillingServiceDeps): BillingService {
       } catch {
         locale = SOURCE_LOCALE;
       }
-      const rendered = renderBillingEmail(
+      const rendered = await renderBillingEmail(
         { kind, billingUrl, ...extra },
         { locale, organizationName: deps.email.organizationName },
       );

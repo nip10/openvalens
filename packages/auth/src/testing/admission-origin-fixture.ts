@@ -27,6 +27,7 @@ if (!databaseUrl) {
 const db = createDb({ DATABASE_URL: databaseUrl });
 const email: EmailService = {
   organizationName: "OpenValens",
+  prepareEmail: (input) => input,
   sendEmail: async () => ({ id: "fixture", dryRun: false }),
 };
 const auth = createAuth(

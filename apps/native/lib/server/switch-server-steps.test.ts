@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
+import { ServerLeaveBlockedError } from "./server-leave-policy";
 import { createSwitchServer, type SwitchServerSteps } from "./switch-server-steps";
 
 type Failure = "signOut" | "cancelPendingMagicLink" | "clearLocalData" | "clearSession";
@@ -20,6 +21,7 @@ function recorder(fail: Failure[] = []) {
     },
     clearSession: step("clearSession"),
     clearQueries: () => calls.push("clearQueries"),
+    assertCanLeave: () => calls.push("assertCanLeave"),
     setServer: async (url) => {
       calls.push(`setServer:${url}`);
     },
@@ -66,5 +68,43 @@ describe("switching server (#295)", () => {
     await expect(switchServer("https://next.example.org")).rejects.toThrow("clearLocalData failed");
     expect(calls).not.toContain("clearSession");
     expect(calls.some((call) => call.startsWith("setServer"))).toBe(false);
+  });
+
+  test("preserve policy reaches both destructive boundary and final pre-origin check", async () => {
+    const { calls, switchServer } = recorder();
+    const options = { pendingDataPolicy: "preserve" as const, hasInFlightWrites: () => false };
+    await switchServer("https://next.example.org", options);
+    expect(calls).toEqual([
+      ...CLEANUP.slice(0, 4),
+      "clearSession",
+      "assertCanLeave",
+      "clearQueries",
+      "setServer:https://next.example.org",
+    ]);
+  });
+
+  test("a typed preservation refusal from sign-out is never treated as best effort", async () => {
+    const calls: string[] = [];
+    const blocked = new ServerLeaveBlockedError({ kind: "pending", records: 1, drafts: 0 });
+    const preserving = createSwitchServer({
+      invalidateDirectDevices: () => calls.push("invalidateDirectDevices"),
+      signOut: async () => {
+        calls.push("signOut");
+        throw blocked;
+      },
+      cancelPendingMagicLink: async () => calls.push("cancelPendingMagicLink"),
+      clearLocalData: () => calls.push("clearLocalData"),
+      clearSession: async () => calls.push("clearSession"),
+      clearQueries: () => calls.push("clearQueries"),
+      setServer: async (url) => calls.push(`setServer:${url}`),
+      assertCanLeave: () => calls.push("assertCanLeave"),
+    });
+    await expect(
+      preserving("https://next.example.org", {
+        pendingDataPolicy: "preserve",
+        hasInFlightWrites: () => false,
+      }),
+    ).rejects.toBe(blocked);
+    expect(calls).toEqual(["invalidateDirectDevices", "signOut"]);
   });
 });

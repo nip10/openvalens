@@ -38,6 +38,12 @@ const clientMutationId = z.string().min(1).max(64);
 const positive = z.number().finite().positive();
 const id = z.number().int().positive();
 const nutrientValue = z.number().finite().nonnegative().nullable();
+/**
+ * When the food was eaten, as an ISO instant with an offset (#393). Set only
+ * when the member picks a time (the timeline's "Add at this hour"); the
+ * timeline falls back to when the entry was logged.
+ */
+const consumedAt = z.string().datetime({ offset: true });
 
 export const nutrientValues = z.object(
   Object.fromEntries(NUTRIENT_KEYS.map((key) => [key, nutrientValue])) as Record<
@@ -107,6 +113,7 @@ export const logEntryInput = z.strictObject({
   amount: positive,
   unit: z.enum(AMOUNT_UNITS),
   method: z.enum(["manual", "search", "barcode", "quick_add"]),
+  consumedAt: consumedAt.optional(),
 });
 export type LogEntryInput = z.infer<typeof logEntryInput>;
 
@@ -124,6 +131,8 @@ export const updateEntryInput = z
     slot: z.enum(MEAL_SLOTS).optional(),
     localDate: localDate.optional(),
     timeZone: timeZone.optional(),
+    /** A new eaten-at time; `null` clears it (back to the logged time). */
+    consumedAt: consumedAt.nullable().optional(),
   })
   .refine((value) => (value.localDate === undefined) === (value.timeZone === undefined), {
     message: "Local date and time zone must be supplied together",
@@ -196,6 +205,8 @@ export const diaryEntry = z.object({
   clientMutationId: z.string().nullable(),
   revision: z.number(),
   deleted: z.boolean(),
+  /** When the food was eaten, if the member picked a time (#393); else `null`. */
+  consumedAt: z.string().nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),
   food: z.object({

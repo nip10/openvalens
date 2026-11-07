@@ -10,6 +10,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Fragment, useEffect, useRef, type ReactNode } from "react";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 
+import { CONTROL_MAX_FONT_SCALE } from "@/components/bloom";
 import { BloomFonts, DISPLAY_FONT } from "@/components/fonts";
 import { LocaleSync } from "@/components/locale-sync";
 import {
@@ -17,6 +18,8 @@ import {
   PushNotificationLifecycle,
 } from "@/components/push-notification-lifecycle";
 import { ServerChoice } from "@/components/server-choice";
+import { ServerCompatibilityGate } from "@/components/server-compatibility-gate";
+import { ServerRuntime } from "@/components/server-runtime";
 import { AppThemeProvider } from "@/contexts/app-theme-context";
 import { DisplayPreferencesProvider } from "@/lib/display-preferences";
 import { AppI18nProvider } from "@/lib/i18n/provider";
@@ -83,10 +86,16 @@ function ServerGate({ children }: { children: ReactNode }) {
   const server = useServer();
   if (server.status === "loading") return null;
   if (server.status === "unset") return <ServerChoice />;
-  // Create the auth client up front: a magic link that cold-starts the app
-  // installs its session into this client's store.
-  getAuthClient();
-  return <Fragment key={server.url}><DirectDeviceSessionObserver serverUrl={server.url} />{children}</Fragment>;
+  return (
+    <ServerCompatibilityGate key={server.url} url={server.url}>
+      <Fragment key={server.url}>
+        <ServerRuntime>
+          <DirectDeviceSessionObserver serverUrl={server.url} />
+          {children}
+        </ServerRuntime>
+      </Fragment>
+    </ServerCompatibilityGate>
+  );
 }
 
 /** Headless authority observer lives inside the server gate and follows auth-session installs. */
@@ -117,6 +126,10 @@ function StackLayout() {
         name="log-food"
         options={{ headerShown: false, presentation: "fullScreenModal" }}
       />
+      <Stack.Screen
+        name="check-in"
+        options={{ headerShown: false, presentation: "fullScreenModal" }}
+      />
       <Stack.Screen name="onboarding" options={{ headerShown: false }} />
       <Stack.Screen name="modal" options={{ title: t`Modal`, presentation: "modal" }} />
     </Stack>
@@ -131,7 +144,9 @@ export default function Layout() {
           <GestureHandlerRootView style={{ flex: 1 }}>
             <KeyboardProvider>
               <AppThemeProvider>
-                <HeroUINativeProvider>
+                <HeroUINativeProvider
+                  config={{ textProps: { maxFontSizeMultiplier: CONTROL_MAX_FONT_SCALE } }}
+                >
                   <BloomFonts>
                     <ServerGate>
                       <MagicLinkLifecycle />

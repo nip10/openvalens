@@ -1,13 +1,30 @@
 import { clearStoredAuthSession } from "@/lib/auth-client";
 import { cancelPendingMagicLink } from "@/lib/magic-link";
 import { clearAllServerData, countQueuedWrites } from "@/lib/offline/cache";
+import { isMetricOutboxBusy } from "@/lib/offline/sync";
 import { signOutOfThisPhone } from "@/lib/sign-out";
 import { queryClient } from "@/utils/orpc";
 import { beginDirectDeviceAuthorityTransition } from "@/lib/direct-devices/authority";
 import { getDirectDeviceStore } from "@/lib/direct-devices/persistence/sqlite";
 
 import { forgetServerUrl, saveServerUrl } from "./server-url";
+import {
+  requireSafeServerLeave,
+  type PreserveServerLeaveOptions,
+  type ServerLeaveOptions,
+} from "./server-leave-policy";
+import { readServerLeaveSafety } from "./server-leave-safety";
 import { createSwitchServer } from "./switch-server-steps";
+
+function preservingOptions(options?: ServerLeaveOptions): PreserveServerLeaveOptions {
+  return {
+    pendingDataPolicy: "preserve",
+    hasInFlightWrites: () =>
+      isMetricOutboxBusy() ||
+      queryClient.isMutating() > 0 ||
+      options?.hasInFlightWrites?.() === true,
+  };
+}
 
 /**
  * Issue #295 — leave the current server: sign out, wipe its data from this
@@ -17,15 +34,26 @@ import { createSwitchServer } from "./switch-server-steps";
  */
 export const switchServer = createSwitchServer({
   invalidateDirectDevices: beginDirectDeviceAuthorityTransition,
-  signOut: signOutOfThisPhone,
-  clearLocalData: () => {
-    clearAllServerData();
+  signOut: (options) =>
+    signOutOfThisPhone(
+      options?.pendingDataPolicy === "preserve" ? preservingOptions(options) : undefined,
+    ),
+  clearLocalData: (options) => {
+    if (options?.pendingDataPolicy === "preserve") {
+      clearAllServerData(preservingOptions(options));
+    } else {
+      clearAllServerData();
+    }
+    // Direct devices are registered against the old server, so their store
+    // must not survive the switch even when pending data is preserved.
     getDirectDeviceStore().purgeAll();
   },
   clearSession: clearStoredAuthSession,
   cancelPendingMagicLink,
   clearQueries: () => queryClient.clear(),
   setServer: (url) => (url ? saveServerUrl(url) : forgetServerUrl()),
+  assertCanLeave: (options) =>
+    requireSafeServerLeave(readServerLeaveSafety(preservingOptions(options))),
 });
 
 /**

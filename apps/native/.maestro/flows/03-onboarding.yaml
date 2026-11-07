@@ -4,13 +4,6 @@ appId: com.openvalens.app
 name: 03 Onboarding
 tags: [onboarding]
 ---
-- runFlow:
-    when:
-      visible:
-        id: "home-cockpit"
-    commands:
-      - tapOn:
-          id: "home-cockpit"
 - extendedWaitUntil:
     visible: "Welcome to OpenValens"
     timeout: 30000

@@ -11,35 +11,57 @@ tags: [logging]
       ID: drawer-cockpit
 - tapOn:
     id: "tab-training"
-# A workout left open earlier comes back after a restart; discard it.
+# A workout left open earlier comes back after a restart; discard it from
+# the workout overview (#401).
 - extendedWaitUntil:
-    visible: "(Start workout|Minimize workout)"
+    visible:
+      id: "(workout-start|workout-minimize|workout-resume)"
     timeout: 20000
 - runFlow:
     when:
-      visible: "Minimize workout"
+      visible:
+        id: "workout-resume"
     commands:
+      - tapOn:
+          id: "workout-resume"
+- runFlow:
+    when:
+      visible:
+        id: "workout-minimize"
+    commands:
+      - tapOn:
+          id: "workout-overview-open"
       - scrollUntilVisible:
-          element: "Discard workout"
-      - tapOn: "Discard workout"
+          element:
+            id: "workout-discard"
+      - tapOn:
+          id: "workout-discard"
       - tapOn:
           text: "(?i)discard"
           below: "Discard workout\\?"
 - extendedWaitUntil:
-    visible: "Start workout"
+    visible:
+      id: "workout-start"
     timeout: 20000
-- tapOn: "Start workout"
+- tapOn:
+    id: "workout-start"
 - extendedWaitUntil:
     visible: "Add exercise"
     timeout: 10000
-- tapOn: "Add exercise"
+- tapOn:
+    id: "workout-add-exercise"
 - extendedWaitUntil:
     visible: "Add an exercise"
     timeout: 10000
-- tapOn: "Bench press"
+# Bench press from the licensed exercise sample (#400), picked by its stable
+# wger id so the flow works in en and pt-PT.
+- tapOn:
+    id: "exercise-pick-wger-73"
 
+# One exercise per screen with a SET · PREVIOUS · KG · REPS · ✓ table (#401).
 # Set 1, then set 2 (a rest timer starts after each finished set)
-- tapOn: "Add set"
+- tapOn:
+    id: "workout-add-set"
 - runFlow:
     file: ../subflows/workout-set.yaml
     env:
@@ -47,9 +69,11 @@ tags: [logging]
       WEIGHT: "42.5"
       REPS: "8"
 - scrollUntilVisible:
-    element: "Add set"
+    element:
+      id: "workout-add-set"
     centerElement: true
-- tapOn: "Add set"
+- tapOn:
+    id: "workout-add-set"
 - runFlow:
     file: ../subflows/workout-set.yaml
     env:
@@ -57,17 +81,20 @@ tags: [logging]
       WEIGHT: "45"
       REPS: "6"
 - scrollUntilVisible:
-    element: "1 exercise, 2 sets done"
+    element:
+      id: "workout-summary"
+      text: "1 exercise, 2 sets done"
     direction: UP
 - takeScreenshot: 06-workout-sets
 
+- tapOn:
+    id: "workout-finish"
 - scrollUntilVisible:
-    element: "Finish workout"
-- tapOn: "Finish workout"
-- scrollUntilVisible:
-    element: "Save workout"
+    element:
+      id: "workout-save"
 - takeScreenshot: 06-workout-finish
-- tapOn: "Save workout"
+- tapOn:
+    id: "workout-save"
 - extendedWaitUntil:
     visible: "Recent sessions"
     timeout: 20000

@@ -254,6 +254,8 @@ async function main() {
     if (!values["screenshots-only"] && !values.store) {
       const flows = selectedFlows();
       const report = join(runDir, "report.xml");
+      // The flows read English: a tour stopped mid-run leaves the region pt_PT.
+      await setRegion("en");
       log(`running ${flows.map((f) => basename(f)).join(", ")}`);
       await maestro(
         device,

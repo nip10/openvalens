@@ -1,12 +1,12 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useQuery } from "@tanstack/react-query";
 import { Button, Input, Label, Spinner, TextField, useToast } from "heroui-native";
-import { Mail, MailCheck, ShieldCheck, UserPlus } from "lucide-react-native";
+import { ShieldCheck, UserPlus } from "lucide-react-native";
 import { useRef, useState } from "react";
 import { Linking, Text, View } from "react-native";
 import z from "zod";
 
-import { ErrorState, Icon, Sheet, ToneIcon } from "@/components/bloom";
+import { ErrorState, Icon, Sheet, DISPLAY_MAX_FONT_SCALE } from "@/components/bloom";
 import { useChangeServer } from "@/components/change-server";
 import { useServerProblemCopy } from "@/components/server-choice";
 import { SocialSignInButtons } from "@/components/social-sign-in";
@@ -93,7 +93,7 @@ export function SignIn() {
   const anyMethod = methods.magicLink || methods.oidc || methods.google || methods.apple;
   return (
     <Sheet className="gap-4 p-6">
-      {methods.magicLink ? <MagicLinkSignIn /> : <SignInHeading sent={false} />}
+      {methods.magicLink ? <MagicLinkSignIn /> : <SignInHeading />}
       {methods.google || methods.apple ? (
         <SocialSignIn
           google={methods.google}
@@ -113,13 +113,13 @@ export function SignIn() {
   );
 }
 
-function SignInHeading({ sent }: { sent: boolean }) {
+function SignInHeading() {
   return (
-    <View className="items-center gap-3">
-      <ToneIcon icon={sent ? MailCheck : Mail} tone="signal" size="lg" />
+    <View className="items-center">
       <Text
         className="font-display text-[26px] font-semibold leading-[32px] text-ink"
         accessibilityRole="header"
+        maxFontSizeMultiplier={DISPLAY_MAX_FONT_SCALE}
       >
         <Trans>Sign in</Trans>
       </Text>
@@ -284,7 +284,7 @@ function MagicLinkSignIn() {
 
   return (
     <>
-      <SignInHeading sent={!!sentTo} />
+      <SignInHeading />
       {sentTo ? (
         <View className="gap-4">
           <Text
@@ -306,9 +306,6 @@ function MagicLinkSignIn() {
         </View>
       ) : (
         <View className="gap-4">
-          <Text className="text-center font-sans text-base leading-relaxed text-ink-3">
-            <Trans>We'll email you a link. No password needed.</Trans>
-          </Text>
           <TextField isInvalid={!!error}>
             {/* heroui's Label takes a plain string; a <Trans> element is not one. */}
             <Label>{t`Email`}</Label>

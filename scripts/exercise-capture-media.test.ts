@@ -8,7 +8,7 @@ import {
   writeCaptureSnapshot,
 } from "./prepare-exercises";
 import { downloadBounded } from "./stage-exercise-media";
-import { normalizeWgerSnapshot } from "../apps/server/src/services/exercise-catalog-normalization";
+import { normalizeWgerSnapshot } from "../packages/exercise-catalog/src/normalization";
 import { createNewOutputDirectory } from "./stage-exercise-media";
 import { access, mkdtemp, mkdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";

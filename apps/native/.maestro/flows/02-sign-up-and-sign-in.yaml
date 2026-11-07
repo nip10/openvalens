@@ -49,8 +49,9 @@ tags: [auth]
     file: ../subflows/sign-in.yaml
     env:
       EMAIL: casey.lane@example.com
+# Signed in, a new account goes straight to onboarding (flow 03).
 - extendedWaitUntil:
-    visible: "casey.lane@example.com"
+    visible:
+      id: "onboarding-continue"
     timeout: 30000
-- assertVisible: "Welcome,.*"
 - takeScreenshot: 02-signed-in

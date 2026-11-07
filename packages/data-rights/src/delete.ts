@@ -179,7 +179,8 @@ async function eraseInTransaction(
   options: { recordLedger: boolean } = { recordLedger: true },
 ): Promise<DeletionReport> {
   const orgIds = [...subject.organizationIds];
-  // Container erasure must not cascade another member's private training data.
+  // Container erasure must not cascade another member's private goal,
+  // evidence, or training data.
   // The owner must resolve these records through the separately authorized
   // ownership flow before their organization can be removed.
   if (orgIds.length) {
@@ -191,6 +192,29 @@ async function eraseInTransaction(
       select 1 from workout_mutation where ${inList("organization_id", orgIds)} and user_id is distinct from ${subject.userId}
       union all
       select 1 from workout_operation where ${inList("organization_id", orgIds)} and user_id <> ${subject.userId}
+      union all
+      select 1 from goal where ${inList("organization_id", orgIds)} and user_id is not null and user_id <> ${subject.userId}
+      union all
+      select 1 from goal_checkin where ${inList("organization_id", orgIds)} and user_id is not null and user_id <> ${subject.userId}
+      union all
+      select 1 from goal_definition where ${inList("organization_id", orgIds)} and user_id <> ${subject.userId}
+      union all
+      select 1 from goal_milestone where ${inList("organization_id", orgIds)} and user_id <> ${subject.userId}
+      union all
+      select 1 from goal_lifecycle where ${inList("organization_id", orgIds)} and user_id <> ${subject.userId}
+      union all
+      select 1 from goal_mutation where ${inList("organization_id", orgIds)} and user_id <> ${subject.userId}
+      union all
+      select 1 from goal_ownership_assignment where ${inList("organization_id", orgIds)}
+        and (assigned_user_id <> ${subject.userId} or assigned_by_user_id <> ${subject.userId})
+      union all
+      select 1 from goal_water_link where ${inList("organization_id", orgIds)} and user_id <> ${subject.userId}
+      union all
+      select 1 from goal_water_cutover where ${inList("organization_id", orgIds)} and user_id <> ${subject.userId}
+      union all
+      select 1 from supplement_intake where ${inList("organization_id", orgIds)} and user_id <> ${subject.userId}
+      union all
+      select 1 from health_event where ${inList("organization_id", orgIds)} and user_id is not null and user_id <> ${subject.userId}
     ) private_training limit 1`);
     if (foreignPrivateTraining.rows.length) throw new SelfErasureError("CONFLICT");
   }

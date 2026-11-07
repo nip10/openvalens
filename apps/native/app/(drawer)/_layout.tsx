@@ -2,7 +2,7 @@ import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react";
 import { Link, usePathname } from "expo-router";
-import { Drawer } from "expo-router/drawer";
+import { Drawer, type DrawerContentComponentProps } from "expo-router/drawer";
 import { cn } from "heroui-native";
 import {
   CalendarHeart,
@@ -31,17 +31,19 @@ import {
   Users,
   UtensilsCrossed,
 } from "lucide-react-native";
-import React, { useCallback } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { BloomMark } from "@/components/bloom";
+import { BloomMark, DISPLAY_MAX_FONT_SCALE } from "@/components/bloom";
 import { DISPLAY_FONT } from "@/components/fonts";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { HealthDataConsentPrompt } from "@/components/health-data-consent-prompt";
+import { authClient } from "@/lib/auth-client";
 import { isRouteVisible } from "@/lib/modules/routes";
 import { useModules } from "@/lib/modules/use-modules";
 import { wasServerChosenThisRun } from "@/lib/server/server-url";
+import { queryClient } from "@/utils/orpc";
 import { useThemeColor } from "@/utils/theme";
 
 type DrawerItem = {
@@ -195,7 +197,12 @@ function DrawerContent() {
     >
       <View className="flex-row items-center gap-2.5 px-5 pb-5">
         <BloomMark size={30} />
-        <Text className="font-display text-2xl font-semibold text-ink">OpenValens</Text>
+        <Text
+          className="font-display text-2xl font-semibold text-ink"
+          maxFontSizeMultiplier={DISPLAY_MAX_FONT_SCALE}
+        >
+          OpenValens
+        </Text>
       </View>
 
       <View className="gap-5 px-3">
@@ -252,6 +259,32 @@ function DrawerContent() {
   );
 }
 
+/**
+ * A launch signed in opens the tabs (#271), so nothing else leaves them when
+ * the session ends: Sign out, Delete account or an expired session left the
+ * tabs on screen, signed out (#380). When a signed-in session goes away this
+ * opens the sign-in screen (this drawer's `index`), by screen name: in the
+ * app, "/" resolves to the Cockpit tab. When someone then signs in, it drops
+ * the errors the mounted screens cached while signed out, so they load again.
+ * Rendered in the drawer content, which stays mounted, to reach the drawer's
+ * navigation.
+ */
+function SessionChangeNavigator({ navigation }: Pick<DrawerContentComponentProps, "navigation">) {
+  const { data: session, isPending } = authClient.useSession();
+  const userId = session?.user?.id ?? null;
+  // undefined until the first settled session: a launch is not a change.
+  const lastUserId = useRef<string | null | undefined>(undefined);
+  useEffect(() => {
+    if (isPending) return;
+    const previous = lastUserId.current;
+    lastUserId.current = userId;
+    if (previous === undefined || previous === userId) return;
+    if (userId === null) navigation.navigate("index");
+    else void queryClient.resetQueries();
+  }, [isPending, navigation, userId]);
+  return null;
+}
+
 function DrawerLayout() {
   const themeColorForeground = useThemeColor("foreground");
   const themeColorBackground = useThemeColor("background");
@@ -262,7 +295,13 @@ function DrawerLayout() {
 
   const { _ } = useLingui();
   // A conversation lives at /coach/<id>; its bar reads "Coach" too.
-  const titleKey = pathname.startsWith("/coach/") ? "/coach" : pathname;
+  const titleKey = pathname.startsWith("/coach/")
+    ? "/coach"
+    : pathname.startsWith("/goals/")
+      ? "/goals"
+      : pathname.startsWith("/exercise/")
+        ? "/exercise-library"
+        : pathname;
   const headerTitle = _(HEADER_TITLES[titleKey] ?? msg`Cockpit`);
 
   return (
@@ -272,7 +311,12 @@ function DrawerLayout() {
         // Right after a server is chosen the screens mount afresh: open the
         // sign-in screen (this group's index), as a launch at `/` does.
         initialRouteName={wasServerChosenThisRun() ? "index" : "(tabs)"}
-        drawerContent={() => <DrawerContent />}
+        drawerContent={({ navigation }) => (
+          <>
+            <SessionChangeNavigator navigation={navigation} />
+            <DrawerContent />
+          </>
+        )}
         screenOptions={{
           headerTintColor: themeColorForeground,
           headerStyle: { backgroundColor: themeColorBackground },
@@ -282,6 +326,9 @@ function DrawerLayout() {
             fontSize: 19,
             color: themeColorForeground,
           },
+          // Fixed size, as iOS bar titles: the bar keeps its height, so at the
+          // accessibility text sizes a scaled title was cut in half (#379).
+          headerTitleAllowFontScaling: false,
           headerShadowVisible: false,
           headerRight: renderThemeToggle,
           drawerStyle: { backgroundColor: themeColorSidebar },
@@ -360,6 +407,13 @@ function DrawerLayout() {
           }}
         />
         <Drawer.Screen
+          name="goals/[goalId]"
+          options={{
+            headerTitle: headerTitle,
+            drawerItemStyle: { display: "none" },
+          }}
+        />
+        <Drawer.Screen
           name="routines"
           options={{
             headerTitle,
@@ -421,6 +475,10 @@ function DrawerLayout() {
         />
         <Drawer.Screen
           name="exercise-library"
+          options={{ headerTitle, drawerItemStyle: { display: "none" } }}
+        />
+        <Drawer.Screen
+          name="exercise/[exerciseId]"
           options={{ headerTitle, drawerItemStyle: { display: "none" } }}
         />
         <Drawer.Screen

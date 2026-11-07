@@ -1,0 +1,795 @@
+{
+  "source": "wger",
+  "complete": true,
+  "snapshotVersion": "wger-sample-2026-11-06",
+  "snapshotAt": "2026-11-06T11:39:03.145Z",
+  "note": "A 12-exercise subset of the public wger catalog (https://wger.de), captured 2026-11-06 for the demo and e2e seed (#400). Each record and translation keeps its own licence and author.",
+  "results": [
+    {
+      "id": 615,
+      "category": {
+        "id": 9,
+        "name": "Legs"
+      },
+      "muscles": [
+        {
+          "id": 10,
+          "name": "Quadriceps femoris",
+          "name_en": "Quads",
+          "is_front": true
+        }
+      ],
+      "muscles_secondary": [
+        {
+          "id": 8,
+          "name": "Gluteus maximus",
+          "name_en": "Glutes",
+          "is_front": false
+        }
+      ],
+      "equipment": [
+        {
+          "id": 1,
+          "name": "Barbell"
+        }
+      ],
+      "translations": [
+        {
+          "language": {
+            "short_name": "pt"
+          },
+          "name": "Agachamentos",
+          "sourceUrl": "https://wger.de/api/v2/exerciseinfo/615/",
+          "description": "1. Fique com os pés alinhados com os ombros\n2. Mova o quadril para trás e dobre os joelhos e o quadril para abaixar o troco\n3. Repita",
+          "license": {
+            "id": 1,
+            "short_name": "CC-BY-SA-3.0",
+            "url": "https://creativecommons.org/licenses/by-sa/3.0/"
+          },
+          "author": "wger.de",
+          "attribution": "wger.de"
+        },
+        {
+          "language": {
+            "short_name": "en"
+          },
+          "name": "Squats",
+          "sourceUrl": "https://wger.de/api/v2/exerciseinfo/615/",
+          "description": "Place a barbell in a rack just below shoulder-height. Dip under the bar to put it behind the neck across the top of the back, and grip the bar with the hands wider than shoulder-width apart. Lift the chest up and squeeze the shoulder blades together to keep the straight back throughout the entire movement. Stand up to bring the bar off the rack and step backwards, then place the feet so that they are a little wider than shoulder-width apart. Sit back into hips and keep the back straight and the chest up, squatting down so the hips are below the knees. From the bottom of the squat, press feet into the ground and push hips forward to return to the top of the standing position.",
+          "license": {
+            "id": 1,
+            "short_name": "CC-BY-SA-3.0",
+            "url": "https://creativecommons.org/licenses/by-sa/3.0/"
+          },
+          "author": "wger.de",
+          "attribution": "wger.de"
+        }
+      ],
+      "baseLicense": {
+        "id": 1,
+        "short_name": "CC-BY-SA-3.0",
+        "url": "https://creativecommons.org/licenses/by-sa/3.0/"
+      },
+      "baseAuthor": "wger.de",
+      "baseAttribution": "wger.de",
+      "images": []
+    },
+    {
+      "id": 73,
+      "category": {
+        "id": 11,
+        "name": "Chest"
+      },
+      "muscles": [
+        {
+          "id": 4,
+          "name": "Pectoralis major",
+          "name_en": "Chest",
+          "is_front": true
+        }
+      ],
+      "muscles_secondary": [
+        {
+          "id": 2,
+          "name": "Anterior deltoid",
+          "name_en": "Shoulders",
+          "is_front": true
+        },
+        {
+          "id": 5,
+          "name": "Triceps brachii",
+          "name_en": "Triceps",
+          "is_front": false
+        }
+      ],
+      "equipment": [
+        {
+          "id": 1,
+          "name": "Barbell"
+        },
+        {
+          "id": 8,
+          "name": "Bench"
+        }
+      ],
+      "translations": [
+        {
+          "language": {
+            "short_name": "en"
+          },
+          "name": "Bench Press",
+          "sourceUrl": "https://wger.de/api/v2/exerciseinfo/73/",
+          "description": "Lay down on a bench, the bar should be directly above your eyes, the knees are somewhat angled and the feet are firmly on the floor. Concentrate, breath deeply and grab the bar more than shoulder wide. Bring it slowly down till it briefly touches your chest at the height of your nipples. Push the bar up.\n\nIf you train with a high weight it is advisable to have a *spotter* that can help you up if you can't lift the weight on your own.\n\nWith the width of the grip you can also control which part of the chest is trained more:\n\n* wide grip: outer chest muscles\n* narrow grip: inner chest muscles and triceps",
+          "license": {
+            "id": 1,
+            "short_name": "CC-BY-SA-3.0",
+            "url": "https://creativecommons.org/licenses/by-sa/3.0/"
+          },
+          "author": "sistab2",
+          "attribution": "sistab2"
+        },
+        {
+          "language": {
+            "short_name": "pt"
+          },
+          "name": "Supino reto",
+          "sourceUrl": "https://wger.de/api/v2/exerciseinfo/73/",
+          "description": "Deite-se em um banco com a barra diretamente acima dos olhos, os joelhos levemente angulados e os pés firmes no chão. Concentre-se, respire fundo e segure a barra com as mãos um pouco além da largura dos ombros. Desça a barra lentamente até que ela toque de leve o peito, na altura dos mamilos. Empurre a barra para cima.\n\nSe você treina com carga alta, é recomendável ter um *ajudante* que possa auxiliar caso não consiga levantar o peso sozinho.\n\nA largura da pegada também controla qual parte do peito é mais trabalhada:\n- Pegada aberta enfatiza a parte externa dos músculos peitorais\n- Pegada fechada enfatiza a parte interna e o tríceps",
+          "license": {
+            "id": 2,
+            "short_name": "CC-BY-SA-4.0",
+            "url": "https://creativecommons.org/licenses/by-sa/4.0/"
+          },
+          "author": "jptjptjptjpt",
+          "attribution": "jptjptjptjpt"
+        }
+      ],
+      "baseLicense": {
+        "id": 1,
+        "short_name": "CC-BY-SA-3.0",
+        "url": "https://creativecommons.org/licenses/by-sa/3.0/"
+      },
+      "baseAuthor": "sistab2",
+      "baseAttribution": "sistab2",
+      "images": []
+    },
+    {
+      "id": 1117,
+      "category": {
+        "id": 12,
+        "name": "Back"
+      },
+      "muscles": [
+        {
+          "id": 12,
+          "name": "Latissimus dorsi",
+          "name_en": "Lats",
+          "is_front": false
+        }
+      ],
+      "muscles_secondary": [
+        {
+          "id": 1,
+          "name": "Biceps brachii",
+          "name_en": "Biceps",
+          "is_front": true
+        },
+        {
+          "id": 9,
+          "name": "Trapezius",
+          "name_en": "",
+          "is_front": false
+        }
+      ],
+      "equipment": [
+        {
+          "id": 12,
+          "name": "Cable machine"
+        }
+      ],
+      "translations": [
+        {
+          "language": {
+            "short_name": "en"
+          },
+          "name": "Seated Cable Row",
+          "sourceUrl": "https://wger.de/api/v2/exerciseinfo/1117/",
+          "description": "1. Take a seat on the machine with your feet planted, a little wider than shoulder width. Drive the heels, and squeeze the glutes. Grab onto the cable handle.\n2. Sit up tall with a slight bend through the knees. Tighten up the abs and low back to maintain a perpendicular angle to the floor with your torso.\n3. Roll the shoulders back and down. Squeeze them together as you row, thinking about pinching a pencil in between them. As you do this, pull the handle back towards you, landing right above your belly button.\n4. Pause here for a moment before returning the handle, still squeezing the shoulder blades. Once you've returned the weight to the stack, then allow the shoulder blades to relax, without pulling the torso forward.\n5. Repeat the movement.",
+          "license": {
+            "id": 2,
+            "short_name": "CC-BY-SA-4.0",
+            "url": "https://creativecommons.org/licenses/by-sa/4.0/"
+          },
+          "author": "Franpol",
+          "attribution": "Franpol"
+        }
+      ],
+      "baseLicense": {
+        "id": 2,
+        "short_name": "CC-BY-SA-4.0",
+        "url": "https://creativecommons.org/licenses/by-sa/4.0/"
+      },
+      "baseAuthor": "Franpol",
+      "baseAttribution": "Franpol",
+      "images": []
+    },
+    {
+      "id": 507,
+      "category": {
+        "id": 9,
+        "name": "Legs"
+      },
+      "muscles": [
+        {
+          "id": 11,
+          "name": "Biceps femoris",
+          "name_en": "Hamstrings",
+          "is_front": false
+        },
+        {
+          "id": 8,
+          "name": "Gluteus maximus",
+          "name_en": "Glutes",
+          "is_front": false
+        }
+      ],
+      "muscles_secondary": [
+        {
+          "id": 9,
+          "name": "Trapezius",
+          "name_en": "",
+          "is_front": false
+        }
+      ],
+      "equipment": [
+        {
+          "id": 1,
+          "name": "Barbell"
+        }
+      ],
+      "translations": [
+        {
+          "language": {
+            "short_name": "en"
+          },
+          "name": "Romanian Deadlift",
+          "sourceUrl": "https://wger.de/api/v2/exerciseinfo/507/",
+          "description": "DL from top to pos 2: https://www.youtube.com/watch?v=WtWtjViRsKo",
+          "license": {
+            "id": 2,
+            "short_name": "CC-BY-SA-4.0",
+            "url": "https://creativecommons.org/licenses/by-sa/4.0/"
+          },
+          "author": "pjwirth",
+          "attribution": "pjwirth"
+        }
+      ],
+      "baseLicense": {
+        "id": 2,
+        "short_name": "CC-BY-SA-4.0",
+        "url": "https://creativecommons.org/licenses/by-sa/4.0/"
+      },
+      "baseAuthor": "pjwirth",
+      "baseAttribution": "pjwirth",
+      "images": []
+    },
+    {
+      "id": 687,
+      "category": {
+        "id": 11,
+        "name": "Chest"
+      },
+      "muscles": [
+        {
+          "id": 2,
+          "name": "Anterior deltoid",
+          "name_en": "Shoulders",
+          "is_front": true
+        }
+      ],
+      "muscles_secondary": [],
+      "equipment": [
+        {
+          "id": 1,
+          "name": "Barbell"
+        }
+      ],
+      "translations": [
+        {
+          "language": {
+            "short_name": "en"
+          },
+          "name": "Overhead Press",
+          "sourceUrl": "https://wger.de/api/v2/exerciseinfo/687/",
+          "description": "",
+          "license": {
+            "id": 2,
+            "short_name": "CC-BY-SA-4.0",
+            "url": "https://creativecommons.org/licenses/by-sa/4.0/"
+          },
+          "author": "Vazco",
+          "attribution": "Vazco"
+        }
+      ],
+      "baseLicense": {
+        "id": 2,
+        "short_name": "CC-BY-SA-4.0",
+        "url": "https://creativecommons.org/licenses/by-sa/4.0/"
+      },
+      "baseAuthor": "Vazco",
+      "baseAttribution": "Vazco",
+      "images": []
+    },
+    {
+      "id": 355,
+      "category": {
+        "id": 12,
+        "name": "Back"
+      },
+      "muscles": [
+        {
+          "id": 12,
+          "name": "Latissimus dorsi",
+          "name_en": "Lats",
+          "is_front": false
+        }
+      ],
+      "muscles_secondary": [],
+      "equipment": [],
+      "translations": [
+        {
+          "language": {
+            "short_name": "en"
+          },
+          "name": "Lat Pull Down (Straight Back)",
+          "sourceUrl": "https://wger.de/api/v2/exerciseinfo/355/",
+          "description": "The lat pull down is an exercise used to build the muscles of the back. While the exercise will primarily target the lats, you will also notice a fair amount of bicep and middle back activation.",
+          "license": {
+            "id": 1,
+            "short_name": "CC-BY-SA-3.0",
+            "url": "https://creativecommons.org/licenses/by-sa/3.0/"
+          },
+          "author": "drthurlow",
+          "attribution": "drthurlow"
+        },
+        {
+          "language": {
+            "short_name": "pt"
+          },
+          "name": "Puxada Alta",
+          "sourceUrl": "https://wger.de/api/v2/exerciseinfo/355/",
+          "description": "Puxe a barra para baixo até o strenum e mantenha as costas retas.",
+          "license": {
+            "id": 2,
+            "short_name": "CC-BY-SA-4.0",
+            "url": "https://creativecommons.org/licenses/by-sa/4.0/"
+          },
+          "author": "br_Orion",
+          "attribution": "br_Orion"
+        }
+      ],
+      "baseLicense": {
+        "id": 1,
+        "short_name": "CC-BY-SA-3.0",
+        "url": "https://creativecommons.org/licenses/by-sa/3.0/"
+      },
+      "baseAuthor": "drthurlow",
+      "baseAttribution": "drthurlow",
+      "images": []
+    },
+    {
+      "id": 622,
+      "category": {
+        "id": 14,
+        "name": "Calves"
+      },
+      "muscles": [
+        {
+          "id": 7,
+          "name": "Gastrocnemius",
+          "name_en": "Calves",
+          "is_front": false
+        }
+      ],
+      "muscles_secondary": [
+        {
+          "id": 15,
+          "name": "Soleus",
+          "name_en": "",
+          "is_front": false
+        }
+      ],
+      "equipment": [],
+      "translations": [
+        {
+          "language": {
+            "short_name": "en"
+          },
+          "name": "Standing Calf Raises",
+          "sourceUrl": "https://wger.de/api/v2/exerciseinfo/622/",
+          "description": "Get onto the calf raises machine, you should able to completely push your calves down. Stand straight, don't make a hollow back and don't bend your legs. Pull yourself up as high as you can. Make a small pause of 1 - 2 seconds and go slowly down.",
+          "license": {
+            "id": 1,
+            "short_name": "CC-BY-SA-3.0",
+            "url": "https://creativecommons.org/licenses/by-sa/3.0/"
+          },
+          "author": "wger.de",
+          "attribution": "wger.de"
+        }
+      ],
+      "baseLicense": {
+        "id": 1,
+        "short_name": "CC-BY-SA-3.0",
+        "url": "https://creativecommons.org/licenses/by-sa/3.0/"
+      },
+      "baseAuthor": "wger.de",
+      "baseAttribution": "wger.de",
+      "images": []
+    },
+    {
+      "id": 184,
+      "category": {
+        "id": 12,
+        "name": "Back"
+      },
+      "muscles": [
+        {
+          "id": 12,
+          "name": "Latissimus dorsi",
+          "name_en": "Lats",
+          "is_front": false
+        }
+      ],
+      "muscles_secondary": [
+        {
+          "id": 8,
+          "name": "Gluteus maximus",
+          "name_en": "Glutes",
+          "is_front": false
+        }
+      ],
+      "equipment": [
+        {
+          "id": 1,
+          "name": "Barbell"
+        }
+      ],
+      "translations": [
+        {
+          "language": {
+            "short_name": "en"
+          },
+          "name": "Deadlifts",
+          "sourceUrl": "https://wger.de/api/v2/exerciseinfo/184/",
+          "description": "Stand firmly, with your feet slightly more than shoulder wide apart. Stand directly behind the bar where it should barely touch your shin, your feet pointing a bit out. Bend down with a straight back, the knees also pointing somewhat out. Grab the bar with a shoulder wide grip, one overhand, one underhand (mixed grip).\n\nPull the weight up. At the highest point make a slight hollow back and pull the bar back. Hold 1 or 2 seconds that position. Go down, making sure the back is not bent. Once down you can either go back again as soon as the weights touch the floor, or make a pause, depending on the weight.",
+          "license": {
+            "id": 1,
+            "short_name": "CC-BY-SA-3.0",
+            "url": "https://creativecommons.org/licenses/by-sa/3.0/"
+          },
+          "author": "wger.de",
+          "attribution": "wger.de"
+        },
+        {
+          "language": {
+            "short_name": "pt"
+          },
+          "name": "Levantamento terra",
+          "sourceUrl": "https://wger.de/api/v2/exerciseinfo/184/",
+          "description": "Fique firme, com os pés ligeiramente mais afastados do que os ombros. Fique diretamente atrás da barra, onde ela mal deve tocar sua canela, com os pés apontando um pouco para fora. Curve-se com as costas retas, os joelhos também apontando um pouco para fora. Agarre a barra com uma pegada na largura dos ombros, uma pegada por baixo e uma pegada reversa.\nPuxe o peso para cima. No ponto mais alto, faça uma leve depressão para trás e puxe a barra para trás. Segure 1 ou 2 segundos nessa posição. Desça, certificando-se de que as costas não estão dobradas. Depois de descer, você pode voltar assim que os pesos tocarem o chão ou fazer uma pausa, dependendo do peso.",
+          "license": {
+            "id": 1,
+            "short_name": "CC-BY-SA-3.0",
+            "url": "https://creativecommons.org/licenses/by-sa/3.0/"
+          },
+          "author": "wger.de",
+          "attribution": "wger.de"
+        }
+      ],
+      "baseLicense": {
+        "id": 1,
+        "short_name": "CC-BY-SA-3.0",
+        "url": "https://creativecommons.org/licenses/by-sa/3.0/"
+      },
+      "baseAuthor": "wger.de",
+      "baseAttribution": "wger.de",
+      "images": []
+    },
+    {
+      "id": 475,
+      "category": {
+        "id": 12,
+        "name": "Back"
+      },
+      "muscles": [
+        {
+          "id": 12,
+          "name": "Latissimus dorsi",
+          "name_en": "Lats",
+          "is_front": false
+        }
+      ],
+      "muscles_secondary": [
+        {
+          "id": 2,
+          "name": "Anterior deltoid",
+          "name_en": "Shoulders",
+          "is_front": true
+        },
+        {
+          "id": 1,
+          "name": "Biceps brachii",
+          "name_en": "Biceps",
+          "is_front": true
+        },
+        {
+          "id": 9,
+          "name": "Trapezius",
+          "name_en": "",
+          "is_front": false
+        }
+      ],
+      "equipment": [
+        {
+          "id": 6,
+          "name": "Pull-up bar"
+        }
+      ],
+      "translations": [
+        {
+          "language": {
+            "short_name": "pt"
+          },
+          "name": "Flexões de braço",
+          "sourceUrl": "https://wger.de/api/v2/exerciseinfo/475/",
+          "description": "Posição inicial:\n\nComece pendurando-se na barra de pull-up, com as palmas das mãos voltadas para fora e os pés fora do chão.Suas mãos devem estar ligeiramente mais afastadas do que a largura dos ombros. Apenas ligeiramente, de modo que os cotovelos ainda estejam na frente do corpo e não diretamente para o lado.Seu corpo deve ser reto e apontado ligeiramente para a frente. Seus braços devem estar estendidos.\n\nPassos:\n\n1. Use sua força para puxar o corpo para cima de maneira uniforme, aproximando o peito da barra e o queixo logo acima dela. NÃO se levante usando impulso, como chutar.\n2. Abaixe cuidadosamente o corpo de volta à posição inicial.\n3. Repita.\n\nDicas:\n\n* Para fazer flexões corretamente, você deve primeiro aumentar a força em várias áreas-chave, incluindo ombros, braços e abdominais. Comece com flexões somente depois de ter construído força suficiente com outros exercícios.",
+          "license": {
+            "id": 1,
+            "short_name": "CC-BY-SA-3.0",
+            "url": "https://creativecommons.org/licenses/by-sa/3.0/"
+          },
+          "author": "wger.de",
+          "attribution": "wger.de"
+        },
+        {
+          "language": {
+            "short_name": "en"
+          },
+          "name": "Pull-ups",
+          "sourceUrl": "https://wger.de/api/v2/exerciseinfo/475/",
+          "description": "Grab the pull up bar with a wide grip, the body is hanging freely. Keep your chest out and pull yourself up till your chin reaches the bar or it touches your neck, if you want to pull behind you. Go with a slow and controlled movement down, always keeping the chest out.",
+          "license": {
+            "id": 1,
+            "short_name": "CC-BY-SA-3.0",
+            "url": "https://creativecommons.org/licenses/by-sa/3.0/"
+          },
+          "author": "wger.de",
+          "attribution": "wger.de"
+        }
+      ],
+      "baseLicense": {
+        "id": 1,
+        "short_name": "CC-BY-SA-3.0",
+        "url": "https://creativecommons.org/licenses/by-sa/3.0/"
+      },
+      "baseAuthor": "wger.de",
+      "baseAttribution": "wger.de",
+      "images": []
+    },
+    {
+      "id": 272,
+      "category": {
+        "id": 8,
+        "name": "Arms"
+      },
+      "muscles": [
+        {
+          "id": 1,
+          "name": "Biceps brachii",
+          "name_en": "Biceps",
+          "is_front": true
+        }
+      ],
+      "muscles_secondary": [],
+      "equipment": [
+        {
+          "id": 3,
+          "name": "Dumbbell"
+        }
+      ],
+      "translations": [
+        {
+          "language": {
+            "short_name": "pt"
+          },
+          "name": "Biceps Martelo",
+          "sourceUrl": "https://wger.de/api/v2/exerciseinfo/272/",
+          "description": "Segure dois halteres e sente-se em um banco com as costas retas, os ombros estão ligados rolados para trás. Seus amigos apostam para seu corpo. Dobre os braços e levante o peso com um movimento rápido. Não gire como homens, como acontece com os cachos. Sem nenhuma pausa, baixar o haltere com um movimento lento e controlado.\n\nNão balance o corpo durante o exercício, o bíceps deve fazer todo o trabalho aqui. Os cotovelos estão ao seu lado e não se movem.",
+          "license": {
+            "id": 2,
+            "short_name": "CC-BY-SA-4.0",
+            "url": "https://creativecommons.org/licenses/by-sa/4.0/"
+          },
+          "author": "roneydya",
+          "attribution": "roneydya"
+        },
+        {
+          "language": {
+            "short_name": "en"
+          },
+          "name": "Hammer Curls",
+          "sourceUrl": "https://wger.de/api/v2/exerciseinfo/272/",
+          "description": "- **Start:** Hold dumbbells at your sides with palms facing your torso.\n- **Curl:** Lift the weights toward your shoulders while maintaining the neutral grip (like holding a hammer).\n- **Squeeze:** Contract the biceps at the top without moving your elbows forward.\n- **Lower:** Slowly return to the starting position with full control.",
+          "license": {
+            "id": 1,
+            "short_name": "CC-BY-SA-3.0",
+            "url": "https://creativecommons.org/licenses/by-sa/3.0/"
+          },
+          "author": "wger.de",
+          "attribution": "wger.de"
+        }
+      ],
+      "baseLicense": {
+        "id": 1,
+        "short_name": "CC-BY-SA-3.0",
+        "url": "https://creativecommons.org/licenses/by-sa/3.0/"
+      },
+      "baseAuthor": "wger.de",
+      "baseAttribution": "wger.de",
+      "images": []
+    },
+    {
+      "id": 1551,
+      "category": {
+        "id": 11,
+        "name": "Chest"
+      },
+      "muscles": [
+        {
+          "id": 4,
+          "name": "Pectoralis major",
+          "name_en": "Chest",
+          "is_front": true
+        }
+      ],
+      "muscles_secondary": [
+        {
+          "id": 2,
+          "name": "Anterior deltoid",
+          "name_en": "Shoulders",
+          "is_front": true
+        },
+        {
+          "id": 6,
+          "name": "Rectus abdominis",
+          "name_en": "Abs",
+          "is_front": true
+        },
+        {
+          "id": 5,
+          "name": "Triceps brachii",
+          "name_en": "Triceps",
+          "is_front": false
+        }
+      ],
+      "equipment": [
+        {
+          "id": 7,
+          "name": "none (bodyweight exercise)"
+        }
+      ],
+      "translations": [
+        {
+          "language": {
+            "short_name": "en"
+          },
+          "name": "Push-Up",
+          "sourceUrl": "https://wger.de/api/v2/exerciseinfo/1551/",
+          "description": "The push-up is a fundamental bodyweight exercise that targets the chest, arms, and shoulders while engaging the core for stability. It requires no equipment and is excellent for building upper body strength.\n\nInstructions:\n\n1. Start in a plank position with hands placed slightly wider than shoulder-width, feet together, and body in a straight line from head to heels.\n2. Engage your core and lower your body by bending your elbows, keeping them close to your body or flared slightly outward.\n3. Lower until your chest nearly touches the ground while maintaining a neutral spine.\n4. Push through your palms to return to the starting position, fully extending your arms.",
+          "license": {
+            "id": 2,
+            "short_name": "CC-BY-SA-4.0",
+            "url": "https://creativecommons.org/licenses/by-sa/4.0/"
+          },
+          "author": "Settebello",
+          "attribution": "Settebello"
+        }
+      ],
+      "baseLicense": {
+        "id": 2,
+        "short_name": "CC-BY-SA-4.0",
+        "url": "https://creativecommons.org/licenses/by-sa/4.0/"
+      },
+      "baseAuthor": "Settebello",
+      "baseAttribution": "Settebello",
+      "images": []
+    },
+    {
+      "id": 458,
+      "category": {
+        "id": 10,
+        "name": "Abs"
+      },
+      "muscles": [
+        {
+          "id": 14,
+          "name": "Obliquus externus abdominis",
+          "name_en": "",
+          "is_front": true
+        },
+        {
+          "id": 6,
+          "name": "Rectus abdominis",
+          "name_en": "Abs",
+          "is_front": true
+        }
+      ],
+      "muscles_secondary": [
+        {
+          "id": 1,
+          "name": "Biceps brachii",
+          "name_en": "Biceps",
+          "is_front": true
+        },
+        {
+          "id": 10,
+          "name": "Quadriceps femoris",
+          "name_en": "Quads",
+          "is_front": true
+        },
+        {
+          "id": 5,
+          "name": "Triceps brachii",
+          "name_en": "Triceps",
+          "is_front": false
+        }
+      ],
+      "equipment": [
+        {
+          "id": 7,
+          "name": "none (bodyweight exercise)"
+        }
+      ],
+      "translations": [
+        {
+          "language": {
+            "short_name": "en"
+          },
+          "name": "Plank",
+          "sourceUrl": "https://wger.de/api/v2/exerciseinfo/458/",
+          "description": "Get into a position on the floor supporting your weight on your forearms and toes. Arms are bent and directly below the shoulder.\n\nKeep your body straight at all times and hold this position as long as possible. To increase difficulty an arm or leg can be raised while performing this exercise.",
+          "license": {
+            "id": 1,
+            "short_name": "CC-BY-SA-3.0",
+            "url": "https://creativecommons.org/licenses/by-sa/3.0/"
+          },
+          "author": "YYCfit / BFad07",
+          "attribution": "YYCfit / BFad07"
+        },
+        {
+          "language": {
+            "short_name": "pt"
+          },
+          "name": "Prancha horizontal",
+          "sourceUrl": "https://wger.de/api/v2/exerciseinfo/458/",
+          "description": "Posição inicial:\n\n1. Inicie na posição de quatro.Os braços devem dobrar-se em um ângulo reto, com os ombro alinhados aos cotovelos.As costas devem estar direitas, com todo o corpo em linha reta.\n\nPassos:\n\n1. Mantenha essa posição.",
+          "license": {
+            "id": 1,
+            "short_name": "CC-BY-SA-3.0",
+            "url": "https://creativecommons.org/licenses/by-sa/3.0/"
+          },
+          "author": "YYCfit / BFad07",
+          "attribution": "YYCfit / BFad07"
+        }
+      ],
+      "baseLicense": {
+        "id": 1,
+        "short_name": "CC-BY-SA-3.0",
+        "url": "https://creativecommons.org/licenses/by-sa/3.0/"
+      },
+      "baseAuthor": "YYCfit / BFad07",
+      "baseAttribution": "YYCfit / BFad07",
+      "images": []
+    }
+  ]
+}

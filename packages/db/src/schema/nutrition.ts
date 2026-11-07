@@ -874,6 +874,16 @@ export const nutritionTargetSettings = pgTable(
       .$type<"maintain" | "lose" | "gain">()
       .notNull()
       .default("maintain"),
+    /** Chosen weekly rate in % of body weight (#396); null = the policy's default size. */
+    energyRatePercent: real("energy_rate_percent"),
+    /** Weekly check-in day, ISO weekday 1–7 (#397); null = manual mode. */
+    checkInDay: integer("check_in_day"),
+    /** Local date (YYYY-MM-DD) of the last finished check-in. */
+    lastCheckInOn: text("last_check_in_on"),
+    /** Preset the weekly check-in uses to propose P/C/F; null = energy only. */
+    macroPreset: text("macro_preset"),
+    /** Protein g per kg for that preset. */
+    proteinGPerKg: real("protein_g_per_kg"),
     activeProtein: boolean("active_protein").notNull().default(false),
     /** Opt-in to the logging streak (Issue #90); hidden regardless under the #80 safeguards. */
     streaksEnabled: boolean("streaks_enabled").notNull().default(false),
@@ -912,6 +922,26 @@ export const nutritionTargetSettings = pgTable(
     nutritionTargetSettingsDirectionCheck: check(
       "nutrition_target_settings_direction_check",
       sql`${table.energyDirection} in ('maintain', 'lose', 'gain')`,
+    ),
+    nutritionTargetSettingsRateCheck: check(
+      "nutrition_target_settings_rate_check",
+      sql`${table.energyRatePercent} is null or ${table.energyRatePercent} in (0.25, 0.5, 0.75, 1)`,
+    ),
+    nutritionTargetSettingsCheckInDayCheck: check(
+      "nutrition_target_settings_check_in_day_check",
+      sql`${table.checkInDay} is null or ${table.checkInDay} between 1 and 7`,
+    ),
+    nutritionTargetSettingsLastCheckInCheck: check(
+      "nutrition_target_settings_last_check_in_check",
+      sql`${table.lastCheckInOn} is null or ${table.lastCheckInOn} ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'`,
+    ),
+    nutritionTargetSettingsMacroPresetCheck: check(
+      "nutrition_target_settings_macro_preset_check",
+      sql`${table.macroPreset} is null or ${table.macroPreset} in ('balanced', 'lower_carb', 'lower_fat')`,
+    ),
+    nutritionTargetSettingsProteinPerKgCheck: check(
+      "nutrition_target_settings_protein_g_per_kg_check",
+      sql`${table.proteinGPerKg} is null or ${table.proteinGPerKg} in (0.8, 1, 1.2, 1.4, 1.6)`,
     ),
     nutritionTargetSettingsHeightCheck: check(
       "nutrition_target_settings_height_check",

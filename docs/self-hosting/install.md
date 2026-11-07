@@ -1,6 +1,6 @@
 # Install
 
-**Applies to:** OpenValens 0.9.1 · Last updated: 2026-10-31
+**Applies to:** OpenValens 1.1.0 · Last updated: 2026-10-31
 
 This is the **one supported self-host install** (Issue #63): a pinned Docker
 Compose stack (`deploy/compose.yml`) driven by an interactive setup script
@@ -140,7 +140,7 @@ Install from a release tag: the newest one on the
 ```bash
 git clone https://github.com/nip10/openvalens.git
 cd openvalens
-git checkout v0.9.0          # the newest release tag
+git checkout v1.0.1          # the newest release tag
 deploy/setup.sh install
 ```
 
@@ -331,6 +331,11 @@ The readiness body also reports each optional integration (`email`, `ai`,
 `messaging`) as `configured`, `dry-run` or `off`; see
 [Configuration](configuration.md#optional-providers). Those never degrade the
 status.
+
+For an **uptime monitor** that can only send `GET` or `HEAD`, use
+`https://<domain>/api/health`. It pings the database and answers 200
+(`{"status":"ok","database":"ok"}`), or 503 when the database is unreachable.
+It checks nothing else; readiness above is the full report.
 
 From **another machine**, confirm that only 80/443 answer, for example
 `nmap -Pn -p 80,443,3000,3001,5432 <host>` (3000, 3001 and 5432 must not be
