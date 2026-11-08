@@ -3,6 +3,7 @@ import { Button, Input, Label, Spinner, TextField } from "heroui-native";
 import { Cloud, Server } from "lucide-react-native";
 import { useRef, useState } from "react";
 import { Text, View } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 
 import { BloomMark, Sheet, ToneIcon, DISPLAY_MAX_FONT_SCALE } from "@/components/bloom";
 import { Container } from "@/components/container";
@@ -124,116 +125,123 @@ export function ServerChoice() {
     });
 
   return (
-    <Container>
-      <View className="gap-7 px-4 pb-12 pt-16">
-        <View className="items-center gap-3">
-          <BloomMark size={56} />
-          <Text
-            className="font-display text-[34px] font-semibold leading-[40px] text-ink"
-            accessibilityRole="header"
-            maxFontSizeMultiplier={DISPLAY_MAX_FONT_SCALE}
-          >
-            OpenValens
-          </Text>
-          <Text className="text-center font-sans text-base text-ink-3">
-            <Trans>Where is your account?</Trans>
-          </Text>
-        </View>
-
-        <Sheet className="gap-4 p-5">
-          <View className="flex-row items-start gap-3">
-            <ToneIcon icon={Cloud} tone="signal" />
-            <View className="min-w-0 flex-1 gap-1">
-              <Text className="font-display text-xl font-semibold text-ink">
-                <Trans>OpenValens Cloud</Trans>
-              </Text>
-              <Text className="font-sans text-sm text-ink-3">
-                <Trans>Hosted for you at {cloudHost}.</Trans>
-              </Text>
-            </View>
+    <Container isScrollable={false}>
+      {/* Keeps the address field and Connect above the keyboard (Android covered them). */}
+      <KeyboardAwareScrollView
+        bottomOffset={96}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ flexGrow: 1 }}
+      >
+        <View className="gap-7 px-4 pb-12 pt-16">
+          <View className="items-center gap-3">
+            <BloomMark size={56} />
+            <Text
+              className="font-display text-[34px] font-semibold leading-[40px] text-ink"
+              accessibilityRole="header"
+              maxFontSizeMultiplier={DISPLAY_MAX_FONT_SCALE}
+            >
+              OpenValens
+            </Text>
+            <Text className="text-center font-sans text-base text-ink-3">
+              <Trans>Where is your account?</Trans>
+            </Text>
           </View>
-          <Button
-            onPress={() => void chooseCloud()}
-            isDisabled={busy !== null}
-            accessibilityLabel={t`Use OpenValens Cloud`}
-          >
-            {busy === "cloud" ? (
-              <Spinner size="sm" />
-            ) : (
-              <Button.Label>
-                <Trans>Use OpenValens Cloud</Trans>
-              </Button.Label>
-            )}
-          </Button>
-        </Sheet>
 
-        {showOwn ? null : (
-          <Button
-            variant="ghost"
-            onPress={() => setShowOwn(true)}
-            isDisabled={busy !== null}
-            className="min-h-11 self-center"
-            testID="own-server-toggle"
-          >
-            <Button.Label>
-              <Trans>Use my own server</Trans>
-            </Button.Label>
-          </Button>
-        )}
-
-        {showOwn ? (
           <Sheet className="gap-4 p-5">
             <View className="flex-row items-start gap-3">
-              <ToneIcon icon={Server} tone="neutral" />
+              <ToneIcon icon={Cloud} tone="signal" />
               <View className="min-w-0 flex-1 gap-1">
                 <Text className="font-display text-xl font-semibold text-ink">
-                  <Trans>My own server</Trans>
+                  <Trans>OpenValens Cloud</Trans>
                 </Text>
                 <Text className="font-sans text-sm text-ink-3">
-                  <Trans>An OpenValens server you or your organization runs.</Trans>
+                  <Trans>Hosted for you at {cloudHost}.</Trans>
                 </Text>
               </View>
             </View>
-            <TextField isInvalid={!!error}>
-              {/* heroui's Label takes a plain string; a <Trans> element is not one. */}
-              <Label>{t`Server address`}</Label>
-              <Input
-                testID="server-address-input"
-                value={address}
-                onChangeText={(next) => {
-                  setAddress(next);
-                  if (error) setError(null);
-                }}
-                placeholder="https://health.example.org"
-                keyboardType="url"
-                autoCapitalize="none"
-                autoCorrect={false}
-                autoComplete="url"
-                autoFocus
-                textContentType="URL"
-                returnKeyType="go"
-                onSubmitEditing={() => void connect()}
-                accessibilityLabel={t`Server address`}
-              />
-            </TextField>
-            {error ? (
-              <View accessibilityLiveRegion="polite" accessibilityRole="alert" className="gap-1">
-                <Text className="font-sans text-sm font-semibold text-danger">{error.title}</Text>
-                <Text className="font-sans text-sm text-ink-2">{error.description}</Text>
-              </View>
-            ) : null}
-            <Button variant="outline" onPress={() => void connect()} isDisabled={busy !== null}>
-              {busy === "own" ? (
+            <Button
+              onPress={() => void chooseCloud()}
+              isDisabled={busy !== null}
+              accessibilityLabel={t`Use OpenValens Cloud`}
+            >
+              {busy === "cloud" ? (
                 <Spinner size="sm" />
               ) : (
                 <Button.Label>
-                  <Trans>Connect</Trans>
+                  <Trans>Use OpenValens Cloud</Trans>
                 </Button.Label>
               )}
             </Button>
           </Sheet>
-        ) : null}
-      </View>
+
+          {showOwn ? null : (
+            <Button
+              variant="ghost"
+              onPress={() => setShowOwn(true)}
+              isDisabled={busy !== null}
+              className="min-h-11 self-center"
+              testID="own-server-toggle"
+            >
+              <Button.Label>
+                <Trans>Use my own server</Trans>
+              </Button.Label>
+            </Button>
+          )}
+
+          {showOwn ? (
+            <Sheet className="gap-4 p-5">
+              <View className="flex-row items-start gap-3">
+                <ToneIcon icon={Server} tone="neutral" />
+                <View className="min-w-0 flex-1 gap-1">
+                  <Text className="font-display text-xl font-semibold text-ink">
+                    <Trans>My own server</Trans>
+                  </Text>
+                  <Text className="font-sans text-sm text-ink-3">
+                    <Trans>An OpenValens server you or your organization runs.</Trans>
+                  </Text>
+                </View>
+              </View>
+              <TextField isInvalid={!!error}>
+                {/* heroui's Label takes a plain string; a <Trans> element is not one. */}
+                <Label>{t`Server address`}</Label>
+                <Input
+                  testID="server-address-input"
+                  value={address}
+                  onChangeText={(next) => {
+                    setAddress(next);
+                    if (error) setError(null);
+                  }}
+                  placeholder="https://health.example.org"
+                  keyboardType="url"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  autoComplete="url"
+                  autoFocus
+                  textContentType="URL"
+                  returnKeyType="go"
+                  onSubmitEditing={() => void connect()}
+                  accessibilityLabel={t`Server address`}
+                />
+              </TextField>
+              {error ? (
+                <View accessibilityLiveRegion="polite" accessibilityRole="alert" className="gap-1">
+                  <Text className="font-sans text-sm font-semibold text-danger">{error.title}</Text>
+                  <Text className="font-sans text-sm text-ink-2">{error.description}</Text>
+                </View>
+              ) : null}
+              <Button variant="outline" onPress={() => void connect()} isDisabled={busy !== null}>
+                {busy === "own" ? (
+                  <Spinner size="sm" />
+                ) : (
+                  <Button.Label>
+                    <Trans>Connect</Trans>
+                  </Button.Label>
+                )}
+              </Button>
+            </Sheet>
+          ) : null}
+        </View>
+      </KeyboardAwareScrollView>
     </Container>
   );
 }

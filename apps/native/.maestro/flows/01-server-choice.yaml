@@ -20,6 +20,10 @@ tags: [auth]
 # Empty address
 - tapOn:
     id: "own-server-toggle"
+# The address field takes focus; close the keyboard so Connect is in view.
+- hideKeyboard
+- scrollUntilVisible:
+    element: "Connect"
 - tapOn: "Connect"
 - assertVisible: "Enter your server's address"
 
