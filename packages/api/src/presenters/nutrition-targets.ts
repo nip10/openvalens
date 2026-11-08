@@ -462,7 +462,7 @@ export const GOAL_COPY = Object.freeze({
   rateDescription: msg`How fast suggestions aim to change your weight trend, as a share of body weight a week. The safeguards below always apply on top.`,
   floorNote: msg({
     message:
-      "Suggestions never go below 1,200 kcal a day, your profile's minimum or your estimated resting energy, whichever is highest. Reductions are turned off while any answer in About you is yes, and for anyone younger than 18. These safeguards come from published guidelines. They are not medical advice and are not clinically validated.",
+      "Suggestions never go below 1,200 kcal a day, your profile's minimum or your estimated resting energy, whichever is highest. Reductions are turned off while any answer in About you is yes, and for anyone younger than 18. These safeguards come from published guidelines. They are not medical advice.",
     comment: "safety",
   }),
 });

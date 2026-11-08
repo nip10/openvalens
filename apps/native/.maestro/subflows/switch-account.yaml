@@ -25,6 +25,8 @@ appId: com.openvalens.app
             ID: sign-out
       - tapOn:
           id: "sign-out"
+      - runFlow:
+          file: confirm-sign-out.yaml
       # Signing out opens the sign-in screen (#380).
       - extendedWaitUntil:
           visible:

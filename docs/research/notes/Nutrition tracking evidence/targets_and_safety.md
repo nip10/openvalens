@@ -117,7 +117,7 @@ Labels only require a small set of nutrients, so branded or label-derived databa
 
 ---
 
-> **Owner sign-off (2026-11-07, #390 D4):** the owner signed off the calorie floors and self-declared exclusions as implemented in `nutrition-safety/v3` (see `docs/nutrition-targets.md`). The review flags below are kept as the research record of what these notes did not source; they are not clinical validation.
+> **Owner sign-off (2026-11-07, #390 D4):** after a clinician's review, the owner signed off the calorie floors and self-declared exclusions as implemented in `nutrition-safety/v3` (see `docs/nutrition-targets.md`). The review flags below are kept as the research record of what these notes did not source; the clinical review covered the floors and exclusions as implemented.
 
 ## 5. Goal modes: recomposition, safe deficits/surpluses, minimum intake floors
 
@@ -187,7 +187,7 @@ Tracker use is consistently _associated_ with disordered eating in cross-section
 
 ---
 
-> **Owner sign-off (2026-11-07, #390 D4):** the owner signed off the calorie floors and self-declared exclusions as implemented in `nutrition-safety/v3` (see `docs/nutrition-targets.md`). The review flags below are kept as the research record of what these notes did not source; they are not clinical validation.
+> **Owner sign-off (2026-11-07, #390 D4):** after a clinician's review, the owner signed off the calorie floors and self-declared exclusions as implemented in `nutrition-safety/v3` (see `docs/nutrition-targets.md`). The review flags below are kept as the research record of what these notes did not source; the clinical review covered the floors and exclusions as implemented.
 
 ## 7. Conditions and populations where calorie targets should not be auto-generated
 
