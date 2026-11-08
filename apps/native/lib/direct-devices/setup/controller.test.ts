@@ -2,6 +2,17 @@ import { expect, test } from "bun:test";
 import type { Device, State, Subscription } from "react-native-ble-plx";
 
 import { createHelioSetupController } from "./controller";
+import { crc32 } from "../protocol/chunked";
+import {
+  encodeXiaomiActivityFileId,
+  XIAOMI_ACTIVITY_DAILY,
+  XIAOMI_ACTIVITY_TYPE,
+  XIAOMI_DETAIL_DETAILS,
+} from "../protocol/xiaomi-activity";
+import type { XiaomiHistoryTransport } from "../protocol/xiaomi-history";
+import type { HelioHistoryOptions, HelioStepsPage } from "../protocol/types";
+import type { XiaomiCommand } from "../protocol/xiaomi-proto";
+import type { XiaomiBleProfile } from "../transport/xiaomi-link";
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -35,12 +46,18 @@ function fixture(
     connect?: () => Promise<Device>;
     discover?: () => Promise<Device>;
     services?: () => Promise<Array<{ uuid: string }>>;
+    characteristics?: (serviceUuid: string) => Promise<Array<{ uuid: string }>>;
     cryptoTest?: () => Promise<boolean>;
     startScan?: () => Promise<void>;
     stopScan?: () => Promise<void>;
     destroy?: () => Promise<void>;
     cancelConnection?: () => Promise<void>;
     deviceName?: string;
+    xiaomiHistoryTransport?: (
+      device: Device,
+      profile: XiaomiBleProfile,
+      options: HelioHistoryOptions,
+    ) => XiaomiHistoryTransport;
   } = {},
 ) {
   let scanCallback: ((error: unknown, device: Device | null) => void) | undefined;
@@ -59,6 +76,18 @@ function fixture(
   const discovered = {
     discoverAllServicesAndCharacteristics: options.discover ?? (async () => discovered),
     services: serviceRows,
+    requestMTU: async () => discovered,
+    characteristicsForService:
+      options.characteristics ??
+      (async (serviceUuid: string) =>
+        serviceUuid.toLowerCase() === "0000fe95-0000-1000-8000-00805f9b34fb"
+          ? [
+              { uuid: "00000051-0000-1000-8000-00805f9b34fb" },
+              { uuid: "00000052-0000-1000-8000-00805f9b34fb" },
+              { uuid: "00000053-0000-1000-8000-00805f9b34fb" },
+              { uuid: "00000055-0000-1000-8000-00805f9b34fb" },
+            ]
+          : []),
     cancelConnection: async () => {
       cancelCount += 1;
       await options.cancelConnection?.();
@@ -127,6 +156,7 @@ function fixture(
       return { manager, devices: new Map() } as never;
     },
     cryptoTest: options.cryptoTest,
+    xiaomiHistoryTransport: options.xiaomiHistoryTransport,
   });
   return {
     controller,
@@ -814,5 +844,97 @@ test("a Zepp OS model still requires FEE0, not the Xiaomi service", async () => 
   f.emit();
   await f.controller.connect("local-id");
   expect(f.controller.getSnapshot().errorCode).toBe("HUAMI_SERVICE_MISSING");
+  await f.controller.dispose();
+});
+
+function xiaomiDetailsFixture() {
+  const fileId = {
+    timestamp: 1_700_000_000,
+    timezone: 8,
+    type: XIAOMI_ACTIVITY_TYPE,
+    subtype: XIAOMI_ACTIVITY_DAILY,
+    detailType: XIAOMI_DETAIL_DETAILS,
+    version: 3,
+  };
+  const header = Uint8Array.of(0x90, 0, 0, 0, 0);
+  const body = new Uint8Array(7 + 1 + header.length + 2);
+  body.set(encodeXiaomiActivityFileId(fileId), 0);
+  body[7] = 0;
+  body.set(header, 8);
+  body[13] = 42;
+  body[14] = 0;
+  const bytes = new Uint8Array(body.length + 4);
+  bytes.set(body);
+  const checksum = crc32(body);
+  bytes[body.length] = checksum & 0xff;
+  bytes[body.length + 1] = (checksum >>> 8) & 0xff;
+  bytes[body.length + 2] = (checksum >>> 16) & 0xff;
+  bytes[body.length + 3] = (checksum >>> 24) & 0xff;
+  return { fileId, bytes };
+}
+
+test("a connected Xiaomi model fetches pages through the injected history transport", async () => {
+  const { fileId, bytes } = xiaomiDetailsFixture();
+  const commands: XiaomiCommand[] = [];
+  const files: Uint8Array[] = [];
+  const transport: XiaomiHistoryTransport = {
+    async start() {},
+    async sendCommand(command) {
+      if (command.subtype === 1) {
+        commands.push({
+          type: 8,
+          subtype: 1,
+          health: { activityRequestFileIds: encodeXiaomiActivityFileId(fileId) },
+        });
+      } else if (command.subtype === 2) {
+        commands.push({
+          type: 8,
+          subtype: 2,
+          health: { activityRequestFileIds: new Uint8Array(0) },
+        });
+      } else if (command.subtype === 3) {
+        files.push(bytes);
+      }
+    },
+    async nextCommand() {
+      const command = commands.shift();
+      if (!command) throw new Error("NO_COMMAND");
+      return command;
+    },
+    async nextActivityFile() {
+      const file = files.shift();
+      if (!file) throw new Error("NO_FILE");
+      return file;
+    },
+    async close() {},
+  };
+  const f = fixture({
+    deviceName: "Xiaomi Smart Band 8 ABCD",
+    services: async () => [{ uuid: "0000fe95-0000-1000-8000-00805f9b34fb" }],
+    xiaomiHistoryTransport: () => transport,
+  });
+  await f.controller.startScan();
+  f.emit();
+  await f.controller.connect("local-id");
+  const pages: HelioStepsPage[] = [];
+
+  const result = await f.controller.fetchSteps({
+    authKey: new Uint8Array(16),
+    since: {
+      version: 1,
+      nextMinuteUtc: new Date(fileId.timestamp * 1000).toISOString(),
+      offsetQuarterHours: 0,
+    },
+    signal: new AbortController().signal,
+    onPhase: () => undefined,
+    async onPage(page) {
+      pages.push(page);
+    },
+  });
+
+  expect(result.granularity).toBe("minute");
+  expect(pages).toHaveLength(1);
+  expect(pages[0]!.minutes[0]!.count).toBe(42);
+  expect(f.controller.getSnapshot().connectedFamily).toBe("xiaomi");
   await f.controller.dispose();
 });

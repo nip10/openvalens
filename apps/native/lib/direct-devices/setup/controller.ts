@@ -1,11 +1,16 @@
 import type { BleManager, Device, State, Subscription } from "react-native-ble-plx";
 
-import type { HelioSetupController, HelioSetupSnapshot } from "./types";
+import type { DirectDeviceFamily, HelioSetupController, HelioSetupSnapshot } from "./types";
 import { NativeHelioLink } from "../transport/helio-link";
 import { runHelioStepsHistory } from "../protocol/history";
 import { matchDeviceName } from "../models/zepp-os";
 import { matchXiaomiDeviceName } from "../models/xiaomi";
-import { XIAOMI_BLE_SERVICE_UUIDS } from "../transport/xiaomi-link";
+import { selectXiaomiProfile, XIAOMI_BLE_SERVICE_UUIDS } from "../transport/xiaomi-link";
+import type { XiaomiBleProfile } from "../transport/xiaomi-link";
+import { createNativeXiaomiHistoryTransport } from "../transport/xiaomi-session";
+import { runXiaomiStepsHistory } from "../protocol/xiaomi-history";
+import type { XiaomiHistoryTransport } from "../protocol/xiaomi-history";
+import type { HelioHistoryOptions } from "../protocol/types";
 
 type Radio = {
   manager: Pick<
@@ -33,6 +38,12 @@ type Deps = {
   cryptoTest?: () => Promise<boolean>;
   scanTimeoutMs?: number;
   readyTimeoutMs?: number;
+  /** Test seam for the Xiaomi history runner; production uses the BLE transport. */
+  xiaomiHistoryTransport?: (
+    device: Device,
+    profile: XiaomiBleProfile,
+    options: HelioHistoryOptions,
+  ) => XiaomiHistoryTransport;
 };
 type NativeDeviceLease = {
   operationDone: Promise<void>;
@@ -49,6 +60,7 @@ const initial: HelioSetupSnapshot = Object.freeze({
   devices: Object.freeze([]),
   connectedDeviceId: null,
   connectedModelId: null,
+  connectedFamily: null,
   errorCode: null,
   crypto: Object.freeze({ status: "not_checked", code: null }),
 });
@@ -104,6 +116,8 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
   let stateSubscription: Subscription | null = null;
   let disconnectSubscription: Subscription | null = null;
   let connected: Device | null = null;
+  let connectedFamily: DirectDeviceFamily | null = null;
+  let connectedProfile: XiaomiBleProfile | null = null;
   let connecting: Device | null = null;
   let connectionAttempt: object | null = null;
   let connectingLease: NativeDeviceLease | null = null;
@@ -390,6 +404,10 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
             await discovered.cancelConnection();
             return;
           }
+          if (family === "xiaomi") {
+            // Best effort; iOS ignores this and Android negotiates the largest MTU.
+            await discovered.requestMTU(512).catch(() => undefined);
+          }
           if (connectionAttempt === attempt) connecting = discovered;
           const services = await discovered.services();
           if (current !== generation || disposed) {
@@ -404,9 +422,19 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
             throw new Error(
               family === "xiaomi" ? "XIAOMI_SERVICE_MISSING" : "HUAMI_SERVICE_MISSING",
             );
+          let profile: XiaomiBleProfile | null = null;
+          if (family === "xiaomi") {
+            profile = await selectXiaomiProfile(
+              discovered,
+              services.map((service) => service.uuid),
+            );
+            if (!profile) throw new Error("XIAOMI_SERVICE_MISSING");
+          }
           disconnectSubscription = r.manager.onDeviceDisconnected(discovered.id, () => {
             if (disposed || connected !== discovered || current !== generation) return;
             connected = null;
+            connectedFamily = null;
+            connectedProfile = null;
             connectedLease = null;
             disconnectSubscription?.remove();
             disconnectSubscription = null;
@@ -418,10 +446,13 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
               phase: "idle",
               connectedDeviceId: null,
               connectedModelId: null,
+              connectedFamily: null,
               errorCode: "DEVICE_DISCONNECTED",
             });
           });
           connected = discovered;
+          connectedFamily = family;
+          connectedProfile = profile;
           lease.held = true;
           connectedLease = lease;
           ownedDevice = null;
@@ -432,6 +463,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
             phase: "connected",
             connectedDeviceId: deviceId,
             connectedModelId: model.id,
+            connectedFamily: family,
             bluetooth: "powered_on",
           });
         } catch (error) {
@@ -446,6 +478,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
               phase: "error",
               connectedDeviceId: null,
               connectedModelId: null,
+              connectedFamily: null,
               errorCode: safeCode(error),
             });
         } finally {
@@ -486,6 +519,8 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
       for (const lease of leases) lease.cleanupOwned = true;
       connecting = null;
       connected = null;
+      connectedFamily = null;
+      connectedProfile = null;
       connectionAttempt = null;
       connectingLease = null;
       connectedLease = null;
@@ -498,7 +533,12 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
       ]);
       for (const lease of leases) lease.release();
       if (!disposed && current === generation)
-        publish({ phase: "idle", connectedDeviceId: null, connectedModelId: null });
+        publish({
+          phase: "idle",
+          connectedDeviceId: null,
+          connectedModelId: null,
+          connectedFamily: null,
+        });
     },
     async runCryptoSelfTest() {
       if (disposed) return;
@@ -535,8 +575,29 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
       const forwardAbort = () => abortController.abort();
       options.signal.addEventListener("abort", forwardAbort, { once: true });
       const linked = { ...options, signal: abortController.signal };
-      const workLink = new NativeHelioLink(device, radio?.manager);
-      const work = runHelioStepsHistory(workLink, linked).finally(() => workLink.close());
+      const work =
+        connectedFamily === "xiaomi"
+          ? (() => {
+              if (!connectedProfile) throw new Error("XIAOMI_HISTORY_UNSUPPORTED");
+              const transport = deps.xiaomiHistoryTransport
+                ? deps.xiaomiHistoryTransport(device, connectedProfile, linked)
+                : createNativeXiaomiHistoryTransport(
+                    device,
+                    connectedProfile,
+                    {
+                      authKey: linked.authKey,
+                      phoneApiLevel: runtime().version,
+                      phoneName: "OpenValens",
+                      region: "US",
+                    },
+                    radio?.manager,
+                  );
+              return runXiaomiStepsHistory(transport, linked);
+            })()
+          : (() => {
+              const workLink = new NativeHelioLink(device, radio?.manager);
+              return runHelioStepsHistory(workLink, linked).finally(() => workLink.close());
+            })();
       historyCompletion = work;
       try {
         return await work;
@@ -573,6 +634,8 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
       for (const lease of leases) lease.cleanupOwned = true;
       connecting = null;
       connected = null;
+      connectedFamily = null;
+      connectedProfile = null;
       connectionAttempt = null;
       connectingLease = null;
       connectedLease = null;

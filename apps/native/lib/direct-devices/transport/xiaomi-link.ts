@@ -127,6 +127,35 @@ export const XIAOMI_BLE_PROFILES: readonly XiaomiBleProfile[] = [
   XIAOMI_V2_PROFILE,
 ];
 
+/**
+ * Picks the V1/V2 profile whose service and command characteristics are
+ * present on the connected device. Returns null when none match.
+ */
+export async function selectXiaomiProfile(
+  device: Pick<Device, "characteristicsForService">,
+  serviceUuids: readonly string[],
+): Promise<XiaomiBleProfile | null> {
+  const services = new Set(serviceUuids.map((uuid) => uuid.toLowerCase()));
+  const hasCharacteristics = async (profile: XiaomiBleProfile): Promise<boolean> => {
+    if (!services.has(profile.serviceUuid)) return false;
+    const characteristics = await device.characteristicsForService(profile.serviceUuid);
+    const uuids = new Set(
+      characteristics.map((characteristic) => characteristic.uuid.toLowerCase()),
+    );
+    return (
+      uuids.has(profile.commandReadUuid) &&
+      uuids.has(profile.commandWriteUuid) &&
+      (profile.activityDataUuid === null || uuids.has(profile.activityDataUuid))
+    );
+  };
+
+  if (await hasCharacteristics(XIAOMI_V2_PROFILE)) return XIAOMI_V2_PROFILE;
+  for (const profile of XIAOMI_V1_PROFILES) {
+    if (await hasCharacteristics(profile)) return profile;
+  }
+  return null;
+}
+
 // ---------------------------------------------------------------------------
 // Link adapter (same shape as the Helio link)
 // ---------------------------------------------------------------------------
@@ -385,15 +414,8 @@ export function parseXiaomiV1Packet(value: Uint8Array): XiaomiV1Inbound {
     case 2: {
       if (value.length < 5) throw new Error("XIAOMI_V1_TRUNCATED");
       const encrypted = value[3] === 1;
-      if (encrypted) {
-        if (value.length < 6) throw new Error("XIAOMI_V1_TRUNCATED");
-        return {
-          kind: "single",
-          encrypted,
-          nonceIndex: uint16le(value, 4),
-          payload: value.slice(6),
-        };
-      }
+      // Upstream reads the encryption flag and then the payload directly for
+      // inbound single commands; the 2-byte nonce index is outbound-only.
       return { kind: "single", encrypted, payload: value.slice(4) };
     }
     case 3: {

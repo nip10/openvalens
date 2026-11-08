@@ -112,6 +112,23 @@ test("Command with a System payload round-trips", () => {
   expect(decodeCommand(encodeCommand(command))).toEqual(command);
 });
 
+test("Command health messages round-trip", () => {
+  const today = {
+    type: 8,
+    subtype: 1,
+    health: { activitySyncRequestToday: { unknown1: 0 } },
+  };
+  expect(decodeCommand(encodeCommand(today))).toEqual(today);
+
+  const ids = Uint8Array.of(1, 2, 3, 4, 5, 6, 7);
+  const fileIds = {
+    type: 8,
+    subtype: 2,
+    health: { activityRequestFileIds: ids, activitySyncAckFileIds: ids },
+  };
+  expect(decodeCommand(encodeCommand(fileIds))).toEqual(fileIds);
+});
+
 test("unknown fields are skipped", () => {
   const encoded = encodeMessage([varintField(1, 1), varintField(99, 123)]);
   expect(decodeCommand(encoded)).toEqual({ type: 1 });

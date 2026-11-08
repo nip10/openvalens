@@ -429,11 +429,24 @@ export type XiaomiSystem = {
   deviceInfo?: XiaomiDeviceInfo;
 };
 
+export type XiaomiActivitySyncRequestToday = {
+  unknown1?: number;
+};
+
+export type XiaomiHealth = {
+  /** Concatenated 7-byte activity file ids, from the watch. */
+  activityRequestFileIds?: Uint8Array;
+  /** Concatenated 7-byte activity file ids to acknowledge, to the watch. */
+  activitySyncAckFileIds?: Uint8Array;
+  activitySyncRequestToday?: XiaomiActivitySyncRequestToday;
+};
+
 export type XiaomiCommand = {
   type: number;
   subtype?: number;
   auth?: XiaomiAccount;
   system?: XiaomiSystem;
+  health?: XiaomiHealth;
   status?: number;
 };
 
@@ -602,11 +615,47 @@ export function decodeSystem(bytes: Uint8Array): XiaomiSystem {
   };
 }
 
+export function encodeActivitySyncRequestToday(value: XiaomiActivitySyncRequestToday): Uint8Array {
+  const fields: ProtoField[] = [];
+  if (value.unknown1 !== undefined) fields.push(varintField(1, value.unknown1));
+  return encodeMessage(fields);
+}
+
+export function decodeActivitySyncRequestToday(bytes: Uint8Array): XiaomiActivitySyncRequestToday {
+  const fields = decodeMessage(bytes);
+  return { unknown1: readVarintField(fields, 1) };
+}
+
+export function encodeHealth(value: XiaomiHealth): Uint8Array {
+  const fields: ProtoField[] = [];
+  if (value.activityRequestFileIds) {
+    fields.push(bytesField(2, value.activityRequestFileIds));
+  }
+  if (value.activitySyncAckFileIds) {
+    fields.push(bytesField(3, value.activitySyncAckFileIds));
+  }
+  if (value.activitySyncRequestToday) {
+    fields.push(bytesField(5, encodeActivitySyncRequestToday(value.activitySyncRequestToday)));
+  }
+  return encodeMessage(fields);
+}
+
+export function decodeHealth(bytes: Uint8Array): XiaomiHealth {
+  const fields = decodeMessage(bytes);
+  const today = readBytesField(fields, 5);
+  return {
+    activityRequestFileIds: readBytesField(fields, 2),
+    activitySyncAckFileIds: readBytesField(fields, 3),
+    activitySyncRequestToday: today ? decodeActivitySyncRequestToday(today) : undefined,
+  };
+}
+
 export function encodeCommand(value: XiaomiCommand): Uint8Array {
   const fields: ProtoField[] = [varintField(1, value.type)];
   if (value.subtype !== undefined) fields.push(varintField(2, value.subtype));
   if (value.auth) fields.push(bytesField(3, encodeAccount(value.auth)));
   if (value.system) fields.push(bytesField(4, encodeSystem(value.system)));
+  if (value.health) fields.push(bytesField(10, encodeHealth(value.health)));
   if (value.status !== undefined) fields.push(varintField(100, value.status));
   return encodeMessage(fields);
 }
@@ -615,11 +664,13 @@ export function decodeCommand(bytes: Uint8Array): XiaomiCommand {
   const fields = decodeMessage(bytes);
   const auth = readBytesField(fields, 3);
   const system = readBytesField(fields, 4);
+  const health = readBytesField(fields, 10);
   return {
     type: required(readVarintField(fields, 1), "COMMAND_TYPE"),
     subtype: readVarintField(fields, 2),
     auth: auth ? decodeAccount(auth) : undefined,
     system: system ? decodeSystem(system) : undefined,
+    health: health ? decodeHealth(health) : undefined,
     status: readVarintField(fields, 100),
   };
 }

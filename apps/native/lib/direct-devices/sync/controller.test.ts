@@ -16,6 +16,15 @@ import {
 import { createSqliteDirectDeviceStore, type SyncSqliteDatabase } from "../persistence/store";
 import type { HelioSetupController, HelioSetupSnapshot } from "../setup/types";
 import { historyStart } from "../protocol/codec";
+import { crc32 } from "../protocol/chunked";
+import {
+  encodeXiaomiActivityFileId,
+  XIAOMI_ACTIVITY_DAILY,
+  XIAOMI_ACTIVITY_TYPE,
+  XIAOMI_DETAIL_DETAILS,
+} from "../protocol/xiaomi-activity";
+import { runXiaomiStepsHistory, type XiaomiHistoryTransport } from "../protocol/xiaomi-history";
+import type { XiaomiCommand } from "../protocol/xiaomi-proto";
 import type { HelioCursor, HelioStepsPage } from "../protocol/types";
 import {
   createHelioSyncControllerWithDependencies,
@@ -718,6 +727,98 @@ test("defaults the connected model id to null when the setup snapshot has none",
   await controller.connect("native-1");
 
   expect(controller.getSnapshot().connectedModelId).toBeNull();
+  await controller.dispose();
+  db.close();
+  invalidateDirectDeviceAuthority();
+});
+
+test("Xiaomi history pages flow through capture and outbox", async () => {
+  const { db, store } = sqlite();
+  const fileId = {
+    timestamp: 1_769_904_000, // 2026-02-01T00:00:00Z
+    timezone: 0,
+    type: XIAOMI_ACTIVITY_TYPE,
+    subtype: XIAOMI_ACTIVITY_DAILY,
+    detailType: XIAOMI_DETAIL_DETAILS,
+    version: 3,
+  };
+  const header = Uint8Array.of(0x90, 0, 0, 0, 0);
+  const body = new Uint8Array(7 + 1 + header.length + 2);
+  body.set(encodeXiaomiActivityFileId(fileId), 0);
+  body[7] = 0;
+  body.set(header, 8);
+  body[13] = 42;
+  const file = new Uint8Array(body.length + 4);
+  file.set(body);
+  const checksum = crc32(body);
+  file[body.length] = checksum & 0xff;
+  file[body.length + 1] = (checksum >>> 8) & 0xff;
+  file[body.length + 2] = (checksum >>> 16) & 0xff;
+  file[body.length + 3] = (checksum >>> 24) & 0xff;
+
+  const commands: XiaomiCommand[] = [];
+  const files: Uint8Array[] = [];
+  const transport: XiaomiHistoryTransport = {
+    async start() {},
+    async sendCommand(command) {
+      if (command.subtype === 1) {
+        commands.push({
+          type: 8,
+          subtype: 1,
+          health: { activityRequestFileIds: encodeXiaomiActivityFileId(fileId) },
+        });
+      } else if (command.subtype === 2) {
+        commands.push({
+          type: 8,
+          subtype: 2,
+          health: { activityRequestFileIds: new Uint8Array(0) },
+        });
+      } else if (command.subtype === 3) {
+        files.push(file);
+      }
+    },
+    async nextCommand() {
+      const command = commands.shift();
+      if (!command) throw new Error("NO_COMMAND");
+      return command;
+    },
+    async nextActivityFile() {
+      const next = files.shift();
+      if (!next) throw new Error("NO_FILE");
+      return next;
+    },
+    async close() {},
+  };
+  const received: IngestDirectDeviceBatchInput[] = [];
+  const setupController = setup((options) => runXiaomiStepsHistory(transport, options));
+  const { controller, ticket } = await readyController({
+    store,
+    setup: setupController,
+    makeClient: () =>
+      client((input) => {
+        received.push(input);
+        return {
+          status: "applied",
+          rawArtifactId: 7,
+          accepted: 1,
+          duplicates: 0,
+          rejected: 0,
+          superseded: 0,
+          targetId: "target",
+        };
+      }),
+  });
+
+  await controller.connect("native-1");
+  await controller.syncSteps("00112233445566778899aabbccddeeff");
+
+  expect(received).toHaveLength(1);
+  expect(received[0]!.batch.upserts).toHaveLength(1);
+  expect(received[0]!.batch.upserts[0]).toMatchObject({ type: "steps", count: 42 });
+  expect(store.getBinding(ticket, deviceId)?.captureCheckpoint).toContain(
+    "2026-02-01T00:01:00.000Z",
+  );
+  expect(store.listPending(ticket, 10)).toHaveLength(0);
   await controller.dispose();
   db.close();
   invalidateDirectDeviceAuthority();

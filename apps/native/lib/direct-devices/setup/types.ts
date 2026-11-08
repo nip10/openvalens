@@ -25,6 +25,8 @@ export type HelioSetupSnapshot = Readonly<{
   connectedDeviceId: string | null;
   /** Matched model id of the connected device; absent only for legacy snapshots. */
   connectedModelId?: DirectDeviceModelId | null;
+  /** Protocol family of the connected device; absent only for legacy snapshots. */
+  connectedFamily?: DirectDeviceFamily | null;
   errorCode: string | null;
   crypto: Readonly<{
     status: "not_checked" | "running" | "passed" | "unavailable" | "failed";

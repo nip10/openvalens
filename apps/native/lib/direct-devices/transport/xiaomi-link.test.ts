@@ -69,10 +69,9 @@ test("V1 inbound packets parse single, chunked and ack forms", () => {
     encrypted: false,
     payload: Uint8Array.of(1, 2, 3),
   });
-  expect(parseXiaomiV1Packet(Uint8Array.of(0, 0, 2, 1, 5, 0, 9, 9))).toEqual({
+  expect(parseXiaomiV1Packet(Uint8Array.of(0, 0, 2, 1, 9, 9))).toEqual({
     kind: "single",
     encrypted: true,
-    nonceIndex: 5,
     payload: Uint8Array.of(9, 9),
   });
   expect(parseXiaomiV1Packet(Uint8Array.of(0, 0, 0, 1, 2, 0))).toEqual({
