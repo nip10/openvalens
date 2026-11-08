@@ -197,15 +197,13 @@ export default function SettingsScreen() {
 
         {session?.user && <HealthSyncSettings />}
 
-        {__DEV__ && (
-          <DirectDeviceSettings
-            key={session?.user?.id && session.session.id && session.session.activeOrganizationId && directDeviceServer.status === "set"
-              ? `${directDeviceServer.url}:${session.session.id}:${session.user.id}:${session.session.activeOrganizationId}` : "no-scope"}
-            context={session?.user?.id && session.session.id && session.session.activeOrganizationId && directDeviceServer.status === "set"
-              ? { serverUrl: directDeviceServer.url, userId: session.user.id, organizationId: session.session.activeOrganizationId, sessionId: session.session.id }
-              : null}
-          />
-        )}
+        <DirectDeviceSettings
+          key={session?.user?.id && session.session.id && session.session.activeOrganizationId && directDeviceServer.status === "set"
+            ? `${directDeviceServer.url}:${session.session.id}:${session.user.id}:${session.session.activeOrganizationId}` : "no-scope"}
+          context={session?.user?.id && session.session.id && session.session.activeOrganizationId && directDeviceServer.status === "set"
+            ? { serverUrl: directDeviceServer.url, userId: session.user.id, organizationId: session.session.activeOrganizationId, sessionId: session.session.id }
+            : null}
+        />
 
         {session?.user && (
           <Section title={t`Integrations`} icon={Plug} tone="signal">

@@ -52,7 +52,7 @@ export function DirectDeviceSettings({ context }: { context: HelioSyncContext | 
     ? `${context.serverUrl}:${context.sessionId}:${context.userId}:${context.organizationId}`
     : null;
   const controller = useMemo(() => {
-    if (!__DEV__ || !context) return null;
+    if (!context) return null;
     return createHelioSyncController(context);
   }, [scopeKey]);
 
@@ -78,7 +78,6 @@ export function DirectDeviceSettings({ context }: { context: HelioSyncContext | 
     ),
   );
 
-  if (!__DEV__) return null;
   return <HelioPanel controller={controller} />;
 }
 
