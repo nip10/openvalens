@@ -68,7 +68,7 @@ export function MacroLine({
       style={{ fontVariant: ["tabular-nums"] }}
     >
       <Text className={cn("text-ink", emphasis && "font-semibold")}>
-        {compactNutrientFigure("energyKcal", values.energyKcal)}
+        {compactNutrientFigure("energyKcal", values.energyKcal, i18n.locale)}
       </Text>
       {ROW_MACRO_KEYS.map((key) => (
         <Text key={key}>
@@ -76,7 +76,7 @@ export function MacroLine({
           <Text className={cn("font-semibold", MACRO_TEXT[key])}>
             {i18n._(MACRO_LETTERS[key])}
           </Text>{" "}
-          {compactNutrientFigure(key, values[key])}
+          {compactNutrientFigure(key, values[key], i18n.locale)}
         </Text>
       ))}
     </Text>

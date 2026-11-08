@@ -147,9 +147,9 @@ export const TARGET_SOURCE_LABELS: Readonly<Record<TargetSource, MessageDescript
     proposal: msg`Accepted suggestion`,
   });
 
-function number(value: number, unit: string): string {
+function number(value: number, unit: string, locale: string): string {
   const digits = unit === "kcal" || unit === "kJ" || unit === "mg" ? 0 : 1;
-  return value.toLocaleString("en-US", { maximumFractionDigits: digits });
+  return value.toLocaleString(locale, { maximumFractionDigits: digits });
 }
 
 /** `"2,000 kcal"`, `"1,800–2,200 kcal"`, `"At least 55 g"`, `"Up to 2,300 mg"`, or {@link HIDDEN_VALUE}. */
@@ -163,14 +163,14 @@ export function formatTarget(
   const { minAmount: min, maxAmount: max } = target;
   if (min !== null && max !== null)
     return min === max
-      ? `${number(min, unit)} ${unit}`
-      : `${number(min, unit)}–${number(max, unit)} ${unit}`;
+      ? `${number(min, unit, i18n.locale)} ${unit}`
+      : `${number(min, unit, i18n.locale)}–${number(max, unit, i18n.locale)} ${unit}`;
   if (min !== null) {
-    const value = number(min, unit);
+    const value = number(min, unit, i18n.locale);
     return i18n._(msg`At least ${value} ${unit}`);
   }
   if (max !== null) {
-    const value = number(max, unit);
+    const value = number(max, unit, i18n.locale);
     return i18n._(msg`Up to ${value} ${unit}`);
   }
   return "—";
@@ -396,20 +396,20 @@ export function readTotalAgainstTarget(
       ? total.coverage === "no_entries"
         ? `0 ${unit}`
         : i18n._(msg`Unknown`)
-      : `${number(known, unit)} ${unit}`;
+      : `${number(known, unit, i18n.locale)} ${unit}`;
   const min = target?.minAmount ?? null;
   const max = target?.maxAmount ?? null;
   /** "1,700–2,100 kcal", "at least 100 g" or "up to 2,000 mg", for use inside a sentence. */
   const targetText = (): string => {
     if (min !== null && max !== null) {
-      const range = min === max ? number(min, unit) : `${number(min, unit)}–${number(max, unit)}`;
+      const range = min === max ? number(min, unit, i18n.locale) : `${number(min, unit, i18n.locale)}–${number(max, unit, i18n.locale)}`;
       return `${range} ${unit}`;
     }
     if (min !== null) {
-      const value = number(min, unit);
+      const value = number(min, unit, i18n.locale);
       return i18n._(msg({ message: `at least ${value} ${unit}`, context: "inside a sentence" }));
     }
-    const value = number(max ?? 0, unit);
+    const value = number(max ?? 0, unit, i18n.locale);
     return i18n._(msg({ message: `up to ${value} ${unit}`, context: "inside a sentence" }));
   };
   const ofTarget = (): string => {
@@ -429,13 +429,13 @@ export function readTotalAgainstTarget(
   };
   let figure: string | null = null;
   if (min !== null && eaten < min) {
-    const low = number(min - eaten, unit);
+    const low = number(min - eaten, unit, i18n.locale);
     figure =
       max !== null && max !== min
-        ? `${low}–${number(max - eaten, unit)} ${unit}`
+        ? `${low}–${number(max - eaten, unit, i18n.locale)} ${unit}`
         : `${low} ${unit}`;
   } else if (max !== null && eaten <= max && (min === null || max !== min)) {
-    const high = number(max - eaten, unit);
+    const high = number(max - eaten, unit, i18n.locale);
     figure = min !== null ? i18n._(msg`up to ${high} ${unit}`) : `${high} ${unit}`;
   }
   if (figure === null) {
@@ -462,14 +462,14 @@ export const GOAL_COPY = Object.freeze({
   rateDescription: msg`How fast suggestions aim to change your weight trend, as a share of body weight a week. The safeguards below always apply on top.`,
   floorNote: msg({
     message:
-      "Suggestions never go below 1,200 kcal a day, your profile's minimum or your estimated resting energy, whichever is highest. Reductions are turned off while any answer in About you is yes, and for anyone younger than 18. These safeguards come from published guidelines. They are not medical advice and are not clinically validated.",
+      "Suggestions never go below 1,200 kcal a day, your profile's minimum or your estimated resting energy, whichever is highest. Reductions are turned off while any answer in About you is yes, and for anyone younger than 18. These safeguards come from published guidelines. They are not medical advice.",
     comment: "safety",
   }),
 });
 
 /** `"0.5 % a week"`. */
 export function formatRate(percent: number, i18n: I18n): string {
-  const value = percent.toLocaleString("en-US", { maximumFractionDigits: 2 });
+  const value = percent.toLocaleString(i18n.locale, { maximumFractionDigits: 2 });
   return i18n._(msg`${value} % a week`);
 }
 
@@ -557,7 +557,7 @@ export function goalLine(direction: EnergyDirection, rate: number | null, i18n: 
 
 /** `"Based on your estimate (2,240 kcal a day) and your goal: Reduce, 0.5 % a week."` */
 export function checkInBasis(estimateKcal: number, goal: string, i18n: I18n): string {
-  const kcal = Math.round(estimateKcal).toLocaleString("en-US");
+  const kcal = Math.round(estimateKcal).toLocaleString(i18n.locale);
   return i18n._(
     msg`Based on your expenditure estimate (${kcal} kcal a day) and your goal: ${goal}.`,
   );

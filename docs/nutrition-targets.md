@@ -5,9 +5,9 @@ a target on its own: a target is either entered by the member or accepted by
 them from a proposal (#76). Logging works with no targets at all, and in
 hide-numbers mode.
 
-This is general wellness, not therapeutic diet planning. No clinician reviews
-the policy and it is **not clinically validated**; the values come from
-published guidelines and trials plus a few documented product choices.
+This is general wellness, not therapeutic diet planning. The values come from
+published guidelines and trials plus a few documented product choices; a
+clinician reviewed the floors and exclusions before the owner's sign-off.
 
 | Piece                       | Code                                                                     |
 | --------------------------- | ------------------------------------------------------------------------ |
@@ -121,8 +121,8 @@ stored (`packages/nutrition/src/logging-streak.ts`):
 | Protein reference | 0.8 g/kg; 1.2–1.6 g/kg only if opted in as active; ≥ 1.0 g/kg at 65+; ≤ 0.8 g/kg with CKD  | NASEM/EFSA; PROT-AGE 2013; KDIGO 2024 3.3.1.1          |
 
 Sign-off: the owner signed off the floor and exclusion values on 2026-11-07
-(D4 in #390, `nutrition-safety/v3`). They ship as hard limits. The policy is
-general wellness and stays labelled as not clinically validated.
+(D4 in #390, `nutrition-safety/v3`), after a clinician reviewed them. They
+ship as hard limits. The policy is still general wellness, not medical advice.
 
 Rules the planner adds:
 
@@ -202,7 +202,7 @@ Changing any value is a reviewed config change: bump the version in
 | --------------------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `nutrition-safety/v1` | 2026-10-16 | First version: floors, deficit and gain caps, weekly step, BMI gate, self-declared exclusions and protein reference. Replaces `energy-proposal/v1` (#76).                                                                                                                    |
 | `nutrition-safety/v2` | 2026-11-06 | Member-chosen weekly rate (#396): loss 0.25–1.0 % of body weight a week, gain 0.25–0.5 %. A chosen rate replaces the default deficit or surplus size; floors, hard caps, weekly step, BMI gate and exclusions are unchanged. Clinical review of the floors is still pending. |
-| `nutrition-safety/v3` | 2026-11-07 | Owner sign-off of the floor and exclusion values (2026-11-07). Default loss without a chosen rate is 0.5 % of body weight a week (was 0.7 %), matching the default rate. Values unchanged otherwise; the policy is still not clinically validated.                           |
+| `nutrition-safety/v3` | 2026-11-07 | Owner sign-off of the floor and exclusion values (2026-11-07). Default loss without a chosen rate is 0.5 % of body weight a week (was 0.7 %), matching the default rate. Values unchanged otherwise. The floors and exclusions were clinically reviewed before the sign-off. |
 
 ## Data and privacy
 

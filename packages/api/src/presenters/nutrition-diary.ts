@@ -113,9 +113,9 @@ export function summarizeDay(entries: readonly Pick<DiaryEntry, "nutrients">[]):
   return summarizeNutrients(entries);
 }
 
-function round(value: number, unit: string): string {
+function round(value: number, unit: string, locale: string): string {
   const digits = unit === "kcal" || unit === "kJ" || unit === "mg" ? 0 : 1;
-  return value.toLocaleString("en-US", { maximumFractionDigits: digits });
+  return value.toLocaleString(locale, { maximumFractionDigits: digits });
 }
 
 /** The macros a diary row shows beside energy, in display order (#393). */
@@ -136,13 +136,30 @@ export const MACRO_LETTERS: Readonly<Record<RowMacroKey, MessageDescriptor>> = O
   fatG: msg({ message: "F", context: "fat letter", comment: "Fat, one letter" }),
 });
 
+/** Short macro names for narrow columns, such as the day summary's three. */
+export const MACRO_SHORT_LABELS: Readonly<Record<RowMacroKey, MessageDescriptor>> = Object.freeze(
+  {
+    proteinG: msg({ message: "Protein", context: "macro short name" }),
+    carbohydrateG: msg({
+      message: "Carbs",
+      context: "macro short name",
+      comment: "Carbohydrate, short, for a narrow column",
+    }),
+    fatG: msg({ message: "Fat", context: "macro short name" }),
+  },
+);
+
 /**
  * A compact figure for a diary row: `"1,240 kcal"` for energy, whole grams
  * without the unit for the macros (`"12"`), and `"–"` when unknown.
  */
-export function compactNutrientFigure(key: NutrientKey, value: number | null): string {
+export function compactNutrientFigure(
+  key: NutrientKey,
+  value: number | null,
+  locale = "en-US",
+): string {
   if (value === null || !Number.isFinite(value)) return "–";
-  const rounded = Math.round(value).toLocaleString("en-US");
+  const rounded = Math.round(value).toLocaleString(locale);
   return key === "energyKcal" ? `${rounded} kcal` : rounded;
 }
 
@@ -150,7 +167,7 @@ export function compactNutrientFigure(key: NutrientKey, value: number | null): s
 export function formatNutrientValue(key: NutrientKey, value: number | null, i18n: I18n): string {
   if (value === null) return i18n._(msg`Unknown`);
   const { unit } = NUTRIENT_LABELS[key];
-  return `${round(value, unit)} ${unit}`;
+  return `${round(value, unit, i18n.locale)} ${unit}`;
 }
 
 /**
@@ -254,7 +271,7 @@ export function formatSources(sources: NutrientSummary["sources"], i18n: I18n): 
 
 /** Amount with unit, e.g. `"150 g"`, `"2 servings"`. */
 export function formatAmount(amount: number, unit: AmountUnit, i18n: I18n): string {
-  const value = amount.toLocaleString("en-US", { maximumFractionDigits: 2 });
+  const value = amount.toLocaleString(i18n.locale, { maximumFractionDigits: 2 });
   if (unit === "serving")
     return i18n._(msg`${plural(amount, { one: `${value} serving`, other: `${value} servings` })}`);
   return `${value} ${unit}`;

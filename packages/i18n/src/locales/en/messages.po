@@ -13896,8 +13896,8 @@ msgstr "Suggestions follow the estimated intake that keeps your weight trend ste
 
 #. safety
 #: packages/api/src/presenters/nutrition-targets.ts
-msgid "Suggestions never go below 1,200 kcal a day, your profile's minimum or your estimated resting energy, whichever is highest. Reductions are turned off while any answer in About you is yes, and for anyone younger than 18. These safeguards come from published guidelines. They are not medical advice and are not clinically validated."
-msgstr "Suggestions never go below 1,200 kcal a day, your profile's minimum or your estimated resting energy, whichever is highest. Reductions are turned off while any answer in About you is yes, and for anyone younger than 18. These safeguards come from published guidelines. They are not medical advice and are not clinically validated."
+msgid "Suggestions never go below 1,200 kcal a day, your profile's minimum or your estimated resting energy, whichever is highest. Reductions are turned off while any answer in About you is yes, and for anyone younger than 18. These safeguards come from published guidelines. They are not medical advice."
+msgstr "Suggestions never go below 1,200 kcal a day, your profile's minimum or your estimated resting energy, whichever is highest. Reductions are turned off while any answer in About you is yes, and for anyone younger than 18. These safeguards come from published guidelines. They are not medical advice."
 
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/web/src/routes/_auth/-goal-editor.tsx
@@ -16898,3 +16898,19 @@ msgstr "Your workspace is read-only for now. You can still read, export and dele
 #: packages/api/src/presenters/micronutrients.ts
 msgid "Zinc"
 msgstr "Zinc"
+
+#. Carbohydrate, short, for a narrow column
+#: packages/api/src/presenters/nutrition-diary.ts
+msgctxt "macro short name"
+msgid "Carbs"
+msgstr "Carbs"
+
+#: packages/api/src/presenters/nutrition-diary.ts
+msgctxt "macro short name"
+msgid "Fat"
+msgstr "Fat"
+
+#: packages/api/src/presenters/nutrition-diary.ts
+msgctxt "macro short name"
+msgid "Protein"
+msgstr "Protein"

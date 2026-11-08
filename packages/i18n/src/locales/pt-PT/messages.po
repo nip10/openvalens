@@ -13896,8 +13896,8 @@ msgstr "As sugestões seguem a ingestão estimada que mantém estável a tendên
 
 #. safety
 #: packages/api/src/presenters/nutrition-targets.ts
-msgid "Suggestions never go below 1,200 kcal a day, your profile's minimum or your estimated resting energy, whichever is highest. Reductions are turned off while any answer in About you is yes, and for anyone younger than 18. These safeguards come from published guidelines. They are not medical advice and are not clinically validated."
-msgstr "As sugestões nunca ficam abaixo de 1200 kcal por dia, do mínimo do seu perfil ou da sua energia de repouso estimada, consoante o que for mais alto. As reduções ficam desligadas enquanto alguma resposta em Sobre si for sim, e para quem tem menos de 18 anos. Estas salvaguardas vêm de diretrizes publicadas. Não são aconselhamento médico e não estão validadas clinicamente."
+msgid "Suggestions never go below 1,200 kcal a day, your profile's minimum or your estimated resting energy, whichever is highest. Reductions are turned off while any answer in About you is yes, and for anyone younger than 18. These safeguards come from published guidelines. They are not medical advice."
+msgstr "As sugestões nunca ficam abaixo de 1200 kcal por dia, do mínimo do seu perfil ou da sua energia de repouso estimada, consoante o que for mais alto. As reduções ficam desligadas enquanto alguma resposta em Sobre si for sim, e para quem tem menos de 18 anos. Estas salvaguardas vêm de diretrizes publicadas. Não são aconselhamento médico."
 
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/web/src/routes/_auth/-goal-editor.tsx
@@ -16898,3 +16898,19 @@ msgstr "Por agora, o seu espaço de trabalho está só de leitura. Pode continua
 #: packages/api/src/presenters/micronutrients.ts
 msgid "Zinc"
 msgstr "Zinco"
+
+#. Carbohydrate, short, for a narrow column
+#: packages/api/src/presenters/nutrition-diary.ts
+msgctxt "macro short name"
+msgid "Carbs"
+msgstr "Hidratos"
+
+#: packages/api/src/presenters/nutrition-diary.ts
+msgctxt "macro short name"
+msgid "Fat"
+msgstr "Lípidos"
+
+#: packages/api/src/presenters/nutrition-diary.ts
+msgctxt "macro short name"
+msgid "Protein"
+msgstr "Proteína"

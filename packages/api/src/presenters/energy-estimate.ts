@@ -18,9 +18,9 @@ export const ENERGY_ESTIMATE_COPY = Object.freeze({
   error: msg`Could not load the estimate. Try again.`,
 });
 
-const fmt = (n: number) => Math.round(n).toLocaleString("en-US");
+const fmt = (n: number, locale: string) => Math.round(n).toLocaleString(locale);
 function perDay(n: number, i18n: I18n): string {
-  const value = fmt(n);
+  const value = fmt(n, i18n.locale);
   return i18n._(msg({ message: `${value} kcal/day`, comment: "safety" }));
 }
 export function presentEnergyEstimate(
@@ -30,8 +30,8 @@ export function presentEnergyEstimate(
 ) {
   if (hideNumbers || result.status !== "estimated" || !result.estimate) return null;
   const { from, to } = result.window;
-  const low = fmt(result.estimate.range.lowKcal);
-  const high = fmt(result.estimate.range.highKcal);
+  const low = fmt(result.estimate.range.lowKcal, i18n.locale);
+  const high = fmt(result.estimate.range.highKcal, i18n.locale);
   return {
     value: perDay(result.estimate.kcalPerDay, i18n),
     range: i18n._(
@@ -83,9 +83,9 @@ export function presentTrendEstimate(
   i18n: I18n,
 ): { figure: string; range: string; basis: string } | null {
   if (hideNumbers || result.status !== "estimated" || !result.estimate) return null;
-  const figure = fmt(result.estimate.kcalPerDay);
-  const low = fmt(result.estimate.range.lowKcal);
-  const high = fmt(result.estimate.range.highKcal);
+  const figure = fmt(result.estimate.kcalPerDay, i18n.locale);
+  const low = fmt(result.estimate.range.lowKcal, i18n.locale);
+  const high = fmt(result.estimate.range.highKcal, i18n.locale);
   const used = result.inputs.intake.usedDays;
   const days = result.window.days;
   return {
@@ -108,13 +108,13 @@ export function presentTrendWeight(
   if (hideNumbers || trend.status !== "provisional") return null;
   const latest = [...trend.points].reverse().find((point) => point.trendKg !== null);
   if (!latest || latest.trendKg === null) return null;
-  const figure = latest.trendKg.toLocaleString("en-US", {
+  const figure = latest.trendKg.toLocaleString(i18n.locale, {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
   });
   if (!trend.change) return { figure, change: null };
   const kg = trend.change.kg;
-  const amount = `${kg > 0 ? "+" : kg < 0 ? "−" : ""}${Math.abs(kg).toLocaleString("en-US", {
+  const amount = `${kg > 0 ? "+" : kg < 0 ? "−" : ""}${Math.abs(kg).toLocaleString(i18n.locale, {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
   })}`;

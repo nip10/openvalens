@@ -1,0 +1,12 @@
+# Confirms the "Sign out of this phone?" alert when it shows. The alert's
+# text is not translated, so the English button works in every language;
+# rightOf Cancel keeps it off the Settings "Sign out" button underneath.
+appId: com.openvalens.app
+---
+- runFlow:
+    when:
+      visible: "Sign out of this phone?"
+    commands:
+      - tapOn:
+          text: "Sign out"
+          rightOf: "Cancel"

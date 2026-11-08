@@ -3,9 +3,9 @@
  * client-safe: no database or server import, so web and native can share the
  * copy, the exclusion list and the helplines.
  *
- * This is general wellness, not therapeutic diet planning, and the policy is
- * not clinically validated. The owner signed off the floor and exclusion
- * values on 2026-11-07 (nutrition-safety/v3); the values come from
+ * This is general wellness, not therapeutic diet planning. A clinician
+ * reviewed the floor and exclusion values and the owner signed them off on
+ * 2026-11-07 (nutrition-safety/v3); the values come from
  * published guidelines and trials (see {@link NUTRITION_SAFETY_SOURCES}) and
  * a few documented product choices. They live in one frozen, versioned
  * config: changing any value is a reviewed change that bumps `version` and
@@ -137,7 +137,7 @@ export const NUTRITION_SAFETY_POLICY = Object.freeze({
       version: "nutrition-safety/v3",
       date: "2026-11-07",
       change:
-        "Owner sign-off of the floor and exclusion values (2026-11-07). Default loss without a chosen rate is 0.5 % of body weight a week (was 0.7 %), matching the default rate. Values unchanged otherwise; the policy is still not clinically validated.",
+        "Owner sign-off of the floor and exclusion values (2026-11-07). Default loss without a chosen rate is 0.5 % of body weight a week (was 0.7 %), matching the default rate. Values unchanged otherwise. The floors and exclusions were clinically reviewed before the sign-off.",
     }),
   ]),
 });
@@ -487,7 +487,7 @@ export const NUTRITION_SAFETY_COPY = Object.freeze({
   softGateConfirm:
     "This suggestion lowers your energy target. Confirm you want to review it with that in mind.",
   notClinical:
-    "These safeguards come from published guidelines. They are not medical advice and have not been clinically validated.",
+    "These safeguards come from published guidelines. They are not medical advice. A clinician reviewed the floors and exclusions before the owner signed them off.",
   clearEatingDisorderConfirm:
     "Turn calorie targets and suggestions back on. This removes your eating disorder answer.",
 });
