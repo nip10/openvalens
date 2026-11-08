@@ -54,7 +54,15 @@ tags: [logging]
     visible: "Add an exercise"
     timeout: 10000
 # Bench press from the licensed exercise sample (#400), picked by its stable
-# wger id so the flow works in en and pt-PT.
+# wger id so the flow works in en and pt-PT. The search field takes focus, so
+# close the keyboard and scroll past the muscle and equipment filters first.
+- runFlow:
+    file: ../subflows/hide-keyboard.yaml
+- scrollUntilVisible:
+    element:
+      id: "exercise-pick-wger-73"
+    centerElement: true
+    timeout: 20000
 - tapOn:
     id: "exercise-pick-wger-73"
 
@@ -87,11 +95,16 @@ tags: [logging]
     direction: UP
 - takeScreenshot: 06-workout-sets
 
+# The last reps field keeps focus; on Android its keyboard blocks the scroll.
+- runFlow:
+    file: ../subflows/hide-keyboard.yaml
 - tapOn:
     id: "workout-finish"
 - scrollUntilVisible:
     element:
       id: "workout-save"
+    centerElement: true
+    timeout: 20000
 - takeScreenshot: 06-workout-finish
 - tapOn:
     id: "workout-save"

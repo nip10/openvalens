@@ -19,7 +19,10 @@ tags: [logging]
     timeout: 30000
 
 # Search, pick a saved food, save it to breakfast
-- tapOn: "Add food to Breakfast"
+- runFlow:
+    file: ../subflows/open-add-food.yaml
+    env:
+      SLOT: breakfast
 - extendedWaitUntil:
     visible: "Search foods"
     timeout: 10000
@@ -43,7 +46,10 @@ tags: [logging]
 - takeScreenshot: 05-meal-diary-after-search
 
 # Quick add: a name and calories, to the snack
-- tapOn: "Add food to Breakfast"
+- runFlow:
+    file: ../subflows/open-add-food.yaml
+    env:
+      SLOT: breakfast
 - extendedWaitUntil:
     visible: "Quick add"
     timeout: 10000
@@ -94,7 +100,10 @@ tags: [logging]
     visibilityPercentage: 100
     centerElement: true
     timeout: 30000
-- tapOn: "Add food to Breakfast"
+- runFlow:
+    file: ../subflows/open-add-food.yaml
+    env:
+      SLOT: breakfast
 # On iOS a tap right after the scroll settles is sometimes dropped: tap again.
 - repeat:
     times: 2
@@ -104,7 +113,7 @@ tags: [logging]
       - waitForAnimationToEnd:
           timeout: 3000
       - tapOn:
-          text: "Add food to Breakfast"
+          id: "meal-add-breakfast"
           optional: true
 - extendedWaitUntil:
     visible: "Barcode"

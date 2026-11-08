@@ -50,7 +50,10 @@ tags: [logging]
 - extendedWaitUntil:
     visible: "Add food to Breakfast"
     timeout: 20000
-- tapOn: "Add food to Breakfast" # tap 2
+- runFlow: # tap 2
+    file: ../subflows/open-add-food.yaml
+    env:
+      SLOT: breakfast
 - extendedWaitUntil:
     visible: "Add Baked salmon to Breakfast"
     timeout: 15000
@@ -72,7 +75,10 @@ tags: [logging]
 - extendedWaitUntil:
     visible: "Add food to Breakfast"
     timeout: 20000
-- tapOn: "Add food to Breakfast" # tap 2
+- runFlow: # tap 2
+    file: ../subflows/open-add-food.yaml
+    env:
+      SLOT: breakfast
 - extendedWaitUntil:
     visible: "Search foods"
     timeout: 10000
@@ -96,7 +102,10 @@ tags: [logging]
 - extendedWaitUntil:
     visible: "Add food to Breakfast"
     timeout: 15000
-# The first logged entry is on screen without scrolling (#277): one line per
-# food, read out as its name, amount and nutrients (#393).
-- assertVisible: "E2E banana, .*"
+# One line per food, read out as its name, amount and nutrients (#393). The
+# week strip and day summary (#394) now sit above the meals, so on this
+# phone the new entry is below the demo breakfast's other foods.
+- scrollUntilVisible:
+    element: "E2E banana, .*"
+    timeout: 20000
 - takeScreenshot: 14-new-food-logged

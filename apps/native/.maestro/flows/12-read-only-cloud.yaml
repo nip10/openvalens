@@ -61,6 +61,11 @@ tags: [billing]
 # Export still works
 - tapOn:
     id: "tab-cockpit"
+# The Get started card (#392) can push the read-only notice's button down.
+- scrollUntilVisible:
+    element: "Export records"
+    centerElement: true
+    timeout: 20000
 - tapOn: "Export records"
 - extendedWaitUntil:
     visible: "Download a bundle"

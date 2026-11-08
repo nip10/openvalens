@@ -1,0 +1,16 @@
+# Opens Add food for a meal (SLOT: breakfast, lunch, dinner, snack, other).
+# The diary's search bar is fixed under the list, and Maestro counts a +
+# clipped behind it as visible, so a tap would open search instead. Scroll
+# the meals up first, then bring the meal's + back into view if needed.
+appId: com.openvalens.app
+---
+- scroll
+- scrollUntilVisible:
+    element:
+      id: "meal-add-${SLOT}"
+    direction: UP
+    visibilityPercentage: 100
+    centerElement: true
+    timeout: 30000
+- tapOn:
+    id: "meal-add-${SLOT}"
