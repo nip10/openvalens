@@ -30,6 +30,8 @@ export type HelioSyncSnapshot = Readonly<{
   selectedBindingId: string | null;
   nearbyDevices: readonly HelioDiscoveredDevice[];
   connectedDeviceId: string | null;
+  /** Matched Zepp OS registry id of the connected device, or null. */
+  connectedModelId: string | null;
   bluetooth: HelioSetupSnapshot["bluetooth"];
   errorCode: string | null;
   capturedMinutes: number;
