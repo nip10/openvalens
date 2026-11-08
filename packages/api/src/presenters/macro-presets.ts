@@ -92,7 +92,7 @@ export function presetTargets(input: {
 
 /** `"1.2 g per kg"`. */
 export function formatGPerKg(value: number, i18n: I18n): string {
-  const text = value.toLocaleString("en-US", { maximumFractionDigits: 1 });
+  const text = value.toLocaleString(i18n.locale, { maximumFractionDigits: 1 });
   return i18n._(msg`${text} g per kg`);
 }
 

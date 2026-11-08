@@ -16898,3 +16898,19 @@ msgstr "Por agora, o seu espaço de trabalho está só de leitura. Pode continua
 #: packages/api/src/presenters/micronutrients.ts
 msgid "Zinc"
 msgstr "Zinco"
+
+#. Carbohydrate, short, for a narrow column
+#: packages/api/src/presenters/nutrition-diary.ts
+msgctxt "macro short name"
+msgid "Carbs"
+msgstr "Hidratos"
+
+#: packages/api/src/presenters/nutrition-diary.ts
+msgctxt "macro short name"
+msgid "Fat"
+msgstr "Lípidos"
+
+#: packages/api/src/presenters/nutrition-diary.ts
+msgctxt "macro short name"
+msgid "Protein"
+msgstr "Proteína"

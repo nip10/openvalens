@@ -16898,3 +16898,19 @@ msgstr "Your workspace is read-only for now. You can still read, export and dele
 #: packages/api/src/presenters/micronutrients.ts
 msgid "Zinc"
 msgstr "Zinc"
+
+#. Carbohydrate, short, for a narrow column
+#: packages/api/src/presenters/nutrition-diary.ts
+msgctxt "macro short name"
+msgid "Carbs"
+msgstr "Carbs"
+
+#: packages/api/src/presenters/nutrition-diary.ts
+msgctxt "macro short name"
+msgid "Fat"
+msgstr "Fat"
+
+#: packages/api/src/presenters/nutrition-diary.ts
+msgctxt "macro short name"
+msgid "Protein"
+msgstr "Protein"

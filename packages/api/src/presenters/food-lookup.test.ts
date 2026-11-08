@@ -132,7 +132,7 @@ describe("candidates", () => {
     );
     const portuguese = createAppI18n("pt-PT");
     expect(formatFoodCandidateSummaryLine(candidate, false, portuguese)).toBe(
-      "240 kcal · 4.8 g de proteína · por bar (60 g)",
+      "240 kcal · 4,8 g de proteína · por bar (60 g)",
     );
     expect(
       formatFoodCandidateSummaryLine(candidateFromResult(result(), "search")!, false, englishI18n),
