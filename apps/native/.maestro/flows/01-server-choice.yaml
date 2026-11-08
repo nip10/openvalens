@@ -21,7 +21,8 @@ tags: [auth]
 - tapOn:
     id: "own-server-toggle"
 # The address field takes focus; close the keyboard so Connect is in view.
-- hideKeyboard
+- runFlow:
+    file: ../subflows/hide-keyboard.yaml
 - scrollUntilVisible:
     element: "Connect"
 - tapOn: "Connect"
