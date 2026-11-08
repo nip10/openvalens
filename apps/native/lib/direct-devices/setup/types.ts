@@ -1,12 +1,21 @@
+import type { XiaomiModelId } from "../models/xiaomi";
 import type { ZeppOsModelId } from "../models/zepp-os";
 import type { HelioHistoryOptions, HelioHistoryResult } from "../protocol/types";
+
+/** A model id from either direct-device registry. */
+export type DirectDeviceModelId = ZeppOsModelId | XiaomiModelId;
+
+/** The protocol family a discovered model belongs to. */
+export type DirectDeviceFamily = "zepp_os" | "xiaomi";
 
 export type HelioDiscoveredDevice = Readonly<{
   id: string;
   name: string;
   rssi: number | null;
-  /** Matched Zepp OS model id; absent only for legacy snapshots. */
-  modelId?: ZeppOsModelId;
+  /** Matched model id; absent only for legacy snapshots. */
+  modelId?: DirectDeviceModelId;
+  /** Matched protocol family; absent only for legacy snapshots. */
+  family?: DirectDeviceFamily;
 }>;
 
 export type HelioSetupSnapshot = Readonly<{
@@ -14,8 +23,8 @@ export type HelioSetupSnapshot = Readonly<{
   bluetooth: "unknown" | "powered_on" | "powered_off" | "unauthorized" | "unsupported";
   devices: readonly HelioDiscoveredDevice[];
   connectedDeviceId: string | null;
-  /** Matched Zepp OS model id of the connected device; absent only for legacy snapshots. */
-  connectedModelId?: ZeppOsModelId | null;
+  /** Matched model id of the connected device; absent only for legacy snapshots. */
+  connectedModelId?: DirectDeviceModelId | null;
   errorCode: string | null;
   crypto: Readonly<{
     status: "not_checked" | "running" | "passed" | "unavailable" | "failed";

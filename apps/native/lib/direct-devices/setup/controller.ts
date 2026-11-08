@@ -4,6 +4,8 @@ import type { HelioSetupController, HelioSetupSnapshot } from "./types";
 import { NativeHelioLink } from "../transport/helio-link";
 import { runHelioStepsHistory } from "../protocol/history";
 import { matchDeviceName } from "../models/zepp-os";
+import { matchXiaomiDeviceName } from "../models/xiaomi";
+import { XIAOMI_BLE_SERVICE_UUIDS } from "../transport/xiaomi-link";
 
 type Radio = {
   manager: Pick<
@@ -250,8 +252,11 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
               return;
             }
             if (!device || !device.name) return;
-            const model = matchDeviceName(device.name);
+            const zeppModel = matchDeviceName(device.name);
+            const xiaomiModel = zeppModel ? null : matchXiaomiDeviceName(device.name);
+            const model = zeppModel ?? xiaomiModel;
             if (!model) return;
+            const family = zeppModel ? "zepp_os" : "xiaomi";
             r.devices.set(device.id, device);
             const found = new Map(snapshot.devices.map((item) => [item.id, item]));
             found.set(
@@ -261,6 +266,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
                 name: device.name,
                 rssi: device.rssi ?? null,
                 modelId: model.id,
+                family,
               }),
             );
             publish({ devices: Object.freeze([...found.values()]) });
@@ -345,8 +351,11 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
           const selected = r.devices.get(deviceId);
           const knownDevice = snapshot.devices.find((device) => device.id === deviceId);
           if (!selected || !knownDevice) throw new Error("DEVICE_NOT_DISCOVERED");
-          const model = matchDeviceName(knownDevice.name);
+          const model =
+            matchDeviceName(knownDevice.name) ?? matchXiaomiDeviceName(knownDevice.name);
           if (!model) throw new Error("DEVICE_NOT_DISCOVERED");
+          const family =
+            knownDevice.family ?? (matchDeviceName(knownDevice.name) ? "zepp_os" : "xiaomi");
           await stopRadioScan();
           if (current !== generation || disposed) return;
           let cancelWait!: () => void;
@@ -387,8 +396,14 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
             await discovered.cancelConnection();
             return;
           }
-          if (!services.some((service) => service.uuid.toLowerCase() === FEE0))
-            throw new Error("HUAMI_SERVICE_MISSING");
+          const hasRequiredService =
+            family === "xiaomi"
+              ? services.some((service) => XIAOMI_BLE_SERVICE_UUIDS.has(service.uuid.toLowerCase()))
+              : services.some((service) => service.uuid.toLowerCase() === FEE0);
+          if (!hasRequiredService)
+            throw new Error(
+              family === "xiaomi" ? "XIAOMI_SERVICE_MISSING" : "HUAMI_SERVICE_MISSING",
+            );
           disconnectSubscription = r.manager.onDeviceDisconnected(discovered.id, () => {
             if (disposed || connected !== discovered || current !== generation) return;
             connected = null;
@@ -681,6 +696,7 @@ const SAFE_CODES = new Set([
   "CANCELLED",
   "DEVICE_NOT_DISCOVERED",
   "HUAMI_SERVICE_MISSING",
+  "XIAOMI_SERVICE_MISSING",
   "BLUETOOTH_STATE_TIMEOUT",
   "SCAN_FAILED",
   "CONNECTION_FAILED",

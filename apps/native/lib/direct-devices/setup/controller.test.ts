@@ -690,7 +690,13 @@ test("discovers a registered non-Helio Zepp OS model and connects with its model
   await f.controller.startScan();
   f.emit();
   expect(f.controller.getSnapshot().devices).toEqual([
-    { id: "local-id", name: "Amazfit GTR 4", rssi: -50, modelId: "amazfit_gtr_4" },
+    {
+      id: "local-id",
+      name: "Amazfit GTR 4",
+      rssi: -50,
+      modelId: "amazfit_gtr_4",
+      family: "zepp_os",
+    },
   ]);
   await f.controller.connect("local-id");
   expect(f.controller.getSnapshot()).toMatchObject({
@@ -758,5 +764,55 @@ test("Helio discovery and connection still carry the Helio model id", async () =
   expect(f.controller.getSnapshot().connectedModelId).toBe("amazfit_helio_strap");
   f.disconnect();
   expect(f.controller.getSnapshot().connectedModelId).toBeNull();
+  await f.controller.dispose();
+});
+
+test("discovers a Xiaomi protobuf model and reaches service-verified connected", async () => {
+  const f = fixture({
+    deviceName: "Xiaomi Smart Band 8 ABCD",
+    services: async () => [{ uuid: "0000fe95-0000-1000-8000-00805f9b34fb" }],
+  });
+  await f.controller.startScan();
+  f.emit();
+  expect(f.controller.getSnapshot().devices[0]).toMatchObject({
+    name: "Xiaomi Smart Band 8 ABCD",
+    modelId: "xiaomi_mi_band_8",
+    family: "xiaomi",
+  });
+  await f.controller.connect("local-id");
+  expect(f.controller.getSnapshot()).toMatchObject({
+    phase: "connected",
+    connectedDeviceId: "local-id",
+    connectedModelId: "xiaomi_mi_band_8",
+  });
+  await f.controller.dispose();
+});
+
+test("a Xiaomi model without a Xiaomi service is rejected", async () => {
+  const f = fixture({
+    deviceName: "Xiaomi Smart Band 8 ABCD",
+    services: async () => [{ uuid: "180d" }],
+  });
+  await f.controller.startScan();
+  f.emit();
+  await f.controller.connect("local-id");
+  expect(f.controller.getSnapshot()).toMatchObject({
+    phase: "error",
+    connectedDeviceId: null,
+    connectedModelId: null,
+    errorCode: "XIAOMI_SERVICE_MISSING",
+  });
+  await f.controller.dispose();
+});
+
+test("a Zepp OS model still requires FEE0, not the Xiaomi service", async () => {
+  const f = fixture({
+    deviceName: "Amazfit GTR 4",
+    services: async () => [{ uuid: "0000fe95-0000-1000-8000-00805f9b34fb" }],
+  });
+  await f.controller.startScan();
+  f.emit();
+  await f.controller.connect("local-id");
+  expect(f.controller.getSnapshot().errorCode).toBe("HUAMI_SERVICE_MISSING");
   await f.controller.dispose();
 });
