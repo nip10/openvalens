@@ -2,7 +2,7 @@ import type { NutrientKey, NutrientTotal } from "@openvalens/api/contracts/nutri
 import type { NutritionTargetWire } from "@openvalens/api/contracts/nutrition-targets";
 import {
   MACRO_LETTERS,
-  NUTRIENT_LABELS,
+  MACRO_SHORT_LABELS,
   ROW_MACRO_KEYS,
 } from "@openvalens/api/presenters/nutrition-diary";
 import {
@@ -23,6 +23,11 @@ const MACRO_DOT: Record<(typeof ROW_MACRO_KEYS)[number], string> = {
   carbohydrateG: "bg-carbs",
   fatG: "bg-fat",
 };
+
+/** "at least 100 g" may wrap, but never between the number and its unit. */
+function keepUnitsAttached(text: string): string {
+  return text.replace(/(\d) (?=(?:g|mg|kcal|kJ)\b)/g, "$1\u00a0");
+}
 
 /**
  * The day at a glance (#394): energy and P/C/F with each target written
@@ -118,8 +123,11 @@ export function NutritionDaySummary({
             >
               <View className="flex-row items-center gap-1.5">
                 <View className={cn("h-2 w-2 rounded-full", MACRO_DOT[key])} />
-                <Text className={cn("font-sans text-xs font-semibold", MACRO_TEXT[key])}>
-                  {i18n._(MACRO_LETTERS[key])} · {i18n._(NUTRIENT_LABELS[key].label)}
+                <Text
+                  numberOfLines={1}
+                  className={cn("shrink font-sans text-xs font-semibold", MACRO_TEXT[key])}
+                >
+                  {i18n._(MACRO_LETTERS[key])} · {i18n._(MACRO_SHORT_LABELS[key])}
                 </Text>
               </View>
               <Text
@@ -128,7 +136,7 @@ export function NutritionDaySummary({
               >
                 {reading.figure}
               </Text>
-              <Text className="font-sans text-xs text-ink-3">{reading.note}</Text>
+              <Text className="font-sans text-xs text-ink-3">{keepUnitsAttached(reading.note)}</Text>
             </View>
           );
         })}

@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { createAppI18n } from "@openvalens/i18n";
 import { englishI18n, inEnglish } from "@openvalens/i18n/testing";
 import {
   findBannedCopy,
@@ -292,6 +293,17 @@ describe("totals beside targets (#394)", () => {
       figure: "92 g",
       note: "No target",
     });
+  });
+
+  test("numbers follow the app language", () => {
+    const pt = createAppI18n("pt-PT");
+    expect(
+      readTotalAgainstTarget("proteinG", total(82.7), atLeast, "consumed", false, pt).figure,
+    ).toBe("82,7 g");
+    expect(
+      readTotalAgainstTarget("energyKcal", total(1450), range, "consumed", false, englishI18n)
+        .figure,
+    ).toBe("1,450 kcal");
   });
 
   test("remaining reading counts what is left, then falls back without verdicts", () => {
