@@ -47,6 +47,8 @@ name: Screenshot tour
       ID: sign-out
 - tapOn:
     id: "sign-out"
+- runFlow:
+    file: ../subflows/confirm-sign-out.yaml
 - stopApp
 - launchApp:
     stopApp: false
