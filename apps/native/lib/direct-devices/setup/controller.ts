@@ -5,8 +5,11 @@ import { NativeHelioLink } from "../transport/helio-link";
 import { runHelioStepsHistory } from "../protocol/history";
 import { matchDeviceName } from "../models/zepp-os";
 import { matchXiaomiDeviceName } from "../models/xiaomi";
+import { matchHuaweiDeviceName } from "../models/huawei";
 import { selectXiaomiProfile, XIAOMI_BLE_SERVICE_UUIDS } from "../transport/xiaomi-link";
 import type { XiaomiBleProfile } from "../transport/xiaomi-link";
+import { HUAWEI_BLE_SERVICE_UUIDS, selectHuaweiProfile } from "../transport/huawei-link";
+import type { HuaweiBleProfile } from "../transport/huawei-link";
 import { createNativeXiaomiHistoryTransport } from "../transport/xiaomi-session";
 import { runXiaomiStepsHistory } from "../protocol/xiaomi-history";
 import type { XiaomiHistoryTransport } from "../protocol/xiaomi-history";
@@ -118,6 +121,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
   let connected: Device | null = null;
   let connectedFamily: DirectDeviceFamily | null = null;
   let connectedProfile: XiaomiBleProfile | null = null;
+  let connectedHuaweiProfile: HuaweiBleProfile | null = null;
   let connecting: Device | null = null;
   let connectionAttempt: object | null = null;
   let connectingLease: NativeDeviceLease | null = null;
@@ -268,9 +272,11 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
             if (!device || !device.name) return;
             const zeppModel = matchDeviceName(device.name);
             const xiaomiModel = zeppModel ? null : matchXiaomiDeviceName(device.name);
-            const model = zeppModel ?? xiaomiModel;
+            const huaweiModel =
+              zeppModel || xiaomiModel ? null : matchHuaweiDeviceName(device.name);
+            const model = zeppModel ?? xiaomiModel ?? huaweiModel;
             if (!model) return;
-            const family = zeppModel ? "zepp_os" : "xiaomi";
+            const family = zeppModel ? "zepp_os" : xiaomiModel ? "xiaomi" : "huawei";
             r.devices.set(device.id, device);
             const found = new Map(snapshot.devices.map((item) => [item.id, item]));
             found.set(
@@ -366,10 +372,17 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
           const knownDevice = snapshot.devices.find((device) => device.id === deviceId);
           if (!selected || !knownDevice) throw new Error("DEVICE_NOT_DISCOVERED");
           const model =
-            matchDeviceName(knownDevice.name) ?? matchXiaomiDeviceName(knownDevice.name);
+            matchDeviceName(knownDevice.name) ??
+            matchXiaomiDeviceName(knownDevice.name) ??
+            matchHuaweiDeviceName(knownDevice.name);
           if (!model) throw new Error("DEVICE_NOT_DISCOVERED");
           const family =
-            knownDevice.family ?? (matchDeviceName(knownDevice.name) ? "zepp_os" : "xiaomi");
+            knownDevice.family ??
+            (matchDeviceName(knownDevice.name)
+              ? "zepp_os"
+              : matchXiaomiDeviceName(knownDevice.name)
+                ? "xiaomi"
+                : "huawei");
           await stopRadioScan();
           if (current !== generation || disposed) return;
           let cancelWait!: () => void;
@@ -404,7 +417,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
             await discovered.cancelConnection();
             return;
           }
-          if (family === "xiaomi") {
+          if (family === "xiaomi" || family === "huawei") {
             // Best effort; iOS ignores this and Android negotiates the largest MTU.
             await discovered.requestMTU(512).catch(() => undefined);
           }
@@ -417,24 +430,40 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
           const hasRequiredService =
             family === "xiaomi"
               ? services.some((service) => XIAOMI_BLE_SERVICE_UUIDS.has(service.uuid.toLowerCase()))
-              : services.some((service) => service.uuid.toLowerCase() === FEE0);
+              : family === "huawei"
+                ? services.some((service) =>
+                    HUAWEI_BLE_SERVICE_UUIDS.has(service.uuid.toLowerCase()),
+                  )
+                : services.some((service) => service.uuid.toLowerCase() === FEE0);
           if (!hasRequiredService)
             throw new Error(
-              family === "xiaomi" ? "XIAOMI_SERVICE_MISSING" : "HUAMI_SERVICE_MISSING",
+              family === "xiaomi"
+                ? "XIAOMI_SERVICE_MISSING"
+                : family === "huawei"
+                  ? "HUAWEI_SERVICE_MISSING"
+                  : "HUAMI_SERVICE_MISSING",
             );
           let profile: XiaomiBleProfile | null = null;
+          let huaweiProfile: HuaweiBleProfile | null = null;
           if (family === "xiaomi") {
             profile = await selectXiaomiProfile(
               discovered,
               services.map((service) => service.uuid),
             );
             if (!profile) throw new Error("XIAOMI_SERVICE_MISSING");
+          } else if (family === "huawei") {
+            huaweiProfile = await selectHuaweiProfile(
+              discovered,
+              services.map((service) => service.uuid),
+            );
+            if (!huaweiProfile) throw new Error("HUAWEI_SERVICE_MISSING");
           }
           disconnectSubscription = r.manager.onDeviceDisconnected(discovered.id, () => {
             if (disposed || connected !== discovered || current !== generation) return;
             connected = null;
             connectedFamily = null;
             connectedProfile = null;
+            connectedHuaweiProfile = null;
             connectedLease = null;
             disconnectSubscription?.remove();
             disconnectSubscription = null;
@@ -453,6 +482,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
           connected = discovered;
           connectedFamily = family;
           connectedProfile = profile;
+          connectedHuaweiProfile = huaweiProfile;
           lease.held = true;
           connectedLease = lease;
           ownedDevice = null;
@@ -521,6 +551,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
       connected = null;
       connectedFamily = null;
       connectedProfile = null;
+      connectedHuaweiProfile = null;
       connectionAttempt = null;
       connectingLease = null;
       connectedLease = null;
@@ -569,6 +600,13 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
       if (disposed) throw new Error("CANCELLED");
       if (!connected) throw new Error("NOT_CONNECTED");
       if (historyCompletion) throw new Error("HISTORY_BUSY");
+      // Huawei history is a later milestone; the connection foundation stops at
+      // connected + service-verified. The selected profile is retained for that
+      // milestone.
+      if (connectedFamily === "huawei") {
+        if (!connectedHuaweiProfile) throw new Error("HUAWEI_SERVICE_MISSING");
+        throw new Error("HUAWEI_HISTORY_UNSUPPORTED");
+      }
       const device = connected;
       const abortController = new AbortController();
       historyAbort = abortController;
@@ -636,6 +674,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
       connected = null;
       connectedFamily = null;
       connectedProfile = null;
+      connectedHuaweiProfile = null;
       connectionAttempt = null;
       connectingLease = null;
       connectedLease = null;
@@ -760,6 +799,7 @@ const SAFE_CODES = new Set([
   "DEVICE_NOT_DISCOVERED",
   "HUAMI_SERVICE_MISSING",
   "XIAOMI_SERVICE_MISSING",
+  "HUAWEI_SERVICE_MISSING",
   "BLUETOOTH_STATE_TIMEOUT",
   "SCAN_FAILED",
   "CONNECTION_FAILED",

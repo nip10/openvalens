@@ -1,12 +1,13 @@
+import type { HuaweiModelId } from "../models/huawei";
 import type { XiaomiModelId } from "../models/xiaomi";
 import type { ZeppOsModelId } from "../models/zepp-os";
 import type { HelioHistoryOptions, HelioHistoryResult } from "../protocol/types";
 
-/** A model id from either direct-device registry. */
-export type DirectDeviceModelId = ZeppOsModelId | XiaomiModelId;
+/** A model id from any direct-device registry. */
+export type DirectDeviceModelId = ZeppOsModelId | XiaomiModelId | HuaweiModelId;
 
 /** The protocol family a discovered model belongs to. */
-export type DirectDeviceFamily = "zepp_os" | "xiaomi";
+export type DirectDeviceFamily = "zepp_os" | "xiaomi" | "huawei";
 
 export type HelioDiscoveredDevice = Readonly<{
   id: string;

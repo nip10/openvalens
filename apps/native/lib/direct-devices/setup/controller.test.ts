@@ -938,3 +938,83 @@ test("a connected Xiaomi model fetches pages through the injected history transp
   expect(f.controller.getSnapshot().connectedFamily).toBe("xiaomi");
   await f.controller.dispose();
 });
+
+test("discovers a Huawei model and reaches service-verified connected", async () => {
+  const f = fixture({
+    deviceName: "Huawei Band 8-ABCD",
+    services: async () => [{ uuid: "0000fe86-0000-1000-8000-00805f9b34fb" }],
+    characteristics: async (service) =>
+      service === "0000fe86-0000-1000-8000-00805f9b34fb"
+        ? [
+            { uuid: "0000fe01-0000-1000-8000-00805f9b34fb" },
+            { uuid: "0000fe02-0000-1000-8000-00805f9b34fb" },
+          ]
+        : [],
+  });
+  await f.controller.startScan();
+  f.emit();
+  expect(f.controller.getSnapshot().devices[0]).toMatchObject({
+    name: "Huawei Band 8-ABCD",
+    modelId: "huawei_band_8",
+    family: "huawei",
+  });
+  await f.controller.connect("local-id");
+  expect(f.controller.getSnapshot()).toMatchObject({
+    phase: "connected",
+    connectedDeviceId: "local-id",
+    connectedModelId: "huawei_band_8",
+    connectedFamily: "huawei",
+  });
+  await expect(
+    f.controller.fetchSteps({
+      authKey: new Uint8Array(16),
+      since: { version: 1, nextMinuteUtc: new Date(0).toISOString(), offsetQuarterHours: 0 },
+      signal: new AbortController().signal,
+      onPhase: () => undefined,
+      async onPage() {},
+    }),
+  ).rejects.toThrow("HUAWEI_HISTORY_UNSUPPORTED");
+  await f.controller.dispose();
+});
+
+test("discovers a Huawei model over the Honor service", async () => {
+  const honorService = "c5f0ad48-cc27-48fd-9f67-8dc8e8f4a9cb";
+  const f = fixture({
+    deviceName: "Honor Band 9-ABCD",
+    services: async () => [{ uuid: honorService }],
+    characteristics: async (service) =>
+      service === honorService
+        ? [
+            { uuid: "2a5fc8bd-3de4-43cb-9449-354bcdeccc70" },
+            { uuid: "a563d757-b216-48bc-8a0f-e8dde1f916aa" },
+          ]
+        : [],
+  });
+  await f.controller.startScan();
+  f.emit();
+  await f.controller.connect("local-id");
+  expect(f.controller.getSnapshot()).toMatchObject({
+    phase: "connected",
+    connectedModelId: "honor_band_9",
+    connectedFamily: "huawei",
+  });
+  await f.controller.dispose();
+});
+
+test("a Huawei model without a Huawei service is rejected", async () => {
+  const f = fixture({
+    deviceName: "Huawei Band 8-ABCD",
+    services: async () => [{ uuid: "180d" }],
+  });
+  await f.controller.startScan();
+  f.emit();
+  await f.controller.connect("local-id");
+  expect(f.controller.getSnapshot()).toMatchObject({
+    phase: "error",
+    connectedDeviceId: null,
+    connectedModelId: null,
+    connectedFamily: null,
+    errorCode: "HUAWEI_SERVICE_MISSING",
+  });
+  await f.controller.dispose();
+});
