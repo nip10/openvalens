@@ -6,30 +6,43 @@ import { createHelioSetupController } from "./controller";
 function deferred<T>() {
   let resolve!: (value: T) => void;
   let reject!: (reason?: unknown) => void;
-  const promise = new Promise<T>((res, rej) => { resolve = res; reject = rej; });
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
   return { promise, resolve, reject };
 }
 async function within<T>(promise: Promise<T>, timeoutMs = 1000): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
-    return await Promise.race([promise, new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("TEST_OPERATION_TIMEOUT")), timeoutMs); })]);
-  } finally { if (timer) clearTimeout(timer); }
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error("TEST_OPERATION_TIMEOUT")), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
-function fixture(options: {
-  runtime?: { platform: string; version: number; result?: string };
-  initialState?: State;
-  readyTimeoutMs?: number;
-  scanTimeoutMs?: number;
-  connect?: () => Promise<Device>;
-  discover?: () => Promise<Device>;
-  services?: () => Promise<Array<{ uuid: string }>>;
-  cryptoTest?: () => Promise<boolean>;
-  startScan?: () => Promise<void>;
-  stopScan?: () => Promise<void>;
-  destroy?: () => Promise<void>;
-  cancelConnection?: () => Promise<void>;
-} = {}) {
+function fixture(
+  options: {
+    runtime?: { platform: string; version: number; result?: string };
+    initialState?: State;
+    readyTimeoutMs?: number;
+    scanTimeoutMs?: number;
+    connect?: () => Promise<Device>;
+    discover?: () => Promise<Device>;
+    services?: () => Promise<Array<{ uuid: string }>>;
+    cryptoTest?: () => Promise<boolean>;
+    startScan?: () => Promise<void>;
+    stopScan?: () => Promise<void>;
+    destroy?: () => Promise<void>;
+    cancelConnection?: () => Promise<void>;
+    deviceName?: string;
+  } = {},
+) {
   let scanCallback: ((error: unknown, device: Device | null) => void) | undefined;
   let stateCallback: ((state: State) => void) | undefined;
   let disconnectCallback: (() => void) | undefined;
@@ -40,45 +53,98 @@ function fixture(options: {
   let scanStarts = 0;
   let radioLoads = 0;
   let destroyed = 0;
-  let currentState = options.initialState ?? "PoweredOn" as State;
-  const serviceRows = options.services ?? (async () => [{ uuid: "0000fee0-0000-1000-8000-00805f9b34fb" }]);
+  let currentState = options.initialState ?? ("PoweredOn" as State);
+  const serviceRows =
+    options.services ?? (async () => [{ uuid: "0000fee0-0000-1000-8000-00805f9b34fb" }]);
   const discovered = {
     discoverAllServicesAndCharacteristics: options.discover ?? (async () => discovered),
     services: serviceRows,
-    cancelConnection: async () => { cancelCount += 1; await options.cancelConnection?.(); },
+    cancelConnection: async () => {
+      cancelCount += 1;
+      await options.cancelConnection?.();
+    },
   } as unknown as Device;
   const selected = {
-    id: "local-id", name: "Amazfit Helio Strap", rssi: -50,
+    id: "local-id",
+    name: options.deviceName ?? "Amazfit Helio Strap",
+    rssi: -50,
     connect: options.connect ?? (async () => discovered),
-    cancelConnection: async () => { cancelCount += 1; await options.cancelConnection?.(); },
+    cancelConnection: async () => {
+      cancelCount += 1;
+      await options.cancelConnection?.();
+    },
   } as unknown as Device;
   const manager = {
     state: async () => currentState,
     onStateChange: (callback: (state: State) => void) => {
-      stateSubscriptions += 1; stateCallback = callback;
-      return { remove() { removedSubscriptions += 1; } } as Subscription;
+      stateSubscriptions += 1;
+      stateCallback = callback;
+      return {
+        remove() {
+          removedSubscriptions += 1;
+        },
+      } as Subscription;
     },
-    startDeviceScan: (_services: string[] | null, _settings: unknown, callback: typeof scanCallback) => { scanStarts += 1; scanCallback = callback; return options.startScan?.() ?? Promise.resolve(); },
-    stopDeviceScan: async () => { await options.stopScan?.(); }, destroy: async () => { destroyed += 1; await options.destroy?.(); },
-    onDeviceDisconnected: (_id: string, callback: () => void) => { disconnectCallback = callback; return { remove() {} }; },
+    startDeviceScan: (
+      _services: string[] | null,
+      _settings: unknown,
+      callback: typeof scanCallback,
+    ) => {
+      scanStarts += 1;
+      scanCallback = callback;
+      return options.startScan?.() ?? Promise.resolve();
+    },
+    stopDeviceScan: async () => {
+      await options.stopScan?.();
+    },
+    destroy: async () => {
+      destroyed += 1;
+      await options.destroy?.();
+    },
+    onDeviceDisconnected: (_id: string, callback: () => void) => {
+      disconnectCallback = callback;
+      return { remove() {} };
+    },
   };
   const controller = createHelioSetupController({
     runtime: () => {
       const platform = options.runtime ?? { platform: "ios", version: 0 };
-      return { ...platform, granted: "granted", requestPermissions: async (requested) => { permissionRequests.push(requested); return Object.fromEntries(requested.map((p) => [p, options.runtime?.result ?? "granted"])); } };
+      return {
+        ...platform,
+        granted: "granted",
+        requestPermissions: async (requested) => {
+          permissionRequests.push(requested);
+          return Object.fromEntries(
+            requested.map((p) => [p, options.runtime?.result ?? "granted"]),
+          );
+        },
+      };
     },
     readyTimeoutMs: options.readyTimeoutMs ?? 50,
     scanTimeoutMs: options.scanTimeoutMs ?? 10000,
-    loadRadio: () => { radioLoads += 1; return { manager, devices: new Map() } as never; },
+    loadRadio: () => {
+      radioLoads += 1;
+      return { manager, devices: new Map() } as never;
+    },
     cryptoTest: options.cryptoTest,
   });
   return {
     controller,
     emit: () => scanCallback?.(null, selected),
-    setState: (state: State) => { currentState = state; stateCallback?.(state); },
+    setState: (state: State) => {
+      currentState = state;
+      stateCallback?.(state);
+    },
     disconnect: () => disconnectCallback?.(),
     permissionRequests: () => permissionRequests,
-    counts: () => ({ stateSubscriptions, removedSubscriptions, cancelCount, scanStarts, radioLoads, destroyed }),
+    counts: () => ({
+      stateSubscriptions,
+      removedSubscriptions,
+      cancelCount,
+      scanStarts,
+      radioLoads,
+      destroyed,
+    }),
   };
 }
 
@@ -86,7 +152,14 @@ test("factory is inert; real injected Android runtime asks both Android 12 permi
   const f = fixture({ runtime: { platform: "android", version: 32 } });
   expect(f.counts().radioLoads).toBe(0);
   await f.controller.startScan();
-  expect(f.permissionRequests()).toEqual([["android.permission.BLUETOOTH_SCAN", "android.permission.BLUETOOTH_CONNECT", "android.permission.ACCESS_COARSE_LOCATION", "android.permission.ACCESS_FINE_LOCATION"]]);
+  expect(f.permissionRequests()).toEqual([
+    [
+      "android.permission.BLUETOOTH_SCAN",
+      "android.permission.BLUETOOTH_CONNECT",
+      "android.permission.ACCESS_COARSE_LOCATION",
+      "android.permission.ACCESS_FINE_LOCATION",
+    ],
+  ]);
   expect(f.counts().scanStarts).toBe(1);
   await f.controller.dispose();
 });
@@ -94,8 +167,18 @@ test("factory is inert; real injected Android runtime asks both Android 12 permi
 test("Android 12 denial prevents scanning; legacy Android requests location only", async () => {
   const denied = fixture({ runtime: { platform: "android", version: 34, result: "denied" } });
   await denied.controller.startScan();
-  expect(denied.permissionRequests()).toEqual([["android.permission.BLUETOOTH_SCAN", "android.permission.BLUETOOTH_CONNECT", "android.permission.ACCESS_COARSE_LOCATION", "android.permission.ACCESS_FINE_LOCATION"]]);
-  expect(denied.controller.getSnapshot()).toMatchObject({ errorCode: "PERMISSION_DENIED", bluetooth: "unauthorized" });
+  expect(denied.permissionRequests()).toEqual([
+    [
+      "android.permission.BLUETOOTH_SCAN",
+      "android.permission.BLUETOOTH_CONNECT",
+      "android.permission.ACCESS_COARSE_LOCATION",
+      "android.permission.ACCESS_FINE_LOCATION",
+    ],
+  ]);
+  expect(denied.controller.getSnapshot()).toMatchObject({
+    errorCode: "PERMISSION_DENIED",
+    bluetooth: "unauthorized",
+  });
   expect(denied.counts().scanStarts).toBe(0);
 
   const legacy = fixture({ runtime: { platform: "android", version: 30 } });
@@ -125,12 +208,22 @@ test("permission and state awaits resolving after stop/dispose cannot start scan
   const f = fixture({ runtime: { platform: "android", version: 32 } });
   // Override permission helper through a second injected runtime controller.
   const stopped = createHelioSetupController({
-    runtime: () => ({ platform: "android", version: 32, granted: "granted", requestPermissions: () => permission.promise }),
-    loadRadio: () => { throw new Error("radio should remain lazy until permission passes"); },
+    runtime: () => ({
+      platform: "android",
+      version: 32,
+      granted: "granted",
+      requestPermissions: () => permission.promise,
+    }),
+    loadRadio: () => {
+      throw new Error("radio should remain lazy until permission passes");
+    },
   });
   const action = stopped.startScan();
   await stopped.stopScan();
-  permission.resolve({ "android.permission.BLUETOOTH_SCAN": "granted", "android.permission.BLUETOOTH_CONNECT": "granted" });
+  permission.resolve({
+    "android.permission.BLUETOOTH_SCAN": "granted",
+    "android.permission.BLUETOOTH_CONNECT": "granted",
+  });
   await action;
   expect(stopped.getSnapshot().phase).toBe("idle");
   expect(f.counts().radioLoads).toBe(0);
@@ -140,8 +233,23 @@ test("permission and state awaits resolving after stop/dispose cannot start scan
   const late = fixture();
   const stateController = createHelioSetupController({
     readyTimeoutMs: 10,
-    runtime: () => ({ platform: "ios", version: 0, granted: "granted", requestPermissions: async () => ({}) }),
-    loadRadio: () => ({ manager: { state: () => stateGate.promise, onStateChange: () => ({ remove() {} }), startDeviceScan: async () => {}, stopDeviceScan: async () => {}, destroy: async () => {}, onDeviceDisconnected: () => ({ remove() {} }) } as never, devices: new Map() }),
+    runtime: () => ({
+      platform: "ios",
+      version: 0,
+      granted: "granted",
+      requestPermissions: async () => ({}),
+    }),
+    loadRadio: () => ({
+      manager: {
+        state: () => stateGate.promise,
+        onStateChange: () => ({ remove() {} }),
+        startDeviceScan: async () => {},
+        stopDeviceScan: async () => {},
+        destroy: async () => {},
+        onDeviceDisconnected: () => ({ remove() {} }),
+      } as never,
+      devices: new Map(),
+    }),
   });
   const stateAction = stateController.startScan();
   await stateController.dispose();
@@ -152,17 +260,32 @@ test("permission and state awaits resolving after stop/dispose cannot start scan
 });
 
 test("BLE scan/stop/destroy promise rejections are consumed and surface only fixed safe state", async () => {
-  const startRejected = fixture({ startScan: async () => { throw new Error("native peripheral identifier detail"); } });
+  const startRejected = fixture({
+    startScan: async () => {
+      throw new Error("native peripheral identifier detail");
+    },
+  });
   await startRejected.controller.startScan();
-  expect(startRejected.controller.getSnapshot()).toMatchObject({ phase: "error", errorCode: "CONNECTION_FAILED" });
+  expect(startRejected.controller.getSnapshot()).toMatchObject({
+    phase: "error",
+    errorCode: "CONNECTION_FAILED",
+  });
   await startRejected.controller.dispose();
 
-  const stopRejected = fixture({ stopScan: async () => { throw new Error("private radio detail"); } });
+  const stopRejected = fixture({
+    stopScan: async () => {
+      throw new Error("private radio detail");
+    },
+  });
   await stopRejected.controller.startScan();
   await expect(stopRejected.controller.stopScan()).resolves.toBeUndefined();
   await expect(stopRejected.controller.dispose()).resolves.toBeUndefined();
 
-  const destroyRejected = fixture({ destroy: async () => { throw new Error("manager implementation detail"); } });
+  const destroyRejected = fixture({
+    destroy: async () => {
+      throw new Error("manager implementation detail");
+    },
+  });
   await destroyRejected.controller.startScan();
   await expect(destroyRejected.controller.dispose()).resolves.toBeUndefined();
 });
@@ -170,7 +293,12 @@ test("BLE scan/stop/destroy promise rejections are consumed and surface only fix
 test("scan-start cancellation serializes native start/stop so an old start cannot stop a newer scan", async () => {
   const startGate = deferred<void>();
   const started = deferred<void>();
-  const f = fixture({ startScan: () => { started.resolve(); return startGate.promise; } });
+  const f = fixture({
+    startScan: () => {
+      started.resolve();
+      return startGate.promise;
+    },
+  });
   const oldStart = f.controller.startScan();
   await started.promise;
   await f.controller.stopScan();
@@ -186,15 +314,22 @@ test("scan-start cancellation serializes native start/stop so an old start canno
 test("a delayed stop completes before a replacement scan starts", async () => {
   const stopGate = deferred<void>();
   const stopStarted = deferred<void>();
-  const f = fixture({ stopScan: () => { stopStarted.resolve(); return stopGate.promise; } });
+  const f = fixture({
+    stopScan: () => {
+      stopStarted.resolve();
+      return stopGate.promise;
+    },
+  });
   await f.controller.startScan();
   const stopping = f.controller.stopScan();
   await stopStarted.promise;
   const replacement = f.controller.startScan();
-  await Promise.resolve(); await Promise.resolve();
+  await Promise.resolve();
+  await Promise.resolve();
   expect(f.counts().scanStarts).toBe(1);
   stopGate.resolve();
-  await stopping; await replacement;
+  await stopping;
+  await replacement;
   expect(f.counts().scanStarts).toBe(2);
   await f.controller.dispose();
 });
@@ -207,7 +342,8 @@ test("replacement manager acquisition waits for prior asynchronous manager teard
 
   const replacement = fixture();
   const starting = replacement.controller.startScan();
-  await Promise.resolve(); await Promise.resolve();
+  await Promise.resolve();
+  await Promise.resolve();
   expect(replacement.counts().radioLoads).toBe(0);
   destroyGate.resolve();
   await disposing;
@@ -218,16 +354,27 @@ test("replacement manager acquisition waits for prior asynchronous manager teard
 
 test("connecting selected Helio verifies only FEE0, duplicate connect cannot orphan it, disconnect callback clears state", async () => {
   const f = fixture();
-  await f.controller.startScan(); f.emit(); await f.controller.connect("local-id");
-  expect(f.controller.getSnapshot()).toMatchObject({ phase: "connected", connectedDeviceId: "local-id" });
+  await f.controller.startScan();
+  f.emit();
+  await f.controller.connect("local-id");
+  expect(f.controller.getSnapshot()).toMatchObject({
+    phase: "connected",
+    connectedDeviceId: "local-id",
+  });
   await f.controller.connect("local-id");
   expect(f.counts().cancelCount).toBe(0);
   f.disconnect();
-  expect(f.controller.getSnapshot()).toMatchObject({ phase: "idle", connectedDeviceId: null, errorCode: "DEVICE_DISCONNECTED" });
+  expect(f.controller.getSnapshot()).toMatchObject({
+    phase: "idle",
+    connectedDeviceId: null,
+    errorCode: "DEVICE_DISCONNECTED",
+  });
   await f.controller.dispose();
 
   const missing = fixture({ services: async () => [{ uuid: "180d" }] });
-  await missing.controller.startScan(); missing.emit(); await missing.controller.connect("local-id");
+  await missing.controller.startScan();
+  missing.emit();
+  await missing.controller.connect("local-id");
   expect(missing.controller.getSnapshot().errorCode).toBe("HUAMI_SERVICE_MISSING");
   expect(missing.counts().cancelCount).toBe(1);
   await missing.controller.dispose();
@@ -236,19 +383,35 @@ test("connecting selected Helio verifies only FEE0, duplicate connect cannot orp
 test("stop/dispose during connect or services wait cancels eventual connection and suppresses stale errors", async () => {
   const connected = deferred<Device>();
   const connectStarted = deferred<void>();
-  const first = fixture({ connect: () => { connectStarted.resolve(); return connected.promise; } });
-  await first.controller.startScan(); first.emit();
+  const first = fixture({
+    connect: () => {
+      connectStarted.resolve();
+      return connected.promise;
+    },
+  });
+  await first.controller.startScan();
+  first.emit();
   const connecting = first.controller.connect("local-id");
   await connectStarted.promise;
   const firstDisconnect = first.controller.disconnect();
-  connected.resolve({ cancelConnection: async () => { /* cancellation acknowledged */ } } as unknown as Device);
+  connected.resolve({
+    cancelConnection: async () => {
+      /* cancellation acknowledged */
+    },
+  } as unknown as Device);
   await Promise.all([connecting, firstDisconnect]);
   expect(first.controller.getSnapshot().phase).toBe("idle");
 
   const services = deferred<Array<{ uuid: string }>>();
   const servicesStarted = deferred<void>();
-  const second = fixture({ services: () => { servicesStarted.resolve(); return services.promise; } });
-  await second.controller.startScan(); second.emit();
+  const second = fixture({
+    services: () => {
+      servicesStarted.resolve();
+      return services.promise;
+    },
+  });
+  await second.controller.startScan();
+  second.emit();
   const pending = second.controller.connect("local-id");
   await servicesStarted.promise;
   const secondDisconnect = second.controller.disconnect();
@@ -263,20 +426,36 @@ test("pending connect is cancelled immediately; discovery failures cancel their 
   const connectStarted = deferred<void>();
   let cancelled = 0;
   const f = fixture({
-    connect: () => { connectStarted.resolve(); return connectGate.promise; },
-    cancelConnection: async () => { cancelled += 1; },
+    connect: () => {
+      connectStarted.resolve();
+      return connectGate.promise;
+    },
+    cancelConnection: async () => {
+      cancelled += 1;
+    },
   });
-  await f.controller.startScan(); f.emit();
+  await f.controller.startScan();
+  f.emit();
   const connecting = f.controller.connect("local-id");
   await connectStarted.promise;
   const disconnecting = f.controller.disconnect();
   expect(cancelled).toBe(1);
-  connectGate.resolve({ cancelConnection: async () => { cancelled += 1; } } as unknown as Device);
+  connectGate.resolve({
+    cancelConnection: async () => {
+      cancelled += 1;
+    },
+  } as unknown as Device);
   await Promise.all([connecting, disconnecting]);
   expect(cancelled).toBe(2);
 
-  const discoveryFailure = fixture({ discover: async () => { throw new Error("discovery detail"); } });
-  await discoveryFailure.controller.startScan(); discoveryFailure.emit(); await discoveryFailure.controller.connect("local-id");
+  const discoveryFailure = fixture({
+    discover: async () => {
+      throw new Error("discovery detail");
+    },
+  });
+  await discoveryFailure.controller.startScan();
+  discoveryFailure.emit();
+  await discoveryFailure.controller.connect("local-id");
   expect(discoveryFailure.counts().cancelCount).toBe(1);
   expect(discoveryFailure.controller.getSnapshot().errorCode).toBe("CONNECTION_FAILED");
   await discoveryFailure.controller.dispose();
@@ -287,13 +466,17 @@ test("dispose starts cancellation before waiting for a pending native connect to
   const nativeConnect = deferred<Device>();
   let cancelRequested = false;
   const f = fixture({
-    connect: () => { started.resolve(); return nativeConnect.promise; },
+    connect: () => {
+      started.resolve();
+      return nativeConnect.promise;
+    },
     cancelConnection: async () => {
       cancelRequested = true;
       nativeConnect.reject(new Error("native connect cancelled"));
     },
   });
-  await f.controller.startScan(); f.emit();
+  await f.controller.startScan();
+  f.emit();
   const connecting = f.controller.connect("local-id");
   await started.promise;
   await within(f.controller.dispose());
@@ -305,14 +488,38 @@ test("dispose starts cancellation before waiting for a pending native connect to
 test("delayed disconnect only cancels detached handles and cannot reset a newer connection", async () => {
   const cancellation = deferred<void>();
   const native = { currentConnection: null as string | null };
-  const first = { id: "same-ble-id", discoverAllServicesAndCharacteristics: async () => first, services: async () => [{ uuid: "0000fee0-0000-1000-8000-00805f9b34fb" }], cancelConnection: async () => { await cancellation.promise; native.currentConnection = null; } } as unknown as Device;
-  const second = { id: "same-ble-id", discoverAllServicesAndCharacteristics: async () => second, services: async () => [{ uuid: "0000fee0-0000-1000-8000-00805f9b34fb" }], cancelConnection: async () => { native.currentConnection = null; } } as unknown as Device;
+  const first = {
+    id: "same-ble-id",
+    discoverAllServicesAndCharacteristics: async () => first,
+    services: async () => [{ uuid: "0000fee0-0000-1000-8000-00805f9b34fb" }],
+    cancelConnection: async () => {
+      await cancellation.promise;
+      native.currentConnection = null;
+    },
+  } as unknown as Device;
+  const second = {
+    id: "same-ble-id",
+    discoverAllServicesAndCharacteristics: async () => second,
+    services: async () => [{ uuid: "0000fee0-0000-1000-8000-00805f9b34fb" }],
+    cancelConnection: async () => {
+      native.currentConnection = null;
+    },
+  } as unknown as Device;
   let call = 0;
-  const f = fixture({ connect: async () => { const device = call++ === 0 ? first : second; native.currentConnection = device === first ? "old" : "new"; return device; } });
-  await f.controller.startScan(); f.emit(); await f.controller.connect("local-id");
+  const f = fixture({
+    connect: async () => {
+      const device = call++ === 0 ? first : second;
+      native.currentConnection = device === first ? "old" : "new";
+      return device;
+    },
+  });
+  await f.controller.startScan();
+  f.emit();
+  await f.controller.connect("local-id");
   const disconnecting = f.controller.disconnect();
   const reconnecting = f.controller.connect("local-id");
-  await Promise.resolve(); await Promise.resolve();
+  await Promise.resolve();
+  await Promise.resolve();
   expect(call).toBe(1);
   expect(native.currentConnection).toBe("old");
   cancellation.resolve();
@@ -320,8 +527,14 @@ test("delayed disconnect only cancels detached handles and cannot reset a newer 
   await disconnecting;
   expect(call).toBe(2);
   expect(native.currentConnection).toBe("new");
-  expect(f.controller.getSnapshot()).toMatchObject({ phase: "connected", connectedDeviceId: "local-id" });
-  expect(f.controller.getSnapshot()).toMatchObject({ phase: "connected", connectedDeviceId: "local-id" });
+  expect(f.controller.getSnapshot()).toMatchObject({
+    phase: "connected",
+    connectedDeviceId: "local-id",
+  });
+  expect(f.controller.getSnapshot()).toMatchObject({
+    phase: "connected",
+    connectedDeviceId: "local-id",
+  });
   await f.controller.dispose();
 });
 
@@ -333,20 +546,43 @@ test("same-ID replacement waits for stale services rejection and cleanup", async
   let cancelCalls = 0;
   let oldCleanupDone = false;
   const nativeConnection: { value: string | null } = { value: null };
-  const oldDevice = { id: "same-ble-id", discoverAllServicesAndCharacteristics: async () => oldDevice, services: () => { oldStarted.resolve(); return services.promise; }, cancelConnection: async () => {
-    cancelCalls += 1;
-    if (cancelCalls === 1) await externalCancel.promise;
-    else oldCleanupDone = true;
-    nativeConnection.value = null;
-  } } as unknown as Device;
-  const newDevice = { id: "same-ble-id", discoverAllServicesAndCharacteristics: async () => newDevice, services: async () => [{ uuid: "0000fee0-0000-1000-8000-00805f9b34fb" }], cancelConnection: async () => { nativeConnection.value = null; } } as unknown as Device;
-  const f = fixture({ connect: async () => { const device = calls++ === 0 ? oldDevice : newDevice; nativeConnection.value = device === oldDevice ? "old" : "new"; return device; } });
-  await f.controller.startScan(); f.emit();
+  const oldDevice = {
+    id: "same-ble-id",
+    discoverAllServicesAndCharacteristics: async () => oldDevice,
+    services: () => {
+      oldStarted.resolve();
+      return services.promise;
+    },
+    cancelConnection: async () => {
+      cancelCalls += 1;
+      if (cancelCalls === 1) await externalCancel.promise;
+      else oldCleanupDone = true;
+      nativeConnection.value = null;
+    },
+  } as unknown as Device;
+  const newDevice = {
+    id: "same-ble-id",
+    discoverAllServicesAndCharacteristics: async () => newDevice,
+    services: async () => [{ uuid: "0000fee0-0000-1000-8000-00805f9b34fb" }],
+    cancelConnection: async () => {
+      nativeConnection.value = null;
+    },
+  } as unknown as Device;
+  const f = fixture({
+    connect: async () => {
+      const device = calls++ === 0 ? oldDevice : newDevice;
+      nativeConnection.value = device === oldDevice ? "old" : "new";
+      return device;
+    },
+  });
+  await f.controller.startScan();
+  f.emit();
   const oldAttempt = f.controller.connect("local-id");
   await oldStarted.promise;
   const disconnecting = f.controller.disconnect();
   const replacement = f.controller.connect("local-id");
-  await Promise.resolve(); await Promise.resolve();
+  await Promise.resolve();
+  await Promise.resolve();
   expect(calls).toBe(1);
   services.reject(new Error("old service discovery rejected"));
   await within(oldAttempt);
@@ -357,7 +593,10 @@ test("same-ID replacement waits for stale services rejection and cleanup", async
   await within(Promise.all([disconnecting, replacement]));
   expect(calls).toBe(2);
   expect(nativeConnection.value).toBe("new");
-  expect(f.controller.getSnapshot()).toMatchObject({ phase: "connected", connectedDeviceId: "local-id" });
+  expect(f.controller.getSnapshot()).toMatchObject({
+    phase: "connected",
+    connectedDeviceId: "local-id",
+  });
   await f.controller.dispose();
 });
 
@@ -366,17 +605,48 @@ test("new controller acquisition waits for disposed controller's same-ID operati
   const servicesStarted = deferred<void>();
   let connectCalls = 0;
   const nativeConnection: { value: string | null } = { value: null };
-  const oldHandle = { id: "same-ble-id", discoverAllServicesAndCharacteristics: async () => oldHandle, services: () => { servicesStarted.resolve(); return services.promise; }, cancelConnection: async () => { nativeConnection.value = null; } } as unknown as Device;
-  const newHandle = { id: "same-ble-id", discoverAllServicesAndCharacteristics: async () => newHandle, services: async () => [{ uuid: "0000fee0-0000-1000-8000-00805f9b34fb" }], cancelConnection: async () => { nativeConnection.value = null; } } as unknown as Device;
-  const old = fixture({ connect: async () => { connectCalls += 1; nativeConnection.value = "old"; return oldHandle; } });
-  await old.controller.startScan(); old.emit();
+  const oldHandle = {
+    id: "same-ble-id",
+    discoverAllServicesAndCharacteristics: async () => oldHandle,
+    services: () => {
+      servicesStarted.resolve();
+      return services.promise;
+    },
+    cancelConnection: async () => {
+      nativeConnection.value = null;
+    },
+  } as unknown as Device;
+  const newHandle = {
+    id: "same-ble-id",
+    discoverAllServicesAndCharacteristics: async () => newHandle,
+    services: async () => [{ uuid: "0000fee0-0000-1000-8000-00805f9b34fb" }],
+    cancelConnection: async () => {
+      nativeConnection.value = null;
+    },
+  } as unknown as Device;
+  const old = fixture({
+    connect: async () => {
+      connectCalls += 1;
+      nativeConnection.value = "old";
+      return oldHandle;
+    },
+  });
+  await old.controller.startScan();
+  old.emit();
   const oldConnection = old.controller.connect("local-id");
   await servicesStarted.promise;
   const disposing = old.controller.dispose();
 
-  const replacement = fixture({ connect: async () => { connectCalls += 1; nativeConnection.value = "new"; return newHandle; } });
+  const replacement = fixture({
+    connect: async () => {
+      connectCalls += 1;
+      nativeConnection.value = "new";
+      return newHandle;
+    },
+  });
   const replacementScan = replacement.controller.startScan();
-  await Promise.resolve(); await Promise.resolve();
+  await Promise.resolve();
+  await Promise.resolve();
   expect(replacement.counts().radioLoads).toBe(0);
   expect(connectCalls).toBe(1);
   services.reject(new Error("disposed old service request rejected"));
@@ -386,7 +656,10 @@ test("new controller acquisition waits for disposed controller's same-ID operati
   await replacement.controller.connect("local-id");
   expect(connectCalls).toBe(2);
   expect(nativeConnection.value).toBe("new");
-  expect(replacement.controller.getSnapshot()).toMatchObject({ phase: "connected", connectedDeviceId: "local-id" });
+  expect(replacement.controller.getSnapshot()).toMatchObject({
+    phase: "connected",
+    connectedDeviceId: "local-id",
+  });
   await replacement.controller.dispose();
 });
 
@@ -394,11 +667,96 @@ test("late crypto completion after dispose is ignored; native error text never b
   const gate = deferred<boolean>();
   const f = fixture({ cryptoTest: () => gate.promise });
   const crypto = f.controller.runCryptoSelfTest();
-  await f.controller.dispose(); gate.resolve(true); await crypto;
+  await f.controller.dispose();
+  gate.resolve(true);
+  await crypto;
   expect(f.controller.getSnapshot().crypto.status).toBe("running");
 
-  const bad = fixture({ cryptoTest: async () => { throw new Error("MAC address and private details"); } });
+  const bad = fixture({
+    cryptoTest: async () => {
+      throw new Error("MAC address and private details");
+    },
+  });
   await bad.controller.runCryptoSelfTest();
-  expect(bad.controller.getSnapshot().crypto).toEqual({ status: "unavailable", code: "CRYPTO_UNAVAILABLE" });
+  expect(bad.controller.getSnapshot().crypto).toEqual({
+    status: "unavailable",
+    code: "CRYPTO_UNAVAILABLE",
+  });
   await bad.controller.dispose();
+});
+
+test("discovers a registered non-Helio Zepp OS model and connects with its model id", async () => {
+  const f = fixture({ deviceName: "Amazfit GTR 4" });
+  await f.controller.startScan();
+  f.emit();
+  expect(f.controller.getSnapshot().devices).toEqual([
+    { id: "local-id", name: "Amazfit GTR 4", rssi: -50, modelId: "amazfit_gtr_4" },
+  ]);
+  await f.controller.connect("local-id");
+  expect(f.controller.getSnapshot()).toMatchObject({
+    phase: "connected",
+    connectedDeviceId: "local-id",
+    connectedModelId: "amazfit_gtr_4",
+  });
+  f.disconnect();
+  expect(f.controller.getSnapshot()).toMatchObject({
+    phase: "idle",
+    connectedDeviceId: null,
+    connectedModelId: null,
+  });
+  await f.controller.dispose();
+});
+
+test("discovers a MAC-suffixed registered name and still verifies FEE0", async () => {
+  const f = fixture({ deviceName: "Amazfit GTR 4 AB12" });
+  await f.controller.startScan();
+  f.emit();
+  expect(f.controller.getSnapshot().devices[0]).toMatchObject({
+    name: "Amazfit GTR 4 AB12",
+    modelId: "amazfit_gtr_4",
+  });
+  await f.controller.connect("local-id");
+  expect(f.controller.getSnapshot()).toMatchObject({
+    phase: "connected",
+    connectedModelId: "amazfit_gtr_4",
+  });
+  await f.controller.dispose();
+
+  const missing = fixture({
+    deviceName: "Amazfit GTR 4",
+    services: async () => [{ uuid: "180d" }],
+  });
+  await missing.controller.startScan();
+  missing.emit();
+  await missing.controller.connect("local-id");
+  expect(missing.controller.getSnapshot().errorCode).toBe("HUAMI_SERVICE_MISSING");
+  expect(missing.counts().cancelCount).toBe(1);
+  await missing.controller.dispose();
+});
+
+test("unknown BLE names are ignored by discovery and cannot be connected", async () => {
+  const f = fixture({ deviceName: "Random Device" });
+  await f.controller.startScan();
+  f.emit();
+  expect(f.controller.getSnapshot().devices).toEqual([]);
+  await f.controller.connect("local-id");
+  expect(f.controller.getSnapshot()).toMatchObject({
+    phase: "error",
+    connectedDeviceId: null,
+    connectedModelId: null,
+    errorCode: "DEVICE_NOT_DISCOVERED",
+  });
+  await f.controller.dispose();
+});
+
+test("Helio discovery and connection still carry the Helio model id", async () => {
+  const f = fixture();
+  await f.controller.startScan();
+  f.emit();
+  expect(f.controller.getSnapshot().devices[0]?.modelId).toBe("amazfit_helio_strap");
+  await f.controller.connect("local-id");
+  expect(f.controller.getSnapshot().connectedModelId).toBe("amazfit_helio_strap");
+  f.disconnect();
+  expect(f.controller.getSnapshot().connectedModelId).toBeNull();
+  await f.controller.dispose();
 });
