@@ -178,7 +178,7 @@ export default function BodyScreen() {
                 icon={Scale}
                 tone="weight"
                 label={t`Weight`}
-                value={formatKg(summary.latest.weightKg)}
+                value={formatKg(summary.latest.weightKg, null, i18n.locale)}
                 note={friendlyDate(i18n, summary.latest.date)}
               />
               <TileRow>
@@ -240,7 +240,7 @@ export default function BodyScreen() {
                       className="font-sans text-base font-semibold text-ink"
                       style={{ fontVariant: ["tabular-nums"] }}
                     >
-                      {formatKg(point.weightKg)}
+                      {formatKg(point.weightKg, null, i18n.locale)}
                     </Text>
                   </View>
                 );

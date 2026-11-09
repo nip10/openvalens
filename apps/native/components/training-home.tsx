@@ -129,12 +129,8 @@ export function TrainingStart({
           onPress={onPastSession}
           className="min-h-12 flex-1 items-center justify-center rounded-full border border-rule-2 bg-sheet px-3"
         >
-          <Text
-            numberOfLines={1}
-            adjustsFontSizeToFit
-            minimumFontScale={0.75}
-            className="font-sans text-sm font-semibold text-ink"
-          >
+          {/* Same size as Empty workout; a long translation wraps to two lines. */}
+          <Text numberOfLines={2} className="text-center font-sans text-sm font-semibold text-ink">
             <Trans>Log past session</Trans>
           </Text>
         </Pressable>

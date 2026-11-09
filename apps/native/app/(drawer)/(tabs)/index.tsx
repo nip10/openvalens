@@ -335,7 +335,7 @@ export default function CockpitScreen() {
                 <Figure
                   className={stacked ? undefined : "flex-1 pr-3"}
                   label={friendlyDate(i18n, weightSummary.latest.date)}
-                  value={formatKg(weightSummary.latest.weightKg)}
+                  value={formatKg(weightSummary.latest.weightKg, null, i18n.locale)}
                 />
                 <Figure
                   className={

@@ -49,6 +49,16 @@ name: Store screenshots
 
 - tapOn:
     id: "tab-cockpit"
+# The store shot shows the dashboard, not the new-account checklist.
+- runFlow:
+    when:
+      visible:
+        id: "get-started-hide"
+    commands:
+      - tapOn:
+          id: "get-started-hide"
+      - waitForAnimationToEnd:
+          timeout: 2000
 - runFlow:
     file: ../subflows/check-screen.yaml
     env:
