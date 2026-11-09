@@ -37,6 +37,7 @@ describe("licence audit", () => {
     const violations = auditPackages([
       { name: "ok", version: "1.0.0", license: "MIT" },
       { name: "missing", version: "1.0.0", license: null },
+      { name: "@config-plugins/react-native-ble-plx", version: "7.0.0", license: null },
       { name: "copyleft", version: "1.0.0", license: "GPL-3.0-only" },
       { name: "@img/sharp-libvips-linux-x64", version: "1.2.4", license: "LGPL-3.0-or-later" },
       { name: "@img/sharp-libvips-darwin-arm64", version: "2.0.0", license: "GPL-3.0-only" },

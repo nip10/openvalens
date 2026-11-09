@@ -34,8 +34,9 @@ export const ALLOWED_LICENSES = new Set([
 /**
  * Packages allowed despite a licence outside the allowlist. Keys are package
  * names or a `prefix*` pattern; each entry records why it is acceptable.
+ * `license: null` accepts a package that declares no licence at all.
  */
-export const LICENSE_EXCEPTIONS: Record<string, { license: string; reason: string }> = {
+export const LICENSE_EXCEPTIONS: Record<string, { license: string | null; reason: string }> = {
   "@img/sharp-libvips-*": {
     license: "LGPL-3.0-or-later",
     reason:
@@ -52,6 +53,15 @@ export const LICENSE_EXCEPTIONS: Record<string, { license: string; reason: strin
   sentry: {
     license: "FSL-1.1-Apache-2.0",
     reason: "Optional build-time Sentry CLI used by the bundler plugins; never bundled.",
+  },
+  // Expo's Bluetooth config plugin for the direct-device work. No version on
+  // npm declares a licence and expo/config-plugins has no LICENSE file. It
+  // only edits the native projects during `expo prebuild` (listed under
+  // plugins in apps/native/app.json) and is never bundled into the app.
+  "@config-plugins/react-native-ble-plx": {
+    license: null,
+    reason:
+      "Build-time Expo config plugin run by prebuild only; never bundled or redistributed. Owner-approved exception (2026-11-09).",
   },
 };
 
@@ -134,7 +144,8 @@ export function auditPackages(packages: InstalledPackage[]): LicenseViolation[] 
   const violations: LicenseViolation[] = [];
   for (const pkg of packages) {
     if (!pkg.license) {
-      violations.push({ ...pkg, problem: "no declared licence" });
+      if (exceptionFor(pkg.name)?.license !== null)
+        violations.push({ ...pkg, problem: "no declared licence" });
       continue;
     }
     let allowed: boolean;
