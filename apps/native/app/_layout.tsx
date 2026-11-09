@@ -24,7 +24,10 @@ import { AppThemeProvider } from "@/contexts/app-theme-context";
 import { DisplayPreferencesProvider } from "@/lib/display-preferences";
 import { AppI18nProvider } from "@/lib/i18n/provider";
 import { getAuthClient } from "@/lib/auth-client";
-import { installDirectDeviceAuthority, invalidateDirectDeviceAuthority } from "@/lib/direct-devices/authority";
+import {
+  installDirectDeviceAuthority,
+  invalidateDirectDeviceAuthority,
+} from "@/lib/direct-devices/authority";
 import { initErrorReporting } from "@/lib/error-reporting";
 // Defines the background sync task on every launch, including headless ones.
 import "@/lib/health-sync/scheduler";
@@ -103,7 +106,9 @@ function DirectDeviceSessionObserver({ serverUrl }: { serverUrl: string }) {
   const auth = getAuthClient();
   const { data } = auth.useSession();
   const userId = data?.user?.id;
-  const session = data?.session as ({ id?: string; activeOrganizationId?: string | null } | undefined);
+  const session = data?.session as
+    | { id?: string; activeOrganizationId?: string | null }
+    | undefined;
   const organizationId = session?.activeOrganizationId;
   const sessionId = session?.id;
   useEffect(() => {

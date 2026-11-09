@@ -11,13 +11,21 @@ import {
   isAuthorityTicketCurrent,
 } from "./authority";
 
-const scope = { serverUrl: "https://EXAMPLE.test/openvalens/api/", userId: "user-1", organizationId: "org-1" };
+const scope = {
+  serverUrl: "https://EXAMPLE.test/openvalens/api/",
+  userId: "user-1",
+  organizationId: "org-1",
+};
 
 test("authority scope canonicalization preserves server base paths and uses tuple JSON", () => {
   const canonical = canonicalDirectDeviceScope(scope);
   expect(canonical.serverUrl).toBe("https://example.test/openvalens/api");
-  expect(directDeviceScopeKey(scope)).toBe(JSON.stringify([canonical.serverUrl, "user-1", "org-1"]));
-  expect(directDeviceScopeKey({ ...scope, organizationId: "org-2" })).not.toBe(directDeviceScopeKey(scope));
+  expect(directDeviceScopeKey(scope)).toBe(
+    JSON.stringify([canonical.serverUrl, "user-1", "org-1"]),
+  );
+  expect(directDeviceScopeKey({ ...scope, organizationId: "org-2" })).not.toBe(
+    directDeviceScopeKey(scope),
+  );
 });
 
 test("only the installed session can mint tickets and synchronous transition revokes them", () => {

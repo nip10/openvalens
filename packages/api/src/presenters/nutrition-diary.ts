@@ -137,17 +137,15 @@ export const MACRO_LETTERS: Readonly<Record<RowMacroKey, MessageDescriptor>> = O
 });
 
 /** Short macro names for narrow columns, such as the day summary's three. */
-export const MACRO_SHORT_LABELS: Readonly<Record<RowMacroKey, MessageDescriptor>> = Object.freeze(
-  {
-    proteinG: msg({ message: "Protein", context: "macro short name" }),
-    carbohydrateG: msg({
-      message: "Carbs",
-      context: "macro short name",
-      comment: "Carbohydrate, short, for a narrow column",
-    }),
-    fatG: msg({ message: "Fat", context: "macro short name" }),
-  },
-);
+export const MACRO_SHORT_LABELS: Readonly<Record<RowMacroKey, MessageDescriptor>> = Object.freeze({
+  proteinG: msg({ message: "Protein", context: "macro short name" }),
+  carbohydrateG: msg({
+    message: "Carbs",
+    context: "macro short name",
+    comment: "Carbohydrate, short, for a narrow column",
+  }),
+  fatG: msg({ message: "Fat", context: "macro short name" }),
+});
 
 /**
  * A compact figure for a diary row: `"1,240 kcal"` for energy, whole grams

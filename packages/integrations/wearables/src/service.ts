@@ -1021,11 +1021,16 @@ export function createWearablesService(deps: WearablesServiceDeps) {
               on d.id=r.data_source_id and d.organization_id=r.organization_id
             where r.organization_id=${row.organizationId} and d.provider_connection_id=${row.providerConnectionId}
           ) affected`);
-        const range = bounds.rows[0] as { from_at: Date | string | null; to_at: Date | string | null } | undefined;
-        if (range?.from_at && range.to_at) await reconcilePhoneFirst(tx, {
-          organizationId: row.organizationId,
-          from: new Date(range.from_at), to: new Date(range.to_at), now: at,
-        });
+        const range = bounds.rows[0] as
+          | { from_at: Date | string | null; to_at: Date | string | null }
+          | undefined;
+        if (range?.from_at && range.to_at)
+          await reconcilePhoneFirst(tx, {
+            organizationId: row.organizationId,
+            from: new Date(range.from_at),
+            to: new Date(range.to_at),
+            now: at,
+          });
       }
       return hidden;
     });
@@ -1136,7 +1141,8 @@ export function createWearablesService(deps: WearablesServiceDeps) {
           if (!to || time > to) to = time;
         }
       }
-      if (from && to) await reconcilePhoneFirst(tx, { organizationId: row.organizationId, from, to, now: at });
+      if (from && to)
+        await reconcilePhoneFirst(tx, { organizationId: row.organizationId, from, to, now: at });
     });
   }
 
@@ -1327,7 +1333,9 @@ async function deleteConnectionData(
     select min(r.sampled_at) as from_at, max(r.sampled_at) as to_at
     from metric_sample r join data_source d on d.id=r.data_source_id and d.organization_id=r.organization_id
     where r.organization_id=${org} and d.provider_connection_id=${pc}`);
-  const bounds = boundsResult.rows[0] as { from_at: Date | string | null; to_at: Date | string | null } | undefined;
+  const bounds = boundsResult.rows[0] as
+    | { from_at: Date | string | null; to_at: Date | string | null }
+    | undefined;
   // A hard delete cannot be consulted later as historical evidence. Latch
   // matching owned sleep goals while the source rows and owner are available.
   await tx.execute(sql`
@@ -1374,11 +1382,12 @@ async function deleteConnectionData(
     where organization_id = ${org} and provider_connection_id = ${pc}`);
   await tx.execute(sql`
     delete from data_source where organization_id = ${org} and provider_connection_id = ${pc}`);
-  if (bounds?.from_at && bounds.to_at) await reconcilePhoneFirst(tx as Tx, {
-    organizationId: org,
-    from: new Date(bounds.from_at),
-    to: new Date(bounds.to_at),
-    now: new Date(),
-  });
+  if (bounds?.from_at && bounds.to_at)
+    await reconcilePhoneFirst(tx as Tx, {
+      organizationId: org,
+      from: new Date(bounds.from_at),
+      to: new Date(bounds.to_at),
+      now: new Date(),
+    });
   return deleted;
 }

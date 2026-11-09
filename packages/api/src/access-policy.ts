@@ -159,6 +159,10 @@ export const PROCEDURE_ACCESS: Readonly<Record<string, ProcedureAccessClass>> = 
   "dataRights.exportRequest": ALWAYS,
   "dataRights.exportStatus": ALWAYS,
   "dataRights.exportCancel": ALWAYS,
+  // Direct Bluetooth devices: registering one or uploading its minutes writes.
+  "directDevice.listDirectDevices": R,
+  "directDevice.registerDirectDevice": W,
+  "directDevice.ingestDirectDeviceBatch": W,
 
   "example.echo": R,
   "example.protectedEcho": R,

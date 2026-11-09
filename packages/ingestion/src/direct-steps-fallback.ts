@@ -12,7 +12,9 @@ type Tx = Pick<Database, "execute">;
  * transaction-scoped lock before mutating canonical rows or reconciling them.
  */
 export async function lockActivityPublication(tx: Tx, organizationId: string): Promise<void> {
-  await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${organizationId} || ':activity-publication', 0))`);
+  await tx.execute(
+    sql`select pg_advisory_xact_lock(hashtextextended(${organizationId} || ':activity-publication', 0))`,
+  );
 }
 
 /** Reconcile whole UTC days containing rows changed by the caller. */
@@ -21,8 +23,12 @@ export async function reconcileDirectStepsFallback(
   input: { organizationId: string; from: Date; to: Date; now: Date },
 ): Promise<{ shadowed: number; restored: number }> {
   await lockActivityPublication(tx, input.organizationId);
-  const from = new Date(Date.UTC(input.from.getUTCFullYear(), input.from.getUTCMonth(), input.from.getUTCDate()));
-  const to = new Date(Date.UTC(input.to.getUTCFullYear(), input.to.getUTCMonth(), input.to.getUTCDate() + 1));
+  const from = new Date(
+    Date.UTC(input.from.getUTCFullYear(), input.from.getUTCMonth(), input.from.getUTCDate()),
+  );
+  const to = new Date(
+    Date.UTC(input.to.getUTCFullYear(), input.to.getUTCMonth(), input.to.getUTCDate() + 1),
+  );
   const org = input.organizationId;
   const result = await tx.execute(sql`
     with candidates as (

@@ -81,7 +81,10 @@ export function createAuthorityTicket(
 }
 
 /** Installs the sole session authority from the headless authenticated-session observer. */
-export function installDirectDeviceAuthority(scopeInput: DirectDeviceScope, sessionIdentity: string): void {
+export function installDirectDeviceAuthority(
+  scopeInput: DirectDeviceScope,
+  sessionIdentity: string,
+): void {
   if (!sessionIdentity) throw new Error("INVALID_DIRECT_DEVICE_SESSION");
   const scope = canonicalDirectDeviceScope(scopeInput);
   const identityKey = `${sessionIdentity}:${JSON.stringify([scope.serverUrl, scope.userId, scope.organizationId])}`;
@@ -119,7 +122,10 @@ export function invalidateDirectDeviceAuthority(): void {
 
 /** Synchronously fences callbacks before a lifecycle transition reaches its first await. */
 export function beginDirectDeviceAuthorityTransition(): void {
-  if (installedAuthority) invalidatedSessions.add(`${installedAuthority.sessionIdentity}:${directDeviceScopeKey(installedAuthority.scope)}`);
+  if (installedAuthority)
+    invalidatedSessions.add(
+      `${installedAuthority.sessionIdentity}:${directDeviceScopeKey(installedAuthority.scope)}`,
+    );
   invalidateDirectDeviceAuthority();
 }
 

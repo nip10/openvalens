@@ -260,7 +260,7 @@ export function ActiveWorkout({
   // Finish brings it (and its Save button) into view.
   useEffect(() => {
     if (!finishing) return;
-    const frame = requestAnimationFrame(() => scroll.current?.scrollToEnd({ animated: true }));
+    const frame = requestAnimationFrame(() => scroll.current?.scrollToEnd?.({ animated: true }));
     return () => cancelAnimationFrame(frame);
   }, [finishing]);
 
