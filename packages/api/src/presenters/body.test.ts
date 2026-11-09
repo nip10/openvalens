@@ -1,3 +1,4 @@
+import { createAppI18n } from "@openvalens/i18n";
 import { englishI18n, inEnglish } from "@openvalens/i18n/testing";
 import { describe, expect, test } from "bun:test";
 
@@ -44,6 +45,11 @@ describe("body presenter", () => {
     expect(inEnglish(weightSourceLabel("auto"))).toBe("Synced");
     expect(inEnglish(weightSourceLabel("manual"))).toBe("Manual");
     expect(inEnglish(weightSourceLabel("override"))).toBe("Override");
+  });
+
+  test("weights follow the app language", () => {
+    expect(formatKg(66.62, null, "pt-PT")).toBe("66,6 kg");
+    expect(formatKgDelta(createAppI18n("pt-PT"), -0.14)).toBe("−0,1 kg");
   });
 
   test("imperial weight: real kg→lb conversion, canonical record unchanged", () => {

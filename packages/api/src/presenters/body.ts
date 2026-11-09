@@ -46,7 +46,11 @@ export function summarizeDailyWeights(rows: readonly DailyWeightLike[]): WeightS
  * "72.4 kg" (metric, default) or "159.6 lb" (imperial). The stored value stays
  * in kilograms; conversion happens here only.
  */
-export function formatKg(value: number, settings?: ProductDisplaySettings | null): string {
+export function formatKg(
+  value: number,
+  settings?: ProductDisplaySettings | null,
+  locale: string = settings?.locale ?? "en-US",
+): string {
   if (settings?.units === "imperial") {
     const lb = formatProductNumber(kgToLb(value), settings.locale, {
       minimumFractionDigits: 1,
@@ -54,7 +58,12 @@ export function formatKg(value: number, settings?: ProductDisplaySettings | null
     });
     return `${lb} lb`;
   }
-  return `${value.toFixed(1)} kg`;
+  return `${oneDecimal(value, locale)} kg`;
+}
+
+/** "72.4" in English, "72,4" in Portuguese. */
+function oneDecimal(value: number, locale: string): string {
+  return value.toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 }
 
 /**
@@ -71,7 +80,7 @@ export function formatKgDelta(
   const display = imperial ? kgToLb(value) : value;
   const rounded = Math.round(display * 10) / 10;
   if (rounded === 0) return i18n._(msg`No change`);
-  const magnitude = Math.abs(rounded).toFixed(1);
+  const magnitude = oneDecimal(Math.abs(rounded), settings?.locale ?? i18n.locale);
   return `${rounded > 0 ? "+" : "−"}${magnitude} ${imperial ? "lb" : "kg"}`;
 }
 

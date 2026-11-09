@@ -80,7 +80,7 @@ export function buildCockpitBlocks(snapshot: CockpitSnapshot, i18n: I18n): Cockp
     {
       key: "weight",
       title: i18n._(msg`Weight`),
-      primary: weight ? formatKg(weight.weightKg) : "—",
+      primary: weight ? formatKg(weight.weightKg, null, i18n.locale) : "—",
       secondary: weight ? i18n._(msg`Last reading: ${weight.date}`) : i18n._(msg`No reading yet`),
       tertiary: null,
     },

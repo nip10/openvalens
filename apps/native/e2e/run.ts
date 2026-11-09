@@ -105,14 +105,19 @@ function selectedFlows(): string[] {
     .map((name) => join(FLOWS_DIR, "flows", name));
 }
 
-/** Copies every `takeScreenshot` file of a Maestro output tree into `dest`. */
+/**
+ * Copies every `takeScreenshot` file of a Maestro output tree into `dest`.
+ * Run folders are timestamped and walked in sorted order, so when the same
+ * name was shot by several runs of a day the latest one wins.
+ */
 function collectScreenshots(maestroOut: string, dest: string): number {
   if (!existsSync(maestroOut)) return 0;
   mkdirSync(dest, { recursive: true });
   let count = 0;
   const walk = (dir: string) => {
-    for (const name of readdirSync(dir)) {
+    for (const name of readdirSync(dir).sort()) {
       const path = join(dir, name);
+      if (path === dest) continue;
       if (statSync(path).isDirectory()) walk(path);
       else if (name.endsWith(".png") && basename(dir) === "takeScreenshot") {
         cpSync(path, join(dest, name));
@@ -138,6 +143,7 @@ function copyStoreScreenshots(maestroOut: string, platform: Platform, locale: "e
       ? join(storeDir, "app-store", "screenshots", storeLocale, "iphone-6.9")
       : join(storeDir, "play", storeLocale, "images", "phoneScreenshots");
   const staging = join(maestroOut, "collected");
+  rmSync(staging, { recursive: true, force: true });
   collectScreenshots(maestroOut, staging);
   if (!existsSync(staging)) return { dir, count: 0 };
   const shots = readdirSync(staging)
