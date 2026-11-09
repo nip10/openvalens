@@ -342,6 +342,8 @@ export const providerConnection = pgTable(
     externalUserId: text("external_user_id").notNull(),
     /** Owner of a mobile device connection; per-user domains (body) need it. */
     userId: text("user_id").references(() => user.id, { onDelete: "set null" }),
+    directDeviceFamily: text("direct_device_family"),
+    directDeviceModelId: text("direct_device_model_id"),
     status: providerConnectionStatusEnum("status").notNull().default("active"),
     accessScope: text("access_scope"),
     connectedAt: timestamp("connected_at", { withTimezone: true, mode: "date" })

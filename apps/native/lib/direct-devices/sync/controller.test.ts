@@ -26,6 +26,7 @@ import {
 import { runXiaomiStepsHistory, type XiaomiHistoryTransport } from "../protocol/xiaomi-history";
 import type { XiaomiCommand } from "../protocol/xiaomi-proto";
 import type { HelioCursor, HelioStepsPage } from "../protocol/types";
+import type { DirectDeviceConfirmationTarget, HelioSyncSnapshot } from "./types";
 import {
   createHelioSyncControllerWithDependencies,
   immutableClient,
@@ -38,6 +39,17 @@ const context = {
   organizationId: "org-a",
   sessionId: "session-a",
 };
+
+function confirmationTarget(snapshot: HelioSyncSnapshot): DirectDeviceConfirmationTarget {
+  if (!snapshot.connectedDeviceId || !snapshot.connectedFamily || !snapshot.connectedModelId)
+    throw new Error("TEST_EXPECTED_CONNECTED_IDENTITY");
+  return {
+    connectedDeviceId: snapshot.connectedDeviceId,
+    family: snapshot.connectedFamily,
+    modelId: snapshot.connectedModelId,
+    connectionGeneration: snapshot.connectionGeneration,
+  };
+}
 const deviceId = "11111111-1111-4111-8111-111111111111";
 const cursor1: HelioCursor = {
   version: 1,
@@ -79,7 +91,9 @@ const page2: HelioStepsPage = {
 const binding: DirectDeviceBindingSummary = {
   deviceId,
   providerConnectionId: 41,
-  family: "amazfit_helio_strap",
+  family: "xiaomi",
+  modelId: "xiaomi_mi_band_10",
+  displayName: "Xiaomi Smart Band 10",
   connectedAt: "2026-01-01T00:00:00.000Z",
   lastSyncedAt: null,
   publication: { policy: "phone_cloud_first_utc_day", publishedRecords: 0, shadowedRecords: 0 },
@@ -98,22 +112,34 @@ function sqlite() {
   return { db, store: createSqliteDirectDeviceStore(adapter) };
 }
 
+type MutableSetupController = HelioSetupController & {
+  setSnapshot(snapshot: Partial<HelioSetupSnapshot>): void;
+};
+
 function setup(
   fetchSteps: HelioSetupController["fetchSteps"],
-  connectedModelId: HelioSetupSnapshot["connectedModelId"] = null,
-): HelioSetupController {
+  connectedModelId: HelioSetupSnapshot["connectedModelId"] = "xiaomi_mi_band_10",
+  overrides: { family?: HelioSetupSnapshot["connectedFamily"]; stepsHistory?: boolean } = {},
+): MutableSetupController {
   const state: HelioSetupSnapshot = {
     phase: "connected",
     bluetooth: "powered_on",
     devices: [],
     connectedDeviceId: "native-1",
     connectedModelId,
+    connectedFamily:
+      overrides.family ?? (connectedModelId?.startsWith("xiaomi") ? "xiaomi" : "zepp_os"),
+    capabilities: { stepsHistory: overrides.stepsHistory ?? connectedModelId !== null },
     errorCode: null,
     crypto: { status: "passed", code: null },
   };
+  const listeners = new Set<() => void>();
   return {
     getSnapshot: () => state,
-    subscribe: () => () => undefined,
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
     startScan: async () => {},
     stopScan: async () => {},
     connect: async () => {},
@@ -121,6 +147,10 @@ function setup(
     runCryptoSelfTest: async () => {},
     fetchSteps,
     dispose: async () => {},
+    setSnapshot(snapshot) {
+      Object.assign(state, snapshot);
+      for (const listener of listeners) listener();
+    },
   };
 }
 
@@ -141,6 +171,7 @@ function envelope(minutes: HelioStepsPage["minutes"]): IngestDirectDeviceBatchIn
     batch: {
       schemaVersion: 1,
       deviceId,
+      deviceIdentity: { family: "xiaomi", modelId: "xiaomi_mi_band_10" },
       provider: "direct_device",
       recordType: "steps",
       mode: "backfill",
@@ -164,6 +195,9 @@ async function readyController(args: {
   makeClient: (url: string, cookie: string, signal?: AbortSignal) => ReturnType<typeof client>;
   cookie?: () => Promise<string>;
   now?: () => number;
+  uuid?: () => string;
+  localIdentity?: { family: "xiaomi"; modelId: string } | null;
+  seedBinding?: boolean;
   onApplied?: () => Promise<void>;
 }) {
   const sessionId = `${context.sessionId}-${++sessionSequence}`;
@@ -184,20 +218,526 @@ async function readyController(args: {
     },
     sessionId,
   );
-  args.store.createBinding(ticket, deviceId);
-  args.store.markRegistered(ticket, deviceId, 41);
+  if (args.seedBinding !== false) {
+    if (args.localIdentity === undefined)
+      args.store.createBinding(ticket, deviceId, {
+        family: "xiaomi",
+        modelId: "xiaomi_mi_band_10",
+      });
+    else args.store.createBinding(ticket, deviceId, args.localIdentity ?? undefined);
+    args.store.markRegistered(ticket, deviceId, 41);
+  }
   const controller = createHelioSyncControllerWithDependencies(syncContext, {
     store: args.store,
     setup: args.setup,
     captureCookie: args.cookie ?? (async () => "session=old"),
     makeClient: args.makeClient,
     now: args.now ?? (() => Date.parse("2026-02-01T00:00:00.000Z")),
+    uuid: args.uuid,
     onApplied: args.onApplied,
   });
   await controller.refreshBindings();
   controller.selectBinding(deviceId);
   return { controller, ticket };
 }
+
+test("ambiguous binding registration retries the same durable UUID and identity", async () => {
+  const { db, store } = sqlite();
+  const attempted: unknown[] = [];
+  let calls = 0;
+  let listCalls = 0;
+  const { controller } = await readyController({
+    store,
+    setup: setup(async () => ({ pages: 0, minutes: 0, complete: true })),
+    uuid: () => "33333333-3333-4333-8333-333333333333",
+    makeClient: () => ({
+      directDevice: {
+        listDirectDevices: async () => {
+          listCalls += 1;
+          if (listCalls === 2) throw new Error("REFRESH_FAILED");
+          return {
+            devices:
+              listCalls > 2
+                ? [
+                    binding,
+                    {
+                      ...binding,
+                      deviceId: "33333333-3333-4333-8333-333333333333",
+                      providerConnectionId: 42,
+                    },
+                  ]
+                : [binding],
+          };
+        },
+        registerDirectDevice: async (...args: unknown[]) => {
+          attempted.push(args[0]);
+          calls += 1;
+          if (calls === 1) throw new Error("NETWORK");
+          return { providerConnectionId: 42, targetId: "target" };
+        },
+        ingestDirectDeviceBatch: async () => ({
+          status: "applied",
+          rawArtifactId: 1,
+          accepted: 1,
+          duplicates: 0,
+          rejected: 0,
+          superseded: 0,
+          targetId: "target",
+        }),
+      },
+    }),
+  });
+  await controller.createBinding();
+  await controller.createBinding();
+  await controller.createBinding();
+  expect(attempted).toHaveLength(3);
+  expect(attempted[0]).toMatchObject({
+    deviceId: "33333333-3333-4333-8333-333333333333",
+    family: "xiaomi",
+    modelId: "xiaomi_mi_band_10",
+  });
+  expect(attempted[1]).toMatchObject({ deviceId: "33333333-3333-4333-8333-333333333333" });
+  expect(attempted[2]).toMatchObject({ deviceId: "33333333-3333-4333-8333-333333333333" });
+  expect(controller.getSnapshot().selectedBindingId).toBe("33333333-3333-4333-8333-333333333333");
+  expect(controller.getSnapshot().canSync).toBe(true);
+  await controller.dispose();
+  db.close();
+  invalidateDirectDeviceAuthority();
+});
+
+test("legacy binding identity is adopted only through explicit confirmation", async () => {
+  const { db, store } = sqlite();
+  const legacyBinding = { ...binding, family: null, modelId: null, displayName: null };
+  const registrations: unknown[] = [];
+  let isConfirmed = false;
+  const { controller, ticket } = await readyController({
+    store,
+    setup: setup(async () => ({ pages: 0, minutes: 0, complete: true })),
+    localIdentity: null,
+    makeClient: () => ({
+      directDevice: {
+        listDirectDevices: async () => ({ devices: [isConfirmed ? binding : legacyBinding] }),
+        registerDirectDevice: async (...args: unknown[]) => {
+          registrations.push(args[0]);
+          isConfirmed = true;
+          return { providerConnectionId: 41, targetId: "target" };
+        },
+        ingestDirectDeviceBatch: async () => ({
+          status: "applied",
+          rawArtifactId: 1,
+          accepted: 1,
+          duplicates: 0,
+          rejected: 0,
+          superseded: 0,
+          targetId: "target",
+        }),
+      },
+    }),
+  });
+  expect(registrations).toHaveLength(0);
+  expect(store.getBinding(ticket, deviceId)?.family).toBeNull();
+  await controller.connect("native-1");
+  await controller.confirmBindingIdentity(deviceId, confirmationTarget(controller.getSnapshot()));
+  expect(registrations).toHaveLength(1);
+  expect(controller.getSnapshot().errorCode).toBeNull();
+  expect(registrations[0]).toMatchObject({
+    family: "xiaomi",
+    modelId: "xiaomi_mi_band_10",
+    confirmLegacyIdentity: true,
+  });
+  await controller.dispose();
+  db.close();
+  invalidateDirectDeviceAuthority();
+});
+
+test("confirmation consent becomes stale after model change, same-id reconnect, or cancel", async () => {
+  for (const transition of ["model", "reconnect-same-id", "cancel"] as const) {
+    const { db, store } = sqlite();
+    const setupController = setup(async () => ({ pages: 0, minutes: 0, complete: true }));
+    const legacyBinding = { ...binding, family: null, modelId: null, displayName: null };
+    let registrations = 0;
+    const { controller, ticket } = await readyController({
+      store,
+      setup: setupController,
+      localIdentity: null,
+      makeClient: () => ({
+        directDevice: {
+          listDirectDevices: async () => ({ devices: [legacyBinding] }),
+          registerDirectDevice: async () => {
+            registrations += 1;
+            return { providerConnectionId: 41 };
+          },
+          ingestDirectDeviceBatch: async () => ({
+            status: "applied",
+            rawArtifactId: 1,
+            accepted: 1,
+            duplicates: 0,
+            rejected: 0,
+            superseded: 0,
+            targetId: "target",
+          }),
+        },
+      }),
+    });
+    await controller.connect("native-1");
+    const expected = confirmationTarget(controller.getSnapshot());
+    if (transition === "model") {
+      setupController.setSnapshot({
+        connectedDeviceId: "native-2",
+        connectedModelId: "xiaomi_mi_band_11",
+      });
+    } else if (transition === "reconnect-same-id") {
+      setupController.setSnapshot({
+        phase: "idle",
+        connectedDeviceId: null,
+        connectedModelId: null,
+        connectedFamily: null,
+        capabilities: { stepsHistory: false },
+      });
+      setupController.setSnapshot({
+        phase: "connected",
+        connectedDeviceId: "native-1",
+        connectedModelId: "xiaomi_mi_band_10",
+        connectedFamily: "xiaomi",
+        capabilities: { stepsHistory: true },
+      });
+    } else {
+      await controller.cancel();
+    }
+    await controller.confirmBindingIdentity(deviceId, expected);
+    expect(registrations).toBe(0);
+    expect(controller.getSnapshot().errorCode).toBe("CONFIRMATION_STALE");
+    expect(store.getBinding(ticket, deviceId)).toMatchObject({ family: null, modelId: null });
+    await controller.dispose();
+    db.close();
+    invalidateDirectDeviceAuthority();
+  }
+});
+
+test("cancelling an in-flight confirmation prevents local identity adoption", async () => {
+  const { db, store } = sqlite();
+  const legacyBinding = { ...binding, family: null, modelId: null, displayName: null };
+  let resolveRegistration!: (value: { providerConnectionId: number; targetId: string }) => void;
+  let registrationStarted!: () => void;
+  const started = new Promise<void>((resolve) => {
+    registrationStarted = resolve;
+  });
+  const { controller, ticket } = await readyController({
+    store,
+    setup: setup(async () => ({ pages: 0, minutes: 0, complete: true })),
+    localIdentity: null,
+    makeClient: () => ({
+      directDevice: {
+        listDirectDevices: async () => ({ devices: [legacyBinding] }),
+        registerDirectDevice: async () => {
+          registrationStarted();
+          return new Promise((resolve) => {
+            resolveRegistration = resolve;
+          });
+        },
+        ingestDirectDeviceBatch: async () => ({
+          status: "applied",
+          rawArtifactId: 1,
+          accepted: 1,
+          duplicates: 0,
+          rejected: 0,
+          superseded: 0,
+          targetId: "target",
+        }),
+      },
+    }),
+  });
+  await controller.connect("native-1");
+  const confirming = controller.confirmBindingIdentity(
+    deviceId,
+    confirmationTarget(controller.getSnapshot()),
+  );
+  await started;
+  await controller.cancel();
+  resolveRegistration({ providerConnectionId: 41, targetId: "target" });
+  await confirming;
+  expect(store.getBinding(ticket, deviceId)).toMatchObject({ family: null, modelId: null });
+  expect(controller.getSnapshot().connectionGeneration).toBeGreaterThan(1);
+  await controller.dispose();
+  db.close();
+  invalidateDirectDeviceAuthority();
+});
+
+test("connection is allowed before a server binding exists", async () => {
+  const { db, store } = sqlite();
+  let connects = 0;
+  const setupController = setup(async () => ({ pages: 0, minutes: 0, complete: true }));
+  setupController.connect = async () => {
+    connects += 1;
+  };
+  const { controller } = await readyController({
+    store,
+    setup: setupController,
+    makeClient: () => ({
+      directDevice: {
+        listDirectDevices: async () => ({ devices: [] }),
+        registerDirectDevice: async () => ({ providerConnectionId: 41 }),
+        ingestDirectDeviceBatch: async () => ({
+          status: "applied",
+          rawArtifactId: 1,
+          accepted: 1,
+          duplicates: 0,
+          rejected: 0,
+          superseded: 0,
+          targetId: "target",
+        }),
+      },
+    }),
+  });
+  expect(controller.getSnapshot().selectedBindingId).toBeNull();
+  expect(controller.getSnapshot().connectionGeneration).toBe(0);
+  await controller.connect("native-1");
+  expect(connects).toBe(1);
+  const connectedGeneration = controller.getSnapshot().connectionGeneration;
+  expect(connectedGeneration).toBeGreaterThan(0);
+  await controller.connect("native-1");
+  expect(connects).toBe(2);
+  expect(controller.getSnapshot().connectionGeneration).toBeGreaterThan(connectedGeneration);
+  const reconnectGeneration = controller.getSnapshot().connectionGeneration;
+  await controller.cancel();
+  expect(controller.getSnapshot().connectionGeneration).toBeGreaterThan(reconnectGeneration);
+  await controller.dispose();
+  db.close();
+  invalidateDirectDeviceAuthority();
+});
+
+test("fresh SQLite materializes a confirmed server binding and can sync without registration", async () => {
+  const { db, store } = sqlite();
+  let registrations = 0;
+  const setupController = setup(async (options) => {
+    await options.onPage(page);
+    return { pages: 1, minutes: 1, complete: true };
+  });
+  const { controller, ticket } = await readyController({
+    store,
+    setup: setupController,
+    seedBinding: false,
+    makeClient: () => ({
+      directDevice: {
+        listDirectDevices: async () => ({ devices: [binding] }),
+        registerDirectDevice: async () => {
+          registrations += 1;
+          return { providerConnectionId: 41 };
+        },
+        ingestDirectDeviceBatch: async () => ({
+          status: "applied",
+          rawArtifactId: 1,
+          accepted: 1,
+          duplicates: 0,
+          rejected: 0,
+          superseded: 0,
+          targetId: "target",
+        }),
+      },
+    }),
+  });
+  expect(store.getBinding(ticket, deviceId)).toMatchObject({
+    providerConnectionId: 41,
+    family: "xiaomi",
+    modelId: "xiaomi_mi_band_10",
+    captureCheckpoint: null,
+  });
+  expect(registrations).toBe(0);
+  await controller.connect("native-1");
+  expect(controller.getSnapshot().canSync).toBe(true);
+  await controller.syncSteps("00112233445566778899aabbccddeeff");
+  expect(store.getBinding(ticket, deviceId)?.captureCheckpoint).toContain(cursor1.nextMinuteUtc);
+  expect(registrations).toBe(0);
+  await controller.dispose();
+  db.close();
+  invalidateDirectDeviceAuthority();
+});
+
+test("fresh SQLite materializes an unconfirmed server binding and explicit confirmation makes it usable", async () => {
+  const { db, store } = sqlite();
+  const legacyBinding = { ...binding, family: null, modelId: null, displayName: null };
+  let isConfirmed = false;
+  let registrations = 0;
+  const { controller, ticket } = await readyController({
+    store,
+    setup: setup(async () => ({ pages: 0, minutes: 0, complete: true })),
+    seedBinding: false,
+    makeClient: () => ({
+      directDevice: {
+        listDirectDevices: async () => ({ devices: [isConfirmed ? binding : legacyBinding] }),
+        registerDirectDevice: async () => {
+          registrations += 1;
+          isConfirmed = true;
+          return { providerConnectionId: 41, targetId: "target" };
+        },
+        ingestDirectDeviceBatch: async () => ({
+          status: "applied",
+          rawArtifactId: 1,
+          accepted: 1,
+          duplicates: 0,
+          rejected: 0,
+          superseded: 0,
+          targetId: "target",
+        }),
+      },
+    }),
+  });
+  expect(store.getBinding(ticket, deviceId)).toMatchObject({
+    providerConnectionId: 41,
+    family: null,
+    modelId: null,
+    captureCheckpoint: null,
+  });
+  expect(controller.getSnapshot().canSync).toBe(false);
+  expect(registrations).toBe(0);
+  await controller.connect("native-1");
+  await controller.confirmBindingIdentity(deviceId, confirmationTarget(controller.getSnapshot()));
+  expect(registrations).toBe(1);
+  expect(controller.getSnapshot().errorCode).toBeNull();
+  expect(store.getBinding(ticket, deviceId)).toMatchObject({
+    providerConnectionId: 41,
+    family: "xiaomi",
+    modelId: "xiaomi_mi_band_10",
+    captureCheckpoint: null,
+  });
+  expect(controller.getSnapshot().canSync).toBe(true);
+  expect(registrations).toBe(1);
+  await controller.dispose();
+  db.close();
+  invalidateDirectDeviceAuthority();
+});
+
+test("refresh adopts a server-confirmed identity onto an existing legacy local row", async () => {
+  const { db, store } = sqlite();
+  let registrations = 0;
+  const { controller, ticket } = await readyController({
+    store,
+    setup: setup(async () => ({ pages: 0, minutes: 0, complete: true })),
+    localIdentity: null,
+    makeClient: () => ({
+      directDevice: {
+        listDirectDevices: async () => ({ devices: [binding] }),
+        registerDirectDevice: async () => {
+          registrations += 1;
+          return { providerConnectionId: 41, targetId: "target" };
+        },
+        ingestDirectDeviceBatch: async () => ({
+          status: "applied",
+          rawArtifactId: 1,
+          accepted: 1,
+          duplicates: 0,
+          rejected: 0,
+          superseded: 0,
+          targetId: "target",
+        }),
+      },
+    }),
+  });
+  expect(store.getBinding(ticket, deviceId)).toMatchObject({
+    family: "xiaomi",
+    modelId: "xiaomi_mi_band_10",
+    captureCheckpoint: null,
+  });
+  expect(registrations).toBe(0);
+  await controller.connect("native-1");
+  expect(controller.getSnapshot().canSync).toBe(true);
+  await controller.dispose();
+  db.close();
+  invalidateDirectDeviceAuthority();
+});
+
+test("sync eligibility requires exact identity and advertised history capability", async () => {
+  for (const candidate of [
+    { modelId: "xiaomi_mi_band_11", family: "xiaomi" as const, stepsHistory: true },
+    { modelId: "huawei_band_8", family: "huawei" as const, stepsHistory: false },
+  ]) {
+    const { db, store } = sqlite();
+    let historyCalls = 0;
+    const { controller } = await readyController({
+      store,
+      setup: setup(
+        async () => {
+          historyCalls += 1;
+          return { pages: 0, minutes: 0, complete: true };
+        },
+        candidate.modelId as "xiaomi_mi_band_11" | "huawei_band_8",
+        candidate,
+      ),
+      makeClient: () =>
+        client(async () => ({
+          status: "applied",
+          rawArtifactId: 1,
+          accepted: 1,
+          duplicates: 0,
+          rejected: 0,
+          superseded: 0,
+          targetId: "target",
+        })),
+    });
+    await controller.connect("native-1");
+    expect(controller.getSnapshot().canSync).toBe(false);
+    await controller.syncSteps("not-a-key");
+    expect(historyCalls).toBe(0);
+    expect(controller.getSnapshot().errorCode).toBeNull();
+    await controller.dispose();
+    db.close();
+    invalidateDirectDeviceAuthority();
+  }
+});
+
+test("snapshot counts only fenced IDENTITY_REQUIRED quarantine and retry cannot release it", async () => {
+  const { db, store } = sqlite();
+  const ticket = createAuthorityTicket(
+    {
+      serverUrl: context.serverUrl,
+      userId: context.userId,
+      organizationId: context.organizationId,
+    },
+    `quarantine-${++sessionSequence}`,
+  );
+  store.createBinding(ticket, deviceId, { family: "xiaomi", modelId: "xiaomi_mi_band_10" });
+  store.markRegistered(ticket, deviceId, 41);
+  store.commitCapture(ticket, {
+    deviceId,
+    deviceIdentity: { family: "xiaomi", modelId: "xiaomi_mi_band_10" },
+    captureId: "legacy-shaped",
+    expectedPreviousCheckpoint: null,
+    nextCheckpoint: "cursor",
+    envelopes: [envelope(page.minutes)],
+  });
+  const [row] = store.listPending(ticket, 1);
+  store.markBlocked(ticket, row!.ref, "IDENTITY_REQUIRED");
+  db.exec(
+    "UPDATE direct_device_outbox SET request_json = json_remove(request_json, '$.batch.deviceIdentity')",
+  );
+
+  let sends = 0;
+  const { controller } = await readyController({
+    store,
+    setup: setup(async () => ({ pages: 0, minutes: 0, complete: true })),
+    makeClient: () =>
+      client(async () => {
+        sends += 1;
+        return {
+          status: "applied",
+          rawArtifactId: 1,
+          accepted: 1,
+          duplicates: 0,
+          rejected: 0,
+          superseded: 0,
+          targetId: "target",
+        };
+      }),
+  });
+  expect(controller.getSnapshot().blockedIdentityEnvelopes).toBe(1);
+  await controller.retryUpload();
+  expect(sends).toBe(0);
+  expect(controller.getSnapshot().blockedIdentityEnvelopes).toBe(1);
+  expect(store.countBlockedIdentityEnvelopes(ticket)).toBe(1);
+  await controller.dispose();
+  db.close();
+  invalidateDirectDeviceAuthority();
+});
 
 test("page capture commits atomically before acknowledgement and persists immutable request context", async () => {
   const { db, store } = sqlite();
@@ -227,6 +767,11 @@ test("page capture commits atomically before acknowledgement and persists immuta
     organizationId: context.organizationId,
   });
   expect(row.request.batch.upserts[0]?.externalRecordId).toBe(page.minutes[0]?.externalRecordId);
+  expect(row.request.batch.deviceIdentity).toEqual({
+    family: "xiaomi",
+    modelId: "xiaomi_mi_band_10",
+  });
+  expect(row.ref.captureId.startsWith("dd-v2:")).toBe(true);
   expect(Object.isFrozen(row.request.batch.upserts[0])).toBe(true);
   expect(delivered).toBeFunction();
   await controller.dispose();
@@ -290,10 +835,14 @@ test("facade resumes from committed cursor after restart using REAL SQLite", asy
       },
       `restart-${++sessionSequence}`,
     );
-    firstDb.store.createBinding(firstTicket, deviceId);
+    firstDb.store.createBinding(firstTicket, deviceId, {
+      family: "xiaomi",
+      modelId: "xiaomi_mi_band_10",
+    });
     firstDb.store.markRegistered(firstTicket, deviceId, 41);
     firstDb.store.commitCapture(firstTicket, {
       deviceId,
+      deviceIdentity: { family: "xiaomi", modelId: "xiaomi_mi_band_10" },
       captureId: "seed",
       expectedPreviousCheckpoint: null,
       nextCheckpoint: JSON.stringify(cursor1),
@@ -303,6 +852,7 @@ test("facade resumes from committed cursor after restart using REAL SQLite", asy
           batch: {
             schemaVersion: 1,
             deviceId,
+            deviceIdentity: { family: "xiaomi", modelId: "xiaomi_mi_band_10" },
             provider: "direct_device",
             recordType: "steps",
             mode: "backfill",
@@ -530,6 +1080,52 @@ test("stale authority aborts captured request and radio, and late response canno
   db.close();
 });
 
+test("selection cannot redirect an in-flight capture or upload destination", async () => {
+  const { db, store } = sqlite();
+  const otherId = "22222222-2222-4222-8222-222222222222";
+  const otherBinding = { ...binding, deviceId: otherId };
+  let release!: (value: unknown) => void;
+  const setupController = setup(async (options) => {
+    await options.onPage(page);
+    return { pages: 1, minutes: 1, complete: true };
+  });
+  const { controller, ticket } = await readyController({
+    store,
+    setup: setupController,
+    makeClient: () => ({
+      directDevice: {
+        listDirectDevices: async () => ({ devices: [binding, otherBinding] }),
+        registerDirectDevice: async () => ({ providerConnectionId: 41 }),
+        ingestDirectDeviceBatch: async () =>
+          new Promise((resolve) => {
+            release = resolve;
+          }),
+      },
+    }),
+  });
+  await controller.connect("native-1");
+  const syncing = controller.syncSteps("00112233445566778899aabbccddeeff");
+  while (!release) await Promise.resolve();
+  controller.selectBinding(otherId);
+  expect(controller.getSnapshot().selectedBindingId).toBe(deviceId);
+  const pending = store.listPending(ticket, 10);
+  expect(pending).toHaveLength(1);
+  expect(pending[0]!.ref.deviceId).toBe(deviceId);
+  release({
+    status: "applied",
+    rawArtifactId: 7,
+    accepted: 1,
+    duplicates: 0,
+    rejected: 0,
+    superseded: 0,
+    targetId: "target",
+  });
+  await syncing;
+  await controller.dispose();
+  db.close();
+  invalidateDirectDeviceAuthority();
+});
+
 test("first-ever sync floors the default cursor to an exact minute accepted by real historyStart and commits page one", async () => {
   const { db, store } = sqlite();
   let requested: HelioCursor | undefined;
@@ -575,8 +1171,8 @@ test("first-ever sync floors the default cursor to an exact minute accepted by r
 
 test("multi-page backfill commits each page against the advanced checkpoint through REAL SQLite", async () => {
   const { db, store } = sqlite();
-  const page1CaptureId = `helio-v1:${deviceId}:2026-02-01T00:00:00.000Z:0:2026-02-01T00:01:00.000Z:0`;
-  const page2CaptureId = `helio-v1:${deviceId}:2026-02-01T00:01:00.000Z:0:2026-02-01T00:02:00.000Z:0`;
+  const page1CaptureId = `dd-v2:${deviceId}:2026-02-01T00:00:00.000Z:0:2026-02-01T00:01:00.000Z:0`;
+  const page2CaptureId = `dd-v2:${deviceId}:2026-02-01T00:01:00.000Z:0:2026-02-01T00:02:00.000Z:0`;
   let requested: HelioCursor | undefined;
   const setupController = setup(async (options) => {
     requested = options.since;
@@ -600,6 +1196,7 @@ test("multi-page backfill commits each page against the advanced checkpoint thro
   });
   store.commitCapture(ticket, {
     deviceId,
+    deviceIdentity: { family: "xiaomi", modelId: "xiaomi_mi_band_10" },
     captureId: "seed",
     expectedPreviousCheckpoint: null,
     nextCheckpoint: JSON.stringify(cursor0),
@@ -611,7 +1208,7 @@ test("multi-page backfill commits each page against the advanced checkpoint thro
   expect(store.getBinding(ticket, deviceId)?.captureCheckpoint).toBe(JSON.stringify(cursor2));
   const captures = db
     .query(
-      "SELECT capture_id, checkpoint_json FROM direct_device_capture WHERE capture_id LIKE 'helio-v1:%' ORDER BY capture_id",
+      "SELECT capture_id, checkpoint_json FROM direct_device_capture WHERE capture_id LIKE 'dd-v2:%' ORDER BY capture_id",
     )
     .all() as { capture_id: string; checkpoint_json: string }[];
   expect(captures.map((row) => row.capture_id)).toEqual([page1CaptureId, page2CaptureId]);
@@ -628,7 +1225,7 @@ test("multi-page backfill commits each page against the advanced checkpoint thro
 
 test("failed second page commit leaves the first checkpoint without a second ACK", async () => {
   const { db, store } = sqlite();
-  const page2CaptureId = `helio-v1:${deviceId}:2026-02-01T00:01:00.000Z:0:2026-02-01T00:02:00.000Z:0`;
+  const page2CaptureId = `dd-v2:${deviceId}:2026-02-01T00:01:00.000Z:0:2026-02-01T00:02:00.000Z:0`;
   let acks = 0;
   const setupController = setup(async (options) => {
     await options.onPage(page);
@@ -653,6 +1250,7 @@ test("failed second page commit leaves the first checkpoint without a second ACK
   });
   store.commitCapture(ticket, {
     deviceId,
+    deviceIdentity: { family: "xiaomi", modelId: "xiaomi_mi_band_10" },
     captureId: "seed",
     expectedPreviousCheckpoint: null,
     nextCheckpoint: JSON.stringify(cursor0),
@@ -708,7 +1306,7 @@ test("surfaces the connected Zepp OS model id from the setup snapshot", async ()
 
 test("defaults the connected model id to null when the setup snapshot has none", async () => {
   const { db, store } = sqlite();
-  const setupController = setup(async () => ({ pages: 0, minutes: 0, complete: true }));
+  const setupController = setup(async () => ({ pages: 0, minutes: 0, complete: true }), null);
   const { controller } = await readyController({
     store,
     setup: setupController,

@@ -192,7 +192,7 @@ test("an empty window produces no pages", async () => {
   expect(pages).toHaveLength(0);
 });
 
-test("a day with only a summary file falls back to a daily record", async () => {
+test("a summary-only day is unsupported and is neither published nor ACKed", async () => {
   const day = fileId({ timestamp: 1_700_000_000, detailType: XIAOMI_DETAIL_SUMMARY, version: 5 });
   const transport = new ScriptedTransport(encodeXiaomiActivityFileId(day), new Uint8Array(0), [
     summaryFile(day, 1234),
@@ -204,15 +204,78 @@ test("a day with only a summary file falls back to a daily record", async () => 
     options(since(day.timestamp * 1000), pages),
   );
 
-  expect(result).toEqual({ pages: 1, minutes: 1, complete: true, granularity: "daily" });
-  expect(pages[0]!.minutes).toEqual([
-    {
-      externalRecordId: `xiaomi:${day.timestamp}:daily`,
-      startTime: new Date(day.timestamp * 1000).toISOString(),
-      endTime: new Date(day.timestamp * 1000 + 86_400_000).toISOString(),
-      count: 1234,
-    },
+  expect(result).toEqual({ pages: 0, minutes: 0, complete: false, granularity: "none" });
+  expect(pages).toHaveLength(0);
+  expect(transport.sent.map((command) => command.subtype)).toEqual([1, 2]);
+});
+
+test("minute details remain ingestible after a summary-only run", async () => {
+  const day = fileId({ timestamp: 1_700_000_000, detailType: XIAOMI_DETAIL_SUMMARY, version: 5 });
+  const summaryTransport = new ScriptedTransport(
+    encodeXiaomiActivityFileId(day),
+    new Uint8Array(0),
+    [summaryFile(day, 1234)],
+  );
+  const pages: HelioStepsPage[] = [];
+  const first = await runXiaomiStepsHistory(
+    summaryTransport,
+    options(since(day.timestamp * 1000), pages),
+  );
+  expect(first.complete).toBe(false);
+  expect(pages).toHaveLength(0);
+
+  const details = fileId({ timestamp: day.timestamp });
+  const detailTransport = new ScriptedTransport(
+    encodeXiaomiActivityFileId(details),
+    new Uint8Array(0),
+    [detailsFile(details, [42])],
+  );
+  const second = await runXiaomiStepsHistory(
+    detailTransport,
+    options(since(day.timestamp * 1000), pages),
+  );
+  expect(second).toEqual({ pages: 1, minutes: 1, complete: true, granularity: "minute" });
+  expect(pages[0]!.minutes.map((minute) => minute.count)).toEqual([42]);
+});
+
+test("bounded backlog runs capture oldest through newest without skipping days", async () => {
+  const day1 = fileId({ timestamp: 1_700_000_000 });
+  const day2 = fileId({ timestamp: day1.timestamp + 86_400 });
+  const day3 = fileId({ timestamp: day2.timestamp + 86_400 });
+  const ids = concat(
+    encodeXiaomiActivityFileId(day1),
+    encodeXiaomiActivityFileId(day2),
+    encodeXiaomiActivityFileId(day3),
+  );
+  const pages: HelioStepsPage[] = [];
+  const first = await runXiaomiStepsHistory(
+    new ScriptedTransport(ids, new Uint8Array(0), [detailsFile(day1, [1]), detailsFile(day2, [2])]),
+    options(since(0), pages),
+    { limits: { maxFiles: 2 } },
+  );
+  expect(first.complete).toBe(false);
+  expect(pages.flatMap((page) => page.minutes.map((minute) => minute.count))).toEqual([1, 2]);
+
+  const second = await runXiaomiStepsHistory(
+    new ScriptedTransport(ids, new Uint8Array(0), [detailsFile(day2, [2]), detailsFile(day3, [3])]),
+    options(pages.at(-1)!.nextCursor, pages),
+    { limits: { maxFiles: 2 } },
+  );
+  expect(second.complete).toBe(true);
+  expect(pages.flatMap((page) => page.minutes.map((minute) => minute.count))).toEqual([1, 2, 3]);
+});
+
+test("a minute budget that cannot fit a whole page is incomplete", async () => {
+  const day = fileId({ timestamp: 1_700_000_000 });
+  const transport = new ScriptedTransport(encodeXiaomiActivityFileId(day), new Uint8Array(0), [
+    detailsFile(day, [10, 20]),
   ]);
+  const pages: HelioStepsPage[] = [];
+  const result = await runXiaomiStepsHistory(transport, options(since(0), pages), {
+    limits: { maxMinutes: 1 },
+  });
+  expect(result).toEqual({ pages: 0, minutes: 0, complete: false, granularity: "none" });
+  expect(pages).toHaveLength(0);
 });
 
 test("the since cursor filters earlier minutes", async () => {

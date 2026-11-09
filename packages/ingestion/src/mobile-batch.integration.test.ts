@@ -137,21 +137,41 @@ describe.skipIf(!url)("mobile ingest batch on disposable PostgreSQL", () => {
     });
 
   const directContext = { userId: "u1", organizationId: "org-a" };
-  const registerDirect = (deviceId = DEVICE, userId = "u1") => registerDirectDevice(db, {
-    deviceId,
-    family: "amazfit_helio_strap",
-    expectedContext: { userId, organizationId: "org-a" },
-    authenticatedContext: { userId, organizationId: "org-a" },
-    now,
-  });
+  const registerDirect = (deviceId = DEVICE, userId = "u1") =>
+    registerDirectDevice(db, {
+      deviceId,
+      family: "zepp_os",
+      modelId: "amazfit_helio_strap",
+      expectedContext: { userId, organizationId: "org-a" },
+      authenticatedContext: { userId, organizationId: "org-a" },
+      now,
+    });
+  const registerLegacyDirect = (deviceId = DEVICE, userId = "u1") =>
+    registerDirectDevice(db, {
+      deviceId,
+      family: "amazfit_helio_strap",
+      expectedContext: { userId, organizationId: "org-a" },
+      authenticatedContext: { userId, organizationId: "org-a" },
+      now,
+    });
   const directBatch = (deviceId = DEVICE) => ({
     schemaVersion: 1 as const,
     deviceId,
+    deviceIdentity: { family: "zepp_os" as const, modelId: "amazfit_helio_strap" },
     provider: "direct_device" as const,
     recordType: "steps" as const,
     mode: "backfill" as const,
     clientTimezone: "UTC",
-    upserts: [{ type: "steps" as const, externalRecordId: "same-local-id", sourceApp: null, startTime: "2026-10-01T07:00:00Z", endTime: "2026-10-01T08:00:00Z", count: 10 }],
+    upserts: [
+      {
+        type: "steps" as const,
+        externalRecordId: "same-local-id",
+        sourceApp: null,
+        startTime: "2026-10-01T07:00:00Z",
+        endTime: "2026-10-01T07:01:00Z",
+        count: 10,
+      },
+    ],
     deletions: [] as [],
   });
 
@@ -159,22 +179,339 @@ describe.skipIf(!url)("mobile ingest batch on disposable PostgreSQL", () => {
     const results = await Promise.all([registerDirect(), registerDirect()]);
     expect(results[0]?.providerConnectionId).toBe(results[1]?.providerConnectionId);
     expect(await db.select().from(providerConnection)).toHaveLength(1);
-    await expect(registerDirectDevice(db, {
-      deviceId: DEVICE, family: "amazfit_helio_strap",
-      expectedContext: { userId: "u2", organizationId: "org-a" },
-      authenticatedContext: directContext, now,
-    })).rejects.toBeInstanceOf(DirectDeviceContextMismatchError);
+    await expect(
+      registerDirectDevice(db, {
+        deviceId: DEVICE,
+        family: "amazfit_helio_strap",
+        expectedContext: { userId: "u2", organizationId: "org-a" },
+        authenticatedContext: directContext,
+        now,
+      }),
+    ).rejects.toBeInstanceOf(DirectDeviceContextMismatchError);
     expect(await db.select().from(providerConnection)).toHaveLength(1);
+  });
+
+  test("legacy registration stays unconfirmed until explicit confirmation", async () => {
+    await registerLegacyDirect();
+    const [before] = await db.select().from(providerConnection);
+    expect(before).toMatchObject({ directDeviceFamily: null, directDeviceModelId: null });
+    const legacySourceId = await resolveDataSource(
+      db,
+      "org-a",
+      before!.id,
+      directSourceIdentity(DEVICE, { family: "zepp_os", modelId: "amazfit_helio_strap" }),
+    );
+    await db
+      .update(dataSource)
+      .set({ deviceModel: "old/unconfirmed value" })
+      .where(eq(dataSource.id, legacySourceId));
+    await expect(
+      ingestDirectDeviceBatch(db, {
+        expectedContext: directContext,
+        authenticatedContext: directContext,
+        batch: { ...directBatch(), deviceIdentity: undefined },
+        traceId: "legacy-unconfirmed",
+        now,
+      }),
+    ).rejects.toMatchObject({ reason: "IDENTITY_REQUIRED" });
+    expect(await db.select().from(ingestionJob)).toHaveLength(0);
+    await registerDirectDevice(db, {
+      deviceId: DEVICE,
+      family: "zepp_os",
+      modelId: "amazfit_helio_strap",
+      confirmLegacyIdentity: true,
+      expectedContext: directContext,
+      authenticatedContext: directContext,
+      now,
+    });
+    const [after] = await db.select().from(providerConnection);
+    expect(after).toMatchObject({
+      directDeviceFamily: "zepp_os",
+      directDeviceModelId: "amazfit_helio_strap",
+    });
+    const [updatedSource] = await db
+      .select()
+      .from(dataSource)
+      .where(eq(dataSource.id, legacySourceId));
+    expect(updatedSource?.deviceModel).toBe("Amazfit Helio Strap");
+    await expect(
+      registerDirectDevice(db, {
+        deviceId: DEVICE,
+        family: "xiaomi",
+        modelId: "xiaomi_mi_band_10",
+        expectedContext: directContext,
+        authenticatedContext: directContext,
+        now,
+      }),
+    ).rejects.toMatchObject({ reason: "IDENTITY_MISMATCH" });
+    await expect(
+      ingestDirectDeviceBatch(db, {
+        expectedContext: directContext,
+        authenticatedContext: directContext,
+        batch: { ...directBatch(), deviceIdentity: undefined },
+        traceId: "legacy-queued-shape",
+        now,
+      }),
+    ).rejects.toMatchObject({ reason: "IDENTITY_REQUIRED" });
+  });
+
+  test("acceptance locks require matching identity before duplicate or job writes", async () => {
+    await registerDirect();
+    const accept = (payload: MobileIngestBatch, traceId: string) =>
+      acceptMobileBatch(db, {
+        organizationId: "org-a",
+        batch: payload,
+        traceId,
+        now,
+        expectedOwnerId: "u1",
+      });
+    await expect(
+      accept({ ...directBatch(), deviceIdentity: undefined }, "missing"),
+    ).rejects.toMatchObject({ reason: "IDENTITY_REQUIRED" });
+    await expect(
+      accept(
+        { ...directBatch(), deviceIdentity: { family: "xiaomi", modelId: "xiaomi_mi_band_10" } },
+        "mismatch",
+      ),
+    ).rejects.toMatchObject({ reason: "IDENTITY_MISMATCH" });
+    await expect(
+      accept(
+        {
+          ...directBatch(),
+          upserts: [{ ...directBatch().upserts[0]!, endTime: "2026-10-01T07:02:00Z" }],
+        },
+        "duration",
+      ),
+    ).rejects.toBeInstanceOf(DirectDeviceMinuteConflictError);
+    expect(await db.select().from(ingestionJob)).toHaveLength(0);
+    expect(await db.select().from(ingestionRawArtifact)).toHaveLength(0);
+
+    const accepted = await accept(directBatch(), "valid-direct");
+    expect(accepted.status).toBe("accepted");
+    const [artifact] = await db.select().from(ingestionRawArtifact);
+    expect(artifact?.payloadJson).toMatchObject({
+      deviceIdentity: { family: "zepp_os", modelId: "amazfit_helio_strap" },
+      directDeviceOwnerId: "u1",
+    });
+    await expect(
+      accept({ ...directBatch(), deviceIdentity: undefined }, "duplicate-without-identity"),
+    ).rejects.toMatchObject({ reason: "IDENTITY_REQUIRED" });
+    expect(await db.select().from(ingestionJob)).toHaveLength(1);
+    expect(await db.select().from(ingestionRawArtifact)).toHaveLength(1);
+  });
+
+  test("direct replay reports queued work truthfully then a safe duplicate after success", async () => {
+    await registerDirect();
+    const accepted = await acceptMobileBatch(db, {
+      organizationId: "org-a",
+      batch: directBatch(),
+      traceId: "queued-replay-first",
+      now,
+      expectedOwnerId: "u1",
+    });
+    expect(accepted.status).toBe("accepted");
+    const queuedReplay = await ingestMobileBatch(db, {
+      organizationId: "org-a",
+      batch: directBatch(),
+      traceId: "queued-replay-second",
+      now,
+      expectedOwnerId: "u1",
+      apply: async () => {
+        throw new Error("queued duplicate must not inline-apply");
+      },
+    });
+    expect(queuedReplay.status).toBe("queued");
+    const applied = await runMobileIngestBatchJob(
+      db,
+      { jobId: accepted.jobId, organizationId: "org-a" },
+      () => now,
+    );
+    expect(applied.status).toBe("succeeded");
+    const succeededReplay = await ingestMobileBatch(db, {
+      organizationId: "org-a",
+      batch: directBatch(),
+      traceId: "succeeded-replay",
+      now,
+      expectedOwnerId: "u1",
+    });
+    expect(succeededReplay.status).toBe("duplicate");
+    expect(await db.select().from(metricSample)).toHaveLength(1);
+  });
+
+  test("revoke between acceptance and worker returns terminal refusal, never queued", async () => {
+    await registerDirect();
+    await expect(
+      ingestMobileBatch(db, {
+        organizationId: "org-a",
+        batch: directBatch(),
+        traceId: "revoke-between-steps",
+        now,
+        expectedOwnerId: "u1",
+        apply: async (database, jobInput, clock) => {
+          await database
+            .update(providerConnection)
+            .set({ status: "revoked" })
+            .where(
+              and(
+                eq(providerConnection.organizationId, "org-a"),
+                eq(providerConnection.externalUserId, DEVICE),
+              ),
+            );
+          return runMobileIngestBatchJob(database, jobInput, clock);
+        },
+      }),
+    ).rejects.toBeInstanceOf(MobileDeviceRevokedError);
+    expect((await db.select().from(ingestionJob))[0]?.status).toBe("failed");
+    expect(await db.select().from(ingestionRawArtifact)).toHaveLength(1);
+    expect(await db.select().from(metricSample)).toHaveLength(0);
+  });
+
+  test("identity change between acceptance and worker returns terminal mismatch, never queued", async () => {
+    await registerDirect();
+    await expect(
+      ingestMobileBatch(db, {
+        organizationId: "org-a",
+        batch: directBatch(),
+        traceId: "identity-change-between-steps",
+        now,
+        expectedOwnerId: "u1",
+        apply: async (database, jobInput, clock) => {
+          await database
+            .update(providerConnection)
+            .set({ directDeviceFamily: "xiaomi", directDeviceModelId: "xiaomi_mi_band_10" })
+            .where(
+              and(
+                eq(providerConnection.organizationId, "org-a"),
+                eq(providerConnection.externalUserId, DEVICE),
+              ),
+            );
+          return runMobileIngestBatchJob(database, jobInput, clock);
+        },
+      }),
+    ).rejects.toMatchObject({ reason: "IDENTITY_MISMATCH" });
+    expect((await db.select().from(ingestionJob))[0]?.status).toBe("failed");
+    expect(await db.select().from(ingestionRawArtifact)).toHaveLength(1);
+    expect(await db.select().from(metricSample)).toHaveLength(0);
+  });
+
+  test("failed direct replay without a safe stored reason fails closed", async () => {
+    await registerDirect();
+    const accepted = await acceptMobileBatch(db, {
+      organizationId: "org-a",
+      batch: directBatch(),
+      traceId: "unmapped-terminal-failure",
+      now,
+      expectedOwnerId: "u1",
+    });
+    await db
+      .update(ingestionJob)
+      .set({ status: "failed" })
+      .where(and(eq(ingestionJob.id, accepted.jobId), eq(ingestionJob.organizationId, "org-a")));
+    await expect(
+      ingestMobileBatch(db, {
+        organizationId: "org-a",
+        batch: directBatch(),
+        traceId: "unmapped-terminal-replay",
+        now,
+        expectedOwnerId: "u1",
+      }),
+    ).rejects.toBeInstanceOf(MobileDeviceNotRegisteredError);
+    expect(await db.select().from(ingestionJob)).toHaveLength(1);
+    expect(await db.select().from(ingestionRawArtifact)).toHaveLength(1);
+  });
+
+  test("legacy queued direct artifacts fail terminally after confirmation and remain retained", async () => {
+    const { providerConnectionId } = await registerDirect();
+    const legacy = { ...directBatch(), deviceIdentity: undefined };
+    const [job] = await db
+      .insert(ingestionJob)
+      .values({
+        organizationId: "org-a",
+        providerConnectionId,
+        jobType: MOBILE_INGEST_JOB_TYPE,
+        status: "queued",
+        triggeredBy: "mobile_device",
+        idempotencyKey: "legacy-direct-worker",
+        createdAt: now,
+        updatedAt: now,
+      })
+      .returning({ id: ingestionJob.id });
+    const payloadJson = JSON.parse(JSON.stringify(legacy));
+    await db.insert(ingestionRawArtifact).values({
+      organizationId: "org-a",
+      providerConnectionId,
+      ingestionJobId: job!.id,
+      artifactType: "mobile_health_batch",
+      traceId: "legacy-worker-artifact",
+      payloadJson,
+      sizeBytes: Buffer.byteLength(JSON.stringify(payloadJson)),
+      capturedAt: now,
+      retentionUntil: new Date(now.getTime() + 86_400_000),
+      retentionClass: "mobile_health_batch",
+    });
+    const result = await runMobileIngestBatchJob(
+      db,
+      { jobId: job!.id, organizationId: "org-a" },
+      () => now,
+    );
+    expect(result).toMatchObject({ status: "failed", errorCode: "IDENTITY_REQUIRED" });
+    expect(await db.select().from(ingestionRawArtifact)).toHaveLength(1);
+    expect(await db.select().from(metricSample)).toHaveLength(0);
+    await expect(
+      runMobileIngestBatchJob(db, { jobId: job!.id, organizationId: "org-a" }, () => now),
+    ).rejects.toThrow("pending mobile ingest job not found");
+    expect(await db.select().from(ingestionRawArtifact)).toHaveLength(1);
+  });
+
+  test("Xiaomi identity produces catalog-derived raw and canonical source models", async () => {
+    const deviceId = "5f1c2a3e-9b2d-4c1e-8f3a-2d7e5b9c0a14";
+    await registerDirectDevice(db, {
+      deviceId,
+      family: "xiaomi",
+      modelId: "xiaomi_mi_band_10",
+      expectedContext: directContext,
+      authenticatedContext: directContext,
+      now,
+    });
+    const uploaded = await ingestDirectDeviceBatch(db, {
+      expectedContext: directContext,
+      authenticatedContext: directContext,
+      batch: {
+        ...directBatch(deviceId),
+        deviceIdentity: { family: "xiaomi", modelId: "xiaomi_mi_band_10" },
+        upserts: [
+          Object.assign({}, directBatch(deviceId).upserts[0], {
+            sourceDevice: { type: "spoof", model: "client controlled" },
+          }),
+        ] as never,
+      },
+      traceId: "xiaomi-source",
+      now,
+    });
+    const artifact = await db
+      .select()
+      .from(ingestionRawArtifact)
+      .where(eq(ingestionRawArtifact.id, uploaded.rawArtifactId));
+    expect(artifact[0]?.payloadJson).toMatchObject({
+      upserts: [{ sourceDevice: { type: "wearable", model: "Xiaomi Smart Band 10" } }],
+    });
+    const [source] = await db.select().from(dataSource);
+    expect(source?.deviceModel).toBe("Xiaomi Smart Band 10");
   });
 
   test("direct binding refuses null, wrong, and revoked owners without transfer or reactivation", async () => {
     await registerDirect();
     await db.update(providerConnection).set({ userId: "u2" });
     await expect(registerDirect()).rejects.toBeInstanceOf(DirectDeviceOwnershipError);
-    await expect(ingestDirectDeviceBatch(db, {
-      expectedContext: directContext, authenticatedContext: directContext,
-      batch: directBatch(), traceId: "wrong-owner", now,
-    })).rejects.toBeInstanceOf(MobileDeviceNotRegisteredError);
+    await expect(
+      ingestDirectDeviceBatch(db, {
+        expectedContext: directContext,
+        authenticatedContext: directContext,
+        batch: directBatch(),
+        traceId: "wrong-owner",
+        now,
+      }),
+    ).rejects.toBeInstanceOf(MobileDeviceNotRegisteredError);
     expect(await db.select().from(ingestionJob)).toHaveLength(0);
     await db.update(providerConnection).set({ userId: null });
     await expect(registerDirect()).rejects.toBeInstanceOf(DirectDeviceOwnershipError);
@@ -189,18 +526,36 @@ describe.skipIf(!url)("mobile ingest batch on disposable PostgreSQL", () => {
     const { providerConnectionId: firstConnection } = await registerDirect();
     const { providerConnectionId: secondConnection } = await registerDirect(secondDevice);
     const first = await ingestDirectDeviceBatch(db, {
-      expectedContext: directContext, authenticatedContext: directContext, batch: directBatch(), traceId: "direct-1", now,
+      expectedContext: directContext,
+      authenticatedContext: directContext,
+      batch: directBatch(),
+      traceId: "direct-1",
+      now,
     });
     const replay = await ingestDirectDeviceBatch(db, {
-      expectedContext: directContext, authenticatedContext: directContext, batch: directBatch(), traceId: "direct-2", now,
+      expectedContext: directContext,
+      authenticatedContext: directContext,
+      batch: directBatch(),
+      traceId: "direct-2",
+      now,
     });
     const rebatch = await ingestDirectDeviceBatch(db, {
-      expectedContext: directContext, authenticatedContext: directContext,
-      batch: { ...directBatch(), clientTimezone: "Europe/Lisbon", window: { from: "2026-10-01T00:00:00Z", to: "2026-10-02T00:00:00Z" } },
-      traceId: "direct-rebatch", now,
+      expectedContext: directContext,
+      authenticatedContext: directContext,
+      batch: {
+        ...directBatch(),
+        clientTimezone: "Europe/Lisbon",
+        window: { from: "2026-10-01T00:00:00Z", to: "2026-10-02T00:00:00Z" },
+      },
+      traceId: "direct-rebatch",
+      now,
     });
     await ingestDirectDeviceBatch(db, {
-      expectedContext: directContext, authenticatedContext: directContext, batch: directBatch(secondDevice), traceId: "direct-3", now,
+      expectedContext: directContext,
+      authenticatedContext: directContext,
+      batch: directBatch(secondDevice),
+      traceId: "direct-3",
+      now,
     });
     expect(replay.status).toBe("duplicate");
     expect(rebatch.status).toBe("duplicate");
@@ -208,38 +563,79 @@ describe.skipIf(!url)("mobile ingest batch on disposable PostgreSQL", () => {
     const sources = await db.select().from(dataSource);
     expect(sources).toHaveLength(2);
     expect(new Set(sources.map((source) => source.sourceKey)).size).toBe(2);
-    expect(sources.map((source) => source.providerConnectionId).sort()).toEqual([firstConnection, secondConnection].sort());
+    expect(sources.map((source) => source.providerConnectionId).sort()).toEqual(
+      [firstConnection, secondConnection].sort(),
+    );
     expect(sources.every((source) => source.importChannel === "direct_device")).toBe(true);
-    const [artifact] = await db.select().from(ingestionRawArtifact).where(eq(ingestionRawArtifact.id, first.rawArtifactId));
-    expect(artifact?.payloadJson).toMatchObject({ upserts: [{ externalRecordId: `dd:v1:${DEVICE}:steps:same-local-id`, sourceApp: null, sourceDevice: { model: "Amazfit Helio Strap" } }] });
+    const [artifact] = await db
+      .select()
+      .from(ingestionRawArtifact)
+      .where(eq(ingestionRawArtifact.id, first.rawArtifactId));
+    expect(artifact?.payloadJson).toMatchObject({
+      deviceIdentity: { family: "zepp_os", modelId: "amazfit_helio_strap" },
+      directDeviceOwnerId: "u1",
+      upserts: [
+        {
+          externalRecordId: `dd:v1:${DEVICE}:steps:same-local-id`,
+          sourceApp: null,
+          sourceDevice: { model: "Amazfit Helio Strap" },
+        },
+      ],
+    });
   });
 
   test("direct step minutes deduplicate across local ids and reject conflicting values", async () => {
     await registerDirect();
-    const publish = (externalRecordId: string, count: number, traceId: string) => ingestDirectDeviceBatch(db, {
-      expectedContext: directContext, authenticatedContext: directContext,
-      batch: { ...directBatch(), upserts: [{ ...directBatch().upserts[0]!, externalRecordId, count }] }, traceId, now,
-    });
+    const publish = (externalRecordId: string, count: number, traceId: string) =>
+      ingestDirectDeviceBatch(db, {
+        expectedContext: directContext,
+        authenticatedContext: directContext,
+        batch: {
+          ...directBatch(),
+          upserts: [{ ...directBatch().upserts[0]!, externalRecordId, count }],
+        },
+        traceId,
+        now,
+      });
     const first = await publish("page-a", 10, "minute-a");
     expect(first.status).toBe("applied");
     const duplicate = await publish("page-b", 10, "minute-b");
     expect(duplicate.status).toBe("applied");
     expect(duplicate.duplicates).toBe(0);
     expect(await db.select().from(metricSample)).toHaveLength(1);
-    await expect(publish("page-c", 11, "minute-c")).rejects.toBeInstanceOf(DirectDeviceMinuteConflictError);
+    await expect(publish("page-c", 11, "minute-c")).rejects.toBeInstanceOf(
+      DirectDeviceMinuteConflictError,
+    );
+    await expect(publish("page-c", 11, "minute-c")).rejects.toBeInstanceOf(
+      DirectDeviceMinuteConflictError,
+    );
     expect(await db.select().from(metricSample)).toHaveLength(1);
+    expect(await db.select().from(ingestionJob)).toHaveLength(3);
+    expect(await db.select().from(ingestionRawArtifact)).toHaveLength(3);
   });
 
   test("concurrent contradictory direct uploads serialize to one published value", async () => {
     await registerDirect();
-    const upload = (externalRecordId: string, count: number, traceId: string) => ingestDirectDeviceBatch(db, {
-      expectedContext: directContext, authenticatedContext: directContext,
-      batch: { ...directBatch(), upserts: [{ ...directBatch().upserts[0]!, externalRecordId, count }] }, traceId, now,
-    });
-    const outcomes = await Promise.allSettled([upload("race-a", 10, "race-a"), upload("race-b", 11, "race-b")]);
+    const upload = (externalRecordId: string, count: number, traceId: string) =>
+      ingestDirectDeviceBatch(db, {
+        expectedContext: directContext,
+        authenticatedContext: directContext,
+        batch: {
+          ...directBatch(),
+          upserts: [{ ...directBatch().upserts[0]!, externalRecordId, count }],
+        },
+        traceId,
+        now,
+      });
+    const outcomes = await Promise.allSettled([
+      upload("race-a", 10, "race-a"),
+      upload("race-b", 11, "race-b"),
+    ]);
     expect(outcomes.filter((outcome) => outcome.status === "fulfilled")).toHaveLength(1);
     const rejected = outcomes.find((outcome) => outcome.status === "rejected");
-    expect(rejected?.status === "rejected" && rejected.reason).toBeInstanceOf(DirectDeviceMinuteConflictError);
+    expect(rejected?.status === "rejected" && rejected.reason).toBeInstanceOf(
+      DirectDeviceMinuteConflictError,
+    );
     expect(await db.select().from(metricSample)).toHaveLength(1);
   });
 
@@ -342,28 +738,48 @@ describe.skipIf(!url)("mobile ingest batch on disposable PostgreSQL", () => {
       now,
     });
     const phoneBatch = (deviceId: string, recordId: string): MobileIngestBatch => ({
-      ...batch({ upserts: [{
-        type: "weight",
-        externalRecordId: recordId,
-        sourceApp: "com.withings.wiscale2",
-        sourceDevice: { type: "scale", model: "Body+" },
-        startTime: "2026-10-01T07:00:00.000Z",
-        valueKg: 72.4,
-      }], deletions: [] }),
+      ...batch({
+        upserts: [
+          {
+            type: "weight",
+            externalRecordId: recordId,
+            sourceApp: "com.withings.wiscale2",
+            sourceDevice: { type: "scale", model: "Body+" },
+            startTime: "2026-10-01T07:00:00.000Z",
+            valueKg: 72.4,
+          },
+        ],
+        deletions: [],
+      }),
       deviceId,
     });
-    expect((await ingestMobileBatch(db, {
-      organizationId: "org-a", batch: phoneBatch(DEVICE, "legacy-1"), traceId: "legacy-1", now,
-    })).status).toBe("applied");
-    expect((await ingestMobileBatch(db, {
-      organizationId: "org-a", batch: phoneBatch(secondDevice, "legacy-2"), traceId: "legacy-2", now,
-    })).status).toBe("applied");
+    expect(
+      (
+        await ingestMobileBatch(db, {
+          organizationId: "org-a",
+          batch: phoneBatch(DEVICE, "legacy-1"),
+          traceId: "legacy-1",
+          now,
+        })
+      ).status,
+    ).toBe("applied");
+    expect(
+      (
+        await ingestMobileBatch(db, {
+          organizationId: "org-a",
+          batch: phoneBatch(secondDevice, "legacy-2"),
+          traceId: "legacy-2",
+          now,
+        })
+      ).status,
+    ).toBe("applied");
 
     const [source] = await db.select().from(dataSource);
     expect(await db.select().from(dataSource)).toHaveLength(1);
     expect(source?.providerConnectionId).toBe(firstConnection.providerConnectionId);
     expect((await db.select().from(metricSample)).map((sample) => sample.dataSourceId)).toEqual([
-      source!.id, source!.id,
+      source!.id,
+      source!.id,
     ]);
     expect(secondConnection.providerConnectionId).not.toBe(firstConnection.providerConnectionId);
 
@@ -371,14 +787,21 @@ describe.skipIf(!url)("mobile ingest batch on disposable PostgreSQL", () => {
     const directFirst = await registerDirect();
     const directSecond = await registerDirect(directDevice);
     await ingestDirectDeviceBatch(db, {
-      expectedContext: directContext, authenticatedContext: directContext,
-      batch: directBatch(), traceId: "direct-fence-first", now,
+      expectedContext: directContext,
+      authenticatedContext: directContext,
+      batch: directBatch(),
+      traceId: "direct-fence-first",
+      now,
     });
     // A direct identity remains owned by its exact connection.
-    await expect(resolveDataSource(db, "org-a", directSecond.providerConnectionId,
-      directSourceIdentity(DEVICE))).rejects.toThrow(
-      "Data source identity is already owned by another provider connection.",
-    );
+    await expect(
+      resolveDataSource(
+        db,
+        "org-a",
+        directSecond.providerConnectionId,
+        directSourceIdentity(DEVICE, { family: "zepp_os", modelId: "amazfit_helio_strap" }),
+      ),
+    ).rejects.toThrow("Data source identity is already owned by another provider connection.");
     expect(directFirst.providerConnectionId).not.toBe(directSecond.providerConnectionId);
   });
 

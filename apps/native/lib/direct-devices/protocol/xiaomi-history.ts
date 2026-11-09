@@ -43,7 +43,6 @@ import {
   decodeXiaomiActivityFileIds,
   encodeXiaomiActivityFileId,
   parseXiaomiDailyDetails,
-  parseXiaomiDailySummary,
   XIAOMI_ACTIVITY_DAILY,
   XIAOMI_ACTIVITY_TYPE,
   XIAOMI_DETAIL_DETAILS,
@@ -134,8 +133,8 @@ type DayFiles = { details?: XiaomiActivityFileId; summary?: XiaomiActivityFileId
 
 /**
  * Fetches daily step history and emits Helio-shaped pages. Minute-level
- * `DailyDetails` files are preferred; a `DailySummary` file is used only when
- * a day has no details file.
+ * `DailyDetails` files are the only supported source of minute history.
+ * Daily summaries cannot safely be represented by the minute-page protocol.
  */
 export async function runXiaomiStepsHistory(
   transport: XiaomiHistoryTransport,
@@ -237,9 +236,9 @@ export async function runXiaomiStepsHistory(
           (files.details || files.summary) && timestamp * 1000 + 86_400_000 > sinceMs,
       )
       .sort(([left], [right]) => left - right);
-    // Keep the most recent days when the bound is hit; the device may return a
-    // long past backlog.
-    const days = allDays.slice(-limits.maxFiles);
+    // Consume the oldest bounded prefix so repeated runs can work through the
+    // backlog without permanently skipping older files.
+    const days = allDays.slice(0, limits.maxFiles);
     let complete = allDays.length <= limits.maxFiles;
 
     if (days.length === 0) {
@@ -256,6 +255,12 @@ export async function runXiaomiStepsHistory(
 
       const fileId = files.details ?? files.summary;
       if (!fileId) continue;
+      // A summary-only day is an unsupported coverage gap. Do not ACK it, or
+      // advance the minute cursor past it; later details must remain replayable.
+      if (!files.details && files.summary) {
+        complete = false;
+        break;
+      }
       const fileIdBytes = encodeXiaomiActivityFileId(fileId);
       await transport.sendCommand({
         type: XIAOMI_HEALTH_COMMAND,
@@ -278,7 +283,10 @@ export async function runXiaomiStepsHistory(
             count: minute.steps,
           }));
         if (records.length > 0) {
-          if (records.length + minutes > limits.maxMinutes) break;
+          if (records.length + minutes > limits.maxMinutes) {
+            complete = false;
+            break;
+          }
           const last = records[records.length - 1]!;
           const nextCursor: HelioCursor = Object.freeze({
             version: 1,
@@ -291,29 +299,6 @@ export async function runXiaomiStepsHistory(
           page = Object.freeze({ minutes: Object.freeze(records), nextCursor });
           granularity = "minute";
           minutes += records.length;
-        }
-      } else if (files.summary) {
-        const parsed = parseXiaomiDailySummary(bytes, files.summary);
-        const end = parsed.timestamp + 86_400_000;
-        if (end > sinceMs) {
-          const nextCursor: HelioCursor = Object.freeze({
-            version: 1,
-            nextMinuteUtc: new Date(end).toISOString(),
-            offsetQuarterHours: files.summary.timezone,
-          });
-          page = Object.freeze({
-            minutes: Object.freeze([
-              {
-                externalRecordId: `xiaomi:${files.summary.timestamp}:daily`,
-                startTime: new Date(parsed.timestamp).toISOString(),
-                endTime: new Date(end).toISOString(),
-                count: parsed.steps,
-              },
-            ]),
-            nextCursor,
-          });
-          if (granularity === "none") granularity = "daily";
-          minutes += 1;
         }
       }
 

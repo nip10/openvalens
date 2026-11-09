@@ -248,3 +248,61 @@ test("NativeXiaomiLink rejects characteristics the profile does not have", async
     link.write("data_upload", Uint8Array.of(1), new AbortController().signal),
   ).rejects.toThrow("XIAOMI_CHARACTERISTIC_UNAVAILABLE");
 });
+
+function cancellationPeripheral() {
+  const cancellations: Array<() => void> = [];
+  const written: string[] = [];
+  let markStarted!: () => void;
+  const started = new Promise<void>((resolve) => {
+    markStarted = resolve;
+  });
+  const device = {
+    mtu: 23,
+    monitorCharacteristicForService: () => ({ remove() {} }) as Subscription,
+    writeCharacteristicWithResponseForService: async (
+      _service: string,
+      characteristic: string,
+      _value: string,
+      _transactionId: string,
+    ) => {
+      written.push(characteristic);
+      return new Promise<Characteristic>(() => undefined);
+    },
+    writeCharacteristicWithoutResponseForService: async () => ({}) as Characteristic,
+  } as unknown as Device;
+  const manager = {
+    cancelTransaction: (_id: string) => {
+      const cancel = cancellations.shift();
+      cancel?.();
+    },
+  };
+  // The native promise settles only when the matching transaction is cancelled.
+  const nativeWrite = device.writeCharacteristicWithResponseForService.bind(device);
+  (
+    device as unknown as { writeCharacteristicWithResponseForService: typeof nativeWrite }
+  ).writeCharacteristicWithResponseForService = async (...args: Parameters<typeof nativeWrite>) => {
+    written.push(args[1]);
+    markStarted();
+    return new Promise<Characteristic>((_resolve, reject) => {
+      cancellations.push(() => reject(new Error("native transaction cancelled")));
+    });
+  };
+  return { device, manager, written, started };
+}
+
+test("NativeXiaomiLink settles pending native writes on explicit and timed abort", async () => {
+  for (const timeout of [false, true]) {
+    const fake = cancellationPeripheral();
+    const link = new NativeXiaomiLink(fake.device, XIAOMI_V1_PROFILES[1]!, fake.manager);
+    const controller = new AbortController();
+    const signal = timeout ? AbortSignal.timeout(5) : controller.signal;
+    const write = link.write("command_write", Uint8Array.of(1), signal);
+    const queued = link.write("command_write", Uint8Array.of(2), signal);
+    await fake.started;
+    if (!timeout) controller.abort();
+    await expect(write).rejects.toThrow("CANCELLED");
+    await expect(queued).rejects.toThrow("CANCELLED");
+    await link.close();
+    expect(fake.written).toHaveLength(1);
+  }
+});

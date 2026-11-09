@@ -11,5 +11,6 @@ export * from "./mobile-records";
 export * from "./healthkit-sleep";
 export * from "./mobile-batch";
 export * from "./direct-device";
+export * from "./direct-device-identity";
 export * from "./phone-first";
 export * from "./direct-steps-fallback";

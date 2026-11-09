@@ -178,12 +178,12 @@ export type XiaomiCharacteristic =
 export interface XiaomiLink {
   readonly maxWriteBytes: number;
   subscribe(
-    characteristic: "command_read" | "activity_data",
+    characteristic: "command_read" | "command_write" | "activity_data",
     onBytes: (bytes: Uint8Array) => void,
     onFailure: () => void,
   ): () => void;
   write(
-    characteristic: "command_write" | "command_read" | "data_upload",
+    characteristic: "command_write" | "command_read" | "activity_data" | "data_upload",
     bytes: Uint8Array,
     signal: AbortSignal,
   ): Promise<void>;
@@ -230,6 +230,7 @@ export class NativeXiaomiLink implements XiaomiLink {
   readonly maxWriteBytes: number;
   private queue: Promise<void> = Promise.resolve();
   private readonly subscriptions = new Set<Subscription>();
+  private readonly pending = new Map<string, () => void>();
   private transaction = 0;
 
   constructor(
@@ -241,14 +242,16 @@ export class NativeXiaomiLink implements XiaomiLink {
   }
 
   subscribe(
-    characteristic: "command_read" | "activity_data",
+    characteristic: "command_read" | "command_write" | "activity_data",
     onBytes: (bytes: Uint8Array) => void,
     onFailure: () => void,
   ): () => void {
     const uuid =
       characteristic === "command_read"
         ? this.profile.commandReadUuid
-        : this.profile.activityDataUuid;
+        : characteristic === "command_write"
+          ? this.profile.commandWriteUuid
+          : this.profile.activityDataUuid;
     if (!uuid) throw new Error("XIAOMI_CHARACTERISTIC_UNAVAILABLE");
     const subscription = this.device.monitorCharacteristicForService(
       this.profile.serviceUuid,
@@ -273,7 +276,7 @@ export class NativeXiaomiLink implements XiaomiLink {
   }
 
   write(
-    characteristic: "command_write" | "command_read" | "data_upload",
+    characteristic: "command_write" | "command_read" | "activity_data" | "data_upload",
     bytes: Uint8Array,
     signal: AbortSignal,
   ): Promise<void> {
@@ -284,25 +287,41 @@ export class NativeXiaomiLink implements XiaomiLink {
           ? this.profile.commandWriteUuid
           : characteristic === "command_read"
             ? this.profile.commandReadUuid
-            : this.profile.dataUploadUuid;
+            : characteristic === "activity_data"
+              ? this.profile.activityDataUuid
+              : this.profile.dataUploadUuid;
       if (!uuid) throw new Error("XIAOMI_CHARACTERISTIC_UNAVAILABLE");
       const transactionId = `xiaomi-${++this.transaction}`;
       const cancel = () => {
+        this.pending.get(transactionId)?.();
         try {
           this.manager?.cancelTransaction(transactionId);
         } catch {
           // Native cancellation is best effort.
         }
       };
+      let settleCancelled!: () => void;
+      const cancelled = new Promise<void>((resolve) => {
+        settleCancelled = resolve;
+      });
+      this.pending.set(transactionId, settleCancelled);
       signal.addEventListener("abort", cancel, { once: true });
       try {
-        await this.device.writeCharacteristicWithResponseForService(
-          this.profile.serviceUuid,
-          uuid,
-          encodeBase64(bytes),
-          transactionId,
-        );
+        await Promise.race([
+          this.device
+            .writeCharacteristicWithResponseForService(
+              this.profile.serviceUuid,
+              uuid,
+              encodeBase64(bytes),
+              transactionId,
+            )
+            .then(() => undefined),
+          cancelled.then(() => {
+            throw new Error("CANCELLED");
+          }),
+        ]);
       } finally {
+        this.pending.delete(transactionId);
         signal.removeEventListener("abort", cancel);
       }
       if (signal.aborted) throw new Error("CANCELLED");
@@ -314,6 +333,7 @@ export class NativeXiaomiLink implements XiaomiLink {
   async close(): Promise<void> {
     for (const subscription of this.subscriptions) subscription.remove();
     this.subscriptions.clear();
+    for (const cancel of this.pending.values()) cancel();
     await this.queue;
   }
 }

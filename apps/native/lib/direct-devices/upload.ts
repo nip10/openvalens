@@ -6,7 +6,11 @@ import {
 } from "@openvalens/api/contracts/direct-device";
 
 import { isAuthorityTicketCurrent, type AuthorityTicket } from "./authority";
-import { directDeviceRepositoryIdentity, type DirectDeviceErrorCode, type DirectDeviceStore } from "./persistence/store";
+import {
+  directDeviceRepositoryIdentity,
+  type DirectDeviceErrorCode,
+  type DirectDeviceStore,
+} from "./persistence/store";
 
 export type DirectUploadSummary = Readonly<{
   sent: number;
@@ -22,16 +26,35 @@ export function classifyDirectDeviceUploadError(error: unknown): {
   state: "pending" | "blocked";
   code: DirectDeviceErrorCode;
 } {
-  const shaped = error && typeof error === "object" ? error as { code?: unknown; data?: unknown } : {};
+  const shaped =
+    error && typeof error === "object" ? (error as { code?: unknown; data?: unknown }) : {};
   const raw = String(shaped.code ?? "");
-  if (shaped.data && typeof shaped.data === "object" &&
-    String((shaped.data as { reason?: unknown }).reason ?? "") === "MINUTE_CONFLICT") {
+  if (
+    shaped.data &&
+    typeof shaped.data === "object" &&
+    String((shaped.data as { reason?: unknown }).reason ?? "") === "MINUTE_CONFLICT"
+  ) {
     return { state: "blocked", code: "INVALID_INPUT" };
+  }
+  if (
+    shaped.data &&
+    typeof shaped.data === "object" &&
+    String((shaped.data as { reason?: unknown }).reason ?? "") === "IDENTITY_REQUIRED"
+  ) {
+    return { state: "blocked", code: "IDENTITY_REQUIRED" };
   }
   if (raw.toUpperCase() === "PERMISSION_DENIED" && shaped.data && typeof shaped.data === "object") {
     const data = shaped.data as { reason?: unknown };
     const parsed = directDeviceRefusalReason.safeParse(data.reason);
-    if (parsed.success) return { state: "blocked", code: parsed.data === "REVOKED" ? "REVOKED" : "WRONG_OWNER" };
+    if (parsed.success) {
+      if (
+        parsed.data === "IDENTITY_REQUIRED" ||
+        parsed.data === "IDENTITY_MISMATCH" ||
+        parsed.data === "HISTORY_UNSUPPORTED"
+      )
+        return { state: "blocked", code: parsed.data };
+      return { state: "blocked", code: parsed.data === "REVOKED" ? "REVOKED" : "WRONG_OWNER" };
+    }
   }
   switch (raw.toUpperCase()) {
     case "TIMEOUT":
@@ -54,6 +77,16 @@ export function classifyDirectDeviceUploadError(error: unknown): {
     case "WRONG_OWNER":
     case "DIRECT_DEVICE_WRONG_OWNER":
       return { state: "blocked", code: "WRONG_OWNER" };
+    case "IDENTITY_REQUIRED":
+    case "IDENTITY_MISMATCH":
+    case "HISTORY_UNSUPPORTED":
+      return {
+        state: "blocked",
+        code: raw.toUpperCase() as
+          | "IDENTITY_REQUIRED"
+          | "IDENTITY_MISMATCH"
+          | "HISTORY_UNSUPPORTED",
+      };
     default:
       return { state: "pending", code: "NETWORK" };
   }
@@ -67,7 +100,8 @@ export async function drainDirectDeviceOutbox(
   },
 ): Promise<DirectUploadSummary> {
   const repository = directDeviceRepositoryIdentity(deps.store);
-  if (inFlight.has(repository)) return { sent: 0, applied: 0, queued: 0, blocked: 0, stopped: "already_draining" };
+  if (inFlight.has(repository))
+    return { sent: 0, applied: 0, queued: 0, blocked: 0, stopped: "already_draining" };
   inFlight.add(repository);
   let sent = 0;
   let applied = 0;
@@ -79,12 +113,14 @@ export async function drainDirectDeviceOutbox(
       if (!row) return { sent, applied, queued, blocked, stopped: null };
 
       // Read, don't pop: the exact serialized request remains retryable after ambiguity.
-      if (!isAuthorityTicketCurrent(ticket)) return { sent, applied, queued, blocked, stopped: "stale_authority" };
+      if (!isAuthorityTicketCurrent(ticket))
+        return { sent, applied, queued, blocked, stopped: "stale_authority" };
       let response: IngestDirectDeviceBatchOutput;
       try {
         response = await deps.send(row.request);
       } catch (error) {
-        if (!isAuthorityTicketCurrent(ticket)) return { sent, applied, queued, blocked, stopped: "stale_authority" };
+        if (!isAuthorityTicketCurrent(ticket))
+          return { sent, applied, queued, blocked, stopped: "stale_authority" };
         const classified = classifyDirectDeviceUploadError(error);
         if (classified.state === "blocked") {
           deps.store.markBlocked(ticket, row.ref, classified.code);
@@ -95,7 +131,8 @@ export async function drainDirectDeviceOutbox(
       }
 
       // Never persist a late receipt under a revoked account/session authority.
-      if (!isAuthorityTicketCurrent(ticket)) return { sent, applied, queued, blocked, stopped: "stale_authority" };
+      if (!isAuthorityTicketCurrent(ticket))
+        return { sent, applied, queued, blocked, stopped: "stale_authority" };
       const parsed = ingestDirectDeviceBatchOutput.safeParse(response);
       if (!parsed.success) {
         deps.store.markBlocked(ticket, row.ref, "INVALID_RECEIPT");

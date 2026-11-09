@@ -1,13 +1,14 @@
+import type { GarminModelId } from "../models/garmin";
 import type { HuaweiModelId } from "../models/huawei";
 import type { XiaomiModelId } from "../models/xiaomi";
 import type { ZeppOsModelId } from "../models/zepp-os";
 import type { HelioHistoryOptions, HelioHistoryResult } from "../protocol/types";
 
 /** A model id from any direct-device registry. */
-export type DirectDeviceModelId = ZeppOsModelId | XiaomiModelId | HuaweiModelId;
+export type DirectDeviceModelId = ZeppOsModelId | XiaomiModelId | HuaweiModelId | GarminModelId;
 
 /** The protocol family a discovered model belongs to. */
-export type DirectDeviceFamily = "zepp_os" | "xiaomi" | "huawei";
+export type DirectDeviceFamily = "zepp_os" | "xiaomi" | "huawei" | "garmin";
 
 export type HelioDiscoveredDevice = Readonly<{
   id: string;
@@ -28,6 +29,7 @@ export type HelioSetupSnapshot = Readonly<{
   connectedModelId?: DirectDeviceModelId | null;
   /** Protocol family of the connected device; absent only for legacy snapshots. */
   connectedFamily?: DirectDeviceFamily | null;
+  capabilities: Readonly<{ stepsHistory: boolean }>;
   errorCode: string | null;
   crypto: Readonly<{
     status: "not_checked" | "running" | "passed" | "unavailable" | "failed";

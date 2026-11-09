@@ -1,7 +1,12 @@
 import { expect, test } from "bun:test";
+import { DIRECT_DEVICE_MODELS } from "../../../../../packages/health-record/src/direct-device-models";
 import type { Device, State, Subscription } from "react-native-ble-plx";
 
 import { createHelioSetupController } from "./controller";
+import { GARMIN_MODELS } from "../models/garmin";
+import { HUAWEI_MODELS } from "../models/huawei";
+import { XIAOMI_MODELS } from "../models/xiaomi";
+import { ZEPP_OS_MODELS } from "../models/zepp-os";
 import { crc32 } from "../protocol/chunked";
 import {
   encodeXiaomiActivityFileId,
@@ -13,6 +18,39 @@ import type { XiaomiHistoryTransport } from "../protocol/xiaomi-history";
 import type { HelioHistoryOptions, HelioStepsPage } from "../protocol/types";
 import type { XiaomiCommand } from "../protocol/xiaomi-proto";
 import type { XiaomiBleProfile } from "../transport/xiaomi-link";
+
+test("native model registries remain in parity with the shared identity catalog", () => {
+  const native = [
+    ...ZEPP_OS_MODELS.map((model) => ({
+      family: "zepp_os",
+      modelId: model.id,
+      displayName: model.displayName,
+    })),
+    ...XIAOMI_MODELS.map((model) => ({
+      family: "xiaomi",
+      modelId: model.id,
+      displayName: model.displayName,
+    })),
+    ...HUAWEI_MODELS.map((model) => ({
+      family: "huawei",
+      modelId: model.id,
+      displayName: model.displayName,
+    })),
+    ...GARMIN_MODELS.map((model) => ({
+      family: "garmin",
+      modelId: model.id,
+      displayName: model.displayName,
+    })),
+  ].sort((left, right) =>
+    `${left.family}:${left.modelId}`.localeCompare(`${right.family}:${right.modelId}`),
+  );
+  expect(native).toHaveLength(291);
+  expect(native as unknown).toEqual(
+    [...DIRECT_DEVICE_MODELS].sort((left, right) =>
+      `${left.family}:${left.modelId}`.localeCompare(`${right.family}:${right.modelId}`),
+    ),
+  );
+});
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -814,6 +852,8 @@ test("discovers a Xiaomi protobuf model and reaches service-verified connected",
     phase: "connected",
     connectedDeviceId: "local-id",
     connectedModelId: "xiaomi_mi_band_8",
+    connectedFamily: "xiaomi",
+    capabilities: { stepsHistory: true },
   });
   await f.controller.dispose();
 });
@@ -1015,6 +1055,101 @@ test("a Huawei model without a Huawei service is rejected", async () => {
     connectedModelId: null,
     connectedFamily: null,
     errorCode: "HUAWEI_SERVICE_MISSING",
+  });
+  await f.controller.dispose();
+});
+
+test("discovers a Garmin model and reaches service-verified connected", async () => {
+  const f = fixture({
+    deviceName: "Forerunner 965",
+    services: async () => [{ uuid: "6a4e2800-667b-11e3-949a-0800200c9a66" }],
+    characteristics: async (service) =>
+      service === "6a4e2800-667b-11e3-949a-0800200c9a66"
+        ? [
+            { uuid: "6a4e2810-667b-11e3-949a-0800200c9a66" },
+            { uuid: "6a4e2820-667b-11e3-949a-0800200c9a66" },
+          ]
+        : [],
+  });
+  await f.controller.startScan();
+  f.emit();
+  expect(f.controller.getSnapshot().devices[0]).toMatchObject({
+    name: "Forerunner 965",
+    modelId: "garmin_forerunner_965",
+    family: "garmin",
+  });
+  await f.controller.connect("local-id");
+  expect(f.controller.getSnapshot()).toMatchObject({
+    phase: "connected",
+    connectedDeviceId: "local-id",
+    connectedModelId: "garmin_forerunner_965",
+    connectedFamily: "garmin",
+  });
+  await expect(
+    f.controller.fetchSteps({
+      authKey: new Uint8Array(16),
+      since: { version: 1, nextMinuteUtc: new Date(0).toISOString(), offsetQuarterHours: 0 },
+      signal: new AbortController().signal,
+      onPhase: () => undefined,
+      async onPage() {},
+    }),
+  ).rejects.toThrow("GARMIN_HISTORY_UNSUPPORTED");
+  await f.controller.dispose();
+});
+
+test("discovers a Garmin model over the v1 GFDI service", async () => {
+  const f = fixture({
+    deviceName: "vívoactive HR",
+    services: async () => [{ uuid: "6a4e2401-667b-11e3-949a-0800200c9a66" }],
+    characteristics: async (service) =>
+      service === "6a4e2401-667b-11e3-949a-0800200c9a66"
+        ? [
+            { uuid: "6a4ecd28-667b-11e3-949a-0800200c9a66" },
+            { uuid: "6a4e4c80-667b-11e3-949a-0800200c9a66" },
+          ]
+        : [],
+  });
+  await f.controller.startScan();
+  f.emit();
+  await f.controller.connect("local-id");
+  expect(f.controller.getSnapshot()).toMatchObject({
+    phase: "connected",
+    connectedModelId: "garmin_vivoactive_hr",
+    connectedFamily: "garmin",
+  });
+  await f.controller.dispose();
+});
+
+test("a Garmin model without a Garmin service is rejected", async () => {
+  const f = fixture({
+    deviceName: "Forerunner 965",
+    services: async () => [{ uuid: "180d" }],
+  });
+  await f.controller.startScan();
+  f.emit();
+  await f.controller.connect("local-id");
+  expect(f.controller.getSnapshot()).toMatchObject({
+    phase: "error",
+    connectedDeviceId: null,
+    connectedModelId: null,
+    connectedFamily: null,
+    errorCode: "GARMIN_SERVICE_MISSING",
+  });
+  await f.controller.dispose();
+});
+
+test("a Garmin model with only the watch-app service is rejected", async () => {
+  const f = fixture({
+    deviceName: "Forerunner 965",
+    services: async () => [{ uuid: "6a4e8022-667b-11e3-949a-0800200c9a66" }],
+    characteristics: async () => [],
+  });
+  await f.controller.startScan();
+  f.emit();
+  await f.controller.connect("local-id");
+  expect(f.controller.getSnapshot()).toMatchObject({
+    phase: "error",
+    errorCode: "GARMIN_SERVICE_MISSING",
   });
   await f.controller.dispose();
 });

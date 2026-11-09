@@ -1,10 +1,11 @@
 import {
   directDeviceContext,
+  directDeviceIdentity,
   ingestDirectDeviceBatchInput,
   ingestDirectDeviceBatchOutput,
-  registerDirectDeviceInput,
   type IngestDirectDeviceBatchInput,
   type IngestDirectDeviceBatchOutput,
+  type DirectDeviceIdentity,
 } from "@openvalens/api/contracts/direct-device";
 
 import {
@@ -26,7 +27,10 @@ export type DirectDeviceErrorCode =
   | "INVALID_INPUT"
   | "INVALID_RECEIPT"
   | "REVOKED"
-  | "WRONG_OWNER";
+  | "WRONG_OWNER"
+  | "IDENTITY_REQUIRED"
+  | "IDENTITY_MISMATCH"
+  | "HISTORY_UNSUPPORTED";
 
 export type OutboxRef = Readonly<{ deviceId: string; captureId: string; envelopeIndex: number }>;
 export type DirectOutboxRow = Readonly<{
@@ -40,6 +44,7 @@ export type DirectOutboxRow = Readonly<{
 }>;
 export type CaptureInput = Readonly<{
   deviceId: string;
+  deviceIdentity: DirectDeviceIdentity;
   captureId: string;
   expectedPreviousCheckpoint: string | null;
   nextCheckpoint: string;
@@ -49,18 +54,30 @@ export type DirectBinding = Readonly<{
   deviceId: string;
   providerConnectionId: number | null;
   captureCheckpoint: string | null;
+  family: DirectDeviceIdentity["family"] | null;
+  modelId: string | null;
 }>;
 
 export interface DirectDeviceStore {
   listBindings(ticket: AuthorityTicket): DirectBinding[];
   getBinding(ticket: AuthorityTicket, deviceId: string): DirectBinding | null;
-  createBinding(ticket: AuthorityTicket, deviceId: string): void;
+  createBinding(ticket: AuthorityTicket, deviceId: string, identity?: DirectDeviceIdentity): void;
+  adoptBindingIdentity(
+    ticket: AuthorityTicket,
+    deviceId: string,
+    identity: DirectDeviceIdentity,
+  ): void;
   markRegistered(ticket: AuthorityTicket, deviceId: string, providerConnectionId: number): void;
   commitCapture(ticket: AuthorityTicket, input: CaptureInput): void;
   listPending(ticket: AuthorityTicket, limit: number): DirectOutboxRow[];
-  recordServerReceipt(ticket: AuthorityTicket, ref: OutboxRef, receipt: IngestDirectDeviceBatchOutput): void;
+  recordServerReceipt(
+    ticket: AuthorityTicket,
+    ref: OutboxRef,
+    receipt: IngestDirectDeviceBatchOutput,
+  ): void;
   markBlocked(ticket: AuthorityTicket, ref: OutboxRef, errorCode: DirectDeviceErrorCode): void;
   countUnaccepted(scope?: DirectDeviceScope): number;
+  countBlockedIdentityEnvelopes(ticket: AuthorityTicket): number;
   purgeScope(scope: DirectDeviceScope): void;
   purgeAll(): void;
 }
@@ -134,7 +151,8 @@ function scopeKey(scope: DirectDeviceScope): string {
 }
 
 function validateDeviceId(deviceId: string): void {
-  registerDirectDeviceInput.shape.deviceId.parse(deviceId);
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(deviceId))
+    throw new DirectDeviceConflictError("DIRECT_DEVICE_INVALID_ID");
 }
 
 function validateRequest(ticket: AuthorityTicket, deviceId: string, value: unknown): string {
@@ -149,6 +167,7 @@ function validateRequest(ticket: AuthorityTicket, deviceId: string, value: unkno
     request.batch.deviceId !== deviceId
   )
     throw new DirectDeviceConflictError("DIRECT_DEVICE_REQUEST_SCOPE_MISMATCH");
+  if (!request.batch.deviceIdentity) throw new DirectDeviceConflictError("IDENTITY_REQUIRED");
   const serialized = canonicalJson(request);
   if (utf8ByteLength(serialized) > MAX_REQUEST_BYTES)
     throw new DirectDeviceAdmissionError("DIRECT_DEVICE_REQUEST_TOO_LARGE");
@@ -157,10 +176,19 @@ function validateRequest(ticket: AuthorityTicket, deviceId: string, value: unkno
 
 function parseErrorCode(value: string | null): DirectDeviceErrorCode | null {
   if (
-    value === "NETWORK" || value === "TIMEOUT" || value === "UNAUTHENTICATED" || value === "READ_ONLY" ||
-    value === "INVALID_INPUT" || value === "INVALID_RECEIPT" || value === "REVOKED" ||
-    value === "WRONG_OWNER"
-  ) return value;
+    value === "NETWORK" ||
+    value === "TIMEOUT" ||
+    value === "UNAUTHENTICATED" ||
+    value === "READ_ONLY" ||
+    value === "INVALID_INPUT" ||
+    value === "INVALID_RECEIPT" ||
+    value === "REVOKED" ||
+    value === "WRONG_OWNER" ||
+    value === "IDENTITY_REQUIRED" ||
+    value === "IDENTITY_MISMATCH" ||
+    value === "HISTORY_UNSUPPORTED"
+  )
+    return value;
   if (value !== null) throw new DirectDeviceStorageError("DIRECT_DEVICE_CORRUPT_ERROR_CODE");
   return null;
 }
@@ -189,19 +217,26 @@ function toOutboxRow(row: RawOutboxRow, ticket: AuthorityTicket): DirectOutboxRo
     if (row.state !== "pending" && row.state !== "accepted" && row.state !== "blocked")
       throw new Error("invalid state");
     const request = deepFreeze(ingestDirectDeviceBatchInput.parse(JSON.parse(row.request_json)));
-    const receipt = row.receipt_json === null
-      ? null
-      : deepFreeze(ingestDirectDeviceBatchOutput.parse(JSON.parse(row.receipt_json)));
-    if ((row.state === "accepted") !== (receipt !== null)) throw new Error("receipt/state mismatch");
+    const receipt =
+      row.receipt_json === null
+        ? null
+        : deepFreeze(ingestDirectDeviceBatchOutput.parse(JSON.parse(row.receipt_json)));
+    if ((row.state === "accepted") !== (receipt !== null))
+      throw new Error("receipt/state mismatch");
     if (
       request.batch.deviceId !== row.device_id ||
       row.scope !== ticket.scopeKey ||
       request.expectedContext.userId !== ticket.scope.userId ||
       request.expectedContext.organizationId !== ticket.scope.organizationId
-    ) throw new Error("scope/device mismatch");
+    )
+      throw new Error("scope/device mismatch");
     return Object.freeze({
       seq: row.seq,
-      ref: Object.freeze({ deviceId: row.device_id, captureId: row.capture_id, envelopeIndex: row.envelope_index }),
+      ref: Object.freeze({
+        deviceId: row.device_id,
+        captureId: row.capture_id,
+        envelopeIndex: row.envelope_index,
+      }),
       request,
       state: row.state,
       receipt,
@@ -225,7 +260,10 @@ function deepFreeze<T>(value: T): T {
   return value;
 }
 
-export function createSqliteDirectDeviceStore(db: SyncSqliteDatabase, now = Date.now): DirectDeviceStore {
+export function createSqliteDirectDeviceStore(
+  db: SyncSqliteDatabase,
+  now = Date.now,
+): DirectDeviceStore {
   initializeDatabase(db);
 
   const requireTicketScope = (ticket: AuthorityTicket): string => {
@@ -236,36 +274,102 @@ export function createSqliteDirectDeviceStore(db: SyncSqliteDatabase, now = Date
   const store: DirectDeviceStore = {
     listBindings(ticket) {
       const scope = requireTicketScope(ticket);
-      return db.getAllSync<{ device_id: string; provider_connection_id: number | null; capture_checkpoint: string | null }>(
-        `SELECT device_id, provider_connection_id, capture_checkpoint FROM direct_device_binding WHERE scope = ? ORDER BY device_id`, scope,
-      ).map((row) => Object.freeze({
-        deviceId: row.device_id,
-        providerConnectionId: row.provider_connection_id,
-        captureCheckpoint: row.capture_checkpoint,
-      }));
+      return db
+        .getAllSync<{
+          device_id: string;
+          provider_connection_id: number | null;
+          capture_checkpoint: string | null;
+          family: DirectBinding["family"];
+          model_id: string | null;
+        }>(
+          `SELECT device_id, provider_connection_id, capture_checkpoint, family, model_id FROM direct_device_binding WHERE scope = ? ORDER BY device_id`,
+          scope,
+        )
+        .map((row) =>
+          Object.freeze({
+            deviceId: row.device_id,
+            providerConnectionId: row.provider_connection_id,
+            captureCheckpoint: row.capture_checkpoint,
+            family: row.family,
+            modelId: row.model_id,
+          }),
+        );
     },
 
     getBinding(ticket, deviceId) {
       validateDeviceId(deviceId);
       const scope = requireTicketScope(ticket);
-      const row = db.getFirstSync<{ device_id: string; provider_connection_id: number | null; capture_checkpoint: string | null }>(
-        `SELECT device_id, provider_connection_id, capture_checkpoint FROM direct_device_binding WHERE scope = ? AND device_id = ?`, scope, deviceId,
+      const row = db.getFirstSync<{
+        device_id: string;
+        provider_connection_id: number | null;
+        capture_checkpoint: string | null;
+        family: DirectBinding["family"];
+        model_id: string | null;
+      }>(
+        `SELECT device_id, provider_connection_id, capture_checkpoint, family, model_id FROM direct_device_binding WHERE scope = ? AND device_id = ?`,
+        scope,
+        deviceId,
       );
-      return row ? Object.freeze({
-        deviceId: row.device_id,
-        providerConnectionId: row.provider_connection_id,
-        captureCheckpoint: row.capture_checkpoint,
-      }) : null;
+      return row
+        ? Object.freeze({
+            deviceId: row.device_id,
+            providerConnectionId: row.provider_connection_id,
+            captureCheckpoint: row.capture_checkpoint,
+            family: row.family,
+            modelId: row.model_id,
+          })
+        : null;
     },
 
-    createBinding(ticket, deviceId) {
+    createBinding(ticket, deviceId, identityInput) {
       validateDeviceId(deviceId);
+      const identity = identityInput ? directDeviceIdentity.parse(identityInput) : null;
       const scope = requireTicketScope(ticket);
       db.withTransactionSync(() => {
         assertAuthorityTicket(ticket);
         db.runSync(
-          `INSERT OR IGNORE INTO direct_device_binding(scope, device_id, provider_connection_id, capture_checkpoint)
-           VALUES (?, ?, NULL, NULL)`, scope, deviceId,
+          `INSERT OR IGNORE INTO direct_device_binding(scope, device_id, provider_connection_id, capture_checkpoint, family, model_id)
+           VALUES (?, ?, NULL, NULL, ?, ?)`,
+          scope,
+          deviceId,
+          identity?.family ?? null,
+          identity?.modelId ?? null,
+        );
+      });
+    },
+
+    adoptBindingIdentity(ticket, deviceId, identityInput) {
+      validateDeviceId(deviceId);
+      const identity = directDeviceIdentity.parse(identityInput);
+      const scope = requireTicketScope(ticket);
+      db.withTransactionSync(() => {
+        assertAuthorityTicket(ticket);
+        const binding = db.getFirstSync<{ family: string | null; model_id: string | null }>(
+          "SELECT family, model_id FROM direct_device_binding WHERE scope = ? AND device_id = ?",
+          scope,
+          deviceId,
+        );
+        if (!binding) throw new DirectDeviceConflictError("DIRECT_DEVICE_BINDING_REQUIRED");
+        if (binding.family !== null || binding.model_id !== null) {
+          if (binding.family !== identity.family || binding.model_id !== identity.modelId)
+            throw new DirectDeviceConflictError("DIRECT_DEVICE_IDENTITY_IMMUTABLE");
+          return;
+        }
+        db.runSync(
+          `UPDATE direct_device_binding SET family = ?, model_id = ?, capture_checkpoint = NULL
+           WHERE scope = ? AND device_id = ? AND family IS NULL AND model_id IS NULL`,
+          identity.family,
+          identity.modelId,
+          scope,
+          deviceId,
+        );
+        // Legacy bytes remain unchanged and quarantined; never stamp identity onto them.
+        db.runSync(
+          `UPDATE direct_device_outbox SET state = 'blocked', last_error_code = 'IDENTITY_REQUIRED'
+           WHERE scope = ? AND device_id = ? AND state = 'pending'
+             AND json_extract(request_json, '$.batch.deviceIdentity') IS NULL`,
+          scope,
+          deviceId,
         );
       });
     },
@@ -279,75 +383,133 @@ export function createSqliteDirectDeviceStore(db: SyncSqliteDatabase, now = Date
         assertAuthorityTicket(ticket);
         const binding = db.getFirstSync<{ provider_connection_id: number | null }>(
           "SELECT provider_connection_id FROM direct_device_binding WHERE scope = ? AND device_id = ?",
-          scope, deviceId,
+          scope,
+          deviceId,
         );
         if (!binding) throw new DirectDeviceConflictError("DIRECT_DEVICE_BINDING_REQUIRED");
-        if (binding.provider_connection_id !== null && binding.provider_connection_id !== providerConnectionId)
+        if (
+          binding.provider_connection_id !== null &&
+          binding.provider_connection_id !== providerConnectionId
+        )
           throw new DirectDeviceConflictError("DIRECT_DEVICE_REGISTRATION_IMMUTABLE");
         db.runSync(
           "UPDATE direct_device_binding SET provider_connection_id = ? WHERE scope = ? AND device_id = ? AND provider_connection_id IS NULL",
-          providerConnectionId, scope, deviceId,
+          providerConnectionId,
+          scope,
+          deviceId,
         );
       });
     },
 
     commitCapture(ticket, input) {
       validateDeviceId(input.deviceId);
-      if (!input.captureId || input.captureId.length > 200 || !input.nextCheckpoint || input.nextCheckpoint.length > 1024)
+      if (
+        !input.captureId ||
+        input.captureId.length > 200 ||
+        !input.nextCheckpoint ||
+        input.nextCheckpoint.length > 1024
+      )
         throw new DirectDeviceAdmissionError("DIRECT_DEVICE_CAPTURE_METADATA_INVALID");
       if (input.envelopes.length < 1 || input.envelopes.length > MAX_CAPTURE_ENVELOPES)
         throw new DirectDeviceAdmissionError("DIRECT_DEVICE_CAPTURE_ENVELOPE_LIMIT");
-      const requests = input.envelopes.map((request) => validateRequest(ticket, input.deviceId, request));
+      const requests = input.envelopes.map((request) =>
+        validateRequest(ticket, input.deviceId, request),
+      );
+      const captureIdentity = directDeviceIdentity.parse(input.deviceIdentity);
+      if (
+        input.envelopes.some(
+          (request) =>
+            request.batch.deviceIdentity?.family !== captureIdentity.family ||
+            request.batch.deviceIdentity?.modelId !== captureIdentity.modelId,
+        )
+      )
+        throw new DirectDeviceConflictError("DIRECT_DEVICE_IDENTITY_MISMATCH");
       const byteCount = requests.reduce((total, request) => total + utf8ByteLength(request), 0);
-      if (byteCount > MAX_CAPTURE_BYTES) throw new DirectDeviceAdmissionError("DIRECT_DEVICE_CAPTURE_TOO_LARGE");
+      if (byteCount > MAX_CAPTURE_BYTES)
+        throw new DirectDeviceAdmissionError("DIRECT_DEVICE_CAPTURE_TOO_LARGE");
       const checkpointJson = captureCheckpoint(input);
       const scope = requireTicketScope(ticket);
       db.withTransactionSync(() => {
         assertAuthorityTicket(ticket);
         const existing = db.getFirstSync<{ checkpoint_json: string; envelope_count: number }>(
           `SELECT checkpoint_json, envelope_count FROM direct_device_capture
-           WHERE scope = ? AND device_id = ? AND capture_id = ?`, scope, input.deviceId, input.captureId,
+           WHERE scope = ? AND device_id = ? AND capture_id = ?`,
+          scope,
+          input.deviceId,
+          input.captureId,
         );
         if (existing) {
-          if (existing.checkpoint_json !== checkpointJson || existing.envelope_count !== requests.length)
+          if (
+            existing.checkpoint_json !== checkpointJson ||
+            existing.envelope_count !== requests.length
+          )
             throw new DirectDeviceConflictError("DIRECT_DEVICE_CAPTURE_REPLAY_CONFLICT");
           const rows = db.getAllSync<{ envelope_index: number; request_json: string }>(
             `SELECT envelope_index, request_json FROM direct_device_outbox
              WHERE scope = ? AND device_id = ? AND capture_id = ? ORDER BY envelope_index`,
-            scope, input.deviceId, input.captureId,
+            scope,
+            input.deviceId,
+            input.captureId,
           );
-          if (rows.length !== requests.length || rows.some((row, index) => row.envelope_index !== index))
+          if (
+            rows.length !== requests.length ||
+            rows.some((row, index) => row.envelope_index !== index)
+          )
             throw new DirectDeviceStorageError("DIRECT_DEVICE_CORRUPT_CAPTURE");
           if (rows.some((row, index) => row.request_json !== requests[index]))
             throw new DirectDeviceConflictError("DIRECT_DEVICE_CAPTURE_REPLAY_CONFLICT");
           return;
         }
-        const binding = db.getFirstSync<{ capture_checkpoint: string | null }>(
-          "SELECT capture_checkpoint FROM direct_device_binding WHERE scope = ? AND device_id = ?",
-          scope, input.deviceId,
+        const binding = db.getFirstSync<{
+          capture_checkpoint: string | null;
+          family: string | null;
+          model_id: string | null;
+        }>(
+          "SELECT capture_checkpoint, family, model_id FROM direct_device_binding WHERE scope = ? AND device_id = ?",
+          scope,
+          input.deviceId,
         );
         if (!binding) throw new DirectDeviceConflictError("DIRECT_DEVICE_BINDING_REQUIRED");
+        if (
+          binding.family !== captureIdentity.family ||
+          binding.model_id !== captureIdentity.modelId
+        )
+          throw new DirectDeviceConflictError("DIRECT_DEVICE_IDENTITY_MISMATCH");
         if (binding.capture_checkpoint !== input.expectedPreviousCheckpoint)
           throw new DirectDeviceConflictError("DIRECT_DEVICE_CHECKPOINT_CONFLICT");
         db.runSync(
           `INSERT INTO direct_device_capture(scope, device_id, capture_id, checkpoint_json, envelope_count, created_at)
            VALUES (?, ?, ?, ?, ?, ?)`,
-          scope, input.deviceId, input.captureId, checkpointJson, requests.length, now(),
+          scope,
+          input.deviceId,
+          input.captureId,
+          checkpointJson,
+          requests.length,
+          now(),
         );
         requests.forEach((requestJson, envelopeIndex) => {
           db.runSync(
             `INSERT INTO direct_device_outbox(
               scope, device_id, capture_id, envelope_index, request_json, state, receipt_json, last_error_code, created_at
             ) VALUES (?, ?, ?, ?, ?, 'pending', NULL, NULL, ?)`,
-            scope, input.deviceId, input.captureId, envelopeIndex, requestJson, now(),
+            scope,
+            input.deviceId,
+            input.captureId,
+            envelopeIndex,
+            requestJson,
+            now(),
           );
         });
         const updated = db.runSync(
           `UPDATE direct_device_binding SET capture_checkpoint = ?
            WHERE scope = ? AND device_id = ? AND capture_checkpoint IS ?`,
-          input.nextCheckpoint, scope, input.deviceId, input.expectedPreviousCheckpoint,
+          input.nextCheckpoint,
+          scope,
+          input.deviceId,
+          input.expectedPreviousCheckpoint,
         );
-        if (updated.changes !== 1) throw new DirectDeviceConflictError("DIRECT_DEVICE_CHECKPOINT_CONFLICT");
+        if (updated.changes !== 1)
+          throw new DirectDeviceConflictError("DIRECT_DEVICE_CHECKPOINT_CONFLICT");
       });
     },
 
@@ -357,9 +519,32 @@ export function createSqliteDirectDeviceStore(db: SyncSqliteDatabase, now = Date
         throw new DirectDeviceAdmissionError("DIRECT_DEVICE_INVALID_LIST_LIMIT");
       const rows = db.getAllSync<RawOutboxRow>(
         `SELECT seq, scope, device_id, capture_id, envelope_index, request_json, state, receipt_json, last_error_code, created_at
-         FROM direct_device_outbox WHERE scope = ? AND state = 'pending' ORDER BY seq LIMIT ?`, scope, limit,
+         FROM direct_device_outbox WHERE scope = ? AND state = 'pending' ORDER BY seq LIMIT ?`,
+        scope,
+        limit,
       );
-      return rows.map((row) => toOutboxRow(row, ticket));
+      const ready: DirectOutboxRow[] = [];
+      for (const row of rows) {
+        let parsed: { batch?: { deviceIdentity?: unknown } };
+        try {
+          parsed = JSON.parse(row.request_json) as typeof parsed;
+        } catch {
+          throw new DirectDeviceStorageError("DIRECT_DEVICE_CORRUPT_OUTBOX_ROW");
+        }
+        if (!parsed.batch?.deviceIdentity) {
+          db.runSync(
+            `UPDATE direct_device_outbox SET state = 'blocked', last_error_code = 'IDENTITY_REQUIRED'
+             WHERE scope = ? AND device_id = ? AND capture_id = ? AND envelope_index = ? AND state = 'pending'`,
+            scope,
+            row.device_id,
+            row.capture_id,
+            row.envelope_index,
+          );
+          continue;
+        }
+        ready.push(toOutboxRow(row, ticket));
+      }
+      return ready;
     },
 
     recordServerReceipt(ticket, ref, receipt) {
@@ -371,41 +556,73 @@ export function createSqliteDirectDeviceStore(db: SyncSqliteDatabase, now = Date
         const row = db.getFirstSync<{ state: string; receipt_json: string | null }>(
           `SELECT state, receipt_json FROM direct_device_outbox
            WHERE scope = ? AND device_id = ? AND capture_id = ? AND envelope_index = ?`,
-          scope, ref.deviceId, ref.captureId, ref.envelopeIndex,
+          scope,
+          ref.deviceId,
+          ref.captureId,
+          ref.envelopeIndex,
         );
         // Purge may have removed the row while the transport was awaiting.
         if (!row) return;
         if (row.state === "accepted") {
-          if (row.receipt_json !== serialized) throw new DirectDeviceConflictError("DIRECT_DEVICE_RECEIPT_CONFLICT");
+          if (row.receipt_json !== serialized)
+            throw new DirectDeviceConflictError("DIRECT_DEVICE_RECEIPT_CONFLICT");
           return;
         }
         if (row.state !== "pending") return;
         db.runSync(
           `UPDATE direct_device_outbox SET state = 'accepted', receipt_json = ?, last_error_code = NULL
            WHERE scope = ? AND device_id = ? AND capture_id = ? AND envelope_index = ? AND state = 'pending'`,
-          serialized, scope, ref.deviceId, ref.captureId, ref.envelopeIndex,
+          serialized,
+          scope,
+          ref.deviceId,
+          ref.captureId,
+          ref.envelopeIndex,
         );
       });
     },
 
     markBlocked(ticket, ref, errorCode) {
-      if (!isBlockedCode(errorCode)) throw new DirectDeviceConflictError("DIRECT_DEVICE_ERROR_NOT_BLOCKING");
+      if (!isBlockedCode(errorCode))
+        throw new DirectDeviceConflictError("DIRECT_DEVICE_ERROR_NOT_BLOCKING");
       const scope = requireTicketScope(ticket);
       db.withTransactionSync(() => {
         assertAuthorityTicket(ticket);
         db.runSync(
           `UPDATE direct_device_outbox SET state = 'blocked', last_error_code = ?
            WHERE scope = ? AND device_id = ? AND capture_id = ? AND envelope_index = ? AND state = 'pending'`,
-          errorCode, scope, ref.deviceId, ref.captureId, ref.envelopeIndex,
+          errorCode,
+          scope,
+          ref.deviceId,
+          ref.captureId,
+          ref.envelopeIndex,
         );
       });
     },
 
     countUnaccepted(scopeInput) {
       const scope = scopeInput === undefined ? undefined : scopeKey(scopeInput);
-      const row = scope === undefined
-        ? db.getFirstSync<{ total: number }>("SELECT COUNT(*) AS total FROM direct_device_outbox WHERE state != 'accepted'")
-        : db.getFirstSync<{ total: number }>("SELECT COUNT(*) AS total FROM direct_device_outbox WHERE scope = ? AND state != 'accepted'", scope);
+      const row =
+        scope === undefined
+          ? db.getFirstSync<{ total: number }>(
+              "SELECT COUNT(*) AS total FROM direct_device_outbox WHERE state != 'accepted'",
+            )
+          : db.getFirstSync<{ total: number }>(
+              "SELECT COUNT(*) AS total FROM direct_device_outbox WHERE scope = ? AND state != 'accepted'",
+              scope,
+            );
+      if (!row || !Number.isSafeInteger(row.total) || row.total < 0)
+        throw new DirectDeviceStorageError("DIRECT_DEVICE_COUNT_FAILED");
+      return row.total;
+    },
+
+    countBlockedIdentityEnvelopes(ticket) {
+      const scope = requireTicketScope(ticket);
+      const row = db.getFirstSync<{ total: number }>(
+        `SELECT COUNT(*) AS total FROM direct_device_outbox
+         WHERE scope = ? AND state = 'blocked' AND last_error_code = 'IDENTITY_REQUIRED'
+           AND json_extract(request_json, '$.batch.deviceIdentity') IS NULL`,
+        scope,
+      );
       if (!row || !Number.isSafeInteger(row.total) || row.total < 0)
         throw new DirectDeviceStorageError("DIRECT_DEVICE_COUNT_FAILED");
       return row.total;
@@ -437,7 +654,15 @@ export function createSqliteDirectDeviceStore(db: SyncSqliteDatabase, now = Date
 }
 
 function isBlockedCode(code: DirectDeviceErrorCode): boolean {
-  return code === "INVALID_INPUT" || code === "INVALID_RECEIPT" || code === "REVOKED" || code === "WRONG_OWNER";
+  return (
+    code === "INVALID_INPUT" ||
+    code === "INVALID_RECEIPT" ||
+    code === "REVOKED" ||
+    code === "WRONG_OWNER" ||
+    code === "IDENTITY_REQUIRED" ||
+    code === "IDENTITY_MISMATCH" ||
+    code === "HISTORY_UNSUPPORTED"
+  );
 }
 
 function initializeDatabase(db: SyncSqliteDatabase): void {
@@ -450,6 +675,12 @@ function initializeDatabase(db: SyncSqliteDatabase): void {
       throw new DirectDeviceStorageError("DIRECT_DEVICE_SCHEMA_UNSUPPORTED");
     db.withTransactionSync(() => {
       db.execSync(DIRECT_DEVICE_SCHEMA_SQL);
+      const columns = db.getAllSync<{ name: string }>("PRAGMA table_info(direct_device_binding)");
+      const names = new Set(columns.map((column) => column.name));
+      if (!names.has("family"))
+        db.execSync("ALTER TABLE direct_device_binding ADD COLUMN family TEXT");
+      if (!names.has("model_id"))
+        db.execSync("ALTER TABLE direct_device_binding ADD COLUMN model_id TEXT");
       db.execSync(`PRAGMA user_version = ${DIRECT_DEVICE_SCHEMA_VERSION}`);
     });
     db.getAllSync("SELECT * FROM direct_device_binding LIMIT 0");

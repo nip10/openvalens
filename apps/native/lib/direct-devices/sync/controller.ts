@@ -16,10 +16,16 @@ import {
   type AuthorityTicket,
 } from "../authority";
 import type { HelioSetupController } from "../setup/types";
+import type { DirectDeviceIdentity } from "@openvalens/api/contracts/direct-device";
 import type { DirectDeviceStore } from "../persistence/store";
 import { drainDirectDeviceOutbox } from "../upload";
 import type { HelioCursor, HelioStepsPage } from "../protocol/types";
-import type { HelioSyncContext, HelioSyncController, HelioSyncSnapshot } from "./types";
+import type {
+  DirectDeviceConfirmationTarget,
+  HelioSyncContext,
+  HelioSyncController,
+  HelioSyncSnapshot,
+} from "./types";
 
 type DirectClient = {
   directDevice: {
@@ -49,10 +55,14 @@ const emptySnapshot: HelioSyncSnapshot = Object.freeze({
   nearbyDevices: Object.freeze([]),
   connectedDeviceId: null,
   connectedModelId: null,
+  connectedFamily: null,
+  connectionGeneration: 0,
+  capabilities: Object.freeze({ stepsHistory: false }),
   bluetooth: "unknown",
   errorCode: null,
   capturedMinutes: 0,
   pendingEnvelopes: 0,
+  blockedIdentityEnvelopes: 0,
   acceptedEnvelopes: 0,
   queuedEnvelopes: 0,
   publication: null,
@@ -111,11 +121,12 @@ function cursorString(cursor: HelioCursor): string {
 
 function pageCaptureId(deviceId: string, before: HelioCursor, after: HelioCursor): string {
   // The source cursor coordinate, not phone time/page number, identifies a logical page.
-  return `helio-v1:${deviceId}:${before.nextMinuteUtc}:${before.offsetQuarterHours}:${after.nextMinuteUtc}:${after.offsetQuarterHours}`;
+  return `dd-v2:${deviceId}:${before.nextMinuteUtc}:${before.offsetQuarterHours}:${after.nextMinuteUtc}:${after.offsetQuarterHours}`;
 }
 
 function pageRequests(
   deviceId: string,
+  deviceIdentity: DirectDeviceIdentity,
   expectedContext: { userId: string; organizationId: string },
   minutes: HelioStepsPage["minutes"],
   clientTimezone: string,
@@ -136,6 +147,7 @@ function pageRequests(
       batch: {
         schemaVersion: 1,
         deviceId,
+        deviceIdentity,
         provider: "direct_device",
         recordType: "steps",
         mode: "backfill",
@@ -184,7 +196,12 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
   let disposed = false;
   let generation = 0;
   let activeAbort: AbortController | null = null;
+  let activeConfirmationAbort: AbortController | null = null;
+  let connectionGeneration = 0;
+  let lastObservedConnectedDeviceId = deps.setup.getSnapshot().connectedDeviceId;
   let selectedBindingId: string | null = null;
+  let draftBindingId: string | null = null;
+  let draftIdentity: DirectDeviceIdentity | null = null;
   let bindingsById = new Map<string, DirectDeviceBindingSummary>();
   let setupUnsubscribe: (() => void) | null = null;
   const apiFactory =
@@ -219,16 +236,44 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
     return apiFactory(context.serverUrl, cookie, signal);
   };
   const current = (token: number) => !disposed && token === generation;
+  const bumpConnectionGeneration = () => {
+    connectionGeneration += 1;
+    activeConfirmationAbort?.abort();
+    activeConfirmationAbort = null;
+    publish({ connectionGeneration });
+  };
+  const confirmationTargetMatches = (expected: DirectDeviceConfirmationTarget) => {
+    const state = deps.setup.getSnapshot();
+    return (
+      state.phase === "connected" &&
+      state.connectedDeviceId === expected.connectedDeviceId &&
+      state.connectedFamily === expected.family &&
+      state.connectedModelId === expected.modelId &&
+      connectionGeneration === expected.connectionGeneration
+    );
+  };
   const syncSetupSnapshot = () => {
     const state = deps.setup.getSnapshot();
-    const connected =
-      state.phase === "connected" &&
-      !!selectedBindingId &&
-      !!bindingsById.get(selectedBindingId)?.providerConnectionId;
+    if (
+      lastObservedConnectedDeviceId !== null &&
+      state.connectedDeviceId !== lastObservedConnectedDeviceId
+    )
+      bumpConnectionGeneration();
+    lastObservedConnectedDeviceId = state.connectedDeviceId;
+    const connected = state.phase === "connected";
+    const selected = selectedBindingId ? bindingsById.get(selectedBindingId) : null;
+    const compatible =
+      !!selected &&
+      selected.providerConnectionId !== null &&
+      selected.family === state.connectedFamily &&
+      selected.modelId === state.connectedModelId;
     publish({
       nearbyDevices: state.devices,
       connectedDeviceId: state.connectedDeviceId,
       connectedModelId: state.connectedModelId ?? null,
+      connectedFamily: state.connectedFamily ?? null,
+      connectionGeneration,
+      capabilities: state.capabilities,
       bluetooth: state.bluetooth,
       phase:
         state.phase === "scanning"
@@ -239,12 +284,13 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
               ? "connected"
               : snapshot.phase,
       errorCode: state.errorCode,
-      canSync: connected && !snapshot.isBusy,
+      canSync: connected && state.capabilities.stepsHistory && compatible && !snapshot.isBusy,
     });
   };
   setupUnsubscribe = deps.setup.subscribe(syncSetupSnapshot);
   const authorityUnsubscribe = subscribeDirectDeviceAuthorityInvalidation(() => {
     ++generation;
+    bumpConnectionGeneration();
     activeAbort?.abort();
     activeAbort = null;
     // Setup owns radio cancellation and settles history before releasing its lease.
@@ -275,7 +321,42 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
         );
         if (!current(token) || !isAuthorityTicketCurrent(ticket)) return;
         bindingsById = new Map(result.devices.map((device) => [device.deviceId, device]));
-        const owned = deps.store.listBindings(ticket);
+        let owned = deps.store.listBindings(ticket);
+        for (const remote of result.devices) {
+          if (
+            (remote.family === null) !== (remote.modelId === null) ||
+            (remote.family === null) !== (remote.displayName === null)
+          )
+            throw new Error("IDENTITY_MISMATCH");
+          const identity =
+            remote.family && remote.modelId
+              ? { family: remote.family, modelId: remote.modelId }
+              : undefined;
+          let local = owned.find((binding) => binding.deviceId === remote.deviceId);
+          if (!local) {
+            deps.store.createBinding(ticket, remote.deviceId, identity);
+            local = deps.store.getBinding(ticket, remote.deviceId) ?? undefined;
+          }
+          if (!local) throw new Error("DIRECT_DEVICE_BINDING_MATERIALIZATION_FAILED");
+          if (identity && !local.family && !local.modelId) {
+            deps.store.adoptBindingIdentity(ticket, remote.deviceId, {
+              family: identity.family,
+              modelId: identity.modelId,
+            });
+          } else if (
+            identity &&
+            (local.family !== identity.family || local.modelId !== identity.modelId)
+          ) {
+            throw new Error("IDENTITY_MISMATCH");
+          } else if (!identity && (local.family !== null || local.modelId !== null)) {
+            throw new Error("IDENTITY_MISMATCH");
+          }
+          if (local.providerConnectionId === null)
+            deps.store.markRegistered(ticket, remote.deviceId, remote.providerConnectionId);
+          else if (local.providerConnectionId !== remote.providerConnectionId)
+            throw new Error("DIRECT_DEVICE_REGISTRATION_IMMUTABLE");
+        }
+        owned = deps.store.listBindings(ticket);
         const selected =
           selectedBindingId && bindingsById.has(selectedBindingId)
             ? selectedBindingId
@@ -289,47 +370,130 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
           publication: selectedSummary?.publication ?? null,
           phase: "idle",
           isBusy: false,
-          canSync: snapshot.connectedDeviceId !== null && !!selectedSummary,
+          canSync:
+            snapshot.connectedDeviceId !== null &&
+            snapshot.capabilities.stepsHistory &&
+            !!selectedSummary?.providerConnectionId &&
+            selectedSummary.family === snapshot.connectedFamily &&
+            selectedSummary.modelId === snapshot.connectedModelId,
+          blockedIdentityEnvelopes: deps.store.countBlockedIdentityEnvelopes(ticket),
         });
       } catch (error) {
         if (current(token)) publish({ phase: "error", isBusy: false, errorCode: safeError(error) });
       }
     },
     async createBinding() {
-      if (disposed) return;
+      if (disposed || snapshot.isBusy) return;
+      const setup = deps.setup.getSnapshot();
+      if (setup.phase !== "connected" || !setup.connectedFamily || !setup.connectedModelId) return;
+      const identity: DirectDeviceIdentity = {
+        family: setup.connectedFamily,
+        modelId: setup.connectedModelId,
+      };
       const token = generation;
       publish({ isBusy: true, phase: "loading_bindings", errorCode: null });
       try {
         const ticket = fresh();
         // Generate once, durably record before registration, and retain the UUID if registration is retried.
-        const deviceId = (deps.uuid ?? (() => globalThis.crypto.randomUUID()))();
-        deps.store.createBinding(ticket, deviceId);
+        if (!draftBindingId || JSON.stringify(draftIdentity) !== JSON.stringify(identity)) {
+          draftBindingId =
+            deps.store
+              .listBindings(ticket)
+              .find(
+                (binding) =>
+                  binding.providerConnectionId === null &&
+                  binding.family === identity.family &&
+                  binding.modelId === identity.modelId,
+              )?.deviceId ?? (deps.uuid ?? (() => globalThis.crypto.randomUUID()))();
+          draftIdentity = identity;
+        }
+        const deviceId = draftBindingId;
+        deps.store.createBinding(ticket, deviceId, identity);
         const api = await captureClient(ticket);
         if (!current(token) || !isAuthorityTicketCurrent(ticket)) return;
         const registered = registerDirectDeviceOutput.parse(
           await api.directDevice.registerDirectDevice({
             deviceId,
-            family: "amazfit_helio_strap",
+            family: identity.family,
+            modelId: identity.modelId,
             expectedContext: { userId: context.userId, organizationId: context.organizationId },
           }),
         );
         if (!current(token) || !isAuthorityTicketCurrent(ticket)) return;
         deps.store.markRegistered(ticket, deviceId, registered.providerConnectionId);
         await controller.refreshBindings();
+        if (!bindingsById.has(deviceId)) return;
+        draftBindingId = null;
+        draftIdentity = null;
         selectedBindingId = deviceId;
         publish({ selectedBindingId: deviceId, isBusy: false });
+        syncSetupSnapshot();
       } catch (error) {
         if (current(token)) publish({ phase: "error", isBusy: false, errorCode: safeError(error) });
       }
     },
+    async confirmBindingIdentity(deviceId, expected) {
+      if (disposed || snapshot.isBusy || !bindingsById.has(deviceId)) return;
+      const target = Object.freeze({
+        connectedDeviceId: expected.connectedDeviceId,
+        family: expected.family,
+        modelId: expected.modelId,
+        connectionGeneration: expected.connectionGeneration,
+      });
+      if (!confirmationTargetMatches(target)) {
+        publish({ errorCode: "CONFIRMATION_STALE" });
+        return;
+      }
+      const identity: DirectDeviceIdentity = { family: target.family, modelId: target.modelId };
+      const token = ++generation;
+      const abort = new AbortController();
+      activeConfirmationAbort = abort;
+      publish({ isBusy: true, phase: "loading_bindings", errorCode: null });
+      try {
+        const ticket = fresh();
+        const api = await captureClient(ticket, abort.signal);
+        if (!current(token) || !isAuthorityTicketCurrent(ticket)) return;
+        if (abort.signal.aborted || !confirmationTargetMatches(target))
+          throw new Error("CONFIRMATION_STALE");
+        const registered = registerDirectDeviceOutput.parse(
+          await api.directDevice.registerDirectDevice({
+            deviceId,
+            family: identity.family,
+            modelId: identity.modelId,
+            confirmLegacyIdentity: true,
+            expectedContext: { userId: context.userId, organizationId: context.organizationId },
+          }),
+        );
+        if (!current(token) || !isAuthorityTicketCurrent(ticket)) return;
+        if (abort.signal.aborted || !confirmationTargetMatches(target))
+          throw new Error("CONFIRMATION_STALE");
+        deps.store.adoptBindingIdentity(ticket, deviceId, identity);
+        deps.store.markRegistered(ticket, deviceId, registered.providerConnectionId);
+        publish({ blockedIdentityEnvelopes: deps.store.countBlockedIdentityEnvelopes(ticket) });
+        await controller.refreshBindings();
+      } catch (error) {
+        if (current(token))
+          publish({
+            phase: abort.signal.aborted ? "cancelled" : "error",
+            isBusy: false,
+            errorCode: safeError(error),
+          });
+      } finally {
+        if (activeConfirmationAbort === abort) activeConfirmationAbort = null;
+      }
+    },
     selectBinding(deviceId) {
-      if (disposed || !bindingsById.has(deviceId)) return;
+      if (disposed || snapshot.isBusy || !bindingsById.has(deviceId)) return;
       selectedBindingId = deviceId;
       publish({
         selectedBindingId: deviceId,
         publication: bindingsById.get(deviceId)?.publication ?? null,
         canSync:
-          snapshot.connectedDeviceId !== null && !!bindingsById.get(deviceId)?.providerConnectionId,
+          snapshot.connectedDeviceId !== null &&
+          snapshot.capabilities.stepsHistory &&
+          !!bindingsById.get(deviceId)?.providerConnectionId &&
+          bindingsById.get(deviceId)?.family === snapshot.connectedFamily &&
+          bindingsById.get(deviceId)?.modelId === snapshot.connectedModelId,
       });
     },
     async startScan() {
@@ -345,12 +509,20 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
       }
     },
     async connect(nativeId) {
-      if (disposed || !selectedBindingId || !bindingsById.has(selectedBindingId)) return;
+      if (disposed || snapshot.isBusy) return;
+      bumpConnectionGeneration();
       await deps.setup.connect(nativeId);
       syncSetupSnapshot();
     },
     async syncSteps(authKeyHex) {
-      if (disposed || snapshot.isBusy || !snapshot.connectedDeviceId || !selectedBindingId) return;
+      if (
+        disposed ||
+        snapshot.isBusy ||
+        !snapshot.connectedDeviceId ||
+        !selectedBindingId ||
+        !snapshot.canSync
+      )
+        return;
       if (!/^((0x)?[0-9a-fA-F]{32})$/.test(authKeyHex)) {
         publish({ phase: "error", errorCode: "INVALID_AUTH_KEY" });
         return;
@@ -359,13 +531,20 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
       const hex = authKeyHex.replace(/^0x/i, "");
       for (let i = 0; i < 16; i++) authKey[i] = Number.parseInt(hex.slice(i * 2, i * 2 + 2), 16);
       const token = ++generation;
+      const syncDeviceId = selectedBindingId;
+      const syncIdentity: DirectDeviceIdentity = {
+        family: snapshot.connectedFamily!,
+        modelId: snapshot.connectedModelId!,
+      };
       const abort = new AbortController();
       activeAbort = abort;
       publish({ phase: "connected", isBusy: true, errorCode: null });
       try {
         const ticket = fresh();
-        const binding = deps.store.getBinding(ticket, selectedBindingId);
+        const binding = deps.store.getBinding(ticket, syncDeviceId);
         if (!binding?.providerConnectionId) throw new Error("DIRECT_DEVICE_BINDING_REQUIRED");
+        if (binding.family !== syncIdentity.family || binding.modelId !== syncIdentity.modelId)
+          throw new Error("IDENTITY_MISMATCH");
         const api = await captureClient(ticket, abort.signal);
         if (!current(token) || !isAuthorityTicketCurrent(ticket)) return;
         // Protocol historyStart only accepts exact UTC-minute cursors; floor the default.
@@ -392,16 +571,18 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
               throw new Error("STALE_DIRECT_DEVICE_AUTHORITY");
             publish({ phase: "capturing", isBusy: true });
             const envelopes = pageRequests(
-              selectedBindingId!,
+              syncDeviceId,
+              syncIdentity,
               { userId: context.userId, organizationId: context.organizationId },
               page.minutes,
               "UTC",
             );
             // Empty pages do not advance durable state. Protocol must not deliver unfinished minutes.
             if (!envelopes.length) return;
-            const captureId = pageCaptureId(selectedBindingId!, cursorSince, page.nextCursor);
+            const captureId = pageCaptureId(syncDeviceId, cursorSince, page.nextCursor);
             deps.store.commitCapture(ticket, {
-              deviceId: selectedBindingId!,
+              deviceId: syncDeviceId,
+              deviceIdentity: syncIdentity,
               captureId,
               expectedPreviousCheckpoint: checkpoint,
               nextCheckpoint: cursorString(page.nextCursor),
@@ -418,6 +599,7 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
           capturedMinutes: captured,
           phase: "uploading",
           pendingEnvelopes: deps.store.countUnaccepted(ticket.scope),
+          blockedIdentityEnvelopes: deps.store.countBlockedIdentityEnvelopes(ticket),
           isBusy: true,
         });
         const summary = await drainDirectDeviceOutbox(ticket, {
@@ -430,6 +612,7 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
         publish({
           phase: result.complete ? "processing" : "connected",
           pendingEnvelopes: pending,
+          blockedIdentityEnvelopes: deps.store.countBlockedIdentityEnvelopes(ticket),
           acceptedEnvelopes: Math.max(0, snapshot.acceptedEnvelopes + summary.sent),
           queuedEnvelopes: queued,
           isBusy: false,
@@ -465,6 +648,7 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
         if (!current(token) || !isAuthorityTicketCurrent(ticket)) return;
         publish({
           pendingEnvelopes: deps.store.countUnaccepted(ticket.scope),
+          blockedIdentityEnvelopes: deps.store.countBlockedIdentityEnvelopes(ticket),
           acceptedEnvelopes: snapshot.acceptedEnvelopes + summary.sent,
           queuedEnvelopes: summary.queued,
           phase: summary.queued ? "processing" : "connected",
@@ -480,6 +664,7 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
     },
     async cancel() {
       ++generation;
+      bumpConnectionGeneration();
       activeAbort?.abort();
       activeAbort = null;
       await Promise.allSettled([deps.setup.disconnect(), deps.setup.stopScan()]);
@@ -487,6 +672,7 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
     },
     async dispose() {
       if (disposed) return;
+      bumpConnectionGeneration();
       disposed = true;
       ++generation;
       activeAbort?.abort();

@@ -5,12 +5,18 @@ import { and, eq } from "drizzle-orm";
 
 import type { MobileProvider } from "./mobile-batch";
 import type { MobileHealthRecord } from "./mobile-records";
+import {
+  findDirectDeviceModel,
+  type DirectDeviceIdentity,
+} from "@openvalens/health-record/direct-device-models";
 
 /**
  * One `data_source` per (provider, source app, device) for `mobile.ingestBatch`,
  * so source priority can tell a scale from a watch.
  */
-export type SourceIdentity = ReturnType<typeof sourceIdentity> | ReturnType<typeof directSourceIdentity>;
+export type SourceIdentity =
+  | ReturnType<typeof sourceIdentity>
+  | ReturnType<typeof directSourceIdentity>;
 
 export function sourceIdentity(provider: MobileProvider, record: MobileHealthRecord) {
   const identity = buildDataSourceIdentity({
@@ -30,12 +36,14 @@ export function sourceIdentity(provider: MobileProvider, record: MobileHealthRec
 }
 
 /** Direct devices have an independent identity from health-store app/device metadata. */
-export function directSourceIdentity(deviceId: string) {
+export function directSourceIdentity(deviceId: string, identity: DirectDeviceIdentity) {
+  const model = findDirectDeviceModel(identity);
+  if (!model) throw new Error("Direct-device source identity is not in the catalog.");
   return {
     sourceKey: `direct_device|v1|${deviceId}`,
     sourceType: "wearable",
     deviceType: "wearable",
-    deviceModel: "Amazfit Helio Strap",
+    deviceModel: model.displayName,
     sourceAppId: null,
     importChannel: "direct_device" as const,
   };
@@ -72,7 +80,10 @@ export async function resolveDataSource(
     )
     .limit(1);
   if (!row) throw new Error("Data source was not resolvable.");
-  if (identity.importChannel === "direct_device" && row.providerConnectionId !== providerConnectionId)
+  if (
+    identity.importChannel === "direct_device" &&
+    row.providerConnectionId !== providerConnectionId
+  )
     throw new Error("Data source identity is already owned by another provider connection.");
   return row.id;
 }

@@ -22,7 +22,12 @@ import {
   type MobileHealthRecord,
   type MobileHealthRecordType,
 } from "./mobile-records";
-import { directSourceIdentity, resolveDataSource, sourceIdentity, type SourceIdentity } from "./mobile-data-source";
+import {
+  directSourceIdentity,
+  resolveDataSource,
+  sourceIdentity,
+  type SourceIdentity,
+} from "./mobile-data-source";
 import {
   hasCloudWearableSources,
   latchSleepGoalEvidence,
@@ -31,6 +36,8 @@ import {
 import { lockActivityPublication, reconcileDirectStepsFallback } from "./direct-steps-fallback";
 import { persistCanonicalIntents, type CanonicalRowRef } from "./persist-canonical-records";
 import type { RunClaimedJobResult } from "./run-job";
+import { assertDirectDeviceIdentity, DirectDeviceIdentityError } from "./direct-device-identity";
+import type { DirectDeviceIdentity } from "@openvalens/health-record/direct-device-models";
 
 /**
  * `mobile.ingestBatch` domain logic (issue #7, decided in
@@ -68,6 +75,10 @@ export type LegacyMobileProvider = (typeof MOBILE_INGESTION_PROVIDERS)[number];
 export type MobileIngestBatch = {
   schemaVersion: 1;
   deviceId: string;
+  /** Optional only for legacy artifact parsing; new acceptance requires it. */
+  deviceIdentity?: DirectDeviceIdentity;
+  /** Server-stamped at acceptance so worker can detect ownership changes. */
+  directDeviceOwnerId?: string;
   provider: MobileProvider;
   recordType: MobileHealthRecordType;
   mode: "changes" | "backfill";
@@ -195,7 +206,11 @@ export function mobileBatchContentHash(organizationId: string, batch: MobileInge
         batch.deviceId,
         batch.provider,
         batch.recordType,
-        stableSerialize({ upserts: batch.upserts, deletions: batch.deletions }),
+        stableSerialize({
+          upserts: batch.upserts,
+          deletions: batch.deletions,
+          deviceIdentity: batch.provider === "direct_device" ? batch.deviceIdentity : undefined,
+        }),
       ].join("|"),
     )
     .digest("hex");
@@ -208,12 +223,24 @@ function idempotencyKey(recordType: string, hash: string) {
 
 export type AcceptMobileBatchResult =
   | { status: "accepted"; jobId: number; rawArtifactId: number }
-  | { status: "duplicate"; jobId: number; rawArtifactId: number };
+  | {
+      status: "duplicate";
+      jobId: number;
+      rawArtifactId: number;
+      jobStatus: "queued" | "running" | "succeeded" | "failed";
+      terminalErrorCode?: string;
+    };
 
 /** Transaction 1: durably record the batch, or detect that it was seen before. */
 export async function acceptMobileBatch(
   db: Database,
-  input: { organizationId: string; batch: MobileIngestBatch; traceId: string; now?: Date; expectedOwnerId?: string },
+  input: {
+    organizationId: string;
+    batch: MobileIngestBatch;
+    traceId: string;
+    now?: Date;
+    expectedOwnerId?: string;
+  },
 ): Promise<AcceptMobileBatchResult> {
   const now = input.now ?? new Date();
   const { batch, organizationId } = input;
@@ -222,14 +249,44 @@ export async function acceptMobileBatch(
   const hash = mobileBatchContentHash(organizationId, batch);
   const key = idempotencyKey(batch.recordType, hash);
   return db.transaction(async (tx) => {
-    const [connection] = await tx.select({ id: providerConnection.id, status: providerConnection.status, userId: providerConnection.userId })
+    const [connection] = await tx
+      .select({
+        id: providerConnection.id,
+        status: providerConnection.status,
+        userId: providerConnection.userId,
+        directDeviceFamily: providerConnection.directDeviceFamily,
+        directDeviceModelId: providerConnection.directDeviceModelId,
+      })
       .from(providerConnection)
-      .where(and(eq(providerConnection.organizationId, organizationId), eq(providerConnection.provider, batch.provider), eq(providerConnection.externalUserId, batch.deviceId)))
-      .limit(1).for("update");
+      .where(
+        and(
+          eq(providerConnection.organizationId, organizationId),
+          eq(providerConnection.provider, batch.provider),
+          eq(providerConnection.externalUserId, batch.deviceId),
+        ),
+      )
+      .limit(1)
+      .for("update");
     if (!connection) throw new MobileDeviceNotRegisteredError();
     if (connection.status !== "active") throw new MobileDeviceRevokedError();
     if (input.expectedOwnerId !== undefined && connection.userId !== input.expectedOwnerId)
       throw new MobileDeviceNotRegisteredError();
+    if (batch.provider === "direct_device") {
+      if (batch.recordType !== "steps") throw new DirectDeviceIdentityError("HISTORY_UNSUPPORTED");
+      assertDirectDeviceIdentity(connection, batch.deviceIdentity, { requireStepsSupport: true });
+      for (const record of batch.upserts) {
+        if (record.type !== "steps") throw new DirectDeviceIdentityError("HISTORY_UNSUPPORTED");
+        const start = new Date(record.startTime).getTime();
+        const end = new Date(record.endTime).getTime();
+        if (
+          !Number.isFinite(start) ||
+          !Number.isFinite(end) ||
+          start % 60_000 !== 0 ||
+          end - start !== 60_000
+        )
+          throw new DirectDeviceMinuteConflictError();
+      }
+    }
     const [created] = await tx
       .insert(ingestionJob)
       .values({
@@ -249,7 +306,11 @@ export async function acceptMobileBatch(
 
     if (!created) {
       const [existing] = await tx
-        .select({ jobId: ingestionJob.id, rawArtifactId: ingestionRawArtifact.id })
+        .select({
+          jobId: ingestionJob.id,
+          rawArtifactId: ingestionRawArtifact.id,
+          jobStatus: ingestionJob.status,
+        })
         .from(ingestionJob)
         .innerJoin(
           ingestionRawArtifact,
@@ -267,10 +328,30 @@ export async function acceptMobileBatch(
         )
         .limit(1);
       if (!existing) throw new IngestionStateError("duplicate mobile batch has no raw artifact");
-      return { status: "duplicate", ...existing };
+      if (batch.provider !== "direct_device") return { status: "duplicate", ...existing };
+      let terminalErrorCode: string | undefined;
+      if (existing.jobStatus === "failed") {
+        const [failure] = await tx
+          .select({ errorCode: ingestionError.errorCode })
+          .from(ingestionError)
+          .where(
+            and(
+              eq(ingestionError.organizationId, organizationId),
+              eq(ingestionError.ingestionJobId, existing.jobId),
+            ),
+          )
+          .orderBy(desc(ingestionError.id))
+          .limit(1);
+        terminalErrorCode = failure?.errorCode;
+      }
+      return { status: "duplicate", ...existing, terminalErrorCode };
     }
 
-    const serialized = JSON.stringify(batch);
+    const acceptedBatch =
+      batch.provider === "direct_device"
+        ? { ...batch, directDeviceOwnerId: connection.userId! }
+        : batch;
+    const serialized = JSON.stringify(acceptedBatch);
     const [artifact] = await tx
       .insert(ingestionRawArtifact)
       .values({
@@ -279,7 +360,7 @@ export async function acceptMobileBatch(
         ingestionJobId: created.id,
         artifactType: MOBILE_BATCH_ARTIFACT_TYPE,
         traceId: input.traceId,
-        payloadJson: batch,
+        payloadJson: acceptedBatch,
         payloadHash: hash,
         sizeBytes: Buffer.byteLength(serialized, "utf8"),
         capturedAt: now,
@@ -313,7 +394,49 @@ export async function runMobileIngestBatchJob(
   return db.transaction(async (tx) => {
     const { organizationId } = input;
     await lockActivityPublication(tx, organizationId);
-    const [job] = await tx
+    let [job] = await tx
+      .select({ id: ingestionJob.id, providerConnectionId: ingestionJob.providerConnectionId })
+      .from(ingestionJob)
+      .where(
+        and(
+          eq(ingestionJob.id, input.jobId),
+          eq(ingestionJob.organizationId, organizationId),
+          eq(ingestionJob.jobType, MOBILE_INGEST_JOB_TYPE),
+          inArray(ingestionJob.status, ["queued", "running"]),
+        ),
+      )
+      .limit(1);
+    if (!job) throw new IngestionStateError("pending mobile ingest job not found");
+
+    // Direct-device registration and acceptance lock the provider connection
+    // before touching jobs. Keep that same order here to avoid a connection/job
+    // deadlock with an in-flight acceptance retry.
+    if (job.providerConnectionId !== null) {
+      const [connection] = await tx
+        .select({ provider: providerConnection.provider })
+        .from(providerConnection)
+        .where(
+          and(
+            eq(providerConnection.id, job.providerConnectionId),
+            eq(providerConnection.organizationId, organizationId),
+          ),
+        )
+        .limit(1);
+      if (connection?.provider === "direct_device") {
+        await tx
+          .select({ id: providerConnection.id })
+          .from(providerConnection)
+          .where(
+            and(
+              eq(providerConnection.id, job.providerConnectionId),
+              eq(providerConnection.organizationId, organizationId),
+            ),
+          )
+          .limit(1)
+          .for("update");
+      }
+    }
+    [job] = await tx
       .select({ id: ingestionJob.id, providerConnectionId: ingestionJob.providerConnectionId })
       .from(ingestionJob)
       .where(
@@ -402,16 +525,105 @@ export async function runMobileIngestBatchJob(
     if (job.providerConnectionId === null)
       throw new IngestionStateError("mobile ingest job has no provider connection");
 
+    let directIdentity: DirectDeviceIdentity | undefined;
+    if (batch.provider === "direct_device") {
+      const [binding] = await tx
+        .select({
+          externalUserId: providerConnection.externalUserId,
+          userId: providerConnection.userId,
+          status: providerConnection.status,
+          directDeviceFamily: providerConnection.directDeviceFamily,
+          directDeviceModelId: providerConnection.directDeviceModelId,
+        })
+        .from(providerConnection)
+        .where(
+          and(
+            eq(providerConnection.id, job.providerConnectionId),
+            eq(providerConnection.organizationId, organizationId),
+            eq(providerConnection.provider, "direct_device"),
+          ),
+        )
+        .limit(1)
+        .for("update");
+
+      let identityFailure: string | null = null;
+      if (!binding) identityFailure = "direct_device_binding_missing";
+      else if (binding.status !== "active") identityFailure = "direct_device_revoked";
+      else if (binding.userId === null || batch.deviceId !== binding.externalUserId)
+        identityFailure = "direct_device_owner_mismatch";
+      else {
+        try {
+          directIdentity = assertDirectDeviceIdentity(binding, batch.deviceIdentity, {
+            requireStepsSupport: true,
+          });
+        } catch (error) {
+          if (error instanceof DirectDeviceIdentityError) identityFailure = error.reason;
+          else throw error;
+        }
+      }
+      if (!identityFailure && batch.directDeviceOwnerId !== binding!.userId)
+        identityFailure = "direct_device_owner_mismatch";
+      if (!identityFailure && batch.recordType !== "steps") identityFailure = "HISTORY_UNSUPPORTED";
+
+      if (
+        !identityFailure &&
+        (!Array.isArray(batch.upserts) ||
+          batch.upserts.some(
+            (record) => !record || typeof record !== "object" || record.type !== "steps",
+          ))
+      )
+        identityFailure = "HISTORY_UNSUPPORTED";
+      if (!identityFailure) {
+        for (const record of batch.upserts as unknown as {
+          startTime?: unknown;
+          endTime?: unknown;
+        }[]) {
+          if (typeof record.startTime !== "string" || typeof record.endTime !== "string") {
+            identityFailure = "HISTORY_UNSUPPORTED";
+            break;
+          }
+          const start = new Date(record.startTime).getTime();
+          const end = new Date(record.endTime).getTime();
+          if (
+            !Number.isFinite(start) ||
+            !Number.isFinite(end) ||
+            start % 60_000 !== 0 ||
+            end - start !== 60_000
+          ) {
+            identityFailure = "HISTORY_UNSUPPORTED";
+            break;
+          }
+        }
+      }
+      if (identityFailure) {
+        const failureAt = await finish(
+          { job: "failed", batch: "failed" },
+          { record: 0, accepted: 0, rejected: 0 },
+        );
+        await tx.insert(ingestionError).values({
+          organizationId,
+          ingestionJobId: job.id,
+          ingestionBatchId: batchId,
+          errorCode: identityFailure,
+          message: "Direct-device batch identity is not eligible for ingestion.",
+          rawPayloadJson: { rawArtifactId: artifact.id },
+          occurredAt: failureAt,
+        });
+        return {
+          jobId: job.id,
+          jobType: MOBILE_INGEST_JOB_TYPE,
+          batchId,
+          status: "failed",
+          counts: null,
+          errorCode: identityFailure,
+        };
+      }
+    }
+
     // Direct-device step identity is the owned binding plus normalized UTC
     // minute, not a client record id or pagination window. Do this under the
     // publication lock and before any canonical mutations in this transaction.
     if (batch.provider === "direct_device" && batch.recordType === "steps") {
-      const [binding] = await tx.select({ userId: providerConnection.userId, status: providerConnection.status })
-        .from(providerConnection)
-        .where(and(eq(providerConnection.id, job.providerConnectionId), eq(providerConnection.organizationId, organizationId)))
-        .limit(1);
-      if (!binding || binding.status !== "active" || binding.userId === null)
-        throw new MobileDeviceNotRegisteredError();
       const uniqueRecords = new Map<string, MobileHealthRecord>();
       for (const record of batch.upserts) {
         if (record.type !== "steps") continue;
@@ -438,16 +650,27 @@ export async function runMobileIngestBatchJob(
           throw new DirectDeviceMinuteConflictError();
         if (row) existingMinutes.add(minute);
       }
-      const filtered = batch.upserts.filter((record) => {
-        if (record.type !== "steps") return true;
-        const minute = new Date(Math.floor(new Date(record.startTime).getTime() / 60_000) * 60_000).toISOString();
-        const canonical = uniqueRecords.get(minute);
-        // A second client id for an already-seen logical minute is not an
-        // upsert and must not supersede/rewrite the canonical provenance.
-        return canonical === record && !existingMinutes.has(minute);
-      }).map((record) => record.type === "steps"
-        ? { ...record, startTime: new Date(Math.floor(new Date(record.startTime).getTime() / 60_000) * 60_000).toISOString() }
-        : record);
+      const filtered = batch.upserts
+        .filter((record) => {
+          if (record.type !== "steps") return true;
+          const minute = new Date(
+            Math.floor(new Date(record.startTime).getTime() / 60_000) * 60_000,
+          ).toISOString();
+          const canonical = uniqueRecords.get(minute);
+          // A second client id for an already-seen logical minute is not an
+          // upsert and must not supersede/rewrite the canonical provenance.
+          return canonical === record && !existingMinutes.has(minute);
+        })
+        .map((record) =>
+          record.type === "steps"
+            ? {
+                ...record,
+                startTime: new Date(
+                  Math.floor(new Date(record.startTime).getTime() / 60_000) * 60_000,
+                ).toISOString(),
+              }
+            : record,
+        );
       batch = { ...batch, upserts: filtered };
     }
 
@@ -500,9 +723,10 @@ export async function runMobileIngestBatchJob(
     // scale from a watch.
     const groups = new Map<string, { identity: SourceIdentity; records: MobileHealthRecord[] }>();
     for (const record of sleep ? [] : batch.upserts) {
-      const identity = batch.provider === "direct_device"
-        ? directSourceIdentity(batch.deviceId)
-        : sourceIdentity(batch.provider, record);
+      const identity =
+        batch.provider === "direct_device"
+          ? directSourceIdentity(batch.deviceId, directIdentity!)
+          : sourceIdentity(batch.provider, record);
       const group = groups.get(identity.sourceKey);
       if (group) group.records.push(record);
       else groups.set(identity.sourceKey, { identity, records: [record] });
@@ -620,13 +844,14 @@ export async function runMobileIngestBatchJob(
 
     // Phone-first (#60): this batch may hide (or, after a deletion, restore)
     // cloud wearable rows for the same days. Skipped when no cloud source exists.
-    if (batch.provider !== "direct_device" && await hasCloudWearableSources(tx, organizationId)) {
+    if (batch.provider !== "direct_device" && (await hasCloudWearableSources(tx, organizationId))) {
       const window = await touchedWindow(tx, organizationId, target.table, batch, superseded);
       if (window) await reconcilePhoneFirst(tx, { organizationId, ...window, now: scope.now });
     }
     if (batch.recordType === "steps") {
       const window = await touchedWindow(tx, organizationId, target.table, batch, superseded);
-      if (window) await reconcileDirectStepsFallback(tx, { organizationId, ...window, now: scope.now });
+      if (window)
+        await reconcileDirectStepsFallback(tx, { organizationId, ...window, now: scope.now });
     }
 
     const accepted = totals.metricSampleCount + totals.healthEventCount;
@@ -792,6 +1017,19 @@ export type IngestMobileBatchResult = {
   superseded: number;
 };
 
+function throwDirectDeviceTerminalError(errorCode?: string): never {
+  if (errorCode === "MINUTE_CONFLICT") throw new DirectDeviceMinuteConflictError();
+  if (
+    errorCode === "IDENTITY_REQUIRED" ||
+    errorCode === "IDENTITY_MISMATCH" ||
+    errorCode === "HISTORY_UNSUPPORTED"
+  )
+    throw new DirectDeviceIdentityError(errorCode);
+  if (errorCode === "direct_device_revoked") throw new MobileDeviceRevokedError();
+  // Missing/legacy failure metadata and unknown codes fail closed as unavailable.
+  throw new MobileDeviceNotRegisteredError();
+}
+
 /**
  * Accept then apply. A failed apply still returns `queued`: the raw artifact
  * is durable, so the device may advance its cursor and the cron runner
@@ -812,7 +1050,20 @@ export async function ingestMobileBatch(
 ): Promise<IngestMobileBatchResult> {
   const accepted = await acceptMobileBatch(db, input);
   const base = { jobId: accepted.jobId, rawArtifactId: accepted.rawArtifactId };
-  if (accepted.status === "duplicate")
+  if (accepted.status === "duplicate") {
+    if (input.batch.provider === "direct_device") {
+      if (accepted.jobStatus === "failed")
+        throwDirectDeviceTerminalError(accepted.terminalErrorCode);
+      if (accepted.jobStatus !== "succeeded")
+        return {
+          status: "queued",
+          ...base,
+          accepted: 0,
+          duplicates: 0,
+          rejected: 0,
+          superseded: 0,
+        };
+    }
     return {
       status: "duplicate",
       ...base,
@@ -821,6 +1072,7 @@ export async function ingestMobileBatch(
       rejected: 0,
       superseded: 0,
     };
+  }
 
   const apply = input.apply ?? runMobileIngestBatchJob;
   const queued = {
@@ -840,16 +1092,44 @@ export async function ingestMobileBatch(
       clock,
     );
   } catch (error) {
-    if (error instanceof DirectDeviceMinuteConflictError) {
+    const terminalCode =
+      error instanceof DirectDeviceMinuteConflictError
+        ? "MINUTE_CONFLICT"
+        : error instanceof DirectDeviceIdentityError
+          ? error.reason
+          : error instanceof MobileDeviceRevokedError
+            ? "direct_device_revoked"
+            : error instanceof MobileDeviceNotRegisteredError
+              ? "direct_device_owner_mismatch"
+              : null;
+    if (terminalCode && input.batch.provider === "direct_device") {
       const failedAt = input.now ?? new Date();
-      await db.update(ingestionJob)
+      await db
+        .update(ingestionJob)
         .set({ status: "failed", completedAt: failedAt, updatedAt: failedAt })
-        .where(and(eq(ingestionJob.id, accepted.jobId), eq(ingestionJob.organizationId, input.organizationId)));
+        .where(
+          and(
+            eq(ingestionJob.id, accepted.jobId),
+            eq(ingestionJob.organizationId, input.organizationId),
+          ),
+        );
+      await db.insert(ingestionError).values({
+        organizationId: input.organizationId,
+        ingestionJobId: accepted.jobId,
+        errorCode: terminalCode,
+        message: "Direct-device batch failed a terminal ingestion guard.",
+        rawPayloadJson: { rawArtifactId: accepted.rawArtifactId },
+        occurredAt: failedAt,
+      });
       throw error;
     }
     return queued;
   }
-  if (result.status !== "succeeded" || !result.counts) return queued;
+  if (result.status !== "succeeded" || !result.counts) {
+    if (input.batch.provider === "direct_device")
+      throwDirectDeviceTerminalError(result.errorCode ?? undefined);
+    return queued;
+  }
   return {
     status: "applied",
     ...base,

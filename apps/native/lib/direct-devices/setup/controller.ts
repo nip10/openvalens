@@ -6,10 +6,13 @@ import { runHelioStepsHistory } from "../protocol/history";
 import { matchDeviceName } from "../models/zepp-os";
 import { matchXiaomiDeviceName } from "../models/xiaomi";
 import { matchHuaweiDeviceName } from "../models/huawei";
+import { matchGarminDeviceName } from "../models/garmin";
 import { selectXiaomiProfile, XIAOMI_BLE_SERVICE_UUIDS } from "../transport/xiaomi-link";
 import type { XiaomiBleProfile } from "../transport/xiaomi-link";
 import { HUAWEI_BLE_SERVICE_UUIDS, selectHuaweiProfile } from "../transport/huawei-link";
 import type { HuaweiBleProfile } from "../transport/huawei-link";
+import { GARMIN_BLE_SERVICE_UUIDS, selectGarminProfile } from "../transport/garmin-link";
+import type { GarminBleProfile } from "../transport/garmin-link";
 import { createNativeXiaomiHistoryTransport } from "../transport/xiaomi-session";
 import { runXiaomiStepsHistory } from "../protocol/xiaomi-history";
 import type { XiaomiHistoryTransport } from "../protocol/xiaomi-history";
@@ -64,6 +67,7 @@ const initial: HelioSetupSnapshot = Object.freeze({
   connectedDeviceId: null,
   connectedModelId: null,
   connectedFamily: null,
+  capabilities: Object.freeze({ stepsHistory: false }),
   errorCode: null,
   crypto: Object.freeze({ status: "not_checked", code: null }),
 });
@@ -122,6 +126,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
   let connectedFamily: DirectDeviceFamily | null = null;
   let connectedProfile: XiaomiBleProfile | null = null;
   let connectedHuaweiProfile: HuaweiBleProfile | null = null;
+  let connectedGarminProfile: GarminBleProfile | null = null;
   let connecting: Device | null = null;
   let connectionAttempt: object | null = null;
   let connectingLease: NativeDeviceLease | null = null;
@@ -274,9 +279,17 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
             const xiaomiModel = zeppModel ? null : matchXiaomiDeviceName(device.name);
             const huaweiModel =
               zeppModel || xiaomiModel ? null : matchHuaweiDeviceName(device.name);
-            const model = zeppModel ?? xiaomiModel ?? huaweiModel;
+            const garminModel =
+              zeppModel || xiaomiModel || huaweiModel ? null : matchGarminDeviceName(device.name);
+            const model = zeppModel ?? xiaomiModel ?? huaweiModel ?? garminModel;
             if (!model) return;
-            const family = zeppModel ? "zepp_os" : xiaomiModel ? "xiaomi" : "huawei";
+            const family = zeppModel
+              ? "zepp_os"
+              : xiaomiModel
+                ? "xiaomi"
+                : huaweiModel
+                  ? "huawei"
+                  : "garmin";
             r.devices.set(device.id, device);
             const found = new Map(snapshot.devices.map((item) => [item.id, item]));
             found.set(
@@ -374,7 +387,8 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
           const model =
             matchDeviceName(knownDevice.name) ??
             matchXiaomiDeviceName(knownDevice.name) ??
-            matchHuaweiDeviceName(knownDevice.name);
+            matchHuaweiDeviceName(knownDevice.name) ??
+            matchGarminDeviceName(knownDevice.name);
           if (!model) throw new Error("DEVICE_NOT_DISCOVERED");
           const family =
             knownDevice.family ??
@@ -382,7 +396,9 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
               ? "zepp_os"
               : matchXiaomiDeviceName(knownDevice.name)
                 ? "xiaomi"
-                : "huawei");
+                : matchHuaweiDeviceName(knownDevice.name)
+                  ? "huawei"
+                  : "garmin");
           await stopRadioScan();
           if (current !== generation || disposed) return;
           let cancelWait!: () => void;
@@ -417,9 +433,10 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
             await discovered.cancelConnection();
             return;
           }
-          if (family === "xiaomi" || family === "huawei") {
+          if (family === "xiaomi" || family === "huawei" || family === "garmin") {
             // Best effort; iOS ignores this and Android negotiates the largest MTU.
-            await discovered.requestMTU(512).catch(() => undefined);
+            // GarminSupport requests 515; the other families use 512.
+            await discovered.requestMTU(family === "garmin" ? 515 : 512).catch(() => undefined);
           }
           if (connectionAttempt === attempt) connecting = discovered;
           const services = await discovered.services();
@@ -434,17 +451,24 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
                 ? services.some((service) =>
                     HUAWEI_BLE_SERVICE_UUIDS.has(service.uuid.toLowerCase()),
                   )
-                : services.some((service) => service.uuid.toLowerCase() === FEE0);
+                : family === "garmin"
+                  ? services.some((service) =>
+                      GARMIN_BLE_SERVICE_UUIDS.has(service.uuid.toLowerCase()),
+                    )
+                  : services.some((service) => service.uuid.toLowerCase() === FEE0);
           if (!hasRequiredService)
             throw new Error(
               family === "xiaomi"
                 ? "XIAOMI_SERVICE_MISSING"
                 : family === "huawei"
                   ? "HUAWEI_SERVICE_MISSING"
-                  : "HUAMI_SERVICE_MISSING",
+                  : family === "garmin"
+                    ? "GARMIN_SERVICE_MISSING"
+                    : "HUAMI_SERVICE_MISSING",
             );
           let profile: XiaomiBleProfile | null = null;
           let huaweiProfile: HuaweiBleProfile | null = null;
+          let garminProfile: GarminBleProfile | null = null;
           if (family === "xiaomi") {
             profile = await selectXiaomiProfile(
               discovered,
@@ -457,6 +481,12 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
               services.map((service) => service.uuid),
             );
             if (!huaweiProfile) throw new Error("HUAWEI_SERVICE_MISSING");
+          } else if (family === "garmin") {
+            garminProfile = await selectGarminProfile(
+              discovered,
+              services.map((service) => service.uuid),
+            );
+            if (!garminProfile) throw new Error("GARMIN_SERVICE_MISSING");
           }
           disconnectSubscription = r.manager.onDeviceDisconnected(discovered.id, () => {
             if (disposed || connected !== discovered || current !== generation) return;
@@ -464,6 +494,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
             connectedFamily = null;
             connectedProfile = null;
             connectedHuaweiProfile = null;
+            connectedGarminProfile = null;
             connectedLease = null;
             disconnectSubscription?.remove();
             disconnectSubscription = null;
@@ -476,6 +507,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
               connectedDeviceId: null,
               connectedModelId: null,
               connectedFamily: null,
+              capabilities: Object.freeze({ stepsHistory: false }),
               errorCode: "DEVICE_DISCONNECTED",
             });
           });
@@ -483,6 +515,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
           connectedFamily = family;
           connectedProfile = profile;
           connectedHuaweiProfile = huaweiProfile;
+          connectedGarminProfile = garminProfile;
           lease.held = true;
           connectedLease = lease;
           ownedDevice = null;
@@ -494,6 +527,9 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
             connectedDeviceId: deviceId,
             connectedModelId: model.id,
             connectedFamily: family,
+            capabilities: Object.freeze({
+              stepsHistory: family === "zepp_os" || family === "xiaomi",
+            }),
             bluetooth: "powered_on",
           });
         } catch (error) {
@@ -552,6 +588,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
       connectedFamily = null;
       connectedProfile = null;
       connectedHuaweiProfile = null;
+      connectedGarminProfile = null;
       connectionAttempt = null;
       connectingLease = null;
       connectedLease = null;
@@ -569,6 +606,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
           connectedDeviceId: null,
           connectedModelId: null,
           connectedFamily: null,
+          capabilities: Object.freeze({ stepsHistory: false }),
         });
     },
     async runCryptoSelfTest() {
@@ -606,6 +644,13 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
       if (connectedFamily === "huawei") {
         if (!connectedHuaweiProfile) throw new Error("HUAWEI_SERVICE_MISSING");
         throw new Error("HUAWEI_HISTORY_UNSUPPORTED");
+      }
+      // Garmin history is a later milestone; the connection foundation stops at
+      // connected + service-verified. The selected profile is retained for that
+      // milestone.
+      if (connectedFamily === "garmin") {
+        if (!connectedGarminProfile) throw new Error("GARMIN_SERVICE_MISSING");
+        throw new Error("GARMIN_HISTORY_UNSUPPORTED");
       }
       const device = connected;
       const abortController = new AbortController();
@@ -675,6 +720,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
       connectedFamily = null;
       connectedProfile = null;
       connectedHuaweiProfile = null;
+      connectedGarminProfile = null;
       connectionAttempt = null;
       connectingLease = null;
       connectedLease = null;
@@ -800,6 +846,7 @@ const SAFE_CODES = new Set([
   "HUAMI_SERVICE_MISSING",
   "XIAOMI_SERVICE_MISSING",
   "HUAWEI_SERVICE_MISSING",
+  "GARMIN_SERVICE_MISSING",
   "BLUETOOTH_STATE_TIMEOUT",
   "SCAN_FAILED",
   "CONNECTION_FAILED",

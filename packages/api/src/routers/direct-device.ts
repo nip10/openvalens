@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import {
   DirectDeviceContextMismatchError,
   DirectDeviceOwnershipError,
+  DirectDeviceIdentityError,
   ingestDirectDeviceBatch,
   DirectDeviceRecordTypeUnavailableError,
   DirectDeviceMinuteConflictError,
@@ -21,31 +22,73 @@ import {
   type IngestDirectDeviceBatchInput,
 } from "../contracts/direct-device";
 import { raiseApiError, tenantScopedProcedure, validateInput } from "../index";
+import {
+  findDirectDeviceModel,
+  type DirectDeviceFamily,
+} from "@openvalens/health-record/direct-device-models";
 
 function toApiError(error: unknown, fallback: string) {
   if (error instanceof DirectDeviceMinuteConflictError)
-    return raiseApiError("INVALID_INPUT", "A different step count already exists for this device minute.", { reason: "MINUTE_CONFLICT" });
+    return raiseApiError(
+      "INVALID_INPUT",
+      "A different step count already exists for this device minute.",
+      { reason: "MINUTE_CONFLICT" },
+    );
+  if (error instanceof DirectDeviceIdentityError)
+    return raiseApiError(
+      "INVALID_INPUT",
+      "The direct-device identity cannot be used for this request.",
+      { reason: error.reason },
+    );
   if (error instanceof DirectDeviceRecordTypeUnavailableError)
-    return raiseApiError("INVALID_INPUT", "Only direct-device steps publication is currently available.");
-  if (error instanceof DirectDeviceContextMismatchError || error instanceof DirectDeviceOwnershipError ||
-      error instanceof MobileDeviceNotRegisteredError || error instanceof MobileDeviceRevokedError) {
-    const reason: DirectDeviceRefusalReason = error instanceof MobileDeviceRevokedError ? "REVOKED" : "UNAVAILABLE";
-    return raiseApiError("PERMISSION_DENIED", "This direct device is not available to the active account.", { reason });
+    return raiseApiError(
+      "INVALID_INPUT",
+      "Only direct-device steps publication is currently available.",
+    );
+  if (
+    error instanceof DirectDeviceContextMismatchError ||
+    error instanceof DirectDeviceOwnershipError ||
+    error instanceof MobileDeviceNotRegisteredError ||
+    error instanceof MobileDeviceRevokedError
+  ) {
+    const reason: DirectDeviceRefusalReason =
+      error instanceof MobileDeviceRevokedError ? "REVOKED" : "UNAVAILABLE";
+    return raiseApiError(
+      "PERMISSION_DENIED",
+      "This direct device is not available to the active account.",
+      { reason },
+    );
   }
   return raiseApiError("INTERNAL", fallback);
 }
 
 export const directDeviceRouter = {
-  listDirectDevices: tenantScopedProcedure({ resource: "records", action: "read", auditAction: "RECORD_UPDATED", targetType: "provider_connection" })
+  listDirectDevices: tenantScopedProcedure({
+    resource: "records",
+    action: "read",
+    auditAction: "RECORD_UPDATED",
+    targetType: "provider_connection",
+  })
     .use(validateInput(listDirectDevicesInput))
     .input(listDirectDevicesInput)
     .output(listDirectDevicesOutput)
     .handler(async ({ input, context }) => {
-      const authenticated = { userId: context.authz.user.id, organizationId: context.authz.activeOrganizationId };
-      if (input.expectedContext.userId !== authenticated.userId || input.expectedContext.organizationId !== authenticated.organizationId)
-        throw raiseApiError("PERMISSION_DENIED", "Direct devices are unavailable to the active account.", { reason: "UNAVAILABLE" });
+      const authenticated = {
+        userId: context.authz.user.id,
+        organizationId: context.authz.activeOrganizationId,
+      };
+      if (
+        input.expectedContext.userId !== authenticated.userId ||
+        input.expectedContext.organizationId !== authenticated.organizationId
+      )
+        throw raiseApiError(
+          "PERMISSION_DENIED",
+          "Direct devices are unavailable to the active account.",
+          { reason: "UNAVAILABLE" },
+        );
       const result = await context.db.execute(sql`
         select pc.external_user_id as device_id, pc.id as provider_connection_id,
+          pc.direct_device_family, pc.direct_device_model_id,
           pc.connected_at, pc.last_synced_at,
           count(ms.id) filter (where md.id is not null and ms.superseded_at is null)::int as record_count,
           count(ms.id) filter (where md.id is not null and ms.superseded_at is not null and exists (
@@ -60,14 +103,39 @@ export const directDeviceRouter = {
         where pc.organization_id=${authenticated.organizationId} and pc.user_id=${authenticated.userId}
           and pc.provider='direct_device' and pc.status='active'
         group by pc.id order by pc.id`);
-      return { devices: result.rows.map((row: any) => ({
-        deviceId: row.device_id, providerConnectionId: Number(row.provider_connection_id), family: "amazfit_helio_strap",
-        connectedAt: new Date(row.connected_at).toISOString(), lastSyncedAt: row.last_synced_at ? new Date(row.last_synced_at).toISOString() : null,
-        publication: { policy: "phone_cloud_first_utc_day", publishedRecords: Number(row.record_count), shadowedRecords: Number(row.shadowed_count) },
-      })) };
+      return {
+        devices: result.rows.map((row: any) => {
+          const model =
+            row.direct_device_family && row.direct_device_model_id
+              ? findDirectDeviceModel({
+                  family: row.direct_device_family as DirectDeviceFamily,
+                  modelId: row.direct_device_model_id,
+                })
+              : undefined;
+          return {
+            deviceId: row.device_id,
+            providerConnectionId: Number(row.provider_connection_id),
+            family: model?.family ?? null,
+            modelId: model?.modelId ?? null,
+            displayName: model?.displayName ?? null,
+            connectedAt: new Date(row.connected_at).toISOString(),
+            lastSyncedAt: row.last_synced_at ? new Date(row.last_synced_at).toISOString() : null,
+            publication: {
+              policy: "phone_cloud_first_utc_day",
+              publishedRecords: Number(row.record_count),
+              shadowedRecords: Number(row.shadowed_count),
+            },
+          };
+        }),
+      };
     }),
 
-  registerDirectDevice: tenantScopedProcedure({ resource: "records", action: "write", auditAction: "RECORD_CREATED", targetType: "provider_connection" })
+  registerDirectDevice: tenantScopedProcedure({
+    resource: "records",
+    action: "write",
+    auditAction: "RECORD_CREATED",
+    targetType: "provider_connection",
+  })
     .use(validateInput(registerDirectDeviceInput))
     .input(registerDirectDeviceInput)
     .output(registerDirectDeviceOutput)
@@ -75,13 +143,23 @@ export const directDeviceRouter = {
       try {
         const result = await registerDirectDevice(context.db, {
           ...input,
-          authenticatedContext: { userId: context.authz.user.id, organizationId: context.authz.activeOrganizationId },
+          authenticatedContext: {
+            userId: context.authz.user.id,
+            organizationId: context.authz.activeOrganizationId,
+          },
         });
         return { ...result, targetId: String(result.providerConnectionId) };
-      } catch (error) { throw toApiError(error, "Unable to register direct device."); }
+      } catch (error) {
+        throw toApiError(error, "Unable to register direct device.");
+      }
     }),
 
-  ingestDirectDeviceBatch: tenantScopedProcedure({ resource: "records", action: "write", auditAction: "RECORD_CREATED", targetType: "ingestion_raw_artifact" })
+  ingestDirectDeviceBatch: tenantScopedProcedure({
+    resource: "records",
+    action: "write",
+    auditAction: "RECORD_CREATED",
+    targetType: "ingestion_raw_artifact",
+  })
     .use(validateInput(ingestDirectDeviceBatchInput))
     .input(ingestDirectDeviceBatchInput)
     .output(ingestDirectDeviceBatchOutput)
@@ -91,7 +169,10 @@ export const directDeviceRouter = {
       try {
         const result = await ingestDirectDeviceBatch(context.db, {
           ...input,
-          authenticatedContext: { userId: context.authz.user.id, organizationId: context.authz.activeOrganizationId },
+          authenticatedContext: {
+            userId: context.authz.user.id,
+            organizationId: context.authz.activeOrganizationId,
+          },
           traceId: context.correlationId,
         });
         return {
@@ -103,6 +184,8 @@ export const directDeviceRouter = {
           superseded: result.superseded,
           targetId: String(result.rawArtifactId),
         };
-      } catch (error) { throw toApiError(error, "Unable to ingest direct-device batch."); }
+      } catch (error) {
+        throw toApiError(error, "Unable to ingest direct-device batch.");
+      }
     }),
 };

@@ -1,6 +1,8 @@
 import type {
   DirectDeviceBindingSummary,
   DirectDevicePublication,
+  DirectDeviceIdentity,
+  DirectDeviceFamily,
 } from "@openvalens/api/contracts/direct-device";
 import type { HelioDiscoveredDevice, HelioSetupSnapshot } from "../setup/types";
 
@@ -9,6 +11,13 @@ export type HelioSyncContext = Readonly<{
   userId: string;
   organizationId: string;
   sessionId: string;
+}>;
+
+export type DirectDeviceConfirmationTarget = Readonly<{
+  connectedDeviceId: string;
+  family: DirectDeviceFamily;
+  modelId: string;
+  connectionGeneration: number;
 }>;
 
 export type HelioSyncSnapshot = Readonly<{
@@ -32,10 +41,15 @@ export type HelioSyncSnapshot = Readonly<{
   connectedDeviceId: string | null;
   /** Matched Zepp OS registry id of the connected device, or null. */
   connectedModelId: string | null;
+  connectedFamily: DirectDeviceIdentity["family"] | null;
+  connectionGeneration: number;
+  capabilities: Readonly<{ stepsHistory: boolean }>;
   bluetooth: HelioSetupSnapshot["bluetooth"];
   errorCode: string | null;
   capturedMinutes: number;
   pendingEnvelopes: number;
+  /** Locally quarantined legacy envelopes blocked with IDENTITY_REQUIRED. */
+  blockedIdentityEnvelopes: number;
   acceptedEnvelopes: number;
   queuedEnvelopes: number;
   publication: DirectDevicePublication | null;
@@ -48,6 +62,7 @@ export interface HelioSyncController {
   subscribe(listener: () => void): () => void;
   refreshBindings(): Promise<void>;
   createBinding(): Promise<void>;
+  confirmBindingIdentity(deviceId: string, expected: DirectDeviceConfirmationTarget): Promise<void>;
   selectBinding(deviceId: string): void;
   startScan(): Promise<void>;
   stopScan(): Promise<void>;

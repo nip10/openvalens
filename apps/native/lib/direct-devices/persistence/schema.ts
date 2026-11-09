@@ -1,4 +1,4 @@
-export const DIRECT_DEVICE_SCHEMA_VERSION = 1;
+export const DIRECT_DEVICE_SCHEMA_VERSION = 2;
 
 export const DIRECT_DEVICE_SCHEMA_SQL = `
   CREATE TABLE IF NOT EXISTS direct_device_binding (
@@ -6,6 +6,8 @@ export const DIRECT_DEVICE_SCHEMA_SQL = `
     device_id TEXT NOT NULL,
     provider_connection_id INTEGER,
     capture_checkpoint TEXT,
+    family TEXT,
+    model_id TEXT,
     PRIMARY KEY(scope, device_id)
   );
   CREATE TABLE IF NOT EXISTS direct_device_capture (
