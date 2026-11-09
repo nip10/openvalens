@@ -280,9 +280,7 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
         <StatusPill tone={statusTone}>{phaseLabel[snapshot.phase]}</StatusPill>
         {snapshot.connectedDeviceId && !focus ? (
           <View className="gap-1">
-            <Text className="font-sans text-base font-medium text-ink">
-              {t`Connected device`}
-            </Text>
+            <Text className="font-sans text-base font-medium text-ink">{t`Connected device`}</Text>
             <Text className="font-sans text-sm leading-relaxed text-ink-2">
               {t`Not matched to a registered model. No OpenValens support is claimed.`}
             </Text>

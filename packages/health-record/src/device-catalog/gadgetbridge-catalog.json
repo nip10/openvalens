@@ -4,7 +4,7 @@
     "repository": "https://codeberg.org/Freeyourgadget/website",
     "sourceUrl": "https://codeberg.org/Freeyourgadget/website/raw/commit/ebc74c9d1cf327b36a74ad332472964b29289bcb/device_support.yml",
     "revision": "ebc74c9d1cf327b36a74ad332472964b29289bcb",
-    "retrievedAt": "2026-11-09T16:33:39Z",
+    "retrievedAt": "2026-11-09T16:55:58Z",
     "sha256": "d9af693abc86a8781d985e2990bfd5c8e7893a8296365c2bdee02a35928a2f11",
     "license": "AGPL-3.0-or-later",
     "attribution": "Device support data from the Gadgetbridge website (codeberg.org/Freeyourgadget/website), AGPL-3.0-or-later, revision ebc74c9d1cf327b36a74ad332472964b29289bcb.",
