@@ -139,7 +139,13 @@ jobs:
           emulator-boot-timeout: 900
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save
           disable-animations: true
-          script: bun --no-env-file apps/native/e2e/run.ts android $( [ -n "$FLOWS" ] && echo "--flows $FLOWS" ) $( [ "$TOUR" = "true" ] || echo "--no-screenshots" )
+          # A system "isn't responding" dialog (seen from Pixel Launcher on the
+          # slow CI emulator) covers the app and fails every later flow, so
+          # error dialogs are turned off first. The runner takes each line as a
+          # separate command.
+          script: |
+            adb shell settings put global hide_error_dialogs 1
+            bun --no-env-file apps/native/e2e/run.ts android $( [ -n "$FLOWS" ] && echo "--flows $FLOWS" ) $( [ "$TOUR" = "true" ] || echo "--no-screenshots" )
 
       - name: Upload screenshots
         if: always()
