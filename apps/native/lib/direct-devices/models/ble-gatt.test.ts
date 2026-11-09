@@ -77,7 +77,7 @@ test("named models match their upstream full-string names", () => {
     ["BM-Vinca2", "femometer_vinca_2"],
   ];
   for (const [name, id] of cases)
-    expect(matchBleGattDevice(name, []), name).toBe(getBleGattModel(id));
+    expect(matchBleGattDevice(name, []), name).toBe(getBleGattModel(id) ?? null);
 });
 
 test("name matching is case-sensitive, like upstream Matcher.matches", () => {
@@ -93,21 +93,21 @@ test("full-string patterns reject extra text, while prefix patterns accept it", 
   expect(matchBleGattDevice("H6M 123456", [])).toBeNull();
   expect(matchBleGattDevice("Polar H9 ABC DEF", [])).toBeNull();
   // Beurer uses an anchored prefix upstream, not a full-string match.
-  expect(matchBleGattDevice("BM59-extra", [])).toBe(getBleGattModel("beurer_bm59"));
+  expect(matchBleGattDevice("BM59-extra", [])).toBe(getBleGattModel("beurer_bm59") ?? null);
 });
 
 test("generic models match by advertised service UUID only when no named model matched", () => {
   expect(matchBleGattDevice("Random device", ["180d"])).toBe(
-    getBleGattModel("generic_heart_rate_sensor"),
+    getBleGattModel("generic_heart_rate_sensor") ?? null,
   );
   expect(matchBleGattDevice(null, ["00001810-0000-1000-8000-00805f9b34fb"])).toBe(
-    getBleGattModel("generic_blood_pressure_monitor"),
+    getBleGattModel("generic_blood_pressure_monitor") ?? null,
   );
   expect(matchBleGattDevice("Random device", ["1809"])).toBe(
-    getBleGattModel("generic_health_thermometer"),
+    getBleGattModel("generic_health_thermometer") ?? null,
   );
   // A named model always wins over the generic UUID fallback.
-  expect(matchBleGattDevice("Polar H10 ABC", ["180d"])).toBe(getBleGattModel("polar_h10"));
+  expect(matchBleGattDevice("Polar H10 ABC", ["180d"])).toBe(getBleGattModel("polar_h10") ?? null);
 });
 
 test("unknown names and service UUIDs return null", () => {
