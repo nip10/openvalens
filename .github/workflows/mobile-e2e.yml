@@ -3,10 +3,13 @@ name: Mobile e2e (Android)
 # The Maestro suite (docs/mobile/e2e.md) on an Android emulator: a release
 # test build of apps/native against the local seeded stack that
 # `bun run e2e:android` starts itself (a Postgres container, the demo seed, the
-# server in Cloud mode with throwaway secrets, the helper). Slow (40+ minutes),
-# so it is not a required check: it runs nightly, by hand, and on pull
-# requests that touch the app. Screenshots, Maestro output and the stack's
+# server in Cloud mode with throwaway secrets, the helper). Not a required
+# check. Screenshots, Maestro output and the stack's
 # logs are uploaded as artifacts; the data is the synthetic demo account only.
+#
+# About 30 minutes, so pull requests don't wait for it: it runs on a pull
+# request only when it has the `e2e` label, after every merge to main that
+# touches the app, nightly, and by hand.
 
 on:
   workflow_dispatch:
@@ -23,7 +26,13 @@ on:
         type: boolean
   schedule:
     - cron: "30 2 * * *"
+  push:
+    branches: [main]
+    paths:
+      - "apps/native/**"
+      - ".github/workflows/mobile-e2e.yml"
   pull_request:
+    types: [opened, synchronize, reopened, labeled]
     paths:
       - "apps/native/**"
       - ".github/workflows/mobile-e2e.yml"
@@ -48,6 +57,7 @@ env:
 jobs:
   android:
     name: Maestro suite on the Android emulator
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'e2e')
     runs-on: ubuntu-latest
     timeout-minutes: 150
     steps:
@@ -116,7 +126,7 @@ jobs:
           FLOWS: ${{ inputs.flows }}
           # A pull request runs the flows only (each flow still takes its own
           # screenshots); nightly and manual runs add the four-way tour.
-          TOUR: ${{ github.event_name == 'pull_request' && 'false' || (github.event_name == 'schedule' && 'true') || inputs.screenshots }}
+          TOUR: ${{ (github.event_name == 'pull_request' || github.event_name == 'push') && 'false' || (github.event_name == 'schedule' && 'true') || inputs.screenshots }}
         with:
           api-level: ${{ env.ANDROID_API_LEVEL }}
           arch: ${{ env.ANDROID_ARCH }}
