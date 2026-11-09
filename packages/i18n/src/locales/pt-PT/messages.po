@@ -1173,6 +1173,10 @@ msgstr "30 dias"
 msgid "30-day trend"
 msgstr "Tendência de 30 dias"
 
+#: apps/native/components/direct-device-settings.tsx
+msgid "32 hexadecimal characters (16 bytes)"
+msgstr "32 caracteres hexadecimais (16 bytes)"
+
 #: packages/api/src/presenters/body-map.ts
 msgid "4 to under 8"
 msgstr "4 a menos de 8"
@@ -1600,6 +1604,10 @@ msgstr "Adicionar um registo"
 msgid "Add an exercise"
 msgstr "Adicionar um exercício"
 
+#: apps/native/components/direct-device-settings.tsx
+msgid "Add another binding"
+msgstr "Adicionar outra associação"
+
 #: apps/native/components/active-workout.tsx
 msgid "Add custom exercise"
 msgstr "Adicionar exercício personalizado"
@@ -1718,6 +1726,11 @@ msgstr "Adicione o seu ano de nascimento e o seu sexo para tabelas de referênci
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "Add your birth year in your profile to use this."
 msgstr "Adicione o seu ano de nascimento no seu perfil para usar isto."
+
+#. placeholder {0}: new Date(binding.connectedAt).toLocaleDateString()
+#: apps/native/components/direct-device-settings.tsx
+msgid "Added {0}"
+msgstr "Adicionado a {0}"
 
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Added sugars"
@@ -2206,6 +2219,10 @@ msgstr "Auditoria"
 msgid "Auth secret"
 msgstr "Segredo de autenticação"
 
+#: apps/native/components/direct-device-settings.tsx
+msgid "Authenticating…"
+msgstr "A autenticar…"
+
 #: apps/native/components/recipe-draft-editor.tsx
 #: apps/web/src/components/recipe-draft-editor.tsx
 msgid "Author: {author}"
@@ -2675,6 +2692,7 @@ msgstr "Canadá"
 #: apps/native/components/ai-section.tsx
 #: apps/native/components/change-server.tsx
 #: apps/native/components/complete-export-card.tsx
+#: apps/native/components/direct-device-settings.tsx
 #: apps/native/components/nutrition-selection-bar.tsx
 #: apps/native/components/progress-photos.tsx
 #: apps/native/components/routine-editor.tsx
@@ -2699,6 +2717,10 @@ msgstr "Canadá"
 #: packages/api/src/presenters/supplements.ts
 msgid "Cancel"
 msgstr "Cancelar"
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "Cancel / disconnect"
+msgstr "Cancelar / desligar"
 
 #: apps/native/components/complete-export-card.tsx
 msgid "Cancel download"
@@ -2731,9 +2753,23 @@ msgstr "Cancelado. O seu plano continua ativo até {periodEnd}."
 msgid "Cap {limit} per person per month"
 msgstr "Limite de {limit} por pessoa por mês"
 
+#. placeholder {0}: snapshot.capturedMinutes
+#. placeholder {1}: snapshot.pendingEnvelopes
+#. placeholder {2}: snapshot.acceptedEnvelopes
+#. placeholder {3}: snapshot.queuedEnvelopes
+#: apps/native/components/direct-device-settings.tsx
+msgid "Captured minutes: {0} · Pending: {1} · Accepted: {2} · Queued for processing: {3}"
+msgstr "Minutos captados: {0} · Pendentes: {1} · Aceites: {2} · Em fila para processamento: {3}"
+
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Carbohydrate"
 msgstr "Hidratos de carbono"
+
+#. Carbohydrate, short, for a narrow column
+#: packages/api/src/presenters/nutrition-diary.ts
+msgctxt "macro short name"
+msgid "Carbs"
+msgstr "Hidratos"
 
 #: apps/native/app/(drawer)/clinical.tsx
 #: apps/web/src/routes/_auth/clinical.tsx
@@ -2911,6 +2947,10 @@ msgstr "A verificar a ligação..."
 #: apps/native/app/(drawer)/(tabs)/index.tsx
 msgid "Checking connection…"
 msgstr "A verificar a ligação…"
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "Checking device services…"
+msgstr "A verificar os serviços do dispositivo…"
 
 #: apps/native/components/complete-export-card.tsx
 #: apps/web/src/components/complete-export-card.tsx
@@ -3417,6 +3457,7 @@ msgid "Confirm your email to create your OpenValens account."
 msgstr "Confirme o seu email para criar a sua conta OpenValens."
 
 #: apps/native/app/(drawer)/settings/telegram.tsx
+#: apps/native/components/direct-device-settings.tsx
 #: apps/native/components/health-sync-settings.tsx
 #: apps/native/components/server-choice.tsx
 #: apps/native/components/sign-in-methods.tsx
@@ -3473,6 +3514,10 @@ msgctxt "wearable"
 msgid "Connected"
 msgstr "Ligado"
 
+#: apps/native/components/direct-device-settings.tsx
+msgid "Connected device — shared Zepp OS transport, not yet device-validated for a specific model"
+msgstr "Dispositivo ligado — transporte Zepp OS partilhado, ainda não validado para um modelo específico"
+
 #: apps/native/app/(drawer)/index.tsx
 msgid "Connected to API"
 msgstr "Ligado à API"
@@ -3484,6 +3529,14 @@ msgstr "Ligado. Pode iniciar sessão com {name}."
 #: packages/integrations/telegram/src/webhook.ts
 msgid "Connected. Your OpenValens daily reminders will arrive here. React with 👍 when you've done one or 👎 to skip it."
 msgstr "Ligado. Os seus lembretes diários do OpenValens vão chegar aqui. Reaja com 👍 quando tiver cumprido um ou com 👎 para o saltar."
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "Connecting…"
+msgstr "A ligar…"
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "connection checks validated end-to-end at source level for this model; not hardware-verified"
+msgstr "verificações de ligação validadas de ponta a ponta ao nível do código para este modelo; não verificado em hardware"
 
 #: apps/web/src/components/admission-form.tsx
 msgid "Connection lost. Check your network and try again."
@@ -5170,6 +5223,14 @@ msgstr "Detalhes"
 msgid "Details are unavailable. Refresh the library and try again."
 msgstr "Os detalhes não estão disponíveis. Atualize a biblioteca e tente novamente."
 
+#: apps/native/components/direct-device-settings.tsx
+msgid "Device authentication key"
+msgstr "Chave de autenticação do dispositivo"
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "Device connected"
+msgstr "Dispositivo ligado"
+
 #: packages/api/src/presenters/timeline.ts
 msgid "Device score"
 msgstr "Pontuação do dispositivo"
@@ -5211,6 +5272,10 @@ msgstr "Jantar"
 #: packages/api/src/presenters/coach-settings.ts
 msgid "Direct"
 msgstr "Direto"
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "Direct device steps"
+msgstr "Passos do dispositivo direto"
 
 #: packages/api/src/presenters/score.ts
 msgid "Direction inferred from the start value."
@@ -5275,6 +5340,7 @@ msgid "Discard workout?"
 msgstr "Descartar o treino?"
 
 #: apps/native/app/(drawer)/settings/telegram.tsx
+#: apps/native/components/direct-device-settings.tsx
 #: apps/native/components/sign-in-methods.tsx
 #: apps/web/src/components/sign-in-methods-section.tsx
 #: apps/web/src/components/wearable-devices-view.tsx
@@ -5850,6 +5916,10 @@ msgstr "Introduzir manualmente"
 msgid "Enter servings greater than zero."
 msgstr "Introduza um número de doses superior a zero."
 
+#: apps/native/components/direct-device-settings.tsx
+msgid "Enter the 16-byte (32 hexadecimal character) key already configured for this device. Do not enter your vendor account password."
+msgstr "Introduza a chave de 16 bytes (32 caracteres hexadecimais) já configurada para este dispositivo. Não introduza a palavra-passe da conta do fabricante."
+
 #: packages/api/src/presenters/food-lookup.ts
 msgid "Enter the 8 to 14 digits printed under the barcode."
 msgstr "Introduza os 8 a 14 dígitos impressos por baixo do código de barras."
@@ -6170,6 +6240,10 @@ msgstr "Experimental"
 msgid "Experimental estimate: not a target or a measure of what you ate."
 msgstr "Estimativa experimental: não é um objetivo nem uma medida do que comeu."
 
+#: apps/native/components/direct-device-settings.tsx
+msgid "Experimental foreground steps sync for an already-paired Zepp OS Amazfit family device (36 registered models). No vendor login is requested. The first sync asks for the last 24 hours; later syncs resume from the saved checkpoint. Only the Amazfit Helio Strap has connection checks validated end-to-end at source level; nothing is hardware-verified."
+msgstr "Sincronização experimental de passos, em primeiro plano, para um dispositivo da família Amazfit com Zepp OS já emparelhado (36 modelos registados). Não é pedido nenhum início de sessão do fabricante. A primeira sincronização pede as últimas 24 horas; as seguintes retomam a partir do ponto guardado. Só a Amazfit Helio Strap tem as verificações de ligação validadas de ponta a ponta ao nível do código; nada está verificado em hardware."
+
 #: packages/api/src/presenters/score.ts
 msgid "Experimental readiness index {score} out of 100, {profileName}."
 msgstr "Índice de prontidão experimental {score} em 100, {profileName}."
@@ -6177,6 +6251,10 @@ msgstr "Índice de prontidão experimental {score} em 100, {profileName}."
 #: packages/api/src/presenters/score.ts
 msgid "Experimental readiness index not available."
 msgstr "Índice de prontidão experimental indisponível."
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "Experimental; foreground use only. Connection checks are source-validated for the Amazfit Helio Strap only; no model is hardware-verified."
+msgstr "Experimental; só em primeiro plano. As verificações de ligação estão validadas no código apenas para a Amazfit Helio Strap; nenhum modelo está verificado em hardware."
 
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "Expert guideline development group reviewing systematic evidence. Vigorous minutes count double (moderate-equivalent)."
@@ -6250,6 +6328,11 @@ msgstr "Antecedentes familiares"
 msgid "Fat"
 msgstr "Lípidos"
 
+#: packages/api/src/presenters/nutrition-diary.ts
+msgctxt "macro short name"
+msgid "Fat"
+msgstr "Lípidos"
+
 #: packages/api/src/presenters/body-map.ts
 msgid "Fat mass"
 msgstr "Massa gorda"
@@ -6310,6 +6393,14 @@ msgstr "Procurar e registar este alimento"
 #: apps/web/src/routes/_auth/-goal-editor.tsx
 msgid "Find and select an exercise"
 msgstr "Procurar e selecionar um exercício"
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "Find nearby device"
+msgstr "Procurar dispositivo próximo"
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "Finding nearby devices…"
+msgstr "A procurar dispositivos próximos…"
 
 #: apps/native/components/onboarding/steps.tsx
 msgid "Fine-tune what appears. Hidden parts keep their data."
@@ -6529,6 +6620,10 @@ msgstr "Cronologia completa"
 #: packages/api/src/presenters/insights.ts
 msgid "Further from your target: {goalTitle}"
 msgstr "Mais longe do seu alvo: {goalTitle}"
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "Gadgetbridge pairing help"
+msgstr "Ajuda de emparelhamento do Gadgetbridge"
 
 #. safety
 #: packages/api/src/presenters/micronutrients.ts
@@ -8091,6 +8186,10 @@ msgstr "A carregar as sessões recentes…"
 msgid "Loading routines…"
 msgstr "A carregar as rotinas…"
 
+#: apps/native/components/direct-device-settings.tsx
+msgid "Loading saved devices…"
+msgstr "A carregar dispositivos guardados…"
+
 #: apps/native/app/(drawer)/body-map.tsx
 #: apps/web/src/routes/_auth/body-map.tsx
 msgid "Loading scans…"
@@ -8956,6 +9055,10 @@ msgstr "NASEM (Academias Nacionais dos EUA)"
 #: apps/web/src/components/header.tsx
 msgid "Navigate the app"
 msgstr "Navegar na aplicação"
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "Nearby device"
+msgstr "Dispositivo próximo"
 
 #: apps/native/app/(drawer)/private-measurements.tsx
 #: apps/web/src/routes/_auth/private-measurements.tsx
@@ -11239,6 +11342,11 @@ msgstr "Objetivo proposto para a próxima semana"
 msgid "Protein"
 msgstr "Proteína"
 
+#: packages/api/src/presenters/nutrition-diary.ts
+msgctxt "macro short name"
+msgid "Protein"
+msgstr "Proteína"
+
 #: packages/api/src/presenters/macro-presets.ts
 msgid "Protein per kg of body weight"
 msgstr "Proteína por kg de peso corporal"
@@ -11291,6 +11399,12 @@ msgstr "Provisório: {0} de {1} dias abrangidos."
 #: packages/api/src/presenters/preventive-care.ts
 msgid "Published for one sex. Add the sex used for reference tables in your profile to see whether this applies."
 msgstr "Publicado para um só sexo. Adicione o seu sexo para tabelas de referência no seu perfil para ver se isto se aplica."
+
+#. placeholder {0}: policy.publishedRecords
+#. placeholder {1}: policy.shadowedRecords
+#: apps/native/components/direct-device-settings.tsx
+msgid "Published minute records: {0} · Shadowed minute records (stored, not added to totals): {1}. Step publication follows UTC-day coverage: phone and cloud steps take priority for the whole day, including partial days. Of multiple direct devices, the earliest registered binding is used on uncovered days."
+msgstr "Registos por minuto publicados: {0} · Registos por minuto ocultados (guardados, não somados aos totais): {1}. A publicação de passos segue a cobertura por dia UTC: os passos do telemóvel e da nuvem têm prioridade durante todo o dia, incluindo dias parciais. Com vários dispositivos diretos, usa-se a associação registada primeiro nos dias sem cobertura."
 
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "Published recommendation figures quoted with attribution (facts, not the article text)."
@@ -11442,7 +11556,12 @@ msgstr "Índice de prontidão não carregado."
 msgid "Readiness score, overnight HRV, resting heart rate, sleep sessions and daily steps."
 msgstr "Pontuação de prontidão, VFC noturna, frequência cardíaca em repouso, sessões de sono e passos diários."
 
+#: apps/native/components/direct-device-settings.tsx
+msgid "Reading step history…"
+msgstr "A ler o histórico de passos…"
+
 #: apps/native/app/(drawer)/(tabs)/index.tsx
+#: apps/native/components/direct-device-settings.tsx
 #: apps/native/components/onboarding/steps.tsx
 #: apps/web/src/components/onboarding/server-checklist.tsx
 #: packages/api/src/presenters/insights.ts
@@ -12058,6 +12177,10 @@ msgstr "Voltar a verificar o servidor"
 msgid "Retry sync"
 msgstr "Tentar sincronizar novamente"
 
+#: apps/native/components/direct-device-settings.tsx
+msgid "Retry upload"
+msgstr "Tentar enviar novamente"
+
 #: apps/native/components/exercise-library.tsx
 msgid "Retry workouts"
 msgstr "Tentar carregar treinos"
@@ -12559,6 +12682,10 @@ msgstr "Guardado."
 msgid "Saved. Nothing was logged."
 msgstr "Guardado. Nada foi registado."
 
+#: apps/native/components/direct-device-settings.tsx
+msgid "Saving captured minutes…"
+msgstr "A guardar os minutos captados…"
+
 #: apps/web/src/components/progress-photos.tsx
 msgid "Saving photo…"
 msgstr "A guardar fotografia…"
@@ -12774,6 +12901,10 @@ msgstr "Selecione pelo menos um domínio."
 msgid "Select foods"
 msgstr "Selecionar alimentos"
 
+#: apps/native/components/direct-device-settings.tsx
+msgid "Selected"
+msgstr "Selecionado"
+
 #: apps/web/src/routes/_auth/-goal-editor.tsx
 msgid "Selected exercise"
 msgstr "Exercício selecionado"
@@ -12858,6 +12989,10 @@ msgstr "Enviar agora este texto, e nada mais, para {providerName}."
 msgid "Sending code…"
 msgstr "A enviar o código…"
 
+#: apps/native/components/direct-device-settings.tsx
+msgid "Sending saved minutes…"
+msgstr "A enviar os minutos guardados…"
+
 #: apps/native/app/(drawer)/coach/[conversationId].tsx
 #: apps/native/app/(drawer)/sharing.tsx
 #: apps/web/src/components/admin-invitations-view.tsx
@@ -12884,6 +13019,10 @@ msgstr "Endereço do servidor"
 #: apps/web/src/components/onboarding/server-checklist.tsx
 msgid "Server checklist"
 msgstr "Lista de verificação do servidor"
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "Server is processing minutes…"
+msgstr "O servidor está a processar os minutos…"
 
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 msgid "Server version"
@@ -13074,6 +13213,10 @@ msgstr "O sexo para tabelas de referência não está disponível: {reason, sele
 #: apps/web/src/components/analytics-consent-section.tsx
 msgid "Share optional usage analytics"
 msgstr "Partilhar estatísticas de utilização opcionais"
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "shared Zepp OS transport, not yet device-validated for this model"
+msgstr "transporte Zepp OS partilhado, ainda não validado para este modelo"
 
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/sharing.tsx
@@ -13745,6 +13888,10 @@ msgstr "Ainda a conhecer o seu habitual"
 msgid "Stop comparing"
 msgstr "Parar de comparar"
 
+#: apps/native/components/direct-device-settings.tsx
+msgid "Stop finding"
+msgstr "Parar a procura"
+
 #: packages/api/src/presenters/food-lookup.ts
 msgid "Stop scanning"
 msgstr "Parar leitura"
@@ -13948,6 +14095,10 @@ msgstr "Sincronização"
 msgid "Sync a scale through Health Connect or Apple Health, or add a weight."
 msgstr "Sincronize uma balança através do Health Connect ou do Apple Health, ou adicione um peso."
 
+#: apps/native/components/direct-device-settings.tsx
+msgid "Sync cancelled"
+msgstr "Sincronização cancelada"
+
 #: apps/native/components/workout-session.tsx
 msgid "Sync failed"
 msgstr "A sincronização falhou"
@@ -13962,6 +14113,10 @@ msgstr "Sincronize o Health Connect ou o Apple Health a partir da aplicação m�
 #: apps/web/src/routes/_auth/records/timeline.tsx
 msgid "Sync Health Connect or Apple Health from the mobile app, or add an entry."
 msgstr "Sincronize o Health Connect ou o Apple Health a partir da aplicação móvel, ou adicione um registo."
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "Sync needs attention"
+msgstr "A sincronização precisa de atenção"
 
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 #: apps/native/app/(drawer)/settings/devices.tsx
@@ -13983,6 +14138,10 @@ msgstr "Sincronização pedida. Decorre na próxima execução agendada."
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 msgid "Sync state: {label}"
 msgstr "Estado de sincronização: {label}"
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "Sync steps"
+msgstr "Sincronizar passos"
 
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Synced"
@@ -15538,6 +15697,10 @@ msgstr "Braço"
 msgid "Upper back and neck (back)"
 msgstr "Parte superior das costas e pescoço (costas)"
 
+#: apps/native/components/direct-device-settings.tsx
+msgid "upstream lists this model as experimental"
+msgstr "o projeto de origem indica este modelo como experimental"
+
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "US civilian, non-institutionalised adults (NHANES), excluding pregnancy, likely infection, irregular pulse, out-of-range thyroid tests and medications that affect heart rate. Weighted to the US population."
 msgstr "Adultos civis dos EUA não institucionalizados (NHANES), excluindo gravidez, provável infeção, pulsação irregular, análises da tiroide fora do intervalo e medicamentos que afetam a frequência cardíaca. Ponderado para a população dos EUA."
@@ -15603,6 +15766,10 @@ msgstr "Use no máximo 200 caracteres para a marca."
 msgid "Use at most 200 characters for the name."
 msgstr "Use no máximo 200 caracteres para o nome."
 
+#: apps/native/components/direct-device-settings.tsx
+msgid "Use existing"
+msgstr "Usar existente"
+
 #: apps/native/components/server-choice.tsx
 msgid "Use my own server"
 msgstr "Usar o meu próprio servidor"
@@ -15623,6 +15790,10 @@ msgstr "Use o botão abaixo para continuar."
 #: apps/native/app/(drawer)/preventive-care.tsx
 msgid "Use the format YYYY-MM-DD."
 msgstr "Use o formato AAAA-MM-DD."
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "Use the same saved device on both phones. Choose an existing binding to avoid duplicates, or add another only when you mean to create a separate binding. Nearby connection is a separate step."
+msgstr "Use o mesmo dispositivo guardado nos dois telemóveis. Escolha uma associação existente para evitar duplicados, ou adicione outra só quando quiser criar uma associação separada. A ligação ao dispositivo próximo é um passo à parte."
 
 #: apps/web/src/routes/_auth/nutrition-targets.tsx
 msgid "Use this"
@@ -16898,19 +17069,3 @@ msgstr "Por agora, o seu espaço de trabalho está só de leitura. Pode continua
 #: packages/api/src/presenters/micronutrients.ts
 msgid "Zinc"
 msgstr "Zinco"
-
-#. Carbohydrate, short, for a narrow column
-#: packages/api/src/presenters/nutrition-diary.ts
-msgctxt "macro short name"
-msgid "Carbs"
-msgstr "Hidratos"
-
-#: packages/api/src/presenters/nutrition-diary.ts
-msgctxt "macro short name"
-msgid "Fat"
-msgstr "Lípidos"
-
-#: packages/api/src/presenters/nutrition-diary.ts
-msgctxt "macro short name"
-msgid "Protein"
-msgstr "Proteína"
