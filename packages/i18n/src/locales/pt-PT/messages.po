@@ -3532,8 +3532,8 @@ msgid "Connected"
 msgstr "Ligado"
 
 #: apps/native/components/direct-device-settings.tsx
-msgid "Connected device — shared transport, not matched to a registered model"
-msgstr "Dispositivo ligado — transporte partilhado, sem correspondência com um modelo registado"
+msgid "Connected device"
+msgstr "Dispositivo ligado"
 
 #: apps/native/app/(drawer)/index.tsx
 msgid "Connected to API"
@@ -3552,20 +3552,12 @@ msgid "Connecting…"
 msgstr "A ligar…"
 
 #: apps/native/components/direct-device-settings.tsx
-msgid "connection checks only; no hardware verification"
-msgstr "só verificações de ligação; sem verificação em hardware"
-
-#: apps/native/components/direct-device-settings.tsx
-msgid "connection checks validated end-to-end at source level for this model; not hardware-verified"
-msgstr "verificações de ligação validadas de ponta a ponta ao nível do código para este modelo; não verificado em hardware"
+msgid "Connection checks only; step history sync is not implemented. Not hardware-verified."
+msgstr "Apenas verificações de ligação; a sincronização do histórico de passos não está implementada. Não verificado em hardware."
 
 #: apps/web/src/components/admission-form.tsx
 msgid "Connection lost. Check your network and try again."
 msgstr "A ligação perdeu-se. Verifique a rede e tente novamente."
-
-#: apps/native/components/direct-device-settings.tsx
-msgid "connection only; step history sync is not implemented for Huawei/Honor devices yet; not hardware-verified"
-msgstr "só ligação; a sincronização do histórico de passos ainda não está implementada para dispositivos Huawei/Honor; não verificado em hardware"
 
 #: apps/native/components/goal-editor.tsx
 #: apps/web/src/routes/_auth/-goal-editor.tsx
@@ -6646,6 +6638,14 @@ msgid "Further from your target: {goalTitle}"
 msgstr "Mais longe do seu alvo: {goalTitle}"
 
 #: apps/native/components/direct-device-settings.tsx
+msgid "Gadgetbridge feature level: {level}"
+msgstr "Nível de funcionalidades no Gadgetbridge: {level}"
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "Gadgetbridge feature level: {level} · experimental"
+msgstr "Nível de funcionalidades no Gadgetbridge: {level} · experimental"
+
+#: apps/native/components/direct-device-settings.tsx
 msgid "Gadgetbridge pairing help"
 msgstr "Ajuda de emparelhamento do Gadgetbridge"
 
@@ -6983,6 +6983,10 @@ msgstr "Oculta esta lista neste telemóvel"
 #: packages/api/src/presenters/modules.ts
 msgid "Hiding a module keeps its data. Turn it back on and everything is there again."
 msgstr "Ocultar um módulo mantém os seus dados. Volte a ativá-lo e está tudo lá outra vez."
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "high"
+msgstr "elevado"
 
 #: packages/api/src/presenters/workouts.ts
 msgctxt "goal priority"
@@ -8975,6 +8979,10 @@ msgstr "Mais opções"
 msgid "Morning"
 msgstr "Manhã"
 
+#: apps/native/components/direct-device-settings.tsx
+msgid "most"
+msgstr "a maioria"
+
 #. placeholder {0}: weight(record.weightKg)
 #: apps/web/src/components/workout-history.tsx
 msgid "Most reps at {0}"
@@ -9898,9 +9906,17 @@ msgstr "Não encontrado"
 msgid "Not granted"
 msgstr "Não concedido"
 
+#: apps/native/components/direct-device-settings.tsx
+msgid "Not listed in the Gadgetbridge catalog."
+msgstr "Não consta no catálogo do Gadgetbridge."
+
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Not marked complete"
 msgstr "Não marcado como completo"
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "Not matched to a registered model. No OpenValens support is claimed."
+msgstr "Sem correspondência com um modelo registado. Não é reivindicado suporte do OpenValens."
 
 #: apps/native/components/finish-setup-card.tsx
 #: apps/native/components/onboarding/steps.tsx
@@ -10727,6 +10743,10 @@ msgstr "Página não encontrada"
 msgid "Parsing again will replace your edited review. Continue?"
 msgstr "Analisar novamente substitui a revisão que editou. Continuar?"
 
+#: apps/native/components/direct-device-settings.tsx
+msgid "partial"
+msgstr "parcial"
+
 #. placeholder {0}: when(backups.lastVerify.at)
 #: apps/web/src/components/admin-backup-status.tsx
 msgid "Passed {0}"
@@ -11104,6 +11124,10 @@ msgstr "Verifique o seu método de pagamento em Plano e faturação, na web. Vam
 msgctxt "unit"
 msgid "points"
 msgstr "pontos"
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "poor"
+msgstr "fraco"
 
 #. safety
 #: packages/api/src/presenters/micronutrients.ts
@@ -13259,12 +13283,12 @@ msgid "Share optional usage analytics"
 msgstr "Partilhar estatísticas de utilização opcionais"
 
 #: apps/native/components/direct-device-settings.tsx
-msgid "shared Xiaomi protobuf transport, not yet device-validated for this model"
-msgstr "transporte protobuf Xiaomi partilhado, ainda não validado para este modelo"
+msgid "Shared Xiaomi protobuf transport; not device-validated for this model. Not hardware-verified."
+msgstr "Transporte protobuf Xiaomi partilhado; não validado no dispositivo para este modelo. Não verificado em hardware."
 
 #: apps/native/components/direct-device-settings.tsx
-msgid "shared Zepp OS transport, not yet device-validated for this model"
-msgstr "transporte Zepp OS partilhado, ainda não validado para este modelo"
+msgid "Shared Zepp OS transport; not validated for this model. Not hardware-verified."
+msgstr "Transporte Zepp OS partilhado; não validado para este modelo. Não verificado em hardware."
 
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/sharing.tsx
@@ -15653,6 +15677,7 @@ msgid "Units"
 msgstr "Unidades"
 
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
+#: apps/native/components/direct-device-settings.tsx
 #: packages/api/src/presenters/nutrition-templates.ts
 msgid "unknown"
 msgstr "desconhecido"
@@ -15752,10 +15777,6 @@ msgstr "Braço"
 #: packages/api/src/presenters/body-map.ts
 msgid "Upper back and neck (back)"
 msgstr "Parte superior das costas e pescoço (costas)"
-
-#: apps/native/components/direct-device-settings.tsx
-msgid "upstream lists this model as experimental"
-msgstr "o projeto de origem indica este modelo como experimental"
 
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "US civilian, non-institutionalised adults (NHANES), excluding pregnancy, likely infection, irregular pulse, out-of-range thyroid tests and medications that affect heart rate. Weighted to the US population."
@@ -17121,6 +17142,10 @@ msgstr "O seu treino não foi alterado. Verifique a ligação ou tente novamente
 #: apps/web/src/components/billing-plan-view.tsx
 msgid "Your workspace is read-only for now. You can still read, export and delete your records; adding and syncing records starts again when you choose a plan."
 msgstr "Por agora, o seu espaço de trabalho está só de leitura. Pode continuar a consultar, exportar e eliminar os seus registos; pode voltar a adicionar e sincronizar registos quando escolher um plano."
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "Zepp OS transport, authentication and step history are validated at source level for this model. Not hardware-verified."
+msgstr "O transporte, a autenticação e o histórico de passos do Zepp OS estão validados ao nível do código para este modelo. Não verificado em hardware."
 
 #: packages/api/src/presenters/micronutrients.ts
 msgid "Zinc"

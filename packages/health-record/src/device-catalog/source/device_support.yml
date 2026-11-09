@@ -1,0 +1,3479 @@
+#
+#   device_support.yml
+#
+#   This file is used for adding metadata/flags to gadgets which is shown in gadget pages found under
+#   "docs/gadgets" directory, serving as a machine-readable database for all gadgets supported by Gadgetbridge.
+#
+#   Then, the status of gadget can be obtained in markdown via "{{ device("xiaomi_mi_band_1") }}" tag.
+#   NOTE: Make sure to add this call after the header name, for example:
+#
+#   ## Mi Band 1 {{ device("xiaomi_mi_band_1") }}
+#
+#   Since the device() function also inserts a anchor ID for header, it needs to be placed next to the
+#   header name, so the header will now have "xiaomi_mi_band_1" as anchor, regardless of its header text,
+#   and can be linked to it easily.
+#
+#   Every gadget which is supported by Gadgetbridge needs to be included in this page, so the website
+#   can show additional metadata for devices like how well it is supported in Gadgetbridge.
+#
+#   To add a new device entry here, at least three keys must be added: "category", "vendor", "flags".
+#   "category" is the directory name where this gadget referenced in, "vendor" is the name of the Markdown file
+#   without the extension where this gadget referenced in. So for example:
+#
+#   huawei_freearc:
+#     vendor: huawei
+#     category: headphoness
+#     flags: [feature_most, pair_free]
+#
+#   This means the gadget MUST BE referenced in `gadgets/headphones/huawei.md` file,
+#   following this format: `gadgets/<category>/<vendor>.md`
+#   Referencing this gadget elsewhere will render an error.
+#
+#   "flags" is an array of strings to inform the status of the implementation in Gadgetbridge and tell pairing
+#   information. The up-to-date list of all flags can be found in "extra_config.yml" file, but here is a small
+#   quick reference:
+#
+#     - "feature_unknown" - Implementation status is unknown, this flag MUST be added if there is no other feature_* flag is added for the device.
+#     - "feature_high" - Major features of this gadget are supported by Gadgetbridge
+#     - "feature_most" - Missing features, but should be "acceptable" for daily-drive
+#     - "feature_partial" - Missing important features, meaning daily-driving may not be solely possible with Gadgetbridge
+#     - "feature_poor" - Missing many features, probably only be able to pair with Gadgetbridge and that's all
+#     - "pair_free" - Requires no vendor app at any stage to pair this device with Gadgetbridge
+#     - "experimental" - Works with Gadgetbridge, but it is not verified if this device functions correctly with Gadgetbridge
+#
+__aliases:
+  - &flags_unknown [feature_unknown, pair_unknown]
+  - &flags_unknown_free [feature_unknown, pair_free]
+  - &flags_high_free [feature_high, pair_free]
+  - &flags_high_huami [feature_high, pair_huami]
+  - &flags_unknown_huami [feature_unknown, pair_huami]
+  - &flags_high_fossil [feature_high, pair_fossil]
+  - &flags_zepp_os [feature_high, pair_huami, os_zepp]
+  - &flags_garmin [feature_partial, pair_free, os_garmin]
+  - &flags_garmin_sleep [feature_most, pair_free, os_garmin]
+  - &flags_zepp_os_untested [feature_unknown, pair_huami, experimental, os_zepp]
+  - &flags_zepp_os_3 [feature_partial, pair_huami, os_zepp]
+  - &link_mi_band_1_firmware ../../../internals/specifics/mi-band-1
+  - &link_mi_band_2_firmware ../../../internals/specifics/mi-band-2
+  - &link_mi_band_3_firmware ../../../internals/specifics/mi-band-3
+  - &link_mi_band_4_firmware ../../../internals/specifics/mi-band-4
+  - &link_mi_band_5_firmware ../../../internals/specifics/mi-band-5
+  - &link_mi_band_6_firmware ../../../internals/specifics/mi-band-6
+  - &link_amazfit_band_5_firmware ../../../internals/specifics/amazfit-band-5
+  - &link_amazfit_bip_firmware ../../../internals/specifics/amazfit-bip
+  - &link_amazfit_bip_os ../../../internals/specifics/amazfit-bip-os
+  - &link_amazfit_bip_s_firmware ../../../internals/specifics/amazfit-bip-s
+  - &link_amazfit_bip_u_firmware ../../../internals/specifics/amazfit-bip-u
+  - &link_amazfit_cor_firmware ../../../internals/specifics/amazfit-cor
+  - &link_amazfit_cor_2_firmware ../../../internals/specifics/amazfit-cor-2
+  - &link_fossil_firmware ../../../internals/specifics/fossil-hybrid
+  - &link_pebble_firmware ../../../internals/specifics/pebble
+  - &link_pebble_language ../../../internals/specifics/pebble-language
+  - &link_pebble_datalog ../../../internals/specifics/pebble-datalog
+  - &link_casio_protocol ../../../internals/specifics/casio-protocol
+  - &link_banglejs_protocol ../../../internals/specifics/banglejs-protocol
+  - &link_galaxy_buds_protocol ../../../internals/specifics/galaxy-buds-protocol
+  - &link_fitpro_protocol ../../../internals/specifics/fitpro-protocol
+  - &link_hplus_protocol ../../../internals/specifics/hplus-protocol
+  - &link_garmin_protocol ../../../internals/specifics/garmin-protocol
+  - &link_moyoung_protocol ../../../internals/specifics/moyoung-protocol
+  - &link_supercars_protocol ../../../internals/specifics/supercars-protocol
+  - &link_zetime_protocol ../../../internals/specifics/zetime-protocol
+  - &link_ollee_protocol ../../../internals/specifics/ollee-protocol
+  - &flags_huawei [feature_most, pair_free]
+# TODO: This is a temporal fix for vendors not having a dedicated page but rather referenced in another page.
+vendor_mappings:
+  wearables:
+    honor: huawei-honor
+    huawei: huawei-honor
+    dotn: gloryfit
+    grv: gloryfit
+    imiki: gloryfit
+    hifuture: gloryfit
+    kieslect: gloryfit
+    oukitel: gloryfit
+    xwatch: other
+    xplora: other
+  rings:
+    colmi: yawell
+device_support:
+  xiaomi_mi_band_1:
+    category: wearables
+    vendor: xiaomi
+    flags: *flags_high_free
+    links:
+      firmware_info: *link_mi_band_1_firmware
+  xiaomi_mi_band_1a:
+    category: wearables
+    vendor: xiaomi
+    flags: *flags_high_free
+    links:
+      firmware_info: *link_mi_band_1_firmware
+  xiaomi_mi_band_1s:
+    category: wearables
+    vendor: xiaomi
+    flags: *flags_high_free
+    links:
+      firmware_info: *link_mi_band_1_firmware
+  xiaomi_mi_band_2:
+    category: wearables
+    vendor: xiaomi
+    flags: *flags_high_free
+    links:
+      firmware_info: *link_mi_band_2_firmware
+  xiaomi_mi_band_3:
+    category: wearables
+    vendor: xiaomi
+    flags: *flags_high_free
+    links:
+      firmware_info: *link_mi_band_3_firmware
+  xiaomi_mi_band_4:
+    category: wearables
+    vendor: xiaomi
+    flags: *flags_high_huami
+    links:
+      firmware_info: *link_mi_band_4_firmware
+  xiaomi_mi_band_4c:
+    category: wearables
+    vendor: xiaomi
+    flags: [feature_partial, experimental, os_xiaomi_protobuf, pair_xiaomi]
+  xiaomi_mi_band_5:
+    category: wearables
+    vendor: xiaomi
+    flags: *flags_high_huami
+    links:
+      firmware_info: *link_mi_band_5_firmware
+  xiaomi_mi_band_6:
+    category: wearables
+    vendor: xiaomi
+    flags: *flags_high_huami
+    links:
+      firmware_info: *link_mi_band_6_firmware
+  xiaomi_mi_band_7:
+    vendor: xiaomi
+    category: wearables
+    flags: *flags_zepp_os
+  xiaomi_mi_band_8:
+    vendor: xiaomi
+    category: wearables
+    flags: [feature_high, os_xiaomi_protobuf, pair_xiaomi]
+  xiaomi_mi_band_8_active:
+    vendor: xiaomi
+    category: wearables
+    flags: [feature_unknown, experimental, os_xiaomi_protobuf, pair_xiaomi]
+  xiaomi_mi_band_8_pro:
+    vendor: xiaomi
+    category: wearables
+    flags: [feature_unknown, experimental, os_xiaomi_protobuf, pair_xiaomi]
+  xiaomi_mi_band_7_pro:
+    vendor: xiaomi
+    category: wearables
+    flags: [feature_most, experimental, os_xiaomi_protobuf, pair_xiaomi]
+  xiaomi_mi_band_9:
+    vendor: xiaomi
+    category: wearables
+    flags: [feature_most, os_xiaomi_protobuf, pair_xiaomi]
+  xiaomi_mi_band_9_active:
+    vendor: xiaomi
+    category: wearables
+    flags: [feature_partial, experimental, os_xiaomi_protobuf, pair_xiaomi]
+  xiaomi_mi_band_9_pro:
+    vendor: xiaomi
+    category: wearables
+    flags: [feature_unknown, experimental, os_xiaomi_protobuf, pair_xiaomi]
+  xiaomi_mi_band_10:
+    vendor: xiaomi
+    category: wearables
+    flags: [feature_most, os_xiaomi_protobuf, pair_xiaomi]
+  xiaomi_mi_band_10_pro:
+    vendor: xiaomi
+    category: wearables
+    flags: [feature_most, experimental, os_xiaomi_protobuf, pair_xiaomi]
+  xiaomi_mi_band_11:
+    vendor: xiaomi
+    category: wearables
+    flags: [feature_most, experimental, os_xiaomi_protobuf, pair_xiaomi]
+  xiaomi_mi_band_11_active:
+    vendor: xiaomi
+    category: wearables
+    flags: [feature_most, experimental, os_xiaomi_protobuf, pair_xiaomi]
+  xiaomi_mi_watch_color_sport:
+    vendor: xiaomi
+    category: wearables
+    flags: [feature_most, experimental, os_xiaomi_protobuf, pair_xiaomi]
+  xiaomi_mi_watch_lite:
+    vendor: xiaomi
+    category: wearables
+    flags: [feature_most, experimental, os_xiaomi_protobuf, pair_xiaomi]
+  xiaomi_redmi_smart_band_2:
+    vendor: xiaomi
+    category: wearables
+    flags: [feature_most, experimental, os_xiaomi_protobuf, pair_xiaomi]
+  xiaomi_redmi_smart_band_3:
+    vendor: xiaomi
+    category: wearables
+    flags: [feature_most, experimental, os_xiaomi_protobuf, pair_xiaomi]
+  xiaomi_redmi_smart_band_pro:
+    vendor: xiaomi
+    category: wearables
+    flags: [feature_most, experimental, os_xiaomi_protobuf, pair_xiaomi]
+  xiaomi_redmi_watch_2:
+    vendor: xiaomi
+    category: wearables
+    flags: [feature_unknown, experimental, os_xiaomi_protobuf, pair_xiaomi]
+  xiaomi_redmi_watch_2_lite:
+    vendor: xiaomi
+    category: wearables
+    flags: [feature_unknown, experimental, os_xiaomi_protobuf, pair_xiaomi]
+  xiaomi_redmi_watch_3:
+    vendor: xiaomi
+    category: wearables
+    flags: [feature_unknown, experimental, os_xiaomi_protobuf, pair_xiaomi]
+  xiaomi_redmi_watch_3_active:
+    vendor: xiaomi
+    category: wearables
+    flags: [feature_partial, experimental, os_xiaomi_protobuf, pair_xiaomi]
+  xiaomi_redmi_watch_4:
+    vendor: xiaomi
+    category: wearables
+    flags: [feature_unknown, experimental, os_xiaomi_protobuf, pair_xiaomi]
+  xiaomi_redmi_watch_5_active:
+    vendor: xiaomi
+    category: wearables
+    flags: [feature_most, experimental, os_xiaomi_protobuf, pair_xiaomi]
+  xiaomi_redmi_watch_5_lite:
+    vendor: xiaomi
+    category: wearables
+    flags: [feature_most, os_xiaomi_protobuf, pair_xiaomi]
+  xiaomi_redmi_watch_5:
+    vendor: xiaomi
+    category: wearables
+    flags: [feature_most, os_xiaomi_protobuf, pair_xiaomi]
+  xiaomi_redmi_watch_6:
+    vendor: xiaomi
+    category: wearables
+    flags: [feature_most, os_xiaomi_protobuf, pair_xiaomi]
+  xiaomi_redmi_watch_move:
+    vendor: xiaomi
+    category: wearables
+    flags: [feature_most, os_xiaomi_protobuf, pair_xiaomi]
+  xiaomi_watch_5:
+    vendor: xiaomi
+    category: wearables
+    flags: [feature_most, experimental, os_xiaomi_protobuf, pair_xiaomi]
+  xiaomi_watch_s1_active:
+    vendor: xiaomi
+    category: wearables
+    flags: [feature_unknown, experimental, os_xiaomi_protobuf, pair_xiaomi]
+  xiaomi_watch_s1:
+    vendor: xiaomi
+    category: wearables
+    flags: [feature_unknown, experimental, os_xiaomi_protobuf, pair_xiaomi]
+  xiaomi_watch_s1_pro:
+    vendor: xiaomi
+    category: wearables
+    flags: [feature_most, experimental, os_xiaomi_protobuf, pair_xiaomi]
+  xiaomi_watch_s3:
+    vendor: xiaomi
+    category: wearables
+    flags: [feature_most, experimental, os_xiaomi_protobuf, pair_xiaomi]
+  xiaomi_watch_s4:
+    vendor: xiaomi
+    category: wearables
+    flags: [feature_most, os_xiaomi_protobuf, pair_xiaomi]
+  xiaomi_watch_s5:
+    vendor: xiaomi
+    category: wearables
+    flags: [feature_most, experimental, os_xiaomi_protobuf, pair_xiaomi]
+  xiaomi_body_composition_scale_2:
+    vendor: xiaomi
+    category: scales
+    flags: [feature_poor, pair_free]
+  xiaomi_smart_scale_2:
+    vendor: xiaomi
+    category: scales
+    flags: [feature_high, pair_free]
+  lefu_health_scale:
+    vendor: lefu
+    category: scales
+    flags: [feature_high, pair_free]
+  viatom_f8:
+    vendor: viatom
+    category: scales
+    flags: [feature_partial, pair_free]
+  chipsea_qn_scale:
+    vendor: chipsea
+    category: scales
+    flags: [feature_high, pair_free]
+  ge_fit_plus:
+    vendor: chipsea
+    category: scales
+    flags: [feature_high, pair_free]
+  dji_osmo_action_4:
+    vendor: dji
+    category: cameras
+    flags: [feature_partial, pair_unknown]
+  roidmi_fm:
+    vendor: xiaomi
+    category: transmitters
+    flags: *flags_high_free
+  roidmi_fm_2:
+    vendor: xiaomi
+    category: transmitters
+    flags: *flags_high_free
+  roidmi_fm_3:
+    vendor: xiaomi
+    category: transmitters
+    flags: *flags_high_free
+  roidmi_f8_storm:
+    vendor: roidmi
+    category: vacuums
+    flags: [feature_most, pair_xiaomi]
+  mijia_lywsd02:
+    vendor: xiaomi
+    category: thermometers
+    flags: [feature_partial, pair_free]
+  mijia_lywsd02mmc:
+    vendor: xiaomi
+    category: thermometers
+    flags: [feature_partial, pair_free]
+  mijia_lywsd03mmc:
+    vendor: xiaomi
+    category: thermometers
+    flags: [feature_partial, pair_free]
+  mijia_mho_c303:
+    vendor: xiaomi
+    category: thermometers
+    flags: [feature_partial, pair_free]
+  mijia_xmwsdj04mmc:
+    vendor: xiaomi
+    category: thermometers
+    flags: [feature_partial, pair_free]
+  #
+  #   Amazfit
+  #
+  amazfit_band_5:
+    category: wearables
+    vendor: amazfit
+    flags: *flags_high_huami
+    links:
+      firmware_info: *link_amazfit_band_5_firmware
+  amazfit_band_7:
+    category: wearables
+    vendor: amazfit
+    flags: *flags_zepp_os
+  amazfit_bip:
+    category: wearables
+    vendor: amazfit
+    flags: *flags_high_free
+    links:
+      firmware_info: *link_amazfit_bip_firmware
+      custom_os: *link_amazfit_bip_os
+  amazfit_bip_lite:
+    category: wearables
+    vendor: amazfit
+    flags: *flags_high_huami
+  amazfit_bip_s_lite:
+    category: wearables
+    vendor: amazfit
+    flags: *flags_unknown_huami
+  amazfit_bip_s:
+    category: wearables
+    vendor: amazfit
+    flags: *flags_high_huami
+    links:
+      firmware_info: *link_amazfit_bip_s_firmware
+  amazfit_bip_u:
+    category: wearables
+    vendor: amazfit
+    flags: *flags_high_huami
+    links:
+      firmware_info: *link_amazfit_bip_u_firmware
+  amazfit_bip_u_pro:
+    category: wearables
+    vendor: amazfit
+    flags: *flags_high_huami
+    links:
+      firmware_info: *link_amazfit_bip_u_firmware
+  amazfit_bip_3:
+    category: wearables
+    vendor: amazfit
+    flags: [feature_most, pair_huami]
+  amazfit_bip_3_pro:
+    category: wearables
+    vendor: amazfit
+    flags: *flags_high_huami
+  amazfit_bip_5:
+    vendor: amazfit
+    category: wearables
+    flags: *flags_zepp_os
+  amazfit_bip_5_unity:
+    vendor: amazfit
+    category: wearables
+    flags: *flags_zepp_os
+  amazfit_bip_6:
+    vendor: amazfit
+    category: wearables
+    flags: *flags_zepp_os
+  amazfit_bip_max:
+    vendor: amazfit
+    category: wearables
+    flags: *flags_zepp_os
+  amazfit_cor:
+    category: wearables
+    vendor: amazfit
+    flags: *flags_high_huami
+    links:
+      firmware_info: *link_amazfit_cor_firmware
+  amazfit_cor_2:
+    vendor: amazfit
+    category: wearables
+    flags: *flags_high_huami
+    links:
+      firmware_info: *link_amazfit_cor_2_firmware
+  amazfit_gtr:
+    vendor: amazfit
+    category: wearables
+    flags: *flags_high_huami
+  amazfit_gtr_2:
+    vendor: amazfit
+    category: wearables
+    flags: *flags_high_huami
+  amazfit_gtr_3:
+    vendor: amazfit
+    category: wearables
+    flags: *flags_zepp_os
+  amazfit_gtr_3_pro:
+    vendor: amazfit
+    category: wearables
+    flags: *flags_zepp_os
+  amazfit_gtr_4:
+    vendor: amazfit
+    category: wearables
+    flags: *flags_zepp_os
+  amazfit_gtr_lite:
+    category: wearables
+    vendor: amazfit
+    flags: *flags_unknown_huami
+  amazfit_gtr_mini:
+    vendor: amazfit
+    category: wearables
+    flags: *flags_zepp_os
+  amazfit_gts:
+    vendor: amazfit
+    category: wearables
+    flags: *flags_high_huami
+  amazfit_gts_2:
+    vendor: amazfit
+    category: wearables
+    flags: *flags_high_huami
+  amazfit_gts_2_mini:
+    category: wearables
+    vendor: amazfit
+    flags: *flags_high_huami
+  amazfit_gts_3:
+    vendor: amazfit
+    category: wearables
+    flags: *flags_zepp_os
+  amazfit_gts_4:
+    vendor: amazfit
+    category: wearables
+    flags: *flags_zepp_os
+  amazfit_gts_4_mini:
+    vendor: amazfit
+    category: wearables
+    flags: *flags_zepp_os
+  amazfit_gts_4_mini_new:
+    vendor: amazfit
+    category: wearables
+    flags: *flags_zepp_os
+  amazfit_helio_strap:
+    vendor: amazfit
+    category: wearables
+    flags: [feature_most, pair_huami, experimental, os_zepp]
+  amazfit_helio_ring:
+    vendor: amazfit
+    category: rings
+    flags: [feature_most, pair_huami, experimental, os_zepp]
+  amazfit_neo:
+    category: wearables
+    flags: *flags_high_huami
+    vendor: amazfit
+  amazfit_pop:
+    category: wearables
+    vendor: amazfit
+    flags: *flags_unknown
+  amazfit_pop_pro:
+    category: wearables
+    vendor: amazfit
+    flags: *flags_unknown
+  amazfit_falcon:
+    vendor: amazfit
+    category: wearables
+    flags: *flags_zepp_os
+  amazfit_trex:
+    vendor: amazfit
+    category: wearables
+    flags: *flags_unknown
+  amazfit_trex_pro:
+    vendor: amazfit
+    category: wearables
+    flags: *flags_unknown
+  amazfit_trex_2:
+    vendor: amazfit
+    category: wearables
+    flags: *flags_zepp_os
+  amazfit_trex_3:
+    vendor: amazfit
+    category: wearables
+    flags: *flags_zepp_os_untested
+  amazfit_trex_3_pro:
+    vendor: amazfit
+    category: wearables
+    flags: *flags_zepp_os
+  amazfit_trex_ultra:
+    vendor: amazfit
+    category: wearables
+    flags: *flags_zepp_os
+  amazfit_trex_ultra_2:
+    vendor: amazfit
+    category: wearables
+    flags: *flags_zepp_os_untested
+  amazfit_cheetah:
+    vendor: amazfit
+    category: wearables
+    flags: *flags_zepp_os
+  amazfit_cheetah_pro:
+    vendor: amazfit
+    category: wearables
+    flags: *flags_zepp_os
+  amazfit_cheetah_2_pro:
+    vendor: amazfit
+    category: wearables
+    flags: *flags_zepp_os_untested
+  amazfit_cheetah_2_ultra:
+    vendor: amazfit
+    category: wearables
+    flags: *flags_zepp_os_untested
+  amazfit_verge_lite:
+    vendor: amazfit
+    category: wearables
+    flags: [feature_unknown, pair_huami]
+  amazfit_x:
+    category: wearables
+    flags: *flags_high_huami
+    vendor: amazfit
+  amazfit_balance:
+    vendor: amazfit
+    category: wearables
+    flags: *flags_zepp_os
+  amazfit_balance_2:
+    vendor: amazfit
+    category: wearables
+    flags: *flags_zepp_os
+  amazfit_balance_2_xt:
+    vendor: amazfit
+    category: wearables
+    flags: *flags_zepp_os
+  amazfit_balance_3:
+    vendor: amazfit
+    category: wearables
+    flags: *flags_zepp_os
+  amazfit_balance_ultra:
+    vendor: amazfit
+    category: wearables
+    flags: *flags_zepp_os_untested
+  amazfit_active:
+    vendor: amazfit
+    category: wearables
+    flags: *flags_zepp_os
+  amazfit_active_edge:
+    vendor: amazfit
+    category: wearables
+    flags: *flags_zepp_os_untested
+  amazfit_active_max:
+    vendor: amazfit
+    category: wearables
+    flags: *flags_zepp_os
+  amazfit_active_2:
+    vendor: amazfit
+    category: wearables
+    flags: *flags_zepp_os
+  amazfit_active_3_premium:
+    vendor: amazfit
+    category: wearables
+    flags: *flags_zepp_os
+  bangle_js_1:
+    category: wearables
+    vendor: banglejs
+    flags: *flags_high_free
+    links:
+      protocol: *link_banglejs_protocol
+  bangle_js_2:
+    category: wearables
+    vendor: banglejs
+    flags: *flags_high_free
+    links:
+      protocol: *link_banglejs_protocol
+  asteroid_os:
+    category: wearables
+    vendor: asteroid-os
+    flags: [feature_most, pair_free]
+  wasp_os:
+    category: wearables
+    vendor: wasp-os
+    flags: *flags_unknown_free
+  divoom_pixoo:
+    category: displays
+    vendor: divoom
+    flags: [feature_poor, pair_free]
+  marstek_b2500:
+    category: batteries
+    vendor: marstek
+    flags: [feature_most, pair_free]
+  #
+  #   Huawei / Honor
+  #
+  honor_band_3:
+    vendor: honor
+    category: wearables
+    flags: *flags_huawei
+  honor_band_4:
+    vendor: honor
+    category: wearables
+    flags: *flags_huawei
+  honor_band_5:
+    vendor: honor
+    category: wearables
+    flags: *flags_huawei
+  honor_band_6:
+    vendor: honor
+    category: wearables
+    flags: *flags_huawei
+  honor_band_7:
+    vendor: honor
+    category: wearables
+    flags: [feature_unknown, pair_free, experimental]
+  honor_band_9:
+    vendor: honor
+    category: wearables
+    flags: [feature_unknown, pair_free, experimental]
+  honor_band_10:
+    vendor: honor
+    category: wearables
+    flags: [feature_unknown, pair_free, experimental]
+  honor_magic_watch:
+    vendor: honor
+    category: wearables
+    flags: *flags_huawei
+  honor_magicwatch_2:
+    vendor: honor
+    category: wearables
+    flags: *flags_huawei
+  honor_watch_4:
+    vendor: honor
+    category: wearables
+    flags: *flags_huawei
+  honor_watch_4_pro:
+    vendor: honor
+    category: wearables
+    flags: *flags_huawei
+  honor_watch_5:
+    vendor: honor
+    category: wearables
+    flags: *flags_huawei
+  honor_watch_5_pro:
+    vendor: honor
+    category: wearables
+    flags: *flags_huawei
+  honor_watch_6:
+    vendor: honor
+    category: wearables
+    flags: *flags_huawei
+  honor_watch_gs_3:
+    vendor: honor
+    category: wearables
+    flags: *flags_huawei
+  honor_watch_gs_pro:
+    vendor: honor
+    category: wearables
+    flags: *flags_huawei
+  huawei_band_2:
+    vendor: huawei
+    category: wearables
+    flags: *flags_huawei
+  huawei_band_2a:
+    vendor: huawei
+    category: wearables
+    flags: [feature_poor, pair_free, experimental]
+  huawei_band_2_pro:
+    vendor: huawei
+    category: wearables
+    flags: [feature_unknown, pair_free, experimental]
+  huawei_band_3_pro:
+    vendor: huawei
+    category: wearables
+    flags: *flags_huawei
+  huawei_band_4:
+    vendor: huawei
+    category: wearables
+    flags: *flags_huawei
+  huawei_band_4_pro:
+    vendor: huawei
+    category: wearables
+    flags: *flags_huawei
+  huawei_band_6:
+    vendor: huawei
+    category: wearables
+    flags: *flags_huawei
+  huawei_band_7:
+    vendor: huawei
+    category: wearables
+    flags: *flags_huawei
+  huawei_band_8:
+    vendor: huawei
+    category: wearables
+    flags: *flags_huawei
+  huawei_band_9:
+    vendor: huawei
+    category: wearables
+    flags: *flags_huawei
+  huawei_band_10:
+    vendor: huawei
+    category: wearables
+    flags: *flags_huawei
+  huawei_band_11:
+    vendor: huawei
+    category: wearables
+    flags: [experimental, feature_most, pair_free]
+  huawei_band_11_pro:
+    vendor: huawei
+    category: wearables
+    flags: [experimental, feature_most, pair_free]
+  huawei_band_3e:
+    vendor: huawei
+    category: wearables
+    flags: *flags_huawei
+  huawei_band_4e:
+    vendor: huawei
+    category: wearables
+    flags: *flags_huawei
+  huawei_talk_band_b6:
+    vendor: huawei
+    category: wearables
+    flags: *flags_huawei
+  huawei_watch_3:
+    vendor: huawei
+    category: wearables
+    flags: *flags_huawei
+  huawei_watch_3_pro:
+    vendor: huawei
+    category: wearables
+    flags: *flags_huawei
+  huawei_watch_4:
+    vendor: huawei
+    category: wearables
+    flags: [feature_most, pair_free, experimental]
+  huawei_watch_4_pro:
+    vendor: huawei
+    category: wearables
+    flags: [feature_most, pair_free, experimental]
+  huawei_watch_5:
+    vendor: huawei
+    category: wearables
+    flags: [feature_most, pair_free, experimental]
+  huawei_watch_6:
+    vendor: huawei
+    category: wearables
+    flags: [feature_most, pair_free, experimental]
+  huawei_watch_6_pro:
+    vendor: huawei
+    category: wearables
+    flags: [feature_most, pair_free, experimental]
+  huawei_watch_d2:
+    vendor: huawei
+    category: wearables
+    flags: *flags_huawei
+  huawei_watch_d3:
+    vendor: huawei
+    category: wearables
+    flags: *flags_huawei
+  huawei_watch_gt:
+    vendor: huawei
+    category: wearables
+    flags: *flags_huawei
+  huawei_watch_gt_2:
+    vendor: huawei
+    category: wearables
+    flags: *flags_huawei
+  huawei_watch_gt_2_pro:
+    vendor: huawei
+    category: wearables
+    flags: [feature_poor, pair_free, experimental]
+  huawei_watch_gt_2e:
+    vendor: huawei
+    category: wearables
+    flags: [feature_poor, pair_free, experimental]
+  huawei_watch_gt_3:
+    vendor: huawei
+    category: wearables
+    flags: *flags_huawei
+  huawei_watch_gt_3_pro:
+    vendor: huawei
+    category: wearables
+    flags: *flags_huawei
+  huawei_watch_gt_3_se:
+    vendor: huawei
+    category: wearables
+    flags: *flags_huawei
+  huawei_watch_gt_4:
+    vendor: huawei
+    category: wearables
+    flags: *flags_huawei
+  huawei_watch_gt_5:
+    vendor: huawei
+    category: wearables
+    flags: *flags_huawei
+  huawei_watch_gt_5_pro:
+    vendor: huawei
+    category: wearables
+    flags: *flags_huawei
+  huawei_watch_gt_6:
+    vendor: huawei
+    category: wearables
+    flags: *flags_huawei
+  huawei_watch_gt_6_pro:
+    vendor: huawei
+    category: wearables
+    flags: *flags_huawei
+  huawei_watch_gt_7:
+    vendor: huawei
+    category: wearables
+    flags: *flags_huawei
+  huawei_watch_gt_7_pro:
+    vendor: huawei
+    category: wearables
+    flags: *flags_huawei
+  huawei_watch_gt_cyber:
+    vendor: huawei
+    category: wearables
+    flags: *flags_huawei
+  huawei_watch_gt_runner:
+    vendor: huawei
+    category: wearables
+    flags: *flags_huawei
+  huawei_watch_gt_runner_2:
+    vendor: huawei
+    category: wearables
+    flags: *flags_huawei
+  huawei_watch_fit:
+    vendor: huawei
+    category: wearables
+    flags: *flags_huawei
+  huawei_watch_fit_2:
+    vendor: huawei
+    category: wearables
+    flags: *flags_huawei
+  huawei_watch_fit_3:
+    vendor: huawei
+    category: wearables
+    flags: *flags_huawei
+  huawei_watch_fit_4:
+    vendor: huawei
+    category: wearables
+    flags: *flags_huawei
+  huawei_watch_fit_4_pro:
+    vendor: huawei
+    category: wearables
+    flags: *flags_huawei
+  huawei_watch_fit_5:
+    vendor: huawei
+    category: wearables
+    flags: *flags_huawei
+  huawei_watch_fit_5_pro:
+    vendor: huawei
+    category: wearables
+    flags: [feature_unknown, pair_free, experimental]
+  huawei_watch_ultimate:
+    vendor: huawei
+    category: wearables
+    flags: *flags_huawei
+  huawei_watch_ultimate_2:
+    vendor: huawei
+    category: wearables
+    flags: *flags_huawei
+  #
+  #   Casio
+  #
+  casio_ecb-s100:
+    vendor: casio
+    category: wearables
+    flags: [feature_most, pair_free]
+    links:
+      protocol: *link_casio_protocol
+  casio_gb-5600b:
+    vendor: casio
+    category: wearables
+    flags: [feature_most, pair_free]
+    links:
+      protocol: *link_casio_protocol
+  casio_gb-6900b:
+    vendor: casio
+    category: wearables
+    flags: [feature_most, pair_free]
+    links:
+      protocol: *link_casio_protocol
+  casio_gb-x6900b:
+    vendor: casio
+    category: wearables
+    flags: [feature_most, pair_free]
+    links:
+      protocol: *link_casio_protocol
+  casio_stb-1000:
+    vendor: casio
+    category: wearables
+    flags: [feature_most, pair_free]
+    links:
+      protocol: *link_casio_protocol
+  casio_gbx-100:
+    vendor: casio
+    category: wearables
+    flags: [feature_most, pair_free]
+    links:
+      protocol: *link_casio_protocol
+  casio_gbd-100:
+    vendor: casio
+    category: wearables
+    flags: [feature_most, experimental, pair_free]
+    links:
+      protocol: *link_casio_protocol
+  casio_gbd-200:
+    vendor: casio
+    category: wearables
+    flags: [feature_high, pair_free]
+    links:
+      protocol: *link_casio_protocol
+  casio_gbd-h1000:
+    vendor: casio
+    category: wearables
+    flags: [feature_most, pair_free]
+    links:
+      protocol: *link_casio_protocol
+  casio_gw-b5600:
+    vendor: casio
+    category: wearables
+    flags: [feature_most, pair_free]
+    links:
+      protocol: *link_casio_protocol
+  casio_gmw-b5000:
+    vendor: casio
+    category: wearables
+    flags: [feature_most, experimental, pair_free]
+    links:
+      protocol: *link_casio_protocol
+  casio_gg-b100:
+    vendor: casio
+    category: wearables
+    flags: [feature_high, pair_free]
+    links:
+      protocol: *link_casio_protocol
+  #
+  #   Keep Health
+  #
+  keephealth_c60:
+    vendor: keephealth
+    category: wearables
+    flags: [feature_most, pair_free]
+  #
+  #   Laxasfit
+  #
+  laxasfit_q11:
+    vendor: laxasfit
+    category: wearables
+    flags: [feature_partial, pair_unknown]
+  #
+  #   Wearfit
+  #
+  wearfit_hk8_ultra:
+    vendor: wearfit
+    category: wearables
+    flags: [feature_most, pair_free]
+    links:
+      protocol: *link_fitpro_protocol
+  #
+  #   FitPro
+  #
+  fitpro_m6:
+    vendor: fitpro
+    category: wearables
+    flags: *flags_unknown_free
+    links:
+      protocol: *link_fitpro_protocol
+  fitpro_m4:
+    vendor: fitpro
+    category: wearables
+    flags: *flags_unknown_free
+    links:
+      protocol: *link_fitpro_protocol
+  fitpro_lh716:
+    vendor: fitpro
+    category: wearables
+    flags: *flags_unknown_free
+    links:
+      protocol: *link_fitpro_protocol
+  fitpro_sunset_6:
+    vendor: fitpro
+    category: wearables
+    flags: *flags_unknown_free
+    links:
+      protocol: *link_fitpro_protocol
+  fitpro_watch_7:
+    vendor: fitpro
+    category: wearables
+    flags: *flags_unknown_free
+    links:
+      protocol: *link_fitpro_protocol
+  fitpro_fit_1900:
+    vendor: fitpro
+    category: wearables
+    flags: *flags_unknown_free
+    links:
+      protocol: *link_fitpro_protocol
+  colacao_2021:
+    vendor: fitpro
+    category: wearables
+    flags: *flags_unknown_free
+    links:
+      protocol: *link_fitpro_protocol
+  colacao_2023:
+    vendor: fitpro
+    category: wearables
+    flags: *flags_unknown_free
+    links:
+      protocol: *link_fitpro_protocol
+  fitpro_y68:
+    vendor: fitpro
+    category: wearables
+    flags: *flags_unknown_free
+    links:
+      protocol: *link_fitpro_protocol
+  fitpro_braz7harry:
+    vendor: fitpro
+    category: wearables
+    flags: [feature_high, pair_free]
+    links:
+      protocol: *link_fitpro_protocol
+  fitpro_d13_116plus:
+    vendor: fitpro
+    category: wearables
+    flags: *flags_unknown_free
+    links:
+      protocol: *link_fitpro_protocol
+  fitpro_series_11:
+    vendor: fitpro
+    category: wearables
+    flags: *flags_unknown_free
+    links:
+      protocol: *link_fitpro_protocol
+  fitpro_ybw_05:
+    vendor: fitpro
+    category: wearables
+    flags: [feature_partial, pair_free]
+    links:
+      protocol: *link_fitpro_protocol
+  #
+  #   Fossil
+  #
+  fossil_hybrid_hr:
+    vendor: fossil
+    category: wearables
+    flags: *flags_high_fossil
+    links:
+      firmware_info: *link_fossil_firmware
+  fossil_gen_6_hybrid:
+    vendor: fossil
+    category: wearables
+    flags: *flags_high_fossil
+    links:
+      firmware_info: *link_fossil_firmware
+  skagen_jorn_gen_6:
+    vendor: fossil
+    category: wearables
+    flags: *flags_high_fossil
+    links:
+      firmware_info: *link_fossil_firmware
+  fossil_q_hybrid:
+    vendor: fossil
+    category: wearables
+    flags: [feature_most, pair_free]
+  citizen_cz_gen2:
+    vendor: fossil
+    category: wearables
+    flags: *flags_high_fossil    
+  #
+  #   Garmin
+  #
+  garmin_edge_25:
+    vendor: garmin
+    category: bike-computers
+    flags: [feature_partial, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_edge_130:
+    vendor: garmin
+    category: bike-computers
+    flags: [feature_partial, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_edge_130_plus:
+    vendor: garmin
+    category: bike-computers
+    flags: [feature_partial, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_edge_540:
+    vendor: garmin
+    category: bike-computers
+    flags: [feature_partial, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_edge_510:
+    vendor: garmin
+    category: bike-computers
+    flags: [feature_unknown, experimental, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_edge_520:
+    vendor: garmin
+    category: bike-computers
+    flags: [feature_unknown, experimental, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_edge_520_plus:
+    vendor: garmin
+    category: bike-computers
+    flags: [feature_partial, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_edge_530:
+    vendor: garmin
+    category: bike-computers
+    flags: [feature_unknown, experimental, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_edge_550:
+    vendor: garmin
+    category: bike-computers
+    flags: [feature_unknown, experimental, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_edge_810:
+    vendor: garmin
+    category: bike-computers
+    flags: [feature_unknown, experimental, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_edge_820:
+    vendor: garmin
+    category: bike-computers
+    flags: [feature_unknown, experimental, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_edge_830:
+    vendor: garmin
+    category: bike-computers
+    flags: [feature_unknown, experimental, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_edge_850:
+    vendor: garmin
+    category: bike-computers
+    flags: [feature_unknown, experimental, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_edge_1000:
+    vendor: garmin
+    category: bike-computers
+    flags: [feature_unknown, experimental, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_edge_1030:
+    vendor: garmin
+    category: bike-computers
+    flags: [feature_unknown, experimental, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_edge_1030_plus:
+    vendor: garmin
+    category: bike-computers
+    flags: [feature_unknown, experimental, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_edge_mtb:
+    vendor: garmin
+    category: bike-computers
+    flags: [feature_unknown, experimental, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_edge_840:
+    vendor: garmin
+    category: bike-computers
+    flags: [feature_partial, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_edge_1040:
+    vendor: garmin
+    category: bike-computers
+    flags: [feature_partial, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_edge_1050:
+    vendor: garmin
+    category: bike-computers
+    flags: [feature_partial, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_edge_explore:
+    vendor: garmin
+    category: bike-computers
+    flags: [feature_partial, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_edge_explore_2:
+    vendor: garmin
+    category: bike-computers
+    flags: [feature_partial, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_edge_explore_820:
+    vendor: garmin
+    category: bike-computers
+    flags: [feature_unknown, experimental, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_edge_explore_1000:
+    vendor: garmin
+    category: bike-computers
+    flags: [feature_unknown, experimental, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_etrex_se:
+    vendor: garmin
+    category: bike-computers
+    flags: [feature_partial, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_gpsmap_66i:
+    vendor: garmin
+    category: navigations
+    flags: [feature_unknown, pair_free, os_garmin, experimental]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_gpsmap_66s:
+    vendor: garmin
+    category: navigations
+    flags: [feature_partial, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_gpsmap_66sr:
+    vendor: garmin
+    category: navigations
+    flags: [feature_unknown, pair_free, os_garmin, experimental]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_gpsmap_h1:
+    vendor: garmin
+    category: navigations
+    flags: [feature_partial, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_inreach_mini_2:
+    vendor: garmin
+    category: navigations
+    flags: [feature_partial, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_cirqa:
+    vendor: garmin
+    category: wearables
+    flags: [feature_partial, pair_free, os_garmin, experimental]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_d2_air:
+    vendor: garmin
+    category: wearables
+    flags: [feature_unknown, experimental, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_d2_air_x10:
+    vendor: garmin
+    category: wearables
+    flags: [feature_unknown, experimental, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_d2_air_x15:
+    vendor: garmin
+    category: wearables
+    flags: [feature_unknown, experimental, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_d2_mach_1:
+    vendor: garmin
+    category: wearables
+    flags: [feature_unknown, experimental, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_d2_mach_1_pro:
+    vendor: garmin
+    category: wearables
+    flags: [feature_unknown, experimental, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_d2_mach_2:
+    vendor: garmin
+    category: wearables
+    flags: [feature_unknown, experimental, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_d2_mach_2_pro:
+    vendor: garmin
+    category: wearables
+    flags: [feature_unknown, experimental, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_enduro:
+    vendor: garmin
+    category: wearables
+    flags: [feature_unknown, pair_free, os_garmin, experimental]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_enduro_3:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_enduro_4:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_enduro_2:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_epix:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin
+    links:
+      protocol: *link_garmin_protocol
+  garmin_epix_pro:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin
+    links:
+      protocol: *link_garmin_protocol
+  garmin_epix_gen2:
+    vendor: garmin
+    category: wearables
+    flags: [feature_unknown, experimental, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_descent_g1:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_descent_g2:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_descent_mk3:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin
+    links:
+      protocol: *link_garmin_protocol
+  garmin_descent_mk3i:
+    vendor: garmin
+    category: wearables
+    flags: [feature_unknown, experimental, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_fenix_2:
+    vendor: garmin
+    category: wearables
+    flags: [feature_unknown, experimental, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_fenix_3_chronos:
+    vendor: garmin
+    category: wearables
+    flags: [feature_unknown, experimental, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_fenix_5:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin
+    links:
+      protocol: *link_garmin_protocol
+  garmin_fenix_5_plus:
+    vendor: garmin
+    category: wearables
+    flags: [feature_partial, pair_unknown, os_garmin, experimental]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_fenix_5s:
+    vendor: garmin
+    category: wearables
+    flags: [feature_partial, pair_unknown, os_garmin, experimental]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_fenix_5s_plus:
+    vendor: garmin
+    category: wearables
+    flags: [feature_partial, pair_unknown, os_garmin, experimental]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_fenix_5x:
+    vendor: garmin
+    category: wearables
+    flags: [feature_unknown, experimental, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_fenix_5x_plus:
+    vendor: garmin
+    category: wearables
+    flags: [feature_partial, pair_unknown, os_garmin, experimental]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_fenix_6:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_fenix_6s:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_fenix_6_pro:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_fenix_6_sapphire:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_fenix_6s_pro:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_fenix_6s_pro_solar:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_fenix_6x:
+    vendor: garmin
+    category: wearables
+    flags: [feature_unknown, experimental, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_fenix_6x_pro:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_fenix_6s_sapphire:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_fenix_6x_pro_solar:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_fenix_6x_sapphire:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_fenix_6_sport:
+    vendor: garmin
+    category: wearables
+    flags: [feature_unknown, experimental, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_fenix_6s_sport:
+    vendor: garmin
+    category: wearables
+    flags: [feature_unknown, experimental, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_fenix_7:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_fenix_7s:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_fenix_7s_pro:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_fenix_7s_pro_solar:
+    vendor: garmin
+    category: wearables
+    flags: [feature_unknown, experimental, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_fenix_7x:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_fenix_7x_pro:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_fenix_7x_pro_solar:
+    vendor: garmin
+    category: wearables
+    flags: [feature_unknown, experimental, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_fenix_7_pro:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_fenix_7_pro_solar:
+    vendor: garmin
+    category: wearables
+    flags: [feature_unknown, experimental, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_fenix_8:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_fenix_8_solar:
+    vendor: garmin
+    category: wearables
+    flags: [feature_unknown, experimental, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_fenix_8_pro:
+    vendor: garmin
+    category: wearables
+    flags: [feature_unknown, experimental, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_fenix_9:
+    vendor: garmin
+    category: wearables
+    flags: [feature_unknown, experimental, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_fenix_9_pro:
+    vendor: garmin
+    category: wearables
+    flags: [feature_unknown, experimental, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_fenix_9_pro_solar:
+    vendor: garmin
+    category: wearables
+    flags: [feature_unknown, experimental, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_fenix_e:
+    vendor: garmin
+    category: wearables
+    flags: [feature_unknown, experimental, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_forerunner_25:
+    vendor: garmin
+    category: wearables
+    flags: [feature_unknown, experimental, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_forerunner_30:
+    vendor: garmin
+    category: wearables
+    flags: [feature_unknown, experimental, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_forerunner_220:
+    vendor: garmin
+    category: wearables
+    flags: [feature_unknown, experimental, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_forerunner_225:
+    vendor: garmin
+    category: wearables
+    flags: [feature_unknown, experimental, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_forerunner_35:
+    vendor: garmin
+    category: wearables
+    flags: [feature_unknown, pair_free, os_garmin, experimental]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_forerunner_45:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin
+    links:
+      protocol: *link_garmin_protocol
+  garmin_forerunner_45_plus:
+    vendor: garmin
+    category: wearables
+    flags: [feature_unknown, pair_free, os_garmin, experimental]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_forerunner_55:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin
+    links:
+      protocol: *link_garmin_protocol
+  garmin_forerunner_70:
+    vendor: garmin
+    category: wearables
+    flags: [feature_unknown, experimental, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_forerunner_165:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_forerunner_165_music:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_forerunner_170:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_forerunner_170_music:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_forerunner_230:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin
+    links:
+      protocol: *link_garmin_protocol
+  garmin_forerunner_235:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin
+    links:
+      protocol: *link_garmin_protocol
+  garmin_forerunner_245:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin
+    links:
+      protocol: *link_garmin_protocol
+  garmin_forerunner_245_music:
+    vendor: garmin
+    category: wearables
+    flags: [feature_partial, pair_unknown, os_garmin, experimental]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_forerunner_255:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_forerunner_255_music:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_forerunner_255s:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_forerunner_255s_music:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_forerunner_265:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_forerunner_265s:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_forerunner_570:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_forerunner_620:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin
+    links:
+      protocol: *link_garmin_protocol
+  garmin_forerunner_630:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin
+    links:
+      protocol: *link_garmin_protocol
+  garmin_forerunner_645:
+    vendor: garmin
+    category: wearables
+    flags: [feature_unknown, experimental, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_forerunner_645_music:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin
+    links:
+      protocol: *link_garmin_protocol
+  garmin_forerunner_735xt:
+    vendor: garmin
+    category: wearables
+    flags: [feature_unknown, pair_free, os_garmin, experimental]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_forerunner_745:
+    vendor: garmin
+    category: wearables
+    flags: [feature_unknown, pair_free, os_garmin, experimental]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_forerunner_920:
+    vendor: garmin
+    category: wearables
+    flags: [feature_unknown, experimental, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_forerunner_935:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin
+    links:
+      protocol: *link_garmin_protocol
+  garmin_forerunner_945:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin
+    links:
+      protocol: *link_garmin_protocol
+  garmin_forerunner_945_lte:
+    vendor: garmin
+    category: wearables
+    flags: [feature_unknown, experimental, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_forerunner_955:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_forerunner_965:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_forerunner_970:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_instinct:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin
+    links:
+      protocol: *link_garmin_protocol
+  garmin_instinct_2:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_instinct_2_solar:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_instinct_2_soltac:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_instinct_2s:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_instinct_2s_solar:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_instinct_2s_surf:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_instinct_2x:
+    vendor: garmin
+    category: wearables
+    flags: [feature_unknown, experimental, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_instinct_2x_solar:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_instinct_2x_tactical:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_instinct_3:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_instinct_3_tactical:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_instinct_3_solar:
+    vendor: garmin
+    category: wearables
+    flags: [feature_unknown, experimental, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_instinct_3_solar_tactical:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_instinct_crossover:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_instinct_tactical:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin
+    links:
+      protocol: *link_garmin_protocol
+  garmin_instinct_e:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_lily:
+    vendor: garmin
+    category: wearables
+    flags: [feature_unknown, experimental, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_lily_2:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin
+    links:
+      protocol: *link_garmin_protocol
+  garmin_lily_2_active:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_instinct_solar:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin
+    links:
+      protocol: *link_garmin_protocol
+  garmin_instinct_solar_tactical:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin
+    links:
+      protocol: *link_garmin_protocol
+  garmin_quatix_6:
+    vendor: garmin
+    category: wearables
+    flags: [feature_unknown, pair_free, os_garmin, experimental]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_quatix_6x:
+    vendor: garmin
+    category: wearables
+    flags: [feature_unknown, pair_free, os_garmin, experimental]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_quatix_7:
+    vendor: garmin
+    category: wearables
+    flags: [feature_unknown, pair_free, os_garmin, experimental]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_quatix_7x:
+    vendor: garmin
+    category: wearables
+    flags: [feature_unknown, pair_free, os_garmin, experimental]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_quatix_8:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_tactix_7:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_tactix_8:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_tactix_8_solar:
+    vendor: garmin
+    category: wearables
+    flags: [feature_unknown, experimental, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_swim_2:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin
+    links:
+      protocol: *link_garmin_protocol
+  garmin_venu:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin
+    links:
+      protocol: *link_garmin_protocol
+  garmin_venu_sq:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin
+    links:
+      protocol: *link_garmin_protocol
+  garmin_venu_sq_music:
+    vendor: garmin
+    category: wearables
+    flags: [feature_unknown, experimental, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_venu_sq_2:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin
+    links:
+      protocol: *link_garmin_protocol
+  garmin_venu_sq_2_music:
+    vendor: garmin
+    category: wearables
+    flags: [feature_unknown, experimental, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_venu_2:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin
+    links:
+      protocol: *link_garmin_protocol
+  garmin_venu_2s:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin
+    links:
+      protocol: *link_garmin_protocol
+  garmin_venu_2_plus:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin
+    links:
+      protocol: *link_garmin_protocol
+  garmin_venu_3:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_venu_3s:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_venu_4:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_venu_x1:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_vivoactive:
+    vendor: garmin
+    category: wearables
+    flags: [feature_unknown, experimental, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_vivoactive_3:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin
+    links:
+      protocol: *link_garmin_protocol
+  garmin_vivoactive_3t:
+    vendor: garmin
+    category: wearables
+    flags: [feature_unknown, experimental, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_vivoactive_3_music:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin
+    links:
+      protocol: *link_garmin_protocol
+  garmin_vivoactive_4:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin
+    links:
+      protocol: *link_garmin_protocol
+  garmin_vivoactive_4s:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin
+    links:
+      protocol: *link_garmin_protocol
+  garmin_vivoactive_5:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_vivoactive_6:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin_sleep
+    links:
+      protocol: *link_garmin_protocol
+  garmin_vivoactive_hr:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin
+    links:
+      protocol: *link_garmin_protocol
+  garmin_vivosmart:
+    vendor: garmin
+    category: wearables
+    flags: [feature_unknown, experimental, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_vivosmart_hr:
+    vendor: garmin
+    category: wearables
+    flags: [feature_unknown, experimental, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_vivosmart_hr_plus:
+    vendor: garmin
+    category: wearables
+    flags: [feature_unknown, experimental, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_vivosmart_3:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin
+    links:
+      protocol: *link_garmin_protocol
+  garmin_vivosmart_4:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin
+    links:
+      protocol: *link_garmin_protocol
+  garmin_vivosmart_5:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin
+    links:
+      protocol: *link_garmin_protocol
+  garmin_vivomove:
+    vendor: garmin
+    category: wearables
+    flags: [feature_unknown, experimental, pair_free, os_garmin]
+    links:
+      protocol: *link_garmin_protocol
+  garmin_vivomove_hr:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin
+    links:
+      protocol: *link_garmin_protocol
+  garmin_vivomove_sport:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin
+    links:
+      protocol: *link_garmin_protocol
+  garmin_vivomove_style:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin
+    links:
+      protocol: *link_garmin_protocol
+  garmin_vivomove_trend:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin
+    links:
+      protocol: *link_garmin_protocol
+  garmin_vivosport:
+    vendor: garmin
+    category: wearables
+    flags: *flags_garmin
+    links:
+      protocol: *link_garmin_protocol
+  garmin_hrm_200:
+    vendor: garmin
+    category: hr-bands
+    flags: [feature_partial, pair_free]
+  garmin_hrm_600:
+    vendor: garmin
+    category: hr-bands
+    flags: [feature_partial, pair_free]
+  garmin_hrm_pro_plus:
+    vendor: garmin
+    category: hr-bands
+    flags: [feature_partial, pair_free]
+  #
+  #   Coospo
+  #
+  coospo_h6:
+    vendor: coospo
+    category: hr-bands
+    flags: [feature_partial, pair_free]
+  coospo_h808s:
+    vendor: coospo
+    category: hr-bands
+    flags: [feature_partial, pair_free]
+  coospo_h9z:
+    vendor: coospo
+    category: hr-bands
+    flags: [feature_partial, pair_free]
+  coospo_hw9:
+    vendor: coospo
+    category: hr-bands
+    flags: [feature_partial, pair_free]
+  coospo_hw807:
+    vendor: coospo
+    category: hr-bands
+    flags: [feature_partial, pair_free]
+  #
+  #   Hama
+  #
+  hama_fit6900:
+    vendor: hama
+    category: wearables
+    flags: [feature_partial, pair_free]
+  #
+  #   HPlus
+  #
+  hplus_zeblaze_zeband:
+    vendor: hplus
+    category: wearables
+    flags: [feature_most, pair_free]
+    links:
+      protocol: *link_hplus_protocol
+  hplus_zeblaze_zeband_plus:
+    vendor: hplus
+    category: wearables
+    flags: [feature_most, pair_free]
+    links:
+      protocol: *link_hplus_protocol
+  hplus_makibes_f68:
+    vendor: hplus
+    category: wearables
+    flags: [feature_most, pair_free]
+    links:
+      protocol: *link_hplus_protocol
+  #
+  #   Samsung
+  #
+  samsung_galaxy_buds_2019:
+    vendor: samsung
+    category: headphones
+    flags: *flags_high_free
+    links:
+      protocol: *link_galaxy_buds_protocol
+  samsung_galaxy_buds_live:
+    vendor: samsung
+    category: headphones
+    flags: *flags_high_free
+    links:
+      protocol: *link_galaxy_buds_protocol
+  samsung_galaxy_buds_pro:
+    vendor: samsung
+    category: headphones
+    flags: *flags_high_free
+    links:
+      protocol: *link_galaxy_buds_protocol
+  samsung_galaxy_buds_2:
+    vendor: samsung
+    category: headphones
+    flags: *flags_high_free
+    links:
+      protocol: *link_galaxy_buds_protocol
+  samsung_galaxy_buds_2_pro:
+    vendor: samsung
+    category: headphones
+    flags: *flags_high_free
+    links:
+      protocol: *link_galaxy_buds_protocol
+  samsung_galaxy_buds_3_pro:
+    vendor: samsung
+    category: headphones
+    flags: *flags_high_free
+    links:
+      protocol: *link_galaxy_buds_protocol
+  #
+  #   Nothing
+  #
+  nothing_ear_1:
+    vendor: nothing
+    category: headphones
+    flags: *flags_high_free
+  nothing_ear_2:
+    vendor: nothing
+    category: headphones
+    flags: *flags_high_free
+  nothing_ear_a:
+    vendor: nothing
+    category: headphones
+    flags: *flags_high_free
+  nothing_ear_stick:
+    vendor: nothing
+    category: headphones
+    flags: *flags_high_free
+  nothing_cmf_buds_2:
+    vendor: nothing
+    category: headphones
+    flags: [feature_most, pair_free]
+  nothing_cmf_buds_2_plus:
+    vendor: nothing
+    category: headphones
+    flags: [feature_most, pair_free]
+  nothing_cmf_buds_2a:
+    vendor: nothing
+    category: headphones
+    flags: [feature_partial, experimental, pair_free]
+  nothing_cmf_buds_pro_2:
+    vendor: nothing
+    category: headphones
+    flags: [feature_most, pair_free]
+  nothing_cmf_watch_pro:
+    vendor: nothing
+    category: wearables
+    flags: [feature_high, pair_nothing_cmf]
+  nothing_cmf_watch_pro_2:
+    vendor: nothing
+    category: wearables
+    flags: [feature_most, pair_free]
+  nothing_cmf_watch_pro_3:
+    vendor: nothing
+    category: wearables
+    flags: [feature_partial, pair_free, experimental]
+  #
+  #   Anker
+  #
+  anker_soundcore_a30i:
+    vendor: anker
+    category: headphones
+    flags: [feature_high, pair_free]
+  anker_soundcore_liberty_3_pro:
+    vendor: anker
+    category: headphones
+    flags: [feature_high, pair_free]
+  anker_soundcore_aerofit_2:
+    vendor: anker
+    category: headphones
+    flags: [feature_partial, pair_free]
+  anker_soundcore_liberty_4_nc:
+    vendor: anker
+    category: headphones
+    flags: [feature_high, pair_free]
+  anker_soundcore_motion_300:
+    vendor: anker
+    category: speakers
+    flags: [feature_high, pair_free]
+  anker_soundcore_motion_plus:
+    vendor: anker
+    category: speakers
+    flags: [feature_most, pair_free]
+  anker_soundcore_life_tune:
+    vendor: anker
+    category: headphones
+    flags: [feature_most, pair_free]
+  anker_soundcore_life_tune_xr:
+    vendor: anker
+    category: headphones
+    flags: [feature_most, pair_free]
+  anker_soundcore_q30:
+    vendor: anker
+    category: headphones
+    flags: [feature_most, pair_free]
+  anker_soundcore_r50i_nc:
+    vendor: anker
+    category: headphones
+    flags: [feature_most, pair_free]
+  anker_soundcore_sport_x20:
+    vendor: anker
+    category: headphones
+    flags: [feature_high, pair_free]
+  anker_soundcore_a1:
+    vendor: anker
+    category: headphones
+    flags: [feature_unknown, experimental, pair_free]
+  anker_soundcore_a2_nc:
+    vendor: anker
+    category: headphones
+    flags: [feature_unknown, experimental, pair_free]
+  anker_soundcore_a3i:
+    vendor: anker
+    category: headphones
+    flags: [feature_unknown, experimental, pair_free]
+  anker_soundcore_k20i:
+    vendor: anker
+    category: headphones
+    flags: [feature_unknown, experimental, pair_free]
+  anker_soundcore_p20i:
+    vendor: anker
+    category: headphones
+    flags: [feature_unknown, experimental, pair_free]
+  anker_soundcore_p2:
+    vendor: anker
+    category: headphones
+    flags: [feature_unknown, experimental, pair_free]
+  anker_soundcore_p2i:
+    vendor: anker
+    category: headphones
+    flags: [feature_unknown, experimental, pair_free]
+  anker_soundcore_p2_mini:
+    vendor: anker
+    category: headphones
+    flags: [feature_unknown, experimental, pair_free]
+  anker_soundcore_p30i:
+    vendor: anker
+    category: headphones
+    flags: [feature_unknown, experimental, pair_free]
+  anker_soundcore_p31i:
+    vendor: anker
+    category: headphones
+    flags: [feature_unknown, experimental, pair_free]
+  anker_soundcore_p3:
+    vendor: anker
+    category: headphones
+    flags: [feature_unknown, experimental, pair_free]
+  anker_soundcore_p3i:
+    vendor: anker
+    category: headphones
+    flags: [feature_unknown, experimental, pair_free]
+  anker_soundcore_p40i:
+    vendor: anker
+    category: headphones
+    flags: [feature_unknown, experimental, pair_free]
+  anker_soundcore_p41i:
+    vendor: anker
+    category: headphones
+    flags: [feature_unknown, experimental, pair_free]
+  anker_soundcore_p42i:
+    vendor: anker
+    category: headphones
+    flags: [feature_unknown, experimental, pair_free]
+  anker_soundcore_space_one:
+    vendor: anker
+    category: headphones
+    flags: [feature_unknown, experimental, pair_free]
+  anker_soundcore_v20i:
+    vendor: anker
+    category: headphones
+    flags: [feature_high, pair_free]
+  #
+  #   Bose
+  #
+  bose_nc700:
+    vendor: bose
+    category: headphones
+    flags: [feature_high, pair_free]
+  bose_qc35:
+    vendor: bose
+    category: headphones
+    flags: [feature_high, pair_free]
+  #
+  #   Haylou
+  #
+  haylou_s35_anc:
+    vendor: haylou
+    category: headphones
+    flags: [feature_high, pair_free]
+  #
+  #   Jabra
+  #
+  jabra_evolve_65:
+    vendor: jabra
+    category: headphones
+    flags: [feature_most, pair_free]
+  jabra_evolve2_55:
+    vendor: jabra
+    category: headphones
+    flags: [feature_high, pair_free]
+  jabra_evolve2_65:
+    vendor: jabra
+    category: headphones
+    flags: [feature_high, pair_free]
+  #
+  #   Shokz
+  #
+  shokz_openswim_pro:
+    vendor: shokz
+    category: headphones
+    flags: [feature_high, pair_free]
+  shokz_openrun_pro_2:
+    vendor: shokz
+    category: headphones
+    flags: [feature_high, pair_free]
+  #
+  #   OPPO
+  #
+  oppo_enco_air:
+    vendor: oppo
+    category: headphones
+    flags: *flags_high_free
+  oppo_enco_air2:
+    vendor: oppo
+    category: headphones
+    flags: [feature_most, pair_connect_once]
+  oppo_enco_buds2:
+    vendor: oppo
+    category: headphones
+    flags: [feature_most, pair_connect_once]
+  #
+  #   Huawei
+  #
+  huawei_freearc:
+    vendor: huawei
+    category: headphones
+    flags: [feature_most, pair_free]
+  huawei_freebuds_5i:
+    vendor: huawei
+    category: headphones
+    flags: [feature_most, pair_free]
+  huawei_freebuds_6:
+    vendor: huawei
+    category: headphones
+    flags: [feature_most, pair_free]
+  huawei_freebuds_pro:
+    vendor: huawei
+    category: headphones
+    flags: [feature_most, pair_free]
+  huawei_freebuds_pro_3:
+    vendor: huawei
+    category: headphones
+    flags: [feature_most, pair_free]
+  huawei_freeclip_2:
+    vendor: huawei
+    category: headphones
+    flags: [feature_partial, pair_free]
+  #
+  #   1MORE
+  #
+  1more_sonoflow:
+    vendor: 1more
+    category: headphones
+    flags: [feature_most, pair_free]
+  1more_sonoflow_se:
+    vendor: 1more
+    category: headphones
+    flags: [feature_most, pair_free]
+  #
+  #   Cardo
+  #
+  cardo_ls2_4x:
+    vendor: cardo
+    category: headphones
+    flags: [feature_partial, pair_free]
+  #
+  #   UGREEN
+  #
+  ugreen_hitune_max_5c:
+    vendor: ugreen
+    category: headphones
+    flags: [feature_high, pair_free]
+  #
+  #   Xiaomi
+  #
+  xiaomi_redmi_buds_3_pro:
+    vendor: xiaomi
+    category: headphones
+    flags: *flags_high_free
+  xiaomi_redmi_buds_4_active:
+    vendor: xiaomi
+    category: headphones
+    flags: [feature_most, pair_free]
+  xiaomi_redmi_buds_5_pro:
+    vendor: xiaomi
+    category: headphones
+    flags: *flags_high_free
+  xiaomi_redmi_buds_6_active:
+    vendor: xiaomi
+    category: headphones
+    flags: [feature_high, pair_free]
+  xiaomi_redmi_buds_6:
+    vendor: xiaomi
+    category: headphones
+    flags: *flags_high_free
+  xiaomi_redmi_buds_6_lite:
+    vendor: xiaomi
+    category: headphones
+    flags: *flags_high_free
+  xiaomi_redmi_buds_6_pro:
+    vendor: xiaomi
+    category: headphones
+    flags: *flags_high_free
+  xiaomi_redmi_buds_8_active:
+    vendor: xiaomi
+    category: headphones
+    flags: [feature_high, pair_free]
+  #
+  #   Reale
+  #
+  realme_buds_t100:
+    vendor: realme
+    category: headphones
+    flags: [feature_most, pair_free]
+  realme_buds_t110:
+    vendor: realme
+    category: headphones
+    flags: [feature_most, pair_free]
+  realme_buds_t200:
+    vendor: realme
+    category: headphones
+    flags: [feature_most, pair_free]
+  realme_buds_t300:
+    vendor: realme
+    category: headphones
+    flags: [feature_most, pair_free]
+  realme_buds_air_5_pro:
+    vendor: realme
+    category: headphones
+    flags: [feature_most, pair_free]
+  realme_buds_air_6_pro:
+    vendor: realme
+    category: headphones
+    flags: [feature_most, pair_free]
+  #
+  #   Bowers and Wilkins
+  #
+  bowers_wilkins_p_series:
+    vendor: bowers_wilkins
+    category: headphones
+    flags: [feature_most, pair_free]
+  #
+  #   Sennheiser
+  #
+  sennheiser_momentum_in_ear_wireless:
+    vendor: sennheiser
+    category: headphones
+    flags: [feature_high, pair_free]
+  #
+  #   Moondrop
+  #
+  moondrop_space_travel:
+    vendor: moondrop
+    category: headphones
+    flags: [feature_high, pair_free]
+  moondrop_space_travel_2:
+    vendor: moondrop
+    category: headphones
+    flags: [feature_high, pair_free]
+  moondrop_space_travel_2_ultra:
+    vendor: moondrop
+    category: headphones
+    flags: [feature_high, pair_free]
+  #
+  #   Google
+  #
+  google_pixel_buds_a:
+    vendor: google
+    category: headphones
+    flags: [feature_poor, pair_free]
+  #
+  #   EarFun
+  #
+  earfun_air_s:
+    vendor: earfun
+    category: headphones
+    flags: [feature_high, pair_free]
+  earfun_air_pro_4:
+    vendor: earfun
+    category: headphones
+    flags: [feature_high, pair_free]
+  earfun_free_pro_3:
+    vendor: earfun
+    category: headphones
+    flags: [feature_high, pair_free]
+  #
+  #   Sony
+  #
+  sony_wh-1000xm2:
+    vendor: sony
+    category: headphones
+    flags: *flags_high_free
+  sony_wh-1000xm3:
+    vendor: sony
+    category: headphones
+    flags: *flags_high_free
+  sony_wh-1000xm4:
+    vendor: sony
+    category: headphones
+    flags: *flags_high_free
+  sony_wf-sp800n:
+    vendor: sony
+    category: headphones
+    flags: *flags_high_free
+  sony_wf-1000xm3:
+    vendor: sony
+    category: headphones
+    flags: *flags_high_free
+  sony_wf-1000xm4:
+    vendor: sony
+    category: headphones
+    flags: *flags_high_free
+  sony_linkbuds:
+    vendor: sony
+    category: headphones
+    flags: *flags_high_free
+  sony_linkbuds_s:
+    vendor: sony
+    category: headphones
+    flags: [feature_partial, pair_free]
+  sony_wh-1000xm5:
+    vendor: sony
+    category: headphones
+    flags: [feature_partial, pair_free]
+  sony_wh-1000xm6:
+    vendor: sony
+    category: headphones
+    flags: [feature_partial, experimental, pair_free]
+  sony_wh-ch720n:
+    vendor: sony
+    category: headphones
+    flags: [feature_partial, pair_free]
+  sony_wena_3:
+    vendor: sony
+    category: wearables
+    flags: *flags_high_free
+  sony_wf-1000xm5:
+    vendor: sony
+    category: headphones
+    flags: [feature_most, pair_free, experimental]
+  sony_wh-ult900n:
+    vendor: sony
+    category: headphones
+    flags: *flags_high_free
+  sony_wf-c500:
+    vendor: sony
+    category: headphones
+    flags: *flags_high_free
+  sony_wf-c510:
+    vendor: sony
+    category: headphones
+    flags: *flags_high_free
+  sony_wf-c700n:
+    vendor: sony
+    category: headphones
+    flags: *flags_high_free
+  sony_wf-c710n:
+    vendor: sony
+    category: headphones
+    flags: *flags_high_free
+  sony_wi-c100:
+    vendor: sony
+    category: headphones
+    flags: *flags_high_free
+  sony_wi-sp600n:
+    vendor: sony
+    category: headphones
+    flags: *flags_high_free
+  #
+  #   iTag
+  #
+  itag_any:
+    vendor: itag
+    category: trackers
+    flags: [feature_most, pair_free]
+  #
+  #   Lenovo
+  #
+  lenovo_watch_9:
+    vendor: lenovo
+    category: wearables
+    flags: *flags_unknown_free
+  lenovo_watch_x:
+    vendor: lenovo
+    category: wearables
+    flags: *flags_high_free
+  lenovo_watch_x_plus:
+    vendor: lenovo
+    category: wearables
+    flags: *flags_high_free
+  #
+  #   Pebble
+  #
+  pebble_classic:
+    category: wearables
+    vendor: pebble
+    flags: *flags_high_free
+    links:
+      firmware_info: *link_pebble_firmware
+      language_pack: *link_pebble_language
+      protocol: *link_pebble_datalog
+  pebble_steel:
+    category: wearables
+    vendor: pebble
+    flags: *flags_high_free
+    links:
+      firmware_info: *link_pebble_firmware
+      language_pack: *link_pebble_language
+      protocol: *link_pebble_datalog
+  pebble_time:
+    category: wearables
+    vendor: pebble
+    flags: *flags_high_free
+    links:
+      firmware_info: *link_pebble_firmware
+      language_pack: *link_pebble_language
+      protocol: *link_pebble_datalog
+  pebble_time_steel:
+    category: wearables
+    vendor: pebble
+    flags: *flags_high_free
+    links:
+      firmware_info: *link_pebble_firmware
+      language_pack: *link_pebble_language
+      protocol: *link_pebble_datalog
+  pebble_time_round:
+    category: wearables
+    vendor: pebble
+    flags: *flags_high_free
+    links:
+      firmware_info: *link_pebble_firmware
+      language_pack: *link_pebble_language
+      protocol: *link_pebble_datalog
+  pebble_classic_2:
+    category: wearables
+    vendor: pebble
+    flags: *flags_high_free
+    links:
+      firmware_info: *link_pebble_firmware
+      language_pack: *link_pebble_language
+      protocol: *link_pebble_datalog
+  pebble_2_duo:
+    category: wearables
+    vendor: pebble
+    flags: *flags_high_free
+    links:
+      firmware_info: *link_pebble_firmware
+      language_pack: *link_pebble_language
+      protocol: *link_pebble_datalog
+  pebble_time_2:
+    category: wearables
+    vendor: pebble
+    flags: *flags_high_free
+    links:
+      firmware_info: *link_pebble_firmware
+      language_pack: *link_pebble_language
+      protocol: *link_pebble_datalog
+  #
+  #   SMA
+  #
+  sma_q2:
+    vendor: sma
+    category: wearables
+    flags: [feature_poor, pair_free]
+  sma_q3:
+    vendor: sma
+    category: wearables
+    flags: *flags_unknown_free
+  #
+  #   Coros
+  #
+  coros_pace_3:
+    vendor: coros
+    category: wearables
+    flags: [feature_poor, experimental, pair_auth_key]
+  #
+  #   Yawell smart rings
+  #
+  colmi_r02:
+    vendor: colmi
+    category: rings
+    flags: *flags_high_free
+  colmi_r03:
+    vendor: colmi
+    category: rings
+    flags: *flags_high_free
+  colmi_r06:
+    vendor: colmi
+    category: rings
+    flags: *flags_high_free
+  colmi_r07:
+    vendor: colmi
+    category: rings
+    flags: *flags_high_free
+  colmi_r09:
+    vendor: colmi
+    category: rings
+    flags: *flags_high_free
+  colmi_r10:
+    vendor: colmi
+    category: rings
+    flags: *flags_high_free
+  colmi_r12:
+    vendor: colmi
+    category: rings
+    flags: *flags_high_free
+  yawell_r05:
+    vendor: yawell
+    category: rings
+    flags: *flags_high_free
+  yawell_ai_health_watchpad:
+    vendor: yawell
+    category: rings
+    flags: [feature_most, pair_free]
+  yawell_r10:
+    vendor: yawell
+    category: rings
+    flags: *flags_high_free
+  yawell_r11:
+    vendor: yawell
+    category: rings
+    flags: *flags_high_free
+  other_h59:
+    vendor: other
+    category: wearables
+    flags: *flags_high_free
+  #
+  # Even Realities
+  #
+  even_realities_g1:
+    vendor: even-realities
+    category: glasses
+    flags: [feature_partial, pair_free]
+  #
+  # Moyoung / Da Fit devices
+  #
+  moyoung_blackview_r60:
+    vendor: moyoung
+    category: wearables
+    flags: *flags_high_free
+  moyoung_colmi_i28_ultra:
+    vendor: moyoung
+    category: wearables
+    flags: *flags_high_free
+  moyoung_colmi_p76:
+    vendor: moyoung
+    category: wearables
+    flags: *flags_high_free
+  moyoung_colmi_p80:
+    vendor: moyoung
+    category: wearables
+    flags: *flags_high_free
+  moyoung_colmi_p81:
+    vendor: moyoung
+    category: wearables
+    flags: *flags_high_free
+  moyoung_colmi_v72:
+    vendor: moyoung
+    category: wearables
+    flags: *flags_high_free
+  moyoung_colmi_v73:
+    vendor: moyoung
+    category: wearables
+    flags: *flags_high_free
+  moyoung_colmi_v76:
+    vendor: moyoung
+    category: wearables
+    flags: *flags_high_free
+  moyoung_colmi_v89:
+    vendor: moyoung
+    category: wearables
+    flags: *flags_high_free
+  moyoung_zl02d:
+    vendor: moyoung
+    category: wearables
+    flags: *flags_high_free
+  moyoung_advan_watch_se1_ai:
+    vendor: moyoung
+    category: wearables
+    flags: *flags_high_free
+  moyoung_alt_vibe:
+    vendor: moyoung
+    category: wearables
+    flags: *flags_high_free
+  moyoung_c20:
+    vendor: moyoung
+    category: wearables
+    flags: *flags_high_free
+  moyoung_c20_pro:
+    vendor: moyoung
+    category: wearables
+    flags: [feature_most, pair_free, experimental]
+  moyoung_hc96:
+    vendor: moyoung
+    category: wearables
+    flags: *flags_high_free
+  moyoung_itech_active_3:
+    vendor: moyoung
+    category: wearables
+    flags: *flags_high_free
+  moyoung_bettdow_fb051:
+    vendor: moyoung
+    category: wearables
+    flags: *flags_high_free
+  moyoung_fireboltt_069:
+    vendor: moyoung
+    category: wearables
+    flags: *flags_high_free
+  moyoung_fireboltt_ninja_phantom:
+    vendor: moyoung
+    category: wearables
+    flags: *flags_high_free
+  moyoung_fireboltt_talk:
+    vendor: moyoung
+    category: wearables
+    flags: *flags_high_free
+  moyoung_garett_eva:
+    vendor: moyoung
+    category: wearables
+    flags: *flags_high_free
+  moyoung_ksix_venture:
+    vendor: moyoung
+    category: wearables
+    flags: *flags_high_free
+  moyoung_kt80:
+    vendor: moyoung
+    category: wearables
+    flags: *flags_high_free
+  moyoung_kw19_b:
+    vendor: moyoung
+    category: wearables
+    flags: *flags_high_free
+  moyoung_l70:
+    vendor: moyoung
+    category: wearables
+    flags: *flags_high_free
+  moyoung_misirun_c17:
+    vendor: moyoung
+    category: wearables
+    flags: *flags_high_free
+  moyoung_mt55:
+    vendor: moyoung
+    category: wearables
+    flags: *flags_high_free
+  moyoung_p22b1:
+    vendor: moyoung
+    category: wearables
+    flags: *flags_high_free
+  moyoung_r50_pro:
+    vendor: moyoung
+    category: wearables
+    flags: *flags_high_free
+  moyoung_rainbuvvy_t97:
+    vendor: moyoung
+    category: wearables
+    flags: *flags_high_free
+  moyoung_viran_c29:
+    vendor: moyoung
+    category: wearables
+    flags: *flags_high_free
+  #
+  # FitPro devices
+  #
+  fitpro_ak102:
+    vendor: fitcloud
+    category: wearables
+    flags: *flags_high_free
+  fitpro_ak86:
+    vendor: fitcloud
+    category: wearables
+    flags: *flags_high_free
+  fitpro_ak75_pro:
+    vendor: fitcloud
+    category: wearables
+    flags: *flags_high_free
+  fitpro_colmi_i31:
+    vendor: fitcloud
+    category: wearables
+    flags: *flags_high_free
+  #
+  # GloryFit devices
+  #
+  gloryfit_d3:
+    vendor: gloryfit
+    category: wearables
+    flags: *flags_high_free
+  dotn_p66d:
+    vendor: gloryfit
+    category: wearables
+    flags: [feature_high, pair_free, experimental]
+  blackview_r3max:
+    vendor: gloryfit
+    category: wearables
+    flags: [feature_high, pair_free, experimental]
+  colmi_p10:
+    vendor: gloryfit
+    category: wearables
+    flags: [feature_high, pair_free, experimental]
+  hifuture_zone_2:
+    vendor: hifuture
+    category: wearables
+    flags: [feature_high, pair_free, experimental]
+  imiki_frame_2:
+    vendor: imiki
+    category: wearables
+    flags: [feature_high, pair_free, experimental]
+  grv_fc1:
+    vendor: grv
+    category: wearables
+    flags: [feature_partial, pair_free, experimental]
+  kieslect_calling_smartwatch_kr_pro:
+    vendor: kieslect
+    category: wearables
+    flags: [feature_high, pair_free, experimental]
+  oukitel_bt103:
+    vendor: oukitel
+    category: wearables
+    flags: *flags_high_free
+  ollee_watch_one:
+    vendor: ollee
+    category: wearables
+    flags: [feature_partial, pair_free]
+    links:
+      protocol: *link_ollee_protocol
+  qecnato_s10:
+    vendor: oukitel
+    category: wearables
+    flags: *flags_high_free
+  gloryfit_r1:
+    vendor: gloryfit
+    category: wearables
+    flags: *flags_high_free
+  gloryfit_s52:
+    vendor: gloryfit
+    category: wearables
+    flags: *flags_high_free
+  gloryfit_swiss_peak:
+    vendor: gloryfit
+    category: wearables
+    flags: [feature_most, pair_free, experimental]
+  gloryfit_t70:
+    vendor: gloryfit
+    category: wearables
+    flags: *flags_high_free
+  gloryfit_y6:
+    vendor: gloryfit
+    category: wearables
+    flags: *flags_high_free
+  gloryfit_y66:
+    vendor: gloryfit
+    category: wearables
+    flags: *flags_high_free
+  gloryfitpro_dm58:
+    vendor: gloryfitpro
+    category: wearables
+    flags: [feature_partial, pair_free, experimental]
+  #
+  #   Haylou
+  #
+  haylou_watch_2_pro:
+    vendor: haylou
+    category: wearables
+    flags: [feature_most, pair_free, experimental]
+  #
+  #   Others
+  #
+  aawireless_one:
+    vendor: aawireless
+    category: others
+    flags: [feature_most, pair_free, experimental]
+  aawireless_two:
+    vendor: aawireless
+    category: others
+    flags: [feature_most, pair_free, experimental]
+  sinilink_xy_ap50l:
+    vendor: sinilink
+    category: speakers
+    flags: [feature_high, pair_free]
+  teufel_mynd:
+    vendor: teufel
+    category: speakers
+    flags: [feature_high, experimental, pair_free]
+  soundbrenner_core:
+    vendor: soundbrenner
+    category: wearables
+    flags: [feature_most, pair_free]
+  igpsport_binavi:
+    vendor: igpsport
+    category: bike-computers
+    flags: [feature_most, pair_free]
+  igpsport_binavi_air:
+    vendor: igpsport
+    category: bike-computers
+    flags: [feature_most, pair_free]
+  igpsport_bsc100_max:
+    vendor: igpsport
+    category: bike-computers
+    flags: [feature_most, pair_free]
+  igpsport_bsc200:
+    vendor: igpsport
+    category: bike-computers
+    flags: [feature_most, pair_free]
+  igpsport_bsc200s:
+    vendor: igpsport
+    category: bike-computers
+    flags: [feature_most, pair_free]
+  igpsport_bsc300:
+    vendor: igpsport
+    category: bike-computers
+    flags: [feature_most, pair_free]
+  igpsport_bsc500:
+    vendor: igpsport
+    category: bike-computers
+    flags: [feature_most, pair_free]
+  igpsport_igs630:
+    vendor: igpsport
+    category: bike-computers
+    flags: [feature_most, pair_free]
+  igpsport_igs630s:
+    vendor: igpsport
+    category: bike-computers
+    flags: [feature_most, pair_free]
+  igpsport_igs800:
+    vendor: igpsport
+    category: bike-computers
+    flags: [feature_most, pair_free]
+  gree_ac:
+    vendor: gree
+    category: air-conditioners
+    flags: [feature_partial, pair_free]
+  lifescan_onetouch:
+    vendor: lifescan
+    category: blood-monitors
+    flags: [feature_partial, pair_free]
+  braun_bpw4500:
+    vendor: braun
+    category: blood-monitors
+    flags: [feature_most, pair_free]
+  sanitas_sbm67:
+    vendor: sanitas
+    category: blood-monitors
+    flags: [feature_most, pair_free]
+  beurer_bm59:
+    vendor: beurer
+    category: blood-monitors
+    flags: [feature_most, pair_free]
+  beurer_bm69:
+    vendor: beurer
+    category: blood-monitors
+    flags: [feature_most, pair_free]
+  innovo_ip900bp_b:
+    vendor: innovo
+    category: pulse-oximeters
+    flags: [feature_high, pair_free]
+  bm2:
+    vendor: leagend
+    category: battery-monitors
+    flags: [feature_most, pair_free]
+  bm6:
+    vendor: leagend
+    category: battery-monitors
+    flags: [feature_most, pair_free, experimental]
+  victron_smartshunt:
+    vendor: victron
+    category: battery-monitors
+    flags: [feature_most, pair_victron]
+  ikea_idasen:
+    vendor: ikea
+    category: furniture
+    flags: *flags_high_free
+  flipper_zero:
+    vendor: flipper
+    category: others
+    flags: [feature_partial, pair_free]
+  shell_racing_rc_motorsport:
+    vendor: shell-racing
+    category: others
+    flags: *flags_high_free
+    links:
+      protocol: *link_supercars_protocol
+  sony_reon_pocket_pro:
+    vendor: sony
+    category: others
+    flags: [feature_most, pair_free]
+  xiaomi_hipee_smart_posture_corrector_p1:
+    vendor: xiaomi
+    category: others
+    flags: [feature_most, pair_free]
+  vibratissimo_any:
+    vendor: other
+    category: others
+    flags: *flags_high_free
+  other_bfh-16:
+    vendor: other
+    category: wearables
+    flags: *flags_unknown_free
+  other_id115:
+    vendor: other
+    category: wearables
+    flags: *flags_unknown_free
+  other_id115_plus:
+    vendor: other
+    category: wearables
+    flags: *flags_unknown_free
+  other_bohemic_smart_bracelet:
+    vendor: other
+    category: wearables
+    flags: *flags_unknown_free
+  other_vivitar_hr_bp_monitor_activity_tracker:
+    vendor: other
+    category: wearables
+    flags: *flags_unknown_free
+  jyou_y5:
+    vendor: other
+    category: wearables
+    flags: *flags_unknown_free
+  sony_ericsson_liveview:
+    vendor: sony
+    category: wearables
+    flags: *flags_unknown_free
+  sony_swr12:
+    vendor: sony
+    category: wearables
+    flags: *flags_unknown_free
+  makibes_hr3:
+    vendor: other
+    category: wearables
+    flags: *flags_unknown_free
+  other_no_f1:
+    vendor: other
+    category: wearables
+    flags: *flags_unknown_free
+  pine64_pinetime:
+    vendor: pine64
+    category: wearables
+    flags: *flags_unknown_free
+  other_tlw64:
+    vendor: other
+    category: wearables
+    flags: *flags_unknown_free
+  other_teclast_h10:
+    vendor: other
+    category: wearables
+    flags: *flags_unknown_free
+  other_teclast_h30:
+    vendor: other
+    category: wearables
+    flags: *flags_unknown_free
+  soflow_so6:
+    vendor: soflow
+    category: scooters
+    flags: [feature_poor, pair_unknown]
+  xiaomi_scooter_5_max:
+    vendor: xiaomi
+    category: scooters
+    flags: [feature_high, pair_auth_key]
+  ninebot_f2_pro:
+    vendor: ninebot
+    category: scooters
+    flags: [feature_most, experimental, pair_free]
+  8bitdo_micro:
+    vendor: 8bitdo
+    category: gamepads
+    flags: [feature_most, pair_free]
+  concept2_pm5:
+    vendor: concept2
+    category: gym-equipment
+    flags: [feature_poor, pair_free, experimental]
+  domyos_t540:
+    vendor: domyos
+    category: gym-equipment
+    flags: [feature_poor, pair_free, experimental]
+  nxwear_b8:
+    vendor: nxwear
+    category: wearables
+    flags: [feature_most, pair_free]
+  mykronoz_zetime:
+    vendor: mykronoz
+    category: wearables
+    flags: *flags_unknown_free
+    links:
+      protocol: *link_zetime_protocol
+  other_xwatch:
+    vendor: xwatch
+    category: wearables
+    flags: *flags_unknown_free
+  other_xplora_xmove:
+    vendor: xplora
+    category: wearables
+    flags: *flags_unknown_free
+  other_vesc:
+    vendor: other
+    category: others
+    flags: *flags_unknown_free
+  other_um25:
+    vendor: other
+    category: others
+    flags: *flags_unknown_free
+  femometer_vinca_2:
+    vendor: femometer
+    category: thermometers
+    flags: [feature_most, pair_free]
+  withings_steel_hr:
+    vendor: withings
+    category: wearables
+    flags: *flags_unknown_free
+  ultrahuman_ring_air:
+    vendor: ultrahuman
+    category: rings
+    flags: [feature_partial, pair_free, experimental]
+    links:
+      protocol: ../../../internals/specifics/ultrahuman-protocol
+  polar_h10:
+    vendor: polar
+    category: hr-bands
+    flags: [feature_partial, pair_free]
+  polar_h9:
+    vendor: polar
+    category: hr-bands
+    flags: [feature_partial, pair_free]
+  una_watch:
+    vendor: una
+    category: wearables
+    flags: [feature_partial, pair_free, experimental]
+  zeblaze_beyond_3_pro:
+    vendor: zeblaze
+    category: wearables
+    flags: [feature_partial, pair_free, experimental]
+  zeblaze_stratos_4_pro:
+    vendor: zeblaze
+    category: wearables
+    flags: [feature_high, pair_free, experimental]
+  #
+  # Displays
+  #
+  other_atc_ble_oepl:
+    vendor: atc_ble_oepl
+    category: displays
+    flags: [feature_most, pair_free]

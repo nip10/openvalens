@@ -118,6 +118,24 @@ licences.
 and [RepDB/exercise-dataset](https://github.com/RepDB/exercise-dataset) (no
 republishing as a dataset, AI-generated images) are not used.
 
+## Gadgetbridge device catalog (Issue #430)
+
+The committed snapshot
+`packages/health-record/src/device-catalog/source/device_support.yml` and its
+normalized artifact `gadgetbridge-catalog.json` come from the Gadgetbridge
+website ([codeberg.org/Freeyourgadget/website](https://codeberg.org/Freeyourgadget/website)).
+
+- **Licence:** AGPL-3.0-or-later, the same as upstream.
+- **Attribution:** "Device support data from the Gadgetbridge website
+  (codeberg.org/Freeyourgadget/website), AGPL-3.0-or-later, revision
+  `<commit-sha>`." The artifact records the exact string in `meta.attribution`.
+- **Committed, not downloaded at runtime.** The verbatim source bytes, the
+  pinned commit and the SHA-256 are committed together so the catalog is
+  reproducible offline.
+
+Refresh, verification and attribution obligations are documented in
+[`docs/device-catalog.md`](docs/device-catalog.md).
+
 ## Micronutrient reference values (Issue #78)
 
 Unlike the catalogs above, these values are committed, in

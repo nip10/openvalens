@@ -16,6 +16,8 @@ import type { XiaomiModel, XiaomiModelId } from "@/lib/direct-devices/models/xia
 import { getZeppOsModel } from "@/lib/direct-devices/models/zepp-os";
 import type { ZeppOsModel, ZeppOsModelId } from "@/lib/direct-devices/models/zepp-os";
 import type { DirectDeviceFamily } from "@/lib/direct-devices/setup/types";
+import { describeDeviceSupport } from "@/lib/direct-devices/support-status";
+import type { OpenValensDeviceSupport } from "@/lib/direct-devices/support-status";
 import { createHelioSyncController } from "@/lib/direct-devices/sync/controller";
 import type {
   HelioSyncContext,
@@ -212,23 +214,47 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
       ],
     );
   };
-  const connectedStatus = (() => {
-    if (!snapshot.connectedDeviceId) return null;
-    if (!connected)
-      return t`Connected device — shared transport, not matched to a registered model`;
-    const experimental = connected.model.experimental
-      ? ` · ${t`upstream lists this model as experimental`}`
-      : "";
-    if (connected.family === "huawei")
-      return `${connected.model.displayName} — ${t`connection only; step history sync is not implemented for Huawei/Honor devices yet; not hardware-verified`}${experimental}`;
-    if (connected.family === "garmin")
-      return `${connected.model.displayName} — ${t`connection checks only; no hardware verification`}${experimental}`;
-    if (connected.family === "xiaomi")
-      return `${connected.model.displayName} — ${t`shared Xiaomi protobuf transport, not yet device-validated for this model`}${experimental}`;
-    const detail = connected.model.transportValidated
-      ? t`connection checks validated end-to-end at source level for this model; not hardware-verified`
-      : t`shared Zepp OS transport, not yet device-validated for this model`;
-    return `${connected.model.displayName} — ${detail}${experimental}`;
+  // A connected device wins; otherwise show the status of the selected saved
+  // binding, so a saved device is not status-less before the next connection.
+  const savedFocus =
+    !snapshot.connectedDeviceId && selected?.family && selected.modelId
+      ? lookupModel(selected.modelId)
+      : undefined;
+  const focus = connected ?? savedFocus;
+  const focusName = connected
+    ? connected.model.displayName
+    : (selected?.displayName ??
+      (selected?.modelId ? modelLabel(selected.modelId, t`Saved device`) : null));
+  const focusSupport = focus
+    ? describeDeviceSupport({
+        family: focus.family,
+        modelId: focus.model.id,
+        transportValidated: focus.model.transportValidated,
+      })
+    : null;
+  // OpenValens status is the trust-relevant line and never claims more than the
+  // family implements; the upstream rating below it is attributed reference data.
+  const openValensStatusText: Record<OpenValensDeviceSupport, string> = {
+    zepp_os_validated: t`Zepp OS transport, authentication and step history are validated at source level for this model. Not hardware-verified.`,
+    zepp_os_shared: t`Shared Zepp OS transport; not validated for this model. Not hardware-verified.`,
+    xiaomi_shared: t`Shared Xiaomi protobuf transport; not device-validated for this model. Not hardware-verified.`,
+    huawei_connection_only: t`Connection checks only; step history sync is not implemented. Not hardware-verified.`,
+    garmin_connection_only: t`Connection checks only; step history sync is not implemented. Not hardware-verified.`,
+  };
+  const upstreamLevelText = {
+    high: t`high`,
+    most: t`most`,
+    partial: t`partial`,
+    poor: t`poor`,
+    unknown: t`unknown`,
+  } as const;
+  const upstreamStatus = (() => {
+    if (!focusSupport) return null;
+    if (!focusSupport.upstream.listed) return t`Not listed in the Gadgetbridge catalog.`;
+    const level = upstreamLevelText[focusSupport.upstream.featureLevel];
+    return focusSupport.upstream.experimental
+      ? t`Gadgetbridge feature level: ${level} · experimental`
+      : t`Gadgetbridge feature level: ${level}`;
   })();
 
   useEffect(() => {
@@ -252,8 +278,23 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
           {t`Use the same saved device on both phones. Choose an existing binding to avoid duplicates, or add another only when you mean to create a separate binding. Nearby connection is a separate step.`}
         </Text>
         <StatusPill tone={statusTone}>{phaseLabel[snapshot.phase]}</StatusPill>
-        {connectedStatus ? (
-          <Text className="font-sans text-sm text-ink-3">{connectedStatus}</Text>
+        {snapshot.connectedDeviceId && !focus ? (
+          <View className="gap-1">
+            <Text className="font-sans text-base font-medium text-ink">
+              {t`Connected device`}
+            </Text>
+            <Text className="font-sans text-sm leading-relaxed text-ink-2">
+              {t`Not matched to a registered model. No OpenValens support is claimed.`}
+            </Text>
+          </View>
+        ) : focus && focusSupport ? (
+          <View className="gap-1">
+            <Text className="font-sans text-base font-medium text-ink">{focusName}</Text>
+            <Text className="font-sans text-sm leading-relaxed text-ink-2">
+              {openValensStatusText[focusSupport.openValens]}
+            </Text>
+            <Text className="font-sans text-xs text-ink-3">{upstreamStatus}</Text>
+          </View>
         ) : null}
 
         {snapshot.bindings.map((binding) => (

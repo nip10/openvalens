@@ -3532,8 +3532,8 @@ msgid "Connected"
 msgstr "Connected"
 
 #: apps/native/components/direct-device-settings.tsx
-msgid "Connected device — shared transport, not matched to a registered model"
-msgstr "Connected device — shared transport, not matched to a registered model"
+msgid "Connected device"
+msgstr "Connected device"
 
 #: apps/native/app/(drawer)/index.tsx
 msgid "Connected to API"
@@ -3552,20 +3552,12 @@ msgid "Connecting…"
 msgstr "Connecting…"
 
 #: apps/native/components/direct-device-settings.tsx
-msgid "connection checks only; no hardware verification"
-msgstr "connection checks only; no hardware verification"
-
-#: apps/native/components/direct-device-settings.tsx
-msgid "connection checks validated end-to-end at source level for this model; not hardware-verified"
-msgstr "connection checks validated end-to-end at source level for this model; not hardware-verified"
+msgid "Connection checks only; step history sync is not implemented. Not hardware-verified."
+msgstr "Connection checks only; step history sync is not implemented. Not hardware-verified."
 
 #: apps/web/src/components/admission-form.tsx
 msgid "Connection lost. Check your network and try again."
 msgstr "Connection lost. Check your network and try again."
-
-#: apps/native/components/direct-device-settings.tsx
-msgid "connection only; step history sync is not implemented for Huawei/Honor devices yet; not hardware-verified"
-msgstr "connection only; step history sync is not implemented for Huawei/Honor devices yet; not hardware-verified"
 
 #: apps/native/components/goal-editor.tsx
 #: apps/web/src/routes/_auth/-goal-editor.tsx
@@ -6646,6 +6638,14 @@ msgid "Further from your target: {goalTitle}"
 msgstr "Further from your target: {goalTitle}"
 
 #: apps/native/components/direct-device-settings.tsx
+msgid "Gadgetbridge feature level: {level}"
+msgstr "Gadgetbridge feature level: {level}"
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "Gadgetbridge feature level: {level} · experimental"
+msgstr "Gadgetbridge feature level: {level} · experimental"
+
+#: apps/native/components/direct-device-settings.tsx
 msgid "Gadgetbridge pairing help"
 msgstr "Gadgetbridge pairing help"
 
@@ -6983,6 +6983,10 @@ msgstr "Hides this list on this phone"
 #: packages/api/src/presenters/modules.ts
 msgid "Hiding a module keeps its data. Turn it back on and everything is there again."
 msgstr "Hiding a module keeps its data. Turn it back on and everything is there again."
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "high"
+msgstr "high"
 
 #: packages/api/src/presenters/workouts.ts
 msgctxt "goal priority"
@@ -8975,6 +8979,10 @@ msgstr "More options"
 msgid "Morning"
 msgstr "Morning"
 
+#: apps/native/components/direct-device-settings.tsx
+msgid "most"
+msgstr "most"
+
 #. placeholder {0}: weight(record.weightKg)
 #: apps/web/src/components/workout-history.tsx
 msgid "Most reps at {0}"
@@ -9898,9 +9906,17 @@ msgstr "Not Found"
 msgid "Not granted"
 msgstr "Not granted"
 
+#: apps/native/components/direct-device-settings.tsx
+msgid "Not listed in the Gadgetbridge catalog."
+msgstr "Not listed in the Gadgetbridge catalog."
+
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Not marked complete"
 msgstr "Not marked complete"
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "Not matched to a registered model. No OpenValens support is claimed."
+msgstr "Not matched to a registered model. No OpenValens support is claimed."
 
 #: apps/native/components/finish-setup-card.tsx
 #: apps/native/components/onboarding/steps.tsx
@@ -10727,6 +10743,10 @@ msgstr "Page Not Found"
 msgid "Parsing again will replace your edited review. Continue?"
 msgstr "Parsing again will replace your edited review. Continue?"
 
+#: apps/native/components/direct-device-settings.tsx
+msgid "partial"
+msgstr "partial"
+
 #. placeholder {0}: when(backups.lastVerify.at)
 #: apps/web/src/components/admin-backup-status.tsx
 msgid "Passed {0}"
@@ -11104,6 +11124,10 @@ msgstr "Please check your payment method in Plan & billing on the web. We will t
 msgctxt "unit"
 msgid "points"
 msgstr "points"
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "poor"
+msgstr "poor"
 
 #. safety
 #: packages/api/src/presenters/micronutrients.ts
@@ -13259,12 +13283,12 @@ msgid "Share optional usage analytics"
 msgstr "Share optional usage analytics"
 
 #: apps/native/components/direct-device-settings.tsx
-msgid "shared Xiaomi protobuf transport, not yet device-validated for this model"
-msgstr "shared Xiaomi protobuf transport, not yet device-validated for this model"
+msgid "Shared Xiaomi protobuf transport; not device-validated for this model. Not hardware-verified."
+msgstr "Shared Xiaomi protobuf transport; not device-validated for this model. Not hardware-verified."
 
 #: apps/native/components/direct-device-settings.tsx
-msgid "shared Zepp OS transport, not yet device-validated for this model"
-msgstr "shared Zepp OS transport, not yet device-validated for this model"
+msgid "Shared Zepp OS transport; not validated for this model. Not hardware-verified."
+msgstr "Shared Zepp OS transport; not validated for this model. Not hardware-verified."
 
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/sharing.tsx
@@ -15653,6 +15677,7 @@ msgid "Units"
 msgstr "Units"
 
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
+#: apps/native/components/direct-device-settings.tsx
 #: packages/api/src/presenters/nutrition-templates.ts
 msgid "unknown"
 msgstr "unknown"
@@ -15752,10 +15777,6 @@ msgstr "Upper arm"
 #: packages/api/src/presenters/body-map.ts
 msgid "Upper back and neck (back)"
 msgstr "Upper back and neck (back)"
-
-#: apps/native/components/direct-device-settings.tsx
-msgid "upstream lists this model as experimental"
-msgstr "upstream lists this model as experimental"
 
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "US civilian, non-institutionalised adults (NHANES), excluding pregnancy, likely infection, irregular pulse, out-of-range thyroid tests and medications that affect heart rate. Weighted to the US population."
@@ -17121,6 +17142,10 @@ msgstr "Your workout is unchanged. Check your connection or try again."
 #: apps/web/src/components/billing-plan-view.tsx
 msgid "Your workspace is read-only for now. You can still read, export and delete your records; adding and syncing records starts again when you choose a plan."
 msgstr "Your workspace is read-only for now. You can still read, export and delete your records; adding and syncing records starts again when you choose a plan."
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "Zepp OS transport, authentication and step history are validated at source level for this model. Not hardware-verified."
+msgstr "Zepp OS transport, authentication and step history are validated at source level for this model. Not hardware-verified."
 
 #: packages/api/src/presenters/micronutrients.ts
 msgid "Zinc"

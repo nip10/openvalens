@@ -28,6 +28,7 @@
     "@lingui/core": "6.9.1",
     "@lingui/react": "6.9.1",
     "@openvalens/api": "workspace:*",
+    "@openvalens/health-record": "workspace:*",
     "@openvalens/i18n": "workspace:*",
     "@openvalens/observability": "workspace:*",
     "@openvalens/plans": "workspace:*",
