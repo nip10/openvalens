@@ -102,14 +102,12 @@ jobs:
         run: |
           bunx expo prebuild --platform android --no-install
           cd android
-          # The template's 2 GB heap ran out once the BLE modules joined the
-          # build; the runner has 16 GB.
-          sed -i '/^org.gradle.jvmargs=/d; /^kotlin.daemon.jvmargs=/d' gradle.properties
-          {
-            echo "org.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=1g -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8"
-            echo "kotlin.daemon.jvmargs=-Xmx3g"
-          } >> gradle.properties
-          ./gradlew :app:assembleRelease -PreactNativeArchitectures="$ANDROID_ARCH" --no-daemon
+          # The build ran out of heap once the BLE modules joined it. A
+          # command-line property outranks every gradle.properties file.
+          grep -H jvmargs gradle.properties ~/.gradle/gradle.properties 2>/dev/null || true
+          ./gradlew :app:assembleRelease -PreactNativeArchitectures="$ANDROID_ARCH" --no-daemon \
+            "-Dorg.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=1g -Dfile.encoding=UTF-8" \
+            "-Dkotlin.daemon.jvmargs=-Xmx3g"
           ls -lh app/build/outputs/apk/release/
 
       - name: Run the suite
