@@ -100,10 +100,10 @@ tags: [logging]
     file: ../subflows/hide-keyboard.yaml
 - tapOn:
     id: "workout-finish"
+# Finish scrolls the form to the end of the list, so Save can't be centred.
 - scrollUntilVisible:
     element:
       id: "workout-save"
-    centerElement: true
     timeout: 20000
 - takeScreenshot: 06-workout-finish
 - tapOn:
