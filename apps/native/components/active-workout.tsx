@@ -12,7 +12,7 @@ import {
   Plus,
   Trash2,
 } from "lucide-react-native";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -244,6 +244,7 @@ export function ActiveWorkout({
   const [overview, setOverview] = useState(false);
   const [picker, setPicker] = useState(false);
   const [finishing, setFinishing] = useState(false);
+  const scroll = useRef<ScrollView>(null);
   const [menu, setMenu] = useState(false);
   const [panel, setPanel] = useState<"history" | "rest" | null>(null);
   const [rpeFor, setRpeFor] = useState<Record<string, boolean>>({});
@@ -255,6 +256,13 @@ export function ActiveWorkout({
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, []);
+  // The finish form opens at the end of the list, often below the fold, so
+  // Finish brings it (and its Save button) into view.
+  useEffect(() => {
+    if (!finishing) return;
+    const frame = requestAnimationFrame(() => scroll.current?.scrollToEnd({ animated: true }));
+    return () => cancelAnimationFrame(frame);
+  }, [finishing]);
 
   const filters = useQuery(orpc.exerciseCatalog.filters.queryOptions({ input: {} }));
   const catalog = useQuery(
@@ -493,6 +501,7 @@ export function ActiveWorkout({
         ) : null}
 
         <ScrollView
+          ref={scroll}
           keyboardShouldPersistTaps="handled"
           contentContainerClassName="gap-4 px-4 pb-6 pt-3"
         >
