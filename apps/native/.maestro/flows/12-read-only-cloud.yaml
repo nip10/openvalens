@@ -21,10 +21,12 @@ tags: [billing]
     file: ../subflows/drawer-go.yaml
     env:
       ID: drawer-cockpit
-- extendedWaitUntil:
-    visible:
-      id: "cloud-access-notice"
-    timeout: 30000
+# The Cockpit keeps its scroll position from earlier flows, and the notice
+# sits near the top, so look up for it first.
+- runFlow:
+    file: ../subflows/find-id.yaml
+    env:
+      ID: "cloud-access-notice"
 - assertVisible: "Your OpenValens Cloud access has ended.*"
 # The Get started card (#392) can push the notice's button below the fold.
 - scrollUntilVisible:
