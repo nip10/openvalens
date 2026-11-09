@@ -343,6 +343,11 @@ msgstr "{0} of {1} sections answered"
 msgid "{0} of {1} sets done"
 msgstr "{0} of {1} sets done"
 
+#. placeholder {0}: snapshot.blockedIdentityEnvelopes
+#: apps/native/components/direct-device-settings.tsx
+msgid "{0} older capture(s) lack device identity and are being held back. Confirming a binding will not release them; a new sync can capture steps again."
+msgstr "{0} older capture(s) lack device identity and are being held back. Confirming a binding will not release them; a new sync can capture steps again."
+
 #. placeholder {0}: current.name
 #. placeholder {0}: r.name
 #: apps/native/components/active-workout.tsx
@@ -1604,10 +1609,6 @@ msgstr "Add an entry"
 msgid "Add an exercise"
 msgstr "Add an exercise"
 
-#: apps/native/components/direct-device-settings.tsx
-msgid "Add another binding"
-msgstr "Add another binding"
-
 #: apps/native/components/active-workout.tsx
 msgid "Add custom exercise"
 msgstr "Add custom exercise"
@@ -2159,6 +2160,14 @@ msgstr "Asleep (min)"
 #: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Assertiveness ({0})"
 msgstr "Assertiveness ({0})"
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "Assign this saved binding to {capturedModelLabel}? Only continue if its previous captures belong to this device. Otherwise create a new binding."
+msgstr "Assign this saved binding to {capturedModelLabel}? Only continue if its previous captures belong to this device. Otherwise create a new binding."
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "Assign to this device"
+msgstr "Assign to this device"
 
 #: apps/native/components/goal-editor.tsx
 #: apps/web/src/routes/_auth/-goal-editor.tsx
@@ -3440,6 +3449,14 @@ msgstr "Configuration keys"
 msgid "Configured"
 msgstr "Configured"
 
+#: apps/native/components/direct-device-settings.tsx
+msgid "Confirm device identity"
+msgstr "Confirm device identity"
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "Confirm saved device identity"
+msgstr "Confirm saved device identity"
+
 #: packages/api/src/presenters/food-draft.ts
 msgid "Confirm sending this photo to the provider first."
 msgstr "Confirm sending this photo to the provider first."
@@ -3515,8 +3532,8 @@ msgid "Connected"
 msgstr "Connected"
 
 #: apps/native/components/direct-device-settings.tsx
-msgid "Connected device — shared Zepp OS transport, not yet device-validated for a specific model"
-msgstr "Connected device — shared Zepp OS transport, not yet device-validated for a specific model"
+msgid "Connected device — shared transport, not matched to a registered model"
+msgstr "Connected device — shared transport, not matched to a registered model"
 
 #: apps/native/app/(drawer)/index.tsx
 msgid "Connected to API"
@@ -3535,12 +3552,20 @@ msgid "Connecting…"
 msgstr "Connecting…"
 
 #: apps/native/components/direct-device-settings.tsx
+msgid "connection checks only; no hardware verification"
+msgstr "connection checks only; no hardware verification"
+
+#: apps/native/components/direct-device-settings.tsx
 msgid "connection checks validated end-to-end at source level for this model; not hardware-verified"
 msgstr "connection checks validated end-to-end at source level for this model; not hardware-verified"
 
 #: apps/web/src/components/admission-form.tsx
 msgid "Connection lost. Check your network and try again."
 msgstr "Connection lost. Check your network and try again."
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "connection only; step history sync is not implemented for Huawei/Honor devices yet; not hardware-verified"
+msgstr "connection only; step history sync is not implemented for Huawei/Honor devices yet; not hardware-verified"
 
 #: apps/native/components/goal-editor.tsx
 #: apps/web/src/routes/_auth/-goal-editor.tsx
@@ -5340,7 +5365,6 @@ msgid "Discard workout?"
 msgstr "Discard workout?"
 
 #: apps/native/app/(drawer)/settings/telegram.tsx
-#: apps/native/components/direct-device-settings.tsx
 #: apps/native/components/sign-in-methods.tsx
 #: apps/web/src/components/sign-in-methods-section.tsx
 #: apps/web/src/components/wearable-devices-view.tsx
@@ -6241,8 +6265,8 @@ msgid "Experimental estimate: not a target or a measure of what you ate."
 msgstr "Experimental estimate: not a target or a measure of what you ate."
 
 #: apps/native/components/direct-device-settings.tsx
-msgid "Experimental foreground steps sync for an already-paired Zepp OS Amazfit family device (36 registered models). No vendor login is requested. The first sync asks for the last 24 hours; later syncs resume from the saved checkpoint. Only the Amazfit Helio Strap has connection checks validated end-to-end at source level; nothing is hardware-verified."
-msgstr "Experimental foreground steps sync for an already-paired Zepp OS Amazfit family device (36 registered models). No vendor login is requested. The first sync asks for the last 24 hours; later syncs resume from the saved checkpoint. Only the Amazfit Helio Strap has connection checks validated end-to-end at source level; nothing is hardware-verified."
+msgid "Experimental foreground steps sync for already-paired Zepp OS and Xiaomi devices. Huawei/Honor and Garmin support connection checks only. No hardware verification has been done. No vendor login is requested."
+msgstr "Experimental foreground steps sync for already-paired Zepp OS and Xiaomi devices. Huawei/Honor and Garmin support connection checks only. No hardware verification has been done. No vendor login is requested."
 
 #: packages/api/src/presenters/score.ts
 msgid "Experimental readiness index {score} out of 100, {profileName}."
@@ -6253,8 +6277,8 @@ msgid "Experimental readiness index not available."
 msgstr "Experimental readiness index not available."
 
 #: apps/native/components/direct-device-settings.tsx
-msgid "Experimental; foreground use only. Connection checks are source-validated for the Amazfit Helio Strap only; no model is hardware-verified."
-msgstr "Experimental; foreground use only. Connection checks are source-validated for the Amazfit Helio Strap only; no model is hardware-verified."
+msgid "Experimental; foreground use only. No model is hardware-verified."
+msgstr "Experimental; foreground use only. No model is hardware-verified."
 
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "Expert guideline development group reviewing systematic evidence. Vigorous minutes count double (moderate-equivalent)."
@@ -6624,6 +6648,10 @@ msgstr "Further from your target: {goalTitle}"
 #: apps/native/components/direct-device-settings.tsx
 msgid "Gadgetbridge pairing help"
 msgstr "Gadgetbridge pairing help"
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "Garmin support is limited to connection checks; step history sync is not implemented."
+msgstr "Garmin support is limited to connection checks; step history sync is not implemented."
 
 #. safety
 #: packages/api/src/presenters/micronutrients.ts
@@ -7123,6 +7151,10 @@ msgstr "How you feel (check-in)"
 #: packages/api/src/presenters/wellness-profile.ts
 msgid "How you'll add data"
 msgstr "How you'll add data"
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "Huawei/Honor devices support connection checks only; step history sync is not implemented."
+msgstr "Huawei/Honor devices support connection checks only; step history sync is not implemented."
 
 #: packages/api/src/presenters/food-logger-capture.ts
 msgid "I agree to send this photo now"
@@ -12510,6 +12542,10 @@ msgstr "Save changes"
 msgid "Save check-in"
 msgstr "Save check-in"
 
+#: apps/native/components/direct-device-settings.tsx
+msgid "Save connected device as new binding"
+msgstr "Save connected device as new binding"
+
 #: apps/native/app/(drawer)/goals/[goalId].tsx
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/web/src/routes/_auth/goals.$goalId.tsx
@@ -12639,6 +12675,14 @@ msgstr "Saved {name} to {meal} on {localDate}"
 #: packages/api/src/presenters/food-lookup.ts
 msgid "Saved and recent"
 msgstr "Saved and recent"
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "Saved device"
+msgstr "Saved device"
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "Saved device — identity confirmation required"
+msgstr "Saved device — identity confirmation required"
 
 #: packages/api/src/presenters/plain-water.ts
 msgid "Saved entries are kept but not shown while it's off. Turn it on to see or remove them."
@@ -13213,6 +13257,10 @@ msgstr "Sex for reference tables is not available: {reason, select, not_provided
 #: apps/web/src/components/analytics-consent-section.tsx
 msgid "Share optional usage analytics"
 msgstr "Share optional usage analytics"
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "shared Xiaomi protobuf transport, not yet device-validated for this model"
+msgstr "shared Xiaomi protobuf transport, not yet device-validated for this model"
 
 #: apps/native/components/direct-device-settings.tsx
 msgid "shared Zepp OS transport, not yet device-validated for this model"
@@ -13843,6 +13891,10 @@ msgstr "Step {0} of {total}: {1}"
 #: apps/native/components/onboarding/flow.tsx
 msgid "Step {position} of {total}: {stepTitle}"
 msgstr "Step {position} of {total}: {stepTitle}"
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "Step sync is unavailable for this unrecognized device model."
+msgstr "Step sync is unavailable for this unrecognized device model."
 
 #. safety
 #: packages/api/src/presenters/manual-entry.ts
@@ -14785,6 +14837,10 @@ msgstr "This day may be partial. Totals cover logged entries only."
 #: packages/api/src/presenters/activity-load.ts
 msgid "This describes your own logs only. It is not a judgement about your body or how to train."
 msgstr "This describes your own logs only. It is not a judgement about your body or how to train."
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "This device does not match the selected saved binding. Select a compatible binding or save it as a new binding to sync."
+msgstr "This device does not match the selected saved binding. Select a compatible binding or save it as a new binding to sync."
 
 #: apps/native/components/health-sync-settings.tsx
 msgid "This device's access was revoked. Reconnect from the web app."
