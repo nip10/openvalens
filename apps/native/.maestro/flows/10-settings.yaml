@@ -60,7 +60,12 @@ tags: [settings]
     env:
       ID: drawer-records-labs
 - extendedWaitUntil:
-    visible: "Glucose \\(fasting\\)"
+    visible: "Your results"
+    timeout: 20000
+# Each marker card has a range bar (#392), so glucose sits below the fold.
+- scrollUntilVisible:
+    element: "Glucose \\(fasting\\)"
+    centerElement: true
     timeout: 20000
 - assertVisible: ".*mmol/L.*"
 - takeScreenshot: 10-labs-mmol

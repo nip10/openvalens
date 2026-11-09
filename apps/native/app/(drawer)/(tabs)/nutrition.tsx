@@ -811,6 +811,7 @@ export default function NutritionScreen() {
                         isIconOnly
                         className="min-h-11 min-w-11"
                         accessibilityLabel={i18n._(addFoodToLabel(i18n._(SLOT_LABELS[slot])))}
+                        testID={`meal-add-${slot}`}
                         onPress={() => openAddFood({ slot })}
                       >
                         <Icon icon={Plus} size={18} color="food" />
