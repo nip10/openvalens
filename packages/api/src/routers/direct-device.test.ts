@@ -11,7 +11,9 @@ test("direct-device procedures are mounted only at the root directDevice namespa
   expect(appRouter.mobile).not.toHaveProperty("directDevice");
   expect(appRouter).not.toHaveProperty("ingestDirectDeviceBatch");
   expect(Object.keys(appRouter.directDevice).sort()).toEqual([
-    "ingestDirectDeviceBatch", "listDirectDevices", "registerDirectDevice",
+    "ingestDirectDeviceBatch",
+    "listDirectDevices",
+    "registerDirectDevice",
   ]);
 });
 
@@ -25,12 +27,29 @@ test("direct-device wire procedures reject client provenance and tenant fields",
       provider: "direct_device",
       recordType: "steps",
       mode: "backfill",
-      upserts: [{ type: "steps", externalRecordId: "x", sourceApp: null, startTime: "2026-10-01T07:00:00.000Z", endTime: "2026-10-01T08:00:00.000Z", count: 1 }],
+      upserts: [
+        {
+          type: "steps",
+          externalRecordId: "x",
+          sourceApp: null,
+          startTime: "2026-10-01T07:00:00.000Z",
+          endTime: "2026-10-01T08:00:00.000Z",
+          count: 1,
+        },
+      ],
       deletions: [],
       clientTimezone: "UTC",
     },
   };
   const invoke = directDeviceRouter.ingestDirectDeviceBatch.callable({ context: {} as never });
-  await expect(invoke({ ...input, batch: { ...input.batch, upserts: [{ ...input.batch.upserts[0], sourceDevice: { model: "spoof" } }] } } as never)).rejects.toBeDefined();
+  await expect(
+    invoke({
+      ...input,
+      batch: {
+        ...input.batch,
+        upserts: [{ ...input.batch.upserts[0], sourceDevice: { model: "spoof" } }],
+      },
+    } as never),
+  ).rejects.toBeDefined();
   await expect(invoke({ ...input, organizationId: "attacker-org" } as never)).rejects.toBeDefined();
 });

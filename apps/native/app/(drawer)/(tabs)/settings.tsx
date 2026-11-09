@@ -62,11 +62,7 @@ import { ListRow } from "@/components/list-row";
 import { Container } from "@/components/container";
 import { HealthSyncSettings } from "@/components/health-sync-settings";
 import { DirectDeviceSettings } from "@/components/direct-device-settings";
-import {
-  LanguageSection,
-  SettingsGroup,
-  SettingsIcon,
-} from "@/components/language-section";
+import { LanguageSection, SettingsGroup, SettingsIcon } from "@/components/language-section";
 import { AnalyticsConsentSection } from "@/components/analytics-consent-section";
 import { AiSection } from "@/components/ai-section";
 import { ServerSection } from "@/components/change-server";
@@ -198,11 +194,27 @@ export default function SettingsScreen() {
         {session?.user && <HealthSyncSettings />}
 
         <DirectDeviceSettings
-          key={session?.user?.id && session.session.id && session.session.activeOrganizationId && directDeviceServer.status === "set"
-            ? `${directDeviceServer.url}:${session.session.id}:${session.user.id}:${session.session.activeOrganizationId}` : "no-scope"}
-          context={session?.user?.id && session.session.id && session.session.activeOrganizationId && directDeviceServer.status === "set"
-            ? { serverUrl: directDeviceServer.url, userId: session.user.id, organizationId: session.session.activeOrganizationId, sessionId: session.session.id }
-            : null}
+          key={
+            session?.user?.id &&
+            session.session.id &&
+            session.session.activeOrganizationId &&
+            directDeviceServer.status === "set"
+              ? `${directDeviceServer.url}:${session.session.id}:${session.user.id}:${session.session.activeOrganizationId}`
+              : "no-scope"
+          }
+          context={
+            session?.user?.id &&
+            session.session.id &&
+            session.session.activeOrganizationId &&
+            directDeviceServer.status === "set"
+              ? {
+                  serverUrl: directDeviceServer.url,
+                  userId: session.user.id,
+                  organizationId: session.session.activeOrganizationId,
+                  sessionId: session.session.id,
+                }
+              : null
+          }
         />
 
         {session?.user && (
@@ -269,7 +281,7 @@ export default function SettingsScreen() {
 
         {session?.user ? (
           <View onLayout={(event) => (deleteAccountOffset.current = event.nativeEvent.layout.y)}>
-          <DeleteAccountSection onSignOut={signOutOfThisPhone} />
+            <DeleteAccountSection onSignOut={signOutOfThisPhone} />
           </View>
         ) : null}
 

@@ -136,7 +136,9 @@ export function NutritionDaySummary({
               >
                 {reading.figure}
               </Text>
-              <Text className="font-sans text-xs text-ink-3">{keepUnitsAttached(reading.note)}</Text>
+              <Text className="font-sans text-xs text-ink-3">
+                {keepUnitsAttached(reading.note)}
+              </Text>
             </View>
           );
         })}

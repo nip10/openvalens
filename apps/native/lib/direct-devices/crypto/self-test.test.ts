@@ -23,9 +23,12 @@ test("self-test probe passes the B-163, invalid-point, and AES vectors with inde
   const bundle = join(directory, "self-test.mjs");
   try {
     await writeFile(bundle, await build.outputs[0]!.text());
-    const result = Bun.spawn([
-      "node", "--input-type=module", "-e",
-      `import { createCipheriv, createECDH } from "node:crypto";
+    const result = Bun.spawn(
+      [
+        "node",
+        "--input-type=module",
+        "-e",
+        `import { createCipheriv, createECDH } from "node:crypto";
        import { runB163CryptoSelfTest } from ${JSON.stringify(`file://${bundle}`)};
        let invalidPeer;
        const strictProvider = {
@@ -51,7 +54,9 @@ test("self-test probe passes the B-163, invalid-point, and AES vectors with inde
        };
        const result = await runB163CryptoSelfTest(strictProvider);
        console.log(JSON.stringify({ result, invalidPeer }));`,
-    ], { stdout: "pipe", stderr: "pipe" });
+      ],
+      { stdout: "pipe", stderr: "pipe" },
+    );
     const [stdout, stderr, exitCode] = await Promise.all([
       new Response(result.stdout).text(),
       new Response(result.stderr).text(),

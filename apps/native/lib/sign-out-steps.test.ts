@@ -23,7 +23,15 @@ function recorder(failPush = false) {
   return { calls, signOut };
 }
 
-const ORDER = ["invalidateDirectDevices", "disablePush", "resetHealthSync", "prepareOffline", "purgeDirectDevices", "signOut", "clearQueries"];
+const ORDER = [
+  "invalidateDirectDevices",
+  "disablePush",
+  "resetHealthSync",
+  "prepareOffline",
+  "purgeDirectDevices",
+  "signOut",
+  "clearQueries",
+];
 
 test("signs out after switching off push, health sync and offline data", async () => {
   const { calls, signOut } = recorder();
@@ -74,5 +82,10 @@ test("typed data-preservation refusal stops before clearing auth and queries", a
   await expect(
     signOut({ pendingDataPolicy: "preserve", hasInFlightWrites: () => false }),
   ).rejects.toBe(blocked);
-  expect(calls).toEqual(["invalidateDirectDevices", "disablePush", "resetHealthSync", "prepareOffline"]);
+  expect(calls).toEqual([
+    "invalidateDirectDevices",
+    "disablePush",
+    "resetHealthSync",
+    "prepareOffline",
+  ]);
 });

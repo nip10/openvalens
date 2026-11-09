@@ -1,6 +1,6 @@
 # Mobile end-to-end tests (Maestro)
 
-**Applies to:** the Expo app in `apps/native` · Last updated: 2026-11-08
+**Applies to:** the Expo app in `apps/native` · Last updated: 2026-11-09
 
 The mobile app has an end-to-end suite written with
 [Maestro](https://docs.maestro.dev). It drives a real build of the app on the
@@ -229,11 +229,12 @@ API 35, Google Play image, AVD `ov-e2e`). It builds the release test APK for
 x86_64 before the emulator starts, then runs `run.ts android`, which brings up
 the same local stack as on a Mac (Postgres in Docker, seed, server, helper).
 
-| Trigger                                   | What runs                                                     |
-| ----------------------------------------- | ------------------------------------------------------------- |
-| Nightly (02:30 UTC)                       | All flows and the screenshot tour                             |
-| Manual (`workflow_dispatch`)              | All flows or the `flows` prefixes given; the tour is optional |
-| Pull requests that touch `apps/native/**` | The flows only                                                |
+| Trigger                                                        | What runs                                                     |
+| -------------------------------------------------------------- | ------------------------------------------------------------- |
+| Nightly (02:30 UTC)                                            | All flows and the screenshot tour                             |
+| Manual (`workflow_dispatch`)                                   | All flows or the `flows` prefixes given; the tour is optional |
+| Pushes to `main` that touch `apps/native/**`                   | The flows only                                                |
+| Pull requests with the `e2e` label that touch `apps/native/**` | The flows only (about 30 minutes, so opt-in)                  |
 
 It takes 40 minutes or more, so it is not a required check. Each run uploads
 two artifacts, kept for 14 days: `mobile-e2e-android-screenshots` (the

@@ -236,6 +236,8 @@ describe("server-leave safety", () => {
     clearRows();
     const calls: string[] = [];
     const signOut = createSignOut({
+      invalidateDirectDevices: () => undefined,
+      purgeDirectDevices: () => undefined,
       disablePush: async () => {
         calls.push("disablePush");
         await Promise.resolve();
@@ -256,6 +258,7 @@ describe("server-leave safety", () => {
       clearQueries: () => calls.push("clearQueries"),
     });
     const switchServer = createSwitchServer({
+      invalidateDirectDevices: () => undefined,
       signOut,
       cancelPendingMagicLink: async () => calls.push("cancelMagicLink"),
       clearLocalData: (options) => {
@@ -279,6 +282,8 @@ describe("server-leave safety", () => {
     clearRows();
     const calls: string[] = [];
     const signOut = createSignOut({
+      invalidateDirectDevices: () => undefined,
+      purgeDirectDevices: () => undefined,
       disablePush: async () => calls.push("disablePush"),
       resetHealthSync: async () => calls.push("resetHealthSync"),
       prepareOffline: async (options) => {
@@ -290,6 +295,7 @@ describe("server-leave safety", () => {
       clearQueries: () => calls.push("signOutClearQueries"),
     });
     const switchServer = createSwitchServer({
+      invalidateDirectDevices: () => undefined,
       signOut,
       cancelPendingMagicLink: async () => {
         calls.push("cancelMagicLink");
@@ -325,6 +331,7 @@ describe("server-leave safety", () => {
     clearRows();
     const calls: string[] = [];
     const switchServer = createSwitchServer({
+      invalidateDirectDevices: () => undefined,
       signOut: async () => calls.push("signOut"),
       cancelPendingMagicLink: async () => calls.push("cancelMagicLink"),
       clearLocalData: (options) => {
@@ -385,6 +392,7 @@ describe("server-leave safety", () => {
     clearRows();
     const calls: string[] = [];
     const switchServer = createSwitchServer({
+      invalidateDirectDevices: () => undefined,
       signOut: async () => {
         calls.push("signOut");
         throw new ServerLeaveBlockedError({ kind: "pending", records: 1, drafts: 0 });

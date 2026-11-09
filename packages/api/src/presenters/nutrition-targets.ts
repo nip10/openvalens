@@ -402,7 +402,10 @@ export function readTotalAgainstTarget(
   /** "1,700–2,100 kcal", "at least 100 g" or "up to 2,000 mg", for use inside a sentence. */
   const targetText = (): string => {
     if (min !== null && max !== null) {
-      const range = min === max ? number(min, unit, i18n.locale) : `${number(min, unit, i18n.locale)}–${number(max, unit, i18n.locale)}`;
+      const range =
+        min === max
+          ? number(min, unit, i18n.locale)
+          : `${number(min, unit, i18n.locale)}–${number(max, unit, i18n.locale)}`;
       return `${range} ${unit}`;
     }
     if (min !== null) {

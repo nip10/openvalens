@@ -17,7 +17,7 @@ These documents inform product decisions. They are not clinical guidance and not
 | [Self hosting foundations evidence](reports/Self%20hosting%20foundations%20evidence.md)                   | #56, #57, #58, #61, #62, #63, #64, #68, #89                 |
 | [Nutrition tracking evidence synthesis](reports/Nutrition%20tracking%20evidence%20synthesis.md)           | #69–#88                                                     |
 | [Integrations and tracking extras evidence](reports/Integrations%20and%20tracking%20extras%20evidence.md) | #59, #60, #65, #66, #67, #90, #91, #93, #94                 |
-| [Gadgetbridge compatibility feasibility](reports/Gadgetbridge%20compatibility%20feasibility.md)           | #419–#430                                                  |
-| [Gadgetbridge algorithms and data handling](reports/Gadgetbridge%20algorithms%20and%20data%20handling.md) | #419–#430                                                  |
+| [Gadgetbridge compatibility feasibility](reports/Gadgetbridge%20compatibility%20feasibility.md)           | #419–#430                                                   |
+| [Gadgetbridge algorithms and data handling](reports/Gadgetbridge%20algorithms%20and%20data%20handling.md) | #419–#430                                                   |
 | [Legal and clinical gate decisions](reports/Legal%20and%20clinical%20gate%20decisions.md)                 | #56, #66, #70, #72, #76, #78, #80, #82, #89, #97, #99, #102 |
 | [Trademark knockout search, 2026-10-25](trademark-knockout-2026-10-25.md)                                 | #102                                                        |
