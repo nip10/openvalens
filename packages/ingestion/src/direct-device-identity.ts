@@ -1,4 +1,5 @@
 import {
+  DIRECT_DEVICE_FAMILIES,
   findDirectDeviceModel,
   isDirectDeviceIdentity,
   type DirectDeviceFamily,
@@ -9,6 +10,12 @@ export type DirectDeviceBindingIdentity = {
   directDeviceFamily: string | null;
   directDeviceModelId: string | null;
 };
+
+/**
+ * Record types a direct-device binding can publish. Steps are watch-family
+ * history; the GATT sensor metrics come from BLE peripherals.
+ */
+export type DirectDeviceRecordType = "steps" | "heart_rate" | "body_temperature" | "blood_pressure";
 
 export class DirectDeviceIdentityError extends Error {
   constructor(
@@ -25,7 +32,7 @@ export function confirmedDirectDeviceIdentity(
 ): DirectDeviceIdentity {
   if (!binding.directDeviceFamily || !binding.directDeviceModelId)
     throw new DirectDeviceIdentityError("IDENTITY_REQUIRED");
-  if (!(["zepp_os", "xiaomi", "huawei", "garmin"] as string[]).includes(binding.directDeviceFamily))
+  if (!(DIRECT_DEVICE_FAMILIES as readonly string[]).includes(binding.directDeviceFamily))
     throw new DirectDeviceIdentityError("IDENTITY_REQUIRED");
   const identity = {
     family: binding.directDeviceFamily as DirectDeviceFamily,
@@ -35,11 +42,20 @@ export function confirmedDirectDeviceIdentity(
   return identity;
 }
 
+/** Whether a device family can publish a given record type. */
+export function directDeviceFamilySupportsRecordType(
+  family: DirectDeviceFamily,
+  recordType: DirectDeviceRecordType,
+): boolean {
+  if (recordType === "steps") return family === "zepp_os" || family === "xiaomi";
+  return family === "ble_gatt";
+}
+
 /** Validate an optional legacy envelope assertion against the owned confirmed binding. */
 export function assertDirectDeviceIdentity(
   binding: DirectDeviceBindingIdentity,
   asserted?: unknown,
-  options: { requireStepsSupport?: boolean } = {},
+  options: { recordType?: DirectDeviceRecordType } = {},
 ): DirectDeviceIdentity {
   const confirmed = confirmedDirectDeviceIdentity(binding);
   if (asserted === undefined || asserted === null)
@@ -50,7 +66,10 @@ export function assertDirectDeviceIdentity(
     asserted.modelId !== confirmed.modelId
   )
     throw new DirectDeviceIdentityError("IDENTITY_MISMATCH");
-  if (options.requireStepsSupport && !["zepp_os", "xiaomi"].includes(confirmed.family))
+  if (
+    options.recordType &&
+    !directDeviceFamilySupportsRecordType(confirmed.family, options.recordType)
+  )
     throw new DirectDeviceIdentityError("HISTORY_UNSUPPORTED");
   return confirmed;
 }

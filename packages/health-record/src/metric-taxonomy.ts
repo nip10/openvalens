@@ -33,7 +33,11 @@ export type CanonicalMetricCode =
   | "active_calories"
   | "distance"
   | "hrv_rmssd"
-  | "provider_score";
+  | "provider_score"
+  | "body_temperature"
+  | "blood_pressure_systolic"
+  | "blood_pressure_diastolic"
+  | "blood_pressure_mean_arterial";
 
 export type CanonicalMetricCategory = "body" | "activity" | "vitals" | "cardiac" | "sleep" | "labs";
 
@@ -200,6 +204,47 @@ const METRIC_TAXONOMY: Record<CanonicalMetricCode, CanonicalMetricDefinition> = 
     supportedSources: Object.freeze(["watch", "ring"]),
     hasDefaultPriority: false,
   },
+  // Issue #423 — standard GATT sensor metrics published by BLE devices.
+  body_temperature: {
+    code: "body_temperature",
+    displayName: "Body Temperature",
+    category: "vitals",
+    unit: "°C",
+    valueType: "number",
+    aggregationDefault: "latest",
+    supportedSources: Object.freeze(["ble_sensor", "watch", "phone"]),
+    hasDefaultPriority: true,
+  },
+  blood_pressure_systolic: {
+    code: "blood_pressure_systolic",
+    displayName: "Blood Pressure (Systolic)",
+    category: "vitals",
+    unit: "mmHg",
+    valueType: "number",
+    aggregationDefault: "latest",
+    supportedSources: Object.freeze(["ble_sensor", "watch", "phone"]),
+    hasDefaultPriority: true,
+  },
+  blood_pressure_diastolic: {
+    code: "blood_pressure_diastolic",
+    displayName: "Blood Pressure (Diastolic)",
+    category: "vitals",
+    unit: "mmHg",
+    valueType: "number",
+    aggregationDefault: "latest",
+    supportedSources: Object.freeze(["ble_sensor", "watch", "phone"]),
+    hasDefaultPriority: true,
+  },
+  blood_pressure_mean_arterial: {
+    code: "blood_pressure_mean_arterial",
+    displayName: "Blood Pressure (Mean Arterial)",
+    category: "vitals",
+    unit: "mmHg",
+    valueType: "number",
+    aggregationDefault: "latest",
+    supportedSources: Object.freeze(["ble_sensor", "watch", "phone"]),
+    hasDefaultPriority: true,
+  },
 };
 
 const METRIC_CODE_ALIASES = Object.freeze({
@@ -281,5 +326,10 @@ export function getDefaultSourcePriorityOrder(code: string): readonly string[] |
       return Object.freeze(["ring", "watch", "phone"]);
     case "provider_score":
       return null;
+    case "body_temperature":
+    case "blood_pressure_systolic":
+    case "blood_pressure_diastolic":
+    case "blood_pressure_mean_arterial":
+      return Object.freeze(["ble_sensor", "watch", "phone"]);
   }
 }

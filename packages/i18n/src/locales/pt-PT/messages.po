@@ -5291,8 +5291,8 @@ msgid "Direct"
 msgstr "Direto"
 
 #: apps/native/components/direct-device-settings.tsx
-msgid "Direct device steps"
-msgstr "Passos do dispositivo direto"
+msgid "Direct devices"
+msgstr "Dispositivos diretos"
 
 #: packages/api/src/presenters/score.ts
 msgid "Direction inferred from the start value."
@@ -6252,13 +6252,13 @@ msgstr "Aguardar o convite"
 msgid "Experimental"
 msgstr "Experimental"
 
+#: apps/native/components/direct-device-settings.tsx
+msgid "Experimental direct Bluetooth support for two kinds of devices. Zepp OS and Xiaomi devices sync step history in the foreground. BLE GATT health sensors (heart rate, blood pressure, temperature) record live while connected, with no history backfill. Huawei/Honor and Garmin support connection checks only. No hardware verification has been done. No vendor login is requested."
+msgstr "Suporte experimental direto por Bluetooth para dois tipos de dispositivos. Os dispositivos Zepp OS e Xiaomi sincronizam o histórico de passos em primeiro plano. Os sensores de saúde BLE GATT (frequência cardíaca, tensão arterial, temperatura) fazem captura em direto enquanto ligados, sem preenchimento de histórico. Huawei/Honor e Garmin suportam só verificações de ligação. Não foi feita nenhuma verificação em hardware. Não é pedido nenhum início de sessão do fabricante."
+
 #: packages/api/src/presenters/energy-estimate.ts
 msgid "Experimental estimate: not a target or a measure of what you ate."
 msgstr "Estimativa experimental: não é um objetivo nem uma medida do que comeu."
-
-#: apps/native/components/direct-device-settings.tsx
-msgid "Experimental foreground steps sync for already-paired Zepp OS and Xiaomi devices. Huawei/Honor and Garmin support connection checks only. No hardware verification has been done. No vendor login is requested."
-msgstr "Sincronização experimental de passos, em primeiro plano, para dispositivos Zepp OS e Xiaomi já emparelhados. Huawei/Honor e Garmin suportam só verificações de ligação. Não foi feita nenhuma verificação em hardware. Não é pedido nenhum início de sessão do fabricante."
 
 #: packages/api/src/presenters/score.ts
 msgid "Experimental readiness index {score} out of 100, {profileName}."
@@ -8144,6 +8144,14 @@ msgstr "Benefício reduzido ou nulo"
 #: apps/native/app/(drawer)/index.tsx
 msgid "LIVE"
 msgstr "EM LINHA"
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "Live capture while connected; not hardware-verified. No history backfill. Samples are sent only when you tap “Retry upload”."
+msgstr "Captura em direto enquanto ligado; não verificado em hardware. Sem preenchimento de histórico. As amostras só são enviadas quando toca em “Tentar enviar novamente”."
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "Live capture while connected. Samples are saved in short batches and sent only when you tap “Retry upload”. There is no history backfill."
+msgstr "Captura em direto enquanto ligado. As amostras são guardadas em lotes curtos e só são enviadas quando toca em “Tentar enviar novamente”. Não há preenchimento de histórico."
 
 #: apps/web/src/routes/_auth/records/timeline.tsx
 msgid "Load more"

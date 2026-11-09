@@ -38,8 +38,55 @@ describe("direct-device identity guard", () => {
       assertDirectDeviceIdentity(
         { directDeviceFamily: "garmin", directDeviceModelId: "garmin_fenix_7" },
         { family: "garmin", modelId: "garmin_fenix_7" },
-        { requireStepsSupport: true },
+        { recordType: "steps" },
       ),
     ).toThrow(new DirectDeviceIdentityError("HISTORY_UNSUPPORTED"));
+  });
+
+  test("record-type capability separates watch steps from BLE GATT sensors", () => {
+    const ble = { directDeviceFamily: "ble_gatt", directDeviceModelId: "polar_h10" };
+    expect(
+      assertDirectDeviceIdentity(
+        ble,
+        { family: "ble_gatt", modelId: "polar_h10" },
+        { recordType: "heart_rate" },
+      ),
+    ).toEqual({ family: "ble_gatt", modelId: "polar_h10" });
+    expect(() =>
+      assertDirectDeviceIdentity(
+        ble,
+        { family: "ble_gatt", modelId: "polar_h10" },
+        {
+          recordType: "steps",
+        },
+      ),
+    ).toThrow(new DirectDeviceIdentityError("HISTORY_UNSUPPORTED"));
+    expect(() =>
+      assertDirectDeviceIdentity(
+        confirmed,
+        { family: "zepp_os", modelId: "amazfit_helio_strap" },
+        {
+          recordType: "body_temperature",
+        },
+      ),
+    ).toThrow(new DirectDeviceIdentityError("HISTORY_UNSUPPORTED"));
+    expect(() =>
+      assertDirectDeviceIdentity(
+        confirmed,
+        { family: "zepp_os", modelId: "amazfit_helio_strap" },
+        {
+          recordType: "blood_pressure",
+        },
+      ),
+    ).toThrow(new DirectDeviceIdentityError("HISTORY_UNSUPPORTED"));
+    expect(
+      assertDirectDeviceIdentity(
+        confirmed,
+        { family: "zepp_os", modelId: "amazfit_helio_strap" },
+        {
+          recordType: "steps",
+        },
+      ),
+    ).toEqual({ family: "zepp_os", modelId: "amazfit_helio_strap" });
   });
 });

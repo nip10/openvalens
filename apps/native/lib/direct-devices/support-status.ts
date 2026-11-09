@@ -39,7 +39,8 @@ export type OpenValensDeviceSupport =
   | "zepp_os_shared"
   | "xiaomi_shared"
   | "huawei_connection_only"
-  | "garmin_connection_only";
+  | "garmin_connection_only"
+  | "ble_gatt_live_capture";
 
 export type DeviceSupportStatus = Readonly<{
   upstream: UpstreamDeviceSupport;
@@ -80,5 +81,7 @@ function openValensSupport(
       return "huawei_connection_only";
     case "garmin":
       return "garmin_connection_only";
+    case "ble_gatt":
+      return "ble_gatt_live_capture";
   }
 }

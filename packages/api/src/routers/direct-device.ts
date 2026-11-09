@@ -43,7 +43,7 @@ function toApiError(error: unknown, fallback: string) {
   if (error instanceof DirectDeviceRecordTypeUnavailableError)
     return raiseApiError(
       "INVALID_INPUT",
-      "Only direct-device steps publication is currently available.",
+      "This direct-device record type is not available for this device.",
     );
   if (
     error instanceof DirectDeviceContextMismatchError ||

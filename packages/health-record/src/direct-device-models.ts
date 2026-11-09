@@ -1,5 +1,11 @@
 /** Shared direct-device identity vocabulary; data mirrors the native registries. */
-export const DIRECT_DEVICE_FAMILIES = ["zepp_os", "xiaomi", "huawei", "garmin"] as const;
+export const DIRECT_DEVICE_FAMILIES = [
+  "zepp_os",
+  "xiaomi",
+  "huawei",
+  "garmin",
+  "ble_gatt",
+] as const;
 export type DirectDeviceFamily = (typeof DIRECT_DEVICE_FAMILIES)[number];
 export type DirectDeviceIdentity = { family: DirectDeviceFamily; modelId: string };
 export type DirectDeviceModelDescriptor = DirectDeviceIdentity & { displayName: string };
@@ -1459,6 +1465,73 @@ export const DIRECT_DEVICE_MODELS: readonly DirectDeviceModelDescriptor[] = [
     family: "garmin",
     modelId: "garmin_vivosport",
     displayName: "Garmin Vívosport",
+  },
+  // BLE GATT sensors: heart-rate bands, blood-pressure monitors and
+  // thermometers that publish standard GATT characteristics.
+  {
+    family: "ble_gatt",
+    modelId: "polar_h10",
+    displayName: "Polar H10",
+  },
+  {
+    family: "ble_gatt",
+    modelId: "polar_h9",
+    displayName: "Polar H9",
+  },
+  {
+    family: "ble_gatt",
+    modelId: "coospo_h6",
+    displayName: "Coospo H6",
+  },
+  {
+    family: "ble_gatt",
+    modelId: "coospo_h9z",
+    displayName: "Coospo H9Z",
+  },
+  {
+    family: "ble_gatt",
+    modelId: "coospo_hw807",
+    displayName: "Coospo HW807",
+  },
+  {
+    family: "ble_gatt",
+    modelId: "coospo_hw9",
+    displayName: "Coospo HW9",
+  },
+  {
+    family: "ble_gatt",
+    modelId: "beurer_bm59",
+    displayName: "Beurer BM59",
+  },
+  {
+    family: "ble_gatt",
+    modelId: "beurer_bm69",
+    displayName: "Beurer BM69",
+  },
+  {
+    family: "ble_gatt",
+    modelId: "sanitas_sbm67",
+    displayName: "Sanitas SBM67",
+  },
+  {
+    family: "ble_gatt",
+    modelId: "femometer_vinca_2",
+    displayName: "Femometer Vinca 2",
+  },
+  {
+    family: "ble_gatt",
+    modelId: "generic_heart_rate_sensor",
+    displayName: "Generic Heart Rate Sensor",
+  },
+  {
+    family: "ble_gatt",
+    modelId: "generic_blood_pressure_monitor",
+    displayName: "Generic Blood Pressure Monitor",
+  },
+  {
+    family: "ble_gatt",
+    modelId: "generic_health_thermometer",
+    displayName: "Generic Health Thermometer",
   },
 ];
 

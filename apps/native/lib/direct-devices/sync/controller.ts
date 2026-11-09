@@ -20,6 +20,7 @@ import type { DirectDeviceIdentity } from "@openvalens/api/contracts/direct-devi
 import type { DirectDeviceStore } from "../persistence/store";
 import { drainDirectDeviceOutbox } from "../upload";
 import type { HelioCursor, HelioStepsPage } from "../protocol/types";
+import type { BleGattSample } from "../protocol/ble-gatt";
 import type {
   DirectDeviceConfirmationTarget,
   HelioSyncContext,
@@ -46,6 +47,8 @@ type Dependencies = {
   uuid?(): string;
   now?(): number;
   onApplied?(): Promise<void>;
+  /** Mutable sink wired to the setup controller's live GATT notifications. */
+  liveCapture?: { handler: ((sample: BleGattSample) => void) | null };
 };
 
 const emptySnapshot: HelioSyncSnapshot = Object.freeze({
@@ -57,7 +60,7 @@ const emptySnapshot: HelioSyncSnapshot = Object.freeze({
   connectedModelId: null,
   connectedFamily: null,
   connectionGeneration: 0,
-  capabilities: Object.freeze({ stepsHistory: false }),
+  capabilities: Object.freeze({ stepsHistory: false, liveCapture: false }),
   bluetooth: "unknown",
   errorCode: null,
   capturedMinutes: 0,
@@ -169,10 +172,14 @@ export function createHelioSyncController(context: HelioSyncContext): HelioSyncC
     require("../setup/controller") as typeof import("../setup/controller");
   const { authSessionStorage } =
     require("../../auth-session-storage") as typeof import("../../auth-session-storage");
+  const liveCapture: { handler: ((sample: BleGattSample) => void) | null } = { handler: null };
   return createController(context, {
     store: getDirectDeviceStore(),
-    setup: createHelioSetupController(),
+    setup: createHelioSetupController({
+      onLiveSample: (sample) => liveCapture.handler?.(sample),
+    }),
     captureCookie: () => authSessionStorage.captureVerifiedSessionCookie(),
+    liveCapture,
   });
 }
 
@@ -236,6 +243,182 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
     return apiFactory(context.serverUrl, cookie, signal);
   };
   const current = (token: number) => !disposed && token === generation;
+
+  // Live GATT capture. Samples are buffered per binding and committed as
+  // short backfill batches: the shared contract has no live mode yet.
+  let liveBuffer: { deviceId: string; samples: BleGattSample[] } | null = null;
+  let liveFlush: Promise<void> = Promise.resolve();
+  let liveFlushTimer: ReturnType<typeof setTimeout> | null = null;
+  let liveCaptureSequence = 0;
+
+  const clearLiveFlushTimer = () => {
+    if (liveFlushTimer) clearTimeout(liveFlushTimer);
+    liveFlushTimer = null;
+  };
+
+  const liveRecords = (
+    deviceId: string,
+    samples: readonly BleGattSample[],
+  ): { recordType: "heart_rate" | "body_temperature" | "blood_pressure"; upserts: unknown[] }[] => {
+    const heartRate = samples.filter(
+      (sample): sample is Extract<BleGattSample, { type: "heart_rate" }> =>
+        sample.type === "heart_rate",
+    );
+    const temperatures = samples.filter(
+      (sample): sample is Extract<BleGattSample, { type: "body_temperature" }> =>
+        sample.type === "body_temperature",
+    );
+    const pressures = samples.filter(
+      (sample): sample is Extract<BleGattSample, { type: "blood_pressure" }> =>
+        sample.type === "blood_pressure",
+    );
+    const groups: {
+      recordType: "heart_rate" | "body_temperature" | "blood_pressure";
+      upserts: unknown[];
+    }[] = [];
+    if (heartRate.length) {
+      const startTime = heartRate[0]!.time;
+      const endTime = new Date(
+        Math.max(Date.parse(heartRate[heartRate.length - 1]!.time), Date.parse(startTime) + 1000),
+      ).toISOString();
+      groups.push({
+        recordType: "heart_rate",
+        upserts: [
+          {
+            type: "heart_rate",
+            externalRecordId: `dd-live:${deviceId}:hr:${startTime}`,
+            sourceApp: null,
+            startTime,
+            endTime,
+            samples: heartRate.map((sample) => ({ time: sample.time, bpm: sample.bpm })),
+          },
+        ],
+      });
+    }
+    const temperatureRecords = temperatures
+      .filter((sample) => sample.celsius >= 25 && sample.celsius <= 45)
+      .map((sample, index) => ({
+        type: "body_temperature",
+        externalRecordId: `dd-live:${deviceId}:temp:${sample.time}:${index}`,
+        sourceApp: null,
+        startTime: sample.time,
+        endTime: new Date(Date.parse(sample.time) + 1000).toISOString(),
+        celsius: sample.celsius,
+      }));
+    if (temperatureRecords.length)
+      groups.push({ recordType: "body_temperature", upserts: temperatureRecords });
+    const pressureRecords = pressures
+      .filter(
+        (sample) =>
+          sample.systolic >= 50 &&
+          sample.systolic <= 300 &&
+          sample.diastolic >= 20 &&
+          sample.diastolic < sample.systolic,
+      )
+      .map((sample, index) => ({
+        type: "blood_pressure",
+        externalRecordId: `dd-live:${deviceId}:bp:${sample.time}:${index}`,
+        sourceApp: null,
+        startTime: sample.time,
+        endTime: new Date(Date.parse(sample.time) + 1000).toISOString(),
+        systolic: sample.systolic,
+        diastolic: sample.diastolic,
+        ...(sample.meanArterialPressure >= 20 && sample.meanArterialPressure <= 250
+          ? { meanArterialPressure: sample.meanArterialPressure }
+          : {}),
+        ...(sample.pulseRate !== null && sample.pulseRate >= 20 && sample.pulseRate <= 250
+          ? { pulseRate: Math.round(sample.pulseRate) }
+          : {}),
+      }));
+    if (pressureRecords.length)
+      groups.push({ recordType: "blood_pressure", upserts: pressureRecords });
+    return groups;
+  };
+
+  const flushLiveSamples = async () => {
+    clearLiveFlushTimer();
+    const buffer = liveBuffer;
+    liveBuffer = null;
+    if (!buffer || buffer.samples.length === 0 || disposed) return;
+    try {
+      const ticket = fresh();
+      const binding = deps.store.getBinding(ticket, buffer.deviceId);
+      if (!binding?.providerConnectionId || !binding.family || !binding.modelId) return;
+      const identity = {
+        family: binding.family,
+        modelId: binding.modelId,
+      } as DirectDeviceIdentity;
+      const groups = liveRecords(buffer.deviceId, buffer.samples);
+      if (!groups.length) return;
+      const starts = buffer.samples.map((sample) => Date.parse(sample.time));
+      const startTime = new Date(Math.min(...starts)).toISOString();
+      const endTime = new Date(Math.max(...starts) + 1000).toISOString();
+      const captureId = `dd-live:${buffer.deviceId}:${startTime}:${++liveCaptureSequence}`;
+      const envelopes: IngestDirectDeviceBatchInput[] = groups.map((group) => ({
+        expectedContext: { userId: context.userId, organizationId: context.organizationId },
+        batch: {
+          schemaVersion: 1,
+          deviceId: buffer.deviceId,
+          deviceIdentity: identity,
+          provider: "direct_device",
+          recordType: group.recordType,
+          // No live mode exists in the contract; a live window is uploaded as
+          // a short backfill batch.
+          mode: "backfill",
+          upserts: group.upserts,
+          deletions: [],
+          clientTimezone: "UTC",
+        },
+      })) as IngestDirectDeviceBatchInput[];
+      deps.store.commitCapture(ticket, {
+        deviceId: buffer.deviceId,
+        deviceIdentity: identity,
+        captureId,
+        expectedPreviousCheckpoint: binding.captureCheckpoint,
+        nextCheckpoint: `live:${endTime}`,
+        envelopes,
+      });
+      publish({ pendingEnvelopes: deps.store.countUnaccepted(ticket.scope) });
+    } catch {
+      // Best effort: a stale authority or checkpoint conflict drops this
+      // window rather than interrupting the live connection.
+    }
+  };
+
+  const queueLiveFlush = () => {
+    liveFlush = liveFlush.then(flushLiveSamples).catch(() => undefined);
+  };
+
+  const scheduleLiveFlush = () => {
+    if (liveFlushTimer) return;
+    liveFlushTimer = setTimeout(() => {
+      liveFlushTimer = null;
+      queueLiveFlush();
+    }, 5000);
+  };
+
+  const handleLiveSample = (sample: BleGattSample) => {
+    if (disposed) return;
+    const state = deps.setup.getSnapshot();
+    if (state.phase !== "connected" || state.connectedFamily !== "ble_gatt") return;
+    const bindingId = selectedBindingId;
+    if (!bindingId) return;
+    const binding = bindingsById.get(bindingId);
+    if (
+      !binding ||
+      binding.family !== state.connectedFamily ||
+      binding.modelId !== state.connectedModelId
+    )
+      return;
+    if (!liveBuffer || liveBuffer.deviceId !== bindingId)
+      liveBuffer = { deviceId: bindingId, samples: [] };
+    const buffer = liveBuffer;
+    buffer.samples.push(sample);
+    if (buffer.samples.length >= 10) queueLiveFlush();
+    else scheduleLiveFlush();
+  };
+  if (deps.liveCapture) deps.liveCapture.handler = handleLiveSample;
+
   const bumpConnectionGeneration = () => {
     connectionGeneration += 1;
     activeConfirmationAbort?.abort();
@@ -663,6 +846,8 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
       }
     },
     async cancel() {
+      clearLiveFlushTimer();
+      queueLiveFlush();
       ++generation;
       bumpConnectionGeneration();
       activeAbort?.abort();
@@ -672,6 +857,7 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
     },
     async dispose() {
       if (disposed) return;
+      clearLiveFlushTimer();
       bumpConnectionGeneration();
       disposed = true;
       ++generation;

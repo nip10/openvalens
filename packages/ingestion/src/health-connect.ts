@@ -23,7 +23,11 @@ export type CanonicalMetricWriteIntent = {
     | "distance"
     | "resting_heart_rate"
     | "hrv_rmssd"
-    | "provider_score";
+    | "provider_score"
+    | "body_temperature"
+    | "blood_pressure_systolic"
+    | "blood_pressure_diastolic"
+    | "blood_pressure_mean_arterial";
   sampledAt: string;
   /** Interval end for interval metrics (steps, calories, distance); stored in metadata. */
   endAt?: string;

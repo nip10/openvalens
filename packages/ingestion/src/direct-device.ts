@@ -14,6 +14,7 @@ import {
   type DirectDeviceIdentity,
 } from "@openvalens/health-record/direct-device-models";
 import { assertDirectDeviceIdentity, DirectDeviceIdentityError } from "./direct-device-identity";
+import type { DirectDeviceRecordType } from "./direct-device-identity";
 
 const DIRECT_DEVICE_PROVIDER = "direct_device";
 const DIRECT_DEVICE_FAMILY = "amazfit_helio_strap";
@@ -34,13 +35,32 @@ type DirectDeviceRecord =
       startTime: string;
       endTime: string;
       samples: { time: string; bpm: number }[];
+    }
+  | {
+      type: "body_temperature";
+      externalRecordId: string;
+      sourceApp: null;
+      startTime: string;
+      endTime: string;
+      celsius: number;
+    }
+  | {
+      type: "blood_pressure";
+      externalRecordId: string;
+      sourceApp: null;
+      startTime: string;
+      endTime: string;
+      systolic: number;
+      diastolic: number;
+      meanArterialPressure?: number;
+      pulseRate?: number;
     };
 type DirectDeviceBatch = {
   schemaVersion: 1;
   deviceId: string;
   deviceIdentity?: DirectDeviceIdentity;
   provider: "direct_device";
-  recordType: "steps" | "heart_rate";
+  recordType: "steps" | "heart_rate" | "body_temperature" | "blood_pressure";
   mode: "backfill";
   window?: { from: string; to: string };
   upserts: DirectDeviceRecord[];
@@ -69,10 +89,17 @@ export class DirectDeviceOwnershipError extends Error {
 }
 export class DirectDeviceRecordTypeUnavailableError extends Error {
   constructor() {
-    super("Only direct-device steps publication is enabled.");
+    super("This direct-device record type is not available.");
     this.name = "DirectDeviceRecordTypeUnavailableError";
   }
 }
+
+const DIRECT_DEVICE_RECORD_TYPES = new Set<DirectDeviceRecordType>([
+  "steps",
+  "heart_rate",
+  "body_temperature",
+  "blood_pressure",
+]);
 
 export async function registerDirectDevice(
   db: Database,
@@ -182,7 +209,8 @@ export async function ingestDirectDeviceBatch(
 ) {
   assertExpectedContext(input.expectedContext, input.authenticatedContext);
   const { batch } = input;
-  if (batch.recordType !== "steps") throw new DirectDeviceRecordTypeUnavailableError();
+  if (!DIRECT_DEVICE_RECORD_TYPES.has(batch.recordType))
+    throw new DirectDeviceRecordTypeUnavailableError();
   const [binding] = await db
     .select({
       userId: providerConnection.userId,
@@ -206,7 +234,7 @@ export async function ingestDirectDeviceBatch(
   )
     throw new MobileDeviceNotRegisteredError();
   const identity = assertDirectDeviceIdentity(binding, batch.deviceIdentity, {
-    requireStepsSupport: true,
+    recordType: batch.recordType,
   });
   const descriptor = findDirectDeviceModel(identity)!;
   const normalized = {

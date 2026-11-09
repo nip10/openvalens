@@ -129,3 +129,25 @@ test("every registered model has a catalog entry to show", () => {
   );
   expect(unlisted).toEqual([]);
 });
+
+test("generic GATT models report live capture only and no history backfill", () => {
+  expect(
+    describeDeviceSupport({
+      family: "ble_gatt",
+      modelId: "polar_h10",
+      transportValidated: false,
+    }),
+  ).toEqual({
+    upstream: { listed: true, featureLevel: "partial", experimental: false },
+    openValens: "ble_gatt_live_capture",
+  });
+  // Generic fallback ids have no upstream catalog row; that is reported
+  // honestly rather than guessed.
+  expect(
+    describeDeviceSupport({
+      family: "ble_gatt",
+      modelId: "generic_heart_rate_sensor",
+      transportValidated: false,
+    }).upstream,
+  ).toEqual({ listed: false });
+});

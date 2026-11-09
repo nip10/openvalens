@@ -6,6 +6,7 @@ import { join } from "node:path";
 
 import type {
   DirectDeviceBindingSummary,
+  DirectDeviceIdentity,
   IngestDirectDeviceBatchInput,
 } from "@openvalens/api/contracts/direct-device";
 import {
@@ -26,6 +27,7 @@ import {
 import { runXiaomiStepsHistory, type XiaomiHistoryTransport } from "../protocol/xiaomi-history";
 import type { XiaomiCommand } from "../protocol/xiaomi-proto";
 import type { HelioCursor, HelioStepsPage } from "../protocol/types";
+import type { BleGattSample } from "../protocol/ble-gatt";
 import type { DirectDeviceConfirmationTarget, HelioSyncSnapshot } from "./types";
 import {
   createHelioSyncControllerWithDependencies,
@@ -119,7 +121,11 @@ type MutableSetupController = HelioSetupController & {
 function setup(
   fetchSteps: HelioSetupController["fetchSteps"],
   connectedModelId: HelioSetupSnapshot["connectedModelId"] = "xiaomi_mi_band_10",
-  overrides: { family?: HelioSetupSnapshot["connectedFamily"]; stepsHistory?: boolean } = {},
+  overrides: {
+    family?: HelioSetupSnapshot["connectedFamily"];
+    stepsHistory?: boolean;
+    liveCapture?: boolean;
+  } = {},
 ): MutableSetupController {
   const state: HelioSetupSnapshot = {
     phase: "connected",
@@ -129,7 +135,10 @@ function setup(
     connectedModelId,
     connectedFamily:
       overrides.family ?? (connectedModelId?.startsWith("xiaomi") ? "xiaomi" : "zepp_os"),
-    capabilities: { stepsHistory: overrides.stepsHistory ?? connectedModelId !== null },
+    capabilities: {
+      stepsHistory: overrides.stepsHistory ?? connectedModelId !== null,
+      liveCapture: overrides.liveCapture ?? false,
+    },
     errorCode: null,
     crypto: { status: "passed", code: null },
   };
@@ -196,9 +205,10 @@ async function readyController(args: {
   cookie?: () => Promise<string>;
   now?: () => number;
   uuid?: () => string;
-  localIdentity?: { family: "xiaomi"; modelId: string } | null;
+  localIdentity?: DirectDeviceIdentity | null;
   seedBinding?: boolean;
   onApplied?: () => Promise<void>;
+  liveCapture?: { handler: ((sample: BleGattSample) => void) | null };
 }) {
   const sessionId = `${context.sessionId}-${++sessionSequence}`;
   const syncContext = { ...context, sessionId };
@@ -235,6 +245,7 @@ async function readyController(args: {
     now: args.now ?? (() => Date.parse("2026-02-01T00:00:00.000Z")),
     uuid: args.uuid,
     onApplied: args.onApplied,
+    liveCapture: args.liveCapture,
   });
   await controller.refreshBindings();
   controller.selectBinding(deviceId);
@@ -392,14 +403,14 @@ test("confirmation consent becomes stale after model change, same-id reconnect, 
         connectedDeviceId: null,
         connectedModelId: null,
         connectedFamily: null,
-        capabilities: { stepsHistory: false },
+        capabilities: { stepsHistory: false, liveCapture: false },
       });
       setupController.setSnapshot({
         phase: "connected",
         connectedDeviceId: "native-1",
         connectedModelId: "xiaomi_mi_band_10",
         connectedFamily: "xiaomi",
-        capabilities: { stepsHistory: true },
+        capabilities: { stepsHistory: true, liveCapture: false },
       });
     } else {
       await controller.cancel();
@@ -1417,6 +1428,93 @@ test("Xiaomi history pages flow through capture and outbox", async () => {
     "2026-02-01T00:01:00.000Z",
   );
   expect(store.listPending(ticket, 10)).toHaveLength(0);
+  await controller.dispose();
+  db.close();
+  invalidateDirectDeviceAuthority();
+});
+
+test("live GATT samples are committed as short backfill batches", async () => {
+  const { db, store } = sqlite();
+  const liveCapture: { handler: ((sample: BleGattSample) => void) | null } = { handler: null };
+  const gattBinding: DirectDeviceBindingSummary = {
+    ...binding,
+    family: "ble_gatt",
+    modelId: "polar_h10",
+    displayName: "Polar H10",
+  };
+  const { controller, ticket } = await readyController({
+    store,
+    setup: setup(async () => ({ pages: 0, minutes: 0, complete: true }), "polar_h10", {
+      family: "ble_gatt",
+      stepsHistory: false,
+      liveCapture: true,
+    }),
+    localIdentity: { family: "ble_gatt", modelId: "polar_h10" },
+    liveCapture,
+    makeClient: () => ({
+      directDevice: {
+        listDirectDevices: async () => ({ devices: [gattBinding] }),
+        registerDirectDevice: async () => ({ providerConnectionId: 41 }),
+        ingestDirectDeviceBatch: async () => ({ status: "applied" }),
+      },
+    }),
+  });
+  expect(liveCapture.handler).not.toBeNull();
+  const base = Date.parse("2026-02-01T00:00:00.000Z");
+  for (let index = 0; index < 8; index += 1)
+    liveCapture.handler!({
+      type: "heart_rate",
+      time: new Date(base + index * 1000).toISOString(),
+      bpm: 70 + index,
+      sensorContact: "detected",
+      energyExpended: null,
+      rrIntervalsMs: [],
+    });
+  liveCapture.handler!({
+    type: "body_temperature",
+    time: new Date(base + 8000).toISOString(),
+    celsius: 36.5,
+    site: 2,
+    deviceTimestamp: false,
+  });
+  liveCapture.handler!({
+    type: "blood_pressure",
+    time: new Date(base + 9000).toISOString(),
+    systolic: 120,
+    diastolic: 80,
+    meanArterialPressure: 100,
+    pulseRate: 72,
+    userId: null,
+    deviceTimestamp: false,
+  });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  const pending = store.listPending(ticket, 10);
+  expect(pending).toHaveLength(3);
+  const byType = new Map(pending.map((row) => [row.request.batch.recordType, row.request.batch]));
+  expect([...byType.keys()].sort()).toEqual(["blood_pressure", "body_temperature", "heart_rate"]);
+  for (const batch of byType.values())
+    expect(batch).toMatchObject({
+      mode: "backfill",
+      deviceIdentity: { family: "ble_gatt", modelId: "polar_h10" },
+    });
+  const heartRate = byType.get("heart_rate")!.upserts[0]!;
+  expect(heartRate.type).toBe("heart_rate");
+  if (heartRate.type === "heart_rate") {
+    expect(heartRate.samples).toHaveLength(8);
+    expect(heartRate.samples[0]!.bpm).toBe(70);
+  }
+  expect(byType.get("body_temperature")!.upserts[0]).toMatchObject({
+    type: "body_temperature",
+    celsius: 36.5,
+  });
+  expect(byType.get("blood_pressure")!.upserts[0]).toMatchObject({
+    type: "blood_pressure",
+    systolic: 120,
+    diastolic: 80,
+    meanArterialPressure: 100,
+    pulseRate: 72,
+  });
   await controller.dispose();
   db.close();
   invalidateDirectDeviceAuthority();

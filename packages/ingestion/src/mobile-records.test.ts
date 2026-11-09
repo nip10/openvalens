@@ -123,6 +123,73 @@ describe("adaptMobileHealthRecords", () => {
     });
   });
 
+  test("body temperature emits a single canonical sample in Celsius", () => {
+    const intents = adaptMobileHealthRecords([
+      {
+        ...base,
+        type: "body_temperature",
+        startTime: "2026-10-01T07:00:00.000Z",
+        endTime: "2026-10-01T07:01:00.000Z",
+        celsius: 36.6,
+      },
+    ]);
+    expect(intents).toHaveLength(1);
+    expect(intents[0]).toMatchObject({
+      kind: "metric_sample",
+      canonicalType: "body_temperature",
+      sampledAt: "2026-10-01T07:00:00.000Z",
+      value: 36.6,
+      unit: "°C",
+      externalId: "hc-1",
+    });
+  });
+
+  test("blood pressure fans out to systolic, diastolic and optional MAP and pulse", () => {
+    const [systolic, diastolic, meanArterial, pulse] = adaptMobileHealthRecords([
+      {
+        ...base,
+        type: "blood_pressure",
+        startTime: "2026-10-01T07:00:00.000Z",
+        endTime: "2026-10-01T07:01:00.000Z",
+        systolic: 120,
+        diastolic: 80,
+        meanArterialPressure: 93,
+        pulseRate: 60,
+      },
+    ]);
+    expect(
+      [systolic, diastolic, meanArterial, pulse].map((intent) =>
+        intent?.kind === "metric_sample"
+          ? [intent.canonicalType, intent.value, intent.unit, intent.externalId]
+          : null,
+      ),
+    ).toEqual([
+      ["blood_pressure_systolic", 120, "mmHg", "hc-1:systolic"],
+      ["blood_pressure_diastolic", 80, "mmHg", "hc-1:diastolic"],
+      ["blood_pressure_mean_arterial", 93, "mmHg", "hc-1:map"],
+      ["heart_rate", 60, "bpm", "hc-1:pulse"],
+    ]);
+    expect(pulse).toMatchObject({
+      rawRecord: { externalRecordId: "hc-1", pulseRate: 60 },
+    });
+  });
+
+  test("blood pressure omits MAP and pulse intents when the device does not report them", () => {
+    const intents = adaptMobileHealthRecords([
+      {
+        ...base,
+        type: "blood_pressure",
+        startTime: "2026-10-01T07:00:00.000Z",
+        endTime: "2026-10-01T07:01:00.000Z",
+        systolic: 118,
+        diastolic: 76,
+      },
+    ]);
+    expect(
+      intents.map((intent) => (intent.kind === "metric_sample" ? intent.canonicalType : null)),
+    ).toEqual(["blood_pressure_systolic", "blood_pressure_diastolic"]);
+  });
+
   test("intents carry lastModifiedAt so edited records get a new dedupe version", () => {
     const [intent] = adaptMobileHealthRecords([
       {

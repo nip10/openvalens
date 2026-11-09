@@ -36,7 +36,11 @@ import {
 import { lockActivityPublication, reconcileDirectStepsFallback } from "./direct-steps-fallback";
 import { persistCanonicalIntents, type CanonicalRowRef } from "./persist-canonical-records";
 import type { RunClaimedJobResult } from "./run-job";
-import { assertDirectDeviceIdentity, DirectDeviceIdentityError } from "./direct-device-identity";
+import {
+  assertDirectDeviceIdentity,
+  DirectDeviceIdentityError,
+  type DirectDeviceRecordType,
+} from "./direct-device-identity";
 import type { DirectDeviceIdentity } from "@openvalens/health-record/direct-device-models";
 
 /**
@@ -114,6 +118,16 @@ const PLATFORM_PROVIDER: Record<"android" | "ios", MobileProvider> = {
   android: "health_connect",
   ios: "apple_health",
 };
+
+/** Record types a direct-device binding may publish (see direct-device-identity). */
+function isDirectDeviceRecordType(value: MobileHealthRecordType): value is DirectDeviceRecordType {
+  return (
+    value === "steps" ||
+    value === "heart_rate" ||
+    value === "body_temperature" ||
+    value === "blood_pressure"
+  );
+}
 
 /**
  * Upsert the device's `provider_connection` (`external_user_id = deviceId`).
@@ -272,10 +286,15 @@ export async function acceptMobileBatch(
     if (input.expectedOwnerId !== undefined && connection.userId !== input.expectedOwnerId)
       throw new MobileDeviceNotRegisteredError();
     if (batch.provider === "direct_device") {
-      if (batch.recordType !== "steps") throw new DirectDeviceIdentityError("HISTORY_UNSUPPORTED");
-      assertDirectDeviceIdentity(connection, batch.deviceIdentity, { requireStepsSupport: true });
+      if (!isDirectDeviceRecordType(batch.recordType))
+        throw new DirectDeviceIdentityError("HISTORY_UNSUPPORTED");
+      assertDirectDeviceIdentity(connection, batch.deviceIdentity, {
+        recordType: batch.recordType,
+      });
       for (const record of batch.upserts) {
-        if (record.type !== "steps") throw new DirectDeviceIdentityError("HISTORY_UNSUPPORTED");
+        if (record.type !== batch.recordType)
+          throw new DirectDeviceIdentityError("HISTORY_UNSUPPORTED");
+        if (batch.recordType !== "steps") continue;
         const start = new Date(record.startTime).getTime();
         const end = new Date(record.endTime).getTime();
         if (
@@ -553,8 +572,10 @@ export async function runMobileIngestBatchJob(
         identityFailure = "direct_device_owner_mismatch";
       else {
         try {
+          if (!isDirectDeviceRecordType(batch.recordType))
+            throw new DirectDeviceIdentityError("HISTORY_UNSUPPORTED");
           directIdentity = assertDirectDeviceIdentity(binding, batch.deviceIdentity, {
-            requireStepsSupport: true,
+            recordType: batch.recordType,
           });
         } catch (error) {
           if (error instanceof DirectDeviceIdentityError) identityFailure = error.reason;
@@ -563,17 +584,16 @@ export async function runMobileIngestBatchJob(
       }
       if (!identityFailure && batch.directDeviceOwnerId !== binding!.userId)
         identityFailure = "direct_device_owner_mismatch";
-      if (!identityFailure && batch.recordType !== "steps") identityFailure = "HISTORY_UNSUPPORTED";
 
       if (
         !identityFailure &&
         (!Array.isArray(batch.upserts) ||
           batch.upserts.some(
-            (record) => !record || typeof record !== "object" || record.type !== "steps",
+            (record) => !record || typeof record !== "object" || record.type !== batch.recordType,
           ))
       )
         identityFailure = "HISTORY_UNSUPPORTED";
-      if (!identityFailure) {
+      if (!identityFailure && batch.recordType === "steps") {
         for (const record of batch.upserts as unknown as {
           startTime?: unknown;
           endTime?: unknown;

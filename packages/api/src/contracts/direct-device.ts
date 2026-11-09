@@ -117,6 +117,25 @@ const directDeviceRecord = z.discriminatedUnion("type", [
       .min(1)
       .max(5000),
   }),
+  z.strictObject({
+    type: z.literal("body_temperature"),
+    externalRecordId: z.string().min(1).max(120),
+    sourceApp: z.null(),
+    startTime: isoUtc,
+    endTime: isoUtc,
+    celsius: z.number().positive().min(25).max(45),
+  }),
+  z.strictObject({
+    type: z.literal("blood_pressure"),
+    externalRecordId: z.string().min(1).max(120),
+    sourceApp: z.null(),
+    startTime: isoUtc,
+    endTime: isoUtc,
+    systolic: z.number().int().min(50).max(300),
+    diastolic: z.number().int().min(20).max(200),
+    meanArterialPressure: z.number().int().min(20).max(250).optional(),
+    pulseRate: z.number().int().min(20).max(250).optional(),
+  }),
 ]);
 
 export const directDeviceBatch = z
@@ -125,7 +144,7 @@ export const directDeviceBatch = z
     deviceId: z.uuid(),
     deviceIdentity: directDeviceIdentity.optional(),
     provider: z.literal(DIRECT_DEVICE_PROVIDER),
-    recordType: z.enum(["steps", "heart_rate"]),
+    recordType: z.enum(["steps", "heart_rate", "body_temperature", "blood_pressure"]),
     mode: z.literal("backfill"),
     window: z.strictObject({ from: isoUtc, to: isoUtc }).optional(),
     upserts: z.array(directDeviceRecord).min(1).max(1000),
@@ -168,6 +187,12 @@ export const directDeviceBatch = z
               path: ["upserts", index, "samples", sampleIndex, "time"],
               message: "Sample must be contained in the record interval.",
             });
+        });
+      if (record.type === "blood_pressure" && record.diastolic >= record.systolic)
+        ctx.addIssue({
+          code: "custom",
+          path: ["upserts", index, "diastolic"],
+          message: "diastolic must be lower than systolic.",
         });
     });
     if (

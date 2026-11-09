@@ -162,4 +162,97 @@ describe("direct device contract", () => {
       }).success,
     ).toBe(false);
   });
+
+  test("accepts body-temperature batches inside the plausible range", () => {
+    const temperature = {
+      type: "body_temperature",
+      externalRecordId: "temp-1",
+      sourceApp: null,
+      startTime: steps.startTime,
+      endTime: steps.endTime,
+      celsius: 36.6,
+    };
+    const temperatureBatch = { ...batch, recordType: "body_temperature", upserts: [temperature] };
+    expect(directDeviceBatch.safeParse(temperatureBatch).success).toBe(true);
+    expect(
+      directDeviceBatch.safeParse({
+        ...temperatureBatch,
+        upserts: [{ ...temperature, celsius: 24.9 }],
+      }).success,
+    ).toBe(false);
+    expect(
+      directDeviceBatch.safeParse({
+        ...temperatureBatch,
+        upserts: [{ ...temperature, celsius: 45.1 }],
+      }).success,
+    ).toBe(false);
+    expect(
+      directDeviceBatch.safeParse({
+        ...temperatureBatch,
+        upserts: [{ ...temperature, celsius: -1 }],
+      }).success,
+    ).toBe(false);
+  });
+
+  test("accepts blood-pressure batches and enforces ranges and diastolic < systolic", () => {
+    const bloodPressure = {
+      type: "blood_pressure",
+      externalRecordId: "bp-1",
+      sourceApp: null,
+      startTime: steps.startTime,
+      endTime: steps.endTime,
+      systolic: 120,
+      diastolic: 80,
+      meanArterialPressure: 93,
+      pulseRate: 60,
+    };
+    const bpBatch = { ...batch, recordType: "blood_pressure", upserts: [bloodPressure] };
+    expect(directDeviceBatch.safeParse(bpBatch).success).toBe(true);
+    expect(
+      directDeviceBatch.safeParse({
+        ...bpBatch,
+        upserts: [{ ...bloodPressure, meanArterialPressure: undefined, pulseRate: undefined }],
+      }).success,
+    ).toBe(true);
+    expect(
+      directDeviceBatch.safeParse({
+        ...bpBatch,
+        upserts: [{ ...bloodPressure, diastolic: 120 }],
+      }).success,
+    ).toBe(false);
+    expect(
+      directDeviceBatch.safeParse({
+        ...bpBatch,
+        upserts: [{ ...bloodPressure, systolic: 49 }],
+      }).success,
+    ).toBe(false);
+    expect(
+      directDeviceBatch.safeParse({
+        ...bpBatch,
+        upserts: [{ ...bloodPressure, diastolic: 201 }],
+      }).success,
+    ).toBe(false);
+    expect(
+      directDeviceBatch.safeParse({
+        ...bpBatch,
+        upserts: [{ ...bloodPressure, meanArterialPressure: 251 }],
+      }).success,
+    ).toBe(false);
+    expect(
+      directDeviceBatch.safeParse({
+        ...bpBatch,
+        upserts: [{ ...bloodPressure, pulseRate: 19 }],
+      }).success,
+    ).toBe(false);
+  });
+
+  test("rejects upserts whose type does not match the batch recordType", () => {
+    expect(
+      directDeviceBatch.safeParse({
+        ...batch,
+        recordType: "body_temperature",
+        upserts: [steps],
+      }).success,
+    ).toBe(false);
+  });
 });

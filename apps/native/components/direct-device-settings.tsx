@@ -11,6 +11,8 @@ import { getHuaweiModel } from "@/lib/direct-devices/models/huawei";
 import type { HuaweiModel, HuaweiModelId } from "@/lib/direct-devices/models/huawei";
 import { getGarminModel } from "@/lib/direct-devices/models/garmin";
 import type { GarminModel, GarminModelId } from "@/lib/direct-devices/models/garmin";
+import { getBleGattModel } from "@/lib/direct-devices/models/ble-gatt";
+import type { BleGattModel, BleGattModelId } from "@/lib/direct-devices/models/ble-gatt";
 import { getXiaomiModel } from "@/lib/direct-devices/models/xiaomi";
 import type { XiaomiModel, XiaomiModelId } from "@/lib/direct-devices/models/xiaomi";
 import { getZeppOsModel } from "@/lib/direct-devices/models/zepp-os";
@@ -33,7 +35,7 @@ const initialSnapshot: HelioSyncSnapshot = Object.freeze({
   connectedDeviceId: null,
   connectedModelId: null,
   connectedFamily: null,
-  capabilities: Object.freeze({ stepsHistory: false }),
+  capabilities: Object.freeze({ stepsHistory: false, liveCapture: false }),
   bluetooth: "unknown",
   errorCode: null,
   capturedMinutes: 0,
@@ -47,10 +49,10 @@ const initialSnapshot: HelioSyncSnapshot = Object.freeze({
   canSync: false,
 });
 
-type AnyDirectDeviceModel = ZeppOsModel | XiaomiModel | HuaweiModel | GarminModel;
+type AnyDirectDeviceModel = ZeppOsModel | XiaomiModel | HuaweiModel | GarminModel | BleGattModel;
 
 /**
- * Registry lookup for a snapshot model id across all four device families.
+ * Registry lookup for a snapshot model id across all five device families.
  * The sync snapshot types the field as a plain string, so the casts live here
  * at the boundary. Zepp OS is checked first, matching the setup controller's
  * matcher order (one Xiaomi-named model also ships a Zepp OS coordinator).
@@ -67,6 +69,8 @@ function lookupModel(
   if (huawei) return { model: huawei, family: "huawei" };
   const garmin = getGarminModel(modelId as GarminModelId);
   if (garmin) return { model: garmin, family: "garmin" };
+  const bleGatt = getBleGattModel(modelId as BleGattModelId);
+  if (bleGatt) return { model: bleGatt, family: "ble_gatt" };
   return undefined;
 }
 
@@ -240,6 +244,7 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
     xiaomi_shared: t`Shared Xiaomi protobuf transport; not device-validated for this model. Not hardware-verified.`,
     huawei_connection_only: t`Connection checks only; step history sync is not implemented. Not hardware-verified.`,
     garmin_connection_only: t`Connection checks only; step history sync is not implemented. Not hardware-verified.`,
+    ble_gatt_live_capture: t`Live capture while connected; not hardware-verified. No history backfill. Samples are sent only when you tap “Retry upload”.`,
   };
   const upstreamLevelText = {
     high: t`high`,
@@ -269,10 +274,10 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
   }, [controller, snapshot.selectedBindingId, snapshot.connectedDeviceId]);
 
   return (
-    <Section title={t`Direct device steps`} icon={Bluetooth} tone="signal">
+    <Section title={t`Direct devices`} icon={Bluetooth} tone="signal">
       <Sheet className="gap-3">
         <Text className="font-sans text-sm leading-relaxed text-ink-2">
-          {t`Experimental foreground steps sync for already-paired Zepp OS and Xiaomi devices. Huawei/Honor and Garmin support connection checks only. No hardware verification has been done. No vendor login is requested.`}
+          {t`Experimental direct Bluetooth support for two kinds of devices. Zepp OS and Xiaomi devices sync step history in the foreground. BLE GATT health sensors (heart rate, blood pressure, temperature) record live while connected, with no history backfill. Huawei/Honor and Garmin support connection checks only. No hardware verification has been done. No vendor login is requested.`}
         </Text>
         <Text className="font-sans text-sm leading-relaxed text-ink-3">
           {t`Use the same saved device on both phones. Choose an existing binding to avoid duplicates, or add another only when you mean to create a separate binding. Nearby connection is a separate step.`}
@@ -366,6 +371,10 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
           ) : selected.family && selected.modelId && connected && !isCompatibleBinding ? (
             <Text className="font-sans text-sm text-ink-3">
               {t`This device does not match the selected saved binding. Select a compatible binding or save it as a new binding to sync.`}
+            </Text>
+          ) : snapshot.capabilities.liveCapture && connectedFamily === "ble_gatt" ? (
+            <Text className="font-sans text-sm text-ink-3">
+              {t`Live capture while connected. Samples are saved in short batches and sent only when you tap “Retry upload”. There is no history backfill.`}
             </Text>
           ) : !snapshot.capabilities.stepsHistory || !snapshot.canSync ? (
             <Text className="font-sans text-sm text-ink-3">

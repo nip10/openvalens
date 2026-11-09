@@ -39,6 +39,14 @@ export type MobileHealthRecord = MobileRecordBase &
     | ({ type: "workout"; activity: string; title: string | null } & Interval)
     /** One HealthKit sleep sample; grouped into sessions by `healthkit-sleep.ts`. */
     | ({ type: "sleep_segment"; value: HealthKitSleepValue; timeZone?: string } & Interval)
+    | ({ type: "body_temperature"; celsius: number } & Interval)
+    | ({
+        type: "blood_pressure";
+        systolic: number;
+        diastolic: number;
+        meanArterialPressure?: number;
+        pulseRate?: number;
+      } & Interval)
   );
 
 export type MobileHealthRecordType = MobileHealthRecord["type"];
@@ -66,6 +74,7 @@ export function adaptMobileHealthRecords(records: MobileHealthRecord[]): Canonic
       value: number,
       unit: string,
       endAt?: string,
+      externalId = record.externalRecordId,
     ) =>
       intents.push({
         kind: "metric_sample",
@@ -76,6 +85,7 @@ export function adaptMobileHealthRecords(records: MobileHealthRecord[]): Canonic
         unit,
         rawRecord: record,
         ...common,
+        externalId,
       });
 
     switch (record.type) {
@@ -106,6 +116,40 @@ export function adaptMobileHealthRecords(records: MobileHealthRecord[]): Canonic
             ...common,
           });
         break;
+      case "body_temperature":
+        metric("body_temperature", record.celsius, "°C");
+        break;
+      case "blood_pressure": {
+        const base = record.externalRecordId;
+        metric("blood_pressure_systolic", record.systolic, "mmHg", undefined, `${base}:systolic`);
+        metric(
+          "blood_pressure_diastolic",
+          record.diastolic,
+          "mmHg",
+          undefined,
+          `${base}:diastolic`,
+        );
+        if (record.meanArterialPressure !== undefined)
+          metric(
+            "blood_pressure_mean_arterial",
+            record.meanArterialPressure,
+            "mmHg",
+            undefined,
+            `${base}:map`,
+          );
+        if (record.pulseRate !== undefined)
+          intents.push({
+            kind: "metric_sample",
+            canonicalType: "heart_rate",
+            sampledAt: record.startTime,
+            value: record.pulseRate,
+            unit: "bpm",
+            rawRecord: { externalRecordId: record.externalRecordId, pulseRate: record.pulseRate },
+            ...common,
+            externalId: `${base}:pulse`,
+          });
+        break;
+      }
       case "sleep_session": {
         const sleepStageIntervals = normalizeSleepStageIntervals(record.stages ?? []);
         intents.push({

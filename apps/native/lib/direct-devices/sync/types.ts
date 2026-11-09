@@ -43,7 +43,7 @@ export type HelioSyncSnapshot = Readonly<{
   connectedModelId: string | null;
   connectedFamily: DirectDeviceIdentity["family"] | null;
   connectionGeneration: number;
-  capabilities: Readonly<{ stepsHistory: boolean }>;
+  capabilities: Readonly<{ stepsHistory: boolean; liveCapture: boolean }>;
   bluetooth: HelioSetupSnapshot["bluetooth"];
   errorCode: string | null;
   capturedMinutes: number;

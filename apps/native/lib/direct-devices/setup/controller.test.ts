@@ -3,6 +3,7 @@ import { DIRECT_DEVICE_MODELS } from "../../../../../packages/health-record/src/
 import type { Device, State, Subscription } from "react-native-ble-plx";
 
 import { createHelioSetupController } from "./controller";
+import { BLE_GATT_MODELS } from "../models/ble-gatt";
 import { GARMIN_MODELS } from "../models/garmin";
 import { HUAWEI_MODELS } from "../models/huawei";
 import { XIAOMI_MODELS } from "../models/xiaomi";
@@ -41,10 +42,15 @@ test("native model registries remain in parity with the shared identity catalog"
       modelId: model.id,
       displayName: model.displayName,
     })),
+    ...BLE_GATT_MODELS.map((model) => ({
+      family: "ble_gatt",
+      modelId: model.id,
+      displayName: model.displayName,
+    })),
   ].sort((left, right) =>
     `${left.family}:${left.modelId}`.localeCompare(`${right.family}:${right.modelId}`),
   );
-  expect(native).toHaveLength(291);
+  expect(native).toHaveLength(304);
   expect(native as unknown).toEqual(
     [...DIRECT_DEVICE_MODELS].sort((left, right) =>
       `${left.family}:${left.modelId}`.localeCompare(`${right.family}:${right.modelId}`),
@@ -91,6 +97,7 @@ function fixture(
     destroy?: () => Promise<void>;
     cancelConnection?: () => Promise<void>;
     deviceName?: string;
+    serviceUuids?: string[];
     xiaomiHistoryTransport?: (
       device: Device,
       profile: XiaomiBleProfile,
@@ -135,6 +142,7 @@ function fixture(
     id: "local-id",
     name: options.deviceName ?? "Amazfit Helio Strap",
     rssi: -50,
+    serviceUUIDs: options.serviceUuids ?? null,
     connect: options.connect ?? (async () => discovered),
     cancelConnection: async () => {
       cancelCount += 1;
@@ -764,6 +772,7 @@ test("discovers a registered non-Helio Zepp OS model and connects with its model
       rssi: -50,
       modelId: "amazfit_gtr_4",
       family: "zepp_os",
+      serviceUuids: [],
     },
   ]);
   await f.controller.connect("local-id");
@@ -1150,6 +1159,84 @@ test("a Garmin model with only the watch-app service is rejected", async () => {
   expect(f.controller.getSnapshot()).toMatchObject({
     phase: "error",
     errorCode: "GARMIN_SERVICE_MISSING",
+  });
+  await f.controller.dispose();
+});
+
+test("discovers a named GATT heart-rate sensor and reaches live-capture connected", async () => {
+  const f = fixture({
+    deviceName: "Polar H10 ABC123",
+    serviceUuids: ["180d"],
+    services: async () => [{ uuid: "0000180d-0000-1000-8000-00805f9b34fb" }],
+    characteristics: async (service) =>
+      service === "0000180d-0000-1000-8000-00805f9b34fb"
+        ? [{ uuid: "00002a37-0000-1000-8000-00805f9b34fb", isNotifiable: true }]
+        : [],
+  });
+  await f.controller.startScan();
+  f.emit();
+  expect(f.controller.getSnapshot().devices[0]).toMatchObject({
+    name: "Polar H10 ABC123",
+    modelId: "polar_h10",
+    family: "ble_gatt",
+    serviceUuids: ["180d"],
+  });
+  await f.controller.connect("local-id");
+  expect(f.controller.getSnapshot()).toMatchObject({
+    phase: "connected",
+    connectedModelId: "polar_h10",
+    connectedFamily: "ble_gatt",
+    capabilities: { stepsHistory: false, liveCapture: true },
+  });
+  await expect(
+    f.controller.fetchSteps({
+      authKey: new Uint8Array(16),
+      since: { version: 1, nextMinuteUtc: new Date(0).toISOString(), offsetQuarterHours: 0 },
+      signal: new AbortController().signal,
+      onPhase: () => undefined,
+      async onPage() {},
+    }),
+  ).rejects.toThrow("BLE_GATT_HISTORY_UNSUPPORTED");
+  await f.controller.dispose();
+});
+
+test("discovers a generic GATT sensor by advertised service UUID only", async () => {
+  const f = fixture({
+    deviceName: "Unnamed strap",
+    serviceUuids: ["180d"],
+    services: async () => [{ uuid: "0000180d-0000-1000-8000-00805f9b34fb" }],
+    characteristics: async (service) =>
+      service === "0000180d-0000-1000-8000-00805f9b34fb"
+        ? [{ uuid: "00002a37-0000-1000-8000-00805f9b34fb", isNotifiable: true }]
+        : [],
+  });
+  await f.controller.startScan();
+  f.emit();
+  expect(f.controller.getSnapshot().devices[0]).toMatchObject({
+    modelId: "generic_heart_rate_sensor",
+    family: "ble_gatt",
+  });
+  await f.controller.connect("local-id");
+  expect(f.controller.getSnapshot()).toMatchObject({
+    phase: "connected",
+    connectedModelId: "generic_heart_rate_sensor",
+    connectedFamily: "ble_gatt",
+  });
+  await f.controller.dispose();
+});
+
+test("a GATT model without a measurement service is rejected", async () => {
+  const f = fixture({
+    deviceName: "Polar H10 ABC123",
+    serviceUuids: ["180d"],
+    services: async () => [{ uuid: "0000fee0-0000-1000-8000-00805f9b34fb" }],
+  });
+  await f.controller.startScan();
+  f.emit();
+  await f.controller.connect("local-id");
+  expect(f.controller.getSnapshot()).toMatchObject({
+    phase: "error",
+    errorCode: "BLE_GATT_SERVICE_MISSING",
   });
   await f.controller.dispose();
 });

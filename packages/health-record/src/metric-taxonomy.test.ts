@@ -27,6 +27,10 @@ describe("metric taxonomy (Issue #17 bounded read-side)", () => {
       "distance",
       "hrv_rmssd",
       "provider_score",
+      "body_temperature",
+      "blood_pressure_systolic",
+      "blood_pressure_diastolic",
+      "blood_pressure_mean_arterial",
     ]);
   });
 
@@ -65,6 +69,30 @@ describe("metric taxonomy (Issue #17 bounded read-side)", () => {
       aggregationDefault: "latest",
     });
     expect(getDefaultSourcePriorityOrder("provider_score")).toBeNull();
+  });
+
+  test("BLE GATT sensor codes (Issue #423) carry vitals units and a ble_sensor source", () => {
+    expect(getMetricDefinition("body_temperature")).toMatchObject({
+      unit: "°C",
+      category: "vitals",
+      aggregationDefault: "latest",
+      hasDefaultPriority: true,
+    });
+    for (const code of [
+      "blood_pressure_systolic",
+      "blood_pressure_diastolic",
+      "blood_pressure_mean_arterial",
+    ] as const) {
+      expect(getMetricDefinition(code)).toMatchObject({
+        unit: "mmHg",
+        category: "vitals",
+        aggregationDefault: "latest",
+        hasDefaultPriority: true,
+      });
+      expect(getMetricDefinition(code)?.supportedSources).toContain("ble_sensor");
+      expect(getDefaultSourcePriorityOrder(code)).toEqual(["ble_sensor", "watch", "phone"]);
+    }
+    expect(getMetricDefinition("body_temperature")?.supportedSources).toContain("ble_sensor");
   });
 
   test("source codes match anchovy units, categories and default priority", () => {

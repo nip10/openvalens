@@ -639,6 +639,143 @@ describe.skipIf(!url)("mobile ingest batch on disposable PostgreSQL", () => {
     expect(await db.select().from(metricSample)).toHaveLength(1);
   });
 
+  test("BLE GATT steps batches are refused and watch temperature batches are refused", async () => {
+    const BLE_DEVICE = "8f1c2a3e-9b2d-4c1e-8f3a-2d7e5b9c0a15";
+    await registerDirectDevice(db, {
+      deviceId: BLE_DEVICE,
+      family: "ble_gatt",
+      modelId: "polar_h10",
+      expectedContext: directContext,
+      authenticatedContext: directContext,
+      now,
+    });
+    await expect(
+      acceptMobileBatch(db, {
+        organizationId: "org-a",
+        batch: {
+          ...directBatch(BLE_DEVICE),
+          deviceIdentity: { family: "ble_gatt", modelId: "polar_h10" },
+        },
+        traceId: "ble-steps",
+        now,
+        expectedOwnerId: "u1",
+      }),
+    ).rejects.toMatchObject({ reason: "HISTORY_UNSUPPORTED" });
+
+    await registerDirect();
+    await expect(
+      acceptMobileBatch(db, {
+        organizationId: "org-a",
+        batch: {
+          ...directBatch(),
+          recordType: "body_temperature",
+          upserts: [
+            {
+              type: "body_temperature",
+              externalRecordId: "temp-1",
+              sourceApp: null,
+              startTime: "2026-10-01T07:00:00Z",
+              endTime: "2026-10-01T07:01:00Z",
+              celsius: 36.6,
+            },
+          ],
+        },
+        traceId: "watch-temperature",
+        now,
+        expectedOwnerId: "u1",
+      }),
+    ).rejects.toMatchObject({ reason: "HISTORY_UNSUPPORTED" });
+    expect(await db.select().from(ingestionJob)).toHaveLength(0);
+    expect(await db.select().from(ingestionRawArtifact)).toHaveLength(0);
+  });
+
+  test("BLE GATT temperature and blood pressure publish canonical samples and definitions on demand", async () => {
+    const BLE_DEVICE = "9f1c2a3e-9b2d-4c1e-8f3a-2d7e5b9c0a16";
+    await registerDirectDevice(db, {
+      deviceId: BLE_DEVICE,
+      family: "ble_gatt",
+      modelId: "polar_h10",
+      expectedContext: directContext,
+      authenticatedContext: directContext,
+      now,
+    });
+    const bleBatch = (recordType: "body_temperature" | "blood_pressure", upserts: unknown[]) => ({
+      schemaVersion: 1 as const,
+      deviceId: BLE_DEVICE,
+      deviceIdentity: { family: "ble_gatt" as const, modelId: "polar_h10" },
+      provider: "direct_device" as const,
+      recordType,
+      mode: "backfill" as const,
+      clientTimezone: "UTC",
+      upserts,
+      deletions: [] as [],
+    });
+    const temperature = await ingestDirectDeviceBatch(db, {
+      expectedContext: directContext,
+      authenticatedContext: directContext,
+      batch: bleBatch("body_temperature", [
+        {
+          type: "body_temperature",
+          externalRecordId: "temp-1",
+          sourceApp: null,
+          startTime: "2026-10-01T07:00:00Z",
+          endTime: "2026-10-01T07:01:00Z",
+          celsius: 36.6,
+        },
+      ]) as never,
+      traceId: "ble-temperature",
+      now,
+    });
+    expect(temperature.status).toBe("applied");
+    const bloodPressure = await ingestDirectDeviceBatch(db, {
+      expectedContext: directContext,
+      authenticatedContext: directContext,
+      batch: bleBatch("blood_pressure", [
+        {
+          type: "blood_pressure",
+          externalRecordId: "bp-1",
+          sourceApp: null,
+          startTime: "2026-10-01T07:00:00Z",
+          endTime: "2026-10-01T07:01:00Z",
+          systolic: 120,
+          diastolic: 80,
+          meanArterialPressure: 93,
+          pulseRate: 60,
+        },
+      ]) as never,
+      traceId: "ble-blood-pressure",
+      now,
+    });
+    expect(bloodPressure.status).toBe("applied");
+    expect(await db.select().from(metricSample)).toHaveLength(5);
+    const definitions = await db.select().from(metricDefinition);
+    expect(definitions.map((definition) => definition.code).sort()).toEqual(
+      [
+        "blood_pressure_diastolic",
+        "blood_pressure_mean_arterial",
+        "blood_pressure_systolic",
+        "body_temperature",
+        "heart_rate",
+      ].sort(),
+    );
+    expect(definitions.find((definition) => definition.code === "body_temperature")?.unit).toBe(
+      "°C",
+    );
+    expect(
+      definitions.find((definition) => definition.code === "blood_pressure_systolic")?.unit,
+    ).toBe("mmHg");
+    const samples = await db.select().from(metricSample);
+    expect(samples.map((sample) => sample.externalSampleId).sort()).toEqual(
+      [
+        `dd:v1:${BLE_DEVICE}:body_temperature:temp-1`,
+        `dd:v1:${BLE_DEVICE}:blood_pressure:bp-1:systolic`,
+        `dd:v1:${BLE_DEVICE}:blood_pressure:bp-1:diastolic`,
+        `dd:v1:${BLE_DEVICE}:blood_pressure:bp-1:map`,
+        `dd:v1:${BLE_DEVICE}:blood_pressure:bp-1:pulse`,
+      ].sort(),
+    );
+  });
+
   test("registerDevice creates one active connection and is idempotent", async () => {
     const first = await register();
     const second = await register();
