@@ -26,7 +26,11 @@ tags: [billing]
       id: "cloud-access-notice"
     timeout: 30000
 - assertVisible: "Your OpenValens Cloud access has ended.*"
-- assertVisible: "Export records"
+# The Get started card (#392) can push the notice's button below the fold.
+- scrollUntilVisible:
+    element: "Export records"
+    centerElement: true
+    timeout: 20000
 # No purchase UI in the app (App Store Review Guideline 3.1.3(f)).
 - assertNotVisible: ".*(€|Subscribe|Upgrade|7\\.99|69).*"
 - takeScreenshot: 12-read-only-cockpit

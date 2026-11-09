@@ -108,7 +108,12 @@ tags: [logging]
 - takeScreenshot: 06-workout-finish
 - tapOn:
     id: "workout-save"
+# Back on Training. Recent sessions sit below the next-up card and routines.
 - extendedWaitUntil:
-    visible: "Recent sessions"
+    visible: "Log past session"
+    timeout: 20000
+- scrollUntilVisible:
+    element: "Recent sessions"
+    centerElement: true
     timeout: 20000
 - takeScreenshot: 06-workout-saved

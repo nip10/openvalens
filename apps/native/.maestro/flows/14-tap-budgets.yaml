@@ -23,6 +23,7 @@ tags: [logging]
 # favourites are the search sheet's first list.
 - tapOn:
     id: tab-nutrition # tap 1
+# The day summary is at the top; the meals can sit below the fold.
 - extendedWaitUntil:
     visible:
       id: diary-search-bar
@@ -48,7 +49,8 @@ tags: [logging]
 - tapOn:
     id: tab-nutrition # tap 1
 - extendedWaitUntil:
-    visible: "Add food to Breakfast"
+    visible:
+      id: "day-summary"
     timeout: 20000
 - runFlow: # tap 2
     file: ../subflows/open-add-food.yaml
@@ -73,7 +75,8 @@ tags: [logging]
 - tapOn:
     id: tab-nutrition # tap 1
 - extendedWaitUntil:
-    visible: "Add food to Breakfast"
+    visible:
+      id: "day-summary"
     timeout: 20000
 - runFlow: # tap 2
     file: ../subflows/open-add-food.yaml
@@ -100,7 +103,8 @@ tags: [logging]
 - takeScreenshot: 14-new-food-amount
 - tapOn: "Save to Breakfast" # tap 5
 - extendedWaitUntil:
-    visible: "Add food to Breakfast"
+    visible:
+      id: "day-summary"
     timeout: 15000
 # One line per food, read out as its name, amount and nutrients (#393). The
 # week strip and day summary (#394) now sit above the meals, so on this
