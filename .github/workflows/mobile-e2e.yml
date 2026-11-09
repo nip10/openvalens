@@ -102,6 +102,13 @@ jobs:
         run: |
           bunx expo prebuild --platform android --no-install
           cd android
+          # The template's 2 GB heap ran out once the BLE modules joined the
+          # build; the runner has 16 GB.
+          sed -i '/^org.gradle.jvmargs=/d; /^kotlin.daemon.jvmargs=/d' gradle.properties
+          {
+            echo "org.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=1g -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8"
+            echo "kotlin.daemon.jvmargs=-Xmx3g"
+          } >> gradle.properties
           ./gradlew :app:assembleRelease -PreactNativeArchitectures="$ANDROID_ARCH" --no-daemon
           ls -lh app/build/outputs/apk/release/
 
