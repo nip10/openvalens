@@ -10,7 +10,7 @@ import {
 test("direct-device catalog has unique family/model pairs and supported steps identity", () => {
   const keys = DIRECT_DEVICE_MODELS.map(({ family, modelId }) => `${family}:${modelId}`);
   expect(new Set(keys).size).toBe(keys.length);
-  expect(DIRECT_DEVICE_MODELS).toHaveLength(341);
+  expect(DIRECT_DEVICE_MODELS).toHaveLength(374);
   expect(
     findDirectDeviceModel({ family: "zepp_os", modelId: "amazfit_helio_strap" })?.displayName,
   ).toBe("Amazfit Helio Strap");
@@ -71,4 +71,47 @@ test("direct-device catalog has unique family/model pairs and supported steps id
   expect(supportsDirectDeviceSteps({ family: "garmin", modelId: "garmin_fenix_7" })).toBe(false);
   expect(isDirectDeviceIdentity({ family: "xiaomi", modelId: "xiaomi_mi_band_10" })).toBe(true);
   expect(isDirectDeviceIdentity({ family: "xiaomi", modelId: "garmin_fenix_7" })).toBe(false);
+});
+
+test("legacy Huami catalog resolves Amazfit and Mi Band models", () => {
+  expect(DIRECT_DEVICE_MODELS.filter(({ family }) => family === "huami_legacy")).toHaveLength(33);
+  expect(findDirectDeviceModel({ family: "huami_legacy", modelId: "amazfit_bip" })).toEqual({
+    family: "huami_legacy",
+    modelId: "amazfit_bip",
+    displayName: "Amazfit Bip",
+  });
+  expect(
+    findDirectDeviceModel({ family: "huami_legacy", modelId: "amazfit_gts_2_mini" })?.displayName,
+  ).toBe("Amazfit GTS 2 Mini");
+  expect(
+    findDirectDeviceModel({ family: "huami_legacy", modelId: "amazfit_trex_pro" })?.displayName,
+  ).toBe("Amazfit T-Rex Pro");
+  expect(findDirectDeviceModel({ family: "huami_legacy", modelId: "zepp_e" })?.displayName).toBe(
+    "Zepp E",
+  );
+  expect(
+    findDirectDeviceModel({ family: "huami_legacy", modelId: "amazfit_band_5" })?.displayName,
+  ).toBe("Amazfit Band 5");
+  expect(
+    findDirectDeviceModel({ family: "huami_legacy", modelId: "xiaomi_mi_band_2_hrx" })?.displayName,
+  ).toBe("Mi Band 2 HRX");
+  expect(
+    findDirectDeviceModel({ family: "huami_legacy", modelId: "xiaomi_mi_band_4" })?.displayName,
+  ).toBe("Mi Smart Band 4");
+  expect(
+    findDirectDeviceModel({ family: "huami_legacy", modelId: "xiaomi_mi_band_6" })?.displayName,
+  ).toBe("Mi Smart Band 6");
+  expect(isDirectDeviceIdentity({ family: "huami_legacy", modelId: "amazfit_bip_s" })).toBe(true);
+  expect(isDirectDeviceIdentity({ family: "huami_legacy", modelId: "xiaomi_mi_band_5" })).toBe(
+    true,
+  );
+  // Unknown models and cross-family model ids are rejected.
+  expect(isDirectDeviceIdentity({ family: "huami_legacy", modelId: "amazfit_unknown" })).toBe(
+    false,
+  );
+  expect(isDirectDeviceIdentity({ family: "huami_legacy", modelId: "garmin_fenix_7" })).toBe(false);
+  expect(isDirectDeviceIdentity({ family: "zepp_os", modelId: "amazfit_bip" })).toBe(false);
+  expect(isDirectDeviceIdentity({ family: "huami_legacy", modelId: "xiaomi_mi_band_10" })).toBe(
+    false,
+  );
 });

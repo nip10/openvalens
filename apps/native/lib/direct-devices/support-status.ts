@@ -45,7 +45,8 @@ export type OpenValensDeviceSupport =
   | "ble_scale_connection_only"
   | "colmi_ring_history_sync"
   | "bangle_js_history_sync"
-  | "gloryfit_history_sync";
+  | "gloryfit_history_sync"
+  | "huami_legacy_steps_history";
 
 export type DeviceSupportStatus = Readonly<{
   upstream: UpstreamDeviceSupport;
@@ -104,5 +105,7 @@ function openValensSupport(
       return "bangle_js_history_sync";
     case "gloryfit":
       return "gloryfit_history_sync";
+    case "huami_legacy":
+      return "huami_legacy_steps_history";
   }
 }

@@ -17,6 +17,13 @@ import {
   COLMI_V2_SERVICE_UUID,
 } from "../models/colmi-ring";
 import { GLORYFIT_MODELS } from "../models/gloryfit";
+import { HUAMI_LEGACY_MODELS } from "../models/huami-legacy";
+import {
+  HUAMI_ACTIVITY_CONTROL_UUID,
+  HUAMI_ACTIVITY_DATA_UUID,
+  HUAMI_AUTH_UUID,
+  HUAMI_SERVICE_UUID,
+} from "../models/huami-legacy";
 import { GARMIN_MODELS } from "../models/garmin";
 import { HUAWEI_MODELS } from "../models/huawei";
 import { XIAOMI_MODELS } from "../models/xiaomi";
@@ -80,10 +87,15 @@ test("native model registries remain in parity with the shared identity catalog"
       modelId: model.id,
       displayName: model.displayName,
     })),
+    ...HUAMI_LEGACY_MODELS.map((model) => ({
+      family: "huami_legacy",
+      modelId: model.id,
+      displayName: model.displayName,
+    })),
   ].sort((left, right) =>
     `${left.family}:${left.modelId}`.localeCompare(`${right.family}:${right.modelId}`),
   );
-  expect(native).toHaveLength(341);
+  expect(native).toHaveLength(374);
   expect(native as unknown).toEqual(
     [...DIRECT_DEVICE_MODELS].sort((left, right) =>
       `${left.family}:${left.modelId}`.localeCompare(`${right.family}:${right.modelId}`),
@@ -1389,6 +1401,51 @@ test("discovers a Colmi ring and reports history sync on connection", async () =
       async onPage() {},
     }),
   ).rejects.toThrow("COLMI_RING_HISTORY_UNSUPPORTED");
+  await f.controller.dispose();
+});
+
+test("discovers a legacy Huami watch and reports exact-minute steps", async () => {
+  const f = fixture({
+    deviceName: "Amazfit Bip U",
+    services: async () => [{ uuid: HUAMI_SERVICE_UUID }],
+    characteristics: async (service) =>
+      service === HUAMI_SERVICE_UUID
+        ? [
+            { uuid: HUAMI_ACTIVITY_CONTROL_UUID },
+            { uuid: HUAMI_ACTIVITY_DATA_UUID },
+            { uuid: HUAMI_AUTH_UUID },
+          ]
+        : [],
+  });
+  await f.controller.startScan();
+  f.emit();
+  expect(f.controller.getSnapshot().devices[0]).toMatchObject({
+    name: "Amazfit Bip U",
+    modelId: "amazfit_bip_u",
+    family: "huami_legacy",
+  });
+  await f.controller.connect("local-id");
+  expect(f.controller.getSnapshot()).toMatchObject({
+    phase: "connected",
+    connectedDeviceId: "local-id",
+    connectedModelId: "amazfit_bip_u",
+    connectedFamily: "huami_legacy",
+    capabilities: { stepsHistory: true, liveCapture: false, historySync: true },
+  });
+  await f.controller.dispose();
+});
+
+test("a legacy Huami watch without the FEE0 service is rejected", async () => {
+  const f = fixture({ deviceName: "Amazfit Bip U", services: async () => [] });
+  await f.controller.startScan();
+  f.emit();
+  await f.controller.connect("local-id");
+  expect(f.controller.getSnapshot()).toMatchObject({
+    phase: "error",
+    connectedDeviceId: null,
+    connectedFamily: null,
+    errorCode: "HUAMI_LEGACY_SERVICE_MISSING",
+  });
   await f.controller.dispose();
 });
 

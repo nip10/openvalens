@@ -21,6 +21,11 @@ import { getColmiRingModel } from "@/lib/direct-devices/models/colmi-ring";
 import type { ColmiRingModel, ColmiRingModelId } from "@/lib/direct-devices/models/colmi-ring";
 import { getGloryFitModel } from "@/lib/direct-devices/models/gloryfit";
 import type { GloryFitModel, GloryFitModelId } from "@/lib/direct-devices/models/gloryfit";
+import { getHuamiLegacyModel } from "@/lib/direct-devices/models/huami-legacy";
+import type {
+  HuamiLegacyModel,
+  HuamiLegacyModelId,
+} from "@/lib/direct-devices/models/huami-legacy";
 import { getXiaomiModel } from "@/lib/direct-devices/models/xiaomi";
 import type { XiaomiModel, XiaomiModelId } from "@/lib/direct-devices/models/xiaomi";
 import { getZeppOsModel } from "@/lib/direct-devices/models/zepp-os";
@@ -66,7 +71,8 @@ type AnyDirectDeviceModel =
   | BangleJsModel
   | BleScaleModel
   | ColmiRingModel
-  | GloryFitModel;
+  | GloryFitModel
+  | HuamiLegacyModel;
 
 /**
  * Registry lookup for a snapshot model id across all eight device families.
@@ -92,6 +98,8 @@ function lookupModel(
   if (bleGatt) return { model: bleGatt, family: "ble_gatt" };
   const bangleJs = getBangleJsModel(modelId as BangleJsModelId);
   if (bangleJs) return { model: bangleJs, family: "bangle_js" };
+  const huamiLegacy = getHuamiLegacyModel(modelId as HuamiLegacyModelId);
+  if (huamiLegacy) return { model: huamiLegacy, family: "huami_legacy" };
   const gloryFit = getGloryFitModel(modelId as GloryFitModelId);
   if (gloryFit) return { model: gloryFit, family: "gloryfit" };
   const bleScale = getBleScaleModel(modelId as BleScaleModelId);
@@ -278,6 +286,7 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
     colmi_ring_history_sync: t`History sync on connection for steps, heart rate and sleep; not hardware-verified.`,
     bangle_js_history_sync: t`History sync on connection for steps and heart rate, plus live heart rate while connected; not hardware-verified.`,
     gloryfit_history_sync: t`History sync on connection for steps, heart rate and sleep; not hardware-verified.`,
+    huami_legacy_steps_history: t`History sync on connection for step-by-minute records, heart rate and sleep; not hardware-verified.`,
   };
   const upstreamLevelText = {
     high: t`high`,
@@ -306,11 +315,44 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
     setAuthKey("");
   }, [controller, snapshot.selectedBindingId, snapshot.connectedDeviceId]);
 
+  const authKeyPanel = (
+    <>
+      <View className="gap-2">
+        <Text className="font-sans text-sm font-medium text-ink-2">{t`Device authentication key`}</Text>
+        <TextInput
+          value={authKey}
+          onChangeText={setAuthKey}
+          maxLength={34}
+          secureTextEntry
+          autoCapitalize="none"
+          autoCorrect={false}
+          autoComplete="off"
+          textContentType="none"
+          accessibilityLabel={t`Device authentication key`}
+          placeholder={t`32 hexadecimal characters (16 bytes)`}
+          className="rounded-xl border border-rule bg-paper px-3 py-2.5 font-sans text-base text-ink"
+        />
+        <Text className="font-sans text-sm text-ink-3">{t`Enter the 16-byte (32 hexadecimal character) key already configured for this device. Do not enter your vendor account password.`}</Text>
+        <Text
+          onPress={() =>
+            void Linking.openURL("https://gadgetbridge.org/basics/pairing/huami-xiaomi-server/")
+          }
+          className="font-sans text-sm font-medium text-signal underline"
+        >{t`Gadgetbridge pairing help`}</Text>
+      </View>
+      <View className="flex-row flex-wrap gap-2">
+        <Button onPress={handoff} isDisabled={!validKey || !canSyncSelected}>
+          <Button.Label>{t`Sync steps`}</Button.Label>
+        </Button>
+      </View>
+    </>
+  );
+
   return (
     <Section title={t`Direct devices`} icon={Bluetooth} tone="signal">
       <Sheet className="gap-3">
         <Text className="font-sans text-sm leading-relaxed text-ink-2">
-          {t`Experimental direct Bluetooth support for several kinds of devices. Zepp OS and Xiaomi devices sync step history in the foreground. BLE GATT health sensors (heart rate, blood pressure, temperature) record live while connected, and a PineTime running InfiniTime reports live heart rate the same way. Bluetooth smart scales record weight live, and some also report stored measurements on connection. Colmi and Yawell smart rings sync stored step, heart-rate and sleep history on connection. Bangle.js watches sync stored step and heart-rate history on connection and keep reporting live heart rate. GloryFit watches sync stored step, heart-rate and sleep history on connection. Huawei/Honor and Garmin support connection checks only. No hardware verification has been done. No vendor login is requested.`}
+          {t`Experimental direct Bluetooth support for several kinds of devices. Zepp OS and Xiaomi devices sync step history in the foreground. BLE GATT health sensors (heart rate, blood pressure, temperature) record live while connected, and a PineTime running InfiniTime reports live heart rate the same way. Bluetooth smart scales record weight live, and some also report stored measurements on connection. Colmi and Yawell smart rings sync stored step, heart-rate and sleep history on connection. Bangle.js watches sync stored step and heart-rate history on connection and keep reporting live heart rate. GloryFit watches sync stored step, heart-rate and sleep history on connection. Legacy Huami (Amazfit/Mi Band) watches sync exact-minute steps, heart rate and sleep when you enter their 16-byte key. Huawei/Honor and Garmin support connection checks only. No hardware verification has been done. No vendor login is requested.`}
         </Text>
         <Text className="font-sans text-sm leading-relaxed text-ink-3">
           {t`Use the same saved device on both phones. Choose an existing binding to avoid duplicates, or add another only when you mean to create a separate binding. Nearby connection is a separate step.`}
@@ -428,6 +470,17 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
             <Text className="font-sans text-sm text-ink-3">
               {t`GloryFit history (steps, heart rate and sleep) syncs automatically while connected. Records are saved in batches and sent only when you tap “Retry upload”.`}
             </Text>
+          ) : connectedFamily === "huami_legacy" && canSyncSelected ? (
+            <>
+              <Text className="font-sans text-sm text-ink-3">
+                {t`Legacy Huami history (exact-minute steps, heart rate and sleep) downloads when you enter the device key and tap “Sync steps”. Records are saved in batches and sent only when you tap “Retry upload”.`}
+              </Text>
+              {authKeyPanel}
+            </>
+          ) : connectedFamily === "huami_legacy" ? (
+            <Text className="font-sans text-sm text-ink-3">
+              {t`Save a binding for this device to sync its legacy Huami history.`}
+            </Text>
           ) : !snapshot.capabilities.stepsHistory || !snapshot.canSync ? (
             <Text className="font-sans text-sm text-ink-3">
               {connectedFamily === "huawei"
@@ -437,38 +490,7 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
                   : t`Step sync is unavailable for this unrecognized device model.`}
             </Text>
           ) : canSyncSelected && (connectedFamily === "zepp_os" || connectedFamily === "xiaomi") ? (
-            <>
-              <View className="gap-2">
-                <Text className="font-sans text-sm font-medium text-ink-2">{t`Device authentication key`}</Text>
-                <TextInput
-                  value={authKey}
-                  onChangeText={setAuthKey}
-                  maxLength={34}
-                  secureTextEntry
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  autoComplete="off"
-                  textContentType="none"
-                  accessibilityLabel={t`Device authentication key`}
-                  placeholder={t`32 hexadecimal characters (16 bytes)`}
-                  className="rounded-xl border border-rule bg-paper px-3 py-2.5 font-sans text-base text-ink"
-                />
-                <Text className="font-sans text-sm text-ink-3">{t`Enter the 16-byte (32 hexadecimal character) key already configured for this device. Do not enter your vendor account password.`}</Text>
-                <Text
-                  onPress={() =>
-                    void Linking.openURL(
-                      "https://gadgetbridge.org/basics/pairing/huami-xiaomi-server/",
-                    )
-                  }
-                  className="font-sans text-sm font-medium text-signal underline"
-                >{t`Gadgetbridge pairing help`}</Text>
-              </View>
-              <View className="flex-row flex-wrap gap-2">
-                <Button onPress={handoff} isDisabled={!validKey || !canSyncSelected}>
-                  <Button.Label>{t`Sync steps`}</Button.Label>
-                </Button>
-              </View>
-            </>
+            authKeyPanel
           ) : null
         ) : null}
         {snapshot.connectedDeviceId ? (
@@ -538,6 +560,10 @@ function friendlyError(code: string) {
     return "Garmin connection checks are available, but step history sync is not implemented.";
   if (code === "BANGLE_JS_HISTORY_UNSUPPORTED")
     return "This Bangle.js watch connected, but its history syncs on connection rather than through a step sync action.";
+  if (code === "HUAMI_AUTH_FAILED")
+    return "The device rejected the authentication key. Check the 16-byte key and try again.";
+  if (code === "HUAMI_LEGACY_HISTORY_FAILED")
+    return "The legacy Huami history transfer did not complete. Reconnect and try again.";
   if (code === "HISTORY_UNSUPPORTED")
     return "This device connected, but step history sync is not supported for it.";
   return "Could not sync device steps. Try again.";

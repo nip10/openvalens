@@ -18,6 +18,7 @@ import { getZeppOsModel } from "./models/zepp-os";
 import { BLE_SCALE_MODELS } from "./models/ble-scale";
 import { COLMI_RING_MODELS } from "./models/colmi-ring";
 import { GLORYFIT_MODELS } from "./models/gloryfit";
+import { HUAMI_LEGACY_MODELS } from "./models/huami-legacy";
 import { GARMIN_MODELS } from "./models/garmin";
 import { HUAWEI_MODELS } from "./models/huawei";
 import { XIAOMI_MODELS } from "./models/xiaomi";
@@ -123,6 +124,7 @@ test("every registered model has a catalog entry to show", () => {
     { family: "ble_scale" as const, models: BLE_SCALE_MODELS },
     { family: "colmi_ring" as const, models: COLMI_RING_MODELS },
     { family: "gloryfit" as const, models: GLORYFIT_MODELS },
+    { family: "huami_legacy" as const, models: HUAMI_LEGACY_MODELS },
   ];
   const unlisted = families.flatMap(({ family, models }) =>
     models
@@ -136,7 +138,16 @@ test("every registered model has a catalog entry to show", () => {
       )
       .map((model) => model.id),
   );
-  expect(unlisted).toEqual([]);
+  // Four legacy Huami coordinator classes have no row in upstream's YAML
+  // catalog; the UI reports those as unlisted rather than inventing a rating.
+  const huamiCatalogGaps = new Set([
+    "amazfit_gtr_2e",
+    "amazfit_gts_2e",
+    "xiaomi_mi_band_2_hrx",
+    "zepp_e",
+  ]);
+  expect(unlisted.filter((id) => !huamiCatalogGaps.has(id))).toEqual([]);
+  expect([...unlisted].sort() as string[]).toEqual([...huamiCatalogGaps].sort());
 });
 
 test("generic GATT models report live capture only and no history backfill", () => {
@@ -235,5 +246,19 @@ test("GloryFit reports history sync for steps, heart rate and sleep", () => {
       }),
       model.id,
     ).toMatchObject({ openValens: "gloryfit_history_sync" });
+  }
+});
+
+test("legacy Huami reports exact-minute steps history, not validated support", () => {
+  for (const model of HUAMI_LEGACY_MODELS) {
+    expect(
+      describeDeviceSupport({
+        family: "huami_legacy",
+        modelId: model.id,
+        transportValidated: model.transportValidated,
+        records: model.records,
+      }),
+      model.id,
+    ).toMatchObject({ openValens: "huami_legacy_steps_history" });
   }
 });

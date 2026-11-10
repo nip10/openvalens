@@ -186,6 +186,25 @@ describe("direct-device identity guard", () => {
       );
   });
 
+  test("legacy Huami devices publish exact-minute steps, heart rate and sleep sessions", () => {
+    const huami = { directDeviceFamily: "huami_legacy", directDeviceModelId: "amazfit_bip" };
+    const assertion = { family: "huami_legacy", modelId: "amazfit_bip" } as const;
+    // Per-minute activity samples carry exact-minute steps and heart rate;
+    // sleep is derived from activity kinds 9/11.
+    for (const recordType of ["steps", "heart_rate", "sleep_session"] as const)
+      expect(assertDirectDeviceIdentity(huami, assertion, { recordType })).toEqual(assertion);
+    // Legacy Huami has no interval buckets, scale or GATT sensor metrics.
+    for (const recordType of [
+      "steps_interval",
+      "weight_measurement",
+      "body_temperature",
+      "blood_pressure",
+    ] as const)
+      expect(() => assertDirectDeviceIdentity(huami, assertion, { recordType })).toThrow(
+        new DirectDeviceIdentityError("HISTORY_UNSUPPORTED"),
+      );
+  });
+
   test("record-type capability separates watch steps from BLE GATT sensors", () => {
     const ble = { directDeviceFamily: "ble_gatt", directDeviceModelId: "polar_h10" };
     expect(

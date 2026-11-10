@@ -9,6 +9,7 @@ export const DIRECT_DEVICE_FAMILIES = [
   "colmi_ring",
   "bangle_js",
   "gloryfit",
+  "huami_legacy",
 ] as const;
 export type DirectDeviceFamily = (typeof DIRECT_DEVICE_FAMILIES)[number];
 export type DirectDeviceIdentity = { family: DirectDeviceFamily; modelId: string };
@@ -1739,6 +1740,177 @@ export const DIRECT_DEVICE_MODELS: readonly DirectDeviceModelDescriptor[] = [
     family: "gloryfit",
     modelId: "qecnato_s10",
     displayName: "Qecnato S10",
+  },
+  // Legacy Huami (Issue #419): the pre-Zepp-OS Amazfit/Mi Band generation that
+  // speaks the Mi Band auth + activity-fetch protocol. History arrives as
+  // per-minute activity samples (exact-minute steps and heart rate) plus sleep
+  // derived from activity kinds 9/11. The native lane owns the BLE protocol;
+  // these rows only carry the shared identity vocabulary. None are
+  // transport-validated yet.
+  {
+    family: "huami_legacy",
+    modelId: "amazfit_bip",
+    displayName: "Amazfit Bip",
+  },
+  {
+    family: "huami_legacy",
+    modelId: "amazfit_bip_lite",
+    displayName: "Amazfit Bip Lite",
+  },
+  {
+    family: "huami_legacy",
+    modelId: "amazfit_bip_s",
+    displayName: "Amazfit Bip S",
+  },
+  {
+    family: "huami_legacy",
+    modelId: "amazfit_bip_s_lite",
+    displayName: "Amazfit Bip S Lite",
+  },
+  {
+    family: "huami_legacy",
+    modelId: "amazfit_bip_u",
+    displayName: "Amazfit Bip U",
+  },
+  {
+    family: "huami_legacy",
+    modelId: "amazfit_bip_u_pro",
+    displayName: "Amazfit Bip U Pro",
+  },
+  {
+    family: "huami_legacy",
+    modelId: "amazfit_bip_3",
+    displayName: "Amazfit Bip 3",
+  },
+  {
+    family: "huami_legacy",
+    modelId: "amazfit_bip_3_pro",
+    displayName: "Amazfit Bip 3 Pro",
+  },
+  {
+    family: "huami_legacy",
+    modelId: "amazfit_cor",
+    displayName: "Amazfit Cor",
+  },
+  {
+    family: "huami_legacy",
+    modelId: "amazfit_cor_2",
+    displayName: "Amazfit Cor 2",
+  },
+  {
+    family: "huami_legacy",
+    modelId: "amazfit_gtr",
+    displayName: "Amazfit GTR",
+  },
+  {
+    family: "huami_legacy",
+    modelId: "amazfit_gtr_lite",
+    displayName: "Amazfit GTR Lite",
+  },
+  {
+    family: "huami_legacy",
+    modelId: "amazfit_gtr_2",
+    displayName: "Amazfit GTR 2",
+  },
+  {
+    family: "huami_legacy",
+    modelId: "amazfit_gtr_2e",
+    displayName: "Amazfit GTR 2e",
+  },
+  {
+    family: "huami_legacy",
+    modelId: "amazfit_gts",
+    displayName: "Amazfit GTS",
+  },
+  {
+    family: "huami_legacy",
+    modelId: "amazfit_gts_2",
+    displayName: "Amazfit GTS 2",
+  },
+  {
+    family: "huami_legacy",
+    modelId: "amazfit_gts_2e",
+    displayName: "Amazfit GTS 2e",
+  },
+  {
+    family: "huami_legacy",
+    modelId: "amazfit_gts_2_mini",
+    displayName: "Amazfit GTS 2 Mini",
+  },
+  {
+    family: "huami_legacy",
+    modelId: "amazfit_neo",
+    displayName: "Amazfit Neo",
+  },
+  {
+    family: "huami_legacy",
+    modelId: "amazfit_pop",
+    displayName: "Amazfit Pop",
+  },
+  {
+    family: "huami_legacy",
+    modelId: "amazfit_pop_pro",
+    displayName: "Amazfit Pop Pro",
+  },
+  {
+    family: "huami_legacy",
+    modelId: "amazfit_trex",
+    displayName: "Amazfit T-Rex",
+  },
+  {
+    family: "huami_legacy",
+    modelId: "amazfit_trex_pro",
+    displayName: "Amazfit T-Rex Pro",
+  },
+  {
+    family: "huami_legacy",
+    modelId: "amazfit_verge_lite",
+    displayName: "Amazfit Verge Lite",
+  },
+  {
+    family: "huami_legacy",
+    modelId: "amazfit_x",
+    displayName: "Amazfit X",
+  },
+  {
+    family: "huami_legacy",
+    modelId: "zepp_e",
+    displayName: "Zepp E",
+  },
+  {
+    family: "huami_legacy",
+    modelId: "amazfit_band_5",
+    displayName: "Amazfit Band 5",
+  },
+  {
+    family: "huami_legacy",
+    modelId: "xiaomi_mi_band_2",
+    displayName: "Mi Band 2",
+  },
+  {
+    family: "huami_legacy",
+    modelId: "xiaomi_mi_band_2_hrx",
+    displayName: "Mi Band 2 HRX",
+  },
+  {
+    family: "huami_legacy",
+    modelId: "xiaomi_mi_band_3",
+    displayName: "Mi Band 3",
+  },
+  {
+    family: "huami_legacy",
+    modelId: "xiaomi_mi_band_4",
+    displayName: "Mi Smart Band 4",
+  },
+  {
+    family: "huami_legacy",
+    modelId: "xiaomi_mi_band_5",
+    displayName: "Mi Smart Band 5",
+  },
+  {
+    family: "huami_legacy",
+    modelId: "xiaomi_mi_band_6",
+    displayName: "Mi Smart Band 6",
   },
 ];
 

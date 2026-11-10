@@ -487,13 +487,97 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
 
   /** External-record and checkpoint namespace for a history-sync family. */
   const historyPrefix = (family: DirectDeviceFamily): string =>
-    family === "bangle_js" ? "bangle" : family === "gloryfit" ? "gloryfit" : "ring";
+    family === "bangle_js"
+      ? "bangle"
+      : family === "gloryfit"
+        ? "gloryfit"
+        : family === "huami_legacy"
+          ? "huami"
+          : "ring";
+
+  /**
+   * Legacy Huami emits exact-minute `steps` records (the frozen contract for
+   * this family), not arbitrary `steps_interval` buckets.
+   */
+  const huamiHistoryRecords = (
+    deviceId: string,
+    prefix: string,
+    samples: readonly DirectDeviceHistorySample[],
+  ): { recordType: "steps" | "sleep_session" | "heart_rate"; upserts: unknown[] }[] => {
+    const steps = samples.filter(
+      (sample): sample is Extract<DirectDeviceHistorySample, { type: "steps" }> =>
+        sample.type === "steps",
+    );
+    const sleep = samples.filter(
+      (sample): sample is Extract<DirectDeviceHistorySample, { type: "sleep_session" }> =>
+        sample.type === "sleep_session",
+    );
+    const heartRate = samples.filter(
+      (sample): sample is Extract<DirectDeviceHistorySample, { type: "heart_rate" }> =>
+        sample.type === "heart_rate",
+    );
+    const groups: {
+      recordType: "steps" | "sleep_session" | "heart_rate";
+      upserts: unknown[];
+    }[] = [];
+    if (steps.length)
+      groups.push({
+        recordType: "steps",
+        upserts: steps.map((sample) => ({
+          type: "steps",
+          externalRecordId: `dd-${prefix}:${deviceId}:steps:${sample.startTime}`,
+          sourceApp: null,
+          startTime: sample.startTime,
+          endTime: sample.endTime,
+          count: sample.count,
+        })),
+      });
+    if (sleep.length)
+      groups.push({
+        recordType: "sleep_session",
+        upserts: sleep.map((sample) => ({
+          type: "sleep_session",
+          externalRecordId: `dd-${prefix}:${deviceId}:sleep:${sample.startTime}`,
+          sourceApp: null,
+          startTime: sample.startTime,
+          endTime: sample.endTime,
+          ...(sample.stages?.length ? { stages: sample.stages } : {}),
+        })),
+      });
+    if (heartRate.length) {
+      const sorted = [...heartRate].sort(
+        (left, right) => Date.parse(left.time) - Date.parse(right.time),
+      );
+      const times = sorted.map((sample) => Date.parse(sample.time));
+      const startTime = new Date(Math.min(...times)).toISOString();
+      const endTime = new Date(Math.max(...times) + 1000).toISOString();
+      groups.push({
+        recordType: "heart_rate",
+        upserts: [
+          {
+            type: "heart_rate",
+            externalRecordId: `dd-${prefix}:${deviceId}:hr:${startTime}`,
+            sourceApp: null,
+            startTime,
+            endTime,
+            samples: sorted.map((sample) => ({ time: sample.time, bpm: sample.bpm })),
+          },
+        ],
+      });
+    }
+    return groups;
+  };
 
   const historyRecords = (
     deviceId: string,
     prefix: string,
     samples: readonly DirectDeviceHistorySample[],
-  ): { recordType: "steps_interval" | "sleep_session" | "heart_rate"; upserts: unknown[] }[] => {
+    family: DirectDeviceFamily,
+  ): {
+    recordType: "steps" | "steps_interval" | "sleep_session" | "heart_rate";
+    upserts: unknown[];
+  }[] => {
+    if (family === "huami_legacy") return huamiHistoryRecords(deviceId, prefix, samples);
     const steps = samples.filter(
       (sample): sample is Extract<DirectDeviceHistorySample, { type: "steps_interval" }> =>
         sample.type === "steps_interval",
@@ -571,7 +655,12 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
         family: binding.family,
         modelId: binding.modelId,
       } as DirectDeviceIdentity;
-      const groups = historyRecords(buffer.deviceId, historyPrefix(buffer.family), buffer.samples);
+      const groups = historyRecords(
+        buffer.deviceId,
+        historyPrefix(buffer.family),
+        buffer.samples,
+        buffer.family,
+      );
       if (!groups.length) return;
       const starts = buffer.samples.map((sample) =>
         Date.parse(sample.type === "heart_rate" ? sample.time : sample.startTime),
@@ -628,7 +717,8 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
       state.phase !== "connected" ||
       (state.connectedFamily !== "colmi_ring" &&
         state.connectedFamily !== "bangle_js" &&
-        state.connectedFamily !== "gloryfit")
+        state.connectedFamily !== "gloryfit" &&
+        state.connectedFamily !== "huami_legacy")
     )
       return;
     const bindingId = selectedBindingId;
@@ -1010,6 +1100,10 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
           },
         });
         if (!current(token) || !isAuthorityTicketCurrent(ticket)) return;
+        // Legacy Huami history arrives through the buffered history sink during
+        // the transfer; commit it before draining the outbox.
+        queueHistoryFlush();
+        await historyFlush;
         authKey.fill(0);
         publish({
           capturedMinutes: captured,
