@@ -46,6 +46,9 @@ import {
   selectBangleJsProfile,
 } from "../transport/bangle-js";
 import type { BangleJsProfile, BangleJsSession } from "../transport/bangle-js";
+import { MOYOUNG_SERVICE_UUID, matchMoyoungDevice } from "../models/moyoung";
+import { createMoyoungSession, selectMoyoungProfile } from "../transport/moyoung";
+import type { MoyoungProfile, MoyoungSession } from "../transport/moyoung";
 import { createHuamiLegacySession, selectHuamiLegacyProfile } from "../transport/huami-legacy";
 import type { HuamiLegacyProfile, HuamiLegacySession } from "../transport/huami-legacy";
 import { HUAMI_SERVICE_UUID, matchHuamiLegacyDevice } from "../models/huami-legacy";
@@ -180,6 +183,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
   let connectedColmiRingSession: ColmiRingSession | null = null;
   let connectedGloryFitSession: GloryFitSession | null = null;
   let connectedBangleJsSession: BangleJsSession | null = null;
+  let connectedMoyoungSession: MoyoungSession | null = null;
   let connectedHuamiLegacySession: HuamiLegacySession | null = null;
   let connecting: Device | null = null;
   let connectionAttempt: object | null = null;
@@ -351,6 +355,17 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
               zeppModel || xiaomiModel || huaweiModel || garminModel || bleGattModel
                 ? null
                 : matchBangleJsDevice(name, serviceUuids);
+            // Moyoung / Da Fit watches are name-only and sit directly after
+            // Bangle.js in the chain.
+            const moyoungModel =
+              zeppModel ||
+              xiaomiModel ||
+              huaweiModel ||
+              garminModel ||
+              bleGattModel ||
+              bangleJsModel
+                ? null
+                : matchMoyoungDevice(name);
             // Legacy Huami watches are name-only and sit directly after
             // Bangle.js in the chain.
             const huamiLegacyModel =
@@ -359,7 +374,8 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
               huaweiModel ||
               garminModel ||
               bleGattModel ||
-              bangleJsModel
+              bangleJsModel ||
+              moyoungModel
                 ? null
                 : matchHuamiLegacyDevice(name);
             const gloryFitModel =
@@ -369,6 +385,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
               garminModel ||
               bleGattModel ||
               bangleJsModel ||
+              moyoungModel ||
               huamiLegacyModel
                 ? null
                 : matchGloryFitDevice(name);
@@ -379,6 +396,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
               garminModel ||
               bleGattModel ||
               bangleJsModel ||
+              moyoungModel ||
               huamiLegacyModel ||
               gloryFitModel
                 ? null
@@ -391,6 +409,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
               garminModel ||
               bleGattModel ||
               bangleJsModel ||
+              moyoungModel ||
               huamiLegacyModel ||
               gloryFitModel ||
               bleScaleModel
@@ -403,6 +422,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
               garminModel ??
               bleGattModel ??
               bangleJsModel ??
+              moyoungModel ??
               huamiLegacyModel ??
               gloryFitModel ??
               bleScaleModel ??
@@ -420,13 +440,15 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
                       ? "ble_gatt"
                       : bangleJsModel
                         ? "bangle_js"
-                        : huamiLegacyModel
-                          ? "huami_legacy"
-                          : gloryFitModel
-                            ? "gloryfit"
-                            : bleScaleModel
-                              ? "ble_scale"
-                              : "colmi_ring";
+                        : moyoungModel
+                          ? "moyoung"
+                          : huamiLegacyModel
+                            ? "huami_legacy"
+                            : gloryFitModel
+                              ? "gloryfit"
+                              : bleScaleModel
+                                ? "ble_scale"
+                                : "colmi_ring";
             r.devices.set(device.id, device);
             const found = new Map(snapshot.devices.map((item) => [item.id, item]));
             found.set(
@@ -529,6 +551,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
             matchGarminDeviceName(knownDevice.name) ??
             matchBleGattDevice(knownDevice.name, knownDevice.serviceUuids) ??
             matchBangleJsDevice(knownDevice.name, knownDevice.serviceUuids) ??
+            matchMoyoungDevice(knownDevice.name) ??
             matchHuamiLegacyDevice(knownDevice.name) ??
             matchGloryFitDevice(knownDevice.name) ??
             matchBleScaleDevice(knownDevice.name) ??
@@ -548,13 +571,15 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
                       ? "ble_gatt"
                       : matchBangleJsDevice(knownDevice.name, knownDevice.serviceUuids)
                         ? "bangle_js"
-                        : matchHuamiLegacyDevice(knownDevice.name)
-                          ? "huami_legacy"
-                          : matchGloryFitDevice(knownDevice.name)
-                            ? "gloryfit"
-                            : matchBleScaleDevice(knownDevice.name)
-                              ? "ble_scale"
-                              : "colmi_ring");
+                        : matchMoyoungDevice(knownDevice.name)
+                          ? "moyoung"
+                          : matchHuamiLegacyDevice(knownDevice.name)
+                            ? "huami_legacy"
+                            : matchGloryFitDevice(knownDevice.name)
+                              ? "gloryfit"
+                              : matchBleScaleDevice(knownDevice.name)
+                                ? "ble_scale"
+                                : "colmi_ring");
           await stopRadioScan();
           if (current !== generation || disposed) return;
           let cancelWait!: () => void;
@@ -610,6 +635,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
             family === "bangle_js"
               ? matchBangleJsDevice(knownDevice.name, knownDevice.serviceUuids)
               : null;
+          const moyoungModel = family === "moyoung" ? matchMoyoungDevice(knownDevice.name) : null;
           const gloryFitModel =
             family === "gloryfit" ? matchGloryFitDevice(knownDevice.name) : null;
           const huamiLegacyModel =
@@ -635,28 +661,35 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
                       ? services.some((service) =>
                           BANGLE_JS_SERVICE_UUIDS.has(normalizeServiceUuid(service.uuid)),
                         )
-                      : family === "gloryfit"
-                        ? [...GLORYFIT_SERVICE_UUIDS].every((uuid) =>
-                            services.some((service) => normalizeServiceUuid(service.uuid) === uuid),
+                      : family === "moyoung"
+                        ? services.some(
+                            (service) =>
+                              normalizeServiceUuid(service.uuid) === MOYOUNG_SERVICE_UUID,
                           )
-                        : family === "ble_scale"
-                          ? !bleScaleModel?.serviceUuids.length ||
-                            services.some((service) =>
-                              bleScaleModel.serviceUuids.includes(
-                                normalizeServiceUuid(service.uuid),
+                        : family === "gloryfit"
+                          ? [...GLORYFIT_SERVICE_UUIDS].every((uuid) =>
+                              services.some(
+                                (service) => normalizeServiceUuid(service.uuid) === uuid,
                               ),
                             )
-                          : family === "colmi_ring"
-                            ? services.some(
-                                (service) =>
-                                  normalizeServiceUuid(service.uuid) === COLMI_V1_SERVICE_UUID,
+                          : family === "ble_scale"
+                            ? !bleScaleModel?.serviceUuids.length ||
+                              services.some((service) =>
+                                bleScaleModel.serviceUuids.includes(
+                                  normalizeServiceUuid(service.uuid),
+                                ),
                               )
-                            : family === "huami_legacy"
+                            : family === "colmi_ring"
                               ? services.some(
                                   (service) =>
-                                    normalizeServiceUuid(service.uuid) === HUAMI_SERVICE_UUID,
+                                    normalizeServiceUuid(service.uuid) === COLMI_V1_SERVICE_UUID,
                                 )
-                              : services.some((service) => service.uuid.toLowerCase() === FEE0);
+                              : family === "huami_legacy"
+                                ? services.some(
+                                    (service) =>
+                                      normalizeServiceUuid(service.uuid) === HUAMI_SERVICE_UUID,
+                                  )
+                                : services.some((service) => service.uuid.toLowerCase() === FEE0);
           if (!hasRequiredService)
             throw new Error(
               family === "xiaomi"
@@ -669,15 +702,17 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
                       ? "BLE_GATT_SERVICE_MISSING"
                       : family === "bangle_js"
                         ? "BANGLE_JS_SERVICE_MISSING"
-                        : family === "gloryfit"
-                          ? "GLORYFIT_SERVICE_MISSING"
-                          : family === "ble_scale"
-                            ? "BLE_SCALE_SERVICE_MISSING"
-                            : family === "colmi_ring"
-                              ? "COLMI_RING_SERVICE_MISSING"
-                              : family === "huami_legacy"
-                                ? "HUAMI_LEGACY_SERVICE_MISSING"
-                                : "HUAMI_SERVICE_MISSING",
+                        : family === "moyoung"
+                          ? "MOYOUNG_SERVICE_MISSING"
+                          : family === "gloryfit"
+                            ? "GLORYFIT_SERVICE_MISSING"
+                            : family === "ble_scale"
+                              ? "BLE_SCALE_SERVICE_MISSING"
+                              : family === "colmi_ring"
+                                ? "COLMI_RING_SERVICE_MISSING"
+                                : family === "huami_legacy"
+                                  ? "HUAMI_LEGACY_SERVICE_MISSING"
+                                  : "HUAMI_SERVICE_MISSING",
             );
           let profile: XiaomiBleProfile | null = null;
           let huaweiProfile: HuaweiBleProfile | null = null;
@@ -685,6 +720,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
           let bleGattProfiles: readonly BleGattProfile[] | null = null;
           let bleScaleProfile: BleScaleProfile | null = null;
           let bangleJsProfile: BangleJsProfile | null = null;
+          let moyoungProfile: MoyoungProfile | null = null;
           let gloryFitProfile: GloryFitProfile | null = null;
           let huamiLegacyProfile: HuamiLegacyProfile | null = null;
           let colmiRingProfile: ColmiRingProfile | null = null;
@@ -726,6 +762,13 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
               bangleJsModel.id,
             );
             if (!bangleJsProfile) throw new Error("BANGLE_JS_SERVICE_MISSING");
+          } else if (family === "moyoung" && moyoungModel) {
+            moyoungProfile = await selectMoyoungProfile(
+              discovered,
+              services.map((service) => service.uuid),
+              moyoungModel,
+            );
+            if (!moyoungProfile) throw new Error("MOYOUNG_SERVICE_MISSING");
           } else if (family === "gloryfit" && gloryFitModel) {
             gloryFitProfile = await selectGloryFitProfile(
               discovered,
@@ -763,6 +806,8 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
             connectedColmiRingSession = null;
             void connectedBangleJsSession?.close();
             connectedBangleJsSession = null;
+            void connectedMoyoungSession?.close();
+            connectedMoyoungSession = null;
             void connectedGloryFitSession?.close();
             connectedGloryFitSession = null;
             void connectedHuamiLegacySession?.close();
@@ -838,6 +883,15 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
             });
             connectedBangleJsSession.start();
           }
+          if (moyoungProfile && deps.onHistorySample) {
+            void connectedMoyoungSession?.close();
+            connectedMoyoungSession = createMoyoungSession({
+              device: discovered,
+              profile: moyoungProfile,
+              onRecord: deps.onHistorySample,
+            });
+            connectedMoyoungSession.start();
+          }
           if (gloryFitProfile && deps.onHistorySample) {
             void connectedGloryFitSession?.close();
             connectedGloryFitSession = createGloryFitSession({
@@ -874,6 +928,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
               historySync:
                 family === "colmi_ring" ||
                 family === "bangle_js" ||
+                family === "moyoung" ||
                 family === "gloryfit" ||
                 family === "huami_legacy",
             }),
@@ -944,6 +999,8 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
       connectedColmiRingSession = null;
       void connectedBangleJsSession?.close();
       connectedBangleJsSession = null;
+      void connectedMoyoungSession?.close();
+      connectedMoyoungSession = null;
       void connectedGloryFitSession?.close();
       connectedGloryFitSession = null;
       void connectedHuamiLegacySession?.close();
@@ -1026,6 +1083,9 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
       if (connectedFamily === "colmi_ring") throw new Error("COLMI_RING_HISTORY_UNSUPPORTED");
       // Bangle.js also syncs on connection through its own session.
       if (connectedFamily === "bangle_js") throw new Error("BANGLE_JS_HISTORY_UNSUPPORTED");
+      // Moyoung watches sync stored heart rate and sleep on connection; steps
+      // are daily totals only, so there is no cursor-based page to fetch.
+      if (connectedFamily === "moyoung") throw new Error("MOYOUNG_HISTORY_UNSUPPORTED");
       // GloryFit watches also sync on connection through their own session.
       if (connectedFamily === "gloryfit") throw new Error("GLORYFIT_HISTORY_UNSUPPORTED");
       const device = connected;
@@ -1125,6 +1185,8 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
       connectedColmiRingSession = null;
       void connectedBangleJsSession?.close();
       connectedBangleJsSession = null;
+      void connectedMoyoungSession?.close();
+      connectedMoyoungSession = null;
       void connectedGloryFitSession?.close();
       connectedGloryFitSession = null;
       void connectedHuamiLegacySession?.close();
@@ -1259,6 +1321,7 @@ const SAFE_CODES = new Set([
   "BLE_SCALE_SERVICE_MISSING",
   "COLMI_RING_SERVICE_MISSING",
   "BANGLE_JS_SERVICE_MISSING",
+  "MOYOUNG_SERVICE_MISSING",
   "GLORYFIT_SERVICE_MISSING",
   "HUAMI_LEGACY_SERVICE_MISSING",
   "BLUETOOTH_STATE_TIMEOUT",

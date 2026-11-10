@@ -6,6 +6,7 @@ import type { GloryFitModelId } from "../models/gloryfit";
 import type { GarminModelId } from "../models/garmin";
 import type { HuaweiModelId } from "../models/huawei";
 import type { HuamiLegacyModelId } from "../models/huami-legacy";
+import type { MoyoungModelId } from "../models/moyoung";
 import type { XiaomiModelId } from "../models/xiaomi";
 import type { ZeppOsModelId } from "../models/zepp-os";
 import type { BleGattSample } from "../protocol/ble-gatt";
@@ -14,6 +15,7 @@ import type { WeightMeasurementSample } from "../protocol/ble-scale";
 import type { ColmiRingRecord } from "../protocol/colmi-ring";
 import type { GloryFitRecord } from "../protocol/gloryfit";
 import type { HuamiLegacyRecord } from "../protocol/huami-legacy";
+import type { MoyoungRecord } from "../protocol/moyoung";
 import type { HelioHistoryOptions, HelioHistoryResult } from "../protocol/types";
 
 /** A model id from any direct-device registry. */
@@ -27,7 +29,8 @@ export type DirectDeviceModelId =
   | BleScaleModelId
   | ColmiRingModelId
   | GloryFitModelId
-  | HuamiLegacyModelId;
+  | HuamiLegacyModelId
+  | MoyoungModelId;
 
 /** The protocol family a discovered model belongs to. */
 export type DirectDeviceFamily =
@@ -40,7 +43,8 @@ export type DirectDeviceFamily =
   | "ble_scale"
   | "colmi_ring"
   | "gloryfit"
-  | "huami_legacy";
+  | "huami_legacy"
+  | "moyoung";
 
 /** A live sample from either connection-based capture family. */
 export type DirectDeviceLiveSample = BleGattSample | WeightMeasurementSample;
@@ -50,7 +54,8 @@ export type DirectDeviceHistorySample =
   | ColmiRingRecord
   | BangleJsRecord
   | GloryFitRecord
-  | HuamiLegacyRecord;
+  | HuamiLegacyRecord
+  | MoyoungRecord;
 
 export type HelioDiscoveredDevice = Readonly<{
   id: string;

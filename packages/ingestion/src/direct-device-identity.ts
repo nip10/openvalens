@@ -21,7 +21,10 @@ export type DirectDeviceBindingIdentity = {
  * sessions with stages. Legacy Huami devices (pre-Zepp-OS Amazfit/Mi Band)
  * publish per-minute activity samples, i.e. exact-minute steps and heart
  * rate, plus sleep derived from activity kinds 9/11; authentication uses a
- * user-entered 16-byte pre-shared key.
+ * user-entered 16-byte pre-shared key. Moyoung watches publish heart-rate
+ * history and sleep sessions; their steps arrive as a single daily total, which
+ * the exact-minute `steps` record type cannot represent, so steps are
+ * deliberately not mapped in v1.
  */
 export type DirectDeviceRecordType =
   | "steps"
@@ -67,7 +70,12 @@ export function directDeviceFamilySupportsRecordType(
   if (recordType === "steps_interval")
     return family === "colmi_ring" || family === "bangle_js" || family === "gloryfit";
   if (recordType === "sleep_session")
-    return family === "colmi_ring" || family === "gloryfit" || family === "huami_legacy";
+    return (
+      family === "colmi_ring" ||
+      family === "gloryfit" ||
+      family === "huami_legacy" ||
+      family === "moyoung"
+    );
   if (recordType === "weight_measurement") return family === "ble_scale";
   if (recordType === "heart_rate")
     return (
@@ -75,7 +83,8 @@ export function directDeviceFamilySupportsRecordType(
       family === "colmi_ring" ||
       family === "bangle_js" ||
       family === "gloryfit" ||
-      family === "huami_legacy"
+      family === "huami_legacy" ||
+      family === "moyoung"
     );
   return family === "ble_gatt";
 }

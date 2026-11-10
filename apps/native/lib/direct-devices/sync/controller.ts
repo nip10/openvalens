@@ -493,7 +493,9 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
         ? "gloryfit"
         : family === "huami_legacy"
           ? "huami"
-          : "ring";
+          : family === "moyoung"
+            ? "moyoung"
+            : "ring";
 
   /**
    * Legacy Huami emits exact-minute `steps` records (the frozen contract for
@@ -718,6 +720,7 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
       (state.connectedFamily !== "colmi_ring" &&
         state.connectedFamily !== "bangle_js" &&
         state.connectedFamily !== "gloryfit" &&
+        state.connectedFamily !== "moyoung" &&
         state.connectedFamily !== "huami_legacy")
     )
       return;

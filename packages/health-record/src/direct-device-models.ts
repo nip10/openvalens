@@ -10,6 +10,7 @@ export const DIRECT_DEVICE_FAMILIES = [
   "bangle_js",
   "gloryfit",
   "huami_legacy",
+  "moyoung",
 ] as const;
 export type DirectDeviceFamily = (typeof DIRECT_DEVICE_FAMILIES)[number];
 export type DirectDeviceIdentity = { family: DirectDeviceFamily; modelId: string };
@@ -1911,6 +1912,167 @@ export const DIRECT_DEVICE_MODELS: readonly DirectDeviceModelDescriptor[] = [
     family: "huami_legacy",
     modelId: "xiaomi_mi_band_6",
     displayName: "Mi Smart Band 6",
+  },
+  // Moyoung watches (Issue #426): heart-rate history and sleep sessions only.
+  // Moyoung reports steps as a single daily total, which the exact-minute
+  // `steps` record type cannot represent, so steps are deliberately NOT mapped
+  // in v1 (see the issue comment). The native lane owns the BLE protocol; these
+  // rows only carry the shared identity vocabulary. None are transport-validated
+  // yet.
+  {
+    family: "moyoung",
+    modelId: "moyoung_advan_watch_se1_ai",
+    displayName: "Moyoung Advan Watch SE1 AI",
+  },
+  {
+    family: "moyoung",
+    modelId: "moyoung_alt_vibe",
+    displayName: "Moyoung Alt Vibe",
+  },
+  {
+    family: "moyoung",
+    modelId: "moyoung_bettdow_fb051",
+    displayName: "Moyoung Bettdow FB051",
+  },
+  {
+    family: "moyoung",
+    modelId: "moyoung_blackview_r60",
+    displayName: "Moyoung Blackview R60",
+  },
+  {
+    family: "moyoung",
+    modelId: "moyoung_c20",
+    displayName: "Moyoung C20",
+  },
+  {
+    family: "moyoung",
+    modelId: "moyoung_c20_pro",
+    displayName: "Moyoung C20 Pro",
+  },
+  {
+    family: "moyoung",
+    modelId: "moyoung_colmi_i28_ultra",
+    displayName: "Moyoung Colmi I28 Ultra",
+  },
+  {
+    family: "moyoung",
+    modelId: "moyoung_colmi_p76",
+    displayName: "Moyoung Colmi P76",
+  },
+  {
+    family: "moyoung",
+    modelId: "moyoung_colmi_p80",
+    displayName: "Moyoung Colmi P80",
+  },
+  {
+    family: "moyoung",
+    modelId: "moyoung_colmi_p81",
+    displayName: "Moyoung Colmi P81",
+  },
+  {
+    family: "moyoung",
+    modelId: "moyoung_colmi_v72",
+    displayName: "Moyoung Colmi V72",
+  },
+  {
+    family: "moyoung",
+    modelId: "moyoung_colmi_v73",
+    displayName: "Moyoung Colmi V73",
+  },
+  {
+    family: "moyoung",
+    modelId: "moyoung_colmi_v76",
+    displayName: "Moyoung Colmi V76",
+  },
+  {
+    family: "moyoung",
+    modelId: "moyoung_colmi_v89",
+    displayName: "Moyoung Colmi V89",
+  },
+  {
+    family: "moyoung",
+    modelId: "moyoung_fireboltt_069",
+    displayName: "Moyoung Fireboltt 069",
+  },
+  {
+    family: "moyoung",
+    modelId: "moyoung_fireboltt_ninja_phantom",
+    displayName: "Moyoung Fireboltt Ninja Phantom",
+  },
+  {
+    family: "moyoung",
+    modelId: "moyoung_fireboltt_talk",
+    displayName: "Moyoung Fireboltt Talk",
+  },
+  {
+    family: "moyoung",
+    modelId: "moyoung_garett_eva",
+    displayName: "Moyoung Garett Eva",
+  },
+  {
+    family: "moyoung",
+    modelId: "moyoung_hc96",
+    displayName: "Moyoung HC96",
+  },
+  {
+    family: "moyoung",
+    modelId: "moyoung_itech_active_3",
+    displayName: "Moyoung iTech Active 3",
+  },
+  {
+    family: "moyoung",
+    modelId: "moyoung_ksix_venture",
+    displayName: "Moyoung KSIX Venture",
+  },
+  {
+    family: "moyoung",
+    modelId: "moyoung_kt80",
+    displayName: "Moyoung KT80",
+  },
+  {
+    family: "moyoung",
+    modelId: "moyoung_kw19_b",
+    displayName: "Moyoung KW19 B",
+  },
+  {
+    family: "moyoung",
+    modelId: "moyoung_l70",
+    displayName: "Moyoung L70",
+  },
+  {
+    family: "moyoung",
+    modelId: "moyoung_misirun_c17",
+    displayName: "Moyoung Misirun C17",
+  },
+  {
+    family: "moyoung",
+    modelId: "moyoung_mt55",
+    displayName: "Moyoung MT55",
+  },
+  {
+    family: "moyoung",
+    modelId: "moyoung_p22b1",
+    displayName: "Moyoung P22B1",
+  },
+  {
+    family: "moyoung",
+    modelId: "moyoung_r50_pro",
+    displayName: "Moyoung R50 Pro",
+  },
+  {
+    family: "moyoung",
+    modelId: "moyoung_rainbuvvy_t97",
+    displayName: "Moyoung Rainbuvvy T97",
+  },
+  {
+    family: "moyoung",
+    modelId: "moyoung_viran_c29",
+    displayName: "Moyoung Viran C29",
+  },
+  {
+    family: "moyoung",
+    modelId: "moyoung_zl02d",
+    displayName: "Moyoung ZL02D",
   },
 ];
 

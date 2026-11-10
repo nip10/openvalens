@@ -205,6 +205,25 @@ describe("direct-device identity guard", () => {
       );
   });
 
+  test("Moyoung watches publish heart rate and sleep sessions only", () => {
+    const moyoung = { directDeviceFamily: "moyoung", directDeviceModelId: "moyoung_c20" };
+    const assertion = { family: "moyoung", modelId: "moyoung_c20" } as const;
+    // v1 ships heart-rate history and sleep; daily-total steps are deliberately
+    // not mapped.
+    for (const recordType of ["heart_rate", "sleep_session"] as const)
+      expect(assertDirectDeviceIdentity(moyoung, assertion, { recordType })).toEqual(assertion);
+    for (const recordType of [
+      "steps",
+      "steps_interval",
+      "weight_measurement",
+      "body_temperature",
+      "blood_pressure",
+    ] as const)
+      expect(() => assertDirectDeviceIdentity(moyoung, assertion, { recordType })).toThrow(
+        new DirectDeviceIdentityError("HISTORY_UNSUPPORTED"),
+      );
+  });
+
   test("record-type capability separates watch steps from BLE GATT sensors", () => {
     const ble = { directDeviceFamily: "ble_gatt", directDeviceModelId: "polar_h10" };
     expect(

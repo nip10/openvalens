@@ -18,6 +18,7 @@ import {
 } from "../models/colmi-ring";
 import { GLORYFIT_MODELS } from "../models/gloryfit";
 import { HUAMI_LEGACY_MODELS } from "../models/huami-legacy";
+import { MOYOUNG_MODELS } from "../models/moyoung";
 import {
   HUAMI_ACTIVITY_CONTROL_UUID,
   HUAMI_ACTIVITY_DATA_UUID,
@@ -92,10 +93,15 @@ test("native model registries remain in parity with the shared identity catalog"
       modelId: model.id,
       displayName: model.displayName,
     })),
+    ...MOYOUNG_MODELS.map((model) => ({
+      family: "moyoung",
+      modelId: model.id,
+      displayName: model.displayName,
+    })),
   ].sort((left, right) =>
     `${left.family}:${left.modelId}`.localeCompare(`${right.family}:${right.modelId}`),
   );
-  expect(native).toHaveLength(374);
+  expect(native).toHaveLength(405);
   expect(native as unknown).toEqual(
     [...DIRECT_DEVICE_MODELS].sort((left, right) =>
       `${left.family}:${left.modelId}`.localeCompare(`${right.family}:${right.modelId}`),

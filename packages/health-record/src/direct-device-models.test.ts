@@ -10,7 +10,7 @@ import {
 test("direct-device catalog has unique family/model pairs and supported steps identity", () => {
   const keys = DIRECT_DEVICE_MODELS.map(({ family, modelId }) => `${family}:${modelId}`);
   expect(new Set(keys).size).toBe(keys.length);
-  expect(DIRECT_DEVICE_MODELS).toHaveLength(374);
+  expect(DIRECT_DEVICE_MODELS).toHaveLength(405);
   expect(
     findDirectDeviceModel({ family: "zepp_os", modelId: "amazfit_helio_strap" })?.displayName,
   ).toBe("Amazfit Helio Strap");
@@ -114,4 +114,38 @@ test("legacy Huami catalog resolves Amazfit and Mi Band models", () => {
   expect(isDirectDeviceIdentity({ family: "huami_legacy", modelId: "xiaomi_mi_band_10" })).toBe(
     false,
   );
+});
+
+test("Moyoung catalog resolves the 31 catalog models", () => {
+  expect(DIRECT_DEVICE_MODELS.filter(({ family }) => family === "moyoung")).toHaveLength(31);
+  expect(findDirectDeviceModel({ family: "moyoung", modelId: "moyoung_c20" })).toEqual({
+    family: "moyoung",
+    modelId: "moyoung_c20",
+    displayName: "Moyoung C20",
+  });
+  expect(
+    findDirectDeviceModel({ family: "moyoung", modelId: "moyoung_advan_watch_se1_ai" })
+      ?.displayName,
+  ).toBe("Moyoung Advan Watch SE1 AI");
+  expect(
+    findDirectDeviceModel({ family: "moyoung", modelId: "moyoung_colmi_i28_ultra" })?.displayName,
+  ).toBe("Moyoung Colmi I28 Ultra");
+  expect(
+    findDirectDeviceModel({ family: "moyoung", modelId: "moyoung_fireboltt_ninja_phantom" })
+      ?.displayName,
+  ).toBe("Moyoung Fireboltt Ninja Phantom");
+  expect(
+    findDirectDeviceModel({ family: "moyoung", modelId: "moyoung_itech_active_3" })?.displayName,
+  ).toBe("Moyoung iTech Active 3");
+  expect(
+    findDirectDeviceModel({ family: "moyoung", modelId: "moyoung_ksix_venture" })?.displayName,
+  ).toBe("Moyoung KSIX Venture");
+  expect(findDirectDeviceModel({ family: "moyoung", modelId: "moyoung_zl02d" })?.displayName).toBe(
+    "Moyoung ZL02D",
+  );
+  expect(isDirectDeviceIdentity({ family: "moyoung", modelId: "moyoung_c20_pro" })).toBe(true);
+  // Unknown models and cross-family model ids are rejected.
+  expect(isDirectDeviceIdentity({ family: "moyoung", modelId: "moyoung_unknown" })).toBe(false);
+  expect(isDirectDeviceIdentity({ family: "moyoung", modelId: "garmin_fenix_7" })).toBe(false);
+  expect(isDirectDeviceIdentity({ family: "gloryfit", modelId: "moyoung_c20" })).toBe(false);
 });

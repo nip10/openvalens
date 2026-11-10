@@ -15,6 +15,8 @@ import { getBleGattModel } from "@/lib/direct-devices/models/ble-gatt";
 import type { BleGattModel, BleGattModelId } from "@/lib/direct-devices/models/ble-gatt";
 import { getBangleJsModel } from "@/lib/direct-devices/models/bangle-js";
 import type { BangleJsModel, BangleJsModelId } from "@/lib/direct-devices/models/bangle-js";
+import { getMoyoungModel } from "@/lib/direct-devices/models/moyoung";
+import type { MoyoungModel, MoyoungModelId } from "@/lib/direct-devices/models/moyoung";
 import { getBleScaleModel } from "@/lib/direct-devices/models/ble-scale";
 import type { BleScaleModel, BleScaleModelId } from "@/lib/direct-devices/models/ble-scale";
 import { getColmiRingModel } from "@/lib/direct-devices/models/colmi-ring";
@@ -69,6 +71,7 @@ type AnyDirectDeviceModel =
   | GarminModel
   | BleGattModel
   | BangleJsModel
+  | MoyoungModel
   | BleScaleModel
   | ColmiRingModel
   | GloryFitModel
@@ -98,6 +101,8 @@ function lookupModel(
   if (bleGatt) return { model: bleGatt, family: "ble_gatt" };
   const bangleJs = getBangleJsModel(modelId as BangleJsModelId);
   if (bangleJs) return { model: bangleJs, family: "bangle_js" };
+  const moyoung = getMoyoungModel(modelId as MoyoungModelId);
+  if (moyoung) return { model: moyoung, family: "moyoung" };
   const huamiLegacy = getHuamiLegacyModel(modelId as HuamiLegacyModelId);
   if (huamiLegacy) return { model: huamiLegacy, family: "huami_legacy" };
   const gloryFit = getGloryFitModel(modelId as GloryFitModelId);
@@ -287,6 +292,7 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
     bangle_js_history_sync: t`History sync on connection for steps and heart rate, plus live heart rate while connected; not hardware-verified.`,
     gloryfit_history_sync: t`History sync on connection for steps, heart rate and sleep; not hardware-verified.`,
     huami_legacy_steps_history: t`History sync on connection for step-by-minute records, heart rate and sleep; not hardware-verified.`,
+    moyoung_history_sync: t`History sync on connection for heart rate and sleep; steps are not supported because the watch only reports daily totals. Not hardware-verified.`,
   };
   const upstreamLevelText = {
     high: t`high`,
@@ -352,7 +358,7 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
     <Section title={t`Direct devices`} icon={Bluetooth} tone="signal">
       <Sheet className="gap-3">
         <Text className="font-sans text-sm leading-relaxed text-ink-2">
-          {t`Experimental direct Bluetooth support for several kinds of devices. Zepp OS and Xiaomi devices sync step history in the foreground. BLE GATT health sensors (heart rate, blood pressure, temperature) record live while connected, and a PineTime running InfiniTime reports live heart rate the same way. Bluetooth smart scales record weight live, and some also report stored measurements on connection. Colmi and Yawell smart rings sync stored step, heart-rate and sleep history on connection. Bangle.js watches sync stored step and heart-rate history on connection and keep reporting live heart rate. GloryFit watches sync stored step, heart-rate and sleep history on connection. Legacy Huami (Amazfit/Mi Band) watches sync exact-minute steps, heart rate and sleep when you enter their 16-byte key. Huawei/Honor and Garmin support connection checks only. No hardware verification has been done. No vendor login is requested.`}
+          {t`Experimental direct Bluetooth support for several kinds of devices. Zepp OS and Xiaomi devices sync step history in the foreground. BLE GATT health sensors (heart rate, blood pressure, temperature) record live while connected, and a PineTime running InfiniTime reports live heart rate the same way. Bluetooth smart scales record weight live, and some also report stored measurements on connection. Colmi and Yawell smart rings sync stored step, heart-rate and sleep history on connection. Bangle.js watches sync stored step and heart-rate history on connection and keep reporting live heart rate. Moyoung/Da Fit watches sync stored heart-rate and sleep history on connection; they report steps as daily totals only, so steps are not synced. GloryFit watches sync stored step, heart-rate and sleep history on connection. Legacy Huami (Amazfit/Mi Band) watches sync exact-minute steps, heart rate and sleep when you enter their 16-byte key. Huawei/Honor and Garmin support connection checks only. No hardware verification has been done. No vendor login is requested.`}
         </Text>
         <Text className="font-sans text-sm leading-relaxed text-ink-3">
           {t`Use the same saved device on both phones. Choose an existing binding to avoid duplicates, or add another only when you mean to create a separate binding. Nearby connection is a separate step.`}
@@ -465,6 +471,10 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
           ) : connectedFamily === "bangle_js" ? (
             <Text className="font-sans text-sm text-ink-3">
               {t`Bangle.js history (steps and heart rate) syncs automatically while connected, and heart rate keeps recording live. Records are saved in batches and sent only when you tap “Retry upload”.`}
+            </Text>
+          ) : connectedFamily === "moyoung" ? (
+            <Text className="font-sans text-sm text-ink-3">
+              {t`Moyoung history (heart rate and sleep) syncs automatically while connected. Steps are not synced because the watch only reports daily totals. Records are saved in batches and sent only when you tap “Retry upload”.`}
             </Text>
           ) : connectedFamily === "gloryfit" ? (
             <Text className="font-sans text-sm text-ink-3">
