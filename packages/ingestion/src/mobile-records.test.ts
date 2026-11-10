@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
+import { computeBodyComposition } from "@openvalens/body/body-composition-calculator";
+
 import { adaptMobileHealthRecords, type MobileHealthRecord } from "./mobile-records";
 
 const base = { externalRecordId: "hc-1", sourceApp: "com.example.scale" } as const;
@@ -188,6 +190,102 @@ describe("adaptMobileHealthRecords", () => {
     expect(
       intents.map((intent) => (intent.kind === "metric_sample" ? intent.canonicalType : null)),
     ).toEqual(["blood_pressure_systolic", "blood_pressure_diastolic"]);
+  });
+
+  test("weight measurements always fan out to weight with a deterministic suffix", () => {
+    const intents = adaptMobileHealthRecords([
+      {
+        ...base,
+        type: "weight_measurement",
+        startTime: "2026-10-01T07:00:00.000Z",
+        weightKg: 72.4,
+      },
+    ]);
+    expect(intents).toHaveLength(1);
+    expect(intents[0]).toMatchObject({
+      kind: "metric_sample",
+      canonicalType: "weight",
+      sampledAt: "2026-10-01T07:00:00.000Z",
+      value: 72.4,
+      unit: "kg",
+      externalId: "hc-1:weight",
+    });
+  });
+
+  test("weight with impedance and a complete profile fans out to body composition", () => {
+    const profile = { gender: 1 as const, ageYears: 35, heightCm: 180 };
+    const intents = adaptMobileHealthRecords(
+      [
+        {
+          ...base,
+          type: "weight_measurement",
+          startTime: "2026-10-01T07:00:00.000Z",
+          weightKg: 72.4,
+          impedanceOhm: 480,
+        },
+      ],
+      { bodyCompositionProfile: profile },
+    );
+    expect(
+      intents.map((intent) =>
+        intent.kind === "metric_sample"
+          ? [intent.canonicalType, intent.unit, intent.externalId]
+          : null,
+      ),
+    ).toEqual([
+      ["weight", "kg", "hc-1:weight"],
+      ["body_fat", "%", "hc-1:body_fat"],
+      ["muscle_mass", "kg", "hc-1:muscle_mass"],
+      ["body_water", "%", "hc-1:body_water"],
+      ["bone_mass", "kg", "hc-1:bone_mass"],
+    ]);
+    const expected = computeBodyComposition({
+      gender: 1,
+      ageYears: 35,
+      heightCm: 180,
+      weightKg: 72.4,
+      impedanceOhm: 480,
+    })!;
+    const values = intents.map((intent) => (intent.kind === "metric_sample" ? intent.value : null));
+    expect(values[1]).toBeCloseTo(expected.bodyFatPercent, 10);
+    expect(values[2]).toBeCloseTo(expected.muscleMassKg, 10);
+    expect(values[3]).toBeCloseTo(expected.bodyWaterPercent, 10);
+    expect(values[4]).toBeCloseTo(expected.boneMassKg, 10);
+    expect(values[1]).toBeCloseTo(14.89, 1);
+  });
+
+  test("weight with impedance but no complete profile degrades to weight only", () => {
+    const intents = adaptMobileHealthRecords([
+      {
+        ...base,
+        type: "weight_measurement",
+        startTime: "2026-10-01T07:00:00.000Z",
+        weightKg: 72.4,
+        impedanceOhm: 480,
+      },
+    ]);
+    expect(
+      intents.map((intent) => (intent.kind === "metric_sample" ? intent.canonicalType : null)),
+    ).toEqual(["weight"]);
+  });
+
+  test("weight with an implausible composition estimate degrades to weight only", () => {
+    const intents = adaptMobileHealthRecords(
+      [
+        {
+          ...base,
+          type: "weight_measurement",
+          startTime: "2026-10-01T07:00:00.000Z",
+          // Impedance outside the calculator's validated range returns null.
+          weightKg: 72.4,
+          impedanceOhm: 1300,
+        },
+      ],
+      { bodyCompositionProfile: { gender: 1, ageYears: 35, heightCm: 180 } },
+    );
+    expect(
+      intents.map((intent) => (intent.kind === "metric_sample" ? intent.canonicalType : null)),
+    ).toEqual(["weight"]);
   });
 
   test("intents carry lastModifiedAt so edited records get a new dedupe version", () => {

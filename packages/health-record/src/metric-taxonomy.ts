@@ -37,7 +37,10 @@ export type CanonicalMetricCode =
   | "body_temperature"
   | "blood_pressure_systolic"
   | "blood_pressure_diastolic"
-  | "blood_pressure_mean_arterial";
+  | "blood_pressure_mean_arterial"
+  | "muscle_mass"
+  | "body_water"
+  | "bone_mass";
 
 export type CanonicalMetricCategory = "body" | "activity" | "vitals" | "cardiac" | "sleep" | "labs";
 
@@ -245,6 +248,39 @@ const METRIC_TAXONOMY: Record<CanonicalMetricCode, CanonicalMetricDefinition> = 
     supportedSources: Object.freeze(["ble_sensor", "watch", "phone"]),
     hasDefaultPriority: true,
   },
+  // Issue #424 — body composition derived from a smart scale's weight and
+  // bio-impedance measurement. The scale reports weight and impedance; the
+  // server estimates these values, so they share the scale/ble_sensor sources.
+  muscle_mass: {
+    code: "muscle_mass",
+    displayName: "Muscle Mass",
+    category: "body",
+    unit: "kg",
+    valueType: "number",
+    aggregationDefault: "latest",
+    supportedSources: Object.freeze(["scale", "ble_sensor", "phone", "watch"]),
+    hasDefaultPriority: true,
+  },
+  body_water: {
+    code: "body_water",
+    displayName: "Body Water",
+    category: "body",
+    unit: "%",
+    valueType: "number",
+    aggregationDefault: "latest",
+    supportedSources: Object.freeze(["scale", "ble_sensor", "phone", "watch"]),
+    hasDefaultPriority: true,
+  },
+  bone_mass: {
+    code: "bone_mass",
+    displayName: "Bone Mass",
+    category: "body",
+    unit: "kg",
+    valueType: "number",
+    aggregationDefault: "latest",
+    supportedSources: Object.freeze(["scale", "ble_sensor", "phone", "watch"]),
+    hasDefaultPriority: true,
+  },
 };
 
 const METRIC_CODE_ALIASES = Object.freeze({
@@ -331,5 +367,9 @@ export function getDefaultSourcePriorityOrder(code: string): readonly string[] |
     case "blood_pressure_diastolic":
     case "blood_pressure_mean_arterial":
       return Object.freeze(["ble_sensor", "watch", "phone"]);
+    case "muscle_mass":
+    case "body_water":
+    case "bone_mass":
+      return Object.freeze(["scale", "ble_sensor", "phone", "watch"]);
   }
 }

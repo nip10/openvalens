@@ -1,6 +1,11 @@
 import type { BleManager, Device, State, Subscription } from "react-native-ble-plx";
 
-import type { DirectDeviceFamily, HelioSetupController, HelioSetupSnapshot } from "./types";
+import type {
+  DirectDeviceFamily,
+  DirectDeviceLiveSample,
+  HelioSetupController,
+  HelioSetupSnapshot,
+} from "./types";
 import { NativeHelioLink } from "../transport/helio-link";
 import { runHelioStepsHistory } from "../protocol/history";
 import { matchDeviceName } from "../models/zepp-os";
@@ -8,6 +13,7 @@ import { matchXiaomiDeviceName } from "../models/xiaomi";
 import { matchHuaweiDeviceName } from "../models/huawei";
 import { matchGarminDeviceName } from "../models/garmin";
 import { matchBleGattDevice, normalizeServiceUuid } from "../models/ble-gatt";
+import { matchBleScaleDevice } from "../models/ble-scale";
 import { selectXiaomiProfile, XIAOMI_BLE_SERVICE_UUIDS } from "../transport/xiaomi-link";
 import type { XiaomiBleProfile } from "../transport/xiaomi-link";
 import { HUAWEI_BLE_SERVICE_UUIDS, selectHuaweiProfile } from "../transport/huawei-link";
@@ -20,7 +26,8 @@ import {
   selectBleGattProfiles,
 } from "../transport/ble-gatt-sensors";
 import type { BleGattProfile } from "../transport/ble-gatt-sensors";
-import type { BleGattSample } from "../protocol/ble-gatt";
+import { createBleScaleSession, selectBleScaleProfile } from "../transport/ble-scale";
+import type { BleScaleProfile, BleScaleSession } from "../transport/ble-scale";
 import { createNativeXiaomiHistoryTransport } from "../transport/xiaomi-session";
 import { runXiaomiStepsHistory } from "../protocol/xiaomi-history";
 import type { XiaomiHistoryTransport } from "../protocol/xiaomi-history";
@@ -59,11 +66,11 @@ type Deps = {
     options: HelioHistoryOptions,
   ) => XiaomiHistoryTransport;
   /**
-   * Receives live GATT samples while a ble_gatt device is connected. The sync
-   * controller supplies this to persist captures; without it the session is
-   * not started (there is nothing to deliver samples to).
+   * Receives live GATT/scale samples while a connection-based device is
+   * connected. The sync controller supplies this to persist captures; without
+   * it the session is not started (there is nothing to deliver samples to).
    */
-  onLiveSample?: (sample: BleGattSample) => void;
+  onLiveSample?: (sample: DirectDeviceLiveSample) => void;
 };
 type NativeDeviceLease = {
   operationDone: Promise<void>;
@@ -142,6 +149,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
   let connectedHuaweiProfile: HuaweiBleProfile | null = null;
   let connectedGarminProfile: GarminBleProfile | null = null;
   let connectedBleGattSession: BleGattSession | null = null;
+  let connectedBleScaleSession: BleScaleSession | null = null;
   let connecting: Device | null = null;
   let connectionAttempt: object | null = null;
   let connectingLease: NativeDeviceLease | null = null;
@@ -298,13 +306,24 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
               zeppModel || xiaomiModel || !name ? null : matchHuaweiDeviceName(name);
             const garminModel =
               zeppModel || xiaomiModel || huaweiModel || !name ? null : matchGarminDeviceName(name);
-            // Generic GATT models are matched last, by advertised service UUID,
+            // Generic GATT models are matched first, by advertised service UUID,
             // and only when no named model matched (upstream GenericCoordinator).
+            // Smart scales are name-only and come after that fallback.
             const bleGattModel =
               zeppModel || xiaomiModel || huaweiModel || garminModel
                 ? null
                 : matchBleGattDevice(name, serviceUuids);
-            const model = zeppModel ?? xiaomiModel ?? huaweiModel ?? garminModel ?? bleGattModel;
+            const bleScaleModel =
+              zeppModel || xiaomiModel || huaweiModel || garminModel || bleGattModel
+                ? null
+                : matchBleScaleDevice(name);
+            const model =
+              zeppModel ??
+              xiaomiModel ??
+              huaweiModel ??
+              garminModel ??
+              bleGattModel ??
+              bleScaleModel;
             if (!model) return;
             const family = zeppModel
               ? "zepp_os"
@@ -314,7 +333,9 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
                   ? "huawei"
                   : garminModel
                     ? "garmin"
-                    : "ble_gatt";
+                    : bleGattModel
+                      ? "ble_gatt"
+                      : "ble_scale";
             r.devices.set(device.id, device);
             const found = new Map(snapshot.devices.map((item) => [item.id, item]));
             found.set(
@@ -415,7 +436,8 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
             matchXiaomiDeviceName(knownDevice.name) ??
             matchHuaweiDeviceName(knownDevice.name) ??
             matchGarminDeviceName(knownDevice.name) ??
-            matchBleGattDevice(knownDevice.name, knownDevice.serviceUuids);
+            matchBleGattDevice(knownDevice.name, knownDevice.serviceUuids) ??
+            matchBleScaleDevice(knownDevice.name);
           if (!model) throw new Error("DEVICE_NOT_DISCOVERED");
           const family =
             knownDevice.family ??
@@ -427,7 +449,9 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
                   ? "huawei"
                   : matchGarminDeviceName(knownDevice.name)
                     ? "garmin"
-                    : "ble_gatt");
+                    : matchBleGattDevice(knownDevice.name, knownDevice.serviceUuids)
+                      ? "ble_gatt"
+                      : "ble_scale");
           await stopRadioScan();
           if (current !== generation || disposed) return;
           let cancelWait!: () => void;
@@ -473,6 +497,8 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
             await discovered.cancelConnection();
             return;
           }
+          const bleScaleModel =
+            family === "ble_scale" ? matchBleScaleDevice(knownDevice.name) : null;
           const hasRequiredService =
             family === "xiaomi"
               ? services.some((service) => XIAOMI_BLE_SERVICE_UUIDS.has(service.uuid.toLowerCase()))
@@ -488,7 +514,12 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
                     ? services.some((service) =>
                         BLE_GATT_SERVICE_UUIDS.has(normalizeServiceUuid(service.uuid)),
                       )
-                    : services.some((service) => service.uuid.toLowerCase() === FEE0);
+                    : family === "ble_scale"
+                      ? !bleScaleModel?.serviceUuids.length ||
+                        services.some((service) =>
+                          bleScaleModel.serviceUuids.includes(normalizeServiceUuid(service.uuid)),
+                        )
+                      : services.some((service) => service.uuid.toLowerCase() === FEE0);
           if (!hasRequiredService)
             throw new Error(
               family === "xiaomi"
@@ -499,12 +530,15 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
                     ? "GARMIN_SERVICE_MISSING"
                     : family === "ble_gatt"
                       ? "BLE_GATT_SERVICE_MISSING"
-                      : "HUAMI_SERVICE_MISSING",
+                      : family === "ble_scale"
+                        ? "BLE_SCALE_SERVICE_MISSING"
+                        : "HUAMI_SERVICE_MISSING",
             );
           let profile: XiaomiBleProfile | null = null;
           let huaweiProfile: HuaweiBleProfile | null = null;
           let garminProfile: GarminBleProfile | null = null;
           let bleGattProfiles: readonly BleGattProfile[] | null = null;
+          let bleScaleProfile: BleScaleProfile | null = null;
           if (family === "xiaomi") {
             profile = await selectXiaomiProfile(
               discovered,
@@ -529,6 +563,13 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
               services.map((service) => service.uuid),
             );
             if (!bleGattProfiles.length) throw new Error("BLE_GATT_SERVICE_MISSING");
+          } else if (family === "ble_scale" && bleScaleModel?.serviceUuids.length) {
+            bleScaleProfile = await selectBleScaleProfile(
+              discovered,
+              services.map((service) => service.uuid),
+              bleScaleModel.id,
+            );
+            if (!bleScaleProfile) throw new Error("BLE_SCALE_SERVICE_MISSING");
           }
           disconnectSubscription = r.manager.onDeviceDisconnected(discovered.id, () => {
             if (disposed || connected !== discovered || current !== generation) return;
@@ -539,6 +580,8 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
             connectedGarminProfile = null;
             void connectedBleGattSession?.close();
             connectedBleGattSession = null;
+            void connectedBleScaleSession?.close();
+            connectedBleScaleSession = null;
             connectedLease = null;
             disconnectSubscription?.remove();
             disconnectSubscription = null;
@@ -575,6 +618,15 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
             );
             connectedBleGattSession.start();
           }
+          if (bleScaleProfile && deps.onLiveSample) {
+            void connectedBleScaleSession?.close();
+            connectedBleScaleSession = createBleScaleSession(
+              discovered,
+              bleScaleProfile,
+              deps.onLiveSample,
+            );
+            connectedBleScaleSession.start();
+          }
           publish({
             phase: "connected",
             connectedDeviceId: deviceId,
@@ -582,7 +634,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
             connectedFamily: family,
             capabilities: Object.freeze({
               stepsHistory: family === "zepp_os" || family === "xiaomi",
-              liveCapture: family === "ble_gatt",
+              liveCapture: family === "ble_gatt" || family === "ble_scale",
             }),
             bluetooth: "powered_on",
           });
@@ -645,6 +697,8 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
       connectedGarminProfile = null;
       void connectedBleGattSession?.close();
       connectedBleGattSession = null;
+      void connectedBleScaleSession?.close();
+      connectedBleScaleSession = null;
       connectionAttempt = null;
       connectingLease = null;
       connectedLease = null;
@@ -711,6 +765,9 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
       // Generic GATT sensors expose live notifications only; there is no
       // history/backfill characteristic, so this family never runs fetchSteps.
       if (connectedFamily === "ble_gatt") throw new Error("BLE_GATT_HISTORY_UNSUPPORTED");
+      // Smart scales capture live/stored frames on the connection; there is no
+      // cursor-based history page to fetch.
+      if (connectedFamily === "ble_scale") throw new Error("BLE_SCALE_HISTORY_UNSUPPORTED");
       const device = connected;
       const abortController = new AbortController();
       historyAbort = abortController;
@@ -782,6 +839,8 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
       connectedGarminProfile = null;
       void connectedBleGattSession?.close();
       connectedBleGattSession = null;
+      void connectedBleScaleSession?.close();
+      connectedBleScaleSession = null;
       connectionAttempt = null;
       connectingLease = null;
       connectedLease = null;
@@ -909,6 +968,7 @@ const SAFE_CODES = new Set([
   "HUAWEI_SERVICE_MISSING",
   "GARMIN_SERVICE_MISSING",
   "BLE_GATT_SERVICE_MISSING",
+  "BLE_SCALE_SERVICE_MISSING",
   "BLUETOOTH_STATE_TIMEOUT",
   "SCAN_FAILED",
   "CONNECTION_FAILED",

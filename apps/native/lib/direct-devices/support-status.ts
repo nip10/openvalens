@@ -40,7 +40,9 @@ export type OpenValensDeviceSupport =
   | "xiaomi_shared"
   | "huawei_connection_only"
   | "garmin_connection_only"
-  | "ble_gatt_live_capture";
+  | "ble_gatt_live_capture"
+  | "ble_scale_live_capture"
+  | "ble_scale_connection_only";
 
 export type DeviceSupportStatus = Readonly<{
   upstream: UpstreamDeviceSupport;
@@ -54,6 +56,11 @@ export function describeDeviceSupport(input: {
   modelId: string;
   /** Registry flag; true only for the Zepp OS model validated at source level. */
   transportValidated: boolean;
+  /**
+   * Registry record kinds. Used only by the smart-scale family to distinguish
+   * models with a capture path from those registered for connection checks.
+   */
+  records?: readonly string[];
 }): DeviceSupportStatus {
   const catalogEntry = findGadgetbridgeDevice(input.modelId);
   return {
@@ -64,13 +71,14 @@ export function describeDeviceSupport(input: {
           experimental: catalogEntry.experimental,
         }
       : { listed: false },
-    openValens: openValensSupport(input.family, input.transportValidated),
+    openValens: openValensSupport(input.family, input.transportValidated, input.records),
   };
 }
 
 function openValensSupport(
   family: DirectDeviceFamily,
   transportValidated: boolean,
+  records?: readonly string[],
 ): OpenValensDeviceSupport {
   switch (family) {
     case "zepp_os":
@@ -83,5 +91,9 @@ function openValensSupport(
       return "garmin_connection_only";
     case "ble_gatt":
       return "ble_gatt_live_capture";
+    case "ble_scale":
+      return records?.includes("weight_measurement")
+        ? "ble_scale_live_capture"
+        : "ble_scale_connection_only";
   }
 }

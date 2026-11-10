@@ -21,6 +21,11 @@ import type { DirectDeviceStore } from "../persistence/store";
 import { drainDirectDeviceOutbox } from "../upload";
 import type { HelioCursor, HelioStepsPage } from "../protocol/types";
 import type { BleGattSample } from "../protocol/ble-gatt";
+import {
+  weightMeasurementExternalRecordId,
+  type WeightMeasurementSample,
+} from "../protocol/ble-scale";
+import type { DirectDeviceLiveSample } from "../setup/types";
 import type {
   DirectDeviceConfirmationTarget,
   HelioSyncContext,
@@ -47,8 +52,8 @@ type Dependencies = {
   uuid?(): string;
   now?(): number;
   onApplied?(): Promise<void>;
-  /** Mutable sink wired to the setup controller's live GATT notifications. */
-  liveCapture?: { handler: ((sample: BleGattSample) => void) | null };
+  /** Mutable sink wired to the setup controller's live GATT/scale notifications. */
+  liveCapture?: { handler: ((sample: DirectDeviceLiveSample) => void) | null };
 };
 
 const emptySnapshot: HelioSyncSnapshot = Object.freeze({
@@ -172,7 +177,9 @@ export function createHelioSyncController(context: HelioSyncContext): HelioSyncC
     require("../setup/controller") as typeof import("../setup/controller");
   const { authSessionStorage } =
     require("../../auth-session-storage") as typeof import("../../auth-session-storage");
-  const liveCapture: { handler: ((sample: BleGattSample) => void) | null } = { handler: null };
+  const liveCapture: { handler: ((sample: DirectDeviceLiveSample) => void) | null } = {
+    handler: null,
+  };
   return createController(context, {
     store: getDirectDeviceStore(),
     setup: createHelioSetupController({
@@ -246,7 +253,7 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
 
   // Live GATT capture. Samples are buffered per binding and committed as
   // short backfill batches: the shared contract has no live mode yet.
-  let liveBuffer: { deviceId: string; samples: BleGattSample[] } | null = null;
+  let liveBuffer: { deviceId: string; samples: DirectDeviceLiveSample[] } | null = null;
   let liveFlush: Promise<void> = Promise.resolve();
   let liveFlushTimer: ReturnType<typeof setTimeout> | null = null;
   let liveCaptureSequence = 0;
@@ -258,8 +265,12 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
 
   const liveRecords = (
     deviceId: string,
-    samples: readonly BleGattSample[],
-  ): { recordType: "heart_rate" | "body_temperature" | "blood_pressure"; upserts: unknown[] }[] => {
+    modelId: string,
+    samples: readonly DirectDeviceLiveSample[],
+  ): {
+    recordType: "heart_rate" | "body_temperature" | "blood_pressure" | "weight_measurement";
+    upserts: unknown[];
+  }[] => {
     const heartRate = samples.filter(
       (sample): sample is Extract<BleGattSample, { type: "heart_rate" }> =>
         sample.type === "heart_rate",
@@ -272,8 +283,11 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
       (sample): sample is Extract<BleGattSample, { type: "blood_pressure" }> =>
         sample.type === "blood_pressure",
     );
+    const weights = samples.filter(
+      (sample): sample is WeightMeasurementSample => sample.type === "weight_measurement",
+    );
     const groups: {
-      recordType: "heart_rate" | "body_temperature" | "blood_pressure";
+      recordType: "heart_rate" | "body_temperature" | "blood_pressure" | "weight_measurement";
       upserts: unknown[];
     }[] = [];
     if (heartRate.length) {
@@ -332,6 +346,29 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
       }));
     if (pressureRecords.length)
       groups.push({ recordType: "blood_pressure", upserts: pressureRecords });
+    const weightRecords = weights
+      .filter((sample) => sample.weightKg >= 2 && sample.weightKg <= 500)
+      .map((sample) => {
+        // The contract accepts impedance only in the body-composition range.
+        const impedanceOhm =
+          sample.impedanceOhm !== null && sample.impedanceOhm >= 200 && sample.impedanceOhm <= 1200
+            ? sample.impedanceOhm
+            : null;
+        return {
+          type: "weight_measurement" as const,
+          externalRecordId: weightMeasurementExternalRecordId(modelId, {
+            time: sample.time,
+            weightKg: sample.weightKg,
+            impedanceOhm,
+          }),
+          sourceApp: null,
+          startTime: sample.time,
+          weightKg: sample.weightKg,
+          ...(impedanceOhm !== null ? { impedanceOhm } : {}),
+        };
+      });
+    if (weightRecords.length)
+      groups.push({ recordType: "weight_measurement", upserts: weightRecords });
     return groups;
   };
 
@@ -348,7 +385,7 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
         family: binding.family,
         modelId: binding.modelId,
       } as DirectDeviceIdentity;
-      const groups = liveRecords(buffer.deviceId, buffer.samples);
+      const groups = liveRecords(buffer.deviceId, binding.modelId, buffer.samples);
       if (!groups.length) return;
       const starts = buffer.samples.map((sample) => Date.parse(sample.time));
       const startTime = new Date(Math.min(...starts)).toISOString();
@@ -397,10 +434,14 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
     }, 5000);
   };
 
-  const handleLiveSample = (sample: BleGattSample) => {
+  const handleLiveSample = (sample: DirectDeviceLiveSample) => {
     if (disposed) return;
     const state = deps.setup.getSnapshot();
-    if (state.phase !== "connected" || state.connectedFamily !== "ble_gatt") return;
+    if (
+      state.phase !== "connected" ||
+      (state.connectedFamily !== "ble_gatt" && state.connectedFamily !== "ble_scale")
+    )
+      return;
     const bindingId = selectedBindingId;
     if (!bindingId) return;
     const binding = bindingsById.get(bindingId);

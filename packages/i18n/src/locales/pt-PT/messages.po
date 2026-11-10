@@ -3552,6 +3552,10 @@ msgid "Connecting…"
 msgstr "A ligar…"
 
 #: apps/native/components/direct-device-settings.tsx
+msgid "Connection checks only; measurement capture is not implemented for this model yet. Not hardware-verified."
+msgstr "Apenas verificações de ligação; a captura de medições ainda não está implementada para este modelo. Não verificado em hardware."
+
+#: apps/native/components/direct-device-settings.tsx
 msgid "Connection checks only; step history sync is not implemented. Not hardware-verified."
 msgstr "Apenas verificações de ligação; a sincronização do histórico de passos não está implementada. Não verificado em hardware."
 
@@ -6253,8 +6257,8 @@ msgid "Experimental"
 msgstr "Experimental"
 
 #: apps/native/components/direct-device-settings.tsx
-msgid "Experimental direct Bluetooth support for two kinds of devices. Zepp OS and Xiaomi devices sync step history in the foreground. BLE GATT health sensors (heart rate, blood pressure, temperature) record live while connected, with no history backfill. Huawei/Honor and Garmin support connection checks only. No hardware verification has been done. No vendor login is requested."
-msgstr "Suporte experimental direto por Bluetooth para dois tipos de dispositivos. Os dispositivos Zepp OS e Xiaomi sincronizam o histórico de passos em primeiro plano. Os sensores de saúde BLE GATT (frequência cardíaca, tensão arterial, temperatura) fazem captura em direto enquanto ligados, sem preenchimento de histórico. Huawei/Honor e Garmin suportam só verificações de ligação. Não foi feita nenhuma verificação em hardware. Não é pedido nenhum início de sessão do fabricante."
+msgid "Experimental direct Bluetooth support for two kinds of devices. Zepp OS and Xiaomi devices sync step history in the foreground. BLE GATT health sensors (heart rate, blood pressure, temperature) record live while connected. Bluetooth smart scales record weight live, and some also report stored measurements on connection. Huawei/Honor and Garmin support connection checks only. No hardware verification has been done. No vendor login is requested."
+msgstr "Suporte direto experimental por Bluetooth para dois tipos de dispositivos. Os dispositivos Zepp OS e Xiaomi sincronizam o histórico de passos em primeiro plano. Os sensores de saúde BLE GATT (frequência cardíaca, tensão arterial, temperatura) fazem captura em direto enquanto ligados. As balanças Bluetooth registam o peso em direto e algumas também reportam medições guardadas ao ligar. Huawei/Honor e Garmin suportam só verificações de ligação. Não foi feita nenhuma verificação em hardware. Não é pedido nenhum início de sessão do fabricante."
 
 #: packages/api/src/presenters/energy-estimate.ts
 msgid "Experimental estimate: not a target or a measure of what you ate."
@@ -8152,6 +8156,14 @@ msgstr "Captura em direto enquanto ligado; não verificado em hardware. Sem pree
 #: apps/native/components/direct-device-settings.tsx
 msgid "Live capture while connected. Samples are saved in short batches and sent only when you tap “Retry upload”. There is no history backfill."
 msgstr "Captura em direto enquanto ligado. As amostras são guardadas em lotes curtos e só são enviadas quando toca em “Tentar enviar novamente”. Não há preenchimento de histórico."
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "Live weight capture while connected; not hardware-verified. Some scales also report stored measurements on connection. Samples are sent only when you tap “Retry upload”."
+msgstr "Captura de peso em direto enquanto ligado; não verificado em hardware. Algumas balanças também reportam medições guardadas ao ligar. As amostras só são enviadas quando toca em “Tentar enviar novamente”."
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "Live weight capture while connected. Samples are saved in short batches and sent only when you tap “Retry upload”."
+msgstr "Captura de peso em direto enquanto ligado. As amostras são guardadas em lotes curtos e só são enviadas quando toca em “Tentar enviar novamente”."
 
 #: apps/web/src/routes/_auth/records/timeline.tsx
 msgid "Load more"

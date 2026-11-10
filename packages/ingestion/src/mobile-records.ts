@@ -1,3 +1,6 @@
+import { computeBodyComposition } from "@openvalens/body/body-composition-calculator";
+import type { BodyCompositionGender } from "@openvalens/body/body-composition-calculator";
+
 import {
   normalizeSleepStageIntervals,
   type CanonicalMetricWriteIntent,
@@ -47,9 +50,30 @@ export type MobileHealthRecord = MobileRecordBase &
         meanArterialPressure?: number;
         pulseRate?: number;
       } & Interval)
+    | {
+        type: "weight_measurement";
+        startTime: string;
+        weightKg: number;
+        impedanceOhm?: number;
+      }
   );
 
 export type MobileHealthRecordType = MobileHealthRecord["type"];
+
+/** Profile inputs the body-composition estimate needs (Issue #424). */
+export type BodyCompositionProfile = {
+  gender: BodyCompositionGender;
+  ageYears: number;
+  heightCm: number;
+};
+
+export type AdaptMobileHealthRecordsOptions = {
+  /**
+   * Server-side profile for smart-scale body composition. Missing/incomplete
+   * profile degrades to weight only; it never blocks the weight measurement.
+   */
+  bodyCompositionProfile?: BodyCompositionProfile;
+};
 
 /**
  * Mobile records → canonical write intents. Unlike the legacy envelope
@@ -57,7 +81,10 @@ export type MobileHealthRecordType = MobileHealthRecord["type"];
  * Heart-rate records fan out to one sample per reading, each carrying only
  * its own reading as the raw record (not the whole series).
  */
-export function adaptMobileHealthRecords(records: MobileHealthRecord[]): CanonicalWriteIntent[] {
+export function adaptMobileHealthRecords(
+  records: MobileHealthRecord[],
+  options: AdaptMobileHealthRecordsOptions = {},
+): CanonicalWriteIntent[] {
   const intents: CanonicalWriteIntent[] = [];
   for (const record of records) {
     // Normalized so stored versions compare consistently (`…00Z` vs `…00.000Z`).
@@ -148,6 +175,39 @@ export function adaptMobileHealthRecords(records: MobileHealthRecord[]): Canonic
             ...common,
             externalId: `${base}:pulse`,
           });
+        break;
+      }
+      case "weight_measurement": {
+        // Weight is always honest on its own. Body composition is an estimate
+        // that needs impedance plus a complete server-side profile; anything
+        // missing degrades to weight only rather than inventing values.
+        const base = record.externalRecordId;
+        metric("weight", record.weightKg, "kg", undefined, `${base}:weight`);
+        const profile = options.bodyCompositionProfile;
+        if (record.impedanceOhm !== undefined && profile) {
+          let composition: ReturnType<typeof computeBodyComposition> = null;
+          try {
+            composition = computeBodyComposition({
+              ...profile,
+              weightKg: record.weightKg,
+              impedanceOhm: record.impedanceOhm,
+            });
+          } catch {
+            composition = null;
+          }
+          if (composition) {
+            metric("body_fat", composition.bodyFatPercent, "%", undefined, `${base}:body_fat`);
+            metric("muscle_mass", composition.muscleMassKg, "kg", undefined, `${base}:muscle_mass`);
+            metric(
+              "body_water",
+              composition.bodyWaterPercent,
+              "%",
+              undefined,
+              `${base}:body_water`,
+            );
+            metric("bone_mass", composition.boneMassKg, "kg", undefined, `${base}:bone_mass`);
+          }
+        }
         break;
       }
       case "sleep_session": {

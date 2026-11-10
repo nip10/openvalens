@@ -98,7 +98,7 @@ export async function selectBleGattProfiles(
 
 const BASE64_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
-function decodeBase64(value: string): Uint8Array {
+export function decodeBase64(value: string): Uint8Array {
   const out: number[] = [];
   let bits = 0;
   let buffer = 0;

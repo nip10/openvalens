@@ -54,13 +54,21 @@ type DirectDeviceRecord =
       diastolic: number;
       meanArterialPressure?: number;
       pulseRate?: number;
+    }
+  | {
+      type: "weight_measurement";
+      externalRecordId: string;
+      sourceApp: null;
+      startTime: string;
+      weightKg: number;
+      impedanceOhm?: number;
     };
 type DirectDeviceBatch = {
   schemaVersion: 1;
   deviceId: string;
   deviceIdentity?: DirectDeviceIdentity;
   provider: "direct_device";
-  recordType: "steps" | "heart_rate" | "body_temperature" | "blood_pressure";
+  recordType: "steps" | "heart_rate" | "body_temperature" | "blood_pressure" | "weight_measurement";
   mode: "backfill";
   window?: { from: string; to: string };
   upserts: DirectDeviceRecord[];
@@ -99,6 +107,7 @@ const DIRECT_DEVICE_RECORD_TYPES = new Set<DirectDeviceRecordType>([
   "heart_rate",
   "body_temperature",
   "blood_pressure",
+  "weight_measurement",
 ]);
 
 export async function registerDirectDevice(
@@ -243,7 +252,9 @@ export async function ingestDirectDeviceBatch(
       ...record,
       externalRecordId: `dd:v1:${batch.deviceId}:${record.type}:${record.externalRecordId}`,
       startTime: new Date(record.startTime).toISOString(),
-      endTime: new Date(record.endTime).toISOString(),
+      ...(record.type === "weight_measurement"
+        ? {}
+        : { endTime: new Date(record.endTime).toISOString() }),
       ...(record.type === "heart_rate"
         ? {
             samples: record.samples.map((sample) => ({

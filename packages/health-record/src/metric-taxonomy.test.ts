@@ -31,6 +31,9 @@ describe("metric taxonomy (Issue #17 bounded read-side)", () => {
       "blood_pressure_systolic",
       "blood_pressure_diastolic",
       "blood_pressure_mean_arterial",
+      "muscle_mass",
+      "body_water",
+      "bone_mass",
     ]);
   });
 
@@ -93,6 +96,37 @@ describe("metric taxonomy (Issue #17 bounded read-side)", () => {
       expect(getDefaultSourcePriorityOrder(code)).toEqual(["ble_sensor", "watch", "phone"]);
     }
     expect(getMetricDefinition("body_temperature")?.supportedSources).toContain("ble_sensor");
+  });
+
+  test("smart-scale body composition codes (Issue #424) carry body units and scale sources", () => {
+    expect(getMetricDefinition("muscle_mass")).toMatchObject({
+      unit: "kg",
+      category: "body",
+      aggregationDefault: "latest",
+      hasDefaultPriority: true,
+    });
+    expect(getMetricDefinition("body_water")).toMatchObject({
+      unit: "%",
+      category: "body",
+      aggregationDefault: "latest",
+      hasDefaultPriority: true,
+    });
+    expect(getMetricDefinition("bone_mass")).toMatchObject({
+      unit: "kg",
+      category: "body",
+      aggregationDefault: "latest",
+      hasDefaultPriority: true,
+    });
+    for (const code of ["muscle_mass", "body_water", "bone_mass"] as const) {
+      expect(getMetricDefinition(code)?.supportedSources).toContain("scale");
+      expect(getMetricDefinition(code)?.supportedSources).toContain("ble_sensor");
+      expect(getDefaultSourcePriorityOrder(code)).toEqual([
+        "scale",
+        "ble_sensor",
+        "phone",
+        "watch",
+      ]);
+    }
   });
 
   test("source codes match anchovy units, categories and default priority", () => {

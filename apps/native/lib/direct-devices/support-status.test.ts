@@ -10,8 +10,10 @@ import { expect, test } from "bun:test";
 
 import { getGarminModel } from "./models/garmin";
 import { getHuaweiModel } from "./models/huawei";
+import { getBleScaleModel } from "./models/ble-scale";
 import { getXiaomiModel } from "./models/xiaomi";
 import { getZeppOsModel } from "./models/zepp-os";
+import { BLE_SCALE_MODELS } from "./models/ble-scale";
 import { GARMIN_MODELS } from "./models/garmin";
 import { HUAWEI_MODELS } from "./models/huawei";
 import { XIAOMI_MODELS } from "./models/xiaomi";
@@ -114,6 +116,7 @@ test("every registered model has a catalog entry to show", () => {
     { family: "xiaomi" as const, models: XIAOMI_MODELS },
     { family: "huawei" as const, models: HUAWEI_MODELS },
     { family: "garmin" as const, models: GARMIN_MODELS },
+    { family: "ble_scale" as const, models: BLE_SCALE_MODELS },
   ];
   const unlisted = families.flatMap(({ family, models }) =>
     models
@@ -150,4 +153,35 @@ test("generic GATT models report live capture only and no history backfill", () 
       transportValidated: false,
     }).upstream,
   ).toEqual({ listed: false });
+});
+
+test("smart scales with a capture path report live capture", () => {
+  const model = getBleScaleModel("xiaomi_body_composition_scale_2");
+  expect(
+    describeDeviceSupport({
+      family: "ble_scale",
+      modelId: "xiaomi_body_composition_scale_2",
+      transportValidated: model?.transportValidated ?? false,
+      records: model?.records,
+    }),
+  ).toEqual({
+    upstream: { listed: true, featureLevel: "poor", experimental: false },
+    openValens: "ble_scale_live_capture",
+  });
+});
+
+test("smart scales without a capture path report connection checks only", () => {
+  for (const id of ["chipsea_qn_scale", "ge_fit_plus", "viatom_f8"] as const) {
+    const model = getBleScaleModel(id);
+    expect(model?.records, id).toEqual([]);
+    expect(
+      describeDeviceSupport({
+        family: "ble_scale",
+        modelId: id,
+        transportValidated: model?.transportValidated ?? false,
+        records: model?.records,
+      }).openValens,
+      id,
+    ).toBe("ble_scale_connection_only");
+  }
 });

@@ -5,6 +5,7 @@ export const DIRECT_DEVICE_FAMILIES = [
   "huawei",
   "garmin",
   "ble_gatt",
+  "ble_scale",
 ] as const;
 export type DirectDeviceFamily = (typeof DIRECT_DEVICE_FAMILIES)[number];
 export type DirectDeviceIdentity = { family: DirectDeviceFamily; modelId: string };
@@ -1532,6 +1533,39 @@ export const DIRECT_DEVICE_MODELS: readonly DirectDeviceModelDescriptor[] = [
     family: "ble_gatt",
     modelId: "generic_health_thermometer",
     displayName: "Generic Health Thermometer",
+  },
+  // BLE smart scales (Issue #424): weight plus optional bio-impedance body
+  // composition. The native lane owns the GATT parser; these rows only carry
+  // the shared identity vocabulary.
+  {
+    family: "ble_scale",
+    modelId: "xiaomi_smart_scale_2",
+    displayName: "Xiaomi Smart Scale 2",
+  },
+  {
+    family: "ble_scale",
+    modelId: "xiaomi_body_composition_scale_2",
+    displayName: "Xiaomi Body Composition Scale 2",
+  },
+  {
+    family: "ble_scale",
+    modelId: "lefu_health_scale",
+    displayName: "Lefu Health Scale",
+  },
+  {
+    family: "ble_scale",
+    modelId: "chipsea_qn_scale",
+    displayName: "Chipsea QN Scale",
+  },
+  {
+    family: "ble_scale",
+    modelId: "ge_fit_plus",
+    displayName: "GE Fit Plus",
+  },
+  {
+    family: "ble_scale",
+    modelId: "viatom_f8",
+    displayName: "Viatom F8",
   },
 ];
 

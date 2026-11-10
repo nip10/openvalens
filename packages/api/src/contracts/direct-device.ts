@@ -136,6 +136,15 @@ const directDeviceRecord = z.discriminatedUnion("type", [
     meanArterialPressure: z.number().int().min(20).max(250).optional(),
     pulseRate: z.number().int().min(20).max(250).optional(),
   }),
+  z.strictObject({
+    type: z.literal("weight_measurement"),
+    externalRecordId: z.string().min(1).max(120),
+    sourceApp: z.null(),
+    startTime: isoUtc,
+    weightKg: z.number().positive().min(2).max(500),
+    /** Bio-impedance in ohms; matches the body-composition calculator's range. */
+    impedanceOhm: z.number().positive().min(200).max(1200).optional(),
+  }),
 ]);
 
 export const directDeviceBatch = z
@@ -144,7 +153,13 @@ export const directDeviceBatch = z
     deviceId: z.uuid(),
     deviceIdentity: directDeviceIdentity.optional(),
     provider: z.literal(DIRECT_DEVICE_PROVIDER),
-    recordType: z.enum(["steps", "heart_rate", "body_temperature", "blood_pressure"]),
+    recordType: z.enum([
+      "steps",
+      "heart_rate",
+      "body_temperature",
+      "blood_pressure",
+      "weight_measurement",
+    ]),
     mode: z.literal("backfill"),
     window: z.strictObject({ from: isoUtc, to: isoUtc }).optional(),
     upserts: z.array(directDeviceRecord).min(1).max(1000),
@@ -159,7 +174,10 @@ export const directDeviceBatch = z
           path: ["upserts", index, "type"],
           message: "Every upsert must match the batch recordType.",
         });
-      if (new Date(record.endTime).getTime() <= new Date(record.startTime).getTime())
+      if (
+        record.type !== "weight_measurement" &&
+        new Date(record.endTime).getTime() <= new Date(record.startTime).getTime()
+      )
         ctx.addIssue({
           code: "custom",
           path: ["upserts", index, "endTime"],

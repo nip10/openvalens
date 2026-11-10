@@ -8,7 +8,10 @@ import {
   provenanceLink,
 } from "@openvalens/db/schema/health-record";
 import { providerConnection } from "@openvalens/db/schema/ingestion";
+import { wellnessProfile } from "@openvalens/db/schema/profile";
+import { nutritionTargetSettings } from "@openvalens/db/schema/nutrition";
 import { createAutoReconciliationTxService } from "@openvalens/body";
+import { BodyCompositionGender } from "@openvalens/body/body-composition-calculator";
 import { lockNutritionSafetyUser } from "@openvalens/db";
 import { stableSerialize } from "@openvalens/health-record";
 import { and, desc, eq, inArray, like, sql } from "drizzle-orm";
@@ -19,6 +22,7 @@ import { localDateIn } from "./healthkit-sleep";
 import { IngestionStateError } from "./job-runner-state";
 import {
   adaptMobileHealthRecords,
+  type BodyCompositionProfile,
   type MobileHealthRecord,
   type MobileHealthRecordType,
 } from "./mobile-records";
@@ -125,7 +129,8 @@ function isDirectDeviceRecordType(value: MobileHealthRecordType): value is Direc
     value === "steps" ||
     value === "heart_rate" ||
     value === "body_temperature" ||
-    value === "blood_pressure"
+    value === "blood_pressure" ||
+    value === "weight_measurement"
   );
 }
 
@@ -294,7 +299,7 @@ export async function acceptMobileBatch(
       for (const record of batch.upserts) {
         if (record.type !== batch.recordType)
           throw new DirectDeviceIdentityError("HISTORY_UNSUPPORTED");
-        if (batch.recordType !== "steps") continue;
+        if (batch.recordType !== "steps" || record.type !== "steps") continue;
         const start = new Date(record.startTime).getTime();
         const end = new Date(record.endTime).getTime();
         if (
@@ -695,7 +700,9 @@ export async function runMobileIngestBatchJob(
     }
 
     const containsWeight =
-      batch.recordType === "weight" || batch.upserts.some((record) => record.type === "weight");
+      batch.recordType === "weight" ||
+      batch.recordType === "weight_measurement" ||
+      batch.upserts.some((record) => record.type === "weight");
     const [owner] = await tx
       .select({ userId: providerConnection.userId })
       .from(providerConnection)
@@ -708,6 +715,17 @@ export async function runMobileIngestBatchJob(
       .limit(1);
     const deviceOwnerId = owner?.userId ?? null;
     if (containsWeight && deviceOwnerId) await lockNutritionSafetyUser(tx, deviceOwnerId);
+
+    // Smart-scale body composition (#424) needs the owner's sex, age and
+    // height. Loaded once per batch; an incomplete profile simply means the
+    // impedance measurement fans out to weight only.
+    const bodyCompositionProfile =
+      deviceOwnerId &&
+      batch.upserts.some(
+        (record) => record.type === "weight_measurement" && record.impedanceOhm !== undefined,
+      )
+        ? await loadBodyCompositionProfile(tx, organizationId, deviceOwnerId, startedAt)
+        : undefined;
 
     const totals = {
       metricSampleCount: 0,
@@ -758,7 +776,7 @@ export async function runMobileIngestBatchJob(
         job.providerConnectionId,
         identity,
       );
-      const intents = adaptMobileHealthRecords(records);
+      const intents = adaptMobileHealthRecords(records, { bodyCompositionProfile });
       intentCount += intents.length;
       const persisted = await persistCanonicalIntents(tx, {
         organizationId,
@@ -904,6 +922,46 @@ export async function runMobileIngestBatchJob(
       errorCode: null,
     };
   });
+}
+
+/**
+ * Owner profile inputs for the smart-scale body-composition estimate (#424).
+ * Sex and birth year live on the user-owned `wellness_profile`; height is the
+ * self-declared `nutrition_target_settings.height_cm` for this workspace.
+ * Returns undefined unless all three are recorded — never guesses.
+ */
+async function loadBodyCompositionProfile(
+  tx: Pick<Database, "select">,
+  organizationId: string,
+  userId: string,
+  asOf: Date,
+): Promise<BodyCompositionProfile | undefined> {
+  const [wellness] = await tx
+    .select({ sex: wellnessProfile.sex, birthYear: wellnessProfile.birthYear })
+    .from(wellnessProfile)
+    .where(eq(wellnessProfile.userId, userId))
+    .limit(1);
+  const [targets] = await tx
+    .select({ heightCm: nutritionTargetSettings.heightCm })
+    .from(nutritionTargetSettings)
+    .where(
+      and(
+        eq(nutritionTargetSettings.organizationId, organizationId),
+        eq(nutritionTargetSettings.userId, userId),
+      ),
+    )
+    .limit(1);
+  const sex = wellness?.sex;
+  const birthYear = wellness?.birthYear;
+  const heightCm = targets?.heightCm;
+  if ((sex !== "female" && sex !== "male") || !birthYear || !heightCm) return undefined;
+  const ageYears = asOf.getUTCFullYear() - birthYear;
+  if (ageYears <= 0) return undefined;
+  return {
+    gender: sex === "male" ? BodyCompositionGender.MALE : BodyCompositionGender.FEMALE,
+    ageYears,
+    heightCm,
+  };
 }
 
 /** Time span a batch touched: its upserts plus any rows it superseded. */

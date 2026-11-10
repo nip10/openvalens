@@ -15,7 +15,11 @@ import {
   invalidateDirectDeviceAuthority,
 } from "../authority";
 import { createSqliteDirectDeviceStore, type SyncSqliteDatabase } from "../persistence/store";
-import type { HelioSetupController, HelioSetupSnapshot } from "../setup/types";
+import type {
+  HelioSetupController,
+  HelioSetupSnapshot,
+  DirectDeviceLiveSample,
+} from "../setup/types";
 import { historyStart } from "../protocol/codec";
 import { crc32 } from "../protocol/chunked";
 import {
@@ -27,7 +31,7 @@ import {
 import { runXiaomiStepsHistory, type XiaomiHistoryTransport } from "../protocol/xiaomi-history";
 import type { XiaomiCommand } from "../protocol/xiaomi-proto";
 import type { HelioCursor, HelioStepsPage } from "../protocol/types";
-import type { BleGattSample } from "../protocol/ble-gatt";
+import { weightMeasurementExternalRecordId } from "../protocol/ble-scale";
 import type { DirectDeviceConfirmationTarget, HelioSyncSnapshot } from "./types";
 import {
   createHelioSyncControllerWithDependencies,
@@ -208,7 +212,7 @@ async function readyController(args: {
   localIdentity?: DirectDeviceIdentity | null;
   seedBinding?: boolean;
   onApplied?: () => Promise<void>;
-  liveCapture?: { handler: ((sample: BleGattSample) => void) | null };
+  liveCapture?: { handler: ((sample: DirectDeviceLiveSample) => void) | null };
 }) {
   const sessionId = `${context.sessionId}-${++sessionSequence}`;
   const syncContext = { ...context, sessionId };
@@ -1435,7 +1439,9 @@ test("Xiaomi history pages flow through capture and outbox", async () => {
 
 test("live GATT samples are committed as short backfill batches", async () => {
   const { db, store } = sqlite();
-  const liveCapture: { handler: ((sample: BleGattSample) => void) | null } = { handler: null };
+  const liveCapture: { handler: ((sample: DirectDeviceLiveSample) => void) | null } = {
+    handler: null,
+  };
   const gattBinding: DirectDeviceBindingSummary = {
     ...binding,
     family: "ble_gatt",
@@ -1515,6 +1521,74 @@ test("live GATT samples are committed as short backfill batches", async () => {
     meanArterialPressure: 100,
     pulseRate: 72,
   });
+  await controller.dispose();
+  db.close();
+  invalidateDirectDeviceAuthority();
+});
+
+test("live smart-scale weights are committed as weight_measurement batches", async () => {
+  const { db, store } = sqlite();
+  const liveCapture: { handler: ((sample: DirectDeviceLiveSample) => void) | null } = {
+    handler: null,
+  };
+  const scaleBinding: DirectDeviceBindingSummary = {
+    ...binding,
+    family: "ble_scale",
+    modelId: "xiaomi_smart_scale_2",
+    displayName: "Xiaomi Smart Scale 2",
+  };
+  const { controller, ticket } = await readyController({
+    store,
+    setup: setup(async () => ({ pages: 0, minutes: 0, complete: true }), "xiaomi_smart_scale_2", {
+      family: "ble_scale",
+      stepsHistory: false,
+      liveCapture: true,
+    }),
+    localIdentity: { family: "ble_scale", modelId: "xiaomi_smart_scale_2" },
+    liveCapture,
+    makeClient: () => ({
+      directDevice: {
+        listDirectDevices: async () => ({ devices: [scaleBinding] }),
+        registerDirectDevice: async () => ({ providerConnectionId: 41 }),
+        ingestDirectDeviceBatch: async () => ({ status: "applied" }),
+      },
+    }),
+  });
+  expect(liveCapture.handler).not.toBeNull();
+  const base = Date.parse("2026-02-01T00:00:00.000Z");
+  for (let index = 0; index < 10; index += 1)
+    liveCapture.handler!({
+      type: "weight_measurement",
+      time: new Date(base + index * 1000).toISOString(),
+      weightKg: 72.5 + index / 10,
+      impedanceOhm: index === 0 ? 500 : null,
+      deviceTimestamp: true,
+    });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  const pending = store.listPending(ticket, 10);
+  expect(pending).toHaveLength(1);
+  const batch = pending[0]!.request.batch;
+  expect(batch).toMatchObject({
+    recordType: "weight_measurement",
+    mode: "backfill",
+    deviceIdentity: { family: "ble_scale", modelId: "xiaomi_smart_scale_2" },
+  });
+  expect(batch.upserts).toHaveLength(10);
+  expect(batch.upserts[0]).toMatchObject({
+    type: "weight_measurement",
+    weightKg: 72.5,
+    impedanceOhm: 500,
+  });
+  expect(batch.upserts[1]).toMatchObject({ type: "weight_measurement", weightKg: 72.6 });
+  expect(batch.upserts[1]).not.toHaveProperty("impedanceOhm");
+  expect(batch.upserts[0]!.externalRecordId).toBe(
+    weightMeasurementExternalRecordId("xiaomi_smart_scale_2", {
+      time: new Date(base).toISOString(),
+      weightKg: 72.5,
+      impedanceOhm: 500,
+    }),
+  );
   await controller.dispose();
   db.close();
   invalidateDirectDeviceAuthority();

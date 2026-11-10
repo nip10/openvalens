@@ -27,7 +27,10 @@ export type CanonicalMetricWriteIntent = {
     | "body_temperature"
     | "blood_pressure_systolic"
     | "blood_pressure_diastolic"
-    | "blood_pressure_mean_arterial";
+    | "blood_pressure_mean_arterial"
+    | "muscle_mass"
+    | "body_water"
+    | "bone_mass";
   sampledAt: string;
   /** Interval end for interval metrics (steps, calories, distance); stored in metadata. */
   endAt?: string;

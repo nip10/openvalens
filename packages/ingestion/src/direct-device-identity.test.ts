@@ -43,6 +43,46 @@ describe("direct-device identity guard", () => {
     ).toThrow(new DirectDeviceIdentityError("HISTORY_UNSUPPORTED"));
   });
 
+  test("smart-scale weight measurements are ble_scale only", () => {
+    const scale = { directDeviceFamily: "ble_scale", directDeviceModelId: "xiaomi_smart_scale_2" };
+    const ble = { directDeviceFamily: "ble_gatt", directDeviceModelId: "polar_h10" };
+    expect(
+      assertDirectDeviceIdentity(
+        scale,
+        { family: "ble_scale", modelId: "xiaomi_smart_scale_2" },
+        { recordType: "weight_measurement" },
+      ),
+    ).toEqual({ family: "ble_scale", modelId: "xiaomi_smart_scale_2" });
+    expect(() =>
+      assertDirectDeviceIdentity(
+        confirmed,
+        { family: "zepp_os", modelId: "amazfit_helio_strap" },
+        { recordType: "weight_measurement" },
+      ),
+    ).toThrow(new DirectDeviceIdentityError("HISTORY_UNSUPPORTED"));
+    expect(() =>
+      assertDirectDeviceIdentity(
+        ble,
+        { family: "ble_gatt", modelId: "polar_h10" },
+        { recordType: "weight_measurement" },
+      ),
+    ).toThrow(new DirectDeviceIdentityError("HISTORY_UNSUPPORTED"));
+    expect(() =>
+      assertDirectDeviceIdentity(
+        scale,
+        { family: "ble_scale", modelId: "xiaomi_smart_scale_2" },
+        { recordType: "steps" },
+      ),
+    ).toThrow(new DirectDeviceIdentityError("HISTORY_UNSUPPORTED"));
+    expect(() =>
+      assertDirectDeviceIdentity(
+        scale,
+        { family: "ble_scale", modelId: "xiaomi_smart_scale_2" },
+        { recordType: "body_temperature" },
+      ),
+    ).toThrow(new DirectDeviceIdentityError("HISTORY_UNSUPPORTED"));
+  });
+
   test("record-type capability separates watch steps from BLE GATT sensors", () => {
     const ble = { directDeviceFamily: "ble_gatt", directDeviceModelId: "polar_h10" };
     expect(

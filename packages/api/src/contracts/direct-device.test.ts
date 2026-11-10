@@ -246,6 +246,48 @@ describe("direct device contract", () => {
     ).toBe(false);
   });
 
+  test("accepts weight measurements and enforces weight/impedance ranges", () => {
+    const weight = {
+      type: "weight_measurement",
+      externalRecordId: "scale-1",
+      sourceApp: null,
+      startTime: steps.startTime,
+      weightKg: 72.4,
+      impedanceOhm: 480,
+    };
+    const weightBatch = { ...batch, recordType: "weight_measurement", upserts: [weight] };
+    expect(directDeviceBatch.safeParse(weightBatch).success).toBe(true);
+    expect(
+      directDeviceBatch.safeParse({
+        ...weightBatch,
+        upserts: [{ ...weight, impedanceOhm: undefined }],
+      }).success,
+    ).toBe(true);
+    for (const weightKg of [1.9, 500.1, 0]) {
+      expect(
+        directDeviceBatch.safeParse({ ...weightBatch, upserts: [{ ...weight, weightKg }] }).success,
+      ).toBe(false);
+    }
+    for (const impedanceOhm of [199, 1201]) {
+      expect(
+        directDeviceBatch.safeParse({ ...weightBatch, upserts: [{ ...weight, impedanceOhm }] })
+          .success,
+      ).toBe(false);
+    }
+    expect(
+      directDeviceBatch.safeParse({
+        ...weightBatch,
+        upserts: [{ ...weight, endTime: steps.endTime }],
+      }).success,
+    ).toBe(false);
+    expect(
+      directDeviceBatch.safeParse({
+        ...weightBatch,
+        recordType: "body_temperature",
+      }).success,
+    ).toBe(false);
+  });
+
   test("rejects upserts whose type does not match the batch recordType", () => {
     expect(
       directDeviceBatch.safeParse({

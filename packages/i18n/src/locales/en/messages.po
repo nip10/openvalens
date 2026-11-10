@@ -3552,6 +3552,10 @@ msgid "Connecting…"
 msgstr "Connecting…"
 
 #: apps/native/components/direct-device-settings.tsx
+msgid "Connection checks only; measurement capture is not implemented for this model yet. Not hardware-verified."
+msgstr "Connection checks only; measurement capture is not implemented for this model yet. Not hardware-verified."
+
+#: apps/native/components/direct-device-settings.tsx
 msgid "Connection checks only; step history sync is not implemented. Not hardware-verified."
 msgstr "Connection checks only; step history sync is not implemented. Not hardware-verified."
 
@@ -6253,8 +6257,8 @@ msgid "Experimental"
 msgstr "Experimental"
 
 #: apps/native/components/direct-device-settings.tsx
-msgid "Experimental direct Bluetooth support for two kinds of devices. Zepp OS and Xiaomi devices sync step history in the foreground. BLE GATT health sensors (heart rate, blood pressure, temperature) record live while connected, with no history backfill. Huawei/Honor and Garmin support connection checks only. No hardware verification has been done. No vendor login is requested."
-msgstr "Experimental direct Bluetooth support for two kinds of devices. Zepp OS and Xiaomi devices sync step history in the foreground. BLE GATT health sensors (heart rate, blood pressure, temperature) record live while connected, with no history backfill. Huawei/Honor and Garmin support connection checks only. No hardware verification has been done. No vendor login is requested."
+msgid "Experimental direct Bluetooth support for two kinds of devices. Zepp OS and Xiaomi devices sync step history in the foreground. BLE GATT health sensors (heart rate, blood pressure, temperature) record live while connected. Bluetooth smart scales record weight live, and some also report stored measurements on connection. Huawei/Honor and Garmin support connection checks only. No hardware verification has been done. No vendor login is requested."
+msgstr "Experimental direct Bluetooth support for two kinds of devices. Zepp OS and Xiaomi devices sync step history in the foreground. BLE GATT health sensors (heart rate, blood pressure, temperature) record live while connected. Bluetooth smart scales record weight live, and some also report stored measurements on connection. Huawei/Honor and Garmin support connection checks only. No hardware verification has been done. No vendor login is requested."
 
 #: packages/api/src/presenters/energy-estimate.ts
 msgid "Experimental estimate: not a target or a measure of what you ate."
@@ -8152,6 +8156,14 @@ msgstr "Live capture while connected; not hardware-verified. No history backfill
 #: apps/native/components/direct-device-settings.tsx
 msgid "Live capture while connected. Samples are saved in short batches and sent only when you tap “Retry upload”. There is no history backfill."
 msgstr "Live capture while connected. Samples are saved in short batches and sent only when you tap “Retry upload”. There is no history backfill."
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "Live weight capture while connected; not hardware-verified. Some scales also report stored measurements on connection. Samples are sent only when you tap “Retry upload”."
+msgstr "Live weight capture while connected; not hardware-verified. Some scales also report stored measurements on connection. Samples are sent only when you tap “Retry upload”."
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "Live weight capture while connected. Samples are saved in short batches and sent only when you tap “Retry upload”."
+msgstr "Live weight capture while connected. Samples are saved in short batches and sent only when you tap “Retry upload”."
 
 #: apps/web/src/routes/_auth/records/timeline.tsx
 msgid "Load more"

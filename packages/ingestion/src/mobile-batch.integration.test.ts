@@ -15,6 +15,8 @@ import {
   provenanceLink,
 } from "@openvalens/db/schema/health-record";
 import { providerConnection } from "@openvalens/db/schema/ingestion";
+import { wellnessProfile } from "@openvalens/db/schema/profile";
+import { nutritionTargetSettings } from "@openvalens/db/schema/nutrition";
 import { and, eq } from "drizzle-orm";
 
 import {
@@ -122,6 +124,8 @@ describe.skipIf(!url)("mobile ingest batch on disposable PostgreSQL", () => {
     await db.delete(ingestionJob);
     await db.delete(dataSource);
     await db.delete(providerConnection);
+    await db.delete(nutritionTargetSettings);
+    await db.delete(wellnessProfile);
   });
   afterAll(async () => {
     await db.$client.end();
@@ -774,6 +778,140 @@ describe.skipIf(!url)("mobile ingest batch on disposable PostgreSQL", () => {
         `dd:v1:${BLE_DEVICE}:blood_pressure:bp-1:pulse`,
       ].sort(),
     );
+  });
+
+  test("BLE smart scale fans out weight and body composition and creates definitions on demand", async () => {
+    const SCALE_DEVICE = "9f1c2a3e-9b2d-4c1e-8f3a-2d7e5b9c0a24";
+    await registerDirectDevice(db, {
+      deviceId: SCALE_DEVICE,
+      family: "ble_scale",
+      modelId: "xiaomi_smart_scale_2",
+      expectedContext: directContext,
+      authenticatedContext: directContext,
+      now,
+    });
+    await db.insert(wellnessProfile).values({
+      userId: "u1",
+      sexState: "recorded",
+      sex: "male",
+      birthYearState: "recorded",
+      birthYear: 1990,
+    });
+    await db.insert(nutritionTargetSettings).values({
+      organizationId: "org-a",
+      userId: "u1",
+      heightCm: 180,
+    });
+    const result = await ingestDirectDeviceBatch(db, {
+      expectedContext: directContext,
+      authenticatedContext: directContext,
+      batch: {
+        schemaVersion: 1,
+        deviceId: SCALE_DEVICE,
+        deviceIdentity: { family: "ble_scale", modelId: "xiaomi_smart_scale_2" },
+        provider: "direct_device",
+        recordType: "weight_measurement",
+        mode: "backfill",
+        clientTimezone: "UTC",
+        upserts: [
+          {
+            type: "weight_measurement",
+            externalRecordId: "scale-1",
+            sourceApp: null,
+            startTime: "2026-10-01T07:00:00Z",
+            weightKg: 72.4,
+            impedanceOhm: 480,
+          },
+        ],
+        deletions: [],
+      } as never,
+      traceId: "ble-scale",
+      now,
+    });
+    expect(result.status).toBe("applied");
+    const samples = await db.select().from(metricSample);
+    expect(samples.map((sample) => sample.externalSampleId).sort()).toEqual(
+      [
+        `dd:v1:${SCALE_DEVICE}:weight_measurement:scale-1:weight`,
+        `dd:v1:${SCALE_DEVICE}:weight_measurement:scale-1:body_fat`,
+        `dd:v1:${SCALE_DEVICE}:weight_measurement:scale-1:muscle_mass`,
+        `dd:v1:${SCALE_DEVICE}:weight_measurement:scale-1:body_water`,
+        `dd:v1:${SCALE_DEVICE}:weight_measurement:scale-1:bone_mass`,
+      ].sort(),
+    );
+    const definitions = await db.select().from(metricDefinition);
+    expect(definitions.map((definition) => definition.code).sort()).toEqual(
+      ["weight", "body_fat", "muscle_mass", "body_water", "bone_mass"].sort(),
+    );
+    expect(definitions.find((definition) => definition.code === "muscle_mass")?.unit).toBe("kg");
+    expect(definitions.find((definition) => definition.code === "body_water")?.unit).toBe("%");
+    expect(definitions.find((definition) => definition.code === "bone_mass")?.unit).toBe("kg");
+  });
+
+  test("smart-scale weight without a complete profile publishes weight only", async () => {
+    const SCALE_DEVICE = "9f1c2a3e-9b2d-4c1e-8f3a-2d7e5b9c0a25";
+    await registerDirectDevice(db, {
+      deviceId: SCALE_DEVICE,
+      family: "ble_scale",
+      modelId: "viatom_f8",
+      expectedContext: directContext,
+      authenticatedContext: directContext,
+      now,
+    });
+    await ingestDirectDeviceBatch(db, {
+      expectedContext: directContext,
+      authenticatedContext: directContext,
+      batch: {
+        schemaVersion: 1,
+        deviceId: SCALE_DEVICE,
+        deviceIdentity: { family: "ble_scale", modelId: "viatom_f8" },
+        provider: "direct_device",
+        recordType: "weight_measurement",
+        mode: "backfill",
+        clientTimezone: "UTC",
+        upserts: [
+          {
+            type: "weight_measurement",
+            externalRecordId: "scale-1",
+            sourceApp: null,
+            startTime: "2026-10-01T07:00:00Z",
+            weightKg: 72.4,
+            impedanceOhm: 480,
+          },
+        ],
+        deletions: [],
+      } as never,
+      traceId: "ble-scale-no-profile",
+      now,
+    });
+    const samples = await db.select().from(metricSample);
+    expect(samples.map((sample) => sample.externalSampleId)).toEqual([
+      `dd:v1:${SCALE_DEVICE}:weight_measurement:scale-1:weight`,
+    ]);
+  });
+
+  test("a second user cannot claim an already-registered smart scale (#424 explicit rejection)", async () => {
+    const SCALE_DEVICE = "9f1c2a3e-9b2d-4c1e-8f3a-2d7e5b9c0a26";
+    await registerDirectDevice(db, {
+      deviceId: SCALE_DEVICE,
+      family: "ble_scale",
+      modelId: "chipsea_qn_scale",
+      expectedContext: directContext,
+      authenticatedContext: directContext,
+      now,
+    });
+    await expect(
+      registerDirectDevice(db, {
+        deviceId: SCALE_DEVICE,
+        family: "ble_scale",
+        modelId: "chipsea_qn_scale",
+        expectedContext: { userId: "u2", organizationId: "org-a" },
+        authenticatedContext: { userId: "u2", organizationId: "org-a" },
+        now,
+      }),
+    ).rejects.toBeInstanceOf(DirectDeviceOwnershipError);
+    const [row] = await db.select().from(providerConnection);
+    expect(row).toMatchObject({ userId: "u1", status: "active" });
   });
 
   test("registerDevice creates one active connection and is idempotent", async () => {

@@ -4,6 +4,7 @@ import type { Device, State, Subscription } from "react-native-ble-plx";
 
 import { createHelioSetupController } from "./controller";
 import { BLE_GATT_MODELS } from "../models/ble-gatt";
+import { BLE_SCALE_MODELS } from "../models/ble-scale";
 import { GARMIN_MODELS } from "../models/garmin";
 import { HUAWEI_MODELS } from "../models/huawei";
 import { XIAOMI_MODELS } from "../models/xiaomi";
@@ -47,10 +48,15 @@ test("native model registries remain in parity with the shared identity catalog"
       modelId: model.id,
       displayName: model.displayName,
     })),
+    ...BLE_SCALE_MODELS.map((model) => ({
+      family: "ble_scale",
+      modelId: model.id,
+      displayName: model.displayName,
+    })),
   ].sort((left, right) =>
     `${left.family}:${left.modelId}`.localeCompare(`${right.family}:${right.modelId}`),
   );
-  expect(native).toHaveLength(304);
+  expect(native).toHaveLength(310);
   expect(native as unknown).toEqual(
     [...DIRECT_DEVICE_MODELS].sort((left, right) =>
       `${left.family}:${left.modelId}`.localeCompare(`${right.family}:${right.modelId}`),
@@ -1237,6 +1243,80 @@ test("a GATT model without a measurement service is rejected", async () => {
   expect(f.controller.getSnapshot()).toMatchObject({
     phase: "error",
     errorCode: "BLE_GATT_SERVICE_MISSING",
+  });
+  await f.controller.dispose();
+});
+
+test("discovers a smart scale and reaches live-capture connected", async () => {
+  const weightService = "0000181d-0000-1000-8000-00805f9b34fb";
+  const weightMeasurement = "00002a2f-0000-1000-8000-00805f9b34fb";
+  const f = fixture({
+    deviceName: "MI SCALE2",
+    services: async () => [{ uuid: weightService }],
+    characteristics: async (service) =>
+      service === weightService ? [{ uuid: weightMeasurement, isNotifiable: true }] : [],
+  });
+  await f.controller.startScan();
+  f.emit();
+  expect(f.controller.getSnapshot().devices[0]).toMatchObject({
+    name: "MI SCALE2",
+    modelId: "xiaomi_smart_scale_2",
+    family: "ble_scale",
+  });
+  await f.controller.connect("local-id");
+  expect(f.controller.getSnapshot()).toMatchObject({
+    phase: "connected",
+    connectedDeviceId: "local-id",
+    connectedModelId: "xiaomi_smart_scale_2",
+    connectedFamily: "ble_scale",
+    capabilities: { stepsHistory: false, liveCapture: true },
+  });
+  await expect(
+    f.controller.fetchSteps({
+      authKey: new Uint8Array(16),
+      since: { version: 1, nextMinuteUtc: new Date(0).toISOString(), offsetQuarterHours: 0 },
+      signal: new AbortController().signal,
+      onPhase: () => undefined,
+      async onPage() {},
+    }),
+  ).rejects.toThrow("BLE_SCALE_HISTORY_UNSUPPORTED");
+  await f.controller.dispose();
+});
+
+test("a smart scale without its service is rejected", async () => {
+  const f = fixture({
+    deviceName: "Health Scale",
+    services: async () => [{ uuid: "180d" }],
+  });
+  await f.controller.startScan();
+  f.emit();
+  await f.controller.connect("local-id");
+  expect(f.controller.getSnapshot()).toMatchObject({
+    phase: "error",
+    connectedDeviceId: null,
+    connectedFamily: null,
+    errorCode: "BLE_SCALE_SERVICE_MISSING",
+  });
+  await f.controller.dispose();
+});
+
+test("an unimplemented scale model connects without a service claim", async () => {
+  const f = fixture({
+    deviceName: "F8",
+    services: async () => [{ uuid: "180d" }],
+  });
+  await f.controller.startScan();
+  f.emit();
+  expect(f.controller.getSnapshot().devices[0]).toMatchObject({
+    modelId: "viatom_f8",
+    family: "ble_scale",
+  });
+  await f.controller.connect("local-id");
+  expect(f.controller.getSnapshot()).toMatchObject({
+    phase: "connected",
+    connectedModelId: "viatom_f8",
+    connectedFamily: "ble_scale",
+    capabilities: { stepsHistory: false, liveCapture: true },
   });
   await f.controller.dispose();
 });
