@@ -67,8 +67,38 @@ test("Huawei/Honor models report connection checks only", () => {
       family: "huawei",
       modelId: "huawei_watch_gt_5",
       transportValidated: getHuaweiModel("huawei_watch_gt_5")?.transportValidated ?? false,
+      sync: getHuaweiModel("huawei_watch_gt_5")?.sync,
     }).openValens,
   ).toBe("huawei_connection_only");
+});
+
+test("Huawei BLE models report history sync and Bluetooth-Classic models do not", () => {
+  for (const id of ["honor_band_9", "huawei_band_11_pro", "huawei_watch_gt"] as const) {
+    const model = getHuaweiModel(id);
+    expect(model?.sync, id).toBe(true);
+    expect(
+      describeDeviceSupport({
+        family: "huawei",
+        modelId: id,
+        transportValidated: model?.transportValidated ?? false,
+        sync: model?.sync,
+      }).openValens,
+      id,
+    ).toBe("huawei_history_sync");
+  }
+  for (const id of ["huawei_watch_gt_4", "huawei_watch_fit_3"] as const) {
+    const model = getHuaweiModel(id);
+    expect(model?.sync, id).toBe(false);
+    expect(
+      describeDeviceSupport({
+        family: "huawei",
+        modelId: id,
+        transportValidated: model?.transportValidated ?? false,
+        sync: model?.sync,
+      }).openValens,
+      id,
+    ).toBe("huawei_connection_only");
+  }
 });
 
 test("Garmin models report connection checks only", () => {

@@ -38,6 +38,7 @@ export type OpenValensDeviceSupport =
   | "zepp_os_validated"
   | "zepp_os_shared"
   | "xiaomi_shared"
+  | "huawei_history_sync"
   | "huawei_connection_only"
   | "garmin_connection_only"
   | "ble_gatt_live_capture"
@@ -66,6 +67,11 @@ export function describeDeviceSupport(input: {
    * models with a capture path from those registered for connection checks.
    */
   records?: readonly string[];
+  /**
+   * Registry sync capability. Used only by the Huawei family: BLE models sync
+   * stored history, Bluetooth-Classic models stay connection-only.
+   */
+  sync?: boolean;
 }): DeviceSupportStatus {
   const catalogEntry = findGadgetbridgeDevice(input.modelId);
   return {
@@ -76,7 +82,12 @@ export function describeDeviceSupport(input: {
           experimental: catalogEntry.experimental,
         }
       : { listed: false },
-    openValens: openValensSupport(input.family, input.transportValidated, input.records),
+    openValens: openValensSupport(
+      input.family,
+      input.transportValidated,
+      input.records,
+      input.sync,
+    ),
   };
 }
 
@@ -84,6 +95,7 @@ function openValensSupport(
   family: DirectDeviceFamily,
   transportValidated: boolean,
   records?: readonly string[],
+  sync?: boolean,
 ): OpenValensDeviceSupport {
   switch (family) {
     case "zepp_os":
@@ -91,7 +103,7 @@ function openValensSupport(
     case "xiaomi":
       return "xiaomi_shared";
     case "huawei":
-      return "huawei_connection_only";
+      return sync === true ? "huawei_history_sync" : "huawei_connection_only";
     case "garmin":
       return "garmin_connection_only";
     case "ble_gatt":

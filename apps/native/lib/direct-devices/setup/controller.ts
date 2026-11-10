@@ -52,6 +52,8 @@ import type { MoyoungProfile, MoyoungSession } from "../transport/moyoung";
 import { createHuamiLegacySession, selectHuamiLegacyProfile } from "../transport/huami-legacy";
 import type { HuamiLegacyProfile, HuamiLegacySession } from "../transport/huami-legacy";
 import { HUAMI_SERVICE_UUID, matchHuamiLegacyDevice } from "../models/huami-legacy";
+import { createHuaweiSession } from "../transport/huawei";
+import type { HuaweiSession } from "../transport/huawei";
 import { createNativeXiaomiHistoryTransport } from "../transport/xiaomi-session";
 import { runXiaomiStepsHistory } from "../protocol/xiaomi-history";
 import type { XiaomiHistoryTransport } from "../protocol/xiaomi-history";
@@ -185,6 +187,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
   let connectedBangleJsSession: BangleJsSession | null = null;
   let connectedMoyoungSession: MoyoungSession | null = null;
   let connectedHuamiLegacySession: HuamiLegacySession | null = null;
+  let connectedHuaweiSession: HuaweiSession | null = null;
   let connecting: Device | null = null;
   let connectionAttempt: object | null = null;
   let connectingLease: NativeDeviceLease | null = null;
@@ -640,6 +643,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
             family === "gloryfit" ? matchGloryFitDevice(knownDevice.name) : null;
           const huamiLegacyModel =
             family === "huami_legacy" ? matchHuamiLegacyDevice(knownDevice.name) : null;
+          const huaweiModel = family === "huawei" ? matchHuaweiDeviceName(knownDevice.name) : null;
           const colmiRingModel =
             family === "colmi_ring" ? matchColmiRingDevice(knownDevice.name) : null;
           const hasRequiredService =
@@ -734,6 +738,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
             huaweiProfile = await selectHuaweiProfile(
               discovered,
               services.map((service) => service.uuid),
+              huaweiModel?.newHonorProtocol ? "honor" : undefined,
             );
             if (!huaweiProfile) throw new Error("HUAWEI_SERVICE_MISSING");
           } else if (family === "garmin") {
@@ -812,6 +817,8 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
             connectedGloryFitSession = null;
             void connectedHuamiLegacySession?.close();
             connectedHuamiLegacySession = null;
+            void connectedHuaweiSession?.close();
+            connectedHuaweiSession = null;
             connectedLease = null;
             disconnectSubscription?.remove();
             disconnectSubscription = null;
@@ -916,6 +923,19 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
               onLiveHeartRate: deps.onHistorySample,
             });
           }
+          if (huaweiProfile && huaweiModel?.sync && deps.onHistorySample) {
+            void connectedHuaweiSession?.close();
+            // Huawei auth is automatic (MAC-derived key), but the transfer is
+            // started by `fetchSteps` so it runs inside the sync action's
+            // authority and cancellation window.
+            connectedHuaweiSession = createHuaweiSession({
+              device: discovered,
+              deviceId,
+              profile: huaweiProfile,
+              macAddress: discovered.id,
+              onRecord: deps.onHistorySample,
+            });
+          }
           publish({
             phase: "connected",
             connectedDeviceId: deviceId,
@@ -923,14 +943,18 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
             connectedFamily: family,
             capabilities: Object.freeze({
               stepsHistory:
-                family === "zepp_os" || family === "xiaomi" || family === "huami_legacy",
+                family === "zepp_os" ||
+                family === "xiaomi" ||
+                family === "huami_legacy" ||
+                (family === "huawei" && huaweiModel?.sync === true),
               liveCapture: family === "ble_gatt" || family === "ble_scale",
               historySync:
                 family === "colmi_ring" ||
                 family === "bangle_js" ||
                 family === "moyoung" ||
                 family === "gloryfit" ||
-                family === "huami_legacy",
+                family === "huami_legacy" ||
+                (family === "huawei" && huaweiModel?.sync === true),
             }),
             bluetooth: "powered_on",
           });
@@ -1005,6 +1029,8 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
       connectedGloryFitSession = null;
       void connectedHuamiLegacySession?.close();
       connectedHuamiLegacySession = null;
+      void connectedHuaweiSession?.close();
+      connectedHuaweiSession = null;
       connectionAttempt = null;
       connectingLease = null;
       connectedLease = null;
@@ -1063,7 +1089,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
       // milestone.
       if (connectedFamily === "huawei") {
         if (!connectedHuaweiProfile) throw new Error("HUAWEI_SERVICE_MISSING");
-        throw new Error("HUAWEI_HISTORY_UNSUPPORTED");
+        if (!connectedHuaweiSession) throw new Error("HUAWEI_HISTORY_UNSUPPORTED");
       }
       // Garmin history is a later milestone; the connection foundation stops at
       // connected + service-verified. The selected profile is retained for that
@@ -1095,15 +1121,14 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
       options.signal.addEventListener("abort", forwardAbort, { once: true });
       const linked = { ...options, signal: abortController.signal };
       const work =
-        connectedFamily === "huami_legacy"
+        connectedFamily === "huawei"
           ? (async () => {
-              const session = connectedHuamiLegacySession;
-              if (!session) throw new Error("HUAMI_LEGACY_SERVICE_MISSING");
-              if (linked.authKey.length !== 16) throw new Error("INVALID_AUTH_KEY");
+              const session = connectedHuaweiSession;
+              if (!session) throw new Error("HUAWEI_HISTORY_UNSUPPORTED");
               const onAbort = () => void session.close();
               linked.signal.addEventListener("abort", onAbort, { once: true });
               try {
-                session.start(linked.authKey);
+                session.start();
                 await session.whenDone();
               } finally {
                 linked.signal.removeEventListener("abort", onAbort);
@@ -1115,28 +1140,48 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
                 granularity: "minute" as const,
               };
             })()
-          : connectedFamily === "xiaomi"
-            ? (() => {
-                if (!connectedProfile) throw new Error("XIAOMI_HISTORY_UNSUPPORTED");
-                const transport = deps.xiaomiHistoryTransport
-                  ? deps.xiaomiHistoryTransport(device, connectedProfile, linked)
-                  : createNativeXiaomiHistoryTransport(
-                      device,
-                      connectedProfile,
-                      {
-                        authKey: linked.authKey,
-                        phoneApiLevel: runtime().version,
-                        phoneName: "OpenValens",
-                        region: "US",
-                      },
-                      radio?.manager,
-                    );
-                return runXiaomiStepsHistory(transport, linked);
+          : connectedFamily === "huami_legacy"
+            ? (async () => {
+                const session = connectedHuamiLegacySession;
+                if (!session) throw new Error("HUAMI_LEGACY_SERVICE_MISSING");
+                if (linked.authKey.length !== 16) throw new Error("INVALID_AUTH_KEY");
+                const onAbort = () => void session.close();
+                linked.signal.addEventListener("abort", onAbort, { once: true });
+                try {
+                  session.start(linked.authKey);
+                  await session.whenDone();
+                } finally {
+                  linked.signal.removeEventListener("abort", onAbort);
+                }
+                return {
+                  pages: 0,
+                  minutes: 0,
+                  complete: !linked.signal.aborted,
+                  granularity: "minute" as const,
+                };
               })()
-            : (() => {
-                const workLink = new NativeHelioLink(device, radio?.manager);
-                return runHelioStepsHistory(workLink, linked).finally(() => workLink.close());
-              })();
+            : connectedFamily === "xiaomi"
+              ? (() => {
+                  if (!connectedProfile) throw new Error("XIAOMI_HISTORY_UNSUPPORTED");
+                  const transport = deps.xiaomiHistoryTransport
+                    ? deps.xiaomiHistoryTransport(device, connectedProfile, linked)
+                    : createNativeXiaomiHistoryTransport(
+                        device,
+                        connectedProfile,
+                        {
+                          authKey: linked.authKey,
+                          phoneApiLevel: runtime().version,
+                          phoneName: "OpenValens",
+                          region: "US",
+                        },
+                        radio?.manager,
+                      );
+                  return runXiaomiStepsHistory(transport, linked);
+                })()
+              : (() => {
+                  const workLink = new NativeHelioLink(device, radio?.manager);
+                  return runHelioStepsHistory(workLink, linked).finally(() => workLink.close());
+                })();
       historyCompletion = work;
       try {
         return await work;
@@ -1191,6 +1236,8 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
       connectedGloryFitSession = null;
       void connectedHuamiLegacySession?.close();
       connectedHuamiLegacySession = null;
+      void connectedHuaweiSession?.close();
+      connectedHuaweiSession = null;
       connectionAttempt = null;
       connectingLease = null;
       connectedLease = null;

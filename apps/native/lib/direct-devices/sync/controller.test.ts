@@ -1985,6 +1985,107 @@ test("legacy Huami history is committed as exact-minute steps, sleep_session and
   invalidateDirectDeviceAuthority();
 });
 
+test("Huawei BLE history is committed as exact-minute steps, sleep_session and heart_rate batches", async () => {
+  const { db, store } = sqlite();
+  const historyCapture: { handler: ((sample: DirectDeviceHistorySample) => void) | null } = {
+    handler: null,
+  };
+  const huaweiBinding: DirectDeviceBindingSummary = {
+    ...binding,
+    family: "huawei",
+    modelId: "huawei_band_9",
+    displayName: "Huawei Band 9",
+  };
+  const { controller, ticket } = await readyController({
+    store,
+    setup: setup(async () => ({ pages: 0, minutes: 0, complete: true }), "huawei_band_9", {
+      family: "huawei",
+      stepsHistory: true,
+      liveCapture: false,
+      historySync: true,
+    }),
+    localIdentity: { family: "huawei", modelId: "huawei_band_9" },
+    historyCapture,
+    makeClient: () => ({
+      directDevice: {
+        listDirectDevices: async () => ({ devices: [huaweiBinding] }),
+        registerDirectDevice: async () => ({ providerConnectionId: 41 }),
+        ingestDirectDeviceBatch: async () => ({ status: "applied" }),
+      },
+    }),
+  });
+  expect(historyCapture.handler).not.toBeNull();
+
+  const dayStart = new Date(Date.UTC(2026, 1, 1, 0, 0, 0));
+  // 46 exact minutes + one sleep session + three heart-rate samples reaches
+  // the 50-sample flush threshold in one commit.
+  for (let index = 0; index < 46; index += 1) {
+    const start = new Date(dayStart.getTime() + index * 60_000);
+    historyCapture.handler!({
+      type: "steps",
+      startTime: start.toISOString(),
+      endTime: new Date(start.getTime() + 60_000).toISOString(),
+      count: index,
+    });
+  }
+  historyCapture.handler!({
+    type: "sleep_session",
+    startTime: new Date(Date.UTC(2026, 1, 1, 23, 0, 0)).toISOString(),
+    endTime: new Date(Date.UTC(2026, 1, 2, 7, 0, 0)).toISOString(),
+    stages: [
+      {
+        stage: "light",
+        startTime: new Date(Date.UTC(2026, 1, 1, 23, 0, 0)).toISOString(),
+        endTime: new Date(Date.UTC(2026, 1, 2, 1, 0, 0)).toISOString(),
+      },
+    ],
+  });
+  for (let index = 0; index < 3; index += 1)
+    historyCapture.handler!({
+      type: "heart_rate",
+      time: new Date(Date.UTC(2026, 1, 1, 8, index, 0)).toISOString(),
+      bpm: 60 + index,
+    });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  const pending = store.listPending(ticket, 10);
+  expect(pending).toHaveLength(3);
+  const byType = new Map(pending.map((row) => [row.request.batch.recordType, row.request.batch]));
+  expect([...byType.keys()].sort()).toEqual(["heart_rate", "sleep_session", "steps"]);
+  for (const batch of byType.values())
+    expect(batch).toMatchObject({
+      mode: "backfill",
+      deviceIdentity: { family: "huawei", modelId: "huawei_band_9" },
+    });
+
+  const steps = byType.get("steps")!.upserts;
+  expect(steps).toHaveLength(46);
+  expect(steps[0]).toMatchObject({
+    type: "steps",
+    count: 0,
+    startTime: dayStart.toISOString(),
+    endTime: new Date(dayStart.getTime() + 60_000).toISOString(),
+  });
+  expect((steps[0] as { externalRecordId: string }).externalRecordId).toStartWith(
+    `dd-huawei:${deviceId}:steps:`,
+  );
+
+  const sleep = byType.get("sleep_session")!.upserts;
+  expect(sleep).toHaveLength(1);
+  expect(sleep[0]).toHaveProperty("stages");
+
+  const heartRate = byType.get("heart_rate")!.upserts;
+  expect(heartRate).toHaveLength(1);
+  if (heartRate[0]!.type === "heart_rate") {
+    expect(heartRate[0]!.samples).toHaveLength(3);
+    expect(heartRate[0]!.externalRecordId).toStartWith(`dd-huawei:${deviceId}:hr:`);
+  }
+
+  await controller.dispose();
+  db.close();
+  invalidateDirectDeviceAuthority();
+});
+
 test("GloryFit history is committed as steps_interval, sleep_session and heart_rate batches", async () => {
   const { db, store } = sqlite();
   const historyCapture: { handler: ((sample: DirectDeviceHistorySample) => void) | null } = {

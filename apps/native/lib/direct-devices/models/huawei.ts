@@ -21,6 +21,13 @@
  * model has source-level transport validation in this codebase and no model
  * has hardware validation.
  *
+ * Sync capability
+ * ---------------
+ * `sync` is true only for the 25 models upstream puts on `HuaweiLECoordinator`
+ * (BLE). Those run the service 0x07 stored-history sync in this codebase. The
+ * remaining 41 models are Bluetooth-Classic upstream (RFCOMM sync), and this
+ * stack is BLE-only, so they stay connection-only.
+ *
  * Licence: AGPL-3.0-or-later (same as upstream).
  */
 
@@ -107,12 +114,68 @@ export type HuaweiModel = Readonly<{
   bleNamePrefix: string;
   /** Upstream coordinator source file, relative to the app repo root. */
   sourceFile: string;
+  /**
+   * True when upstream registers the model on `HuaweiLECoordinator`, so the
+   * stored-history sync (service 0x07) runs over BLE. False for the
+   * Bluetooth-Classic models, which upstream syncs over RFCOMM; this stack is
+   * BLE-only, so those stay connection-only.
+   */
+  sync: boolean;
+  /**
+   * True when the coordinator overrides `isNewHonorProtocol()`, which swaps the
+   * FE86/FE01/FE02 GATT UUIDs for Honor's `c5f0ad48-…`/`2a5fc8bd-…`/
+   * `a563d757-…` set.
+   */
+  newHonorProtocol: boolean;
 }>;
 
 const HUAWEI_ROOT = "app/src/main/java/nodomain/freeyourgadget/gadgetbridge/devices/huawei";
 
+/**
+ * The 25 models whose upstream coordinator extends `HuaweiLECoordinator`
+ * (`grep -rl "extends HuaweiLECoordinator"` at the pin). Band 2 and Band 2 Pro
+ * share `HuaweiBand2ProCoordinator`, and Band 3e/4e share
+ * `HuaweiBandAw70Coordinator`, so each pair is BLE.
+ */
+const BLE_SYNC_MODEL_IDS: ReadonlySet<HuaweiModelId> = new Set<HuaweiModelId>([
+  "honor_band_3",
+  "honor_band_4",
+  "honor_band_5",
+  "honor_band_6",
+  "honor_band_7",
+  "honor_band_9",
+  "honor_band_10",
+  "honor_magic_watch",
+  "huawei_band_2",
+  "huawei_band_2_pro",
+  "huawei_band_3_pro",
+  "huawei_band_4",
+  "huawei_band_4_pro",
+  "huawei_band_6",
+  "huawei_band_7",
+  "huawei_band_8",
+  "huawei_band_9",
+  "huawei_band_10",
+  "huawei_band_11",
+  "huawei_band_11_pro",
+  "huawei_band_3e",
+  "huawei_band_4e",
+  "huawei_watch_fit",
+  "huawei_watch_gt",
+  "huawei_watch_gt_2e",
+]);
+
+/** The three coordinators that override `isNewHonorProtocol()`. */
+const NEW_HONOR_PROTOCOL_MODEL_IDS: ReadonlySet<HuaweiModelId> = new Set<HuaweiModelId>([
+  "honor_band_7",
+  "honor_band_9",
+  "honor_band_10",
+]);
+
+type HuaweiModelSpec = Omit<HuaweiModel, "sync" | "newHonorProtocol">;
+
 /** The 66 health-relevant Huawei/Honor wearables, in catalog order. */
-export const HUAWEI_MODELS: readonly HuaweiModel[] = [
+const MODEL_SPECS: readonly HuaweiModelSpec[] = [
   {
     id: "honor_band_3",
     displayName: "Honor Band 3",
@@ -774,6 +837,16 @@ export const HUAWEI_MODELS: readonly HuaweiModel[] = [
     sourceFile: `${HUAWEI_ROOT}/huaweiwatchultimate2/HuaweiWatchUltimate2Coordinator.java`,
   },
 ];
+
+/** The 66 models with the per-model sync and Honor-protocol capabilities. */
+export const HUAWEI_MODELS: readonly HuaweiModel[] = MODEL_SPECS.map((spec) => ({
+  ...spec,
+  sync: BLE_SYNC_MODEL_IDS.has(spec.id),
+  newHonorProtocol: NEW_HONOR_PROTOCOL_MODEL_IDS.has(spec.id),
+}));
+
+/** Record kinds the BLE sync path can emit. No new record types. */
+export type HuaweiRecordType = "steps" | "heart_rate" | "sleep_session";
 
 const MODEL_BY_ID = new Map<HuaweiModelId, HuaweiModel>(
   HUAWEI_MODELS.map((model) => [model.id, model]),

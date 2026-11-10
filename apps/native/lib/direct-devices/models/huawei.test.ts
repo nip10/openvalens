@@ -80,3 +80,74 @@ test("matchHuaweiDeviceName rejects names without the coordinator hyphen", () =>
   expect(matchHuaweiDeviceName("huawei band 99-ABCD")).toBeNull();
   expect(matchHuaweiDeviceName("honor watch 99-ABCD")).toBeNull();
 });
+
+test("exactly the 25 BLE-coordinator models carry the sync capability", () => {
+  expect(HUAWEI_MODELS.filter((model) => model.sync)).toHaveLength(25);
+  for (const id of [
+    "honor_band_3",
+    "honor_band_9",
+    "honor_band_10",
+    "honor_magic_watch",
+    "huawei_band_2",
+    "huawei_band_2_pro",
+    "huawei_band_11_pro",
+    "huawei_band_3e",
+    "huawei_band_4e",
+    "huawei_watch_fit",
+    "huawei_watch_gt",
+    "huawei_watch_gt_2e",
+  ] as const) {
+    expect(getHuaweiModel(id)?.sync, id).toBe(true);
+  }
+  for (const id of [
+    "huawei_watch_gt_2",
+    "huawei_watch_gt_4",
+    "huawei_watch_fit_3",
+    "huawei_watch_gt_5",
+    "honor_watch_4",
+    "huawei_watch_3",
+    "huawei_talk_band_b6",
+  ] as const) {
+    expect(getHuaweiModel(id)?.sync, id).toBe(false);
+  }
+});
+
+test("only the three new-Honor-protocol coordinators set the flag", () => {
+  expect(HUAWEI_MODELS.filter((model) => model.newHonorProtocol).map((model) => model.id)).toEqual([
+    "honor_band_7",
+    "honor_band_9",
+    "honor_band_10",
+  ]);
+  expect(getHuaweiModel("honor_band_6")?.newHonorProtocol).toBe(false);
+});
+
+test("every sync model is a BLE coordinator source file", () => {
+  const bleSources = new Set([
+    "honorband10/HonorBand10Coordinator.java",
+    "honorband3/HonorBand3Coordinator.java",
+    "honorband4/HonorBand4Coordinator.java",
+    "honorband5/HonorBand5Coordinator.java",
+    "honorband6/HonorBand6Coordinator.java",
+    "honorband7/HonorBand7Coordinator.java",
+    "honorband9/HonorBand9Coordinator.java",
+    "honormagicwatch/HonorMagicWatchCoordinator.java",
+    "huaweiband10/HuaweiBand10Coordinator.java",
+    "huaweiband11/HuaweiBand11Coordinator.java",
+    "huaweiband11pro/HuaweiBand11ProCoordinator.java",
+    "huaweiband2pro/HuaweiBand2ProCoordinator.java",
+    "huaweiband3pro/HuaweiBand3ProCoordinator.java",
+    "huaweiband4pro/HuaweiBand4ProCoordinator.java",
+    "huaweiband6/HuaweiBand6Coordinator.java",
+    "huaweiband7/HuaweiBand7Coordinator.java",
+    "huaweiband8/HuaweiBand8Coordinator.java",
+    "huaweiband9/HuaweiBand9Coordinator.java",
+    "huaweibandaw70/HuaweiBandAw70Coordinator.java",
+    "huaweiwatchfit/HuaweiWatchFitCoordinator.java",
+    "huaweiwatchgt/HuaweiWatchGTCoordinator.java",
+    "huaweiwatchgt2e/HuaweiWatchGT2eCoordinator.java",
+  ]);
+  for (const model of HUAWEI_MODELS) {
+    const file = model.sourceFile.split("devices/huawei/")[1]!;
+    expect(model.sync, model.id).toBe(bleSources.has(file));
+  }
+});

@@ -3563,6 +3563,10 @@ msgstr "Connection checks only; measurement capture is not implemented for this 
 msgid "Connection checks only; step history sync is not implemented. Not hardware-verified."
 msgstr "Connection checks only; step history sync is not implemented. Not hardware-verified."
 
+#: apps/native/components/direct-device-settings.tsx
+msgid "Connection checks only; this model syncs over Bluetooth Classic upstream, which this BLE-only stack does not implement. Not hardware-verified."
+msgstr "Connection checks only; this model syncs over Bluetooth Classic upstream, which this BLE-only stack does not implement. Not hardware-verified."
+
 #: apps/web/src/components/admission-form.tsx
 msgid "Connection lost. Check your network and try again."
 msgstr "Connection lost. Check your network and try again."
@@ -6261,8 +6265,8 @@ msgid "Experimental"
 msgstr "Experimental"
 
 #: apps/native/components/direct-device-settings.tsx
-msgid "Experimental direct Bluetooth support for several kinds of devices. Zepp OS and Xiaomi devices sync step history in the foreground. BLE GATT health sensors (heart rate, blood pressure, temperature) record live while connected, and a PineTime running InfiniTime reports live heart rate the same way. Bluetooth smart scales record weight live, and some also report stored measurements on connection. Colmi and Yawell smart rings sync stored step, heart-rate and sleep history on connection. Bangle.js watches sync stored step and heart-rate history on connection and keep reporting live heart rate. Moyoung/Da Fit watches sync stored heart-rate and sleep history on connection; they report steps as daily totals only, so steps are not synced. GloryFit watches sync stored step, heart-rate and sleep history on connection. Legacy Huami (Amazfit/Mi Band) watches sync exact-minute steps, heart rate and sleep when you enter their 16-byte key. Huawei/Honor and Garmin support connection checks only. No hardware verification has been done. No vendor login is requested."
-msgstr "Experimental direct Bluetooth support for several kinds of devices. Zepp OS and Xiaomi devices sync step history in the foreground. BLE GATT health sensors (heart rate, blood pressure, temperature) record live while connected, and a PineTime running InfiniTime reports live heart rate the same way. Bluetooth smart scales record weight live, and some also report stored measurements on connection. Colmi and Yawell smart rings sync stored step, heart-rate and sleep history on connection. Bangle.js watches sync stored step and heart-rate history on connection and keep reporting live heart rate. Moyoung/Da Fit watches sync stored heart-rate and sleep history on connection; they report steps as daily totals only, so steps are not synced. GloryFit watches sync stored step, heart-rate and sleep history on connection. Legacy Huami (Amazfit/Mi Band) watches sync exact-minute steps, heart rate and sleep when you enter their 16-byte key. Huawei/Honor and Garmin support connection checks only. No hardware verification has been done. No vendor login is requested."
+msgid "Experimental direct Bluetooth support for several kinds of devices. Zepp OS and Xiaomi devices sync step history in the foreground. BLE GATT health sensors (heart rate, blood pressure, temperature) record live while connected, and a PineTime running InfiniTime reports live heart rate the same way. Bluetooth smart scales record weight live, and some also report stored measurements on connection. Colmi and Yawell smart rings sync stored step, heart-rate and sleep history on connection. Bangle.js watches sync stored step and heart-rate history on connection and keep reporting live heart rate. Moyoung/Da Fit watches sync stored heart-rate and sleep history on connection; they report steps as daily totals only, so steps are not synced. GloryFit watches sync stored step, heart-rate and sleep history on connection. Legacy Huami (Amazfit/Mi Band) watches sync exact-minute steps, heart rate and sleep when you enter their 16-byte key. Huawei/Honor BLE bands and watches sync exact-minute steps, heart rate and sleep automatically; their Bluetooth-Classic models and Garmin support connection checks only. No hardware verification has been done. No vendor login is requested."
+msgstr "Experimental direct Bluetooth support for several kinds of devices. Zepp OS and Xiaomi devices sync step history in the foreground. BLE GATT health sensors (heart rate, blood pressure, temperature) record live while connected, and a PineTime running InfiniTime reports live heart rate the same way. Bluetooth smart scales record weight live, and some also report stored measurements on connection. Colmi and Yawell smart rings sync stored step, heart-rate and sleep history on connection. Bangle.js watches sync stored step and heart-rate history on connection and keep reporting live heart rate. Moyoung/Da Fit watches sync stored heart-rate and sleep history on connection; they report steps as daily totals only, so steps are not synced. GloryFit watches sync stored step, heart-rate and sleep history on connection. Legacy Huami (Amazfit/Mi Band) watches sync exact-minute steps, heart rate and sleep when you enter their 16-byte key. Huawei/Honor BLE bands and watches sync exact-minute steps, heart rate and sleep automatically; their Bluetooth-Classic models and Garmin support connection checks only. No hardware verification has been done. No vendor login is requested."
 
 #: packages/api/src/presenters/energy-estimate.ts
 msgid "Experimental estimate: not a target or a measure of what you ate."
@@ -7056,6 +7060,10 @@ msgid "History is unavailable right now."
 msgstr "History is unavailable right now."
 
 #: apps/native/components/direct-device-settings.tsx
+msgid "History sync on connection for exact-minute steps, heart rate and sleep (BLE models only); not hardware-verified."
+msgstr "History sync on connection for exact-minute steps, heart rate and sleep (BLE models only); not hardware-verified."
+
+#: apps/native/components/direct-device-settings.tsx
 msgid "History sync on connection for heart rate and sleep; steps are not supported because the watch only reports daily totals. Not hardware-verified."
 msgstr "History sync on connection for heart rate and sleep; steps are not supported because the watch only reports daily totals. Not hardware-verified."
 
@@ -7185,8 +7193,8 @@ msgid "How you'll add data"
 msgstr "How you'll add data"
 
 #: apps/native/components/direct-device-settings.tsx
-msgid "Huawei/Honor devices support connection checks only; step history sync is not implemented."
-msgstr "Huawei/Honor devices support connection checks only; step history sync is not implemented."
+msgid "Huawei/Honor history (exact-minute steps, heart rate and sleep) downloads when you tap “Sync steps”. Records are saved in batches and sent only when you tap “Retry upload”."
+msgstr "Huawei/Honor history (exact-minute steps, heart rate and sleep) downloads when you tap “Sync steps”. Records are saved in batches and sent only when you tap “Retry upload”."
 
 #: packages/api/src/presenters/food-logger-capture.ts
 msgid "I agree to send this photo now"
@@ -14972,6 +14980,10 @@ msgstr "This food was archived on another device. Restore it to edit."
 #: apps/web/src/routes/_auth/goals.$goalId.tsx
 msgid "This goal was replaced."
 msgstr "This goal was replaced."
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "This Huawei/Honor model syncs over Bluetooth Classic upstream; this BLE-only stack supports connection checks only."
+msgstr "This Huawei/Honor model syncs over Bluetooth Classic upstream; this BLE-only stack supports connection checks only."
 
 #: apps/web/src/routes/setup.tsx
 msgid "This instance has already been set up. If you have an account, sign in below."

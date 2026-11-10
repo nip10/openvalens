@@ -24,7 +24,12 @@ export type DirectDeviceBindingIdentity = {
  * user-entered 16-byte pre-shared key. Moyoung watches publish heart-rate
  * history and sleep sessions; their steps arrive as a single daily total, which
  * the exact-minute `steps` record type cannot represent, so steps are
- * deliberately not mapped in v1.
+ * deliberately not mapped in v1. Huawei/Honor devices publish per-minute step
+ * samples with feature bitmaps (steps and heart rate inline) and sleep sessions
+ * derived from 0x0D records. This capability is family-level: only the
+ * BLE-transport Huawei models can sync history, while the BT-Classic (BR) models
+ * stay connection-only and are refused by the native registry before a batch is
+ * ever created.
  */
 export type DirectDeviceRecordType =
   | "steps"
@@ -66,7 +71,12 @@ export function directDeviceFamilySupportsRecordType(
   recordType: DirectDeviceRecordType,
 ): boolean {
   if (recordType === "steps")
-    return family === "zepp_os" || family === "xiaomi" || family === "huami_legacy";
+    return (
+      family === "zepp_os" ||
+      family === "xiaomi" ||
+      family === "huami_legacy" ||
+      family === "huawei"
+    );
   if (recordType === "steps_interval")
     return family === "colmi_ring" || family === "bangle_js" || family === "gloryfit";
   if (recordType === "sleep_session")
@@ -74,7 +84,8 @@ export function directDeviceFamilySupportsRecordType(
       family === "colmi_ring" ||
       family === "gloryfit" ||
       family === "huami_legacy" ||
-      family === "moyoung"
+      family === "moyoung" ||
+      family === "huawei"
     );
   if (recordType === "weight_measurement") return family === "ble_scale";
   if (recordType === "heart_rate")
@@ -84,7 +95,8 @@ export function directDeviceFamilySupportsRecordType(
       family === "bangle_js" ||
       family === "gloryfit" ||
       family === "huami_legacy" ||
-      family === "moyoung"
+      family === "moyoung" ||
+      family === "huawei"
     );
   return family === "ble_gatt";
 }

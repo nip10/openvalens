@@ -119,7 +119,7 @@ describe("direct-device identity guard", () => {
       );
   });
 
-  test("sleep sessions stay colmi_ring only", () => {
+  test("sleep sessions are refused by families without sleep history", () => {
     const ring = { directDeviceFamily: "colmi_ring", directDeviceModelId: "colmi_r02" };
     const ringAssertion = { family: "colmi_ring", modelId: "colmi_r02" } as const;
     expect(
@@ -201,6 +201,26 @@ describe("direct-device identity guard", () => {
       "blood_pressure",
     ] as const)
       expect(() => assertDirectDeviceIdentity(huami, assertion, { recordType })).toThrow(
+        new DirectDeviceIdentityError("HISTORY_UNSUPPORTED"),
+      );
+  });
+
+  test("Huawei devices publish exact-minute steps, heart rate and sleep sessions", () => {
+    const huawei = { directDeviceFamily: "huawei", directDeviceModelId: "huawei_band_8" };
+    const assertion = { family: "huawei", modelId: "huawei_band_8" } as const;
+    // Per-minute bitmap samples carry steps and heart rate inline; sleep comes
+    // from 0x0D records. Only BLE-transport models reach this point: the native
+    // registry refuses BT-Classic models before a batch exists.
+    for (const recordType of ["steps", "heart_rate", "sleep_session"] as const)
+      expect(assertDirectDeviceIdentity(huawei, assertion, { recordType })).toEqual(assertion);
+    // Huawei has no interval buckets, scale or GATT sensor metrics.
+    for (const recordType of [
+      "steps_interval",
+      "weight_measurement",
+      "body_temperature",
+      "blood_pressure",
+    ] as const)
+      expect(() => assertDirectDeviceIdentity(huawei, assertion, { recordType })).toThrow(
         new DirectDeviceIdentityError("HISTORY_UNSUPPORTED"),
       );
   });

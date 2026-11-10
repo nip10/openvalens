@@ -174,6 +174,24 @@ test("selectHuaweiProfile checks the service and characteristics", async () => {
   expect(await selectHuaweiProfile(device, ["180d"])).toBeNull();
 });
 
+test("selectHuaweiProfile prefers the Honor new-protocol UUIDs when asked", async () => {
+  const device = {
+    characteristicsForService: async (service: string) =>
+      service === HONOR_SERVICE_UUID
+        ? [{ uuid: HONOR_READ_UUID }, { uuid: HONOR_WRITE_UUID }]
+        : service === HUAWEI_SERVICE_UUID
+          ? [{ uuid: HUAWEI_READ_UUID }, { uuid: HUAWEI_WRITE_UUID }]
+          : [],
+  } as unknown as Device;
+
+  expect(
+    await selectHuaweiProfile(device, [HUAWEI_SERVICE_UUID, HONOR_SERVICE_UUID], "honor"),
+  ).toMatchObject({ serviceUuid: HONOR_SERVICE_UUID, vendor: "honor" });
+  expect(
+    await selectHuaweiProfile(device, [HUAWEI_SERVICE_UUID, HONOR_SERVICE_UUID]),
+  ).toMatchObject({ serviceUuid: HUAWEI_SERVICE_UUID, vendor: "huawei" });
+});
+
 function fakeDevice() {
   let notify: ((error: unknown, value: Characteristic | null) => void) | undefined;
   let removed = 0;

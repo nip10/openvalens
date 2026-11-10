@@ -493,13 +493,16 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
         ? "gloryfit"
         : family === "huami_legacy"
           ? "huami"
-          : family === "moyoung"
-            ? "moyoung"
-            : "ring";
+          : family === "huawei"
+            ? "huawei"
+            : family === "moyoung"
+              ? "moyoung"
+              : "ring";
 
   /**
-   * Legacy Huami emits exact-minute `steps` records (the frozen contract for
-   * this family), not arbitrary `steps_interval` buckets.
+   * Legacy Huami and Huawei BLE sync emit exact-minute `steps` records (the
+   * frozen contract for those families), not arbitrary `steps_interval`
+   * buckets.
    */
   const huamiHistoryRecords = (
     deviceId: string,
@@ -579,7 +582,8 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
     recordType: "steps" | "steps_interval" | "sleep_session" | "heart_rate";
     upserts: unknown[];
   }[] => {
-    if (family === "huami_legacy") return huamiHistoryRecords(deviceId, prefix, samples);
+    if (family === "huami_legacy" || family === "huawei")
+      return huamiHistoryRecords(deviceId, prefix, samples);
     const steps = samples.filter(
       (sample): sample is Extract<DirectDeviceHistorySample, { type: "steps_interval" }> =>
         sample.type === "steps_interval",
@@ -721,7 +725,8 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
         state.connectedFamily !== "bangle_js" &&
         state.connectedFamily !== "gloryfit" &&
         state.connectedFamily !== "moyoung" &&
-        state.connectedFamily !== "huami_legacy")
+        state.connectedFamily !== "huami_legacy" &&
+        state.connectedFamily !== "huawei")
     )
       return;
     const bindingId = selectedBindingId;
@@ -1032,13 +1037,18 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
         !snapshot.canSync
       )
         return;
-      if (!/^((0x)?[0-9a-fA-F]{32})$/.test(authKeyHex)) {
+      // Huawei auth is automatic (MAC-derived key); only the key-entry
+      // families require a user-supplied 16-byte key here.
+      const requiresKey = snapshot.connectedFamily !== "huawei";
+      if (requiresKey && !/^((0x)?[0-9a-fA-F]{32})$/.test(authKeyHex)) {
         publish({ phase: "error", errorCode: "INVALID_AUTH_KEY" });
         return;
       }
       const authKey = new Uint8Array(16);
-      const hex = authKeyHex.replace(/^0x/i, "");
-      for (let i = 0; i < 16; i++) authKey[i] = Number.parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+      if (requiresKey) {
+        const hex = authKeyHex.replace(/^0x/i, "");
+        for (let i = 0; i < 16; i++) authKey[i] = Number.parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+      }
       const token = ++generation;
       const syncDeviceId = selectedBindingId;
       const syncIdentity: DirectDeviceIdentity = {

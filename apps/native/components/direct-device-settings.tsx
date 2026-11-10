@@ -182,6 +182,16 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
       .catch(() => {})
       .finally(() => setWorking(false));
   };
+  // Huawei auth is automatic, so its sync action carries no user key.
+  const handoffWithoutKey = () => {
+    if (!controller || busy || !snapshot.canSync) return;
+    if (working) return;
+    setWorking(true);
+    void controller
+      .syncSteps("")
+      .catch(() => {})
+      .finally(() => setWorking(false));
+  };
   const phaseLabel: Record<HelioSyncSnapshot["phase"], string> = {
     idle: t`Ready`,
     loading_bindings: t`Loading saved devices…`,
@@ -275,6 +285,7 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
         modelId: focus.model.id,
         transportValidated: focus.model.transportValidated,
         records: "records" in focus.model ? focus.model.records : undefined,
+        sync: "sync" in focus.model ? focus.model.sync : undefined,
       })
     : null;
   // OpenValens status is the trust-relevant line and never claims more than the
@@ -283,7 +294,8 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
     zepp_os_validated: t`Zepp OS transport, authentication and step history are validated at source level for this model. Not hardware-verified.`,
     zepp_os_shared: t`Shared Zepp OS transport; not validated for this model. Not hardware-verified.`,
     xiaomi_shared: t`Shared Xiaomi protobuf transport; not device-validated for this model. Not hardware-verified.`,
-    huawei_connection_only: t`Connection checks only; step history sync is not implemented. Not hardware-verified.`,
+    huawei_history_sync: t`History sync on connection for exact-minute steps, heart rate and sleep (BLE models only); not hardware-verified.`,
+    huawei_connection_only: t`Connection checks only; this model syncs over Bluetooth Classic upstream, which this BLE-only stack does not implement. Not hardware-verified.`,
     garmin_connection_only: t`Connection checks only; step history sync is not implemented. Not hardware-verified.`,
     ble_gatt_live_capture: t`Live capture while connected; not hardware-verified. No history backfill. Samples are sent only when you tap “Retry upload”.`,
     ble_scale_live_capture: t`Live weight capture while connected; not hardware-verified. Some scales also report stored measurements on connection. Samples are sent only when you tap “Retry upload”.`,
@@ -358,7 +370,7 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
     <Section title={t`Direct devices`} icon={Bluetooth} tone="signal">
       <Sheet className="gap-3">
         <Text className="font-sans text-sm leading-relaxed text-ink-2">
-          {t`Experimental direct Bluetooth support for several kinds of devices. Zepp OS and Xiaomi devices sync step history in the foreground. BLE GATT health sensors (heart rate, blood pressure, temperature) record live while connected, and a PineTime running InfiniTime reports live heart rate the same way. Bluetooth smart scales record weight live, and some also report stored measurements on connection. Colmi and Yawell smart rings sync stored step, heart-rate and sleep history on connection. Bangle.js watches sync stored step and heart-rate history on connection and keep reporting live heart rate. Moyoung/Da Fit watches sync stored heart-rate and sleep history on connection; they report steps as daily totals only, so steps are not synced. GloryFit watches sync stored step, heart-rate and sleep history on connection. Legacy Huami (Amazfit/Mi Band) watches sync exact-minute steps, heart rate and sleep when you enter their 16-byte key. Huawei/Honor and Garmin support connection checks only. No hardware verification has been done. No vendor login is requested.`}
+          {t`Experimental direct Bluetooth support for several kinds of devices. Zepp OS and Xiaomi devices sync step history in the foreground. BLE GATT health sensors (heart rate, blood pressure, temperature) record live while connected, and a PineTime running InfiniTime reports live heart rate the same way. Bluetooth smart scales record weight live, and some also report stored measurements on connection. Colmi and Yawell smart rings sync stored step, heart-rate and sleep history on connection. Bangle.js watches sync stored step and heart-rate history on connection and keep reporting live heart rate. Moyoung/Da Fit watches sync stored heart-rate and sleep history on connection; they report steps as daily totals only, so steps are not synced. GloryFit watches sync stored step, heart-rate and sleep history on connection. Legacy Huami (Amazfit/Mi Band) watches sync exact-minute steps, heart rate and sleep when you enter their 16-byte key. Huawei/Honor BLE bands and watches sync exact-minute steps, heart rate and sleep automatically; their Bluetooth-Classic models and Garmin support connection checks only. No hardware verification has been done. No vendor login is requested.`}
         </Text>
         <Text className="font-sans text-sm leading-relaxed text-ink-3">
           {t`Use the same saved device on both phones. Choose an existing binding to avoid duplicates, or add another only when you mean to create a separate binding. Nearby connection is a separate step.`}
@@ -480,6 +492,23 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
             <Text className="font-sans text-sm text-ink-3">
               {t`GloryFit history (steps, heart rate and sleep) syncs automatically while connected. Records are saved in batches and sent only when you tap “Retry upload”.`}
             </Text>
+          ) : connectedFamily === "huawei" &&
+            snapshot.capabilities.stepsHistory &&
+            canSyncSelected ? (
+            <>
+              <Text className="font-sans text-sm text-ink-3">
+                {t`Huawei/Honor history (exact-minute steps, heart rate and sleep) downloads when you tap “Sync steps”. Records are saved in batches and sent only when you tap “Retry upload”.`}
+              </Text>
+              <View className="flex-row flex-wrap gap-2">
+                <Button onPress={handoffWithoutKey} isDisabled={busy || !canSyncSelected}>
+                  <Button.Label>{t`Sync steps`}</Button.Label>
+                </Button>
+              </View>
+            </>
+          ) : connectedFamily === "huawei" ? (
+            <Text className="font-sans text-sm text-ink-3">
+              {t`This Huawei/Honor model syncs over Bluetooth Classic upstream; this BLE-only stack supports connection checks only.`}
+            </Text>
           ) : connectedFamily === "huami_legacy" && canSyncSelected ? (
             <>
               <Text className="font-sans text-sm text-ink-3">
@@ -493,11 +522,9 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
             </Text>
           ) : !snapshot.capabilities.stepsHistory || !snapshot.canSync ? (
             <Text className="font-sans text-sm text-ink-3">
-              {connectedFamily === "huawei"
-                ? t`Huawei/Honor devices support connection checks only; step history sync is not implemented.`
-                : connectedFamily === "garmin"
-                  ? t`Garmin support is limited to connection checks; step history sync is not implemented.`
-                  : t`Step sync is unavailable for this unrecognized device model.`}
+              {connectedFamily === "garmin"
+                ? t`Garmin support is limited to connection checks; step history sync is not implemented.`
+                : t`Step sync is unavailable for this unrecognized device model.`}
             </Text>
           ) : canSyncSelected && (connectedFamily === "zepp_os" || connectedFamily === "xiaomi") ? (
             authKeyPanel
@@ -561,7 +588,13 @@ function friendlyError(code: string) {
   if (code === "MINUTE_CONFLICT")
     return "This device reported different steps for a minute already stored. No duplicate was added.";
   if (code === "HUAWEI_HISTORY_UNSUPPORTED")
-    return "This Huawei/Honor device connected, but step history sync is not implemented for it yet.";
+    return "This Huawei/Honor model syncs over Bluetooth Classic upstream, which this BLE-only stack does not implement.";
+  if (code === "HUAWEI_AUTH_UNSUPPORTED")
+    return "This Huawei/Honor device negotiated an authentication mode that needs on-device confirmation or a PIN code, which is not implemented.";
+  if (code === "HUAWEI_MAC_UNAVAILABLE")
+    return "Huawei authentication needs the device MAC address, which this platform does not expose. Sync is only available on Android.";
+  if (code === "HUAWEI_AUTH_FAILED")
+    return "The Huawei/Honor device rejected the authentication exchange. Reconnect and try again.";
   if (code === "IDENTITY_REQUIRED")
     return "This older capture has no device identity and cannot be assigned automatically.";
   if (code === "IDENTITY_MISMATCH")
