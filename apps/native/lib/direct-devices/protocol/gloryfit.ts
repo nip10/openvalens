@@ -199,7 +199,7 @@ function uint16be(bytes: Uint8Array, offset: number): number {
   return ((bytes[offset]! << 8) | bytes[offset + 1]!) >>> 0;
 }
 
-/** Reads a big-endian year/month/day triple into a validated local midnight. */
+/** Reads a big-endian year, month and day triple into a validated local midnight. */
 function readDate(bytes: Uint8Array, offset: number): Date | null {
   if (offset + 3 >= bytes.length) return null;
   const year = uint16be(bytes, offset);
