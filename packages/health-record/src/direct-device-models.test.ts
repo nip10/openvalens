@@ -10,7 +10,7 @@ import {
 test("direct-device catalog has unique family/model pairs and supported steps identity", () => {
   const keys = DIRECT_DEVICE_MODELS.map(({ family, modelId }) => `${family}:${modelId}`);
   expect(new Set(keys).size).toBe(keys.length);
-  expect(DIRECT_DEVICE_MODELS).toHaveLength(321);
+  expect(DIRECT_DEVICE_MODELS).toHaveLength(324);
   expect(
     findDirectDeviceModel({ family: "zepp_os", modelId: "amazfit_helio_strap" })?.displayName,
   ).toBe("Amazfit Helio Strap");
@@ -35,6 +35,18 @@ test("direct-device catalog has unique family/model pairs and supported steps id
     findDirectDeviceModel({ family: "colmi_ring", modelId: "yawell_ai_health_watchpad" })
       ?.displayName,
   ).toBe("Yawell Y27 AI Health WatchPad");
+  expect(findDirectDeviceModel({ family: "ble_gatt", modelId: "pinetime_p8" })?.displayName).toBe(
+    "PineTime (InfiniTime)",
+  );
+  expect(findDirectDeviceModel({ family: "bangle_js", modelId: "bangle_js_1" })?.displayName).toBe(
+    "Bangle.js 1",
+  );
+  expect(findDirectDeviceModel({ family: "bangle_js", modelId: "bangle_js_2" })?.displayName).toBe(
+    "Bangle.js 2",
+  );
+  expect(isDirectDeviceIdentity({ family: "bangle_js", modelId: "bangle_js_2" })).toBe(true);
+  expect(isDirectDeviceIdentity({ family: "ble_gatt", modelId: "pinetime_p8" })).toBe(true);
+  expect(isDirectDeviceIdentity({ family: "bangle_js", modelId: "bangle_js_3" })).toBe(false);
   expect(supportsDirectDeviceSteps({ family: "zepp_os", modelId: "amazfit_helio_strap" })).toBe(
     true,
   );

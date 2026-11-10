@@ -7,6 +7,7 @@ export const DIRECT_DEVICE_FAMILIES = [
   "ble_gatt",
   "ble_scale",
   "colmi_ring",
+  "bangle_js",
 ] as const;
 export type DirectDeviceFamily = (typeof DIRECT_DEVICE_FAMILIES)[number];
 export type DirectDeviceIdentity = { family: DirectDeviceFamily; modelId: string };
@@ -1535,6 +1536,14 @@ export const DIRECT_DEVICE_MODELS: readonly DirectDeviceModelDescriptor[] = [
     modelId: "generic_health_thermometer",
     displayName: "Generic Health Thermometer",
   },
+  // PineTime running InfiniTime (Issue #428): standard GATT live heart rate
+  // (0x180D/0x2A37) only. InfiniTime exposes no history fetch, so this is a
+  // live-sensor identity rather than a history source.
+  {
+    family: "ble_gatt",
+    modelId: "pinetime_p8",
+    displayName: "PineTime (InfiniTime)",
+  },
   // BLE smart scales (Issue #424): weight plus optional bio-impedance body
   // composition. The native lane owns the GATT parser; these rows only carry
   // the shared identity vocabulary.
@@ -1625,6 +1634,19 @@ export const DIRECT_DEVICE_MODELS: readonly DirectDeviceModelDescriptor[] = [
     family: "colmi_ring",
     modelId: "yawell_ai_health_watchpad",
     displayName: "Yawell Y27 AI Health WatchPad",
+  },
+  // Bangle.js smartwatches via Gadgetbridge (Issue #428): history arrives as
+  // 10-minute activity buckets plus heart rate. The native lane owns the BLE
+  // protocol; these rows only carry the shared identity vocabulary.
+  {
+    family: "bangle_js",
+    modelId: "bangle_js_1",
+    displayName: "Bangle.js 1",
+  },
+  {
+    family: "bangle_js",
+    modelId: "bangle_js_2",
+    displayName: "Bangle.js 2",
   },
 ];
 

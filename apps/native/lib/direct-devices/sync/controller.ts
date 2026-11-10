@@ -26,7 +26,7 @@ import {
   type WeightMeasurementSample,
 } from "../protocol/ble-scale";
 import type { DirectDeviceLiveSample } from "../setup/types";
-import type { DirectDeviceHistorySample } from "../setup/types";
+import type { DirectDeviceFamily, DirectDeviceHistorySample } from "../setup/types";
 import type {
   DirectDeviceConfirmationTarget,
   HelioSyncContext,
@@ -468,10 +468,14 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
   };
   if (deps.liveCapture) deps.liveCapture.handler = handleLiveSample;
 
-  // Ring history sync. Rings push stored history on connection instead of
-  // capturing live; records are buffered per binding and committed as backfill
-  // batches through the same outbox as live capture.
-  let historyBuffer: { deviceId: string; samples: DirectDeviceHistorySample[] } | null = null;
+  // Ring and Bangle.js history sync. These families push stored history on
+  // connection instead of capturing live; records are buffered per binding and
+  // committed as backfill batches through the same outbox as live capture.
+  let historyBuffer: {
+    deviceId: string;
+    family: DirectDeviceFamily;
+    samples: DirectDeviceHistorySample[];
+  } | null = null;
   let historyFlush: Promise<void> = Promise.resolve();
   let historyFlushTimer: ReturnType<typeof setTimeout> | null = null;
   let historyCaptureSequence = 0;
@@ -481,8 +485,13 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
     historyFlushTimer = null;
   };
 
+  /** External-record and checkpoint namespace for a history-sync family. */
+  const historyPrefix = (family: DirectDeviceFamily): string =>
+    family === "bangle_js" ? "bangle" : "ring";
+
   const historyRecords = (
     deviceId: string,
+    prefix: string,
     samples: readonly DirectDeviceHistorySample[],
   ): { recordType: "steps_interval" | "sleep_session" | "heart_rate"; upserts: unknown[] }[] => {
     const steps = samples.filter(
@@ -506,7 +515,7 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
         recordType: "steps_interval",
         upserts: steps.map((sample) => ({
           type: "steps_interval",
-          externalRecordId: `dd-ring:${deviceId}:steps:${sample.startTime}`,
+          externalRecordId: `dd-${prefix}:${deviceId}:steps:${sample.startTime}`,
           sourceApp: null,
           startTime: sample.startTime,
           endTime: sample.endTime,
@@ -518,7 +527,7 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
         recordType: "sleep_session",
         upserts: sleep.map((sample) => ({
           type: "sleep_session",
-          externalRecordId: `dd-ring:${deviceId}:sleep:${sample.startTime}`,
+          externalRecordId: `dd-${prefix}:${deviceId}:sleep:${sample.startTime}`,
           sourceApp: null,
           startTime: sample.startTime,
           endTime: sample.endTime,
@@ -537,7 +546,7 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
         upserts: [
           {
             type: "heart_rate",
-            externalRecordId: `dd-ring:${deviceId}:hr:${startTime}`,
+            externalRecordId: `dd-${prefix}:${deviceId}:hr:${startTime}`,
             sourceApp: null,
             startTime,
             endTime,
@@ -562,14 +571,15 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
         family: binding.family,
         modelId: binding.modelId,
       } as DirectDeviceIdentity;
-      const groups = historyRecords(buffer.deviceId, buffer.samples);
+      const groups = historyRecords(buffer.deviceId, historyPrefix(buffer.family), buffer.samples);
       if (!groups.length) return;
       const starts = buffer.samples.map((sample) =>
         Date.parse(sample.type === "heart_rate" ? sample.time : sample.startTime),
       );
       const startTime = new Date(Math.min(...starts)).toISOString();
       const endTime = new Date(Math.max(...starts) + 1000).toISOString();
-      const captureId = `dd-ring:${buffer.deviceId}:${startTime}:${++historyCaptureSequence}`;
+      const prefix = historyPrefix(buffer.family);
+      const captureId = `dd-${prefix}:${buffer.deviceId}:${startTime}:${++historyCaptureSequence}`;
       const envelopes: IngestDirectDeviceBatchInput[] = groups.map((group) => ({
         expectedContext: { userId: context.userId, organizationId: context.organizationId },
         batch: {
@@ -589,13 +599,13 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
         deviceIdentity: identity,
         captureId,
         expectedPreviousCheckpoint: binding.captureCheckpoint,
-        nextCheckpoint: `ring:${endTime}`,
+        nextCheckpoint: `${prefix}:${endTime}`,
         envelopes,
       });
       publish({ pendingEnvelopes: deps.store.countUnaccepted(ticket.scope) });
     } catch {
       // Best effort: a stale authority or checkpoint conflict drops this
-      // window rather than interrupting the ring session.
+      // window rather than interrupting the history session.
     }
   };
 
@@ -614,7 +624,11 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
   const handleHistorySample = (sample: DirectDeviceHistorySample) => {
     if (disposed) return;
     const state = deps.setup.getSnapshot();
-    if (state.phase !== "connected" || state.connectedFamily !== "colmi_ring") return;
+    if (
+      state.phase !== "connected" ||
+      (state.connectedFamily !== "colmi_ring" && state.connectedFamily !== "bangle_js")
+    )
+      return;
     const bindingId = selectedBindingId;
     if (!bindingId) return;
     const binding = bindingsById.get(bindingId);
@@ -625,7 +639,7 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
     )
       return;
     if (!historyBuffer || historyBuffer.deviceId !== bindingId)
-      historyBuffer = { deviceId: bindingId, samples: [] };
+      historyBuffer = { deviceId: bindingId, family: state.connectedFamily, samples: [] };
     const buffer = historyBuffer;
     buffer.samples.push(sample);
     if (buffer.samples.length >= 50) queueHistoryFlush();

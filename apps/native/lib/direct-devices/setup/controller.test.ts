@@ -4,6 +4,8 @@ import type { Device, State, Subscription } from "react-native-ble-plx";
 
 import { createHelioSetupController } from "./controller";
 import { BLE_GATT_MODELS } from "../models/ble-gatt";
+import { BANGLE_JS_MODELS } from "../models/bangle-js";
+import { BANGLE_JS_RX_UUID, BANGLE_JS_SERVICE_UUID, BANGLE_JS_TX_UUID } from "../models/bangle-js";
 import { BLE_SCALE_MODELS } from "../models/ble-scale";
 import {
   COLMI_RING_MODELS,
@@ -57,6 +59,11 @@ test("native model registries remain in parity with the shared identity catalog"
       modelId: model.id,
       displayName: model.displayName,
     })),
+    ...BANGLE_JS_MODELS.map((model) => ({
+      family: "bangle_js",
+      modelId: model.id,
+      displayName: model.displayName,
+    })),
     ...BLE_SCALE_MODELS.map((model) => ({
       family: "ble_scale",
       modelId: model.id,
@@ -70,7 +77,7 @@ test("native model registries remain in parity with the shared identity catalog"
   ].sort((left, right) =>
     `${left.family}:${left.modelId}`.localeCompare(`${right.family}:${right.modelId}`),
   );
-  expect(native).toHaveLength(321);
+  expect(native).toHaveLength(324);
   expect(native as unknown).toEqual(
     [...DIRECT_DEVICE_MODELS].sort((left, right) =>
       `${left.family}:${left.modelId}`.localeCompare(`${right.family}:${right.modelId}`),
@@ -1392,6 +1399,106 @@ test("a ring without the V1 service is rejected", async () => {
     connectedDeviceId: null,
     connectedFamily: null,
     errorCode: "COLMI_RING_SERVICE_MISSING",
+  });
+  await f.controller.dispose();
+});
+
+test("discovers a Bangle.js watch and reports history sync on connection", async () => {
+  const f = fixture({
+    deviceName: "Bangle.js 2",
+    services: async () => [{ uuid: BANGLE_JS_SERVICE_UUID }],
+    characteristics: async (service) =>
+      service === BANGLE_JS_SERVICE_UUID
+        ? [
+            { uuid: BANGLE_JS_TX_UUID, isNotifiable: false },
+            { uuid: BANGLE_JS_RX_UUID, isNotifiable: true },
+          ]
+        : [],
+  });
+  await f.controller.startScan();
+  f.emit();
+  expect(f.controller.getSnapshot().devices[0]).toMatchObject({
+    name: "Bangle.js 2",
+    modelId: "bangle_js_2",
+    family: "bangle_js",
+  });
+  await f.controller.connect("local-id");
+  expect(f.controller.getSnapshot()).toMatchObject({
+    phase: "connected",
+    connectedDeviceId: "local-id",
+    connectedModelId: "bangle_js_2",
+    connectedFamily: "bangle_js",
+    capabilities: { stepsHistory: false, liveCapture: false, historySync: true },
+  });
+  await expect(
+    f.controller.fetchSteps({
+      authKey: new Uint8Array(16),
+      since: { version: 1, nextMinuteUtc: new Date(0).toISOString(), offsetQuarterHours: 0 },
+      signal: new AbortController().signal,
+      onPhase: () => undefined,
+      async onPage() {},
+    }),
+  ).rejects.toThrow("BANGLE_JS_HISTORY_UNSUPPORTED");
+  await f.controller.dispose();
+});
+
+test("a Bangle.js watch is matched by the Nordic UART service when it has no name", async () => {
+  const f = fixture({
+    deviceName: "",
+    serviceUuids: [BANGLE_JS_SERVICE_UUID],
+    services: async () => [{ uuid: BANGLE_JS_SERVICE_UUID }],
+    characteristics: async (service) =>
+      service === BANGLE_JS_SERVICE_UUID
+        ? [{ uuid: BANGLE_JS_TX_UUID }, { uuid: BANGLE_JS_RX_UUID }]
+        : [],
+  });
+  await f.controller.startScan();
+  f.emit();
+  expect(f.controller.getSnapshot().devices[0]).toMatchObject({
+    modelId: "bangle_js_1",
+    family: "bangle_js",
+  });
+  await f.controller.dispose();
+});
+
+test("a Bangle.js watch without the Nordic UART service is rejected", async () => {
+  const f = fixture({
+    deviceName: "Bangle.js 2",
+    services: async () => [{ uuid: "0000180d-0000-1000-8000-00805f9b34fb" }],
+  });
+  await f.controller.startScan();
+  f.emit();
+  await f.controller.connect("local-id");
+  expect(f.controller.getSnapshot()).toMatchObject({
+    phase: "error",
+    connectedDeviceId: null,
+    connectedFamily: null,
+    errorCode: "BANGLE_JS_SERVICE_MISSING",
+  });
+  await f.controller.dispose();
+});
+
+test("discovers a PineTime as a live heart-rate sensor", async () => {
+  const f = fixture({
+    deviceName: "InfiniTime",
+    services: async () => [{ uuid: "180d" }],
+    characteristics: async (service) =>
+      service.toLowerCase().includes("180d")
+        ? [{ uuid: "00002a37-0000-1000-8000-00805f9b34fb", isNotifiable: true }]
+        : [],
+  });
+  await f.controller.startScan();
+  f.emit();
+  expect(f.controller.getSnapshot().devices[0]).toMatchObject({
+    modelId: "pinetime_p8",
+    family: "ble_gatt",
+  });
+  await f.controller.connect("local-id");
+  expect(f.controller.getSnapshot()).toMatchObject({
+    phase: "connected",
+    connectedModelId: "pinetime_p8",
+    connectedFamily: "ble_gatt",
+    capabilities: { stepsHistory: false, liveCapture: true, historySync: false },
   });
   await f.controller.dispose();
 });

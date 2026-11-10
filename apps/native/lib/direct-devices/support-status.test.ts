@@ -12,6 +12,7 @@ import { getGarminModel } from "./models/garmin";
 import { getHuaweiModel } from "./models/huawei";
 import { getBleScaleModel } from "./models/ble-scale";
 import { getColmiRingModel } from "./models/colmi-ring";
+import { BANGLE_JS_MODELS } from "./models/bangle-js";
 import { getXiaomiModel } from "./models/xiaomi";
 import { getZeppOsModel } from "./models/zepp-os";
 import { BLE_SCALE_MODELS } from "./models/ble-scale";
@@ -202,4 +203,21 @@ test("rings report history sync, not live capture or validated support", () => {
     upstream: { listed: true, featureLevel: "most", experimental: false },
     openValens: "colmi_ring_history_sync",
   });
+});
+
+test("Bangle.js reports history sync for steps and heart rate only", () => {
+  for (const model of BANGLE_JS_MODELS) {
+    expect(
+      describeDeviceSupport({
+        family: "bangle_js",
+        modelId: model.id,
+        transportValidated: model.transportValidated,
+        records: model.records,
+      }),
+      model.id,
+    ).toEqual({
+      upstream: { listed: true, featureLevel: "high", experimental: false },
+      openValens: "bangle_js_history_sync",
+    });
+  }
 });

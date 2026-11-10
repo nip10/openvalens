@@ -83,44 +83,88 @@ describe("direct-device identity guard", () => {
     ).toThrow(new DirectDeviceIdentityError("HISTORY_UNSUPPORTED"));
   });
 
-  test("ring intervals and sleep sessions are colmi_ring only", () => {
+  test("interval steps are accepted from rings and Bangle.js, refused elsewhere", () => {
     const ring = { directDeviceFamily: "colmi_ring", directDeviceModelId: "colmi_r02" };
     const ringAssertion = { family: "colmi_ring", modelId: "colmi_r02" } as const;
-    for (const recordType of ["steps_interval", "sleep_session"] as const) {
-      expect(assertDirectDeviceIdentity(ring, ringAssertion, { recordType })).toEqual(
-        ringAssertion,
-      );
-      for (const other of [
-        confirmed,
-        { directDeviceFamily: "xiaomi", directDeviceModelId: "xiaomi_mi_band_10" },
-        { directDeviceFamily: "ble_gatt", directDeviceModelId: "polar_h10" },
-        { directDeviceFamily: "ble_scale", directDeviceModelId: "xiaomi_smart_scale_2" },
-      ] as const)
-        expect(() =>
-          assertDirectDeviceIdentity(
-            other,
-            { family: other.directDeviceFamily, modelId: other.directDeviceModelId },
-            { recordType },
-          ),
-        ).toThrow(new DirectDeviceIdentityError("HISTORY_UNSUPPORTED"));
-    }
-    // Rings report arbitrary buckets, never the exact-minute `steps` history.
-    expect(() => assertDirectDeviceIdentity(ring, ringAssertion, { recordType: "steps" })).toThrow(
-      new DirectDeviceIdentityError("HISTORY_UNSUPPORTED"),
-    );
-  });
-
-  test("ring heart rate is accepted alongside BLE GATT sensors", () => {
-    const ring = { directDeviceFamily: "colmi_ring", directDeviceModelId: "colmi_r02" };
-    const ringAssertion = { family: "colmi_ring", modelId: "colmi_r02" } as const;
-    expect(assertDirectDeviceIdentity(ring, ringAssertion, { recordType: "heart_rate" })).toEqual(
-      ringAssertion,
-    );
-    // Temperature and blood pressure remain BLE GATT sensor only.
-    for (const recordType of ["body_temperature", "blood_pressure"] as const)
-      expect(() => assertDirectDeviceIdentity(ring, ringAssertion, { recordType })).toThrow(
+    const bangle = { directDeviceFamily: "bangle_js", directDeviceModelId: "bangle_js_2" };
+    const bangleAssertion = { family: "bangle_js", modelId: "bangle_js_2" } as const;
+    for (const [binding, assertion] of [
+      [ring, ringAssertion],
+      [bangle, bangleAssertion],
+    ] as const)
+      expect(
+        assertDirectDeviceIdentity(binding, assertion, { recordType: "steps_interval" }),
+      ).toEqual(assertion);
+    for (const other of [
+      confirmed,
+      { directDeviceFamily: "xiaomi", directDeviceModelId: "xiaomi_mi_band_10" },
+      { directDeviceFamily: "ble_gatt", directDeviceModelId: "polar_h10" },
+      { directDeviceFamily: "ble_scale", directDeviceModelId: "xiaomi_smart_scale_2" },
+    ] as const)
+      expect(() =>
+        assertDirectDeviceIdentity(
+          other,
+          { family: other.directDeviceFamily, modelId: other.directDeviceModelId },
+          { recordType: "steps_interval" },
+        ),
+      ).toThrow(new DirectDeviceIdentityError("HISTORY_UNSUPPORTED"));
+    // Rings and Bangle.js report arbitrary buckets, never the exact-minute
+    // `steps` history owned by the watch families.
+    for (const [binding, assertion] of [
+      [ring, ringAssertion],
+      [bangle, bangleAssertion],
+    ] as const)
+      expect(() => assertDirectDeviceIdentity(binding, assertion, { recordType: "steps" })).toThrow(
         new DirectDeviceIdentityError("HISTORY_UNSUPPORTED"),
       );
+  });
+
+  test("sleep sessions stay colmi_ring only", () => {
+    const ring = { directDeviceFamily: "colmi_ring", directDeviceModelId: "colmi_r02" };
+    const ringAssertion = { family: "colmi_ring", modelId: "colmi_r02" } as const;
+    expect(
+      assertDirectDeviceIdentity(ring, ringAssertion, { recordType: "sleep_session" }),
+    ).toEqual(ringAssertion);
+    for (const other of [
+      confirmed,
+      { directDeviceFamily: "xiaomi", directDeviceModelId: "xiaomi_mi_band_10" },
+      { directDeviceFamily: "ble_gatt", directDeviceModelId: "polar_h10" },
+      { directDeviceFamily: "ble_scale", directDeviceModelId: "xiaomi_smart_scale_2" },
+      { directDeviceFamily: "bangle_js", directDeviceModelId: "bangle_js_2" },
+    ] as const)
+      expect(() =>
+        assertDirectDeviceIdentity(
+          other,
+          { family: other.directDeviceFamily, modelId: other.directDeviceModelId },
+          { recordType: "sleep_session" },
+        ),
+      ).toThrow(new DirectDeviceIdentityError("HISTORY_UNSUPPORTED"));
+  });
+
+  test("heart rate is accepted from BLE GATT sensors, rings and Bangle.js", () => {
+    const ring = { directDeviceFamily: "colmi_ring", directDeviceModelId: "colmi_r02" };
+    const ringAssertion = { family: "colmi_ring", modelId: "colmi_r02" } as const;
+    const bangle = { directDeviceFamily: "bangle_js", directDeviceModelId: "bangle_js_2" };
+    const bangleAssertion = { family: "bangle_js", modelId: "bangle_js_2" } as const;
+    const pineTime = { directDeviceFamily: "ble_gatt", directDeviceModelId: "pinetime_p8" };
+    const pineTimeAssertion = { family: "ble_gatt", modelId: "pinetime_p8" } as const;
+    for (const [binding, assertion] of [
+      [ring, ringAssertion],
+      [bangle, bangleAssertion],
+      [pineTime, pineTimeAssertion],
+    ] as const)
+      expect(assertDirectDeviceIdentity(binding, assertion, { recordType: "heart_rate" })).toEqual(
+        assertion,
+      );
+    // Temperature and blood pressure remain BLE GATT sensor only.
+    for (const [binding, assertion] of [
+      [ring, ringAssertion],
+      [bangle, bangleAssertion],
+    ] as const)
+      for (const recordType of ["body_temperature", "blood_pressure"] as const)
+        expect(() => assertDirectDeviceIdentity(binding, assertion, { recordType })).toThrow(
+          new DirectDeviceIdentityError("HISTORY_UNSUPPORTED"),
+        );
   });
 
   test("record-type capability separates watch steps from BLE GATT sensors", () => {

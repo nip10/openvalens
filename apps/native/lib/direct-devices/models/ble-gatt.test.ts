@@ -23,6 +23,7 @@ const EXPECTED_IDS: readonly BleGattModelId[] = [
   "coospo_h9z",
   "coospo_hw807",
   "coospo_hw9",
+  "pinetime_p8",
   "generic_blood_pressure_monitor",
   "beurer_bm59",
   "beurer_bm69",
@@ -31,9 +32,9 @@ const EXPECTED_IDS: readonly BleGattModelId[] = [
   "femometer_vinca_2",
 ];
 
-test("the registry contains the 13 generic GATT models exactly once", () => {
-  expect(BLE_GATT_MODELS).toHaveLength(13);
-  expect(new Set(BLE_GATT_MODELS.map((model) => model.id)).size).toBe(13);
+test("the registry contains the 14 generic GATT models exactly once", () => {
+  expect(BLE_GATT_MODELS).toHaveLength(14);
+  expect(new Set(BLE_GATT_MODELS.map((model) => model.id)).size).toBe(14);
   expect(BLE_GATT_MODELS.map((model) => model.id).sort()).toEqual([...EXPECTED_IDS].sort());
   expect(BLE_GATT_MODELS.filter((model) => model.generic)).toHaveLength(3);
 });
@@ -78,6 +79,20 @@ test("named models match their upstream full-string names", () => {
   ];
   for (const [name, id] of cases)
     expect(matchBleGattDevice(name, []), name).toBe(getBleGattModel(id) ?? null);
+});
+
+test("PineTime matches case-insensitively and claims heart rate only", () => {
+  const pineTime = getBleGattModel("pinetime_p8");
+  expect(pineTime).toMatchObject({
+    displayName: "PineTime (InfiniTime)",
+    generic: false,
+    transportValidated: false,
+    records: ["heart_rate"],
+  });
+  for (const name of ["Pinetime-JF", "Pinetime-JF 1234", "InfiniTime", "infinitime 1.14.0"])
+    expect(matchBleGattDevice(name, []), name).toBe(pineTime ?? null);
+  // Full-string: a PineTime name embedded in other text is not a match.
+  expect(matchBleGattDevice("My InfiniTime", [])).toBeNull();
 });
 
 test("name matching is case-sensitive, like upstream Matcher.matches", () => {

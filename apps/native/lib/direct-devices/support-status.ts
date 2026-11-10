@@ -43,7 +43,8 @@ export type OpenValensDeviceSupport =
   | "ble_gatt_live_capture"
   | "ble_scale_live_capture"
   | "ble_scale_connection_only"
-  | "colmi_ring_history_sync";
+  | "colmi_ring_history_sync"
+  | "bangle_js_history_sync";
 
 export type DeviceSupportStatus = Readonly<{
   upstream: UpstreamDeviceSupport;
@@ -98,5 +99,7 @@ function openValensSupport(
         : "ble_scale_connection_only";
     case "colmi_ring":
       return "colmi_ring_history_sync";
+    case "bangle_js":
+      return "bangle_js_history_sync";
   }
 }

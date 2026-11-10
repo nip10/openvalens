@@ -13,6 +13,8 @@ import { getGarminModel } from "@/lib/direct-devices/models/garmin";
 import type { GarminModel, GarminModelId } from "@/lib/direct-devices/models/garmin";
 import { getBleGattModel } from "@/lib/direct-devices/models/ble-gatt";
 import type { BleGattModel, BleGattModelId } from "@/lib/direct-devices/models/ble-gatt";
+import { getBangleJsModel } from "@/lib/direct-devices/models/bangle-js";
+import type { BangleJsModel, BangleJsModelId } from "@/lib/direct-devices/models/bangle-js";
 import { getBleScaleModel } from "@/lib/direct-devices/models/ble-scale";
 import type { BleScaleModel, BleScaleModelId } from "@/lib/direct-devices/models/ble-scale";
 import { getColmiRingModel } from "@/lib/direct-devices/models/colmi-ring";
@@ -59,14 +61,17 @@ type AnyDirectDeviceModel =
   | HuaweiModel
   | GarminModel
   | BleGattModel
+  | BangleJsModel
   | BleScaleModel
   | ColmiRingModel;
 
 /**
- * Registry lookup for a snapshot model id across all six device families.
+ * Registry lookup for a snapshot model id across all seven device families.
  * The sync snapshot types the field as a plain string, so the casts live here
  * at the boundary. Zepp OS is checked first, matching the setup controller's
- * matcher order (one Xiaomi-named model also ships a Zepp OS coordinator).
+ * matcher order (one Xiaomi-named model also ships a Zepp OS coordinator);
+ * Bangle.js sits between the generic GATT sensors and the scales for the same
+ * reason.
  */
 function lookupModel(
   modelId: string | null | undefined,
@@ -82,6 +87,8 @@ function lookupModel(
   if (garmin) return { model: garmin, family: "garmin" };
   const bleGatt = getBleGattModel(modelId as BleGattModelId);
   if (bleGatt) return { model: bleGatt, family: "ble_gatt" };
+  const bangleJs = getBangleJsModel(modelId as BangleJsModelId);
+  if (bangleJs) return { model: bangleJs, family: "bangle_js" };
   const bleScale = getBleScaleModel(modelId as BleScaleModelId);
   if (bleScale) return { model: bleScale, family: "ble_scale" };
   const colmiRing = getColmiRingModel(modelId as ColmiRingModelId);
@@ -264,6 +271,7 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
     ble_scale_live_capture: t`Live weight capture while connected; not hardware-verified. Some scales also report stored measurements on connection. Samples are sent only when you tap “Retry upload”.`,
     ble_scale_connection_only: t`Connection checks only; measurement capture is not implemented for this model yet. Not hardware-verified.`,
     colmi_ring_history_sync: t`History sync on connection for steps, heart rate and sleep; not hardware-verified.`,
+    bangle_js_history_sync: t`History sync on connection for steps and heart rate, plus live heart rate while connected; not hardware-verified.`,
   };
   const upstreamLevelText = {
     high: t`high`,
@@ -296,7 +304,7 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
     <Section title={t`Direct devices`} icon={Bluetooth} tone="signal">
       <Sheet className="gap-3">
         <Text className="font-sans text-sm leading-relaxed text-ink-2">
-          {t`Experimental direct Bluetooth support for three kinds of devices. Zepp OS and Xiaomi devices sync step history in the foreground. BLE GATT health sensors (heart rate, blood pressure, temperature) record live while connected. Bluetooth smart scales record weight live, and some also report stored measurements on connection. Colmi and Yawell smart rings sync stored step, heart-rate and sleep history on connection. Huawei/Honor and Garmin support connection checks only. No hardware verification has been done. No vendor login is requested.`}
+          {t`Experimental direct Bluetooth support for three kinds of devices. Zepp OS and Xiaomi devices sync step history in the foreground. BLE GATT health sensors (heart rate, blood pressure, temperature) record live while connected, and a PineTime running InfiniTime reports live heart rate the same way. Bluetooth smart scales record weight live, and some also report stored measurements on connection. Colmi and Yawell smart rings sync stored step, heart-rate and sleep history on connection. Bangle.js watches sync stored step and heart-rate history on connection and keep reporting live heart rate. Huawei/Honor and Garmin support connection checks only. No hardware verification has been done. No vendor login is requested.`}
         </Text>
         <Text className="font-sans text-sm leading-relaxed text-ink-3">
           {t`Use the same saved device on both phones. Choose an existing binding to avoid duplicates, or add another only when you mean to create a separate binding. Nearby connection is a separate step.`}
@@ -406,6 +414,10 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
             <Text className="font-sans text-sm text-ink-3">
               {t`Ring history (steps, heart rate and sleep) syncs automatically while connected. Records are saved in batches and sent only when you tap “Retry upload”.`}
             </Text>
+          ) : connectedFamily === "bangle_js" ? (
+            <Text className="font-sans text-sm text-ink-3">
+              {t`Bangle.js history (steps and heart rate) syncs automatically while connected, and heart rate keeps recording live. Records are saved in batches and sent only when you tap “Retry upload”.`}
+            </Text>
           ) : !snapshot.capabilities.stepsHistory || !snapshot.canSync ? (
             <Text className="font-sans text-sm text-ink-3">
               {connectedFamily === "huawei"
@@ -514,6 +526,8 @@ function friendlyError(code: string) {
     return "The saved device identity does not match this device. Select a compatible binding or create a new one.";
   if (code === "GARMIN_HISTORY_UNSUPPORTED")
     return "Garmin connection checks are available, but step history sync is not implemented.";
+  if (code === "BANGLE_JS_HISTORY_UNSUPPORTED")
+    return "This Bangle.js watch connected, but its history syncs on connection rather than through a step sync action.";
   if (code === "HISTORY_UNSUPPORTED")
     return "This device connected, but step history sync is not supported for it.";
   return "Could not sync device steps. Try again.";

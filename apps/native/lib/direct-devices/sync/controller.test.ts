@@ -1702,3 +1702,91 @@ test("ring history is committed as steps_interval, sleep_session and heart_rate 
   db.close();
   invalidateDirectDeviceAuthority();
 });
+
+test("Bangle.js history is committed as steps_interval and heart_rate batches", async () => {
+  const { db, store } = sqlite();
+  const historyCapture: { handler: ((sample: DirectDeviceHistorySample) => void) | null } = {
+    handler: null,
+  };
+  const bangleBinding: DirectDeviceBindingSummary = {
+    ...binding,
+    family: "bangle_js",
+    modelId: "bangle_js_2",
+    displayName: "Bangle.js 2",
+  };
+  const { controller, ticket } = await readyController({
+    store,
+    setup: setup(async () => ({ pages: 0, minutes: 0, complete: true }), "bangle_js_2", {
+      family: "bangle_js",
+      stepsHistory: false,
+      liveCapture: false,
+      historySync: true,
+    }),
+    localIdentity: { family: "bangle_js", modelId: "bangle_js_2" },
+    historyCapture,
+    makeClient: () => ({
+      directDevice: {
+        listDirectDevices: async () => ({ devices: [bangleBinding] }),
+        registerDirectDevice: async () => ({ providerConnectionId: 41 }),
+        ingestDirectDeviceBatch: async () => ({ status: "applied" }),
+      },
+    }),
+  });
+  expect(historyCapture.handler).not.toBeNull();
+
+  // 47 ten-minute buckets + three realtime heart-rate points reaches the
+  // 50-sample flush threshold in one commit.
+  const dayStart = new Date(2026, 1, 1, 0, 0, 0);
+  for (let index = 0; index < 47; index += 1) {
+    const end = new Date(dayStart.getTime() + (index + 1) * 10 * 60_000);
+    historyCapture.handler!({
+      type: "steps_interval",
+      startTime: new Date(end.getTime() - 10 * 60_000).toISOString(),
+      endTime: end.toISOString(),
+      count: index,
+    });
+  }
+  for (let index = 0; index < 3; index += 1)
+    historyCapture.handler!({
+      type: "heart_rate",
+      time: new Date(2026, 1, 1, 8, index * 10, 0).toISOString(),
+      bpm: 70 + index,
+    });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  const pending = store.listPending(ticket, 10);
+  expect(pending).toHaveLength(2);
+  const byType = new Map(pending.map((row) => [row.request.batch.recordType, row.request.batch]));
+  expect([...byType.keys()].sort()).toEqual(["heart_rate", "steps_interval"]);
+  for (const batch of byType.values())
+    expect(batch).toMatchObject({
+      mode: "backfill",
+      deviceIdentity: { family: "bangle_js", modelId: "bangle_js_2" },
+    });
+
+  const steps = byType.get("steps_interval")!.upserts;
+  expect(steps).toHaveLength(47);
+  expect(steps[0]).toMatchObject({
+    type: "steps_interval",
+    count: 0,
+    startTime: dayStart.toISOString(),
+    endTime: new Date(dayStart.getTime() + 10 * 60_000).toISOString(),
+  });
+  expect(steps[0]).toHaveProperty("externalRecordId");
+  expect((steps[0] as { externalRecordId: string }).externalRecordId).toStartWith(
+    `dd-bangle:${deviceId}:steps:`,
+  );
+
+  const heartRate = byType.get("heart_rate")!.upserts;
+  expect(heartRate).toHaveLength(1);
+  expect(heartRate[0]).toMatchObject({ type: "heart_rate" });
+  if (heartRate[0]!.type === "heart_rate") {
+    expect(heartRate[0]!.samples).toHaveLength(3);
+    expect(heartRate[0]!.samples[0]).toMatchObject({ bpm: 70 });
+    expect(heartRate[0]!.externalRecordId).toStartWith(`dd-bangle:${deviceId}:hr:`);
+  }
+
+  await controller.dispose();
+  db.close();
+  invalidateDirectDeviceAuthority();
+});

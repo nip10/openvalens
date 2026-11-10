@@ -2379,6 +2379,10 @@ msgstr "Equilibrado"
 msgid "Balances reward and caution."
 msgstr "Equilibra ganhos e prudência."
 
+#: apps/native/components/direct-device-settings.tsx
+msgid "Bangle.js history (steps and heart rate) syncs automatically while connected, and heart rate keeps recording live. Records are saved in batches and sent only when you tap “Retry upload”."
+msgstr "O histórico do Bangle.js (passos e frequência cardíaca) sincroniza automaticamente enquanto ligado, e a frequência cardíaca continua a ser registada em direto. Os registos são guardados em lotes e só são enviados quando toca em “Tentar enviar novamente”."
+
 #: packages/api/src/presenters/food-lookup.ts
 msgid "Barcode"
 msgstr "Código de barras"
@@ -6257,8 +6261,8 @@ msgid "Experimental"
 msgstr "Experimental"
 
 #: apps/native/components/direct-device-settings.tsx
-msgid "Experimental direct Bluetooth support for three kinds of devices. Zepp OS and Xiaomi devices sync step history in the foreground. BLE GATT health sensors (heart rate, blood pressure, temperature) record live while connected. Bluetooth smart scales record weight live, and some also report stored measurements on connection. Colmi and Yawell smart rings sync stored step, heart-rate and sleep history on connection. Huawei/Honor and Garmin support connection checks only. No hardware verification has been done. No vendor login is requested."
-msgstr "Suporte direto experimental por Bluetooth para três tipos de dispositivos. Os dispositivos Zepp OS e Xiaomi sincronizam o histórico de passos em primeiro plano. Os sensores de saúde BLE GATT (frequência cardíaca, tensão arterial, temperatura) fazem captura em direto enquanto ligados. As balanças Bluetooth registam o peso em direto e algumas também reportam medições guardadas ao ligar. Os anéis inteligentes Colmi e Yawell sincronizam o histórico guardado de passos, frequência cardíaca e sono ao ligar. Huawei/Honor e Garmin suportam só verificações de ligação. Não foi feita nenhuma verificação em hardware. Não é pedido nenhum início de sessão do fabricante."
+msgid "Experimental direct Bluetooth support for three kinds of devices. Zepp OS and Xiaomi devices sync step history in the foreground. BLE GATT health sensors (heart rate, blood pressure, temperature) record live while connected, and a PineTime running InfiniTime reports live heart rate the same way. Bluetooth smart scales record weight live, and some also report stored measurements on connection. Colmi and Yawell smart rings sync stored step, heart-rate and sleep history on connection. Bangle.js watches sync stored step and heart-rate history on connection and keep reporting live heart rate. Huawei/Honor and Garmin support connection checks only. No hardware verification has been done. No vendor login is requested."
+msgstr "Suporte direto experimental por Bluetooth para três tipos de dispositivos. Os dispositivos Zepp OS e Xiaomi sincronizam o histórico de passos em primeiro plano. Os sensores de saúde BLE GATT (frequência cardíaca, tensão arterial, temperatura) registam em direto enquanto ligados. As balanças Bluetooth registam o peso em direto, e algumas também reportam medições guardadas ao ligar. Os anéis inteligentes Colmi e Yawell sincronizam o histórico guardado de passos, frequência cardíaca e sono ao ligar. Os relógios Bangle.js sincronizam o histórico guardado de passos e frequência cardíaca ao ligar e continuam a reportar a frequência cardíaca em direto. Huawei/Honor e Garmin suportam apenas verificações de ligação. Não foi feita nenhuma verificação em hardware. Não é pedido nenhum início de sessão do fabricante."
 
 #: packages/api/src/presenters/energy-estimate.ts
 msgid "Experimental estimate: not a target or a measure of what you ate."
@@ -7046,6 +7050,10 @@ msgstr "Medida do gráfico do histórico"
 #: apps/web/src/components/workout-history.tsx
 msgid "History is unavailable right now."
 msgstr "O histórico não está disponível neste momento."
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "History sync on connection for steps and heart rate, plus live heart rate while connected; not hardware-verified."
+msgstr "Sincronização de histórico ao ligar para passos e frequência cardíaca, mais frequência cardíaca em direto enquanto ligado; não verificado em hardware."
 
 #: apps/native/components/direct-device-settings.tsx
 msgid "History sync on connection for steps, heart rate and sleep; not hardware-verified."

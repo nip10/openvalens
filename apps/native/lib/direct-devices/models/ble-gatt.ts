@@ -16,9 +16,20 @@
  * - app/src/main/java/nodomain/freeyourgadget/gadgetbridge/service/btle/profiles/thermometer/TemperatureProfile.java
  * - app/src/main/java/nodomain/freeyourgadget/gadgetbridge/devices/generic/
  * - app/src/main/java/nodomain/freeyourgadget/gadgetbridge/devices/{polar,coospo,beurer,sanitas,femometer}/
+ * - app/src/main/java/nodomain/freeyourgadget/gadgetbridge/devices/pinetime/PineTimeJFCoordinator.kt
+ * - app/src/main/java/nodomain/freeyourgadget/gadgetbridge/service/devices/pinetime/PineTimeJFSupport.java
  *
  * Capability is connection plus live notification capture only. There is no
  * step history and no history backfill for this family.
+ *
+ * PineTime (InfiniTime) is registered here because it is a standard heart-rate
+ * sensor: 0x180D / 0x2A37 notifications and nothing else. Upstream's
+ * `PineTimeJFSupport` reads the BPM from `value[1]` and ignores the flags byte;
+ * this codebase instead uses the SIG-correct `parseHeartRateMeasurement`
+ * (bit 0 of the flags byte selects a uint16 value, zero is rejected). The
+ * InfiniTime motion service (`00030000-78fc-48fe-8e23-433b3a1942d0`, step
+ * characteristic `00030001-…`, LE32 cumulative counter) is live-only,
+ * screen-on-only and has no corresponding record type, so it is not wired.
  *
  * IMPORTANT: `transportValidated` is false for every model. Nothing in this
  * family has been validated against hardware or against a real device in this
@@ -49,7 +60,7 @@ export function normalizeServiceUuid(uuid: string): string {
 /** Record kinds this family can emit. Steps are deliberately absent. */
 export type BleGattRecordType = "heart_rate" | "body_temperature" | "blood_pressure";
 
-/** Stable upstream YAML ids for the 13 supported generic GATT models. */
+/** Stable upstream YAML ids for the 14 supported generic GATT models. */
 export type BleGattModelId =
   | "generic_heart_rate_sensor"
   | "polar_h10"
@@ -58,6 +69,7 @@ export type BleGattModelId =
   | "coospo_h9z"
   | "coospo_hw807"
   | "coospo_hw9"
+  | "pinetime_p8"
   | "generic_blood_pressure_monitor"
   | "beurer_bm59"
   | "beurer_bm69"
@@ -102,11 +114,14 @@ const COOSPO_ROOT = "app/src/main/java/nodomain/freeyourgadget/gadgetbridge/devi
 const BEURER_ROOT = "app/src/main/java/nodomain/freeyourgadget/gadgetbridge/devices/beurer";
 const SANITAS_ROOT = "app/src/main/java/nodomain/freeyourgadget/gadgetbridge/devices/sanitas";
 const FEMOMETER_ROOT = "app/src/main/java/nodomain/freeyourgadget/gadgetbridge/devices/femometer";
+const PINETIME_ROOT = "app/src/main/java/nodomain/freeyourgadget/gadgetbridge/devices/pinetime";
 
 /**
- * The 13 models, generic fallbacks first. Name patterns are case-sensitive,
+ * The 14 models, generic fallbacks first. Name patterns are case-sensitive,
  * matching upstream `Matcher.matches()`; prefix models keep their `^` anchor
- * but no `$` (upstream uses an anchored prefix for Beurer).
+ * but no `$` (upstream uses an anchored prefix for Beurer). PineTime is the
+ * exception: upstream matches it case-insensitively, so its patterns carry the
+ * `i` flag.
  */
 export const BLE_GATT_MODELS: readonly BleGattModel[] = [
   {
@@ -185,6 +200,22 @@ export const BLE_GATT_MODELS: readonly BleGattModel[] = [
     serviceUuids: [HR],
     records: ["heart_rate"],
     sourceFiles: [`${COOSPO_ROOT}/CoospoHW9Coordinator.java`],
+  },
+  {
+    id: "pinetime_p8",
+    displayName: "PineTime (InfiniTime)",
+    category: "hr-bands",
+    generic: false,
+    transportValidated: false,
+    // Upstream matches `Pinetime-JF.*|InfiniTime.*` case-insensitively; the
+    // `i` flag keeps that behaviour while the patterns stay full-string.
+    bleNamePatterns: [/^Pinetime-JF.*$/i, /^InfiniTime.*$/i],
+    serviceUuids: [HR],
+    records: ["heart_rate"],
+    sourceFiles: [
+      `${PINETIME_ROOT}/PineTimeJFCoordinator.kt`,
+      `app/src/main/java/nodomain/freeyourgadget/gadgetbridge/service/devices/pinetime/PineTimeJFSupport.java`,
+    ],
   },
   {
     id: "generic_blood_pressure_monitor",
