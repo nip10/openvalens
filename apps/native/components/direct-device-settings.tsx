@@ -19,6 +19,8 @@ import { getBleScaleModel } from "@/lib/direct-devices/models/ble-scale";
 import type { BleScaleModel, BleScaleModelId } from "@/lib/direct-devices/models/ble-scale";
 import { getColmiRingModel } from "@/lib/direct-devices/models/colmi-ring";
 import type { ColmiRingModel, ColmiRingModelId } from "@/lib/direct-devices/models/colmi-ring";
+import { getGloryFitModel } from "@/lib/direct-devices/models/gloryfit";
+import type { GloryFitModel, GloryFitModelId } from "@/lib/direct-devices/models/gloryfit";
 import { getXiaomiModel } from "@/lib/direct-devices/models/xiaomi";
 import type { XiaomiModel, XiaomiModelId } from "@/lib/direct-devices/models/xiaomi";
 import { getZeppOsModel } from "@/lib/direct-devices/models/zepp-os";
@@ -63,10 +65,11 @@ type AnyDirectDeviceModel =
   | BleGattModel
   | BangleJsModel
   | BleScaleModel
-  | ColmiRingModel;
+  | ColmiRingModel
+  | GloryFitModel;
 
 /**
- * Registry lookup for a snapshot model id across all seven device families.
+ * Registry lookup for a snapshot model id across all eight device families.
  * The sync snapshot types the field as a plain string, so the casts live here
  * at the boundary. Zepp OS is checked first, matching the setup controller's
  * matcher order (one Xiaomi-named model also ships a Zepp OS coordinator);
@@ -89,6 +92,8 @@ function lookupModel(
   if (bleGatt) return { model: bleGatt, family: "ble_gatt" };
   const bangleJs = getBangleJsModel(modelId as BangleJsModelId);
   if (bangleJs) return { model: bangleJs, family: "bangle_js" };
+  const gloryFit = getGloryFitModel(modelId as GloryFitModelId);
+  if (gloryFit) return { model: gloryFit, family: "gloryfit" };
   const bleScale = getBleScaleModel(modelId as BleScaleModelId);
   if (bleScale) return { model: bleScale, family: "ble_scale" };
   const colmiRing = getColmiRingModel(modelId as ColmiRingModelId);
@@ -272,6 +277,7 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
     ble_scale_connection_only: t`Connection checks only; measurement capture is not implemented for this model yet. Not hardware-verified.`,
     colmi_ring_history_sync: t`History sync on connection for steps, heart rate and sleep; not hardware-verified.`,
     bangle_js_history_sync: t`History sync on connection for steps and heart rate, plus live heart rate while connected; not hardware-verified.`,
+    gloryfit_history_sync: t`History sync on connection for steps, heart rate and sleep; not hardware-verified.`,
   };
   const upstreamLevelText = {
     high: t`high`,
@@ -304,7 +310,7 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
     <Section title={t`Direct devices`} icon={Bluetooth} tone="signal">
       <Sheet className="gap-3">
         <Text className="font-sans text-sm leading-relaxed text-ink-2">
-          {t`Experimental direct Bluetooth support for three kinds of devices. Zepp OS and Xiaomi devices sync step history in the foreground. BLE GATT health sensors (heart rate, blood pressure, temperature) record live while connected, and a PineTime running InfiniTime reports live heart rate the same way. Bluetooth smart scales record weight live, and some also report stored measurements on connection. Colmi and Yawell smart rings sync stored step, heart-rate and sleep history on connection. Bangle.js watches sync stored step and heart-rate history on connection and keep reporting live heart rate. Huawei/Honor and Garmin support connection checks only. No hardware verification has been done. No vendor login is requested.`}
+          {t`Experimental direct Bluetooth support for several kinds of devices. Zepp OS and Xiaomi devices sync step history in the foreground. BLE GATT health sensors (heart rate, blood pressure, temperature) record live while connected, and a PineTime running InfiniTime reports live heart rate the same way. Bluetooth smart scales record weight live, and some also report stored measurements on connection. Colmi and Yawell smart rings sync stored step, heart-rate and sleep history on connection. Bangle.js watches sync stored step and heart-rate history on connection and keep reporting live heart rate. GloryFit watches sync stored step, heart-rate and sleep history on connection. Huawei/Honor and Garmin support connection checks only. No hardware verification has been done. No vendor login is requested.`}
         </Text>
         <Text className="font-sans text-sm leading-relaxed text-ink-3">
           {t`Use the same saved device on both phones. Choose an existing binding to avoid duplicates, or add another only when you mean to create a separate binding. Nearby connection is a separate step.`}
@@ -417,6 +423,10 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
           ) : connectedFamily === "bangle_js" ? (
             <Text className="font-sans text-sm text-ink-3">
               {t`Bangle.js history (steps and heart rate) syncs automatically while connected, and heart rate keeps recording live. Records are saved in batches and sent only when you tap “Retry upload”.`}
+            </Text>
+          ) : connectedFamily === "gloryfit" ? (
+            <Text className="font-sans text-sm text-ink-3">
+              {t`GloryFit history (steps, heart rate and sleep) syncs automatically while connected. Records are saved in batches and sent only when you tap “Retry upload”.`}
             </Text>
           ) : !snapshot.capabilities.stepsHistory || !snapshot.canSync ? (
             <Text className="font-sans text-sm text-ink-3">

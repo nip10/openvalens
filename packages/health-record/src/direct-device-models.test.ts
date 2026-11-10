@@ -10,7 +10,7 @@ import {
 test("direct-device catalog has unique family/model pairs and supported steps identity", () => {
   const keys = DIRECT_DEVICE_MODELS.map(({ family, modelId }) => `${family}:${modelId}`);
   expect(new Set(keys).size).toBe(keys.length);
-  expect(DIRECT_DEVICE_MODELS).toHaveLength(324);
+  expect(DIRECT_DEVICE_MODELS).toHaveLength(341);
   expect(
     findDirectDeviceModel({ family: "zepp_os", modelId: "amazfit_helio_strap" })?.displayName,
   ).toBe("Amazfit Helio Strap");
@@ -47,6 +47,23 @@ test("direct-device catalog has unique family/model pairs and supported steps id
   expect(isDirectDeviceIdentity({ family: "bangle_js", modelId: "bangle_js_2" })).toBe(true);
   expect(isDirectDeviceIdentity({ family: "ble_gatt", modelId: "pinetime_p8" })).toBe(true);
   expect(isDirectDeviceIdentity({ family: "bangle_js", modelId: "bangle_js_3" })).toBe(false);
+  expect(findDirectDeviceModel({ family: "gloryfit", modelId: "gloryfit_d3" })?.displayName).toBe(
+    "GloryFit D3",
+  );
+  expect(
+    findDirectDeviceModel({ family: "gloryfit", modelId: "haylou_watch_2_pro" })?.displayName,
+  ).toBe("Haylou Watch 2 Pro");
+  expect(findDirectDeviceModel({ family: "gloryfit", modelId: "imiki_frame_2" })?.displayName).toBe(
+    "IMIKI Frame 2",
+  );
+  expect(
+    findDirectDeviceModel({ family: "gloryfit", modelId: "kieslect_calling_smartwatch_kr_pro" })
+      ?.displayName,
+  ).toBe("Kieslect Kr Pro");
+  expect(DIRECT_DEVICE_MODELS.filter(({ family }) => family === "gloryfit")).toHaveLength(17);
+  expect(isDirectDeviceIdentity({ family: "gloryfit", modelId: "qecnato_s10" })).toBe(true);
+  expect(isDirectDeviceIdentity({ family: "gloryfit", modelId: "gloryfit_d3" })).toBe(true);
+  expect(isDirectDeviceIdentity({ family: "gloryfit", modelId: "gloryfit_unknown" })).toBe(false);
   expect(supportsDirectDeviceSteps({ family: "zepp_os", modelId: "amazfit_helio_strap" })).toBe(
     true,
   );

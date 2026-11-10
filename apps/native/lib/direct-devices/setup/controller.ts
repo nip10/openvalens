@@ -17,6 +17,7 @@ import { matchBleGattDevice, normalizeServiceUuid } from "../models/ble-gatt";
 import { matchBangleJsDevice } from "../models/bangle-js";
 import { matchBleScaleDevice } from "../models/ble-scale";
 import { COLMI_V1_SERVICE_UUID, matchColmiRingDevice } from "../models/colmi-ring";
+import { matchGloryFitDevice } from "../models/gloryfit";
 import { selectXiaomiProfile, XIAOMI_BLE_SERVICE_UUIDS } from "../transport/xiaomi-link";
 import type { XiaomiBleProfile } from "../transport/xiaomi-link";
 import { HUAWEI_BLE_SERVICE_UUIDS, selectHuaweiProfile } from "../transport/huawei-link";
@@ -33,6 +34,12 @@ import { createBleScaleSession, selectBleScaleProfile } from "../transport/ble-s
 import type { BleScaleProfile, BleScaleSession } from "../transport/ble-scale";
 import { createColmiRingSession, selectColmiRingProfile } from "../transport/colmi-ring";
 import type { ColmiRingProfile, ColmiRingSession } from "../transport/colmi-ring";
+import {
+  GLORYFIT_SERVICE_UUIDS,
+  createGloryFitSession,
+  selectGloryFitProfile,
+} from "../transport/gloryfit";
+import type { GloryFitProfile, GloryFitSession } from "../transport/gloryfit";
 import {
   BANGLE_JS_SERVICE_UUIDS,
   createBangleJsSession,
@@ -168,6 +175,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
   let connectedBleGattSession: BleGattSession | null = null;
   let connectedBleScaleSession: BleScaleSession | null = null;
   let connectedColmiRingSession: ColmiRingSession | null = null;
+  let connectedGloryFitSession: GloryFitSession | null = null;
   let connectedBangleJsSession: BangleJsSession | null = null;
   let connecting: Device | null = null;
   let connectionAttempt: object | null = null;
@@ -339,13 +347,23 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
               zeppModel || xiaomiModel || huaweiModel || garminModel || bleGattModel
                 ? null
                 : matchBangleJsDevice(name, serviceUuids);
-            const bleScaleModel =
+            const gloryFitModel =
               zeppModel ||
               xiaomiModel ||
               huaweiModel ||
               garminModel ||
               bleGattModel ||
               bangleJsModel
+                ? null
+                : matchGloryFitDevice(name);
+            const bleScaleModel =
+              zeppModel ||
+              xiaomiModel ||
+              huaweiModel ||
+              garminModel ||
+              bleGattModel ||
+              bangleJsModel ||
+              gloryFitModel
                 ? null
                 : matchBleScaleDevice(name);
             // Smart rings are name-only and come after the scale family.
@@ -356,6 +374,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
               garminModel ||
               bleGattModel ||
               bangleJsModel ||
+              gloryFitModel ||
               bleScaleModel
                 ? null
                 : matchColmiRingDevice(name);
@@ -366,6 +385,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
               garminModel ??
               bleGattModel ??
               bangleJsModel ??
+              gloryFitModel ??
               bleScaleModel ??
               colmiRingModel;
             if (!model) return;
@@ -381,9 +401,11 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
                       ? "ble_gatt"
                       : bangleJsModel
                         ? "bangle_js"
-                        : bleScaleModel
-                          ? "ble_scale"
-                          : "colmi_ring";
+                        : gloryFitModel
+                          ? "gloryfit"
+                          : bleScaleModel
+                            ? "ble_scale"
+                            : "colmi_ring";
             r.devices.set(device.id, device);
             const found = new Map(snapshot.devices.map((item) => [item.id, item]));
             found.set(
@@ -486,6 +508,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
             matchGarminDeviceName(knownDevice.name) ??
             matchBleGattDevice(knownDevice.name, knownDevice.serviceUuids) ??
             matchBangleJsDevice(knownDevice.name, knownDevice.serviceUuids) ??
+            matchGloryFitDevice(knownDevice.name) ??
             matchBleScaleDevice(knownDevice.name) ??
             matchColmiRingDevice(knownDevice.name);
           if (!model) throw new Error("DEVICE_NOT_DISCOVERED");
@@ -503,9 +526,11 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
                       ? "ble_gatt"
                       : matchBangleJsDevice(knownDevice.name, knownDevice.serviceUuids)
                         ? "bangle_js"
-                        : matchBleScaleDevice(knownDevice.name)
-                          ? "ble_scale"
-                          : "colmi_ring");
+                        : matchGloryFitDevice(knownDevice.name)
+                          ? "gloryfit"
+                          : matchBleScaleDevice(knownDevice.name)
+                            ? "ble_scale"
+                            : "colmi_ring");
           await stopRadioScan();
           if (current !== generation || disposed) return;
           let cancelWait!: () => void;
@@ -561,6 +586,8 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
             family === "bangle_js"
               ? matchBangleJsDevice(knownDevice.name, knownDevice.serviceUuids)
               : null;
+          const gloryFitModel =
+            family === "gloryfit" ? matchGloryFitDevice(knownDevice.name) : null;
           const colmiRingModel =
             family === "colmi_ring" ? matchColmiRingDevice(knownDevice.name) : null;
           const hasRequiredService =
@@ -582,17 +609,23 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
                       ? services.some((service) =>
                           BANGLE_JS_SERVICE_UUIDS.has(normalizeServiceUuid(service.uuid)),
                         )
-                      : family === "ble_scale"
-                        ? !bleScaleModel?.serviceUuids.length ||
-                          services.some((service) =>
-                            bleScaleModel.serviceUuids.includes(normalizeServiceUuid(service.uuid)),
+                      : family === "gloryfit"
+                        ? [...GLORYFIT_SERVICE_UUIDS].every((uuid) =>
+                            services.some((service) => normalizeServiceUuid(service.uuid) === uuid),
                           )
-                        : family === "colmi_ring"
-                          ? services.some(
-                              (service) =>
-                                normalizeServiceUuid(service.uuid) === COLMI_V1_SERVICE_UUID,
+                        : family === "ble_scale"
+                          ? !bleScaleModel?.serviceUuids.length ||
+                            services.some((service) =>
+                              bleScaleModel.serviceUuids.includes(
+                                normalizeServiceUuid(service.uuid),
+                              ),
                             )
-                          : services.some((service) => service.uuid.toLowerCase() === FEE0);
+                          : family === "colmi_ring"
+                            ? services.some(
+                                (service) =>
+                                  normalizeServiceUuid(service.uuid) === COLMI_V1_SERVICE_UUID,
+                              )
+                            : services.some((service) => service.uuid.toLowerCase() === FEE0);
           if (!hasRequiredService)
             throw new Error(
               family === "xiaomi"
@@ -605,11 +638,13 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
                       ? "BLE_GATT_SERVICE_MISSING"
                       : family === "bangle_js"
                         ? "BANGLE_JS_SERVICE_MISSING"
-                        : family === "ble_scale"
-                          ? "BLE_SCALE_SERVICE_MISSING"
-                          : family === "colmi_ring"
-                            ? "COLMI_RING_SERVICE_MISSING"
-                            : "HUAMI_SERVICE_MISSING",
+                        : family === "gloryfit"
+                          ? "GLORYFIT_SERVICE_MISSING"
+                          : family === "ble_scale"
+                            ? "BLE_SCALE_SERVICE_MISSING"
+                            : family === "colmi_ring"
+                              ? "COLMI_RING_SERVICE_MISSING"
+                              : "HUAMI_SERVICE_MISSING",
             );
           let profile: XiaomiBleProfile | null = null;
           let huaweiProfile: HuaweiBleProfile | null = null;
@@ -617,6 +652,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
           let bleGattProfiles: readonly BleGattProfile[] | null = null;
           let bleScaleProfile: BleScaleProfile | null = null;
           let bangleJsProfile: BangleJsProfile | null = null;
+          let gloryFitProfile: GloryFitProfile | null = null;
           let colmiRingProfile: ColmiRingProfile | null = null;
           if (family === "xiaomi") {
             profile = await selectXiaomiProfile(
@@ -656,6 +692,13 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
               bangleJsModel.id,
             );
             if (!bangleJsProfile) throw new Error("BANGLE_JS_SERVICE_MISSING");
+          } else if (family === "gloryfit" && gloryFitModel) {
+            gloryFitProfile = await selectGloryFitProfile(
+              discovered,
+              services.map((service) => service.uuid),
+              gloryFitModel.id,
+            );
+            if (!gloryFitProfile) throw new Error("GLORYFIT_SERVICE_MISSING");
           } else if (family === "colmi_ring" && colmiRingModel) {
             colmiRingProfile = await selectColmiRingProfile(
               discovered,
@@ -679,6 +722,8 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
             connectedColmiRingSession = null;
             void connectedBangleJsSession?.close();
             connectedBangleJsSession = null;
+            void connectedGloryFitSession?.close();
+            connectedGloryFitSession = null;
             connectedLease = null;
             disconnectSubscription?.remove();
             disconnectSubscription = null;
@@ -750,6 +795,15 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
             });
             connectedBangleJsSession.start();
           }
+          if (gloryFitProfile && deps.onHistorySample) {
+            void connectedGloryFitSession?.close();
+            connectedGloryFitSession = createGloryFitSession({
+              device: discovered,
+              profile: gloryFitProfile,
+              onRecord: deps.onHistorySample,
+            });
+            connectedGloryFitSession.start();
+          }
           publish({
             phase: "connected",
             connectedDeviceId: deviceId,
@@ -758,7 +812,8 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
             capabilities: Object.freeze({
               stepsHistory: family === "zepp_os" || family === "xiaomi",
               liveCapture: family === "ble_gatt" || family === "ble_scale",
-              historySync: family === "colmi_ring" || family === "bangle_js",
+              historySync:
+                family === "colmi_ring" || family === "bangle_js" || family === "gloryfit",
             }),
             bluetooth: "powered_on",
           });
@@ -827,6 +882,8 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
       connectedColmiRingSession = null;
       void connectedBangleJsSession?.close();
       connectedBangleJsSession = null;
+      void connectedGloryFitSession?.close();
+      connectedGloryFitSession = null;
       connectionAttempt = null;
       connectingLease = null;
       connectedLease = null;
@@ -905,6 +962,8 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
       if (connectedFamily === "colmi_ring") throw new Error("COLMI_RING_HISTORY_UNSUPPORTED");
       // Bangle.js also syncs on connection through its own session.
       if (connectedFamily === "bangle_js") throw new Error("BANGLE_JS_HISTORY_UNSUPPORTED");
+      // GloryFit watches also sync on connection through their own session.
+      if (connectedFamily === "gloryfit") throw new Error("GLORYFIT_HISTORY_UNSUPPORTED");
       const device = connected;
       const abortController = new AbortController();
       historyAbort = abortController;
@@ -982,6 +1041,8 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
       connectedColmiRingSession = null;
       void connectedBangleJsSession?.close();
       connectedBangleJsSession = null;
+      void connectedGloryFitSession?.close();
+      connectedGloryFitSession = null;
       connectionAttempt = null;
       connectingLease = null;
       connectedLease = null;
@@ -1112,6 +1173,7 @@ const SAFE_CODES = new Set([
   "BLE_SCALE_SERVICE_MISSING",
   "COLMI_RING_SERVICE_MISSING",
   "BANGLE_JS_SERVICE_MISSING",
+  "GLORYFIT_SERVICE_MISSING",
   "BLUETOOTH_STATE_TIMEOUT",
   "SCAN_FAILED",
   "CONNECTION_FAILED",

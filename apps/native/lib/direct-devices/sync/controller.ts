@@ -487,7 +487,7 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
 
   /** External-record and checkpoint namespace for a history-sync family. */
   const historyPrefix = (family: DirectDeviceFamily): string =>
-    family === "bangle_js" ? "bangle" : "ring";
+    family === "bangle_js" ? "bangle" : family === "gloryfit" ? "gloryfit" : "ring";
 
   const historyRecords = (
     deviceId: string,
@@ -626,7 +626,9 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
     const state = deps.setup.getSnapshot();
     if (
       state.phase !== "connected" ||
-      (state.connectedFamily !== "colmi_ring" && state.connectedFamily !== "bangle_js")
+      (state.connectedFamily !== "colmi_ring" &&
+        state.connectedFamily !== "bangle_js" &&
+        state.connectedFamily !== "gloryfit")
     )
       return;
     const bindingId = selectedBindingId;

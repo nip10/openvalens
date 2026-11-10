@@ -2,6 +2,7 @@ import type { BleGattModelId } from "../models/ble-gatt";
 import type { BangleJsModelId } from "../models/bangle-js";
 import type { BleScaleModelId } from "../models/ble-scale";
 import type { ColmiRingModelId } from "../models/colmi-ring";
+import type { GloryFitModelId } from "../models/gloryfit";
 import type { GarminModelId } from "../models/garmin";
 import type { HuaweiModelId } from "../models/huawei";
 import type { XiaomiModelId } from "../models/xiaomi";
@@ -10,6 +11,7 @@ import type { BleGattSample } from "../protocol/ble-gatt";
 import type { BangleJsRecord } from "../protocol/bangle-js";
 import type { WeightMeasurementSample } from "../protocol/ble-scale";
 import type { ColmiRingRecord } from "../protocol/colmi-ring";
+import type { GloryFitRecord } from "../protocol/gloryfit";
 import type { HelioHistoryOptions, HelioHistoryResult } from "../protocol/types";
 
 /** A model id from any direct-device registry. */
@@ -21,7 +23,8 @@ export type DirectDeviceModelId =
   | BleGattModelId
   | BangleJsModelId
   | BleScaleModelId
-  | ColmiRingModelId;
+  | ColmiRingModelId
+  | GloryFitModelId;
 
 /** The protocol family a discovered model belongs to. */
 export type DirectDeviceFamily =
@@ -32,13 +35,14 @@ export type DirectDeviceFamily =
   | "ble_gatt"
   | "bangle_js"
   | "ble_scale"
-  | "colmi_ring";
+  | "colmi_ring"
+  | "gloryfit";
 
 /** A live sample from either connection-based capture family. */
 export type DirectDeviceLiveSample = BleGattSample | WeightMeasurementSample;
 
-/** A record emitted by a history-sync family (rings and Bangle.js sync on connection). */
-export type DirectDeviceHistorySample = ColmiRingRecord | BangleJsRecord;
+/** A record emitted by a history-sync family (rings, Bangle.js and GloryFit sync on connection). */
+export type DirectDeviceHistorySample = ColmiRingRecord | BangleJsRecord | GloryFitRecord;
 
 export type HelioDiscoveredDevice = Readonly<{
   id: string;

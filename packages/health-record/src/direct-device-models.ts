@@ -8,6 +8,7 @@ export const DIRECT_DEVICE_FAMILIES = [
   "ble_scale",
   "colmi_ring",
   "bangle_js",
+  "gloryfit",
 ] as const;
 export type DirectDeviceFamily = (typeof DIRECT_DEVICE_FAMILIES)[number];
 export type DirectDeviceIdentity = { family: DirectDeviceFamily; modelId: string };
@@ -1647,6 +1648,97 @@ export const DIRECT_DEVICE_MODELS: readonly DirectDeviceModelDescriptor[] = [
     family: "bangle_js",
     modelId: "bangle_js_2",
     displayName: "Bangle.js 2",
+  },
+  // GloryFit-protocol watches (Issue #426): hourly step buckets, 10-minute
+  // heart-rate blocks and sleep sessions with stages. The native lane owns the
+  // BLE protocol; these rows only carry the shared identity vocabulary. The
+  // family covers every vendor the upstream device catalog maps to the GloryFit
+  // coordinator (gloryfit, hifuture, imiki, grv, kieslect, oukitel, haylou).
+  // None are transport-validated yet.
+  {
+    family: "gloryfit",
+    modelId: "gloryfit_d3",
+    displayName: "GloryFit D3",
+  },
+  {
+    family: "gloryfit",
+    modelId: "gloryfit_r1",
+    displayName: "GloryFit R1",
+  },
+  {
+    family: "gloryfit",
+    modelId: "gloryfit_s52",
+    displayName: "GloryFit S52",
+  },
+  {
+    family: "gloryfit",
+    modelId: "gloryfit_swiss_peak",
+    displayName: "GloryFit Swiss Peak",
+  },
+  {
+    family: "gloryfit",
+    modelId: "gloryfit_t70",
+    displayName: "GloryFit T70",
+  },
+  {
+    family: "gloryfit",
+    modelId: "gloryfit_y6",
+    displayName: "GloryFit Y6",
+  },
+  {
+    family: "gloryfit",
+    modelId: "gloryfit_y66",
+    displayName: "GloryFit Y66",
+  },
+  {
+    family: "gloryfit",
+    modelId: "blackview_r3max",
+    displayName: "Blackview R3 Max",
+  },
+  {
+    family: "gloryfit",
+    modelId: "colmi_p10",
+    displayName: "Colmi P10",
+  },
+  {
+    family: "gloryfit",
+    modelId: "dotn_p66d",
+    displayName: "Dotn P66D",
+  },
+  {
+    family: "gloryfit",
+    modelId: "grv_fc1",
+    displayName: "GRV FC1",
+  },
+  {
+    family: "gloryfit",
+    modelId: "haylou_watch_2_pro",
+    displayName: "Haylou Watch 2 Pro",
+  },
+  {
+    family: "gloryfit",
+    modelId: "hifuture_zone_2",
+    displayName: "HiFuture Zone 2",
+  },
+  {
+    family: "gloryfit",
+    modelId: "imiki_frame_2",
+    displayName: "IMIKI Frame 2",
+  },
+  {
+    family: "gloryfit",
+    modelId: "kieslect_calling_smartwatch_kr_pro",
+    displayName: "Kieslect Kr Pro",
+  },
+  {
+    family: "gloryfit",
+    modelId: "oukitel_bt103",
+    displayName: "Oukitel BT103",
+  },
+  {
+    family: "gloryfit",
+    modelId: "qecnato_s10",
+    displayName: "Qecnato S10",
   },
 ];
 

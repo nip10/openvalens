@@ -16,6 +16,7 @@ import {
   COLMI_V2_NOTIFY_UUID,
   COLMI_V2_SERVICE_UUID,
 } from "../models/colmi-ring";
+import { GLORYFIT_MODELS } from "../models/gloryfit";
 import { GARMIN_MODELS } from "../models/garmin";
 import { HUAWEI_MODELS } from "../models/huawei";
 import { XIAOMI_MODELS } from "../models/xiaomi";
@@ -74,10 +75,15 @@ test("native model registries remain in parity with the shared identity catalog"
       modelId: model.id,
       displayName: model.displayName,
     })),
+    ...GLORYFIT_MODELS.map((model) => ({
+      family: "gloryfit",
+      modelId: model.id,
+      displayName: model.displayName,
+    })),
   ].sort((left, right) =>
     `${left.family}:${left.modelId}`.localeCompare(`${right.family}:${right.modelId}`),
   );
-  expect(native).toHaveLength(324);
+  expect(native).toHaveLength(341);
   expect(native as unknown).toEqual(
     [...DIRECT_DEVICE_MODELS].sort((left, right) =>
       `${left.family}:${left.modelId}`.localeCompare(`${right.family}:${right.modelId}`),

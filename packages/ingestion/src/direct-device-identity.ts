@@ -16,7 +16,9 @@ export type DirectDeviceBindingIdentity = {
  * history; the GATT sensor metrics come from BLE peripherals; smart scales
  * publish weight and optional body-composition measurements; smart rings
  * publish arbitrary-interval steps and sleep sessions; Bangle.js watches
- * publish 10-minute activity buckets plus heart rate.
+ * publish 10-minute activity buckets plus heart rate; GloryFit-protocol
+ * watches publish hourly steps, 10-minute heart-rate blocks and sleep
+ * sessions with stages.
  */
 export type DirectDeviceRecordType =
   | "steps"
@@ -58,11 +60,17 @@ export function directDeviceFamilySupportsRecordType(
   recordType: DirectDeviceRecordType,
 ): boolean {
   if (recordType === "steps") return family === "zepp_os" || family === "xiaomi";
-  if (recordType === "steps_interval") return family === "colmi_ring" || family === "bangle_js";
-  if (recordType === "sleep_session") return family === "colmi_ring";
+  if (recordType === "steps_interval")
+    return family === "colmi_ring" || family === "bangle_js" || family === "gloryfit";
+  if (recordType === "sleep_session") return family === "colmi_ring" || family === "gloryfit";
   if (recordType === "weight_measurement") return family === "ble_scale";
   if (recordType === "heart_rate")
-    return family === "ble_gatt" || family === "colmi_ring" || family === "bangle_js";
+    return (
+      family === "ble_gatt" ||
+      family === "colmi_ring" ||
+      family === "bangle_js" ||
+      family === "gloryfit"
+    );
   return family === "ble_gatt";
 }
 

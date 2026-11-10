@@ -167,6 +167,25 @@ describe("direct-device identity guard", () => {
         );
   });
 
+  test("GloryFit watches publish interval steps, heart rate and sleep sessions", () => {
+    const gloryfit = { directDeviceFamily: "gloryfit", directDeviceModelId: "gloryfit_d3" };
+    const assertion = { family: "gloryfit", modelId: "gloryfit_d3" } as const;
+    // Hourly steps arrive as interval buckets, heart rate as 10-minute blocks
+    // and sleep as staged sessions.
+    for (const recordType of ["steps_interval", "heart_rate", "sleep_session"] as const)
+      expect(assertDirectDeviceIdentity(gloryfit, assertion, { recordType })).toEqual(assertion);
+    // GloryFit has no exact-minute step history, scale or GATT sensor metrics.
+    for (const recordType of [
+      "steps",
+      "weight_measurement",
+      "body_temperature",
+      "blood_pressure",
+    ] as const)
+      expect(() => assertDirectDeviceIdentity(gloryfit, assertion, { recordType })).toThrow(
+        new DirectDeviceIdentityError("HISTORY_UNSUPPORTED"),
+      );
+  });
+
   test("record-type capability separates watch steps from BLE GATT sensors", () => {
     const ble = { directDeviceFamily: "ble_gatt", directDeviceModelId: "polar_h10" };
     expect(

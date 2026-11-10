@@ -17,6 +17,7 @@ import { getXiaomiModel } from "./models/xiaomi";
 import { getZeppOsModel } from "./models/zepp-os";
 import { BLE_SCALE_MODELS } from "./models/ble-scale";
 import { COLMI_RING_MODELS } from "./models/colmi-ring";
+import { GLORYFIT_MODELS } from "./models/gloryfit";
 import { GARMIN_MODELS } from "./models/garmin";
 import { HUAWEI_MODELS } from "./models/huawei";
 import { XIAOMI_MODELS } from "./models/xiaomi";
@@ -121,6 +122,7 @@ test("every registered model has a catalog entry to show", () => {
     { family: "garmin" as const, models: GARMIN_MODELS },
     { family: "ble_scale" as const, models: BLE_SCALE_MODELS },
     { family: "colmi_ring" as const, models: COLMI_RING_MODELS },
+    { family: "gloryfit" as const, models: GLORYFIT_MODELS },
   ];
   const unlisted = families.flatMap(({ family, models }) =>
     models
@@ -219,5 +221,19 @@ test("Bangle.js reports history sync for steps and heart rate only", () => {
       upstream: { listed: true, featureLevel: "high", experimental: false },
       openValens: "bangle_js_history_sync",
     });
+  }
+});
+
+test("GloryFit reports history sync for steps, heart rate and sleep", () => {
+  for (const model of GLORYFIT_MODELS) {
+    expect(
+      describeDeviceSupport({
+        family: "gloryfit",
+        modelId: model.id,
+        transportValidated: model.transportValidated,
+        records: model.records,
+      }),
+      model.id,
+    ).toMatchObject({ openValens: "gloryfit_history_sync" });
   }
 });
