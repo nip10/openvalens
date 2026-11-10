@@ -32,6 +32,7 @@ export type MobileHealthRecord = MobileRecordBase &
     | { type: "weight"; startTime: string; valueKg: number }
     | { type: "body_fat"; startTime: string; percent: number }
     | ({ type: "steps"; count: number } & Interval)
+    | ({ type: "steps_interval"; count: number } & Interval)
     | ({ type: "heart_rate"; samples: { time: string; bpm: number }[] } & Interval)
     | ({ type: "active_calories"; kcal: number } & Interval)
     | ({ type: "distance"; meters: number } & Interval)
@@ -125,6 +126,12 @@ export function adaptMobileHealthRecords(
       case "steps":
         metric("steps", record.count, "count", record.endTime);
         break;
+      case "steps_interval":
+        // Rings report arbitrary buckets (typically 15 minutes). The suffix
+        // keeps the canonical sample id distinct from the exact-minute
+        // `steps` path that shares the same canonical metric code.
+        metric("steps", record.count, "count", record.endTime, `${record.externalRecordId}:steps`);
+        break;
       case "active_calories":
         metric("active_calories", record.kcal, "kcal", record.endTime);
         break;
@@ -212,13 +219,20 @@ export function adaptMobileHealthRecords(
       }
       case "sleep_session": {
         const sleepStageIntervals = normalizeSleepStageIntervals(record.stages ?? []);
+        // Direct-device records are normalized with a `wearable` source device.
+        // Their sleep events get a deterministic suffix so a ring session can
+        // never collide with a phone session that shares the vendor record id.
+        const sourceEventId =
+          record.sourceDevice?.type === "wearable"
+            ? `${record.externalRecordId}:sleep`
+            : record.externalRecordId;
         intents.push({
           kind: "health_event",
           canonicalType: "sleep_session",
           eventAt: record.startTime,
           endAt: record.endTime,
           title: null,
-          sourceEventId: record.externalRecordId,
+          sourceEventId,
           sourceApp: record.sourceApp,
           rawRecord: record,
           ...(sleepStageIntervals.length ? { payloadJson: { sleepStageIntervals } } : {}),

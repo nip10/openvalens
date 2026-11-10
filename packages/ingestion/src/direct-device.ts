@@ -29,6 +29,22 @@ type DirectDeviceRecord =
       count: number;
     }
   | {
+      type: "steps_interval";
+      externalRecordId: string;
+      sourceApp: null;
+      startTime: string;
+      endTime: string;
+      count: number;
+    }
+  | {
+      type: "sleep_session";
+      externalRecordId: string;
+      sourceApp: null;
+      startTime: string;
+      endTime: string;
+      stages?: { stage: "awake" | "light" | "deep" | "rem"; startTime: string; endTime: string }[];
+    }
+  | {
       type: "heart_rate";
       externalRecordId: string;
       sourceApp: null;
@@ -68,7 +84,14 @@ type DirectDeviceBatch = {
   deviceId: string;
   deviceIdentity?: DirectDeviceIdentity;
   provider: "direct_device";
-  recordType: "steps" | "heart_rate" | "body_temperature" | "blood_pressure" | "weight_measurement";
+  recordType:
+    | "steps"
+    | "steps_interval"
+    | "sleep_session"
+    | "heart_rate"
+    | "body_temperature"
+    | "blood_pressure"
+    | "weight_measurement";
   mode: "backfill";
   window?: { from: string; to: string };
   upserts: DirectDeviceRecord[];
@@ -104,6 +127,8 @@ export class DirectDeviceRecordTypeUnavailableError extends Error {
 
 const DIRECT_DEVICE_RECORD_TYPES = new Set<DirectDeviceRecordType>([
   "steps",
+  "steps_interval",
+  "sleep_session",
   "heart_rate",
   "body_temperature",
   "blood_pressure",
@@ -260,6 +285,15 @@ export async function ingestDirectDeviceBatch(
             samples: record.samples.map((sample) => ({
               ...sample,
               time: new Date(sample.time).toISOString(),
+            })),
+          }
+        : {}),
+      ...(record.type === "sleep_session" && record.stages
+        ? {
+            stages: record.stages.map((stage) => ({
+              ...stage,
+              startTime: new Date(stage.startTime).toISOString(),
+              endTime: new Date(stage.endTime).toISOString(),
             })),
           }
         : {}),

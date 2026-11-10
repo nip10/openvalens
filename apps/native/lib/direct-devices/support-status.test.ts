@@ -11,9 +11,11 @@ import { expect, test } from "bun:test";
 import { getGarminModel } from "./models/garmin";
 import { getHuaweiModel } from "./models/huawei";
 import { getBleScaleModel } from "./models/ble-scale";
+import { getColmiRingModel } from "./models/colmi-ring";
 import { getXiaomiModel } from "./models/xiaomi";
 import { getZeppOsModel } from "./models/zepp-os";
 import { BLE_SCALE_MODELS } from "./models/ble-scale";
+import { COLMI_RING_MODELS } from "./models/colmi-ring";
 import { GARMIN_MODELS } from "./models/garmin";
 import { HUAWEI_MODELS } from "./models/huawei";
 import { XIAOMI_MODELS } from "./models/xiaomi";
@@ -117,6 +119,7 @@ test("every registered model has a catalog entry to show", () => {
     { family: "huawei" as const, models: HUAWEI_MODELS },
     { family: "garmin" as const, models: GARMIN_MODELS },
     { family: "ble_scale" as const, models: BLE_SCALE_MODELS },
+    { family: "colmi_ring" as const, models: COLMI_RING_MODELS },
   ];
   const unlisted = families.flatMap(({ family, models }) =>
     models
@@ -184,4 +187,19 @@ test("smart scales without a capture path report connection checks only", () => 
       id,
     ).toBe("ble_scale_connection_only");
   }
+});
+
+test("rings report history sync, not live capture or validated support", () => {
+  const model = getColmiRingModel("yawell_ai_health_watchpad");
+  expect(
+    describeDeviceSupport({
+      family: "colmi_ring",
+      modelId: "yawell_ai_health_watchpad",
+      transportValidated: model?.transportValidated ?? false,
+      records: model?.records,
+    }),
+  ).toEqual({
+    upstream: { listed: true, featureLevel: "most", experimental: false },
+    openValens: "colmi_ring_history_sync",
+  });
 });

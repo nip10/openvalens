@@ -10,7 +10,7 @@ import {
 test("direct-device catalog has unique family/model pairs and supported steps identity", () => {
   const keys = DIRECT_DEVICE_MODELS.map(({ family, modelId }) => `${family}:${modelId}`);
   expect(new Set(keys).size).toBe(keys.length);
-  expect(DIRECT_DEVICE_MODELS).toHaveLength(310);
+  expect(DIRECT_DEVICE_MODELS).toHaveLength(321);
   expect(
     findDirectDeviceModel({ family: "zepp_os", modelId: "amazfit_helio_strap" })?.displayName,
   ).toBe("Amazfit Helio Strap");
@@ -28,6 +28,13 @@ test("direct-device catalog has unique family/model pairs and supported steps id
   expect(findDirectDeviceModel({ family: "ble_scale", modelId: "viatom_f8" })?.displayName).toBe(
     "Viatom F8",
   );
+  expect(findDirectDeviceModel({ family: "colmi_ring", modelId: "colmi_r02" })?.displayName).toBe(
+    "Colmi R02",
+  );
+  expect(
+    findDirectDeviceModel({ family: "colmi_ring", modelId: "yawell_ai_health_watchpad" })
+      ?.displayName,
+  ).toBe("Yawell Y27 AI Health WatchPad");
   expect(supportsDirectDeviceSteps({ family: "zepp_os", modelId: "amazfit_helio_strap" })).toBe(
     true,
   );

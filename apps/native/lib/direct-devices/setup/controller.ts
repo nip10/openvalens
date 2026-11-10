@@ -2,6 +2,7 @@ import type { BleManager, Device, State, Subscription } from "react-native-ble-p
 
 import type {
   DirectDeviceFamily,
+  DirectDeviceHistorySample,
   DirectDeviceLiveSample,
   HelioSetupController,
   HelioSetupSnapshot,
@@ -14,6 +15,7 @@ import { matchHuaweiDeviceName } from "../models/huawei";
 import { matchGarminDeviceName } from "../models/garmin";
 import { matchBleGattDevice, normalizeServiceUuid } from "../models/ble-gatt";
 import { matchBleScaleDevice } from "../models/ble-scale";
+import { COLMI_V1_SERVICE_UUID, matchColmiRingDevice } from "../models/colmi-ring";
 import { selectXiaomiProfile, XIAOMI_BLE_SERVICE_UUIDS } from "../transport/xiaomi-link";
 import type { XiaomiBleProfile } from "../transport/xiaomi-link";
 import { HUAWEI_BLE_SERVICE_UUIDS, selectHuaweiProfile } from "../transport/huawei-link";
@@ -28,6 +30,8 @@ import {
 import type { BleGattProfile } from "../transport/ble-gatt-sensors";
 import { createBleScaleSession, selectBleScaleProfile } from "../transport/ble-scale";
 import type { BleScaleProfile, BleScaleSession } from "../transport/ble-scale";
+import { createColmiRingSession, selectColmiRingProfile } from "../transport/colmi-ring";
+import type { ColmiRingProfile, ColmiRingSession } from "../transport/colmi-ring";
 import { createNativeXiaomiHistoryTransport } from "../transport/xiaomi-session";
 import { runXiaomiStepsHistory } from "../protocol/xiaomi-history";
 import type { XiaomiHistoryTransport } from "../protocol/xiaomi-history";
@@ -71,6 +75,11 @@ type Deps = {
    * it the session is not started (there is nothing to deliver samples to).
    */
   onLiveSample?: (sample: DirectDeviceLiveSample) => void;
+  /**
+   * Receives history-sync records (rings fetch stored history on connection).
+   * Without it the ring session is not started.
+   */
+  onHistorySample?: (sample: DirectDeviceHistorySample) => void;
 };
 type NativeDeviceLease = {
   operationDone: Promise<void>;
@@ -88,7 +97,7 @@ const initial: HelioSetupSnapshot = Object.freeze({
   connectedDeviceId: null,
   connectedModelId: null,
   connectedFamily: null,
-  capabilities: Object.freeze({ stepsHistory: false, liveCapture: false }),
+  capabilities: Object.freeze({ stepsHistory: false, liveCapture: false, historySync: false }),
   errorCode: null,
   crypto: Object.freeze({ status: "not_checked", code: null }),
 });
@@ -150,6 +159,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
   let connectedGarminProfile: GarminBleProfile | null = null;
   let connectedBleGattSession: BleGattSession | null = null;
   let connectedBleScaleSession: BleScaleSession | null = null;
+  let connectedColmiRingSession: ColmiRingSession | null = null;
   let connecting: Device | null = null;
   let connectionAttempt: object | null = null;
   let connectingLease: NativeDeviceLease | null = null;
@@ -317,13 +327,24 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
               zeppModel || xiaomiModel || huaweiModel || garminModel || bleGattModel
                 ? null
                 : matchBleScaleDevice(name);
+            // Smart rings are name-only and come after the scale family.
+            const colmiRingModel =
+              zeppModel ||
+              xiaomiModel ||
+              huaweiModel ||
+              garminModel ||
+              bleGattModel ||
+              bleScaleModel
+                ? null
+                : matchColmiRingDevice(name);
             const model =
               zeppModel ??
               xiaomiModel ??
               huaweiModel ??
               garminModel ??
               bleGattModel ??
-              bleScaleModel;
+              bleScaleModel ??
+              colmiRingModel;
             if (!model) return;
             const family = zeppModel
               ? "zepp_os"
@@ -335,7 +356,9 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
                     ? "garmin"
                     : bleGattModel
                       ? "ble_gatt"
-                      : "ble_scale";
+                      : bleScaleModel
+                        ? "ble_scale"
+                        : "colmi_ring";
             r.devices.set(device.id, device);
             const found = new Map(snapshot.devices.map((item) => [item.id, item]));
             found.set(
@@ -437,7 +460,8 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
             matchHuaweiDeviceName(knownDevice.name) ??
             matchGarminDeviceName(knownDevice.name) ??
             matchBleGattDevice(knownDevice.name, knownDevice.serviceUuids) ??
-            matchBleScaleDevice(knownDevice.name);
+            matchBleScaleDevice(knownDevice.name) ??
+            matchColmiRingDevice(knownDevice.name);
           if (!model) throw new Error("DEVICE_NOT_DISCOVERED");
           const family =
             knownDevice.family ??
@@ -451,7 +475,9 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
                     ? "garmin"
                     : matchBleGattDevice(knownDevice.name, knownDevice.serviceUuids)
                       ? "ble_gatt"
-                      : "ble_scale");
+                      : matchBleScaleDevice(knownDevice.name)
+                        ? "ble_scale"
+                        : "colmi_ring");
           await stopRadioScan();
           if (current !== generation || disposed) return;
           let cancelWait!: () => void;
@@ -499,6 +525,8 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
           }
           const bleScaleModel =
             family === "ble_scale" ? matchBleScaleDevice(knownDevice.name) : null;
+          const colmiRingModel =
+            family === "colmi_ring" ? matchColmiRingDevice(knownDevice.name) : null;
           const hasRequiredService =
             family === "xiaomi"
               ? services.some((service) => XIAOMI_BLE_SERVICE_UUIDS.has(service.uuid.toLowerCase()))
@@ -519,7 +547,12 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
                         services.some((service) =>
                           bleScaleModel.serviceUuids.includes(normalizeServiceUuid(service.uuid)),
                         )
-                      : services.some((service) => service.uuid.toLowerCase() === FEE0);
+                      : family === "colmi_ring"
+                        ? services.some(
+                            (service) =>
+                              normalizeServiceUuid(service.uuid) === COLMI_V1_SERVICE_UUID,
+                          )
+                        : services.some((service) => service.uuid.toLowerCase() === FEE0);
           if (!hasRequiredService)
             throw new Error(
               family === "xiaomi"
@@ -532,13 +565,16 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
                       ? "BLE_GATT_SERVICE_MISSING"
                       : family === "ble_scale"
                         ? "BLE_SCALE_SERVICE_MISSING"
-                        : "HUAMI_SERVICE_MISSING",
+                        : family === "colmi_ring"
+                          ? "COLMI_RING_SERVICE_MISSING"
+                          : "HUAMI_SERVICE_MISSING",
             );
           let profile: XiaomiBleProfile | null = null;
           let huaweiProfile: HuaweiBleProfile | null = null;
           let garminProfile: GarminBleProfile | null = null;
           let bleGattProfiles: readonly BleGattProfile[] | null = null;
           let bleScaleProfile: BleScaleProfile | null = null;
+          let colmiRingProfile: ColmiRingProfile | null = null;
           if (family === "xiaomi") {
             profile = await selectXiaomiProfile(
               discovered,
@@ -570,6 +606,13 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
               bleScaleModel.id,
             );
             if (!bleScaleProfile) throw new Error("BLE_SCALE_SERVICE_MISSING");
+          } else if (family === "colmi_ring" && colmiRingModel) {
+            colmiRingProfile = await selectColmiRingProfile(
+              discovered,
+              services.map((service) => service.uuid),
+              colmiRingModel.id,
+            );
+            if (!colmiRingProfile) throw new Error("COLMI_RING_SERVICE_MISSING");
           }
           disconnectSubscription = r.manager.onDeviceDisconnected(discovered.id, () => {
             if (disposed || connected !== discovered || current !== generation) return;
@@ -582,6 +625,8 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
             connectedBleGattSession = null;
             void connectedBleScaleSession?.close();
             connectedBleScaleSession = null;
+            void connectedColmiRingSession?.close();
+            connectedColmiRingSession = null;
             connectedLease = null;
             disconnectSubscription?.remove();
             disconnectSubscription = null;
@@ -594,7 +639,11 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
               connectedDeviceId: null,
               connectedModelId: null,
               connectedFamily: null,
-              capabilities: Object.freeze({ stepsHistory: false, liveCapture: false }),
+              capabilities: Object.freeze({
+                stepsHistory: false,
+                liveCapture: false,
+                historySync: false,
+              }),
               errorCode: "DEVICE_DISCONNECTED",
             });
           });
@@ -627,6 +676,15 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
             );
             connectedBleScaleSession.start();
           }
+          if (colmiRingProfile && deps.onHistorySample) {
+            void connectedColmiRingSession?.close();
+            connectedColmiRingSession = createColmiRingSession({
+              device: discovered,
+              profile: colmiRingProfile,
+              onRecord: deps.onHistorySample,
+            });
+            connectedColmiRingSession.start();
+          }
           publish({
             phase: "connected",
             connectedDeviceId: deviceId,
@@ -635,6 +693,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
             capabilities: Object.freeze({
               stepsHistory: family === "zepp_os" || family === "xiaomi",
               liveCapture: family === "ble_gatt" || family === "ble_scale",
+              historySync: family === "colmi_ring",
             }),
             bluetooth: "powered_on",
           });
@@ -699,6 +758,8 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
       connectedBleGattSession = null;
       void connectedBleScaleSession?.close();
       connectedBleScaleSession = null;
+      void connectedColmiRingSession?.close();
+      connectedColmiRingSession = null;
       connectionAttempt = null;
       connectingLease = null;
       connectedLease = null;
@@ -716,7 +777,11 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
           connectedDeviceId: null,
           connectedModelId: null,
           connectedFamily: null,
-          capabilities: Object.freeze({ stepsHistory: false, liveCapture: false }),
+          capabilities: Object.freeze({
+            stepsHistory: false,
+            liveCapture: false,
+            historySync: false,
+          }),
         });
     },
     async runCryptoSelfTest() {
@@ -768,6 +833,9 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
       // Smart scales capture live/stored frames on the connection; there is no
       // cursor-based history page to fetch.
       if (connectedFamily === "ble_scale") throw new Error("BLE_SCALE_HISTORY_UNSUPPORTED");
+      // Rings sync stored history on connection through their own session; there
+      // is no cursor-based history page to fetch.
+      if (connectedFamily === "colmi_ring") throw new Error("COLMI_RING_HISTORY_UNSUPPORTED");
       const device = connected;
       const abortController = new AbortController();
       historyAbort = abortController;
@@ -841,6 +909,8 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
       connectedBleGattSession = null;
       void connectedBleScaleSession?.close();
       connectedBleScaleSession = null;
+      void connectedColmiRingSession?.close();
+      connectedColmiRingSession = null;
       connectionAttempt = null;
       connectingLease = null;
       connectedLease = null;
@@ -969,6 +1039,7 @@ const SAFE_CODES = new Set([
   "GARMIN_SERVICE_MISSING",
   "BLE_GATT_SERVICE_MISSING",
   "BLE_SCALE_SERVICE_MISSING",
+  "COLMI_RING_SERVICE_MISSING",
   "BLUETOOTH_STATE_TIMEOUT",
   "SCAN_FAILED",
   "CONNECTION_FAILED",

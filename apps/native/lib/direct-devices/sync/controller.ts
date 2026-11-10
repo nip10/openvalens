@@ -26,6 +26,7 @@ import {
   type WeightMeasurementSample,
 } from "../protocol/ble-scale";
 import type { DirectDeviceLiveSample } from "../setup/types";
+import type { DirectDeviceHistorySample } from "../setup/types";
 import type {
   DirectDeviceConfirmationTarget,
   HelioSyncContext,
@@ -54,6 +55,8 @@ type Dependencies = {
   onApplied?(): Promise<void>;
   /** Mutable sink wired to the setup controller's live GATT/scale notifications. */
   liveCapture?: { handler: ((sample: DirectDeviceLiveSample) => void) | null };
+  /** Mutable sink wired to the setup controller's ring history-sync records. */
+  historyCapture?: { handler: ((sample: DirectDeviceHistorySample) => void) | null };
 };
 
 const emptySnapshot: HelioSyncSnapshot = Object.freeze({
@@ -65,7 +68,7 @@ const emptySnapshot: HelioSyncSnapshot = Object.freeze({
   connectedModelId: null,
   connectedFamily: null,
   connectionGeneration: 0,
-  capabilities: Object.freeze({ stepsHistory: false, liveCapture: false }),
+  capabilities: Object.freeze({ stepsHistory: false, liveCapture: false, historySync: false }),
   bluetooth: "unknown",
   errorCode: null,
   capturedMinutes: 0,
@@ -180,13 +183,18 @@ export function createHelioSyncController(context: HelioSyncContext): HelioSyncC
   const liveCapture: { handler: ((sample: DirectDeviceLiveSample) => void) | null } = {
     handler: null,
   };
+  const historyCapture: { handler: ((sample: DirectDeviceHistorySample) => void) | null } = {
+    handler: null,
+  };
   return createController(context, {
     store: getDirectDeviceStore(),
     setup: createHelioSetupController({
       onLiveSample: (sample) => liveCapture.handler?.(sample),
+      onHistorySample: (sample) => historyCapture.handler?.(sample),
     }),
     captureCookie: () => authSessionStorage.captureVerifiedSessionCookie(),
     liveCapture,
+    historyCapture,
   });
 }
 
@@ -460,6 +468,171 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
   };
   if (deps.liveCapture) deps.liveCapture.handler = handleLiveSample;
 
+  // Ring history sync. Rings push stored history on connection instead of
+  // capturing live; records are buffered per binding and committed as backfill
+  // batches through the same outbox as live capture.
+  let historyBuffer: { deviceId: string; samples: DirectDeviceHistorySample[] } | null = null;
+  let historyFlush: Promise<void> = Promise.resolve();
+  let historyFlushTimer: ReturnType<typeof setTimeout> | null = null;
+  let historyCaptureSequence = 0;
+
+  const clearHistoryFlushTimer = () => {
+    if (historyFlushTimer) clearTimeout(historyFlushTimer);
+    historyFlushTimer = null;
+  };
+
+  const historyRecords = (
+    deviceId: string,
+    samples: readonly DirectDeviceHistorySample[],
+  ): { recordType: "steps_interval" | "sleep_session" | "heart_rate"; upserts: unknown[] }[] => {
+    const steps = samples.filter(
+      (sample): sample is Extract<DirectDeviceHistorySample, { type: "steps_interval" }> =>
+        sample.type === "steps_interval",
+    );
+    const sleep = samples.filter(
+      (sample): sample is Extract<DirectDeviceHistorySample, { type: "sleep_session" }> =>
+        sample.type === "sleep_session",
+    );
+    const heartRate = samples.filter(
+      (sample): sample is Extract<DirectDeviceHistorySample, { type: "heart_rate" }> =>
+        sample.type === "heart_rate",
+    );
+    const groups: {
+      recordType: "steps_interval" | "sleep_session" | "heart_rate";
+      upserts: unknown[];
+    }[] = [];
+    if (steps.length)
+      groups.push({
+        recordType: "steps_interval",
+        upserts: steps.map((sample) => ({
+          type: "steps_interval",
+          externalRecordId: `dd-ring:${deviceId}:steps:${sample.startTime}`,
+          sourceApp: null,
+          startTime: sample.startTime,
+          endTime: sample.endTime,
+          count: sample.count,
+        })),
+      });
+    if (sleep.length)
+      groups.push({
+        recordType: "sleep_session",
+        upserts: sleep.map((sample) => ({
+          type: "sleep_session",
+          externalRecordId: `dd-ring:${deviceId}:sleep:${sample.startTime}`,
+          sourceApp: null,
+          startTime: sample.startTime,
+          endTime: sample.endTime,
+          ...(sample.stages?.length ? { stages: sample.stages } : {}),
+        })),
+      });
+    if (heartRate.length) {
+      const sorted = [...heartRate].sort(
+        (left, right) => Date.parse(left.time) - Date.parse(right.time),
+      );
+      const times = sorted.map((sample) => Date.parse(sample.time));
+      const startTime = new Date(Math.min(...times)).toISOString();
+      const endTime = new Date(Math.max(...times) + 1000).toISOString();
+      groups.push({
+        recordType: "heart_rate",
+        upserts: [
+          {
+            type: "heart_rate",
+            externalRecordId: `dd-ring:${deviceId}:hr:${startTime}`,
+            sourceApp: null,
+            startTime,
+            endTime,
+            samples: sorted.map((sample) => ({ time: sample.time, bpm: sample.bpm })),
+          },
+        ],
+      });
+    }
+    return groups;
+  };
+
+  const flushHistorySamples = async () => {
+    clearHistoryFlushTimer();
+    const buffer = historyBuffer;
+    historyBuffer = null;
+    if (!buffer || buffer.samples.length === 0 || disposed) return;
+    try {
+      const ticket = fresh();
+      const binding = deps.store.getBinding(ticket, buffer.deviceId);
+      if (!binding?.providerConnectionId || !binding.family || !binding.modelId) return;
+      const identity = {
+        family: binding.family,
+        modelId: binding.modelId,
+      } as DirectDeviceIdentity;
+      const groups = historyRecords(buffer.deviceId, buffer.samples);
+      if (!groups.length) return;
+      const starts = buffer.samples.map((sample) =>
+        Date.parse(sample.type === "heart_rate" ? sample.time : sample.startTime),
+      );
+      const startTime = new Date(Math.min(...starts)).toISOString();
+      const endTime = new Date(Math.max(...starts) + 1000).toISOString();
+      const captureId = `dd-ring:${buffer.deviceId}:${startTime}:${++historyCaptureSequence}`;
+      const envelopes: IngestDirectDeviceBatchInput[] = groups.map((group) => ({
+        expectedContext: { userId: context.userId, organizationId: context.organizationId },
+        batch: {
+          schemaVersion: 1,
+          deviceId: buffer.deviceId,
+          deviceIdentity: identity,
+          provider: "direct_device",
+          recordType: group.recordType,
+          mode: "backfill",
+          upserts: group.upserts,
+          deletions: [],
+          clientTimezone: "UTC",
+        },
+      })) as IngestDirectDeviceBatchInput[];
+      deps.store.commitCapture(ticket, {
+        deviceId: buffer.deviceId,
+        deviceIdentity: identity,
+        captureId,
+        expectedPreviousCheckpoint: binding.captureCheckpoint,
+        nextCheckpoint: `ring:${endTime}`,
+        envelopes,
+      });
+      publish({ pendingEnvelopes: deps.store.countUnaccepted(ticket.scope) });
+    } catch {
+      // Best effort: a stale authority or checkpoint conflict drops this
+      // window rather than interrupting the ring session.
+    }
+  };
+
+  const queueHistoryFlush = () => {
+    historyFlush = historyFlush.then(flushHistorySamples).catch(() => undefined);
+  };
+
+  const scheduleHistoryFlush = () => {
+    if (historyFlushTimer) return;
+    historyFlushTimer = setTimeout(() => {
+      historyFlushTimer = null;
+      queueHistoryFlush();
+    }, 5000);
+  };
+
+  const handleHistorySample = (sample: DirectDeviceHistorySample) => {
+    if (disposed) return;
+    const state = deps.setup.getSnapshot();
+    if (state.phase !== "connected" || state.connectedFamily !== "colmi_ring") return;
+    const bindingId = selectedBindingId;
+    if (!bindingId) return;
+    const binding = bindingsById.get(bindingId);
+    if (
+      !binding ||
+      binding.family !== state.connectedFamily ||
+      binding.modelId !== state.connectedModelId
+    )
+      return;
+    if (!historyBuffer || historyBuffer.deviceId !== bindingId)
+      historyBuffer = { deviceId: bindingId, samples: [] };
+    const buffer = historyBuffer;
+    buffer.samples.push(sample);
+    if (buffer.samples.length >= 50) queueHistoryFlush();
+    else scheduleHistoryFlush();
+  };
+  if (deps.historyCapture) deps.historyCapture.handler = handleHistorySample;
+
   const bumpConnectionGeneration = () => {
     connectionGeneration += 1;
     activeConfirmationAbort?.abort();
@@ -481,8 +654,11 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
     if (
       lastObservedConnectedDeviceId !== null &&
       state.connectedDeviceId !== lastObservedConnectedDeviceId
-    )
+    ) {
       bumpConnectionGeneration();
+      // Commit whatever ring history arrived before the connection dropped.
+      queueHistoryFlush();
+    }
     lastObservedConnectedDeviceId = state.connectedDeviceId;
     const connected = state.phase === "connected";
     const selected = selectedBindingId ? bindingsById.get(selectedBindingId) : null;
@@ -889,6 +1065,8 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
     async cancel() {
       clearLiveFlushTimer();
       queueLiveFlush();
+      clearHistoryFlushTimer();
+      queueHistoryFlush();
       ++generation;
       bumpConnectionGeneration();
       activeAbort?.abort();
@@ -899,6 +1077,7 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
     async dispose() {
       if (disposed) return;
       clearLiveFlushTimer();
+      clearHistoryFlushTimer();
       bumpConnectionGeneration();
       disposed = true;
       ++generation;

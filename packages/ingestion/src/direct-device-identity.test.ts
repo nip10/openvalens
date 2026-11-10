@@ -83,6 +83,46 @@ describe("direct-device identity guard", () => {
     ).toThrow(new DirectDeviceIdentityError("HISTORY_UNSUPPORTED"));
   });
 
+  test("ring intervals and sleep sessions are colmi_ring only", () => {
+    const ring = { directDeviceFamily: "colmi_ring", directDeviceModelId: "colmi_r02" };
+    const ringAssertion = { family: "colmi_ring", modelId: "colmi_r02" } as const;
+    for (const recordType of ["steps_interval", "sleep_session"] as const) {
+      expect(assertDirectDeviceIdentity(ring, ringAssertion, { recordType })).toEqual(
+        ringAssertion,
+      );
+      for (const other of [
+        confirmed,
+        { directDeviceFamily: "xiaomi", directDeviceModelId: "xiaomi_mi_band_10" },
+        { directDeviceFamily: "ble_gatt", directDeviceModelId: "polar_h10" },
+        { directDeviceFamily: "ble_scale", directDeviceModelId: "xiaomi_smart_scale_2" },
+      ] as const)
+        expect(() =>
+          assertDirectDeviceIdentity(
+            other,
+            { family: other.directDeviceFamily, modelId: other.directDeviceModelId },
+            { recordType },
+          ),
+        ).toThrow(new DirectDeviceIdentityError("HISTORY_UNSUPPORTED"));
+    }
+    // Rings report arbitrary buckets, never the exact-minute `steps` history.
+    expect(() => assertDirectDeviceIdentity(ring, ringAssertion, { recordType: "steps" })).toThrow(
+      new DirectDeviceIdentityError("HISTORY_UNSUPPORTED"),
+    );
+  });
+
+  test("ring heart rate is accepted alongside BLE GATT sensors", () => {
+    const ring = { directDeviceFamily: "colmi_ring", directDeviceModelId: "colmi_r02" };
+    const ringAssertion = { family: "colmi_ring", modelId: "colmi_r02" } as const;
+    expect(assertDirectDeviceIdentity(ring, ringAssertion, { recordType: "heart_rate" })).toEqual(
+      ringAssertion,
+    );
+    // Temperature and blood pressure remain BLE GATT sensor only.
+    for (const recordType of ["body_temperature", "blood_pressure"] as const)
+      expect(() => assertDirectDeviceIdentity(ring, ringAssertion, { recordType })).toThrow(
+        new DirectDeviceIdentityError("HISTORY_UNSUPPORTED"),
+      );
+  });
+
   test("record-type capability separates watch steps from BLE GATT sensors", () => {
     const ble = { directDeviceFamily: "ble_gatt", directDeviceModelId: "polar_h10" };
     expect(

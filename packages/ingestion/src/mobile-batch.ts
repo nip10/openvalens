@@ -127,6 +127,8 @@ const PLATFORM_PROVIDER: Record<"android" | "ios", MobileProvider> = {
 function isDirectDeviceRecordType(value: MobileHealthRecordType): value is DirectDeviceRecordType {
   return (
     value === "steps" ||
+    value === "steps_interval" ||
+    value === "sleep_session" ||
     value === "heart_rate" ||
     value === "body_temperature" ||
     value === "blood_pressure" ||

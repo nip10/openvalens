@@ -42,7 +42,8 @@ export type OpenValensDeviceSupport =
   | "garmin_connection_only"
   | "ble_gatt_live_capture"
   | "ble_scale_live_capture"
-  | "ble_scale_connection_only";
+  | "ble_scale_connection_only"
+  | "colmi_ring_history_sync";
 
 export type DeviceSupportStatus = Readonly<{
   upstream: UpstreamDeviceSupport;
@@ -95,5 +96,7 @@ function openValensSupport(
       return records?.includes("weight_measurement")
         ? "ble_scale_live_capture"
         : "ble_scale_connection_only";
+    case "colmi_ring":
+      return "colmi_ring_history_sync";
   }
 }

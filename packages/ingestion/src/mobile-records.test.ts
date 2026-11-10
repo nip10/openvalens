@@ -288,6 +288,69 @@ describe("adaptMobileHealthRecords", () => {
     ).toEqual(["weight"]);
   });
 
+  test("ring steps intervals fan out to a steps sample with endAt and a stable suffix", () => {
+    const record: MobileHealthRecord = {
+      externalRecordId: "dd:v1:ring:bucket-1",
+      sourceApp: null,
+      sourceDevice: { type: "wearable", model: "Colmi R02" },
+      type: "steps_interval",
+      startTime: "2026-10-01T07:00:00.000Z",
+      endTime: "2026-10-01T07:15:00.000Z",
+      count: 250,
+    };
+    const first = adaptMobileHealthRecords([record]);
+    const second = adaptMobileHealthRecords([record]);
+    expect(first).toHaveLength(1);
+    expect(first[0]).toMatchObject({
+      kind: "metric_sample",
+      canonicalType: "steps",
+      sampledAt: "2026-10-01T07:00:00.000Z",
+      endAt: "2026-10-01T07:15:00.000Z",
+      value: 250,
+      unit: "count",
+      externalId: "dd:v1:ring:bucket-1:steps",
+    });
+    expect(second[0]).toMatchObject({ externalId: "dd:v1:ring:bucket-1:steps" });
+  });
+
+  test("ring sleep sessions become health events with stages and a sleep suffix", () => {
+    const [intent] = adaptMobileHealthRecords([
+      {
+        externalRecordId: "dd:v1:ring:sleep-1",
+        sourceApp: null,
+        sourceDevice: { type: "wearable", model: "Colmi R02" },
+        type: "sleep_session",
+        startTime: "2026-09-30T23:00:00.000Z",
+        endTime: "2026-10-01T07:00:00.000Z",
+        stages: [
+          {
+            stage: "light",
+            startTime: "2026-09-30T23:00:00.000Z",
+            endTime: "2026-10-01T00:00:00.000Z",
+          },
+          {
+            stage: "deep",
+            startTime: "2026-10-01T00:00:00.000Z",
+            endTime: "2026-10-01T01:00:00.000Z",
+          },
+        ],
+      },
+    ]);
+    expect(intent).toMatchObject({
+      kind: "health_event",
+      canonicalType: "sleep_session",
+      eventAt: "2026-09-30T23:00:00.000Z",
+      endAt: "2026-10-01T07:00:00.000Z",
+      sourceEventId: "dd:v1:ring:sleep-1:sleep",
+      payloadJson: {
+        sleepStageIntervals: [
+          { stage: "light", start: "2026-09-30T23:00:00.000Z", end: "2026-10-01T00:00:00.000Z" },
+          { stage: "deep", start: "2026-10-01T00:00:00.000Z", end: "2026-10-01T01:00:00.000Z" },
+        ],
+      },
+    });
+  });
+
   test("intents carry lastModifiedAt so edited records get a new dedupe version", () => {
     const [intent] = adaptMobileHealthRecords([
       {

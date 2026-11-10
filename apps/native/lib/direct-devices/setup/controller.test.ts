@@ -5,6 +5,15 @@ import type { Device, State, Subscription } from "react-native-ble-plx";
 import { createHelioSetupController } from "./controller";
 import { BLE_GATT_MODELS } from "../models/ble-gatt";
 import { BLE_SCALE_MODELS } from "../models/ble-scale";
+import {
+  COLMI_RING_MODELS,
+  COLMI_V1_NOTIFY_UUID,
+  COLMI_V1_SERVICE_UUID,
+  COLMI_V1_WRITE_UUID,
+  COLMI_V2_COMMAND_UUID,
+  COLMI_V2_NOTIFY_UUID,
+  COLMI_V2_SERVICE_UUID,
+} from "../models/colmi-ring";
 import { GARMIN_MODELS } from "../models/garmin";
 import { HUAWEI_MODELS } from "../models/huawei";
 import { XIAOMI_MODELS } from "../models/xiaomi";
@@ -53,10 +62,15 @@ test("native model registries remain in parity with the shared identity catalog"
       modelId: model.id,
       displayName: model.displayName,
     })),
+    ...COLMI_RING_MODELS.map((model) => ({
+      family: "colmi_ring",
+      modelId: model.id,
+      displayName: model.displayName,
+    })),
   ].sort((left, right) =>
     `${left.family}:${left.modelId}`.localeCompare(`${right.family}:${right.modelId}`),
   );
-  expect(native).toHaveLength(310);
+  expect(native).toHaveLength(321);
   expect(native as unknown).toEqual(
     [...DIRECT_DEVICE_MODELS].sort((left, right) =>
       `${left.family}:${left.modelId}`.localeCompare(`${right.family}:${right.modelId}`),
@@ -1317,6 +1331,67 @@ test("an unimplemented scale model connects without a service claim", async () =
     connectedModelId: "viatom_f8",
     connectedFamily: "ble_scale",
     capabilities: { stepsHistory: false, liveCapture: true },
+  });
+  await f.controller.dispose();
+});
+
+test("discovers a Colmi ring and reports history sync on connection", async () => {
+  const f = fixture({
+    deviceName: "R02_1A2B",
+    services: async () => [{ uuid: COLMI_V1_SERVICE_UUID }, { uuid: COLMI_V2_SERVICE_UUID }],
+    characteristics: async (service) =>
+      service === COLMI_V1_SERVICE_UUID
+        ? [
+            { uuid: COLMI_V1_WRITE_UUID, isNotifiable: false },
+            { uuid: COLMI_V1_NOTIFY_UUID, isNotifiable: true },
+          ]
+        : service === COLMI_V2_SERVICE_UUID
+          ? [
+              { uuid: COLMI_V2_COMMAND_UUID, isNotifiable: false },
+              { uuid: COLMI_V2_NOTIFY_UUID, isNotifiable: true },
+            ]
+          : [],
+  });
+  await f.controller.startScan();
+  f.emit();
+  expect(f.controller.getSnapshot().devices[0]).toMatchObject({
+    name: "R02_1A2B",
+    modelId: "colmi_r02",
+    family: "colmi_ring",
+  });
+  await f.controller.connect("local-id");
+  expect(f.controller.getSnapshot()).toMatchObject({
+    phase: "connected",
+    connectedDeviceId: "local-id",
+    connectedModelId: "colmi_r02",
+    connectedFamily: "colmi_ring",
+    capabilities: { stepsHistory: false, liveCapture: false, historySync: true },
+  });
+  await expect(
+    f.controller.fetchSteps({
+      authKey: new Uint8Array(16),
+      since: { version: 1, nextMinuteUtc: new Date(0).toISOString(), offsetQuarterHours: 0 },
+      signal: new AbortController().signal,
+      onPhase: () => undefined,
+      async onPage() {},
+    }),
+  ).rejects.toThrow("COLMI_RING_HISTORY_UNSUPPORTED");
+  await f.controller.dispose();
+});
+
+test("a ring without the V1 service is rejected", async () => {
+  const f = fixture({
+    deviceName: "R02_1A2B",
+    services: async () => [{ uuid: COLMI_V2_SERVICE_UUID }],
+  });
+  await f.controller.startScan();
+  f.emit();
+  await f.controller.connect("local-id");
+  expect(f.controller.getSnapshot()).toMatchObject({
+    phase: "error",
+    connectedDeviceId: null,
+    connectedFamily: null,
+    errorCode: "COLMI_RING_SERVICE_MISSING",
   });
   await f.controller.dispose();
 });

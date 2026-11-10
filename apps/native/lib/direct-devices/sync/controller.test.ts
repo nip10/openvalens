@@ -18,6 +18,7 @@ import { createSqliteDirectDeviceStore, type SyncSqliteDatabase } from "../persi
 import type {
   HelioSetupController,
   HelioSetupSnapshot,
+  DirectDeviceHistorySample,
   DirectDeviceLiveSample,
 } from "../setup/types";
 import { historyStart } from "../protocol/codec";
@@ -129,6 +130,7 @@ function setup(
     family?: HelioSetupSnapshot["connectedFamily"];
     stepsHistory?: boolean;
     liveCapture?: boolean;
+    historySync?: boolean;
   } = {},
 ): MutableSetupController {
   const state: HelioSetupSnapshot = {
@@ -142,6 +144,7 @@ function setup(
     capabilities: {
       stepsHistory: overrides.stepsHistory ?? connectedModelId !== null,
       liveCapture: overrides.liveCapture ?? false,
+      historySync: overrides.historySync ?? false,
     },
     errorCode: null,
     crypto: { status: "passed", code: null },
@@ -213,6 +216,7 @@ async function readyController(args: {
   seedBinding?: boolean;
   onApplied?: () => Promise<void>;
   liveCapture?: { handler: ((sample: DirectDeviceLiveSample) => void) | null };
+  historyCapture?: { handler: ((sample: DirectDeviceHistorySample) => void) | null };
 }) {
   const sessionId = `${context.sessionId}-${++sessionSequence}`;
   const syncContext = { ...context, sessionId };
@@ -250,6 +254,7 @@ async function readyController(args: {
     uuid: args.uuid,
     onApplied: args.onApplied,
     liveCapture: args.liveCapture,
+    historyCapture: args.historyCapture,
   });
   await controller.refreshBindings();
   controller.selectBinding(deviceId);
@@ -407,14 +412,14 @@ test("confirmation consent becomes stale after model change, same-id reconnect, 
         connectedDeviceId: null,
         connectedModelId: null,
         connectedFamily: null,
-        capabilities: { stepsHistory: false, liveCapture: false },
+        capabilities: { stepsHistory: false, liveCapture: false, historySync: false },
       });
       setupController.setSnapshot({
         phase: "connected",
         connectedDeviceId: "native-1",
         connectedModelId: "xiaomi_mi_band_10",
         connectedFamily: "xiaomi",
-        capabilities: { stepsHistory: true, liveCapture: false },
+        capabilities: { stepsHistory: true, liveCapture: false, historySync: false },
       });
     } else {
       await controller.cancel();
@@ -1589,6 +1594,110 @@ test("live smart-scale weights are committed as weight_measurement batches", asy
       impedanceOhm: 500,
     }),
   );
+  await controller.dispose();
+  db.close();
+  invalidateDirectDeviceAuthority();
+});
+
+test("ring history is committed as steps_interval, sleep_session and heart_rate batches", async () => {
+  const { db, store } = sqlite();
+  const historyCapture: { handler: ((sample: DirectDeviceHistorySample) => void) | null } = {
+    handler: null,
+  };
+  const ringBinding: DirectDeviceBindingSummary = {
+    ...binding,
+    family: "colmi_ring",
+    modelId: "colmi_r02",
+    displayName: "Colmi R02",
+  };
+  const { controller, ticket } = await readyController({
+    store,
+    setup: setup(async () => ({ pages: 0, minutes: 0, complete: true }), "colmi_r02", {
+      family: "colmi_ring",
+      stepsHistory: false,
+      liveCapture: false,
+      historySync: true,
+    }),
+    localIdentity: { family: "colmi_ring", modelId: "colmi_r02" },
+    historyCapture,
+    makeClient: () => ({
+      directDevice: {
+        listDirectDevices: async () => ({ devices: [ringBinding] }),
+        registerDirectDevice: async () => ({ providerConnectionId: 41 }),
+        ingestDirectDeviceBatch: async () => ({ status: "applied" }),
+      },
+    }),
+  });
+  expect(historyCapture.handler).not.toBeNull();
+
+  const dayStart = new Date(2026, 1, 1, 0, 0, 0);
+  // 46 quarter-hour buckets + one sleep session + three heart-rate samples
+  // reaches the 50-sample flush threshold in one commit.
+  for (let index = 0; index < 46; index += 1) {
+    const start = new Date(dayStart.getTime() + index * 15 * 60_000);
+    historyCapture.handler!({
+      type: "steps_interval",
+      startTime: start.toISOString(),
+      endTime: new Date(start.getTime() + 15 * 60_000).toISOString(),
+      count: index,
+    });
+  }
+  historyCapture.handler!({
+    type: "sleep_session",
+    startTime: new Date(2026, 1, 1, 23, 0, 0).toISOString(),
+    endTime: new Date(2026, 1, 2, 7, 0, 0).toISOString(),
+    stages: [
+      {
+        stage: "light",
+        startTime: new Date(2026, 1, 1, 23, 0, 0).toISOString(),
+        endTime: new Date(2026, 1, 2, 1, 0, 0).toISOString(),
+      },
+    ],
+  });
+  for (let index = 0; index < 3; index += 1)
+    historyCapture.handler!({
+      type: "heart_rate",
+      time: new Date(2026, 1, 1, 8, index * 5, 0).toISOString(),
+      bpm: 60 + index,
+    });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  const pending = store.listPending(ticket, 10);
+  expect(pending).toHaveLength(3);
+  const byType = new Map(pending.map((row) => [row.request.batch.recordType, row.request.batch]));
+  expect([...byType.keys()].sort()).toEqual(["heart_rate", "sleep_session", "steps_interval"]);
+  for (const batch of byType.values())
+    expect(batch).toMatchObject({
+      mode: "backfill",
+      deviceIdentity: { family: "colmi_ring", modelId: "colmi_r02" },
+    });
+
+  const steps = byType.get("steps_interval")!.upserts;
+  expect(steps).toHaveLength(46);
+  expect(steps[0]).toMatchObject({
+    type: "steps_interval",
+    count: 0,
+    startTime: dayStart.toISOString(),
+    endTime: new Date(dayStart.getTime() + 15 * 60_000).toISOString(),
+  });
+
+  const sleep = byType.get("sleep_session")!.upserts;
+  expect(sleep).toHaveLength(1);
+  expect(sleep[0]).toMatchObject({
+    type: "sleep_session",
+    startTime: new Date(2026, 1, 1, 23, 0, 0).toISOString(),
+    endTime: new Date(2026, 1, 2, 7, 0, 0).toISOString(),
+  });
+  expect(sleep[0]).toHaveProperty("stages");
+
+  const heartRate = byType.get("heart_rate")!.upserts;
+  expect(heartRate).toHaveLength(1);
+  expect(heartRate[0]).toMatchObject({ type: "heart_rate" });
+  if (heartRate[0]!.type === "heart_rate") {
+    expect(heartRate[0]!.samples).toHaveLength(3);
+    expect(heartRate[0]!.samples[0]).toMatchObject({ bpm: 60 });
+  }
+
   await controller.dispose();
   db.close();
   invalidateDirectDeviceAuthority();

@@ -288,6 +288,119 @@ describe("direct device contract", () => {
     ).toBe(false);
   });
 
+  test("accepts 15-minute steps intervals and rejects non-positive or hour-plus intervals", () => {
+    const bucket = {
+      type: "steps_interval",
+      externalRecordId: "bucket-1",
+      sourceApp: null,
+      startTime: "2026-10-01T07:00:00.000Z",
+      endTime: "2026-10-01T07:15:00.000Z",
+      count: 250,
+    };
+    const intervalBatch = { ...batch, recordType: "steps_interval", upserts: [bucket] };
+    expect(directDeviceBatch.safeParse(intervalBatch).success).toBe(true);
+    for (const endTime of [
+      bucket.startTime,
+      "2026-10-01T06:59:00.000Z",
+      "2026-10-01T08:00:01.000Z",
+    ])
+      expect(
+        directDeviceBatch.safeParse({ ...intervalBatch, upserts: [{ ...bucket, endTime }] })
+          .success,
+      ).toBe(false);
+    expect(
+      directDeviceBatch.safeParse({ ...intervalBatch, upserts: [{ ...bucket, count: -1 }] })
+        .success,
+    ).toBe(false);
+    expect(
+      directDeviceBatch.safeParse({
+        ...intervalBatch,
+        upserts: [{ ...steps }],
+      }).success,
+    ).toBe(false);
+  });
+
+  test("accepts ring sleep sessions with ordered stages and rejects bad ordering", () => {
+    const sleep = {
+      type: "sleep_session",
+      externalRecordId: "sleep-1",
+      sourceApp: null,
+      startTime: "2026-09-30T23:00:00.000Z",
+      endTime: "2026-10-01T07:00:00.000Z",
+      stages: [
+        {
+          stage: "light",
+          startTime: "2026-09-30T23:00:00.000Z",
+          endTime: "2026-10-01T00:00:00.000Z",
+        },
+        {
+          stage: "deep",
+          startTime: "2026-10-01T00:00:00.000Z",
+          endTime: "2026-10-01T01:00:00.000Z",
+        },
+        {
+          stage: "rem",
+          startTime: "2026-10-01T01:00:00.000Z",
+          endTime: "2026-10-01T02:00:00.000Z",
+        },
+      ],
+    };
+    const sleepBatch = { ...batch, recordType: "sleep_session", upserts: [sleep] };
+    expect(directDeviceBatch.safeParse(sleepBatch).success).toBe(true);
+    expect(
+      directDeviceBatch.safeParse({
+        ...sleepBatch,
+        upserts: [{ ...sleep, stages: undefined }],
+      }).success,
+    ).toBe(true);
+    // Out of order: the deep stage starts before the light stage ends.
+    expect(
+      directDeviceBatch.safeParse({
+        ...sleepBatch,
+        upserts: [
+          {
+            ...sleep,
+            stages: [sleep.stages[1], sleep.stages[0], sleep.stages[2]],
+          },
+        ],
+      }).success,
+    ).toBe(false);
+    // Overlapping stages are rejected even when each is individually valid.
+    expect(
+      directDeviceBatch.safeParse({
+        ...sleepBatch,
+        upserts: [
+          {
+            ...sleep,
+            stages: [
+              sleep.stages[0],
+              { ...sleep.stages[1], startTime: "2026-09-30T23:30:00.000Z" },
+            ],
+          },
+        ],
+      }).success,
+    ).toBe(false);
+    expect(
+      directDeviceBatch.safeParse({
+        ...sleepBatch,
+        upserts: [{ ...sleep, stages: [{ ...sleep.stages[0], stage: "asleep" }] }],
+      }).success,
+    ).toBe(false);
+    expect(
+      directDeviceBatch.safeParse({
+        ...sleepBatch,
+        upserts: [{ ...sleep, endTime: sleep.startTime }],
+      }).success,
+    ).toBe(false);
+    expect(
+      directDeviceBatch.safeParse({
+        ...sleepBatch,
+        recordType: "steps_interval",
+        upserts: [{ ...steps }],
+      }).success,
+    ).toBe(false);
+  });
+
   test("rejects upserts whose type does not match the batch recordType", () => {
     expect(
       directDeviceBatch.safeParse({

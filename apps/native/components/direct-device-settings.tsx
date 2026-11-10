@@ -15,6 +15,8 @@ import { getBleGattModel } from "@/lib/direct-devices/models/ble-gatt";
 import type { BleGattModel, BleGattModelId } from "@/lib/direct-devices/models/ble-gatt";
 import { getBleScaleModel } from "@/lib/direct-devices/models/ble-scale";
 import type { BleScaleModel, BleScaleModelId } from "@/lib/direct-devices/models/ble-scale";
+import { getColmiRingModel } from "@/lib/direct-devices/models/colmi-ring";
+import type { ColmiRingModel, ColmiRingModelId } from "@/lib/direct-devices/models/colmi-ring";
 import { getXiaomiModel } from "@/lib/direct-devices/models/xiaomi";
 import type { XiaomiModel, XiaomiModelId } from "@/lib/direct-devices/models/xiaomi";
 import { getZeppOsModel } from "@/lib/direct-devices/models/zepp-os";
@@ -37,7 +39,7 @@ const initialSnapshot: HelioSyncSnapshot = Object.freeze({
   connectedDeviceId: null,
   connectedModelId: null,
   connectedFamily: null,
-  capabilities: Object.freeze({ stepsHistory: false, liveCapture: false }),
+  capabilities: Object.freeze({ stepsHistory: false, liveCapture: false, historySync: false }),
   bluetooth: "unknown",
   errorCode: null,
   capturedMinutes: 0,
@@ -57,10 +59,11 @@ type AnyDirectDeviceModel =
   | HuaweiModel
   | GarminModel
   | BleGattModel
-  | BleScaleModel;
+  | BleScaleModel
+  | ColmiRingModel;
 
 /**
- * Registry lookup for a snapshot model id across all five device families.
+ * Registry lookup for a snapshot model id across all six device families.
  * The sync snapshot types the field as a plain string, so the casts live here
  * at the boundary. Zepp OS is checked first, matching the setup controller's
  * matcher order (one Xiaomi-named model also ships a Zepp OS coordinator).
@@ -81,6 +84,8 @@ function lookupModel(
   if (bleGatt) return { model: bleGatt, family: "ble_gatt" };
   const bleScale = getBleScaleModel(modelId as BleScaleModelId);
   if (bleScale) return { model: bleScale, family: "ble_scale" };
+  const colmiRing = getColmiRingModel(modelId as ColmiRingModelId);
+  if (colmiRing) return { model: colmiRing, family: "colmi_ring" };
   return undefined;
 }
 
@@ -258,6 +263,7 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
     ble_gatt_live_capture: t`Live capture while connected; not hardware-verified. No history backfill. Samples are sent only when you tap “Retry upload”.`,
     ble_scale_live_capture: t`Live weight capture while connected; not hardware-verified. Some scales also report stored measurements on connection. Samples are sent only when you tap “Retry upload”.`,
     ble_scale_connection_only: t`Connection checks only; measurement capture is not implemented for this model yet. Not hardware-verified.`,
+    colmi_ring_history_sync: t`History sync on connection for steps, heart rate and sleep; not hardware-verified.`,
   };
   const upstreamLevelText = {
     high: t`high`,
@@ -290,7 +296,7 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
     <Section title={t`Direct devices`} icon={Bluetooth} tone="signal">
       <Sheet className="gap-3">
         <Text className="font-sans text-sm leading-relaxed text-ink-2">
-          {t`Experimental direct Bluetooth support for two kinds of devices. Zepp OS and Xiaomi devices sync step history in the foreground. BLE GATT health sensors (heart rate, blood pressure, temperature) record live while connected. Bluetooth smart scales record weight live, and some also report stored measurements on connection. Huawei/Honor and Garmin support connection checks only. No hardware verification has been done. No vendor login is requested.`}
+          {t`Experimental direct Bluetooth support for three kinds of devices. Zepp OS and Xiaomi devices sync step history in the foreground. BLE GATT health sensors (heart rate, blood pressure, temperature) record live while connected. Bluetooth smart scales record weight live, and some also report stored measurements on connection. Colmi and Yawell smart rings sync stored step, heart-rate and sleep history on connection. Huawei/Honor and Garmin support connection checks only. No hardware verification has been done. No vendor login is requested.`}
         </Text>
         <Text className="font-sans text-sm leading-relaxed text-ink-3">
           {t`Use the same saved device on both phones. Choose an existing binding to avoid duplicates, or add another only when you mean to create a separate binding. Nearby connection is a separate step.`}
@@ -395,6 +401,10 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
               {connectedFamily === "ble_scale"
                 ? t`Live weight capture while connected. Samples are saved in short batches and sent only when you tap “Retry upload”.`
                 : t`Live capture while connected. Samples are saved in short batches and sent only when you tap “Retry upload”. There is no history backfill.`}
+            </Text>
+          ) : connectedFamily === "colmi_ring" ? (
+            <Text className="font-sans text-sm text-ink-3">
+              {t`Ring history (steps, heart rate and sleep) syncs automatically while connected. Records are saved in batches and sent only when you tap “Retry upload”.`}
             </Text>
           ) : !snapshot.capabilities.stepsHistory || !snapshot.canSync ? (
             <Text className="font-sans text-sm text-ink-3">

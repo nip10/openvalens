@@ -890,6 +890,170 @@ describe.skipIf(!url)("mobile ingest batch on disposable PostgreSQL", () => {
     ]);
   });
 
+  test("Colmi ring steps intervals publish canonical per-bucket samples", async () => {
+    const RING_DEVICE = "af1c2a3e-9b2d-4c1e-8f3a-2d7e5b9c0a31";
+    await registerDirectDevice(db, {
+      deviceId: RING_DEVICE,
+      family: "colmi_ring",
+      modelId: "colmi_r02",
+      expectedContext: directContext,
+      authenticatedContext: directContext,
+      now,
+    });
+    const result = await ingestDirectDeviceBatch(db, {
+      expectedContext: directContext,
+      authenticatedContext: directContext,
+      batch: {
+        schemaVersion: 1,
+        deviceId: RING_DEVICE,
+        deviceIdentity: { family: "colmi_ring", modelId: "colmi_r02" },
+        provider: "direct_device",
+        recordType: "steps_interval",
+        mode: "backfill",
+        clientTimezone: "UTC",
+        upserts: [
+          {
+            type: "steps_interval",
+            externalRecordId: "bucket-1",
+            sourceApp: null,
+            startTime: "2026-10-01T07:00:00Z",
+            endTime: "2026-10-01T07:15:00Z",
+            count: 250,
+          },
+          {
+            type: "steps_interval",
+            externalRecordId: "bucket-2",
+            sourceApp: null,
+            startTime: "2026-10-01T07:15:00Z",
+            endTime: "2026-10-01T07:30:00Z",
+            count: 180,
+          },
+        ],
+        deletions: [],
+      } as never,
+      traceId: "ring-steps",
+      now,
+    });
+    expect(result.status).toBe("applied");
+    const samples = await db.select().from(metricSample);
+    expect(
+      samples
+        .map((sample) => ({
+          id: sample.externalSampleId,
+          value: sample.numericValue,
+          unit: sample.unit,
+          endAt: (sample.metadataJson as { endAt?: string } | null)?.endAt,
+        }))
+        .sort((left, right) => left.id!.localeCompare(right.id!)),
+    ).toEqual([
+      {
+        id: `dd:v1:${RING_DEVICE}:steps_interval:bucket-1:steps`,
+        value: 250,
+        unit: "count",
+        endAt: "2026-10-01T07:15:00.000Z",
+      },
+      {
+        id: `dd:v1:${RING_DEVICE}:steps_interval:bucket-2:steps`,
+        value: 180,
+        unit: "count",
+        endAt: "2026-10-01T07:30:00.000Z",
+      },
+    ]);
+    const definitions = await db.select().from(metricDefinition);
+    expect(definitions).toHaveLength(1);
+    expect(definitions[0]).toMatchObject({ code: "steps", unit: "count" });
+  });
+
+  test("Colmi ring sleep sessions publish a sleep health event with stages", async () => {
+    const RING_DEVICE = "af1c2a3e-9b2d-4c1e-8f3a-2d7e5b9c0a32";
+    await registerDirectDevice(db, {
+      deviceId: RING_DEVICE,
+      family: "colmi_ring",
+      modelId: "yawell_r05",
+      expectedContext: directContext,
+      authenticatedContext: directContext,
+      now,
+    });
+    const result = await ingestDirectDeviceBatch(db, {
+      expectedContext: directContext,
+      authenticatedContext: directContext,
+      batch: {
+        schemaVersion: 1,
+        deviceId: RING_DEVICE,
+        deviceIdentity: { family: "colmi_ring", modelId: "yawell_r05" },
+        provider: "direct_device",
+        recordType: "sleep_session",
+        mode: "backfill",
+        clientTimezone: "UTC",
+        upserts: [
+          {
+            type: "sleep_session",
+            externalRecordId: "sleep-1",
+            sourceApp: null,
+            startTime: "2026-09-30T23:00:00Z",
+            endTime: "2026-10-01T07:00:00Z",
+            stages: [
+              {
+                stage: "light",
+                startTime: "2026-09-30T23:00:00Z",
+                endTime: "2026-10-01T00:00:00Z",
+              },
+              {
+                stage: "deep",
+                startTime: "2026-10-01T00:00:00Z",
+                endTime: "2026-10-01T01:00:00Z",
+              },
+            ],
+          },
+        ],
+        deletions: [],
+      } as never,
+      traceId: "ring-sleep",
+      now,
+    });
+    expect(result.status).toBe("applied");
+    const [event] = await db.select().from(healthEvent);
+    expect(event).toMatchObject({
+      eventType: "sleep_session",
+      userId: "u1",
+      sourceEventId: `dd:v1:${RING_DEVICE}:sleep_session:sleep-1:sleep`,
+    });
+    expect(event?.eventAt.toISOString()).toBe("2026-09-30T23:00:00.000Z");
+    expect(event?.payloadJson).toMatchObject({
+      endAt: "2026-10-01T07:00:00.000Z",
+      sleepStageIntervals: [
+        { stage: "light", start: "2026-09-30T23:00:00.000Z", end: "2026-10-01T00:00:00.000Z" },
+        { stage: "deep", start: "2026-10-01T00:00:00.000Z", end: "2026-10-01T01:00:00.000Z" },
+      ],
+    });
+  });
+
+  test("Colmi ring exact-minute steps batches are refused with HISTORY_UNSUPPORTED", async () => {
+    const RING_DEVICE = "af1c2a3e-9b2d-4c1e-8f3a-2d7e5b9c0a33";
+    await registerDirectDevice(db, {
+      deviceId: RING_DEVICE,
+      family: "colmi_ring",
+      modelId: "colmi_r10",
+      expectedContext: directContext,
+      authenticatedContext: directContext,
+      now,
+    });
+    await expect(
+      acceptMobileBatch(db, {
+        organizationId: "org-a",
+        batch: {
+          ...directBatch(RING_DEVICE),
+          deviceIdentity: { family: "colmi_ring", modelId: "colmi_r10" },
+        },
+        traceId: "ring-exact-minute-steps",
+        now,
+        expectedOwnerId: "u1",
+      }),
+    ).rejects.toMatchObject({ reason: "HISTORY_UNSUPPORTED" });
+    expect(await db.select().from(ingestionJob)).toHaveLength(0);
+    expect(await db.select().from(ingestionRawArtifact)).toHaveLength(0);
+  });
+
   test("a second user cannot claim an already-registered smart scale (#424 explicit rejection)", async () => {
     const SCALE_DEVICE = "9f1c2a3e-9b2d-4c1e-8f3a-2d7e5b9c0a26";
     await registerDirectDevice(db, {

@@ -1,10 +1,8 @@
 import type {
   DirectDeviceBindingSummary,
   DirectDevicePublication,
-  DirectDeviceIdentity,
-  DirectDeviceFamily,
 } from "@openvalens/api/contracts/direct-device";
-import type { HelioDiscoveredDevice, HelioSetupSnapshot } from "../setup/types";
+import type { DirectDeviceFamily, HelioDiscoveredDevice, HelioSetupSnapshot } from "../setup/types";
 
 export type HelioSyncContext = Readonly<{
   serverUrl: string;
@@ -41,9 +39,9 @@ export type HelioSyncSnapshot = Readonly<{
   connectedDeviceId: string | null;
   /** Matched Zepp OS registry id of the connected device, or null. */
   connectedModelId: string | null;
-  connectedFamily: DirectDeviceIdentity["family"] | null;
+  connectedFamily: DirectDeviceFamily | null;
   connectionGeneration: number;
-  capabilities: Readonly<{ stepsHistory: boolean; liveCapture: boolean }>;
+  capabilities: Readonly<{ stepsHistory: boolean; liveCapture: boolean; historySync: boolean }>;
   bluetooth: HelioSetupSnapshot["bluetooth"];
   errorCode: string | null;
   capturedMinutes: number;

@@ -107,6 +107,31 @@ const directDeviceRecord = z.discriminatedUnion("type", [
     count: z.number().int().nonnegative(),
   }),
   z.strictObject({
+    type: z.literal("steps_interval"),
+    externalRecordId: z.string().min(1).max(120),
+    sourceApp: z.null(),
+    startTime: isoUtc,
+    endTime: isoUtc,
+    count: z.number().int().nonnegative(),
+  }),
+  z.strictObject({
+    type: z.literal("sleep_session"),
+    externalRecordId: z.string().min(1).max(120),
+    sourceApp: z.null(),
+    startTime: isoUtc,
+    endTime: isoUtc,
+    stages: z
+      .array(
+        z.strictObject({
+          stage: z.enum(["awake", "light", "deep", "rem"]),
+          startTime: isoUtc,
+          endTime: isoUtc,
+        }),
+      )
+      .max(200)
+      .optional(),
+  }),
+  z.strictObject({
     type: z.literal("heart_rate"),
     externalRecordId: z.string().min(1).max(120),
     sourceApp: z.null(),
@@ -155,6 +180,8 @@ export const directDeviceBatch = z
     provider: z.literal(DIRECT_DEVICE_PROVIDER),
     recordType: z.enum([
       "steps",
+      "steps_interval",
+      "sleep_session",
       "heart_rate",
       "body_temperature",
       "blood_pressure",
@@ -192,6 +219,38 @@ export const directDeviceBatch = z
             path: ["upserts", index, "endTime"],
             message: "Steps records must cover one exact UTC minute.",
           });
+      }
+      if (record.type === "steps_interval") {
+        const start = new Date(record.startTime).getTime();
+        const end = new Date(record.endTime).getTime();
+        // Rings report arbitrary buckets (typically 15 minutes); anything
+        // longer than an hour is not a plausible device interval.
+        if (end - start > 3_600_000)
+          ctx.addIssue({
+            code: "custom",
+            path: ["upserts", index, "endTime"],
+            message: "Steps interval records must cover at most one hour.",
+          });
+      }
+      if (record.type === "sleep_session" && record.stages) {
+        let previousEnd: number | undefined;
+        record.stages.forEach((stage, stageIndex) => {
+          const stageStart = new Date(stage.startTime).getTime();
+          const stageEnd = new Date(stage.endTime).getTime();
+          if (stageEnd <= stageStart)
+            ctx.addIssue({
+              code: "custom",
+              path: ["upserts", index, "stages", stageIndex, "endTime"],
+              message: "Stage endTime must be after startTime.",
+            });
+          if (previousEnd !== undefined && stageStart < previousEnd)
+            ctx.addIssue({
+              code: "custom",
+              path: ["upserts", index, "stages", stageIndex, "startTime"],
+              message: "Sleep stages must be ordered and must not overlap.",
+            });
+          previousEnd = stageEnd;
+        });
       }
       if (record.type === "heart_rate")
         record.samples.forEach((sample, sampleIndex) => {

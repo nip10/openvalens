@@ -6,6 +6,7 @@ export const DIRECT_DEVICE_FAMILIES = [
   "garmin",
   "ble_gatt",
   "ble_scale",
+  "colmi_ring",
 ] as const;
 export type DirectDeviceFamily = (typeof DIRECT_DEVICE_FAMILIES)[number];
 export type DirectDeviceIdentity = { family: DirectDeviceFamily; modelId: string };
@@ -1566,6 +1567,64 @@ export const DIRECT_DEVICE_MODELS: readonly DirectDeviceModelDescriptor[] = [
     family: "ble_scale",
     modelId: "viatom_f8",
     displayName: "Viatom F8",
+  },
+  // Colmi/Yawell smart rings (Issue #425): arbitrary-interval steps and sleep
+  // sessions. The native lane owns the BLE protocol; these rows only carry the
+  // shared identity vocabulary. None are transport-validated yet.
+  {
+    family: "colmi_ring",
+    modelId: "colmi_r02",
+    displayName: "Colmi R02",
+  },
+  {
+    family: "colmi_ring",
+    modelId: "colmi_r03",
+    displayName: "Colmi R03",
+  },
+  {
+    family: "colmi_ring",
+    modelId: "colmi_r06",
+    displayName: "Colmi R06",
+  },
+  {
+    family: "colmi_ring",
+    modelId: "colmi_r07",
+    displayName: "Colmi R07",
+  },
+  {
+    family: "colmi_ring",
+    modelId: "colmi_r09",
+    displayName: "Colmi R09",
+  },
+  {
+    family: "colmi_ring",
+    modelId: "colmi_r10",
+    displayName: "Colmi R10",
+  },
+  {
+    family: "colmi_ring",
+    modelId: "colmi_r12",
+    displayName: "Colmi R12",
+  },
+  {
+    family: "colmi_ring",
+    modelId: "yawell_r05",
+    displayName: "Yawell R05",
+  },
+  {
+    family: "colmi_ring",
+    modelId: "yawell_r10",
+    displayName: "Yawell R10",
+  },
+  {
+    family: "colmi_ring",
+    modelId: "yawell_r11",
+    displayName: "Yawell R11",
+  },
+  {
+    family: "colmi_ring",
+    modelId: "yawell_ai_health_watchpad",
+    displayName: "Yawell Y27 AI Health WatchPad",
   },
 ];
 

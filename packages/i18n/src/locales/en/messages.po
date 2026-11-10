@@ -6257,8 +6257,8 @@ msgid "Experimental"
 msgstr "Experimental"
 
 #: apps/native/components/direct-device-settings.tsx
-msgid "Experimental direct Bluetooth support for two kinds of devices. Zepp OS and Xiaomi devices sync step history in the foreground. BLE GATT health sensors (heart rate, blood pressure, temperature) record live while connected. Bluetooth smart scales record weight live, and some also report stored measurements on connection. Huawei/Honor and Garmin support connection checks only. No hardware verification has been done. No vendor login is requested."
-msgstr "Experimental direct Bluetooth support for two kinds of devices. Zepp OS and Xiaomi devices sync step history in the foreground. BLE GATT health sensors (heart rate, blood pressure, temperature) record live while connected. Bluetooth smart scales record weight live, and some also report stored measurements on connection. Huawei/Honor and Garmin support connection checks only. No hardware verification has been done. No vendor login is requested."
+msgid "Experimental direct Bluetooth support for three kinds of devices. Zepp OS and Xiaomi devices sync step history in the foreground. BLE GATT health sensors (heart rate, blood pressure, temperature) record live while connected. Bluetooth smart scales record weight live, and some also report stored measurements on connection. Colmi and Yawell smart rings sync stored step, heart-rate and sleep history on connection. Huawei/Honor and Garmin support connection checks only. No hardware verification has been done. No vendor login is requested."
+msgstr "Experimental direct Bluetooth support for three kinds of devices. Zepp OS and Xiaomi devices sync step history in the foreground. BLE GATT health sensors (heart rate, blood pressure, temperature) record live while connected. Bluetooth smart scales record weight live, and some also report stored measurements on connection. Colmi and Yawell smart rings sync stored step, heart-rate and sleep history on connection. Huawei/Honor and Garmin support connection checks only. No hardware verification has been done. No vendor login is requested."
 
 #: packages/api/src/presenters/energy-estimate.ts
 msgid "Experimental estimate: not a target or a measure of what you ate."
@@ -7046,6 +7046,10 @@ msgstr "History chart measure"
 #: apps/web/src/components/workout-history.tsx
 msgid "History is unavailable right now."
 msgstr "History is unavailable right now."
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "History sync on connection for steps, heart rate and sleep; not hardware-verified."
+msgstr "History sync on connection for steps, heart rate and sleep; not hardware-verified."
 
 #: packages/api/src/presenters/coach-settings.ts
 msgid "Hold current weight and habits."
@@ -12404,6 +12408,10 @@ msgstr "Right upper arm (front)"
 #: packages/api/src/presenters/body-map.ts
 msgid "Right upper back (back)"
 msgstr "Right upper back (back)"
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "Ring history (steps, heart rate and sleep) syncs automatically while connected. Records are saved in batches and sent only when you tap “Retry upload”."
+msgstr "Ring history (steps, heart rate and sleep) syncs automatically while connected. Records are saved in batches and sent only when you tap “Retry upload”."
 
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/web/src/routes/_auth/settings/index.tsx

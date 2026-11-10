@@ -1,11 +1,13 @@
 import type { BleGattModelId } from "../models/ble-gatt";
 import type { BleScaleModelId } from "../models/ble-scale";
+import type { ColmiRingModelId } from "../models/colmi-ring";
 import type { GarminModelId } from "../models/garmin";
 import type { HuaweiModelId } from "../models/huawei";
 import type { XiaomiModelId } from "../models/xiaomi";
 import type { ZeppOsModelId } from "../models/zepp-os";
 import type { BleGattSample } from "../protocol/ble-gatt";
 import type { WeightMeasurementSample } from "../protocol/ble-scale";
+import type { ColmiRingRecord } from "../protocol/colmi-ring";
 import type { HelioHistoryOptions, HelioHistoryResult } from "../protocol/types";
 
 /** A model id from any direct-device registry. */
@@ -15,7 +17,8 @@ export type DirectDeviceModelId =
   | HuaweiModelId
   | GarminModelId
   | BleGattModelId
-  | BleScaleModelId;
+  | BleScaleModelId
+  | ColmiRingModelId;
 
 /** The protocol family a discovered model belongs to. */
 export type DirectDeviceFamily =
@@ -24,10 +27,14 @@ export type DirectDeviceFamily =
   | "huawei"
   | "garmin"
   | "ble_gatt"
-  | "ble_scale";
+  | "ble_scale"
+  | "colmi_ring";
 
 /** A live sample from either connection-based capture family. */
 export type DirectDeviceLiveSample = BleGattSample | WeightMeasurementSample;
+
+/** A record emitted by a history-sync family (rings sync on connection). */
+export type DirectDeviceHistorySample = ColmiRingRecord;
 
 export type HelioDiscoveredDevice = Readonly<{
   id: string;
@@ -50,7 +57,12 @@ export type HelioSetupSnapshot = Readonly<{
   connectedModelId?: DirectDeviceModelId | null;
   /** Protocol family of the connected device; absent only for legacy snapshots. */
   connectedFamily?: DirectDeviceFamily | null;
-  capabilities: Readonly<{ stepsHistory: boolean; liveCapture: boolean }>;
+  capabilities: Readonly<{
+    stepsHistory: boolean;
+    liveCapture: boolean;
+    /** True for families that sync stored history on connection (rings). */
+    historySync: boolean;
+  }>;
   errorCode: string | null;
   crypto: Readonly<{
     status: "not_checked" | "running" | "passed" | "unavailable" | "failed";

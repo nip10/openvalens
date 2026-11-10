@@ -14,10 +14,13 @@ export type DirectDeviceBindingIdentity = {
 /**
  * Record types a direct-device binding can publish. Steps are watch-family
  * history; the GATT sensor metrics come from BLE peripherals; smart scales
- * publish weight and optional body-composition measurements.
+ * publish weight and optional body-composition measurements; smart rings
+ * publish arbitrary-interval steps and sleep sessions.
  */
 export type DirectDeviceRecordType =
   | "steps"
+  | "steps_interval"
+  | "sleep_session"
   | "heart_rate"
   | "body_temperature"
   | "blood_pressure"
@@ -54,7 +57,10 @@ export function directDeviceFamilySupportsRecordType(
   recordType: DirectDeviceRecordType,
 ): boolean {
   if (recordType === "steps") return family === "zepp_os" || family === "xiaomi";
+  if (recordType === "steps_interval" || recordType === "sleep_session")
+    return family === "colmi_ring";
   if (recordType === "weight_measurement") return family === "ble_scale";
+  if (recordType === "heart_rate") return family === "ble_gatt" || family === "colmi_ring";
   return family === "ble_gatt";
 }
 
