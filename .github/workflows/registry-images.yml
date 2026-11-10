@@ -10,6 +10,11 @@ name: Registry images
 # configuration comes from Coolify environment variables, except
 # VITE_SERVER_URL which is baked into the web bundle at build time and must
 # be the production API origin (docs/deployment.md §web).
+#
+# Deliberately uses the plain `docker build`/`docker push` CLI rather than
+# build-push-action: the sanitizer job proves that path, while
+# build-push-action runs of the identical Dockerfile + env content failed
+# in varlock's env parsing during bun install (first run of this workflow).
 
 on:
   push:
@@ -25,7 +30,6 @@ permissions:
   packages: write
 
 env:
-  REGISTRY: ghcr.io
   SERVER_IMAGE: ghcr.io/nip10/openvalens-server
   WEB_IMAGE: ghcr.io/nip10/openvalens-web
   # The public API origin, baked into the web bundle (docs/deployment.md).
@@ -38,7 +42,6 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
       - name: Write synthetic build-time env files
         run: |
           env_dir="$RUNNER_TEMP/openvalens-build-env"
@@ -58,26 +61,23 @@ jobs:
           EMAIL_FROM=CI Smoke <ci-smoke@example.invalid>
           EMAIL_DRY_RUN=true
           EOF
+          chmod 0600 "$env_dir"/*.env
           echo "OPENVALENS_BUILD_ENV=$env_dir" >> "$GITHUB_ENV"
       - uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
+          registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: apps/server/Dockerfile
-          push: true
-          provenance: false
-          secrets: |
-            web_env=${{ env.OPENVALENS_BUILD_ENV }}/web.env
-            server_env=${{ env.OPENVALENS_BUILD_ENV }}/server.env
-          tags: |
-            ${{ env.SERVER_IMAGE }}:main
-            ${{ env.SERVER_IMAGE }}:sha-${{ github.sha }}
-          cache-from: type=gha,scope=server
-          cache-to: type=gha,scope=server,mode=max
+      - name: Build server image
+        run: |
+          docker build \
+            --secret id=web_env,src="$OPENVALENS_BUILD_ENV/web.env" \
+            --secret id=server_env,src="$OPENVALENS_BUILD_ENV/server.env" \
+            -f apps/server/Dockerfile \
+            -t "$SERVER_IMAGE:main" \
+            -t "$SERVER_IMAGE:sha-${GITHUB_SHA}" .
+      - name: Push server image
+        run: docker push --all-tags "$SERVER_IMAGE"
 
   web-image:
     name: Build and push web image
@@ -85,7 +85,6 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
       - name: Write build-time env files
         run: |
           env_dir="$RUNNER_TEMP/openvalens-build-env"
@@ -110,25 +109,21 @@ jobs:
           EMAIL_FROM=CI Smoke <ci-smoke@example.invalid>
           EMAIL_DRY_RUN=true
           EOF
+          chmod 0600 "$env_dir"/*.env
           echo "OPENVALENS_BUILD_ENV=$env_dir" >> "$GITHUB_ENV"
       - uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
+          registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: apps/web/Dockerfile
-          push: true
-          provenance: false
-          build-args: |
-            VITE_SERVER_URL=${{ env.PROD_SERVER_URL }}
-          secrets: |
-            web_env=${{ env.OPENVALENS_BUILD_ENV }}/web.env
-            server_env=${{ env.OPENVALENS_BUILD_ENV }}/server.env
-          tags: |
-            ${{ env.WEB_IMAGE }}:main
-            ${{ env.WEB_IMAGE }}:sha-${{ github.sha }}
-          cache-from: type=gha,scope=web
-          cache-to: type=gha,scope=web,mode=max
+      - name: Build web image
+        run: |
+          docker build \
+            --build-arg VITE_SERVER_URL="$PROD_SERVER_URL" \
+            --secret id=web_env,src="$OPENVALENS_BUILD_ENV/web.env" \
+            --secret id=server_env,src="$OPENVALENS_BUILD_ENV/server.env" \
+            -f apps/web/Dockerfile \
+            -t "$WEB_IMAGE:main" \
+            -t "$WEB_IMAGE:sha-${GITHUB_SHA}" .
+      - name: Push web image
+        run: docker push --all-tags "$WEB_IMAGE"
