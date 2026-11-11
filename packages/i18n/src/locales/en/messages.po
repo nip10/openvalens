@@ -7076,6 +7076,10 @@ msgid "History is unavailable right now."
 msgstr "History is unavailable right now."
 
 #: apps/native/components/direct-device-settings.tsx
+msgid "History sync on connection for 1-minute steps, staged sleep and per-minute heart rate on the three BLE models (Pebble 2, Pebble Time 2, Pebble 2 Duo). The five Bluetooth Classic models cannot connect at all because this stack is BLE-only. Not hardware-verified."
+msgstr "History sync on connection for 1-minute steps, staged sleep and per-minute heart rate on the three BLE models (Pebble 2, Pebble Time 2, Pebble 2 Duo). The five Bluetooth Classic models cannot connect at all because this stack is BLE-only. Not hardware-verified."
+
+#: apps/native/components/direct-device-settings.tsx
 msgid "History sync on connection for 15-minute step buckets, staged sleep and realtime heart rate; not hardware-verified."
 msgstr "History sync on connection for 15-minute step buckets, staged sleep and realtime heart rate; not hardware-verified."
 
@@ -10943,6 +10947,10 @@ msgstr "Paused. Resume when you're ready."
 #: packages/email/src/templates/billing.tsx
 msgid "Payment failed"
 msgstr "Payment failed"
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "Pebble health (1-minute steps, staged sleep and per-minute heart rate) syncs automatically while connected. Records are saved in batches and sent only when you tap “Retry upload”."
+msgstr "Pebble health (1-minute steps, staged sleep and per-minute heart rate) syncs automatically while connected. Records are saved in batches and sent only when you tap “Retry upload”."
 
 #: apps/native/app/(drawer)/sharing.tsx
 #: apps/web/src/routes/_auth/sharing.tsx
@@ -15130,6 +15138,10 @@ msgstr "This module is hidden. Turn it on in Settings › Modules."
 #: apps/native/app/(drawer)/private-measurements.tsx
 msgid "This optional feature is off by default. Turning it on lets you record weight or circumference measurements and view progress photos in this account."
 msgstr "This optional feature is off by default. Turning it on lets you record weight or circumference measurements and view progress photos in this account."
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "This Pebble model uses Bluetooth Classic upstream and cannot connect with this BLE-only stack."
+msgstr "This Pebble model uses Bluetooth Classic upstream and cannot connect with this BLE-only stack."
 
 #. safety
 #: apps/web/src/routes/_auth/settings/index.tsx

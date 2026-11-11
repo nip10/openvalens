@@ -7076,6 +7076,10 @@ msgid "History is unavailable right now."
 msgstr "O histórico não está disponível neste momento."
 
 #: apps/native/components/direct-device-settings.tsx
+msgid "History sync on connection for 1-minute steps, staged sleep and per-minute heart rate on the three BLE models (Pebble 2, Pebble Time 2, Pebble 2 Duo). The five Bluetooth Classic models cannot connect at all because this stack is BLE-only. Not hardware-verified."
+msgstr "Sincronização de histórico ao ligar para passos de minuto a minuto, sono por fases e frequência cardíaca minuto a minuto nos três modelos BLE (Pebble 2, Pebble 2 Duo e Pebble Time 2); não verificado em hardware."
+
+#: apps/native/components/direct-device-settings.tsx
 msgid "History sync on connection for 15-minute step buckets, staged sleep and realtime heart rate; not hardware-verified."
 msgstr "Sincronização de histórico ao ligar para passos em intervalos de 15 minutos, sono por fases e frequência cardíaca em direto; não verificado em hardware."
 
@@ -10943,6 +10947,10 @@ msgstr "Em pausa. Retome quando estiver pronto."
 #: packages/email/src/templates/billing.tsx
 msgid "Payment failed"
 msgstr "Pagamento falhou"
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "Pebble health (1-minute steps, staged sleep and per-minute heart rate) syncs automatically while connected. Records are saved in batches and sent only when you tap “Retry upload”."
+msgstr "A saúde do Pebble (passos de minuto a minuto, sono por fases e frequência cardíaca minuto a minuto) sincroniza automaticamente enquanto ligado. Os registos são guardados em lotes e só são enviados quando toca em “Tentar enviar novamente”."
 
 #: apps/native/app/(drawer)/sharing.tsx
 #: apps/web/src/routes/_auth/sharing.tsx
@@ -15130,6 +15138,10 @@ msgstr "Este módulo está oculto. Ative-o em Definições › Módulos."
 #: apps/native/app/(drawer)/private-measurements.tsx
 msgid "This optional feature is off by default. Turning it on lets you record weight or circumference measurements and view progress photos in this account."
 msgstr "Esta funcionalidade opcional está desligada por predefinição. Ao ligá-la, pode registar medições de peso ou perímetros e ver fotografias de progresso nesta conta."
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "This Pebble model uses Bluetooth Classic upstream and cannot connect with this BLE-only stack."
+msgstr "Este modelo Pebble usa Bluetooth Classic no Gadgetbridge e não consegue ligar-se a esta stack apenas-BLE."
 
 #. safety
 #: apps/web/src/routes/_auth/settings/index.tsx
