@@ -10,7 +10,7 @@ import {
 test("direct-device catalog has unique family/model pairs and supported steps identity", () => {
   const keys = DIRECT_DEVICE_MODELS.map(({ family, modelId }) => `${family}:${modelId}`);
   expect(new Set(keys).size).toBe(keys.length);
-  expect(DIRECT_DEVICE_MODELS).toHaveLength(465);
+  expect(DIRECT_DEVICE_MODELS).toHaveLength(473);
   expect(
     findDirectDeviceModel({ family: "zepp_os", modelId: "amazfit_helio_strap" })?.displayName,
   ).toBe("Amazfit Helio Strap");
@@ -280,4 +280,42 @@ test("Casio catalog resolves the 12 catalog models", () => {
   expect(isDirectDeviceIdentity({ family: "casio", modelId: "casio_unknown" })).toBe(false);
   expect(isDirectDeviceIdentity({ family: "casio", modelId: "garmin_fenix_7" })).toBe(false);
   expect(isDirectDeviceIdentity({ family: "fitpro", modelId: "casio_gbd-100" })).toBe(false);
+});
+
+test("Pebble catalog resolves the 8 catalog models", () => {
+  // 8 upstream `vendor: pebble` entries in the committed Gadgetbridge catalog.
+  expect(DIRECT_DEVICE_MODELS.filter(({ family }) => family === "pebble")).toHaveLength(8);
+  expect(findDirectDeviceModel({ family: "pebble", modelId: "pebble_classic" })).toEqual({
+    family: "pebble",
+    modelId: "pebble_classic",
+    displayName: "Pebble Classic",
+  });
+  expect(findDirectDeviceModel({ family: "pebble", modelId: "pebble_steel" })?.displayName).toBe(
+    "Pebble Steel",
+  );
+  expect(findDirectDeviceModel({ family: "pebble", modelId: "pebble_time" })?.displayName).toBe(
+    "Pebble Time",
+  );
+  expect(
+    findDirectDeviceModel({ family: "pebble", modelId: "pebble_time_steel" })?.displayName,
+  ).toBe("Pebble Time Steel");
+  expect(
+    findDirectDeviceModel({ family: "pebble", modelId: "pebble_time_round" })?.displayName,
+  ).toBe("Pebble Time Round");
+  expect(
+    findDirectDeviceModel({ family: "pebble", modelId: "pebble_classic_2" })?.displayName,
+  ).toBe("Pebble Classic 2");
+  expect(findDirectDeviceModel({ family: "pebble", modelId: "pebble_2_duo" })?.displayName).toBe(
+    "Pebble 2 Duo",
+  );
+  expect(findDirectDeviceModel({ family: "pebble", modelId: "pebble_time_2" })?.displayName).toBe(
+    "Pebble Time 2",
+  );
+  expect(isDirectDeviceIdentity({ family: "pebble", modelId: "pebble_classic_2" })).toBe(true);
+  expect(isDirectDeviceIdentity({ family: "pebble", modelId: "pebble_2_duo" })).toBe(true);
+  expect(isDirectDeviceIdentity({ family: "pebble", modelId: "pebble_time_2" })).toBe(true);
+  // Unknown models and cross-family model ids are rejected.
+  expect(isDirectDeviceIdentity({ family: "pebble", modelId: "pebble_unknown" })).toBe(false);
+  expect(isDirectDeviceIdentity({ family: "pebble", modelId: "garmin_fenix_7" })).toBe(false);
+  expect(isDirectDeviceIdentity({ family: "casio", modelId: "pebble_classic" })).toBe(false);
 });

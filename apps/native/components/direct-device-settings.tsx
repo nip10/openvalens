@@ -23,6 +23,8 @@ import { getBleScaleModel } from "@/lib/direct-devices/models/ble-scale";
 import type { BleScaleModel, BleScaleModelId } from "@/lib/direct-devices/models/ble-scale";
 import { getCasioModel } from "@/lib/direct-devices/models/casio";
 import type { CasioModel, CasioModelId } from "@/lib/direct-devices/models/casio";
+import { getPebbleModel } from "@/lib/direct-devices/models/pebble";
+import type { PebbleModel, PebbleModelId } from "@/lib/direct-devices/models/pebble";
 import { getColmiRingModel } from "@/lib/direct-devices/models/colmi-ring";
 import type { ColmiRingModel, ColmiRingModelId } from "@/lib/direct-devices/models/colmi-ring";
 import { getGloryFitModel } from "@/lib/direct-devices/models/gloryfit";
@@ -81,7 +83,8 @@ type AnyDirectDeviceModel =
   | ColmiRingModel
   | GloryFitModel
   | HuamiLegacyModel
-  | CasioModel;
+  | CasioModel
+  | PebbleModel;
 
 /**
  * Registry lookup for a snapshot model id across all eight device families.
@@ -121,6 +124,8 @@ function lookupModel(
   if (colmiRing) return { model: colmiRing, family: "colmi_ring" };
   const casio = getCasioModel(modelId as CasioModelId);
   if (casio) return { model: casio, family: "casio" };
+  const pebble = getPebbleModel(modelId as PebbleModelId);
+  if (pebble) return { model: pebble, family: "pebble" };
   return undefined;
 }
 
@@ -319,6 +324,7 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
     fitpro_history_sync: t`History sync on connection for 15-minute step buckets, staged sleep and realtime heart rate; not hardware-verified.`,
     casio_steps_history: t`History sync on connection for hourly step buckets only; the Casio protocol carries no heart rate or sleep data. Not hardware-verified.`,
     casio_connection_only: t`Connection checks only; the Casio protocol has no recorded-data path for this model. Not hardware-verified.`,
+    pebble_health_sync: t`History sync on connection for 1-minute steps, staged sleep and per-minute heart rate on the three BLE models (Pebble 2, Pebble Time 2, Pebble 2 Duo). The five Bluetooth Classic models cannot connect at all because this stack is BLE-only. Not hardware-verified.`,
   };
   const upstreamLevelText = {
     high: t`high`,
@@ -511,6 +517,12 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
             <Text className="font-sans text-sm text-ink-3">
               {t`Moyoung history (heart rate and sleep) syncs automatically while connected. Steps are not synced because the watch only reports daily totals. Records are saved in batches and sent only when you tap “Retry upload”.`}
             </Text>
+          ) : connectedFamily === "pebble" ? (
+            <Text className="font-sans text-sm text-ink-3">
+              {snapshot.capabilities.historySync
+                ? t`Pebble health (1-minute steps, staged sleep and per-minute heart rate) syncs automatically while connected. Records are saved in batches and sent only when you tap “Retry upload”.`
+                : t`This Pebble model uses Bluetooth Classic upstream and cannot connect with this BLE-only stack.`}
+            </Text>
           ) : connectedFamily === "fitpro" ? (
             <Text className="font-sans text-sm text-ink-3">
               {t`FitPro history (15-minute steps, sleep and realtime heart rate) syncs automatically while connected. Records are saved in batches and sent only when you tap “Retry upload”.`}
@@ -651,6 +663,14 @@ function friendlyError(code: string) {
     return "The Casio watch did not expose its Watch Features service. Move it away from the phone, then reconnect.";
   if (code === "CASIO_STEPS_UNSUPPORTED")
     return "This Casio model is registered for connection checks only; the protocol has no recorded-data path for it.";
+  if (code === "PEBBLE_BT_CLASSIC_UNSUPPORTED")
+    return "This Pebble model uses Bluetooth Classic upstream, which this BLE-only stack cannot carry. Only Pebble 2, Pebble Time 2 and Pebble 2 Duo can connect.";
+  if (code === "PEBBLE_SERVICE_MISSING")
+    return "The Pebble did not expose its pairing service. Move it away from the phone, then reconnect.";
+  if (code === "PEBBLE_PPOGATT_MISSING")
+    return "This Pebble did not expose the PPoGATT service, so the BLE data path is unavailable. Only Pebble 2, Pebble Time 2 and Pebble 2 Duo are supported.";
+  if (code === "PEBBLE_HISTORY_UNSUPPORTED")
+    return "This Pebble connected, but its health session is not available. Reconnect and try again.";
   if (code === "HISTORY_UNSUPPORTED")
     return "This device connected, but step history sync is not supported for it.";
   return "Could not sync device steps. Try again.";

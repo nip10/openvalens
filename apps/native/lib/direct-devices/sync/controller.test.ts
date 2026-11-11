@@ -1907,6 +1907,129 @@ test("FitPro history is committed as steps_interval, sleep_session and heart_rat
   invalidateDirectDeviceAuthority();
 });
 
+test("Pebble history is committed as steps, sleep_session and heart_rate batches", async () => {
+  const { db, store } = sqlite();
+  const historyCapture: { handler: ((sample: DirectDeviceHistorySample) => void) | null } = {
+    handler: null,
+  };
+  const pebbleBinding: DirectDeviceBindingSummary = {
+    ...binding,
+    family: "pebble",
+    modelId: "pebble_classic_2",
+    displayName: "Pebble 2",
+  };
+  const { controller, ticket } = await readyController({
+    store,
+    setup: setup(async () => ({ pages: 0, minutes: 0, complete: true }), "pebble_classic_2", {
+      family: "pebble",
+      stepsHistory: true,
+      liveCapture: false,
+      historySync: true,
+    }),
+    localIdentity: {
+      family: "pebble" as DirectDeviceIdentity["family"],
+      modelId: "pebble_classic_2",
+    },
+    historyCapture,
+    makeClient: () => ({
+      directDevice: {
+        listDirectDevices: async () => ({ devices: [pebbleBinding] }),
+        registerDirectDevice: async () => ({ providerConnectionId: 41 }),
+        ingestDirectDeviceBatch: async () => ({ status: "applied" }),
+      },
+    }),
+  });
+  expect(historyCapture.handler).not.toBeNull();
+
+  // 48 one-minute step records + one sleep session + one heart-rate point +
+  // two more steps reaches the 50-sample flush threshold in one commit.
+  const dayStart = new Date(Date.UTC(2026, 1, 1, 0, 0, 0));
+  for (let index = 0; index < 48; index += 1) {
+    const start = new Date(dayStart.getTime() + index * 60_000);
+    historyCapture.handler!({
+      type: "steps",
+      startTime: start.toISOString(),
+      endTime: new Date(start.getTime() + 60_000).toISOString(),
+      count: 10 + index,
+    });
+  }
+  historyCapture.handler!({
+    type: "sleep_session",
+    startTime: new Date(Date.UTC(2026, 1, 1, 23, 0, 0)).toISOString(),
+    endTime: new Date(Date.UTC(2026, 1, 2, 7, 0, 0)).toISOString(),
+    stages: [
+      {
+        stage: "light",
+        startTime: new Date(Date.UTC(2026, 1, 1, 23, 0, 0)).toISOString(),
+        endTime: new Date(Date.UTC(2026, 1, 2, 1, 0, 0)).toISOString(),
+      },
+      {
+        stage: "deep",
+        startTime: new Date(Date.UTC(2026, 1, 2, 1, 0, 0)).toISOString(),
+        endTime: new Date(Date.UTC(2026, 1, 2, 7, 0, 0)).toISOString(),
+      },
+    ],
+  });
+  historyCapture.handler!({
+    type: "heart_rate",
+    time: new Date(Date.UTC(2026, 1, 1, 12, 0, 0)).toISOString(),
+    bpm: 71,
+  });
+  for (let index = 48; index < 50; index += 1) {
+    const start = new Date(dayStart.getTime() + index * 60_000);
+    historyCapture.handler!({
+      type: "steps",
+      startTime: start.toISOString(),
+      endTime: new Date(start.getTime() + 60_000).toISOString(),
+      count: 10 + index,
+    });
+  }
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  const pending = store.listPending(ticket, 10);
+  expect(pending).toHaveLength(3);
+  const byType = new Map(pending.map((row) => [row.request.batch.recordType, row.request.batch]));
+  expect([...byType.keys()].sort()).toEqual(["heart_rate", "sleep_session", "steps"]);
+  for (const batch of byType.values())
+    expect(batch).toMatchObject({
+      mode: "backfill",
+      deviceIdentity: { family: "pebble", modelId: "pebble_classic_2" },
+    });
+
+  const steps = byType.get("steps")!.upserts;
+  expect(steps).toHaveLength(50);
+  expect(steps[0]).toMatchObject({
+    type: "steps",
+    startTime: "2026-02-01T00:00:00.000Z",
+    endTime: "2026-02-01T00:01:00.000Z",
+    count: 10,
+  });
+  expect(steps[0]!.externalRecordId).toStartWith(`dd-pebble:${deviceId}:steps:`);
+
+  const sleep = byType.get("sleep_session")!.upserts;
+  expect(sleep).toHaveLength(1);
+  expect(sleep[0]).toMatchObject({
+    type: "sleep_session",
+    startTime: "2026-02-01T23:00:00.000Z",
+    endTime: "2026-02-02T07:00:00.000Z",
+  });
+  expect(sleep[0]!.externalRecordId).toStartWith(`dd-pebble:${deviceId}:sleep:`);
+  expect(sleep[0]).toHaveProperty("stages");
+
+  const heartRate = byType.get("heart_rate")!.upserts;
+  expect(heartRate).toHaveLength(1);
+  expect(heartRate[0]).toMatchObject({ type: "heart_rate" });
+  expect(heartRate[0]!.externalRecordId).toStartWith(`dd-pebble:${deviceId}:hr:`);
+  if (heartRate[0]!.type === "heart_rate") {
+    expect(heartRate[0]!.samples).toHaveLength(1);
+    expect(heartRate[0]!.samples[0]).toMatchObject({ bpm: 71 });
+  }
+
+  await controller.dispose();
+  db.close();
+  invalidateDirectDeviceAuthority();
+});
+
 test("Bangle.js history is committed as steps_interval and heart_rate batches", async () => {
   const { db, store } = sqlite();
   const historyCapture: { handler: ((sample: DirectDeviceHistorySample) => void) | null } = {

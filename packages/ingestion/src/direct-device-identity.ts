@@ -43,7 +43,14 @@ export type DirectDeviceBindingIdentity = {
  * BLE-transport Garmin wearables can sync history; Bluetooth-Classic/RFCOMM
  * models and the non-wearable devices (Edge computers, GPS navigators, chest
  * straps) stay connection-only and are gated by the native registry before a
- * batch is ever created.
+ * batch is ever created. Pebble watches publish 1-minute step records (with
+ * per-minute heart rate in the v≥7 record layout), sleep sessions whose bounds
+ * come from tag 83 and whose stages come from tag 84 intervals, so `steps`,
+ * `heart_rate` and `sleep_session` are mapped. Only the three BLE models
+ * (pebble_classic_2/DIORITE, pebble_2_duo/FLINT, pebble_time_2/EMERY) can
+ * connect at all; the Bluetooth-Classic models (Classic, Steel, Time, Time
+ * Steel, Time Round) have no BLE radio and are refused by the native registry
+ * before a batch is ever created.
  */
 export type DirectDeviceRecordType =
   | "steps"
@@ -90,7 +97,8 @@ export function directDeviceFamilySupportsRecordType(
       family === "xiaomi" ||
       family === "huami_legacy" ||
       family === "huawei" ||
-      family === "garmin"
+      family === "garmin" ||
+      family === "pebble"
     );
   if (recordType === "steps_interval")
     return (
@@ -108,7 +116,8 @@ export function directDeviceFamilySupportsRecordType(
       family === "huami_legacy" ||
       family === "moyoung" ||
       family === "huawei" ||
-      family === "garmin"
+      family === "garmin" ||
+      family === "pebble"
     );
   if (recordType === "weight_measurement") return family === "ble_scale";
   if (recordType === "heart_rate")
@@ -121,7 +130,8 @@ export function directDeviceFamilySupportsRecordType(
       family === "huami_legacy" ||
       family === "moyoung" ||
       family === "huawei" ||
-      family === "garmin"
+      family === "garmin" ||
+      family === "pebble"
     );
   return family === "ble_gatt";
 }

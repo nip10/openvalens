@@ -13,6 +13,7 @@ export const DIRECT_DEVICE_FAMILIES = [
   "moyoung",
   "fitpro",
   "casio",
+  "pebble",
 ] as const;
 export type DirectDeviceFamily = (typeof DIRECT_DEVICE_FAMILIES)[number];
 export type DirectDeviceIdentity = { family: DirectDeviceFamily; modelId: string };
@@ -2389,6 +2390,56 @@ export const DIRECT_DEVICE_MODELS: readonly DirectDeviceModelDescriptor[] = [
     family: "casio",
     modelId: "casio_stb-1000",
     displayName: "Casio STB-1000",
+  },
+  // Pebble watches via Gadgetbridge (Issue #427): 1-minute step history, staged
+  // sleep sessions and per-minute heart rate. Only the three BLE models can
+  // connect — `pebble_classic_2` (DIORITE), `pebble_2_duo` (FLINT) and
+  // `pebble_time_2` (EMERY). The original Pebble Classic, Steel, Time, Time
+  // Steel and Time Round are Bluetooth-Classic (SPP) only: they have no BLE
+  // radio, so they can never pair with our stack and carry no capabilities.
+  // Health sync is independent of the app-install machinery (no installer, no
+  // PBW reader, no appmsg handlers). The native lane owns the BLE protocol;
+  // these rows only carry the shared identity vocabulary. None are
+  // transport-validated yet.
+  {
+    family: "pebble",
+    modelId: "pebble_classic",
+    displayName: "Pebble Classic",
+  },
+  {
+    family: "pebble",
+    modelId: "pebble_steel",
+    displayName: "Pebble Steel",
+  },
+  {
+    family: "pebble",
+    modelId: "pebble_time",
+    displayName: "Pebble Time",
+  },
+  {
+    family: "pebble",
+    modelId: "pebble_time_steel",
+    displayName: "Pebble Time Steel",
+  },
+  {
+    family: "pebble",
+    modelId: "pebble_time_round",
+    displayName: "Pebble Time Round",
+  },
+  {
+    family: "pebble",
+    modelId: "pebble_classic_2",
+    displayName: "Pebble Classic 2",
+  },
+  {
+    family: "pebble",
+    modelId: "pebble_2_duo",
+    displayName: "Pebble 2 Duo",
+  },
+  {
+    family: "pebble",
+    modelId: "pebble_time_2",
+    displayName: "Pebble Time 2",
   },
 ];
 

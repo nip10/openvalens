@@ -305,6 +305,27 @@ describe("direct-device identity guard", () => {
       );
   });
 
+  test("Pebble watches publish exact-minute steps, heart rate and sleep sessions", () => {
+    const pebble = { directDeviceFamily: "pebble", directDeviceModelId: "pebble_2_duo" };
+    const assertion = { family: "pebble", modelId: "pebble_2_duo" } as const;
+    // 1-minute step records carry per-minute heart rate in the v>=7 layout and
+    // sleep arrives as tag 83 session bounds plus tag 84 stage intervals. Only
+    // the BLE models reach this point: the Bluetooth-Classic models have no BLE
+    // radio and are refused by the native registry before a batch exists.
+    for (const recordType of ["steps", "heart_rate", "sleep_session"] as const)
+      expect(assertDirectDeviceIdentity(pebble, assertion, { recordType })).toEqual(assertion);
+    // Pebble has no interval buckets, scale or GATT sensor metrics.
+    for (const recordType of [
+      "steps_interval",
+      "weight_measurement",
+      "body_temperature",
+      "blood_pressure",
+    ] as const)
+      expect(() => assertDirectDeviceIdentity(pebble, assertion, { recordType })).toThrow(
+        new DirectDeviceIdentityError("HISTORY_UNSUPPORTED"),
+      );
+  });
+
   test("record-type capability separates watch steps from BLE GATT sensors", () => {
     const ble = { directDeviceFamily: "ble_gatt", directDeviceModelId: "polar_h10" };
     expect(

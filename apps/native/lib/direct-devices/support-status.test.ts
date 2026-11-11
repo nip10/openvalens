@@ -21,6 +21,7 @@ import { GLORYFIT_MODELS } from "./models/gloryfit";
 import { HUAMI_LEGACY_MODELS } from "./models/huami-legacy";
 import { CASIO_MODELS } from "./models/casio";
 import { FITPRO_MODELS } from "./models/fitpro";
+import { PEBBLE_MODELS } from "./models/pebble";
 import { GARMIN_MODELS } from "./models/garmin";
 import { HUAWEI_MODELS } from "./models/huawei";
 import { XIAOMI_MODELS } from "./models/xiaomi";
@@ -321,6 +322,31 @@ test("FitPro reports history sync for 15-minute steps, sleep and realtime heart 
       }),
       model.id,
     ).toMatchObject({ openValens: "fitpro_history_sync" });
+  }
+});
+
+test("Pebble reports health sync for the BLE models and no capability for BT-Classic", () => {
+  for (const model of PEBBLE_MODELS) {
+    expect(
+      describeDeviceSupport({
+        family: "pebble",
+        modelId: model.id,
+        transportValidated: model.transportValidated,
+        records: model.records,
+        sync: model.sync,
+      }),
+      model.id,
+    ).toMatchObject({ openValens: "pebble_health_sync" });
+  }
+  // Only the three BLE models carry the frozen record kinds.
+  for (const model of PEBBLE_MODELS) {
+    if (model.bleOnly) {
+      expect(model.records, model.id).toEqual(["steps", "heart_rate", "sleep_session"]);
+      expect(model.sync, model.id).toBe(true);
+    } else {
+      expect(model.records, model.id).toEqual([]);
+      expect(model.sync, model.id).toBe(false);
+    }
   }
 });
 
