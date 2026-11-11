@@ -18,7 +18,7 @@
  *
  * Flow
  * ----
- * 1. Subscribe to the PPoGATT read characteristic.
+ * 1. Enable notifications on the PPoGATT read characteristic.
  * 2. Negotiate the MTU (request 339, clamped by `pebble_mtu_limit`, default
  *    512, range 20-512) and derive the chunk size.
  * 3. Request the firmware version (upstream writes it immediately on connect).
