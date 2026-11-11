@@ -11,6 +11,7 @@ export const DIRECT_DEVICE_FAMILIES = [
   "gloryfit",
   "huami_legacy",
   "moyoung",
+  "fitpro",
 ] as const;
 export type DirectDeviceFamily = (typeof DIRECT_DEVICE_FAMILIES)[number];
 export type DirectDeviceIdentity = { family: DirectDeviceFamily; modelId: string };
@@ -2248,6 +2249,77 @@ export const DIRECT_DEVICE_MODELS: readonly DirectDeviceModelDescriptor[] = [
     family: "moyoung",
     modelId: "moyoung_zl02d",
     displayName: "Moyoung ZL02D",
+  },
+  // FitPro bands and watches (Issue #426): 15-minute step buckets, stage-start
+  // sleep records and realtime heart rate. The native lane owns the BLE
+  // protocol; these rows only carry the shared identity vocabulary. The family
+  // covers every `vendor: fitpro` entry in the upstream device catalog (13 at
+  // the pinned revision), including the two ColaCao models whose coordinator
+  // disables heart-rate requests. None are transport-validated yet.
+  {
+    family: "fitpro",
+    modelId: "colacao_2021",
+    displayName: "ColaCao 2021",
+  },
+  {
+    family: "fitpro",
+    modelId: "colacao_2023",
+    displayName: "ColaCao 2023",
+  },
+  {
+    family: "fitpro",
+    modelId: "fitpro_braz7harry",
+    displayName: "FitPro BRAZ/7HARRY",
+  },
+  {
+    family: "fitpro",
+    modelId: "fitpro_d13_116plus",
+    displayName: "FitPro D13 116Plus",
+  },
+  {
+    family: "fitpro",
+    modelId: "fitpro_fit_1900",
+    displayName: "FitPro Fit1900",
+  },
+  {
+    family: "fitpro",
+    modelId: "fitpro_lh716",
+    displayName: "FitPro LH716",
+  },
+  {
+    family: "fitpro",
+    modelId: "fitpro_m4",
+    displayName: "FitPro M4",
+  },
+  {
+    family: "fitpro",
+    modelId: "fitpro_m6",
+    displayName: "FitPro M6",
+  },
+  {
+    family: "fitpro",
+    modelId: "fitpro_series_11",
+    displayName: "FitPro Series 11",
+  },
+  {
+    family: "fitpro",
+    modelId: "fitpro_sunset_6",
+    displayName: "FitPro Sunset 6",
+  },
+  {
+    family: "fitpro",
+    modelId: "fitpro_watch_7",
+    displayName: "FitPro Watch 7",
+  },
+  {
+    family: "fitpro",
+    modelId: "fitpro_y68",
+    displayName: "FitPro Y68",
+  },
+  {
+    family: "fitpro",
+    modelId: "fitpro_ybw_05",
+    displayName: "FitPro YBW-05",
   },
 ];
 

@@ -499,7 +499,9 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
               ? "huawei"
               : family === "moyoung"
                 ? "moyoung"
-                : "ring";
+                : family === "fitpro"
+                  ? "fitpro"
+                  : "ring";
 
   /**
    * Legacy Huami, Garmin and Huawei BLE sync emit exact-minute `steps` records
@@ -727,6 +729,7 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
         state.connectedFamily !== "bangle_js" &&
         state.connectedFamily !== "gloryfit" &&
         state.connectedFamily !== "moyoung" &&
+        state.connectedFamily !== "fitpro" &&
         state.connectedFamily !== "huami_legacy" &&
         state.connectedFamily !== "garmin" &&
         state.connectedFamily !== "huawei")

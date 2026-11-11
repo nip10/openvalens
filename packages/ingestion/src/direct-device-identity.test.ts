@@ -265,6 +265,25 @@ describe("direct-device identity guard", () => {
       );
   });
 
+  test("FitPro bands publish interval steps, heart rate and sleep sessions", () => {
+    const fitpro = { directDeviceFamily: "fitpro", directDeviceModelId: "fitpro_m6" };
+    const assertion = { family: "fitpro", modelId: "fitpro_m6" } as const;
+    // 15-minute step buckets arrive as interval records, realtime heart rate as
+    // overlapping-offset samples and sleep as stage-start sessions.
+    for (const recordType of ["steps_interval", "heart_rate", "sleep_session"] as const)
+      expect(assertDirectDeviceIdentity(fitpro, assertion, { recordType })).toEqual(assertion);
+    // FitPro has no exact-minute step history, scale or GATT sensor metrics.
+    for (const recordType of [
+      "steps",
+      "weight_measurement",
+      "body_temperature",
+      "blood_pressure",
+    ] as const)
+      expect(() => assertDirectDeviceIdentity(fitpro, assertion, { recordType })).toThrow(
+        new DirectDeviceIdentityError("HISTORY_UNSUPPORTED"),
+      );
+  });
+
   test("record-type capability separates watch steps from BLE GATT sensors", () => {
     const ble = { directDeviceFamily: "ble_gatt", directDeviceModelId: "polar_h10" };
     expect(

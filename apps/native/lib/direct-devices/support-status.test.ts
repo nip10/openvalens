@@ -19,6 +19,7 @@ import { BLE_SCALE_MODELS } from "./models/ble-scale";
 import { COLMI_RING_MODELS } from "./models/colmi-ring";
 import { GLORYFIT_MODELS } from "./models/gloryfit";
 import { HUAMI_LEGACY_MODELS } from "./models/huami-legacy";
+import { FITPRO_MODELS } from "./models/fitpro";
 import { GARMIN_MODELS } from "./models/garmin";
 import { HUAWEI_MODELS } from "./models/huawei";
 import { XIAOMI_MODELS } from "./models/xiaomi";
@@ -305,5 +306,19 @@ test("legacy Huami reports exact-minute steps history, not validated support", (
       }),
       model.id,
     ).toMatchObject({ openValens: "huami_legacy_steps_history" });
+  }
+});
+
+test("FitPro reports history sync for 15-minute steps, sleep and realtime heart rate", () => {
+  for (const model of FITPRO_MODELS) {
+    expect(
+      describeDeviceSupport({
+        family: "fitpro",
+        modelId: model.id,
+        transportValidated: model.transportValidated,
+        records: model.records,
+      }),
+      model.id,
+    ).toMatchObject({ openValens: "fitpro_history_sync" });
   }
 });

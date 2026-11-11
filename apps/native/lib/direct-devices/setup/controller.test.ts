@@ -19,6 +19,7 @@ import {
 import { GLORYFIT_MODELS } from "../models/gloryfit";
 import { HUAMI_LEGACY_MODELS } from "../models/huami-legacy";
 import { MOYOUNG_MODELS } from "../models/moyoung";
+import { FITPRO_MODELS } from "../models/fitpro";
 import {
   HUAMI_ACTIVITY_CONTROL_UUID,
   HUAMI_ACTIVITY_DATA_UUID,
@@ -98,10 +99,15 @@ test("native model registries remain in parity with the shared identity catalog"
       modelId: model.id,
       displayName: model.displayName,
     })),
+    ...FITPRO_MODELS.map((model) => ({
+      family: "fitpro",
+      modelId: model.id,
+      displayName: model.displayName,
+    })),
   ].sort((left, right) =>
     `${left.family}:${left.modelId}`.localeCompare(`${right.family}:${right.modelId}`),
   );
-  expect(native).toHaveLength(440);
+  expect(native).toHaveLength(453);
   expect(native as unknown).toEqual(
     [...DIRECT_DEVICE_MODELS].sort((left, right) =>
       `${left.family}:${left.modelId}`.localeCompare(`${right.family}:${right.modelId}`),

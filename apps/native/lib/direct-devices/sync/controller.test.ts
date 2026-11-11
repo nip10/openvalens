@@ -1796,6 +1796,117 @@ test("Moyoung history is committed as heart_rate and sleep_session batches", asy
   invalidateDirectDeviceAuthority();
 });
 
+test("FitPro history is committed as steps_interval, sleep_session and heart_rate batches", async () => {
+  const { db, store } = sqlite();
+  const historyCapture: { handler: ((sample: DirectDeviceHistorySample) => void) | null } = {
+    handler: null,
+  };
+  const fitproBinding: DirectDeviceBindingSummary = {
+    ...binding,
+    family: "fitpro",
+    modelId: "fitpro_m6",
+    displayName: "FitPro M6",
+  };
+  const { controller, ticket } = await readyController({
+    store,
+    setup: setup(async () => ({ pages: 0, minutes: 0, complete: true }), "fitpro_m6", {
+      family: "fitpro",
+      stepsHistory: true,
+      liveCapture: false,
+      historySync: true,
+    }),
+    localIdentity: { family: "fitpro", modelId: "fitpro_m6" },
+    historyCapture,
+    makeClient: () => ({
+      directDevice: {
+        listDirectDevices: async () => ({ devices: [fitproBinding] }),
+        registerDirectDevice: async () => ({ providerConnectionId: 41 }),
+        ingestDirectDeviceBatch: async () => ({ status: "applied" }),
+      },
+    }),
+  });
+  expect(historyCapture.handler).not.toBeNull();
+
+  // 48 fifteen-minute step buckets + one sleep session + one realtime heart
+  // rate sample reaches the 50-sample flush threshold in one commit.
+  const dayStart = new Date(2026, 1, 1, 0, 0, 0);
+  for (let index = 0; index < 48; index += 1) {
+    const start = new Date(dayStart.getTime() + index * 15 * 60_000);
+    historyCapture.handler!({
+      type: "steps_interval",
+      startTime: start.toISOString(),
+      endTime: new Date(start.getTime() + 15 * 60_000).toISOString(),
+      count: 10 + index,
+    });
+  }
+  historyCapture.handler!({
+    type: "sleep_session",
+    startTime: new Date(2026, 1, 1, 23, 0, 0).toISOString(),
+    endTime: new Date(2026, 1, 2, 7, 0, 0).toISOString(),
+    stages: [
+      {
+        stage: "light",
+        startTime: new Date(2026, 1, 1, 23, 0, 0).toISOString(),
+        endTime: new Date(2026, 1, 2, 1, 0, 0).toISOString(),
+      },
+      {
+        stage: "deep",
+        startTime: new Date(2026, 1, 2, 1, 0, 0).toISOString(),
+        endTime: new Date(2026, 1, 2, 7, 0, 0).toISOString(),
+      },
+    ],
+  });
+  historyCapture.handler!({
+    type: "heart_rate",
+    time: new Date(2026, 1, 1, 12, 0, 0).toISOString(),
+    bpm: 71,
+  });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  const pending = store.listPending(ticket, 10);
+  expect(pending).toHaveLength(3);
+  const byType = new Map(pending.map((row) => [row.request.batch.recordType, row.request.batch]));
+  expect([...byType.keys()].sort()).toEqual(["heart_rate", "sleep_session", "steps_interval"]);
+  for (const batch of byType.values())
+    expect(batch).toMatchObject({
+      mode: "backfill",
+      deviceIdentity: { family: "fitpro", modelId: "fitpro_m6" },
+    });
+
+  const steps = byType.get("steps_interval")!.upserts;
+  expect(steps).toHaveLength(48);
+  expect(steps[0]).toMatchObject({
+    type: "steps_interval",
+    startTime: new Date(2026, 1, 1, 0, 0, 0).toISOString(),
+    endTime: new Date(2026, 1, 1, 0, 15, 0).toISOString(),
+    count: 10,
+  });
+  expect(steps[0]!.externalRecordId).toStartWith(`dd-fitpro:${deviceId}:steps:`);
+
+  const sleep = byType.get("sleep_session")!.upserts;
+  expect(sleep).toHaveLength(1);
+  expect(sleep[0]).toMatchObject({
+    type: "sleep_session",
+    startTime: new Date(2026, 1, 1, 23, 0, 0).toISOString(),
+    endTime: new Date(2026, 1, 2, 7, 0, 0).toISOString(),
+  });
+  expect(sleep[0]!.externalRecordId).toStartWith(`dd-fitpro:${deviceId}:sleep:`);
+  expect(sleep[0]).toHaveProperty("stages");
+
+  const heartRate = byType.get("heart_rate")!.upserts;
+  expect(heartRate).toHaveLength(1);
+  expect(heartRate[0]).toMatchObject({ type: "heart_rate" });
+  expect(heartRate[0]!.externalRecordId).toStartWith(`dd-fitpro:${deviceId}:hr:`);
+  if (heartRate[0]!.type === "heart_rate") {
+    expect(heartRate[0]!.samples).toHaveLength(1);
+    expect(heartRate[0]!.samples[0]).toMatchObject({ bpm: 71 });
+  }
+
+  await controller.dispose();
+  db.close();
+  invalidateDirectDeviceAuthority();
+});
+
 test("Bangle.js history is committed as steps_interval and heart_rate batches", async () => {
   const { db, store } = sqlite();
   const historyCapture: { handler: ((sample: DirectDeviceHistorySample) => void) | null } = {

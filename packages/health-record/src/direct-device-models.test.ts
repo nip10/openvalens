@@ -10,7 +10,7 @@ import {
 test("direct-device catalog has unique family/model pairs and supported steps identity", () => {
   const keys = DIRECT_DEVICE_MODELS.map(({ family, modelId }) => `${family}:${modelId}`);
   expect(new Set(keys).size).toBe(keys.length);
-  expect(DIRECT_DEVICE_MODELS).toHaveLength(440);
+  expect(DIRECT_DEVICE_MODELS).toHaveLength(453);
   expect(
     findDirectDeviceModel({ family: "zepp_os", modelId: "amazfit_helio_strap" })?.displayName,
   ).toBe("Amazfit Helio Strap");
@@ -187,4 +187,55 @@ test("Garmin catalog resolves every upstream vendor model", () => {
   expect(isDirectDeviceIdentity({ family: "garmin", modelId: "garmin_unknown" })).toBe(false);
   expect(isDirectDeviceIdentity({ family: "garmin", modelId: "amazfit_bip" })).toBe(false);
   expect(isDirectDeviceIdentity({ family: "zepp_os", modelId: "garmin_fenix_7" })).toBe(false);
+});
+
+test("FitPro catalog resolves the 13 catalog models", () => {
+  // 13 upstream `vendor: fitpro` entries in the committed Gadgetbridge catalog.
+  expect(DIRECT_DEVICE_MODELS.filter(({ family }) => family === "fitpro")).toHaveLength(13);
+  expect(findDirectDeviceModel({ family: "fitpro", modelId: "fitpro_m6" })).toEqual({
+    family: "fitpro",
+    modelId: "fitpro_m6",
+    displayName: "FitPro M6",
+  });
+  expect(findDirectDeviceModel({ family: "fitpro", modelId: "colacao_2021" })?.displayName).toBe(
+    "ColaCao 2021",
+  );
+  expect(findDirectDeviceModel({ family: "fitpro", modelId: "colacao_2023" })?.displayName).toBe(
+    "ColaCao 2023",
+  );
+  expect(
+    findDirectDeviceModel({ family: "fitpro", modelId: "fitpro_braz7harry" })?.displayName,
+  ).toBe("FitPro BRAZ/7HARRY");
+  expect(
+    findDirectDeviceModel({ family: "fitpro", modelId: "fitpro_d13_116plus" })?.displayName,
+  ).toBe("FitPro D13 116Plus");
+  expect(findDirectDeviceModel({ family: "fitpro", modelId: "fitpro_fit_1900" })?.displayName).toBe(
+    "FitPro Fit1900",
+  );
+  expect(findDirectDeviceModel({ family: "fitpro", modelId: "fitpro_lh716" })?.displayName).toBe(
+    "FitPro LH716",
+  );
+  expect(findDirectDeviceModel({ family: "fitpro", modelId: "fitpro_m4" })?.displayName).toBe(
+    "FitPro M4",
+  );
+  expect(
+    findDirectDeviceModel({ family: "fitpro", modelId: "fitpro_series_11" })?.displayName,
+  ).toBe("FitPro Series 11");
+  expect(findDirectDeviceModel({ family: "fitpro", modelId: "fitpro_sunset_6" })?.displayName).toBe(
+    "FitPro Sunset 6",
+  );
+  expect(findDirectDeviceModel({ family: "fitpro", modelId: "fitpro_watch_7" })?.displayName).toBe(
+    "FitPro Watch 7",
+  );
+  expect(findDirectDeviceModel({ family: "fitpro", modelId: "fitpro_y68" })?.displayName).toBe(
+    "FitPro Y68",
+  );
+  expect(findDirectDeviceModel({ family: "fitpro", modelId: "fitpro_ybw_05" })?.displayName).toBe(
+    "FitPro YBW-05",
+  );
+  expect(isDirectDeviceIdentity({ family: "fitpro", modelId: "fitpro_ybw_05" })).toBe(true);
+  // Unknown models and cross-family model ids are rejected.
+  expect(isDirectDeviceIdentity({ family: "fitpro", modelId: "fitpro_unknown" })).toBe(false);
+  expect(isDirectDeviceIdentity({ family: "fitpro", modelId: "garmin_fenix_7" })).toBe(false);
+  expect(isDirectDeviceIdentity({ family: "gloryfit", modelId: "fitpro_m6" })).toBe(false);
 });

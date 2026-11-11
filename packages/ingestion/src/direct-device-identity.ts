@@ -24,7 +24,11 @@ export type DirectDeviceBindingIdentity = {
  * user-entered 16-byte pre-shared key. Moyoung watches publish heart-rate
  * history and sleep sessions; their steps arrive as a single daily total, which
  * the exact-minute `steps` record type cannot represent, so steps are
- * deliberately not mapped in v1. Huawei/Honor devices publish per-minute step
+ * deliberately not mapped in v1. FitPro bands and watches publish 15-minute
+ * step buckets, sleep sessions built from stage-start records and realtime
+ * heart rate; the realtime stream reports overlapping offsets, so consecutive
+ * samples may share a timestamp and the ingest contract tolerates that. FitPro
+ * pairing needs no authentication. Huawei/Honor devices publish per-minute step
  * samples with feature bitmaps (steps and heart rate inline) and sleep sessions
  * derived from 0x0D records. This capability is family-level: only the
  * BLE-transport Huawei models can sync history, while the BT-Classic (BR) models
@@ -84,11 +88,17 @@ export function directDeviceFamilySupportsRecordType(
       family === "garmin"
     );
   if (recordType === "steps_interval")
-    return family === "colmi_ring" || family === "bangle_js" || family === "gloryfit";
+    return (
+      family === "colmi_ring" ||
+      family === "bangle_js" ||
+      family === "gloryfit" ||
+      family === "fitpro"
+    );
   if (recordType === "sleep_session")
     return (
       family === "colmi_ring" ||
       family === "gloryfit" ||
+      family === "fitpro" ||
       family === "huami_legacy" ||
       family === "moyoung" ||
       family === "huawei" ||
@@ -101,6 +111,7 @@ export function directDeviceFamilySupportsRecordType(
       family === "colmi_ring" ||
       family === "bangle_js" ||
       family === "gloryfit" ||
+      family === "fitpro" ||
       family === "huami_legacy" ||
       family === "moyoung" ||
       family === "huawei" ||
