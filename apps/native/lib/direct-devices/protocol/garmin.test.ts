@@ -411,8 +411,10 @@ test("MONITORING decodes cycles, heart rate, distance and the activity bitmap", 
     intensity: 7,
   });
 
-  // Messages sharing a timestamp are summed per activity type, exactly like
-  // `FitImporter.persistActivitySamples`.
+  // Messages sharing a timestamp are summed across activity types, exactly like
+  // `FitImporter.persistActivitySamples`. The first record is activity type 5
+  // (0xe5 & 0x1f) with intensity 7 (0xe5 >> 5); the second is type 7 (0x67 &
+  // 0x1f) with intensity 3 (0x67 >> 5).
   const aggregated = decodeGarminMonitoring([
     ...messages,
     {
@@ -434,6 +436,33 @@ test("MONITORING decodes cycles, heart rate, distance and the activity bitmap", 
     heartRate: 72,
     distanceMeters: 6,
     activeCalories: 4,
+    activityType: 5,
+    intensity: 3,
+  });
+
+  // A second record for the *same* activity type overwrites the first rather
+  // than adding to it (Garmin reports cumulative per-activity totals).
+  const overwritten = decodeGarminMonitoring([
+    ...messages,
+    {
+      messageNumber: GARMIN_FIT_MESSAGE.MONITORING,
+      timestamp: base + GARMIN_TIME_EPOCH,
+      fields: new Map([
+        [253, base],
+        [3, 30],
+        [27, 73],
+        [2, 200],
+        [19, 2],
+        [24, 0xe5],
+      ]),
+    },
+  ]);
+  expect(overwritten).toHaveLength(1);
+  expect(overwritten[0]).toMatchObject({
+    steps: 30,
+    heartRate: 73,
+    distanceMeters: 2,
+    activeCalories: 2,
     activityType: 5,
     intensity: 7,
   });

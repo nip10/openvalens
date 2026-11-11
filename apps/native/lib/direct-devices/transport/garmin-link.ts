@@ -257,7 +257,8 @@ export class NativeGarminLink implements GarminLink {
     private readonly manager?: TransactionManager,
     handle?: number,
   ) {
-    this.maxWriteBytes = Math.min(512, Math.max(23, device.mtu ?? 23)) - 3;
+    // `AbstractBTLEDeviceSupport.calcMaxWriteChunk`: min(512, max(23, mtu) - 3).
+    this.maxWriteBytes = Math.min(512, Math.max(23, device.mtu ?? 23) - 3);
     this.protocol = profile.protocol;
     this.handle = handle;
   }

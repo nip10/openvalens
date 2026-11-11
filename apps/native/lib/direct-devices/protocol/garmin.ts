@@ -1061,9 +1061,22 @@ export function decodeGarminMonitoring(
   messages: readonly GarminFitMessage[],
 ): GarminMonitoringSample[] {
   // `FitImporter.persistActivitySamples` groups monitoring messages by resolved
-  // timestamp: steps/distance/calories are summed across activity types, the
-  // last heart rate wins, and the first activity type/intensity is kept.
-  const byTimestamp = new Map<number, GarminMonitoringSample>();
+  // timestamp and keeps one value per activity type per minute: Garmin reports
+  // cumulative per-activity totals, so a later record for the same activity
+  // overwrites the earlier one, and the sample value is the sum across the
+  // activity types present. Steps are `getCycles()` (the profile's `cycles`
+  // field, scale 2) multiplied back by 2, i.e. the raw wire value. Distance and
+  // active calories follow the same last-per-type-then-sum rule; heart rate and
+  // intensity take the last non-null value.
+  type Accumulator = {
+    stepsByActivity: Map<number, number>;
+    distanceByActivity: Map<number, number>;
+    caloriesByActivity: Map<number, number>;
+    heartRate: number | null;
+    activityType: number | null;
+    intensity: number | null;
+  };
+  const byTimestamp = new Map<number, Accumulator>();
   let lastTimestamp: number | null = null;
   for (const message of messages) {
     if (message.messageNumber !== GARMIN_FIT_MESSAGE.MONITORING) continue;
@@ -1084,49 +1097,60 @@ export function decodeGarminMonitoring(
     if (timestamp === null) continue;
     lastTimestamp = timestamp;
 
-    const cycles = fields.get(3);
-    const cycles16 = fields.get(9);
-    const scaledCycles =
-      cycles !== undefined ? cycles / 2 : cycles16 !== undefined ? cycles16 / 2 : 0;
-    const steps = Math.round(scaledCycles * 2);
-    const heartRate = fields.get(27);
-    const distance = fields.get(2);
-    const activeCalories = fields.get(19);
-    const activityType = fields.get(5);
     const activityTypeIntensity = fields.get(24);
+    const activityType =
+      fields.get(5) ?? (activityTypeIntensity !== undefined ? activityTypeIntensity & 0x1f : null);
+    const activityKey = activityType ?? -1;
 
-    const existing = byTimestamp.get(timestamp);
-    if (existing) {
-      byTimestamp.set(timestamp, {
-        ...existing,
-        steps: existing.steps + steps,
-        heartRate:
-          heartRate !== undefined && heartRate >= 1 && heartRate <= 254
-            ? heartRate
-            : existing.heartRate,
-        distanceMeters:
-          distance !== undefined
-            ? (existing.distanceMeters ?? 0) + distance / 100
-            : existing.distanceMeters,
-        activeCalories:
-          activeCalories !== undefined
-            ? (existing.activeCalories ?? 0) + activeCalories
-            : existing.activeCalories,
-      });
-      continue;
+    let accumulator = byTimestamp.get(timestamp);
+    if (!accumulator) {
+      accumulator = {
+        stepsByActivity: new Map(),
+        distanceByActivity: new Map(),
+        caloriesByActivity: new Map(),
+        heartRate: null,
+        activityType,
+        intensity: null,
+      };
+      byTimestamp.set(timestamp, accumulator);
     }
-    byTimestamp.set(timestamp, {
+
+    // `getCycles()` reads only the `cycles` field (profile scale 2); there is no
+    // `cycles_16` fallback upstream.
+    const cycles = fields.get(3);
+    if (cycles !== undefined) accumulator.stepsByActivity.set(activityKey, cycles);
+    const distance = fields.get(2);
+    if (distance !== undefined) accumulator.distanceByActivity.set(activityKey, distance);
+    const activeCalories = fields.get(19);
+    if (activeCalories !== undefined)
+      accumulator.caloriesByActivity.set(activityKey, activeCalories);
+
+    const heartRate = fields.get(27);
+    if (heartRate !== undefined && heartRate >= 1 && heartRate <= 254)
+      accumulator.heartRate = heartRate;
+    if (activityTypeIntensity !== undefined)
+      accumulator.intensity = (activityTypeIntensity >> 5) & 0x07;
+  }
+
+  const samples: GarminMonitoringSample[] = [];
+  for (const [timestamp, accumulator] of byTimestamp) {
+    let rawSteps = 0;
+    for (const cycles of accumulator.stepsByActivity.values()) rawSteps += cycles;
+    let rawDistance = 0;
+    for (const distance of accumulator.distanceByActivity.values()) rawDistance += distance;
+    let calories = 0;
+    for (const value of accumulator.caloriesByActivity.values()) calories += value;
+    samples.push({
       timestamp: timestamp * 1000,
-      steps,
-      heartRate: heartRate !== undefined && heartRate >= 1 && heartRate <= 254 ? heartRate : null,
-      distanceMeters: distance !== undefined ? distance / 100 : null,
-      activeCalories: activeCalories ?? null,
-      activityType:
-        activityType ?? (activityTypeIntensity !== undefined ? activityTypeIntensity & 0x1f : null),
-      intensity: activityTypeIntensity !== undefined ? (activityTypeIntensity >> 5) & 0x07 : null,
+      steps: Math.round(rawSteps),
+      heartRate: accumulator.heartRate,
+      distanceMeters: accumulator.distanceByActivity.size > 0 ? rawDistance / 100 : null,
+      activeCalories: accumulator.caloriesByActivity.size > 0 ? calories : null,
+      activityType: accumulator.activityType,
+      intensity: accumulator.intensity,
     });
   }
-  return [...byTimestamp.values()].sort((left, right) => left.timestamp - right.timestamp);
+  return samples.sort((left, right) => left.timestamp - right.timestamp);
 }
 
 /** Decodes SLEEP_LEVEL (275) samples. */

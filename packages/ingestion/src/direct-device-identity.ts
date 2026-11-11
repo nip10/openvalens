@@ -33,12 +33,14 @@ export type DirectDeviceBindingIdentity = {
  * derived from 0x0D records. This capability is family-level: only the
  * BLE-transport Huawei models can sync history, while the BT-Classic (BR) models
  * stay connection-only and are refused by the native registry before a batch is
- * ever created. Garmin devices publish FIT files pulled over GFDI: FIT
- * monitoring samples are per-minute, so exact-minute `steps` and `heart_rate`
- * are mapped, and sleep sessions come from the same FIT files. As with Huawei,
- * the capability is family-level: only BLE-transport Garmin models can sync
- * history; any Bluetooth-Classic/RFCOMM model stays connection-only and is
- * gated by the native registry before a batch is ever created.
+ * ever created. Garmin devices publish FIT files pulled over GFDI, framed with
+ * COBS and carried by the ML transport: FIT monitoring samples are per-minute,
+ * so exact-minute `steps` and `heart_rate` are mapped, and sleep sessions come
+ * from the same FIT files. As with Huawei, the capability is family-level: only
+ * BLE-transport Garmin wearables can sync history; Bluetooth-Classic/RFCOMM
+ * models and the non-wearable devices (Edge computers, GPS navigators, chest
+ * straps) stay connection-only and are gated by the native registry before a
+ * batch is ever created.
  */
 export type DirectDeviceRecordType =
   | "steps"
