@@ -28,7 +28,10 @@ export type DirectDeviceBindingIdentity = {
  * step buckets, sleep sessions built from stage-start records and realtime
  * heart rate; the realtime stream reports overlapping offsets, so consecutive
  * samples may share a timestamp and the ingest contract tolerates that. FitPro
- * pairing needs no authentication. Huawei/Honor devices publish per-minute step
+ * pairing needs no authentication. Casio watches publish hourly step buckets
+ * only: upstream exposes no heart-rate characteristic and no sleep parsing, so
+ * `heart_rate` and `sleep_session` are deliberately not mapped. Huawei/Honor
+ * devices publish per-minute step
  * samples with feature bitmaps (steps and heart rate inline) and sleep sessions
  * derived from 0x0D records. This capability is family-level: only the
  * BLE-transport Huawei models can sync history, while the BT-Classic (BR) models
@@ -94,7 +97,8 @@ export function directDeviceFamilySupportsRecordType(
       family === "colmi_ring" ||
       family === "bangle_js" ||
       family === "gloryfit" ||
-      family === "fitpro"
+      family === "fitpro" ||
+      family === "casio"
     );
   if (recordType === "sleep_session")
     return (

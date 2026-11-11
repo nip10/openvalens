@@ -21,6 +21,8 @@ import { getFitProModel } from "@/lib/direct-devices/models/fitpro";
 import type { FitProModel, FitProModelId } from "@/lib/direct-devices/models/fitpro";
 import { getBleScaleModel } from "@/lib/direct-devices/models/ble-scale";
 import type { BleScaleModel, BleScaleModelId } from "@/lib/direct-devices/models/ble-scale";
+import { getCasioModel } from "@/lib/direct-devices/models/casio";
+import type { CasioModel, CasioModelId } from "@/lib/direct-devices/models/casio";
 import { getColmiRingModel } from "@/lib/direct-devices/models/colmi-ring";
 import type { ColmiRingModel, ColmiRingModelId } from "@/lib/direct-devices/models/colmi-ring";
 import { getGloryFitModel } from "@/lib/direct-devices/models/gloryfit";
@@ -78,7 +80,8 @@ type AnyDirectDeviceModel =
   | BleScaleModel
   | ColmiRingModel
   | GloryFitModel
-  | HuamiLegacyModel;
+  | HuamiLegacyModel
+  | CasioModel;
 
 /**
  * Registry lookup for a snapshot model id across all eight device families.
@@ -116,6 +119,8 @@ function lookupModel(
   if (bleScale) return { model: bleScale, family: "ble_scale" };
   const colmiRing = getColmiRingModel(modelId as ColmiRingModelId);
   if (colmiRing) return { model: colmiRing, family: "colmi_ring" };
+  const casio = getCasioModel(modelId as CasioModelId);
+  if (casio) return { model: casio, family: "casio" };
   return undefined;
 }
 
@@ -312,6 +317,8 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
     huami_legacy_steps_history: t`History sync on connection for step-by-minute records, heart rate and sleep; not hardware-verified.`,
     moyoung_history_sync: t`History sync on connection for heart rate and sleep; steps are not supported because the watch only reports daily totals. Not hardware-verified.`,
     fitpro_history_sync: t`History sync on connection for 15-minute step buckets, staged sleep and realtime heart rate; not hardware-verified.`,
+    casio_steps_history: t`History sync on connection for hourly step buckets only; the Casio protocol carries no heart rate or sleep data. Not hardware-verified.`,
+    casio_connection_only: t`Connection checks only; the Casio protocol has no recorded-data path for this model. Not hardware-verified.`,
   };
   const upstreamLevelText = {
     high: t`high`,
@@ -397,6 +404,9 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
               {openValensStatusText[focusSupport.openValens]}
             </Text>
             <Text className="font-sans text-xs text-ink-3">{upstreamStatus}</Text>
+            {"pairingHint" in focus.model && focus.model.pairingHint ? (
+              <Text className="font-sans text-xs text-ink-3">{focus.model.pairingHint}</Text>
+            ) : null}
           </View>
         ) : null}
 
@@ -490,6 +500,12 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
           ) : connectedFamily === "bangle_js" ? (
             <Text className="font-sans text-sm text-ink-3">
               {t`Bangle.js history (steps and heart rate) syncs automatically while connected, and heart rate keeps recording live. Records are saved in batches and sent only when you tap “Retry upload”.`}
+            </Text>
+          ) : connectedFamily === "casio" ? (
+            <Text className="font-sans text-sm text-ink-3">
+              {snapshot.capabilities.historySync
+                ? t`Casio hourly step buckets sync automatically while connected. The watch reports hourly totals only, so there is no heart rate or sleep data. Records are saved in batches and sent only when you tap “Retry upload”.`
+                : t`This Casio model is registered for connection checks only; the protocol has no recorded-data path for it.`}
             </Text>
           ) : connectedFamily === "moyoung" ? (
             <Text className="font-sans text-sm text-ink-3">
@@ -631,6 +647,10 @@ function friendlyError(code: string) {
     return "The device rejected the authentication key. Check the 16-byte key and try again.";
   if (code === "HUAMI_LEGACY_HISTORY_FAILED")
     return "The legacy Huami history transfer did not complete. Reconnect and try again.";
+  if (code === "CASIO_SERVICE_MISSING")
+    return "The Casio watch did not expose its Watch Features service. Move it away from the phone, then reconnect.";
+  if (code === "CASIO_STEPS_UNSUPPORTED")
+    return "This Casio model is registered for connection checks only; the protocol has no recorded-data path for it.";
   if (code === "HISTORY_UNSUPPORTED")
     return "This device connected, but step history sync is not supported for it.";
   return "Could not sync device steps. Try again.";

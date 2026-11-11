@@ -284,6 +284,27 @@ describe("direct-device identity guard", () => {
       );
   });
 
+  test("Casio watches publish hourly interval steps only", () => {
+    const casio = { directDeviceFamily: "casio", directDeviceModelId: "casio_gbd-100" };
+    const assertion = { family: "casio", modelId: "casio_gbd-100" } as const;
+    // Hourly step buckets arrive as interval records; upstream has no
+    // heart-rate characteristic and no sleep parsing, so those stay refused.
+    expect(assertDirectDeviceIdentity(casio, assertion, { recordType: "steps_interval" })).toEqual(
+      assertion,
+    );
+    for (const recordType of [
+      "steps",
+      "heart_rate",
+      "sleep_session",
+      "weight_measurement",
+      "body_temperature",
+      "blood_pressure",
+    ] as const)
+      expect(() => assertDirectDeviceIdentity(casio, assertion, { recordType })).toThrow(
+        new DirectDeviceIdentityError("HISTORY_UNSUPPORTED"),
+      );
+  });
+
   test("record-type capability separates watch steps from BLE GATT sensors", () => {
     const ble = { directDeviceFamily: "ble_gatt", directDeviceModelId: "polar_h10" };
     expect(

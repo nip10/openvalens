@@ -12,6 +12,7 @@ export const DIRECT_DEVICE_FAMILIES = [
   "huami_legacy",
   "moyoung",
   "fitpro",
+  "casio",
 ] as const;
 export type DirectDeviceFamily = (typeof DIRECT_DEVICE_FAMILIES)[number];
 export type DirectDeviceIdentity = { family: DirectDeviceFamily; modelId: string };
@@ -2320,6 +2321,74 @@ export const DIRECT_DEVICE_MODELS: readonly DirectDeviceModelDescriptor[] = [
     family: "fitpro",
     modelId: "fitpro_ybw_05",
     displayName: "FitPro YBW-05",
+  },
+  // Casio G-Shock/Edifice watches via Gadgetbridge (Issue #429): hourly step
+  // buckets only. Upstream has no heart-rate characteristic and no sleep
+  // parsing, so `heart_rate` and `sleep_session` are deliberately NOT mapped;
+  // the GG-B100 coordinator also reports `supportsSleepMeasurement=false`.
+  // The GB-5600B/GB-6900B/STB-1000 class has no data path at all upstream and
+  // stays connection-only. The native lane owns the BLE protocol; these rows
+  // only carry the shared identity vocabulary. None are transport-validated
+  // yet.
+  {
+    family: "casio",
+    modelId: "casio_ecb-s100",
+    displayName: "Casio ECB-S100",
+  },
+  {
+    family: "casio",
+    modelId: "casio_gb-5600b",
+    displayName: "Casio GB-5600B",
+  },
+  {
+    family: "casio",
+    modelId: "casio_gb-6900b",
+    displayName: "Casio GB-6900B",
+  },
+  {
+    family: "casio",
+    modelId: "casio_gb-x6900b",
+    displayName: "Casio GB-X6900B",
+  },
+  {
+    family: "casio",
+    modelId: "casio_gbd-100",
+    displayName: "Casio GBD-100",
+  },
+  {
+    family: "casio",
+    modelId: "casio_gbd-200",
+    displayName: "Casio GBD-200",
+  },
+  {
+    family: "casio",
+    modelId: "casio_gbd-h1000",
+    displayName: "Casio GBD-H1000",
+  },
+  {
+    family: "casio",
+    modelId: "casio_gbx-100",
+    displayName: "Casio GBX-100",
+  },
+  {
+    family: "casio",
+    modelId: "casio_gg-b100",
+    displayName: "Casio GG-B100",
+  },
+  {
+    family: "casio",
+    modelId: "casio_gmw-b5000",
+    displayName: "Casio GMW-B5000",
+  },
+  {
+    family: "casio",
+    modelId: "casio_gw-b5600",
+    displayName: "Casio GW-B5600",
+  },
+  {
+    family: "casio",
+    modelId: "casio_stb-1000",
+    displayName: "Casio STB-1000",
   },
 ];
 

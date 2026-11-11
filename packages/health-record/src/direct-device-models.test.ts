@@ -10,7 +10,7 @@ import {
 test("direct-device catalog has unique family/model pairs and supported steps identity", () => {
   const keys = DIRECT_DEVICE_MODELS.map(({ family, modelId }) => `${family}:${modelId}`);
   expect(new Set(keys).size).toBe(keys.length);
-  expect(DIRECT_DEVICE_MODELS).toHaveLength(453);
+  expect(DIRECT_DEVICE_MODELS).toHaveLength(465);
   expect(
     findDirectDeviceModel({ family: "zepp_os", modelId: "amazfit_helio_strap" })?.displayName,
   ).toBe("Amazfit Helio Strap");
@@ -238,4 +238,46 @@ test("FitPro catalog resolves the 13 catalog models", () => {
   expect(isDirectDeviceIdentity({ family: "fitpro", modelId: "fitpro_unknown" })).toBe(false);
   expect(isDirectDeviceIdentity({ family: "fitpro", modelId: "garmin_fenix_7" })).toBe(false);
   expect(isDirectDeviceIdentity({ family: "gloryfit", modelId: "fitpro_m6" })).toBe(false);
+});
+
+test("Casio catalog resolves the 12 catalog models", () => {
+  // 12 upstream `vendor: casio` entries in the committed Gadgetbridge catalog.
+  expect(DIRECT_DEVICE_MODELS.filter(({ family }) => family === "casio")).toHaveLength(12);
+  expect(findDirectDeviceModel({ family: "casio", modelId: "casio_gbd-100" })).toEqual({
+    family: "casio",
+    modelId: "casio_gbd-100",
+    displayName: "Casio GBD-100",
+  });
+  expect(findDirectDeviceModel({ family: "casio", modelId: "casio_ecb-s100" })?.displayName).toBe(
+    "Casio ECB-S100",
+  );
+  expect(findDirectDeviceModel({ family: "casio", modelId: "casio_gb-5600b" })?.displayName).toBe(
+    "Casio GB-5600B",
+  );
+  expect(findDirectDeviceModel({ family: "casio", modelId: "casio_gb-x6900b" })?.displayName).toBe(
+    "Casio GB-X6900B",
+  );
+  expect(findDirectDeviceModel({ family: "casio", modelId: "casio_gbd-h1000" })?.displayName).toBe(
+    "Casio GBD-H1000",
+  );
+  expect(findDirectDeviceModel({ family: "casio", modelId: "casio_gbx-100" })?.displayName).toBe(
+    "Casio GBX-100",
+  );
+  expect(findDirectDeviceModel({ family: "casio", modelId: "casio_gg-b100" })?.displayName).toBe(
+    "Casio GG-B100",
+  );
+  expect(findDirectDeviceModel({ family: "casio", modelId: "casio_gmw-b5000" })?.displayName).toBe(
+    "Casio GMW-B5000",
+  );
+  expect(findDirectDeviceModel({ family: "casio", modelId: "casio_gw-b5600" })?.displayName).toBe(
+    "Casio GW-B5600",
+  );
+  expect(findDirectDeviceModel({ family: "casio", modelId: "casio_stb-1000" })?.displayName).toBe(
+    "Casio STB-1000",
+  );
+  expect(isDirectDeviceIdentity({ family: "casio", modelId: "casio_gbd-200" })).toBe(true);
+  // Unknown models and cross-family model ids are rejected.
+  expect(isDirectDeviceIdentity({ family: "casio", modelId: "casio_unknown" })).toBe(false);
+  expect(isDirectDeviceIdentity({ family: "casio", modelId: "garmin_fenix_7" })).toBe(false);
+  expect(isDirectDeviceIdentity({ family: "fitpro", modelId: "casio_gbd-100" })).toBe(false);
 });

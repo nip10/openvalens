@@ -19,6 +19,7 @@ import { BLE_SCALE_MODELS } from "./models/ble-scale";
 import { COLMI_RING_MODELS } from "./models/colmi-ring";
 import { GLORYFIT_MODELS } from "./models/gloryfit";
 import { HUAMI_LEGACY_MODELS } from "./models/huami-legacy";
+import { CASIO_MODELS } from "./models/casio";
 import { FITPRO_MODELS } from "./models/fitpro";
 import { GARMIN_MODELS } from "./models/garmin";
 import { HUAWEI_MODELS } from "./models/huawei";
@@ -321,4 +322,35 @@ test("FitPro reports history sync for 15-minute steps, sleep and realtime heart 
       model.id,
     ).toMatchObject({ openValens: "fitpro_history_sync" });
   }
+});
+
+test("Casio reports hourly step buckets only where a fetch exists", () => {
+  for (const model of CASIO_MODELS) {
+    const hasSteps = model.records.includes("steps_interval");
+    expect(
+      describeDeviceSupport({
+        family: "casio",
+        modelId: model.id,
+        transportValidated: model.transportValidated,
+        records: model.records,
+      }),
+      model.id,
+    ).toMatchObject({
+      openValens: hasSteps ? "casio_steps_history" : "casio_connection_only",
+    });
+  }
+  // The frozen contract has no heart rate and no sleep for this family.
+  for (const model of CASIO_MODELS) {
+    expect(model.records, model.id).not.toContain("heart_rate");
+    expect(model.records, model.id).not.toContain("sleep_session");
+  }
+  // The GATT-server models are connection-only.
+  expect(
+    describeDeviceSupport({
+      family: "casio",
+      modelId: "casio_gb-6900b",
+      transportValidated: false,
+      records: [],
+    }).openValens,
+  ).toBe("casio_connection_only");
 });

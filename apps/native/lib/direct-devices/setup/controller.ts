@@ -49,6 +49,9 @@ import type { BangleJsProfile, BangleJsSession } from "../transport/bangle-js";
 import { MOYOUNG_SERVICE_UUID, matchMoyoungDevice } from "../models/moyoung";
 import { createMoyoungSession, selectMoyoungProfile } from "../transport/moyoung";
 import type { MoyoungProfile, MoyoungSession } from "../transport/moyoung";
+import { CASIO_WATCH_FEATURES_SERVICE_UUID, matchCasioDevice } from "../models/casio";
+import { createCasioSession, selectCasioProfile } from "../transport/casio";
+import type { CasioProfile, CasioSession } from "../transport/casio";
 import { FITPRO_SERVICE_UUID, matchFitProDevice } from "../models/fitpro";
 import { createFitProSession, selectFitProProfile } from "../transport/fitpro";
 import type { FitProProfile, FitProSession } from "../transport/fitpro";
@@ -184,6 +187,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
   let connectedProfile: XiaomiBleProfile | null = null;
   let connectedHuaweiProfile: HuaweiBleProfile | null = null;
   let connectedGarminProfile: GarminBleProfile | null = null;
+  let connectedCasioProfile: CasioProfile | null = null;
   let connectedGarminSession: GarminSession | null = null;
   let connectedBleGattSession: BleGattSession | null = null;
   let connectedBleScaleSession: BleScaleSession | null = null;
@@ -194,6 +198,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
   let connectedFitProSession: FitProSession | null = null;
   let connectedHuamiLegacySession: HuamiLegacySession | null = null;
   let connectedHuaweiSession: HuaweiSession | null = null;
+  let connectedCasioSession: CasioSession | null = null;
   let connecting: Device | null = null;
   let connectionAttempt: object | null = null;
   let connectingLease: NativeDeviceLease | null = null;
@@ -439,6 +444,23 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
               bleScaleModel
                 ? null
                 : matchColmiRingDevice(name);
+            // Casio watches are name-only and sit last: the GB-6900B family
+            // shares no name shape with the other families.
+            const casioModel =
+              zeppModel ||
+              xiaomiModel ||
+              huaweiModel ||
+              garminModel ||
+              bleGattModel ||
+              bangleJsModel ||
+              moyoungModel ||
+              fitProModel ||
+              huamiLegacyModel ||
+              gloryFitModel ||
+              bleScaleModel ||
+              colmiRingModel
+                ? null
+                : matchCasioDevice(name);
             const model =
               zeppModel ??
               xiaomiModel ??
@@ -451,7 +473,8 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
               huamiLegacyModel ??
               gloryFitModel ??
               bleScaleModel ??
-              colmiRingModel;
+              colmiRingModel ??
+              casioModel;
             if (!model) return;
             const family = zeppModel
               ? "zepp_os"
@@ -583,7 +606,8 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
             matchHuamiLegacyDevice(knownDevice.name) ??
             matchGloryFitDevice(knownDevice.name) ??
             matchBleScaleDevice(knownDevice.name) ??
-            matchColmiRingDevice(knownDevice.name);
+            matchColmiRingDevice(knownDevice.name) ??
+            matchCasioDevice(knownDevice.name);
           if (!model) throw new Error("DEVICE_NOT_DISCOVERED");
           const family =
             knownDevice.family ??
@@ -609,7 +633,9 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
                                 ? "gloryfit"
                                 : matchBleScaleDevice(knownDevice.name)
                                   ? "ble_scale"
-                                  : "colmi_ring");
+                                  : matchColmiRingDevice(knownDevice.name)
+                                    ? "colmi_ring"
+                                    : "casio");
           await stopRadioScan();
           if (current !== generation || disposed) return;
           let cancelWait!: () => void;
@@ -639,7 +665,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
           }
           device = await device.discoverAllServicesAndCharacteristics();
           ownedDevice = device;
-          const discovered = device;
+          let discovered = device;
           if (current !== generation || disposed) {
             await discovered.cancelConnection();
             return;
@@ -675,6 +701,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
           const garminModel = family === "garmin" ? matchGarminDeviceName(knownDevice.name) : null;
           const colmiRingModel =
             family === "colmi_ring" ? matchColmiRingDevice(knownDevice.name) : null;
+          const casioModel = family === "casio" ? matchCasioDevice(knownDevice.name) : null;
           const hasRequiredService =
             family === "xiaomi"
               ? services.some((service) => XIAOMI_BLE_SERVICE_UUIDS.has(service.uuid.toLowerCase()))
@@ -722,12 +749,20 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
                                     (service) =>
                                       normalizeServiceUuid(service.uuid) === COLMI_V1_SERVICE_UUID,
                                   )
-                                : family === "huami_legacy"
+                                : family === "casio"
                                   ? services.some(
                                       (service) =>
-                                        normalizeServiceUuid(service.uuid) === HUAMI_SERVICE_UUID,
+                                        normalizeServiceUuid(service.uuid) ===
+                                        CASIO_WATCH_FEATURES_SERVICE_UUID,
                                     )
-                                  : services.some((service) => service.uuid.toLowerCase() === FEE0);
+                                  : family === "huami_legacy"
+                                    ? services.some(
+                                        (service) =>
+                                          normalizeServiceUuid(service.uuid) === HUAMI_SERVICE_UUID,
+                                      )
+                                    : services.some(
+                                        (service) => service.uuid.toLowerCase() === FEE0,
+                                      );
           if (!hasRequiredService)
             throw new Error(
               family === "xiaomi"
@@ -750,9 +785,11 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
                                 ? "BLE_SCALE_SERVICE_MISSING"
                                 : family === "colmi_ring"
                                   ? "COLMI_RING_SERVICE_MISSING"
-                                  : family === "huami_legacy"
-                                    ? "HUAMI_LEGACY_SERVICE_MISSING"
-                                    : "HUAMI_SERVICE_MISSING",
+                                  : family === "casio"
+                                    ? "CASIO_SERVICE_MISSING"
+                                    : family === "huami_legacy"
+                                      ? "HUAMI_LEGACY_SERVICE_MISSING"
+                                      : "HUAMI_SERVICE_MISSING",
             );
           let profile: XiaomiBleProfile | null = null;
           let huaweiProfile: HuaweiBleProfile | null = null;
@@ -765,6 +802,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
           let gloryFitProfile: GloryFitProfile | null = null;
           let huamiLegacyProfile: HuamiLegacyProfile | null = null;
           let colmiRingProfile: ColmiRingProfile | null = null;
+          let casioProfile: CasioProfile | null = null;
           if (family === "xiaomi") {
             profile = await selectXiaomiProfile(
               discovered,
@@ -839,6 +877,33 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
               colmiRingModel.id,
             );
             if (!colmiRingProfile) throw new Error("COLMI_RING_SERVICE_MISSING");
+          } else if (family === "casio" && casioModel) {
+            casioProfile = await selectCasioProfile(
+              discovered,
+              services.map((service) => service.uuid),
+              casioModel,
+            );
+            if (!casioProfile && casioModel.reconnectOnMissingCharacteristics) {
+              // BasicCasio2C2DSupport workaround (upstream issue 3216): the
+              // first connect can miss 26eb002c/26eb002d, so reconnect once.
+              await discovered.cancelConnection().catch(() => undefined);
+              if (current !== generation || disposed) return;
+              discovered = await selected.connect();
+              ownedDevice = discovered;
+              if (connectionAttempt === attempt) connecting = discovered;
+              discovered = await discovered.discoverAllServicesAndCharacteristics();
+              ownedDevice = discovered;
+              if (current !== generation || disposed) {
+                await discovered.cancelConnection();
+                return;
+              }
+              casioProfile = await selectCasioProfile(
+                discovered,
+                (await discovered.services()).map((service) => service.uuid),
+                casioModel,
+              );
+            }
+            if (!casioProfile) throw new Error("CASIO_SERVICE_MISSING");
           }
           disconnectSubscription = r.manager.onDeviceDisconnected(discovered.id, () => {
             if (disposed || connected !== discovered || current !== generation) return;
@@ -847,6 +912,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
             connectedProfile = null;
             connectedHuaweiProfile = null;
             connectedGarminProfile = null;
+            connectedCasioProfile = null;
             void connectedGarminSession?.close();
             connectedGarminSession = null;
             void connectedBleGattSession?.close();
@@ -867,6 +933,8 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
             connectedHuamiLegacySession = null;
             void connectedHuaweiSession?.close();
             connectedHuaweiSession = null;
+            void connectedCasioSession?.close();
+            connectedCasioSession = null;
             connectedLease = null;
             disconnectSubscription?.remove();
             disconnectSubscription = null;
@@ -892,6 +960,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
           connectedProfile = profile;
           connectedHuaweiProfile = huaweiProfile;
           connectedGarminProfile = garminProfile;
+          connectedCasioProfile = casioProfile;
           lease.held = true;
           connectedLease = lease;
           ownedDevice = null;
@@ -993,6 +1062,17 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
             });
             connectedGarminSession.start();
           }
+          if (casioProfile && deps.onHistorySample) {
+            void connectedCasioSession?.close();
+            // The steps fetch starts on connection; `fetchSteps` only awaits it
+            // so its records commit inside the sync action's authority window.
+            connectedCasioSession = createCasioSession({
+              device: discovered,
+              profile: casioProfile,
+              onRecord: deps.onHistorySample,
+            });
+            connectedCasioSession.start();
+          }
           if (huaweiProfile && huaweiModel?.sync && deps.onHistorySample) {
             void connectedHuaweiSession?.close();
             // Huawei auth is automatic (MAC-derived key), but the transfer is
@@ -1017,6 +1097,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
                 family === "xiaomi" ||
                 family === "fitpro" ||
                 family === "huami_legacy" ||
+                (family === "casio" && casioProfile?.source !== null) ||
                 (family === "huawei" && huaweiModel?.sync === true) ||
                 (family === "garmin" && garminModel?.sync === true),
               liveCapture: family === "ble_gatt" || family === "ble_scale",
@@ -1027,6 +1108,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
                 family === "fitpro" ||
                 family === "gloryfit" ||
                 family === "huami_legacy" ||
+                (family === "casio" && casioProfile?.source !== null) ||
                 (family === "huawei" && huaweiModel?.sync === true) ||
                 (family === "garmin" && garminModel?.sync === true),
             }),
@@ -1089,6 +1171,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
       connectedProfile = null;
       connectedHuaweiProfile = null;
       connectedGarminProfile = null;
+      connectedCasioProfile = null;
       void connectedGarminSession?.close();
       connectedGarminSession = null;
       void connectedBleGattSession?.close();
@@ -1109,6 +1192,8 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
       connectedHuamiLegacySession = null;
       void connectedHuaweiSession?.close();
       connectedHuaweiSession = null;
+      void connectedCasioSession?.close();
+      connectedCasioSession = null;
       connectionAttempt = null;
       connectingLease = null;
       connectedLease = null;
@@ -1194,6 +1279,12 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
       if (connectedFamily === "fitpro") throw new Error("FITPRO_HISTORY_UNSUPPORTED");
       // GloryFit watches also sync on connection through their own session.
       if (connectedFamily === "gloryfit") throw new Error("GLORYFIT_HISTORY_UNSUPPORTED");
+      // Casio client-role models fetch their hourly step buckets on connection;
+      // the sync action only awaits that fetch.
+      if (connectedFamily === "casio") {
+        if (!connectedCasioProfile) throw new Error("CASIO_SERVICE_MISSING");
+        if (!connectedCasioSession) throw new Error("CASIO_STEPS_UNSUPPORTED");
+      }
       const device = connected;
       const abortController = new AbortController();
       historyAbort = abortController;
@@ -1219,14 +1310,13 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
                 granularity: "minute" as const,
               };
             })()
-          : connectedFamily === "huawei"
+          : connectedFamily === "casio"
             ? (async () => {
-                const session = connectedHuaweiSession;
-                if (!session) throw new Error("HUAWEI_HISTORY_UNSUPPORTED");
+                const session = connectedCasioSession;
+                if (!session) throw new Error("CASIO_STEPS_UNSUPPORTED");
                 const onAbort = () => void session.close();
                 linked.signal.addEventListener("abort", onAbort, { once: true });
                 try {
-                  session.start();
                   await session.whenDone();
                 } finally {
                   linked.signal.removeEventListener("abort", onAbort);
@@ -1238,15 +1328,14 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
                   granularity: "minute" as const,
                 };
               })()
-            : connectedFamily === "huami_legacy"
+            : connectedFamily === "huawei"
               ? (async () => {
-                  const session = connectedHuamiLegacySession;
-                  if (!session) throw new Error("HUAMI_LEGACY_SERVICE_MISSING");
-                  if (linked.authKey.length !== 16) throw new Error("INVALID_AUTH_KEY");
+                  const session = connectedHuaweiSession;
+                  if (!session) throw new Error("HUAWEI_HISTORY_UNSUPPORTED");
                   const onAbort = () => void session.close();
                   linked.signal.addEventListener("abort", onAbort, { once: true });
                   try {
-                    session.start(linked.authKey);
+                    session.start();
                     await session.whenDone();
                   } finally {
                     linked.signal.removeEventListener("abort", onAbort);
@@ -1258,28 +1347,48 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
                     granularity: "minute" as const,
                   };
                 })()
-              : connectedFamily === "xiaomi"
-                ? (() => {
-                    if (!connectedProfile) throw new Error("XIAOMI_HISTORY_UNSUPPORTED");
-                    const transport = deps.xiaomiHistoryTransport
-                      ? deps.xiaomiHistoryTransport(device, connectedProfile, linked)
-                      : createNativeXiaomiHistoryTransport(
-                          device,
-                          connectedProfile,
-                          {
-                            authKey: linked.authKey,
-                            phoneApiLevel: runtime().version,
-                            phoneName: "OpenValens",
-                            region: "US",
-                          },
-                          radio?.manager,
-                        );
-                    return runXiaomiStepsHistory(transport, linked);
+              : connectedFamily === "huami_legacy"
+                ? (async () => {
+                    const session = connectedHuamiLegacySession;
+                    if (!session) throw new Error("HUAMI_LEGACY_SERVICE_MISSING");
+                    if (linked.authKey.length !== 16) throw new Error("INVALID_AUTH_KEY");
+                    const onAbort = () => void session.close();
+                    linked.signal.addEventListener("abort", onAbort, { once: true });
+                    try {
+                      session.start(linked.authKey);
+                      await session.whenDone();
+                    } finally {
+                      linked.signal.removeEventListener("abort", onAbort);
+                    }
+                    return {
+                      pages: 0,
+                      minutes: 0,
+                      complete: !linked.signal.aborted,
+                      granularity: "minute" as const,
+                    };
                   })()
-                : (() => {
-                    const workLink = new NativeHelioLink(device, radio?.manager);
-                    return runHelioStepsHistory(workLink, linked).finally(() => workLink.close());
-                  })();
+                : connectedFamily === "xiaomi"
+                  ? (() => {
+                      if (!connectedProfile) throw new Error("XIAOMI_HISTORY_UNSUPPORTED");
+                      const transport = deps.xiaomiHistoryTransport
+                        ? deps.xiaomiHistoryTransport(device, connectedProfile, linked)
+                        : createNativeXiaomiHistoryTransport(
+                            device,
+                            connectedProfile,
+                            {
+                              authKey: linked.authKey,
+                              phoneApiLevel: runtime().version,
+                              phoneName: "OpenValens",
+                              region: "US",
+                            },
+                            radio?.manager,
+                          );
+                      return runXiaomiStepsHistory(transport, linked);
+                    })()
+                  : (() => {
+                      const workLink = new NativeHelioLink(device, radio?.manager);
+                      return runHelioStepsHistory(workLink, linked).finally(() => workLink.close());
+                    })();
       historyCompletion = work;
       try {
         return await work;
@@ -1320,6 +1429,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
       connectedProfile = null;
       connectedHuaweiProfile = null;
       connectedGarminProfile = null;
+      connectedCasioProfile = null;
       void connectedGarminSession?.close();
       connectedGarminSession = null;
       void connectedBleGattSession?.close();
@@ -1340,6 +1450,8 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
       connectedHuamiLegacySession = null;
       void connectedHuaweiSession?.close();
       connectedHuaweiSession = null;
+      void connectedCasioSession?.close();
+      connectedCasioSession = null;
       connectionAttempt = null;
       connectingLease = null;
       connectedLease = null;
@@ -1469,6 +1581,8 @@ const SAFE_CODES = new Set([
   "BLE_GATT_SERVICE_MISSING",
   "BLE_SCALE_SERVICE_MISSING",
   "COLMI_RING_SERVICE_MISSING",
+  "CASIO_SERVICE_MISSING",
+  "CASIO_STEPS_UNSUPPORTED",
   "BANGLE_JS_SERVICE_MISSING",
   "MOYOUNG_SERVICE_MISSING",
   "FITPRO_SERVICE_MISSING",

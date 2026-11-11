@@ -501,7 +501,9 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
                 ? "moyoung"
                 : family === "fitpro"
                   ? "fitpro"
-                  : "ring";
+                  : family === "casio"
+                    ? "casio"
+                    : "ring";
 
   /**
    * Legacy Huami, Garmin and Huawei BLE sync emit exact-minute `steps` records
@@ -732,7 +734,8 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
         state.connectedFamily !== "fitpro" &&
         state.connectedFamily !== "huami_legacy" &&
         state.connectedFamily !== "garmin" &&
-        state.connectedFamily !== "huawei")
+        state.connectedFamily !== "huawei" &&
+        state.connectedFamily !== "casio")
     )
       return;
     const bindingId = selectedBindingId;
@@ -907,7 +910,9 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
       const setup = deps.setup.getSnapshot();
       if (setup.phase !== "connected" || !setup.connectedFamily || !setup.connectedModelId) return;
       const identity: DirectDeviceIdentity = {
-        family: setup.connectedFamily,
+        // The shared identity union is extended with "casio" by the parallel
+        // lane; the cast keeps this file type-checking before that lands.
+        family: setup.connectedFamily as DirectDeviceIdentity["family"],
         modelId: setup.connectedModelId,
       };
       const token = generation;
@@ -964,7 +969,10 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
         publish({ errorCode: "CONFIRMATION_STALE" });
         return;
       }
-      const identity: DirectDeviceIdentity = { family: target.family, modelId: target.modelId };
+      const identity: DirectDeviceIdentity = {
+        family: target.family as DirectDeviceIdentity["family"],
+        modelId: target.modelId,
+      };
       const token = ++generation;
       const abort = new AbortController();
       activeConfirmationAbort = abort;
@@ -1058,7 +1066,7 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
       const token = ++generation;
       const syncDeviceId = selectedBindingId;
       const syncIdentity: DirectDeviceIdentity = {
-        family: snapshot.connectedFamily!,
+        family: snapshot.connectedFamily! as DirectDeviceIdentity["family"],
         modelId: snapshot.connectedModelId!,
       };
       const abort = new AbortController();

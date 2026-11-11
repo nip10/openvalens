@@ -7,6 +7,7 @@ import { BLE_GATT_MODELS } from "../models/ble-gatt";
 import { BANGLE_JS_MODELS } from "../models/bangle-js";
 import { BANGLE_JS_RX_UUID, BANGLE_JS_SERVICE_UUID, BANGLE_JS_TX_UUID } from "../models/bangle-js";
 import { BLE_SCALE_MODELS } from "../models/ble-scale";
+import { CASIO_MODELS } from "../models/casio";
 import {
   COLMI_RING_MODELS,
   COLMI_V1_NOTIFY_UUID,
@@ -104,10 +105,15 @@ test("native model registries remain in parity with the shared identity catalog"
       modelId: model.id,
       displayName: model.displayName,
     })),
+    ...CASIO_MODELS.map((model) => ({
+      family: "casio",
+      modelId: model.id,
+      displayName: model.displayName,
+    })),
   ].sort((left, right) =>
     `${left.family}:${left.modelId}`.localeCompare(`${right.family}:${right.modelId}`),
   );
-  expect(native).toHaveLength(453);
+  expect(native).toHaveLength(465);
   expect(native as unknown).toEqual(
     [...DIRECT_DEVICE_MODELS].sort((left, right) =>
       `${left.family}:${left.modelId}`.localeCompare(`${right.family}:${right.modelId}`),

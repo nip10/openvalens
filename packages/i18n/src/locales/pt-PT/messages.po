@@ -2791,6 +2791,10 @@ msgstr "Hidratos"
 msgid "Cardiac"
 msgstr "Cardíaco"
 
+#: apps/native/components/direct-device-settings.tsx
+msgid "Casio hourly step buckets sync automatically while connected. The watch reports hourly totals only, so there is no heart rate or sleep data. Records are saved in batches and sent only when you tap “Retry upload”."
+msgstr "Os intervalos de passos por hora do Casio sincronizam automaticamente enquanto ligado. O relógio reporta totais por hora apenas, por isso não há dados de frequência cardíaca nem de sono. Os registos são guardados em lotes e só são enviados quando toca em “Tentar enviar novamente”."
+
 #: apps/web/src/components/workout-routines.tsx
 msgid "Catalog exercise"
 msgstr "Exercício do catálogo"
@@ -3558,6 +3562,10 @@ msgstr "A ligar…"
 #: apps/native/components/direct-device-settings.tsx
 msgid "Connection checks only; measurement capture is not implemented for this model yet. Not hardware-verified."
 msgstr "Apenas verificações de ligação; a captura de medições ainda não está implementada para este modelo. Não verificado em hardware."
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "Connection checks only; the Casio protocol has no recorded-data path for this model. Not hardware-verified."
+msgstr "Apenas verificações de ligação; o protocolo Casio não tem caminho de dados registados para este modelo. Não verificado em hardware."
 
 #: apps/native/components/direct-device-settings.tsx
 msgid "Connection checks only; this model carries no health-monitoring FIT files. Not hardware-verified."
@@ -7078,6 +7086,10 @@ msgstr "Sincronização de histórico ao ligar para passos minuto a minuto, freq
 #: apps/native/components/direct-device-settings.tsx
 msgid "History sync on connection for heart rate and sleep; steps are not supported because the watch only reports daily totals. Not hardware-verified."
 msgstr "Sincronização de histórico ao ligar para frequência cardíaca e sono; os passos não são suportados porque o relógio só reporta totais diários. Não verificado em hardware."
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "History sync on connection for hourly step buckets only; the Casio protocol carries no heart rate or sleep data. Not hardware-verified."
+msgstr "Sincronização de histórico ao ligar apenas para intervalos de passos por hora; o protocolo Casio não tem dados de frequência cardíaca nem de sono. Não verificado em hardware."
 
 #: apps/native/components/direct-device-settings.tsx
 msgid "History sync on connection for step-by-minute records, heart rate and sleep; not hardware-verified."
@@ -14917,6 +14929,10 @@ msgstr "Esta aplicação já sincroniza o Apple Health ou o Health Connect. Para
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "This cannot be undone."
 msgstr "Esta ação não pode ser anulada."
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "This Casio model is registered for connection checks only; the protocol has no recorded-data path for it."
+msgstr "Este modelo Casio está registado apenas para verificações de ligação; o protocolo não tem caminho de dados registados para ele."
 
 #: apps/native/components/workout-session.tsx
 msgid "This change conflicts with the saved session and was not applied."

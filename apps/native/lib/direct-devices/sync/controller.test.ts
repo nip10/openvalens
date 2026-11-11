@@ -2414,3 +2414,72 @@ test("GloryFit history is committed as steps_interval, sleep_session and heart_r
   db.close();
   invalidateDirectDeviceAuthority();
 });
+
+test("Casio hourly bins are committed as a steps_interval batch", async () => {
+  const { db, store } = sqlite();
+  const historyCapture: { handler: ((sample: DirectDeviceHistorySample) => void) | null } = {
+    handler: null,
+  };
+  const casioBinding: DirectDeviceBindingSummary = {
+    ...binding,
+    family: "casio",
+    modelId: "casio_gbx-100",
+    displayName: "Casio GBX-100",
+  };
+  const { controller, ticket } = await readyController({
+    store,
+    setup: setup(async () => ({ pages: 0, minutes: 0, complete: true }), "casio_gbx-100", {
+      family: "casio",
+      stepsHistory: true,
+      liveCapture: false,
+      historySync: true,
+    }),
+    localIdentity: { family: "casio", modelId: "casio_gbx-100" },
+    historyCapture,
+    makeClient: () => ({
+      directDevice: {
+        listDirectDevices: async () => ({ devices: [casioBinding] }),
+        registerDirectDevice: async () => ({ providerConnectionId: 41 }),
+        ingestDirectDeviceBatch: async () => ({ status: "applied" }),
+      },
+    }),
+  });
+  expect(historyCapture.handler).not.toBeNull();
+
+  // 50 hourly bins reach the 50-sample flush threshold in one commit.
+  const dayStart = new Date(2026, 1, 1, 0, 0, 0);
+  for (let index = 0; index < 50; index += 1)
+    historyCapture.handler!({
+      type: "steps_interval",
+      startTime: new Date(dayStart.getTime() + index * 60 * 60_000).toISOString(),
+      endTime: new Date(dayStart.getTime() + (index + 1) * 60 * 60_000).toISOString(),
+      count: index * 3,
+    });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  const pending = store.listPending(ticket, 10);
+  expect(pending).toHaveLength(1);
+  const batch = pending[0]!.request.batch;
+  expect(batch).toMatchObject({
+    recordType: "steps_interval",
+    mode: "backfill",
+    deviceIdentity: { family: "casio", modelId: "casio_gbx-100" },
+  });
+  expect(batch.upserts).toHaveLength(50);
+  expect(batch.upserts[0]).toEqual({
+    type: "steps_interval",
+    externalRecordId: `dd-casio:${deviceId}:steps:${dayStart.toISOString()}`,
+    sourceApp: null,
+    startTime: dayStart.toISOString(),
+    endTime: new Date(dayStart.getTime() + 60 * 60_000).toISOString(),
+    count: 0,
+  });
+  // No heart rate or sleep batches exist for this family.
+  expect(new Set(pending.map((row) => row.request.batch.recordType))).toEqual(
+    new Set(["steps_interval"]),
+  );
+
+  await controller.dispose();
+  db.close();
+  invalidateDirectDeviceAuthority();
+});

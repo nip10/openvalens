@@ -50,7 +50,9 @@ export type OpenValensDeviceSupport =
   | "gloryfit_history_sync"
   | "huami_legacy_steps_history"
   | "moyoung_history_sync"
-  | "fitpro_history_sync";
+  | "fitpro_history_sync"
+  | "casio_steps_history"
+  | "casio_connection_only";
 
 export type DeviceSupportStatus = Readonly<{
   upstream: UpstreamDeviceSupport;
@@ -128,5 +130,7 @@ function openValensSupport(
       return "moyoung_history_sync";
     case "fitpro":
       return "fitpro_history_sync";
+    case "casio":
+      return records?.includes("steps_interval") ? "casio_steps_history" : "casio_connection_only";
   }
 }
