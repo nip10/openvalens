@@ -1472,6 +1472,181 @@ export const DIRECT_DEVICE_MODELS: readonly DirectDeviceModelDescriptor[] = [
     modelId: "garmin_vivosport",
     displayName: "Garmin Vívosport",
   },
+  {
+    family: "garmin",
+    modelId: "garmin_edge_25",
+    displayName: "Garmin Edge 25",
+  },
+  {
+    family: "garmin",
+    modelId: "garmin_edge_130",
+    displayName: "Garmin Edge 130",
+  },
+  {
+    family: "garmin",
+    modelId: "garmin_edge_130_plus",
+    displayName: "Garmin Edge 130 Plus",
+  },
+  {
+    family: "garmin",
+    modelId: "garmin_edge_510",
+    displayName: "Garmin Edge 510",
+  },
+  {
+    family: "garmin",
+    modelId: "garmin_edge_520",
+    displayName: "Garmin Edge 520",
+  },
+  {
+    family: "garmin",
+    modelId: "garmin_edge_520_plus",
+    displayName: "Garmin Edge 520 Plus",
+  },
+  {
+    family: "garmin",
+    modelId: "garmin_edge_530",
+    displayName: "Garmin Edge 530",
+  },
+  {
+    family: "garmin",
+    modelId: "garmin_edge_540",
+    displayName: "Garmin Edge 540",
+  },
+  {
+    family: "garmin",
+    modelId: "garmin_edge_550",
+    displayName: "Garmin Edge 550",
+  },
+  {
+    family: "garmin",
+    modelId: "garmin_edge_810",
+    displayName: "Garmin Edge 810",
+  },
+  {
+    family: "garmin",
+    modelId: "garmin_edge_820",
+    displayName: "Garmin Edge 820",
+  },
+  {
+    family: "garmin",
+    modelId: "garmin_edge_830",
+    displayName: "Garmin Edge 830",
+  },
+  {
+    family: "garmin",
+    modelId: "garmin_edge_840",
+    displayName: "Garmin Edge 840",
+  },
+  {
+    family: "garmin",
+    modelId: "garmin_edge_850",
+    displayName: "Garmin Edge 850",
+  },
+  {
+    family: "garmin",
+    modelId: "garmin_edge_1000",
+    displayName: "Garmin Edge 1000",
+  },
+  {
+    family: "garmin",
+    modelId: "garmin_edge_1030",
+    displayName: "Garmin Edge 1030",
+  },
+  {
+    family: "garmin",
+    modelId: "garmin_edge_1030_plus",
+    displayName: "Garmin Edge 1030 Plus",
+  },
+  {
+    family: "garmin",
+    modelId: "garmin_edge_1040",
+    displayName: "Garmin Edge 1040",
+  },
+  {
+    family: "garmin",
+    modelId: "garmin_edge_1050",
+    displayName: "Garmin Edge 1050",
+  },
+  {
+    family: "garmin",
+    modelId: "garmin_edge_explore",
+    displayName: "Garmin Edge Explore",
+  },
+  {
+    family: "garmin",
+    modelId: "garmin_edge_explore_2",
+    displayName: "Garmin Edge Explore 2",
+  },
+  {
+    family: "garmin",
+    modelId: "garmin_edge_explore_820",
+    displayName: "Garmin Edge Explore 820",
+  },
+  {
+    family: "garmin",
+    modelId: "garmin_edge_explore_1000",
+    displayName: "Garmin Edge Explore 1000",
+  },
+  {
+    family: "garmin",
+    modelId: "garmin_edge_mtb",
+    displayName: "Garmin Edge MTB",
+  },
+  {
+    family: "garmin",
+    modelId: "garmin_etrex_se",
+    displayName: "Garmin eTrex SE",
+  },
+  {
+    family: "garmin",
+    modelId: "garmin_gpsmap_66s",
+    displayName: "Garmin GPSMAP 66s",
+  },
+  {
+    family: "garmin",
+    modelId: "garmin_gpsmap_66sr",
+    displayName: "Garmin GPSMAP 66sr",
+  },
+  {
+    family: "garmin",
+    modelId: "garmin_gpsmap_66i",
+    displayName: "Garmin GPSMAP 66i",
+  },
+  {
+    family: "garmin",
+    modelId: "garmin_gpsmap_h1",
+    displayName: "Garmin GPSMAP H1",
+  },
+  {
+    family: "garmin",
+    modelId: "garmin_hrm_200",
+    displayName: "Garmin HRM 200",
+  },
+  {
+    family: "garmin",
+    modelId: "garmin_hrm_600",
+    displayName: "Garmin HRM 600",
+  },
+  {
+    family: "garmin",
+    modelId: "garmin_hrm_pro_plus",
+    displayName: "Garmin HRM Pro Plus",
+  },
+  {
+    family: "garmin",
+    modelId: "garmin_inreach_mini_2",
+    displayName: "Garmin inReach Mini 2",
+  },
+  {
+    family: "garmin",
+    modelId: "garmin_quatix_7",
+    displayName: "Garmin Quatix 7",
+  },
+  {
+    family: "garmin",
+    modelId: "garmin_quatix_7x",
+    displayName: "Garmin Quatix 7X",
+  },
   // BLE GATT sensors: heart-rate bands, blood-pressure monitors and
   // thermometers that publish standard GATT characteristics.
   {

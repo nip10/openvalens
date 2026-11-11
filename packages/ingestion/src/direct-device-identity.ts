@@ -29,7 +29,12 @@ export type DirectDeviceBindingIdentity = {
  * derived from 0x0D records. This capability is family-level: only the
  * BLE-transport Huawei models can sync history, while the BT-Classic (BR) models
  * stay connection-only and are refused by the native registry before a batch is
- * ever created.
+ * ever created. Garmin devices publish FIT files pulled over GFDI: FIT
+ * monitoring samples are per-minute, so exact-minute `steps` and `heart_rate`
+ * are mapped, and sleep sessions come from the same FIT files. As with Huawei,
+ * the capability is family-level: only BLE-transport Garmin models can sync
+ * history; any Bluetooth-Classic/RFCOMM model stays connection-only and is
+ * gated by the native registry before a batch is ever created.
  */
 export type DirectDeviceRecordType =
   | "steps"
@@ -75,7 +80,8 @@ export function directDeviceFamilySupportsRecordType(
       family === "zepp_os" ||
       family === "xiaomi" ||
       family === "huami_legacy" ||
-      family === "huawei"
+      family === "huawei" ||
+      family === "garmin"
     );
   if (recordType === "steps_interval")
     return family === "colmi_ring" || family === "bangle_js" || family === "gloryfit";
@@ -85,7 +91,8 @@ export function directDeviceFamilySupportsRecordType(
       family === "gloryfit" ||
       family === "huami_legacy" ||
       family === "moyoung" ||
-      family === "huawei"
+      family === "huawei" ||
+      family === "garmin"
     );
   if (recordType === "weight_measurement") return family === "ble_scale";
   if (recordType === "heart_rate")
@@ -96,7 +103,8 @@ export function directDeviceFamilySupportsRecordType(
       family === "gloryfit" ||
       family === "huami_legacy" ||
       family === "moyoung" ||
-      family === "huawei"
+      family === "huawei" ||
+      family === "garmin"
     );
   return family === "ble_gatt";
 }

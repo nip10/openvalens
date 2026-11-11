@@ -101,7 +101,7 @@ test("native model registries remain in parity with the shared identity catalog"
   ].sort((left, right) =>
     `${left.family}:${left.modelId}`.localeCompare(`${right.family}:${right.modelId}`),
   );
-  expect(native).toHaveLength(405);
+  expect(native).toHaveLength(440);
   expect(native as unknown).toEqual(
     [...DIRECT_DEVICE_MODELS].sort((left, right) =>
       `${left.family}:${left.modelId}`.localeCompare(`${right.family}:${right.modelId}`),
@@ -1178,6 +1178,47 @@ test("discovers a Garmin model over the v1 GFDI service", async () => {
     connectedFamily: "garmin",
   });
   await f.controller.dispose();
+});
+
+test("a Garmin wearable exposes FIT history sync; a bike computer stays connection-only", async () => {
+  const garminServices = async () => [{ uuid: "6a4e2800-667b-11e3-949a-0800200c9a66" }];
+  const garminCharacteristics = async (service: string) =>
+    service === "6a4e2800-667b-11e3-949a-0800200c9a66"
+      ? [
+          { uuid: "6a4e2810-667b-11e3-949a-0800200c9a66" },
+          { uuid: "6a4e2820-667b-11e3-949a-0800200c9a66" },
+        ]
+      : [];
+
+  const wearable = fixture({
+    deviceName: "Forerunner 965",
+    services: garminServices,
+    characteristics: garminCharacteristics,
+  });
+  await wearable.controller.startScan();
+  wearable.emit();
+  await wearable.controller.connect("local-id");
+  expect(wearable.controller.getSnapshot().capabilities).toEqual({
+    stepsHistory: true,
+    liveCapture: false,
+    historySync: true,
+  });
+  await wearable.controller.dispose();
+
+  const bike = fixture({
+    deviceName: "Edge 530",
+    services: garminServices,
+    characteristics: garminCharacteristics,
+  });
+  await bike.controller.startScan();
+  bike.emit();
+  await bike.controller.connect("local-id");
+  expect(bike.controller.getSnapshot()).toMatchObject({
+    phase: "connected",
+    connectedModelId: "garmin_edge_530",
+    capabilities: { stepsHistory: false, liveCapture: false, historySync: false },
+  });
+  await bike.controller.dispose();
 });
 
 test("a Garmin model without a Garmin service is rejected", async () => {

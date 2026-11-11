@@ -1,0 +1,1467 @@
+/**
+ * Garmin GFDI + FIT codec (pure, no BLE).
+ *
+ * Ported from Gadgetbridge at revision
+ * 8976702fc3d00e6008c91fe994668cb4027f7bc2, paths relative to
+ * `app/src/main/java/nodomain/freeyourgadget/gadgetbridge/`:
+ * - `service/devices/garmin/communicator/CobsCoDec.java` (COBS variant)
+ * - `service/devices/garmin/ChecksumCalculator.java` (CRC-16 nibble table)
+ * - `service/devices/garmin/messages/GFDIMessage.java` (framing, type table)
+ * - `service/devices/garmin/messages/{DownloadRequest,FileTransferData,
+ *   SetFileFlags,SupportedFileTypes,SystemEvent}Message.java`
+ * - `service/devices/garmin/messages/status/*` (status payloads)
+ * - `service/devices/garmin/messages/FileTransferHandler.java` (directory
+ *   records, download queue, chunk CRC)
+ * - `service/devices/garmin/FileType.java` (data type / sub type table)
+ * - `service/devices/garmin/GarminTimeUtils.java` (epoch offset)
+ * - `service/devices/garmin/fit/{FitFile,RecordHeader,RecordDefinition,
+ *   RecordData}.java` (FIT container)
+ * - `service/devices/garmin/fit/FitImporter.java` (monitoring + sleep
+ *   semantics)
+ * - `service/devices/garmin/fit/messages/FitMonitoring.java` (timestamp_16
+ *   rollover)
+ * - `service/devices/garmin/fit/enums/SleepLevel.java`
+ * - `service/devices/garmin/devices/garmin/GarminSleepSessionProvider.kt`
+ *   (event-bounded sessions, upper-bound stage samples)
+ * - `FitCodeGenerator/src/main/resources/fit_profile.json` (field numbers,
+ *   base types, scales for the eight message types below)
+ *
+ * FIT parser choice
+ * -----------------
+ * Checked npm before hand-rolling:
+ * - `fit-file-parser@6.2.7` — MIT (LICENSE: "The MIT License (MIT),
+ *   Copyright (c) 2015 Pierre Jacquier"). Parses every message type needed,
+ *   but `dist/binary.js` does `import { Buffer } from 'buffer'`, so it needs a
+ *   Buffer polyfill in React Native, and it ships a 1.7 MB full FIT profile.
+ *   It also applies profile scales and hides the raw definition/`timestamp_16`
+ *   layer this port needs to reproduce upstream arithmetic exactly.
+ * - `fit-parser@0.10.1` — MIT, older and narrower than the above.
+ * Neither is a good fit for an Expo/React Native bundle, so the FIT container
+ * is hand-rolled here from the upstream parser and the profile JSON. Only the
+ * message types this family emits are described; unknown messages are walked
+ * and skipped without losing record alignment.
+ *
+ * Licence: AGPL-3.0-or-later (same as upstream).
+ */
+
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+/** Garmin epoch offset in seconds (`GarminTimeUtils.GARMIN_TIME_EPOCH`). */
+export const GARMIN_TIME_EPOCH = 631_065_600;
+
+/** `.FIT` magic, little-endian (`FitFile.Header.MAGIC`). */
+export const GARMIN_FIT_MAGIC = 0x5449462e;
+
+/** GFDI message ids (`GFDIMessage.GarminMessage`). */
+export const GARMIN_MESSAGE = {
+  RESPONSE: 5000,
+  DOWNLOAD_REQUEST: 5002,
+  UPLOAD_REQUEST: 5003,
+  FILE_TRANSFER_DATA: 5004,
+  CREATE_FILE: 5005,
+  FILTER: 5007,
+  SET_FILE_FLAG: 5008,
+  FILE_AVAILABLE: 5009,
+  FIT_DEFINITION: 5011,
+  FIT_DATA: 5012,
+  BATTERY_STATUS: 5023,
+  DEVICE_INFORMATION: 5024,
+  SYSTEM_EVENT: 5030,
+  SUPPORTED_FILE_TYPES_REQUEST: 5031,
+  SYNCHRONIZATION: 5037,
+  CURRENT_TIME_REQUEST: 5052,
+  AUTH_NEGOTIATION: 5101,
+} as const;
+
+/**
+ * GFDI `AUTH_NEGOTIATION`. The device sends an opaque flag bitmask; upstream
+ * replies ACK / `GUESS_OK` with all flags cleared and derives no key.
+ */
+export const GARMIN_AUTH_NEGOTIATION_MESSAGE_TYPE = 5101;
+/** Upstream `AuthNegotiationStatus.GUESS_OK`. */
+export const GARMIN_AUTH_NEGOTIATION_GUESS_OK = 0;
+
+/** GFDI status codes (`GFDIMessage.Status` ordinals). */ export const GARMIN_STATUS = {
+  ACK: 0,
+  NAK: 1,
+  UNSUPPORTED: 2,
+  DECODE_ERROR: 3,
+  CRC_ERROR: 4,
+  LENGTH_ERROR: 5,
+} as const;
+
+/** `SystemEventMessage.GarminSystemEventType` ordinals. */
+export const GARMIN_SYSTEM_EVENT = {
+  SYNC_COMPLETE: 0,
+  SYNC_FAIL: 1,
+  FACTORY_RESET: 2,
+  PAIR_START: 3,
+  PAIR_COMPLETE: 4,
+  PAIR_FAIL: 5,
+  HOST_DID_ENTER_FOREGROUND: 6,
+  HOST_DID_ENTER_BACKGROUND: 7,
+  SYNC_READY: 8,
+  NEW_DOWNLOAD_AVAILABLE: 9,
+  DEVICE_SOFTWARE_UPDATE: 10,
+  DEVICE_DISCONNECT: 11,
+  TUTORIAL_COMPLETE: 12,
+  SETUP_WIZARD_START: 13,
+  SETUP_WIZARD_COMPLETE: 14,
+  SETUP_WIZARD_SKIPPED: 15,
+  TIME_UPDATED: 16,
+  TRIGGER_REBOOT: 17,
+} as const;
+
+/** `SetFileFlagsMessage.FileFlags` bit values. */
+export const GARMIN_FILE_FLAG = {
+  CRYPTO: 0x04,
+  APPEND: 0x08,
+  ARCHIVE: 0x10,
+  ERASE: 0x20,
+  WRITE: 0x40,
+  READ: 0x80,
+} as const;
+
+/** `DownloadRequestMessage.REQUEST_TYPE` ordinals. */
+export const GARMIN_REQUEST_TYPE = { CONTINUE: 0, NEW: 1 } as const;
+
+/** `DownloadRequestStatusMessage.DownloadStatus` ordinals. */
+export const GARMIN_DOWNLOAD_STATUS = {
+  OK: 0,
+  INDEX_NOT_FOUND: 1,
+  NOT_READABLE: 2,
+  NOT_READY: 3,
+  INVALID_REQUEST: 4,
+  CRC_MISMATCH: 5,
+  RANGE_EXCEEDS_FILE: 6,
+} as const;
+
+/** `FileTransferDataStatusMessage.TransferStatus` ordinals. */
+export const GARMIN_TRANSFER_STATUS = {
+  OK: 0,
+  RESEND: 1,
+  ABORT: 2,
+  CRC_MISMATCH: 3,
+  OFFSET_MISMATCH: 4,
+  SYNC_PAUSED: 5,
+} as const;
+
+/** Multi-Link (ML) handle management (`CommunicatorV2`). */
+export const GARMIN_ML_CLIENT_ID = 2;
+export const GARMIN_ML_REQUEST = {
+  REGISTER_ML_REQ: 0,
+  REGISTER_ML_RESP: 1,
+  CLOSE_HANDLE_REQ: 2,
+  CLOSE_HANDLE_RESP: 3,
+  UNK_HANDLE: 4,
+  CLOSE_ALL_REQ: 5,
+  CLOSE_ALL_RESP: 6,
+  UNK_REQ: 7,
+  UNK_RESP: 8,
+} as const;
+/** `CommunicatorV2.Service.GFDI`. */
+export const GARMIN_ML_SERVICE_GFDI = 1;
+/** `MlrCommunicator.MLR_FLAG_MASK` — reliable (MLR) service registrations. */
+export const GARMIN_MLR_FLAG_MASK = 0x80;
+
+/**
+ * Directory file types this family downloads (`FileType.FILETYPE`). Only the
+ * health-monitoring FIT files are fetched in v1; everything else is skipped.
+ */
+export const GARMIN_FILE_TYPE = {
+  DIRECTORY: { dataType: 0, subType: 0 },
+  MONITOR_A: { dataType: 128, subType: 15 },
+  MONITOR_DAILY: { dataType: 128, subType: 28 },
+  MONITOR: { dataType: 128, subType: 32 },
+  SLEEP: { dataType: 128, subType: 49 },
+} as const;
+
+/** Health FIT file types the v1 sync downloads. */
+export const GARMIN_HEALTH_FILE_TYPES: readonly Readonly<{
+  dataType: number;
+  subType: number;
+  name: string;
+}>[] = [
+  { ...GARMIN_FILE_TYPE.MONITOR_A, name: "MONITOR_A" },
+  { ...GARMIN_FILE_TYPE.MONITOR_DAILY, name: "MONITOR_DAILY" },
+  { ...GARMIN_FILE_TYPE.MONITOR, name: "MONITOR" },
+  { ...GARMIN_FILE_TYPE.SLEEP, name: "SLEEP" },
+];
+
+/** Directory record size in bytes (`FileTransferHandler.parseDirectoryEntries`). */
+export const GARMIN_DIRECTORY_ENTRY_SIZE = 16;
+
+/** FIT message numbers this family understands. */
+export const GARMIN_FIT_MESSAGE = {
+  FILE_ID: 0,
+  EVENT: 21,
+  MONITORING: 55,
+  MONITORING_HR_DATA: 211,
+  SLEEP_DATA_RAW: 274,
+  SLEEP_LEVEL: 275,
+  SLEEP_ASSESSMENT: 346,
+  NAP_EVENT: 412,
+} as const;
+
+/** `SleepLevel` enum (`fit_profile.json` enumerations). */
+export const GARMIN_SLEEP_LEVEL = {
+  UNMEASURABLE: 0,
+  AWAKE: 1,
+  LIGHT: 2,
+  DEEP: 3,
+  REM: 4,
+} as const;
+
+/** `Event` enum value used for sleep start/stop (`GarminEventSampleProvider`). */
+export const GARMIN_EVENT_DETECT_SLEEP = 74;
+/** `EventType` ordinals used for the sleep boundaries. */
+export const GARMIN_EVENT_TYPE = { START: 0, STOP: 1 } as const;
+
+/** Upstream `SleepSessionSegmenter` rules, mirrored for stage-only files. */
+export const GARMIN_MIN_SESSION_SECONDS = 5 * 60;
+export const GARMIN_MAX_WAKE_PHASE_SECONDS = 60 * 60;
+export const GARMIN_TRAILING_STAGE_SECONDS = 60;
+
+const MINUTE_MS = 60_000;
+
+// ---------------------------------------------------------------------------
+// CRC-16/ARC (ChecksumCalculator.java)
+// ---------------------------------------------------------------------------
+
+const GARMIN_CRC_CONSTANTS: readonly number[] = [
+  0x0000, 0xcc01, 0xd801, 0x1400, 0xf001, 0x3c00, 0x2800, 0xe401, 0xa001, 0x6c00, 0x7800, 0xb401,
+  0x5000, 0x9c01, 0x8801, 0x4400,
+];
+
+/** Upstream `ChecksumCalculator.computeCrc`, i.e. CRC-16/ARC. */
+export function garminCrc16(bytes: Uint8Array, initial = 0x0000): number {
+  let crc = initial;
+  for (const byte of bytes) {
+    crc = ((crc >> 4) & 4095) ^ GARMIN_CRC_CONSTANTS[crc & 15]!;
+    crc ^= GARMIN_CRC_CONSTANTS[byte & 15]!;
+    crc = ((crc >> 4) & 4095) ^ GARMIN_CRC_CONSTANTS[crc & 15]!;
+    crc ^= GARMIN_CRC_CONSTANTS[(byte >> 4) & 15]!;
+  }
+  return crc & 0xffff;
+}
+
+// ---------------------------------------------------------------------------
+// COBS (CobsCoDec.java)
+// ---------------------------------------------------------------------------
+
+/**
+ * Encodes a payload with the upstream COBS variant: a leading 0x00, COBS
+ * blocks, an optional 0x01 for a trailing zero, and a trailing 0x00.
+ */
+export function encodeGarminCobs(data: Uint8Array): Uint8Array {
+  const out: number[] = [0];
+  let position = 0;
+  let lastByteWasZero = false;
+  while (position < data.length) {
+    const startPos = position;
+    while (position < data.length && data[position] !== 0) position += 1;
+    lastByteWasZero = position < data.length && data[position] === 0;
+    let payloadSize = position - startPos;
+    let start = startPos;
+    while (payloadSize >= 0xfe) {
+      out.push(0xff);
+      for (let index = 0; index < 0xfe; index += 1) out.push(data[start + index]!);
+      payloadSize -= 0xfe;
+      start += 0xfe;
+    }
+    out.push(payloadSize + 1);
+    for (let index = 0; index < payloadSize; index += 1) out.push(data[start + index]!);
+    if (lastByteWasZero) position += 1;
+  }
+  if (lastByteWasZero) out.push(0x01);
+  out.push(0);
+  return Uint8Array.from(out);
+}
+
+/**
+ * Decodes exactly one complete COBS frame (leading and trailing 0x00).
+ * Throws `GARMIN_COBS_*` on malformed or truncated input.
+ */
+export function decodeGarminCobsFrame(frame: Uint8Array): Uint8Array {
+  if (frame.length < 4) throw new Error("GARMIN_COBS_TRUNCATED");
+  if (frame[0] !== 0 || frame[frame.length - 1] !== 0) throw new Error("GARMIN_COBS_FRAME");
+  const out: number[] = [];
+  const end = frame.length - 1;
+  let offset = 1;
+  while (offset < end) {
+    const code = frame[offset]!;
+    offset += 1;
+    if (code === 0) break;
+    const payloadSize = code - 1;
+    if (offset + payloadSize > end) throw new Error("GARMIN_COBS_TRUNCATED");
+    for (let index = 0; index < payloadSize; index += 1) out.push(frame[offset + index]!);
+    offset += payloadSize;
+    if (code !== 0xff && offset < end) out.push(0);
+  }
+  return Uint8Array.from(out);
+}
+
+/**
+ * Streaming COBS decoder. Accumulates BLE notification fragments and yields
+ * one decoded message at a time. Malformed frames are dropped and the
+ * accumulator resets, matching upstream `CobsCoDec`.
+ */
+export class GarminCobsDecoder {
+  private buffer: number[] = [];
+
+  accept(bytes: Uint8Array): Uint8Array | null {
+    for (const byte of bytes) this.buffer.push(byte);
+    if (this.buffer.length > 10_000) this.reset();
+    if (this.buffer.length < 4) return null;
+    if (this.buffer[0] !== 0) {
+      this.reset();
+      return null;
+    }
+    const end = this.buffer.indexOf(0, 1);
+    if (end < 0) return null;
+    const frame = Uint8Array.from(this.buffer.slice(0, end + 1));
+    this.buffer = this.buffer.slice(end + 1);
+    try {
+      return decodeGarminCobsFrame(frame);
+    } catch {
+      return null;
+    }
+  }
+
+  reset(): void {
+    this.buffer = [];
+  }
+}
+
+// ---------------------------------------------------------------------------
+// GFDI packet framing (GFDIMessage.java)
+// ---------------------------------------------------------------------------
+
+export type GarminGfdiFrame = Readonly<{
+  /** Raw message type. Incoming frames may carry a sequence number in bit 15. */
+  messageType: number;
+  payload: Uint8Array;
+  /** Sequence number carried in the type word's high bit, when present. */
+  sequenceNumber?: number;
+}>;
+
+function uint16le(bytes: Uint8Array, offset: number): number {
+  return bytes[offset]! | (bytes[offset + 1]! << 8);
+}
+
+function uint32le(bytes: Uint8Array, offset: number): number {
+  return (
+    (bytes[offset]! |
+      (bytes[offset + 1]! << 8) |
+      (bytes[offset + 2]! << 16) |
+      (bytes[offset + 3]! << 24)) >>>
+    0
+  );
+}
+
+function writeUint16le(out: Uint8Array, offset: number, value: number): void {
+  out[offset] = value & 0xff;
+  out[offset + 1] = (value >>> 8) & 0xff;
+}
+
+function writeUint32le(out: Uint8Array, offset: number, value: number): void {
+  out[offset] = value & 0xff;
+  out[offset + 1] = (value >>> 8) & 0xff;
+  out[offset + 2] = (value >>> 16) & 0xff;
+  out[offset + 3] = (value >>> 24) & 0xff;
+}
+
+/**
+ * Serializes one GFDI message: 2-byte little-endian total length (including
+ * the length field and CRC), 2-byte little-endian message type, payload, then
+ * the CRC-16/ARC over everything before it.
+ *
+ * A `sequenceNumber` (0-127) sets the type word's high bit, matching the
+ * incoming encoding in `GFDIMessage.parseIncoming`.
+ */
+export function encodeGarminGfdiFrame(frame: GarminGfdiFrame): Uint8Array {
+  if (!Number.isInteger(frame.messageType) || frame.messageType < 0 || frame.messageType > 0xffff) {
+    throw new Error("GARMIN_MESSAGE_TYPE");
+  }
+  let typeWord = frame.messageType;
+  if (frame.sequenceNumber !== undefined) {
+    if (
+      !Number.isInteger(frame.sequenceNumber) ||
+      frame.sequenceNumber < 0 ||
+      frame.sequenceNumber > 0x7f
+    )
+      throw new Error("GARMIN_SEQUENCE");
+    if (frame.messageType < 5000 || frame.messageType > 5000 + 0xff)
+      throw new Error("GARMIN_SEQUENCE_TYPE");
+    typeWord = 0x8000 | (frame.sequenceNumber << 8) | (frame.messageType - 5000);
+  }
+  const total = 4 + frame.payload.length + 2;
+  if (total > 0xffff) throw new Error("GARMIN_PACKET_TOO_LARGE");
+  const out = new Uint8Array(total);
+  writeUint16le(out, 0, total);
+  writeUint16le(out, 2, typeWord);
+  out.set(frame.payload, 4);
+  writeUint16le(out, total - 2, garminCrc16(out.subarray(0, total - 2)));
+  return out;
+}
+
+/** Parses and verifies one complete GFDI message. */
+export function decodeGarminGfdiFrame(bytes: Uint8Array): GarminGfdiFrame {
+  if (bytes.length < 6) throw new Error("GARMIN_PACKET_TRUNCATED");
+  const length = uint16le(bytes, 0);
+  if (length !== bytes.length) throw new Error("GARMIN_PACKET_LENGTH");
+  const expectedCrc = uint16le(bytes, length - 2);
+  if (garminCrc16(bytes.subarray(0, length - 2)) !== expectedCrc) {
+    throw new Error("GARMIN_PACKET_CRC");
+  }
+  const typeWord = uint16le(bytes, 2);
+  const payload = bytes.slice(4, length - 2);
+  if ((typeWord & 0x8000) !== 0) {
+    // `GFDIMessage.parseIncoming`: sequence number in the high bit, message id
+    // in the low byte, offset by 5000.
+    return {
+      messageType: (typeWord & 0xff) + 5000,
+      payload,
+      sequenceNumber: (typeWord >> 8) & 0x7f,
+    };
+  }
+  return { messageType: typeWord, payload };
+}
+
+// ---------------------------------------------------------------------------
+// Write chunking (CommunicatorV1/V2.java)
+// ---------------------------------------------------------------------------
+
+export type GarminWriteOptions = Readonly<{
+  /** Maximum bytes accepted by one BLE write, including any handle prefix. */
+  maxWriteSize: number;
+  /** V2 GFDI handle; omitted for v0/v1. */
+  handle?: number;
+}>;
+
+/**
+ * Splits an already-COBS-encoded payload into BLE writes. Upstream reserves
+ * one byte per write (`maxWriteSize - 1`) and, for V2, prefixes every chunk
+ * with the GFDI handle byte.
+ */
+export function chunkGarminPayload(payload: Uint8Array, options: GarminWriteOptions): Uint8Array[] {
+  const { maxWriteSize, handle } = options;
+  if (!Number.isInteger(maxWriteSize) || maxWriteSize < 2) {
+    throw new Error("GARMIN_WRITE_SIZE");
+  }
+  if (handle !== undefined && (!Number.isInteger(handle) || handle < 0 || handle > 0xff)) {
+    throw new Error("GARMIN_HANDLE");
+  }
+  const chunkSize = maxWriteSize - 1;
+  const fragments: Uint8Array[] = [];
+  if (payload.length <= chunkSize) {
+    fragments.push(payload);
+  } else {
+    for (let offset = 0; offset < payload.length; offset += chunkSize) {
+      fragments.push(payload.subarray(offset, offset + chunkSize));
+    }
+  }
+  if (handle === undefined) return fragments;
+  return fragments.map((fragment) => {
+    const out = new Uint8Array(1 + fragment.length);
+    out[0] = handle;
+    out.set(fragment, 1);
+    return out;
+  });
+}
+
+/** COBS-encodes and chunks one GFDI frame for writing. */
+export function encodeGarminGfdiWrites(
+  frame: GarminGfdiFrame,
+  options: GarminWriteOptions,
+): Uint8Array[] {
+  return chunkGarminPayload(encodeGarminCobs(encodeGarminGfdiFrame(frame)), options);
+}
+
+// ---------------------------------------------------------------------------
+// Multi-Link (ML) handle management (CommunicatorV2.java)
+// ---------------------------------------------------------------------------
+
+/** `CommunicatorV2.closeAllServices()` — 13 bytes, handle 0. */
+export function buildGarminMlCloseAll(): Uint8Array {
+  const out = new Uint8Array(13);
+  out[0] = 0;
+  out[1] = GARMIN_ML_REQUEST.CLOSE_ALL_REQ;
+  writeUint32le(out, 2, GARMIN_ML_CLIENT_ID);
+  writeUint32le(out, 6, 0);
+  writeUint16le(out, 10, 0);
+  return out;
+}
+
+/** `CommunicatorV2.registerService()` — 13 bytes, handle 0. */
+export function buildGarminMlRegisterService(service: number, reliable = false): Uint8Array {
+  if (!Number.isInteger(service) || service < 0 || service > 0xffff)
+    throw new Error("GARMIN_ML_SERVICE");
+  const out = new Uint8Array(13);
+  out[0] = 0;
+  out[1] = GARMIN_ML_REQUEST.REGISTER_ML_REQ;
+  writeUint32le(out, 2, GARMIN_ML_CLIENT_ID);
+  writeUint32le(out, 6, 0);
+  writeUint16le(out, 10, service);
+  out[12] = reliable ? 2 : 0;
+  return out;
+}
+
+/** `CommunicatorV2.closeService()` — 13 bytes, handle 0. */
+export function buildGarminMlCloseService(service: number, handle: number): Uint8Array {
+  const out = new Uint8Array(13);
+  out[0] = 0;
+  out[1] = GARMIN_ML_REQUEST.CLOSE_HANDLE_REQ;
+  writeUint32le(out, 2, GARMIN_ML_CLIENT_ID);
+  writeUint32le(out, 6, 0);
+  writeUint16le(out, 10, service);
+  out[12] = handle & 0xff;
+  return out;
+}
+
+export type GarminMlMessage = Readonly<{
+  requestType: number;
+  service: number | null;
+  status: number | null;
+  handle: number | null;
+  reliable: number | null;
+}>;
+
+/**
+ * Parses a handle-management message (`CommunicatorV2.processHandleManagement`).
+ * The first byte of the ML payload is the handle (0 for management).
+ */
+export function parseGarminMlMessage(bytes: Uint8Array): GarminMlMessage | null {
+  if (bytes.length < 10) return null;
+  const requestType = bytes[1]!;
+  const clientId = uint32le(bytes, 2) + uint32le(bytes, 6) * 0x1_0000_0000;
+  if (clientId !== GARMIN_ML_CLIENT_ID) return null;
+  const service = bytes.length >= 12 ? uint16le(bytes, 10) : null;
+  switch (requestType) {
+    case GARMIN_ML_REQUEST.REGISTER_ML_RESP:
+      if (bytes.length < 14) return null;
+      return {
+        requestType,
+        service,
+        status: bytes[12]!,
+        handle: bytes[13]!,
+        reliable: bytes.length >= 15 ? bytes[14]! : 0,
+      };
+    case GARMIN_ML_REQUEST.CLOSE_HANDLE_RESP:
+      if (bytes.length < 14) return null;
+      return { requestType, service, status: bytes[13]!, handle: bytes[12]!, reliable: null };
+    case GARMIN_ML_REQUEST.CLOSE_ALL_RESP:
+      return { requestType, service: null, status: 0, handle: null, reliable: null };
+    default:
+      return { requestType, service, status: null, handle: null, reliable: null };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// File transfer messages
+// ---------------------------------------------------------------------------
+
+/** One 16-byte directory record (`FileTransferHandler.DirectoryEntry`). */
+export type GarminDirectoryEntry = Readonly<{
+  fileIndex: number;
+  dataType: number;
+  subType: number;
+  fileNumber: number;
+  specificFlags: number;
+  fileFlags: number;
+  fileSize: number;
+  /** Wire timestamp in unix seconds; null for the watch's "no date" sentinel. */
+  timestamp: number | null;
+}>;
+
+/** Parses a directory payload (16-byte little-endian records). */
+export function parseGarminDirectory(bytes: Uint8Array): GarminDirectoryEntry[] {
+  if (bytes.length % GARMIN_DIRECTORY_ENTRY_SIZE !== 0) throw new Error("GARMIN_DIRECTORY_LENGTH");
+  const entries: GarminDirectoryEntry[] = [];
+  for (let offset = 0; offset < bytes.length; offset += GARMIN_DIRECTORY_ENTRY_SIZE) {
+    const wireTimestamp = uint32le(bytes, offset + 12);
+    entries.push({
+      fileIndex: uint16le(bytes, offset),
+      dataType: bytes[offset + 2]!,
+      subType: bytes[offset + 3]!,
+      fileNumber: uint16le(bytes, offset + 4),
+      specificFlags: bytes[offset + 6]!,
+      fileFlags: bytes[offset + 7]!,
+      fileSize: uint32le(bytes, offset + 8),
+      timestamp: wireTimestamp === 0 ? null : wireTimestamp,
+    });
+  }
+  return entries;
+}
+
+/** True for the all-zero sentinel record the watch emits at the end. */
+export function isGarminDirectorySentinel(entry: GarminDirectoryEntry): boolean {
+  return (
+    entry.fileIndex === 0 &&
+    entry.dataType === 0 &&
+    entry.subType === 0 &&
+    entry.fileNumber === 0 &&
+    entry.specificFlags === 0 &&
+    entry.fileFlags === 0 &&
+    entry.fileSize === 0 &&
+    entry.timestamp === null
+  );
+}
+
+/** True when the entry is a directory (`0/0`). */
+export function isGarminDirectoryType(entry: GarminDirectoryEntry): boolean {
+  return (
+    entry.dataType === GARMIN_FILE_TYPE.DIRECTORY.dataType &&
+    entry.subType === GARMIN_FILE_TYPE.DIRECTORY.subType
+  );
+}
+
+/** True for the health FIT files this family downloads. */
+export function isGarminHealthFile(entry: GarminDirectoryEntry): boolean {
+  return GARMIN_HEALTH_FILE_TYPES.some(
+    (type) => type.dataType === entry.dataType && type.subType === entry.subType,
+  );
+}
+
+/** Upstream file type name for an entry, or null when unsupported. */
+export function garminFileTypeName(entry: GarminDirectoryEntry): string | null {
+  if (isGarminDirectoryType(entry)) return "DIRECTORY";
+  return (
+    GARMIN_HEALTH_FILE_TYPES.find(
+      (type) => type.dataType === entry.dataType && type.subType === entry.subType,
+    )?.name ?? null
+  );
+}
+
+/** Builds a `DOWNLOAD_REQUEST` (5002) payload. */
+export function buildGarminDownloadRequest(input: {
+  fileIndex: number;
+  dataOffset?: number;
+  requestType?: number;
+  crcSeed?: number;
+  dataSize?: number;
+  flags?: number;
+}): Uint8Array {
+  // `DownloadRequestMessage.generateOutgoing`: short fileIndex, int dataOffset,
+  // byte requestType, short crcSeed, int dataSize, byte requestFlags.
+  const out = new Uint8Array(14);
+  writeUint16le(out, 0, input.fileIndex);
+  writeUint32le(out, 2, input.dataOffset ?? 0);
+  out[6] = input.requestType ?? GARMIN_REQUEST_TYPE.NEW;
+  writeUint16le(out, 7, input.crcSeed ?? 0);
+  writeUint32le(out, 9, input.dataSize ?? 0);
+  out[13] = input.flags ?? 0;
+  return out;
+}
+
+/** Builds a `SET_FILE_FLAG` (5008) payload. */
+export function buildGarminSetFileFlags(fileIndex: number, flags: number): Uint8Array {
+  const out = new Uint8Array(3);
+  writeUint16le(out, 0, fileIndex);
+  out[2] = flags & 0xff;
+  return out;
+}
+
+/** Builds a `SYSTEM_EVENT` (5030) payload. */
+export function buildGarminSystemEvent(eventType: number, value = 0): Uint8Array {
+  return Uint8Array.of(eventType & 0xff, value & 0xff);
+}
+
+/** Builds an empty `SUPPORTED_FILE_TYPES_REQUEST` (5031) payload. */
+export function buildGarminSupportedFileTypesRequest(): Uint8Array {
+  return new Uint8Array(0);
+}
+
+/** One `FILE_TRANSFER_DATA` (5004) chunk. */
+export type GarminFileTransferData = Readonly<{
+  flags: number;
+  crc: number;
+  dataOffset: number;
+  data: Uint8Array;
+}>;
+
+/** Parses an incoming `FILE_TRANSFER_DATA` payload. */
+export function parseGarminFileTransferData(payload: Uint8Array): GarminFileTransferData {
+  if (payload.length < 7) throw new Error("GARMIN_TRANSFER_TRUNCATED");
+  return {
+    flags: payload[0]!,
+    crc: uint16le(payload, 1),
+    dataOffset: uint32le(payload, 3),
+    data: payload.slice(7),
+  };
+}
+
+/** Builds the ACK status for an incoming `FILE_TRANSFER_DATA` chunk. */
+export function buildGarminTransferDataStatus(dataOffset: number): Uint8Array {
+  const out = new Uint8Array(8);
+  writeUint16le(out, 0, GARMIN_MESSAGE.FILE_TRANSFER_DATA);
+  out[2] = GARMIN_STATUS.ACK;
+  out[3] = GARMIN_TRANSFER_STATUS.OK;
+  writeUint32le(out, 4, dataOffset);
+  return out;
+}
+
+/** One parsed `RESPONSE` (5000) status payload. */
+export type GarminStatusMessage = Readonly<{
+  originalMessageType: number;
+  status: number;
+  downloadStatus: number | null;
+  maxFileSize: number | null;
+  transferStatus: number | null;
+  transferOffset: number | null;
+}>;
+
+/** Parses a `RESPONSE` (5000) payload for the message types this family uses. */
+export function parseGarminStatus(payload: Uint8Array): GarminStatusMessage {
+  if (payload.length < 3) throw new Error("GARMIN_STATUS_TRUNCATED");
+  const originalMessageType = uint16le(payload, 0);
+  const status = payload[2]!;
+  if (originalMessageType === GARMIN_MESSAGE.DOWNLOAD_REQUEST) {
+    if (payload.length < 8) throw new Error("GARMIN_STATUS_TRUNCATED");
+    return {
+      originalMessageType,
+      status,
+      downloadStatus: payload[3]!,
+      maxFileSize: uint32le(payload, 4),
+      transferStatus: null,
+      transferOffset: null,
+    };
+  }
+  if (originalMessageType === GARMIN_MESSAGE.FILE_TRANSFER_DATA) {
+    if (payload.length < 8) throw new Error("GARMIN_STATUS_TRUNCATED");
+    return {
+      originalMessageType,
+      status,
+      downloadStatus: null,
+      maxFileSize: null,
+      transferStatus: payload[3]!,
+      transferOffset: uint32le(payload, 4),
+    };
+  }
+  return {
+    originalMessageType,
+    status,
+    downloadStatus: null,
+    maxFileSize: null,
+    transferStatus: null,
+    transferOffset: null,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// FIT container
+// ---------------------------------------------------------------------------
+
+export type GarminFitFieldDefinition = Readonly<{
+  number: number;
+  size: number;
+  baseType: number;
+}>;
+
+export type GarminFitDefinition = Readonly<{
+  localType: number;
+  bigEndian: boolean;
+  messageNumber: number;
+  fields: readonly GarminFitFieldDefinition[];
+  devFields: readonly GarminFitFieldDefinition[];
+}>;
+
+/** One decoded FIT data message. Values are raw (unscaled) numbers. */
+export type GarminFitMessage = Readonly<{
+  messageNumber: number;
+  /** Resolved timestamp in unix seconds, when the record carried one. */
+  timestamp: number | null;
+  fields: ReadonlyMap<number, number>;
+}>;
+
+/** Base type identifiers (`fit/baseTypes/BaseType.java`). */
+const FIT_BASE_TYPE = {
+  ENUM: 0x00,
+  SINT8: 0x01,
+  UINT8: 0x02,
+  STRING: 0x07,
+  UINT8Z: 0x0a,
+  BYTE: 0x0d,
+  SINT16: 0x83,
+  UINT16: 0x84,
+  SINT32: 0x85,
+  UINT32: 0x86,
+  FLOAT32: 0x88,
+  FLOAT64: 0x89,
+  UINT16Z: 0x8b,
+  UINT32Z: 0x8c,
+  SINT64: 0x8e,
+  UINT64: 0x8f,
+  UINT64Z: 0x90,
+} as const;
+
+type FitBaseTypeInfo = Readonly<{
+  width: number;
+  signed: boolean;
+  /** Invalid sentinel (all bits set for non-Z types, zero for Z types). */
+  invalid: number;
+  floating: boolean;
+}>;
+
+function fitBaseTypeInfo(baseType: number): FitBaseTypeInfo | null {
+  switch (baseType) {
+    case FIT_BASE_TYPE.ENUM:
+    case FIT_BASE_TYPE.UINT8:
+    case FIT_BASE_TYPE.BYTE:
+      return { width: 1, signed: false, invalid: 0xff, floating: false };
+    case FIT_BASE_TYPE.SINT8:
+      return { width: 1, signed: true, invalid: 0x7f, floating: false };
+    case FIT_BASE_TYPE.UINT8Z:
+      return { width: 1, signed: false, invalid: 0, floating: false };
+    case FIT_BASE_TYPE.SINT16:
+      return { width: 2, signed: true, invalid: 0x7fff, floating: false };
+    case FIT_BASE_TYPE.UINT16:
+      return { width: 2, signed: false, invalid: 0xffff, floating: false };
+    case FIT_BASE_TYPE.UINT16Z:
+      return { width: 2, signed: false, invalid: 0, floating: false };
+    case FIT_BASE_TYPE.SINT32:
+      return { width: 4, signed: true, invalid: 0x7fffffff, floating: false };
+    case FIT_BASE_TYPE.UINT32:
+      return { width: 4, signed: false, invalid: 0xffffffff, floating: false };
+    case FIT_BASE_TYPE.UINT32Z:
+      return { width: 4, signed: false, invalid: 0, floating: false };
+    case FIT_BASE_TYPE.FLOAT32:
+      return { width: 4, signed: true, invalid: 0xffffffff, floating: true };
+    case FIT_BASE_TYPE.FLOAT64:
+      return { width: 8, signed: true, invalid: 0xffffffff, floating: true };
+    case FIT_BASE_TYPE.SINT64:
+      return { width: 8, signed: true, invalid: 0x7fffffff, floating: false };
+    case FIT_BASE_TYPE.UINT64:
+    case FIT_BASE_TYPE.UINT64Z:
+      return { width: 8, signed: false, invalid: 0xffffffff, floating: false };
+    case FIT_BASE_TYPE.STRING:
+      return null;
+    default:
+      // Unknown base type: upstream falls back to opaque BYTE handling.
+      return { width: 1, signed: false, invalid: -1, floating: false };
+  }
+}
+
+function readFitNumber(
+  bytes: Uint8Array,
+  offset: number,
+  baseType: number,
+  bigEndian: boolean,
+): number | null {
+  const info = fitBaseTypeInfo(baseType);
+  if (!info) return null;
+  if (offset + info.width > bytes.length) throw new Error("GARMIN_FIT_TRUNCATED");
+  let value = 0;
+  if (bigEndian) {
+    for (let index = 0; index < info.width; index += 1)
+      value = (value * 256 + bytes[offset + index]!) % 0x1_0000_0000;
+  } else {
+    for (let index = info.width - 1; index >= 0; index -= 1)
+      value = (value * 256 + bytes[offset + index]!) % 0x1_0000_0000;
+  }
+  if (info.floating) {
+    const buffer = new ArrayBuffer(info.width);
+    const view = new DataView(buffer);
+    const slice = bytes.subarray(offset, offset + info.width);
+    for (let index = 0; index < info.width; index += 1)
+      view.setUint8(bigEndian ? index : info.width - 1 - index, slice[index]!);
+    return info.width === 4 ? view.getFloat32(0, bigEndian) : view.getFloat64(0, bigEndian);
+  }
+  if (info.signed) {
+    const limit = 2 ** (info.width * 8 - 1);
+    if (value >= limit) value -= limit * 2;
+    if (value === info.invalid) return null;
+    return value;
+  }
+  if (info.invalid >= 0 && value === info.invalid) return null;
+  return value;
+}
+
+/**
+ * Parses a FIT file into its data messages.
+ *
+ * Walks the header, every definition and data record (including compressed
+ * timestamps and developer fields) so unknown message types are skipped
+ * without losing alignment. Throws `GARMIN_FIT_*` on malformed input.
+ */
+export function parseGarminFitFile(bytes: Uint8Array): GarminFitMessage[] {
+  if (bytes.length < 12) throw new Error("GARMIN_FIT_TRUNCATED");
+  const headerSize = bytes[0]!;
+  if (headerSize < 12) throw new Error("GARMIN_FIT_HEADER");
+  const dataSize = uint32le(bytes, 4);
+  if (uint32le(bytes, 8) !== GARMIN_FIT_MAGIC) throw new Error("GARMIN_FIT_MAGIC");
+  const dataEnd = headerSize + dataSize;
+  if (dataEnd > bytes.length) throw new Error("GARMIN_FIT_TRUNCATED");
+
+  const definitions = new Map<number, GarminFitDefinition>();
+  const messages: GarminFitMessage[] = [];
+  let referenceTimestamp: number | null = null;
+  let offset = headerSize;
+
+  while (offset < dataEnd) {
+    const header = bytes[offset]!;
+    offset += 1;
+    let localType: number;
+    let definition = false;
+    let developerData = false;
+    let timeOffset: number | null = null;
+    if ((header & 0x80) !== 0) {
+      // Compressed timestamp: local type in bits 5-6, offset in bits 0-4.
+      localType = (header >> 5) & 0x03;
+      timeOffset = header & 0x1f;
+      if (referenceTimestamp === null)
+        throw new Error("GARMIN_FIT_COMPRESSED_TIMESTAMP_WITHOUT_REFERENCE");
+      const base: number = referenceTimestamp & ~0x1f;
+      referenceTimestamp =
+        timeOffset >= (referenceTimestamp & 0x1f) ? base + timeOffset : base + timeOffset + 0x20;
+    } else {
+      definition = (header & 0x40) !== 0;
+      developerData = (header & 0x20) !== 0;
+      localType = header & 0x0f;
+    }
+
+    if (definition) {
+      if (offset + 5 > dataEnd) throw new Error("GARMIN_FIT_TRUNCATED");
+      offset += 1; // reserved
+      const bigEndian = bytes[offset] === 1;
+      offset += 1;
+      const messageNumber = bigEndian
+        ? (bytes[offset]! << 8) | bytes[offset + 1]!
+        : uint16le(bytes, offset);
+      offset += 2;
+      const fieldCount = bytes[offset]!;
+      offset += 1;
+      const fields: GarminFitFieldDefinition[] = [];
+      for (let index = 0; index < fieldCount; index += 1) {
+        if (offset + 3 > dataEnd) throw new Error("GARMIN_FIT_TRUNCATED");
+        fields.push({
+          number: bytes[offset]!,
+          size: bytes[offset + 1]!,
+          baseType: bytes[offset + 2]!,
+        });
+        offset += 3;
+      }
+      const devFields: GarminFitFieldDefinition[] = [];
+      if (developerData) {
+        if (offset + 1 > dataEnd) throw new Error("GARMIN_FIT_TRUNCATED");
+        const devCount = bytes[offset]!;
+        offset += 1;
+        for (let index = 0; index < devCount; index += 1) {
+          if (offset + 3 > dataEnd) throw new Error("GARMIN_FIT_TRUNCATED");
+          devFields.push({
+            number: bytes[offset]!,
+            size: bytes[offset + 1]!,
+            baseType: FIT_BASE_TYPE.BYTE,
+          });
+          offset += 3;
+        }
+      }
+      definitions.set(localType, {
+        localType,
+        bigEndian,
+        messageNumber,
+        fields,
+        devFields,
+      });
+      continue;
+    }
+
+    const definitionForType = definitions.get(localType);
+    if (!definitionForType) throw new Error("GARMIN_FIT_DEFINITION_MISSING");
+    const values = new Map<number, number>();
+    for (const field of definitionForType.fields) {
+      if (offset + field.size > dataEnd) throw new Error("GARMIN_FIT_TRUNCATED");
+      const value = readFitNumber(bytes, offset, field.baseType, definitionForType.bigEndian);
+      if (value !== null) values.set(field.number, value);
+      offset += field.size;
+    }
+    for (const field of definitionForType.devFields) {
+      if (offset + field.size > dataEnd) throw new Error("GARMIN_FIT_TRUNCATED");
+      offset += field.size;
+    }
+
+    let timestamp: number | null = null;
+    const rawTimestamp = values.get(253);
+    if (rawTimestamp !== undefined) {
+      referenceTimestamp = rawTimestamp;
+      timestamp = rawTimestamp + GARMIN_TIME_EPOCH;
+    } else if (timeOffset !== null && referenceTimestamp !== null) {
+      timestamp = referenceTimestamp + GARMIN_TIME_EPOCH;
+    }
+    messages.push({
+      messageNumber: definitionForType.messageNumber,
+      timestamp,
+      fields: values,
+    });
+  }
+
+  // File CRC: the last two bytes after the data section.
+  if (bytes.length >= dataEnd + 2) {
+    const expected = uint16le(bytes, dataEnd);
+    const actual = garminCrc16(bytes.subarray(0, dataEnd));
+    if (expected !== 0 && expected !== actual) throw new Error("GARMIN_FIT_CRC");
+  }
+  return messages;
+}
+
+// ---------------------------------------------------------------------------
+// FIT message semantics
+// ---------------------------------------------------------------------------
+
+export type GarminMonitoringSample = Readonly<{
+  /** Epoch milliseconds of the sample start (floored to the minute). */
+  timestamp: number;
+  steps: number;
+  heartRate: number | null;
+  distanceMeters: number | null;
+  activeCalories: number | null;
+  activityType: number | null;
+  intensity: number | null;
+}>;
+
+export type GarminSleepLevelSample = Readonly<{
+  timestamp: number;
+  level: number;
+}>;
+
+export type GarminEventSample = Readonly<{
+  timestamp: number;
+  event: number;
+  eventType: number | null;
+  data: number | null;
+}>;
+
+export type GarminNapSample = Readonly<{
+  startTime: number;
+  endTime: number;
+}>;
+
+function fitFieldsOf(message: GarminFitMessage): ReadonlyMap<number, number> {
+  return message.fields;
+}
+
+function isoMinute(timestamp: number): string {
+  return new Date(Math.floor(timestamp / MINUTE_MS) * MINUTE_MS).toISOString();
+}
+
+/**
+ * Decodes MONITORING (55) samples.
+ *
+ * `timestamp_16` (field 26) is a rolling 16-bit second counter resolved
+ * against the previous monitoring timestamp exactly like
+ * `FitMonitoring.computeTimestamp`. `cycles` (field 3) carries the profile's
+ * scale of 2, and `FitImporter.persistActivitySamples` multiplies the
+ * per-activity sum by 2 again, so the emitted step count is the raw wire
+ * value; the two-step arithmetic is kept here so a future profile change is
+ * visible in one place.
+ */
+export function decodeGarminMonitoring(
+  messages: readonly GarminFitMessage[],
+): GarminMonitoringSample[] {
+  // `FitImporter.persistActivitySamples` groups monitoring messages by resolved
+  // timestamp: steps/distance/calories are summed across activity types, the
+  // last heart rate wins, and the first activity type/intensity is kept.
+  const byTimestamp = new Map<number, GarminMonitoringSample>();
+  let lastTimestamp: number | null = null;
+  for (const message of messages) {
+    if (message.messageNumber !== GARMIN_FIT_MESSAGE.MONITORING) continue;
+    const fields = fitFieldsOf(message);
+    const timestamp16 = fields.get(26);
+    let timestamp: number | null = null;
+    if (timestamp16 !== undefined && lastTimestamp !== null) {
+      const reference: number = lastTimestamp - GARMIN_TIME_EPOCH;
+      let diff: number = (timestamp16 & 0xffff) - (reference & 0xffff);
+      if (diff < -32768) diff += 65536;
+      else if (diff > 32768) diff -= 65536;
+      timestamp = lastTimestamp + diff;
+    } else if (lastTimestamp !== null) {
+      timestamp = lastTimestamp;
+    } else if (message.timestamp !== null) {
+      timestamp = message.timestamp;
+    }
+    if (timestamp === null) continue;
+    lastTimestamp = timestamp;
+
+    const cycles = fields.get(3);
+    const cycles16 = fields.get(9);
+    const scaledCycles =
+      cycles !== undefined ? cycles / 2 : cycles16 !== undefined ? cycles16 / 2 : 0;
+    const steps = Math.round(scaledCycles * 2);
+    const heartRate = fields.get(27);
+    const distance = fields.get(2);
+    const activeCalories = fields.get(19);
+    const activityType = fields.get(5);
+    const activityTypeIntensity = fields.get(24);
+
+    const existing = byTimestamp.get(timestamp);
+    if (existing) {
+      byTimestamp.set(timestamp, {
+        ...existing,
+        steps: existing.steps + steps,
+        heartRate:
+          heartRate !== undefined && heartRate >= 1 && heartRate <= 254
+            ? heartRate
+            : existing.heartRate,
+        distanceMeters:
+          distance !== undefined
+            ? (existing.distanceMeters ?? 0) + distance / 100
+            : existing.distanceMeters,
+        activeCalories:
+          activeCalories !== undefined
+            ? (existing.activeCalories ?? 0) + activeCalories
+            : existing.activeCalories,
+      });
+      continue;
+    }
+    byTimestamp.set(timestamp, {
+      timestamp: timestamp * 1000,
+      steps,
+      heartRate: heartRate !== undefined && heartRate >= 1 && heartRate <= 254 ? heartRate : null,
+      distanceMeters: distance !== undefined ? distance / 100 : null,
+      activeCalories: activeCalories ?? null,
+      activityType:
+        activityType ?? (activityTypeIntensity !== undefined ? activityTypeIntensity & 0x1f : null),
+      intensity: activityTypeIntensity !== undefined ? (activityTypeIntensity >> 5) & 0x07 : null,
+    });
+  }
+  return [...byTimestamp.values()].sort((left, right) => left.timestamp - right.timestamp);
+}
+
+/** Decodes SLEEP_LEVEL (275) samples. */
+export function decodeGarminSleepLevels(
+  messages: readonly GarminFitMessage[],
+): GarminSleepLevelSample[] {
+  const samples: GarminSleepLevelSample[] = [];
+  for (const message of messages) {
+    if (message.messageNumber !== GARMIN_FIT_MESSAGE.SLEEP_LEVEL) continue;
+    const level = message.fields.get(0);
+    if (level === undefined || message.timestamp === null) continue;
+    samples.push({ timestamp: message.timestamp * 1000, level });
+  }
+  return samples;
+}
+
+/** Decodes EVENT (21) samples. */
+export function decodeGarminEvents(messages: readonly GarminFitMessage[]): GarminEventSample[] {
+  const samples: GarminEventSample[] = [];
+  for (const message of messages) {
+    if (message.messageNumber !== GARMIN_FIT_MESSAGE.EVENT) continue;
+    const event = message.fields.get(0);
+    if (event === undefined || message.timestamp === null) continue;
+    samples.push({
+      timestamp: message.timestamp * 1000,
+      event,
+      eventType: message.fields.get(1) ?? null,
+      data: message.fields.get(3) ?? null,
+    });
+  }
+  return samples;
+}
+
+/** Decodes NAP_EVENT (412) samples. */
+export function decodeGarminNaps(messages: readonly GarminFitMessage[]): GarminNapSample[] {
+  const naps: GarminNapSample[] = [];
+  for (const message of messages) {
+    if (message.messageNumber !== GARMIN_FIT_MESSAGE.NAP_EVENT) continue;
+    const start = message.fields.get(0);
+    const end = message.fields.get(2);
+    if (start === undefined || end === undefined || end <= start) continue;
+    // `start_time` / `end_time` are DateTime fields, so the profile's offset
+    // already converts them to unix seconds (`FieldDefinitionDateTime`).
+    naps.push({
+      startTime: (start + GARMIN_TIME_EPOCH) * 1000,
+      endTime: (end + GARMIN_TIME_EPOCH) * 1000,
+    });
+  }
+  return naps;
+}
+
+export type GarminStepsRecord = Readonly<{
+  type: "steps";
+  startTime: string;
+  endTime: string;
+  count: number;
+}>;
+
+export type GarminHeartRateRecord = Readonly<{
+  type: "heart_rate";
+  time: string;
+  bpm: number;
+}>;
+
+export type GarminSleepStage = Readonly<{
+  stage: "awake" | "light" | "deep" | "rem";
+  startTime: string;
+  endTime: string;
+}>;
+
+export type GarminSleepSession = Readonly<{
+  type: "sleep_session";
+  startTime: string;
+  endTime: string;
+  stages?: readonly GarminSleepStage[];
+}>;
+
+export type GarminRecord = GarminStepsRecord | GarminHeartRateRecord | GarminSleepSession;
+
+/** Converts one monitoring sample to the frozen exact-minute record shapes. */
+export function garminMonitoringToRecords(sample: GarminMonitoringSample): readonly GarminRecord[] {
+  const records: GarminRecord[] = [
+    {
+      type: "steps",
+      startTime: isoMinute(sample.timestamp),
+      endTime: new Date(
+        Math.floor(sample.timestamp / MINUTE_MS) * MINUTE_MS + MINUTE_MS,
+      ).toISOString(),
+      count: sample.steps,
+    },
+  ];
+  if (sample.heartRate !== null) {
+    records.push({
+      type: "heart_rate",
+      time: isoMinute(sample.timestamp),
+      bpm: sample.heartRate,
+    });
+  }
+  return records;
+}
+
+function sleepStageOf(level: number): GarminSleepStage["stage"] | null {
+  switch (level) {
+    case GARMIN_SLEEP_LEVEL.AWAKE:
+      return "awake";
+    case GARMIN_SLEEP_LEVEL.LIGHT:
+      return "light";
+    case GARMIN_SLEEP_LEVEL.DEEP:
+      return "deep";
+    case GARMIN_SLEEP_LEVEL.REM:
+      return "rem";
+    default:
+      return null;
+  }
+}
+
+/**
+ * Builds stages from upper-bound SLEEP_LEVEL samples, matching
+ * `GarminSleepSessionProvider`: each sample's timestamp ends the stage that
+ * started at the previous boundary, and the session start seeds the first
+ * stage.
+ */
+function stagesBetween(
+  levels: readonly GarminSleepLevelSample[],
+  start: number,
+  end: number,
+): GarminSleepStage[] {
+  // Each sample's timestamp is the end of the stage it reports, so the stage
+  // covers [previous boundary, sample timestamp] (`GarminSleepSessionProvider`).
+  const stages: GarminSleepStage[] = [];
+  let previous = start;
+  for (const sample of levels) {
+    if (sample.timestamp <= start || sample.timestamp > end) continue;
+    const stage = sleepStageOf(sample.level);
+    if (!stage) continue;
+    if (sample.timestamp <= previous) continue;
+    stages.push({
+      stage,
+      startTime: new Date(previous).toISOString(),
+      endTime: new Date(sample.timestamp).toISOString(),
+    });
+    previous = sample.timestamp;
+  }
+  if (stages.length > 0 && previous < end) {
+    const last = stages[stages.length - 1]!;
+    stages[stages.length - 1] = { ...last, endTime: new Date(end).toISOString() };
+  }
+  return stages;
+}
+
+/**
+ * Segments SLEEP_LEVEL samples when the file has no sleep EVENT pairs,
+ * mirroring the huami-legacy `SleepSessionSegmenter` rules: a session starts
+ * at the first measurable sleep level, a wake phase longer than 60 minutes
+ * closes it, sessions of five minutes or less are discarded, stages are
+ * contiguous runs, and the final stage is extended by 60 s.
+ */
+function segmentSleepLevels(levels: readonly GarminSleepLevelSample[]): GarminSleepSession[] {
+  const ordered = [...levels].sort((left, right) => left.timestamp - right.timestamp);
+  const sessions: GarminSleepSession[] = [];
+  let first = -1;
+  let last = -1;
+  let wakeMs = 0;
+  let previous: GarminSleepLevelSample | null = null;
+
+  const emit = () => {
+    if (first === -1 || last === -1) return;
+    const start = ordered[first]!.timestamp;
+    const end = ordered[last]!.timestamp + GARMIN_TRAILING_STAGE_SECONDS * 1000;
+    if (end - start <= GARMIN_MIN_SESSION_SECONDS * 1000) return;
+    const stages: GarminSleepStage[] = [];
+    let stageStart = start;
+    let stage = sleepStageOf(ordered[first]!.level) ?? "light";
+    for (let index = first + 1; index <= last; index += 1) {
+      const sample = ordered[index]!;
+      const next = sleepStageOf(sample.level) ?? stage;
+      if (next !== stage) {
+        stages.push({
+          stage,
+          startTime: new Date(stageStart).toISOString(),
+          endTime: new Date(sample.timestamp).toISOString(),
+        });
+        stage = next;
+        stageStart = sample.timestamp;
+      }
+    }
+    stages.push({
+      stage,
+      startTime: new Date(stageStart).toISOString(),
+      endTime: new Date(end).toISOString(),
+    });
+    sessions.push({
+      type: "sleep_session",
+      startTime: new Date(start).toISOString(),
+      endTime: new Date(end).toISOString(),
+      stages,
+    });
+  };
+
+  const reset = () => {
+    first = -1;
+    last = -1;
+    wakeMs = 0;
+  };
+
+  for (let index = 0; index < ordered.length; index += 1) {
+    const sample = ordered[index]!;
+    if (
+      previous &&
+      first !== -1 &&
+      sample.timestamp - previous.timestamp > GARMIN_MAX_WAKE_PHASE_SECONDS * 1000
+    ) {
+      emit();
+      reset();
+    }
+    const sleeping =
+      sleepStageOf(sample.level) !== null && sample.level !== GARMIN_SLEEP_LEVEL.AWAKE;
+    if (sleeping) {
+      if (first === -1) first = index;
+      last = index;
+      wakeMs = 0;
+    } else if (first !== -1) {
+      if (previous) wakeMs += sample.timestamp - previous.timestamp;
+      if (wakeMs > GARMIN_MAX_WAKE_PHASE_SECONDS * 1000) {
+        emit();
+        reset();
+      }
+    }
+    previous = sample;
+  }
+  emit();
+  return sessions;
+}
+
+/**
+ * Derives sleep sessions from EVENT pairs (event 74, type 0/1), NAP_EVENT
+ * records, and SLEEP_LEVEL samples.
+ *
+ * EVENT-bounded sessions follow upstream: stages are the upper-bound sleep
+ * levels inside the pair, and a session without stages becomes a single light
+ * stage. Files without EVENT pairs fall back to huami-style segmentation.
+ */
+export function segmentGarminSleepSessions(input: {
+  levels: readonly GarminSleepLevelSample[];
+  events: readonly GarminEventSample[];
+  naps: readonly GarminNapSample[];
+}): GarminSleepSession[] {
+  const { levels, events, naps } = input;
+  const orderedLevels = [...levels].sort((left, right) => left.timestamp - right.timestamp);
+  const sleepEvents = events
+    .filter((event) => event.event === GARMIN_EVENT_DETECT_SLEEP)
+    .sort((left, right) => left.timestamp - right.timestamp);
+  const sessions: GarminSleepSession[] = [];
+
+  let start: number | null = null;
+  for (const event of sleepEvents) {
+    if (event.eventType === GARMIN_EVENT_TYPE.START) {
+      start = event.timestamp;
+      continue;
+    }
+    if (event.eventType !== GARMIN_EVENT_TYPE.STOP || start === null) continue;
+    const end = event.timestamp;
+    if (end > start) {
+      const stages = stagesBetween(orderedLevels, start, end);
+      sessions.push({
+        type: "sleep_session",
+        startTime: new Date(start).toISOString(),
+        endTime: new Date(end).toISOString(),
+        stages:
+          stages.length > 0
+            ? stages
+            : [
+                {
+                  stage: "light",
+                  startTime: new Date(start).toISOString(),
+                  endTime: new Date(end).toISOString(),
+                },
+              ],
+      });
+    }
+    start = null;
+  }
+
+  if (sleepEvents.length === 0) sessions.push(...segmentSleepLevels(orderedLevels));
+
+  for (const nap of naps) {
+    sessions.push({
+      type: "sleep_session",
+      startTime: new Date(nap.startTime).toISOString(),
+      endTime: new Date(nap.endTime).toISOString(),
+      stages: [
+        {
+          stage: "light",
+          startTime: new Date(nap.startTime).toISOString(),
+          endTime: new Date(nap.endTime).toISOString(),
+        },
+      ],
+    });
+  }
+
+  return sessions.sort((left, right) => Date.parse(left.startTime) - Date.parse(right.startTime));
+}
+
+/**
+ * Decodes a FIT file into the frozen record shapes: exact-minute `steps`,
+ * `heart_rate` points, and `sleep_session` records.
+ */
+export function garminFitRecords(bytes: Uint8Array): GarminRecord[] {
+  const messages = parseGarminFitFile(bytes);
+  return garminFitRecordsFromMessages(messages);
+}
+
+/** Same as {@link garminFitRecords} for an already parsed message list. */
+export function garminFitRecordsFromMessages(
+  messages: readonly GarminFitMessage[],
+): GarminRecord[] {
+  const records: GarminRecord[] = [];
+  for (const sample of decodeGarminMonitoring(messages))
+    records.push(...garminMonitoringToRecords(sample));
+  records.push(
+    ...segmentGarminSleepSessions({
+      levels: decodeGarminSleepLevels(messages),
+      events: decodeGarminEvents(messages),
+      naps: decodeGarminNaps(messages),
+    }),
+  );
+  return records;
+}
+
+/** Sleep score from a SLEEP_ASSESSMENT (346) message, when present. */
+export function garminSleepAssessmentScore(messages: readonly GarminFitMessage[]): number | null {
+  for (const message of messages) {
+    if (message.messageNumber !== GARMIN_FIT_MESSAGE.SLEEP_ASSESSMENT) continue;
+    const score = message.fields.get(6);
+    if (score !== undefined) return score;
+  }
+  return null;
+}

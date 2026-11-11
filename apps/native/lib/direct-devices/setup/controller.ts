@@ -50,6 +50,7 @@ import { MOYOUNG_SERVICE_UUID, matchMoyoungDevice } from "../models/moyoung";
 import { createMoyoungSession, selectMoyoungProfile } from "../transport/moyoung";
 import type { MoyoungProfile, MoyoungSession } from "../transport/moyoung";
 import { createHuamiLegacySession, selectHuamiLegacyProfile } from "../transport/huami-legacy";
+import { createGarminSession, type GarminSession } from "../transport/garmin";
 import type { HuamiLegacyProfile, HuamiLegacySession } from "../transport/huami-legacy";
 import { HUAMI_SERVICE_UUID, matchHuamiLegacyDevice } from "../models/huami-legacy";
 import { createHuaweiSession } from "../transport/huawei";
@@ -180,6 +181,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
   let connectedProfile: XiaomiBleProfile | null = null;
   let connectedHuaweiProfile: HuaweiBleProfile | null = null;
   let connectedGarminProfile: GarminBleProfile | null = null;
+  let connectedGarminSession: GarminSession | null = null;
   let connectedBleGattSession: BleGattSession | null = null;
   let connectedBleScaleSession: BleScaleSession | null = null;
   let connectedColmiRingSession: ColmiRingSession | null = null;
@@ -644,6 +646,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
           const huamiLegacyModel =
             family === "huami_legacy" ? matchHuamiLegacyDevice(knownDevice.name) : null;
           const huaweiModel = family === "huawei" ? matchHuaweiDeviceName(knownDevice.name) : null;
+          const garminModel = family === "garmin" ? matchGarminDeviceName(knownDevice.name) : null;
           const colmiRingModel =
             family === "colmi_ring" ? matchColmiRingDevice(knownDevice.name) : null;
           const hasRequiredService =
@@ -803,6 +806,8 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
             connectedProfile = null;
             connectedHuaweiProfile = null;
             connectedGarminProfile = null;
+            void connectedGarminSession?.close();
+            connectedGarminSession = null;
             void connectedBleGattSession?.close();
             connectedBleGattSession = null;
             void connectedBleScaleSession?.close();
@@ -923,6 +928,19 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
               onLiveHeartRate: deps.onHistorySample,
             });
           }
+          if (garminProfile && garminModel?.sync && deps.onHistorySample) {
+            void connectedGarminSession?.close();
+            // Garmin needs no key, so the FIT file sync starts on connection
+            // and `fetchSteps` only awaits it inside the sync action.
+            connectedGarminSession = createGarminSession({
+              device: discovered,
+              deviceId,
+              profile: garminProfile,
+              modelId: garminModel.id,
+              onRecord: deps.onHistorySample,
+            });
+            connectedGarminSession.start();
+          }
           if (huaweiProfile && huaweiModel?.sync && deps.onHistorySample) {
             void connectedHuaweiSession?.close();
             // Huawei auth is automatic (MAC-derived key), but the transfer is
@@ -946,7 +964,8 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
                 family === "zepp_os" ||
                 family === "xiaomi" ||
                 family === "huami_legacy" ||
-                (family === "huawei" && huaweiModel?.sync === true),
+                (family === "huawei" && huaweiModel?.sync === true) ||
+                (family === "garmin" && garminModel?.sync === true),
               liveCapture: family === "ble_gatt" || family === "ble_scale",
               historySync:
                 family === "colmi_ring" ||
@@ -954,7 +973,8 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
                 family === "moyoung" ||
                 family === "gloryfit" ||
                 family === "huami_legacy" ||
-                (family === "huawei" && huaweiModel?.sync === true),
+                (family === "huawei" && huaweiModel?.sync === true) ||
+                (family === "garmin" && garminModel?.sync === true),
             }),
             bluetooth: "powered_on",
           });
@@ -1015,6 +1035,8 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
       connectedProfile = null;
       connectedHuaweiProfile = null;
       connectedGarminProfile = null;
+      void connectedGarminSession?.close();
+      connectedGarminSession = null;
       void connectedBleGattSession?.close();
       connectedBleGattSession = null;
       void connectedBleScaleSession?.close();
@@ -1091,12 +1113,11 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
         if (!connectedHuaweiProfile) throw new Error("HUAWEI_SERVICE_MISSING");
         if (!connectedHuaweiSession) throw new Error("HUAWEI_HISTORY_UNSUPPORTED");
       }
-      // Garmin history is a later milestone; the connection foundation stops at
-      // connected + service-verified. The selected profile is retained for that
-      // milestone.
+      // Garmin FIT files sync on connection; the sync action awaits the
+      // session so its records are committed inside the authority window.
       if (connectedFamily === "garmin") {
         if (!connectedGarminProfile) throw new Error("GARMIN_SERVICE_MISSING");
-        throw new Error("GARMIN_HISTORY_UNSUPPORTED");
+        if (!connectedGarminSession) throw new Error("GARMIN_HISTORY_UNSUPPORTED");
       }
       // Generic GATT sensors expose live notifications only; there is no
       // history/backfill characteristic, so this family never runs fetchSteps.
@@ -1121,14 +1142,13 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
       options.signal.addEventListener("abort", forwardAbort, { once: true });
       const linked = { ...options, signal: abortController.signal };
       const work =
-        connectedFamily === "huawei"
+        connectedFamily === "garmin"
           ? (async () => {
-              const session = connectedHuaweiSession;
-              if (!session) throw new Error("HUAWEI_HISTORY_UNSUPPORTED");
+              const session = connectedGarminSession;
+              if (!session) throw new Error("GARMIN_HISTORY_UNSUPPORTED");
               const onAbort = () => void session.close();
               linked.signal.addEventListener("abort", onAbort, { once: true });
               try {
-                session.start();
                 await session.whenDone();
               } finally {
                 linked.signal.removeEventListener("abort", onAbort);
@@ -1140,15 +1160,14 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
                 granularity: "minute" as const,
               };
             })()
-          : connectedFamily === "huami_legacy"
+          : connectedFamily === "huawei"
             ? (async () => {
-                const session = connectedHuamiLegacySession;
-                if (!session) throw new Error("HUAMI_LEGACY_SERVICE_MISSING");
-                if (linked.authKey.length !== 16) throw new Error("INVALID_AUTH_KEY");
+                const session = connectedHuaweiSession;
+                if (!session) throw new Error("HUAWEI_HISTORY_UNSUPPORTED");
                 const onAbort = () => void session.close();
                 linked.signal.addEventListener("abort", onAbort, { once: true });
                 try {
-                  session.start(linked.authKey);
+                  session.start();
                   await session.whenDone();
                 } finally {
                   linked.signal.removeEventListener("abort", onAbort);
@@ -1160,28 +1179,48 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
                   granularity: "minute" as const,
                 };
               })()
-            : connectedFamily === "xiaomi"
-              ? (() => {
-                  if (!connectedProfile) throw new Error("XIAOMI_HISTORY_UNSUPPORTED");
-                  const transport = deps.xiaomiHistoryTransport
-                    ? deps.xiaomiHistoryTransport(device, connectedProfile, linked)
-                    : createNativeXiaomiHistoryTransport(
-                        device,
-                        connectedProfile,
-                        {
-                          authKey: linked.authKey,
-                          phoneApiLevel: runtime().version,
-                          phoneName: "OpenValens",
-                          region: "US",
-                        },
-                        radio?.manager,
-                      );
-                  return runXiaomiStepsHistory(transport, linked);
+            : connectedFamily === "huami_legacy"
+              ? (async () => {
+                  const session = connectedHuamiLegacySession;
+                  if (!session) throw new Error("HUAMI_LEGACY_SERVICE_MISSING");
+                  if (linked.authKey.length !== 16) throw new Error("INVALID_AUTH_KEY");
+                  const onAbort = () => void session.close();
+                  linked.signal.addEventListener("abort", onAbort, { once: true });
+                  try {
+                    session.start(linked.authKey);
+                    await session.whenDone();
+                  } finally {
+                    linked.signal.removeEventListener("abort", onAbort);
+                  }
+                  return {
+                    pages: 0,
+                    minutes: 0,
+                    complete: !linked.signal.aborted,
+                    granularity: "minute" as const,
+                  };
                 })()
-              : (() => {
-                  const workLink = new NativeHelioLink(device, radio?.manager);
-                  return runHelioStepsHistory(workLink, linked).finally(() => workLink.close());
-                })();
+              : connectedFamily === "xiaomi"
+                ? (() => {
+                    if (!connectedProfile) throw new Error("XIAOMI_HISTORY_UNSUPPORTED");
+                    const transport = deps.xiaomiHistoryTransport
+                      ? deps.xiaomiHistoryTransport(device, connectedProfile, linked)
+                      : createNativeXiaomiHistoryTransport(
+                          device,
+                          connectedProfile,
+                          {
+                            authKey: linked.authKey,
+                            phoneApiLevel: runtime().version,
+                            phoneName: "OpenValens",
+                            region: "US",
+                          },
+                          radio?.manager,
+                        );
+                    return runXiaomiStepsHistory(transport, linked);
+                  })()
+                : (() => {
+                    const workLink = new NativeHelioLink(device, radio?.manager);
+                    return runHelioStepsHistory(workLink, linked).finally(() => workLink.close());
+                  })();
       historyCompletion = work;
       try {
         return await work;
@@ -1222,6 +1261,8 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
       connectedProfile = null;
       connectedHuaweiProfile = null;
       connectedGarminProfile = null;
+      void connectedGarminSession?.close();
+      connectedGarminSession = null;
       void connectedBleGattSession?.close();
       connectedBleGattSession = null;
       void connectedBleScaleSession?.close();

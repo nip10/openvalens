@@ -38,7 +38,7 @@ describe("direct-device identity guard", () => {
       assertDirectDeviceIdentity(
         { directDeviceFamily: "garmin", directDeviceModelId: "garmin_fenix_7" },
         { family: "garmin", modelId: "garmin_fenix_7" },
-        { recordType: "steps" },
+        { recordType: "steps_interval" },
       ),
     ).toThrow(new DirectDeviceIdentityError("HISTORY_UNSUPPORTED"));
   });
@@ -221,6 +221,27 @@ describe("direct-device identity guard", () => {
       "blood_pressure",
     ] as const)
       expect(() => assertDirectDeviceIdentity(huawei, assertion, { recordType })).toThrow(
+        new DirectDeviceIdentityError("HISTORY_UNSUPPORTED"),
+      );
+  });
+
+  test("Garmin devices publish exact-minute steps, heart rate and sleep sessions", () => {
+    const garmin = { directDeviceFamily: "garmin", directDeviceModelId: "garmin_fenix_7" };
+    const assertion = { family: "garmin", modelId: "garmin_fenix_7" } as const;
+    // FIT monitoring samples are per-minute, so they map to exact-minute steps
+    // and heart rate; sleep sessions come from the same FIT files. Only
+    // BLE-transport models reach this point: the native registry refuses
+    // Bluetooth-Classic/RFCOMM models before a batch exists.
+    for (const recordType of ["steps", "heart_rate", "sleep_session"] as const)
+      expect(assertDirectDeviceIdentity(garmin, assertion, { recordType })).toEqual(assertion);
+    // Garmin has no interval buckets, scale or GATT sensor metrics.
+    for (const recordType of [
+      "steps_interval",
+      "weight_measurement",
+      "body_temperature",
+      "blood_pressure",
+    ] as const)
+      expect(() => assertDirectDeviceIdentity(garmin, assertion, { recordType })).toThrow(
         new DirectDeviceIdentityError("HISTORY_UNSUPPORTED"),
       );
   });

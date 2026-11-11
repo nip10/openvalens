@@ -101,14 +101,29 @@ test("Huawei BLE models report history sync and Bluetooth-Classic models do not"
   }
 });
 
-test("Garmin models report connection checks only", () => {
+test("Garmin wearables report FIT history sync, other models connection checks only", () => {
+  const fenix = getGarminModel("garmin_fenix_7");
   expect(
     describeDeviceSupport({
       family: "garmin",
       modelId: "garmin_fenix_7",
-      transportValidated: getGarminModel("garmin_fenix_7")?.transportValidated ?? false,
+      transportValidated: fenix?.transportValidated ?? false,
+      sync: fenix?.sync,
     }).openValens,
-  ).toBe("garmin_connection_only");
+  ).toBe("garmin_history_sync");
+
+  for (const modelId of ["garmin_edge_530", "garmin_gpsmap_66s", "garmin_hrm_200"]) {
+    const model = getGarminModel(modelId as Parameters<typeof getGarminModel>[0]);
+    expect(
+      describeDeviceSupport({
+        family: "garmin",
+        modelId,
+        transportValidated: model?.transportValidated ?? false,
+        sync: model?.sync,
+      }).openValens,
+      modelId,
+    ).toBe("garmin_connection_only");
+  }
 });
 
 test("an id with no catalog entry is reported as unlisted, not as supported", () => {

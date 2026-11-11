@@ -3560,8 +3560,8 @@ msgid "Connection checks only; measurement capture is not implemented for this m
 msgstr "Connection checks only; measurement capture is not implemented for this model yet. Not hardware-verified."
 
 #: apps/native/components/direct-device-settings.tsx
-msgid "Connection checks only; step history sync is not implemented. Not hardware-verified."
-msgstr "Connection checks only; step history sync is not implemented. Not hardware-verified."
+msgid "Connection checks only; this model carries no health-monitoring FIT files. Not hardware-verified."
+msgstr "Connection checks only; this model carries no health-monitoring FIT files. Not hardware-verified."
 
 #: apps/native/components/direct-device-settings.tsx
 msgid "Connection checks only; this model syncs over Bluetooth Classic upstream, which this BLE-only stack does not implement. Not hardware-verified."
@@ -6460,6 +6460,10 @@ msgstr "Finish workout"
 msgid "First setup"
 msgstr "First setup"
 
+#: apps/native/components/direct-device-settings.tsx
+msgid "FIT file sync on connection for exact-minute steps, heart rate and sleep; not hardware-verified."
+msgstr "FIT file sync on connection for exact-minute steps, heart rate and sleep; not hardware-verified."
+
 #: apps/native/app/(drawer)/cycle.tsx
 msgid "Flow"
 msgstr "Flow"
@@ -6662,8 +6666,8 @@ msgid "Gadgetbridge pairing help"
 msgstr "Gadgetbridge pairing help"
 
 #: apps/native/components/direct-device-settings.tsx
-msgid "Garmin support is limited to connection checks; step history sync is not implemented."
-msgstr "Garmin support is limited to connection checks; step history sync is not implemented."
+msgid "Garmin FIT files (exact-minute steps, heart rate and sleep) sync when the watch connects. Records are saved in batches and sent only when you tap “Retry upload”."
+msgstr "Garmin FIT files (exact-minute steps, heart rate and sleep) sync when the watch connects. Records are saved in batches and sent only when you tap “Retry upload”."
 
 #. safety
 #: packages/api/src/presenters/micronutrients.ts
@@ -14976,6 +14980,10 @@ msgstr "This food changed on another device"
 #: packages/api/src/presenters/custom-foods.ts
 msgid "This food was archived on another device. Restore it to edit."
 msgstr "This food was archived on another device. Restore it to edit."
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "This Garmin model is registered for connection checks only; it carries no health-monitoring FIT files."
+msgstr "This Garmin model is registered for connection checks only; it carries no health-monitoring FIT files."
 
 #: apps/web/src/routes/_auth/goals.$goalId.tsx
 msgid "This goal was replaced."

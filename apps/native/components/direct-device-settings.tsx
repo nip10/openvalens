@@ -296,7 +296,8 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
     xiaomi_shared: t`Shared Xiaomi protobuf transport; not device-validated for this model. Not hardware-verified.`,
     huawei_history_sync: t`History sync on connection for exact-minute steps, heart rate and sleep (BLE models only); not hardware-verified.`,
     huawei_connection_only: t`Connection checks only; this model syncs over Bluetooth Classic upstream, which this BLE-only stack does not implement. Not hardware-verified.`,
-    garmin_connection_only: t`Connection checks only; step history sync is not implemented. Not hardware-verified.`,
+    garmin_history_sync: t`FIT file sync on connection for exact-minute steps, heart rate and sleep; not hardware-verified.`,
+    garmin_connection_only: t`Connection checks only; this model carries no health-monitoring FIT files. Not hardware-verified.`,
     ble_gatt_live_capture: t`Live capture while connected; not hardware-verified. No history backfill. Samples are sent only when you tap “Retry upload”.`,
     ble_scale_live_capture: t`Live weight capture while connected; not hardware-verified. Some scales also report stored measurements on connection. Samples are sent only when you tap “Retry upload”.`,
     ble_scale_connection_only: t`Connection checks only; measurement capture is not implemented for this model yet. Not hardware-verified.`,
@@ -492,6 +493,19 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
             <Text className="font-sans text-sm text-ink-3">
               {t`GloryFit history (steps, heart rate and sleep) syncs automatically while connected. Records are saved in batches and sent only when you tap “Retry upload”.`}
             </Text>
+          ) : connectedFamily === "garmin" &&
+            snapshot.capabilities.stepsHistory &&
+            canSyncSelected ? (
+            <>
+              <Text className="font-sans text-sm text-ink-3">
+                {t`Garmin FIT files (exact-minute steps, heart rate and sleep) sync when the watch connects. Records are saved in batches and sent only when you tap “Retry upload”.`}
+              </Text>
+              <View className="flex-row flex-wrap gap-2">
+                <Button onPress={handoffWithoutKey} isDisabled={busy || !canSyncSelected}>
+                  <Button.Label>{t`Sync steps`}</Button.Label>
+                </Button>
+              </View>
+            </>
           ) : connectedFamily === "huawei" &&
             snapshot.capabilities.stepsHistory &&
             canSyncSelected ? (
@@ -523,7 +537,7 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
           ) : !snapshot.capabilities.stepsHistory || !snapshot.canSync ? (
             <Text className="font-sans text-sm text-ink-3">
               {connectedFamily === "garmin"
-                ? t`Garmin support is limited to connection checks; step history sync is not implemented.`
+                ? t`This Garmin model is registered for connection checks only; it carries no health-monitoring FIT files.`
                 : t`Step sync is unavailable for this unrecognized device model.`}
             </Text>
           ) : canSyncSelected && (connectedFamily === "zepp_os" || connectedFamily === "xiaomi") ? (

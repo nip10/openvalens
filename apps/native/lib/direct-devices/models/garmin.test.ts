@@ -10,14 +10,14 @@ import { expect, test } from "bun:test";
 
 import { GARMIN_MODELS, getGarminModel, matchGarminDeviceName } from "./garmin";
 
-test("the registry contains the 155 health-relevant Garmin wearables", () => {
-  expect(GARMIN_MODELS).toHaveLength(155);
-  expect(new Set(GARMIN_MODELS.map((model) => model.id)).size).toBe(155);
-  expect(new Set(GARMIN_MODELS.map((model) => model.bleNamePattern)).size).toBe(155);
+test("the registry contains the 190 catalog Garmin entries", () => {
+  expect(GARMIN_MODELS).toHaveLength(190);
+  expect(new Set(GARMIN_MODELS.map((model) => model.id)).size).toBe(190);
+  expect(new Set(GARMIN_MODELS.map((model) => model.bleNamePattern)).size).toBe(190);
   expect(GARMIN_MODELS.filter((model) => model.featureLevel === "most")).toHaveLength(59);
-  expect(GARMIN_MODELS.filter((model) => model.featureLevel === "partial")).toHaveLength(45);
-  expect(GARMIN_MODELS.filter((model) => model.featureLevel === "unknown")).toHaveLength(51);
-  expect(GARMIN_MODELS.filter((model) => model.experimental)).toHaveLength(57);
+  expect(GARMIN_MODELS.filter((model) => model.featureLevel === "partial")).toHaveLength(62);
+  expect(GARMIN_MODELS.filter((model) => model.featureLevel === "unknown")).toHaveLength(69);
+  expect(GARMIN_MODELS.filter((model) => model.experimental)).toHaveLength(75);
 });
 
 test("the registry covers every catalog product line", () => {
@@ -30,13 +30,18 @@ test("the registry covers every catalog product line", () => {
     cirqa: 1,
     d2: 7,
     descent: 4,
+    edge: 24,
     enduro: 4,
     epix: 3,
+    etrex: 1,
     fenix: 37,
     forerunner: 37,
+    gpsmap: 4,
+    hrm: 3,
+    inreach: 1,
     instinct: 19,
     lily: 3,
-    quatix: 3,
+    quatix: 5,
     swim: 1,
     tactix: 3,
     venu: 12,
@@ -50,21 +55,42 @@ test("the registry covers every catalog product line", () => {
 test("every model is unvalidated and carries a coordinator pattern", () => {
   for (const model of GARMIN_MODELS) {
     expect(model.displayName.length, model.id).toBeGreaterThan(0);
-    expect(model.category, model.id).toBe("wearables");
+    expect(["wearables", "bike-computers", "navigations", "hr-bands"], model.id).toContain(
+      model.category,
+    );
     expect(["most", "partial", "unknown"], model.id).toContain(model.featureLevel);
     expect(model.transportValidated, model.id).toBe(false);
     expect(model.bleNamePattern.length, model.id).toBeGreaterThan(0);
     expect(model.sourceFile, model.id).toContain("devices/garmin/");
-    expect(model.sourceFile.endsWith("Coordinator.java"), model.id).toBe(true);
+    expect(
+      model.sourceFile.endsWith("Coordinator.java") ||
+        model.sourceFile.endsWith("Coordinator.kt") ||
+        model.sourceFile.endsWith("GarminInReachMini2.java") ||
+        model.sourceFile.endsWith("GarminProductNumbers.java"),
+      model.id,
+    ).toBe(true);
   }
+});
+
+test("only health wearables are marked for FIT data sync", () => {
+  expect(GARMIN_MODELS.filter((model) => model.sync)).toHaveLength(157);
+  for (const model of GARMIN_MODELS) {
+    expect(model.sync, model.id).toBe(model.category === "wearables");
+  }
+  expect(getGarminModel("garmin_fenix_7")?.sync).toBe(true);
+  expect(getGarminModel("garmin_edge_530")?.sync).toBe(false);
+  expect(getGarminModel("garmin_gpsmap_66s")?.sync).toBe(false);
+  expect(getGarminModel("garmin_hrm_200")?.sync).toBe(false);
 });
 
 test("upstream flags are preserved for representative models", () => {
   expect(getGarminModel("garmin_fenix_7")).toMatchObject({
     displayName: "Garmin Fenix 7",
+    category: "wearables",
     featureLevel: "most",
     experimental: false,
     transportValidated: false,
+    sync: true,
   });
   expect(getGarminModel("garmin_cirqa")).toMatchObject({
     displayName: "Garmin CIRQA",
@@ -75,6 +101,23 @@ test("upstream flags are preserved for representative models", () => {
     featureLevel: "unknown",
     experimental: true,
   });
+  expect(getGarminModel("garmin_edge_1040")).toMatchObject({
+    displayName: "Garmin Edge 1040",
+    category: "bike-computers",
+    featureLevel: "partial",
+    experimental: false,
+    sync: false,
+  });
+  expect(getGarminModel("garmin_gpsmap_66i")).toMatchObject({
+    category: "navigations",
+    featureLevel: "unknown",
+    experimental: true,
+  });
+  expect(getGarminModel("garmin_hrm_pro_plus")).toMatchObject({
+    category: "hr-bands",
+    featureLevel: "partial",
+  });
+  expect(getGarminModel("garmin_quatix_7")?.sourceFile).toEndWith("GarminProductNumbers.java");
 });
 
 test("matchGarminDeviceName uses the upstream full-string name fallback", () => {
@@ -86,6 +129,24 @@ test("matchGarminDeviceName uses the upstream full-string name fallback", () => 
   expect(matchGarminDeviceName("Forerunner 570")?.id).toBe("garmin_forerunner_570");
   expect(matchGarminDeviceName("Forerunner 265s")?.id).toBe("garmin_forerunner_265s");
   expect(matchGarminDeviceName("Garmin Forerunner 265S")?.id).toBe("garmin_forerunner_265s");
+});
+
+test("matchGarminDeviceName covers the bike computers, navigators and straps", () => {
+  expect(matchGarminDeviceName("Edge 2x")?.id).toBe("garmin_edge_25");
+  expect(matchGarminDeviceName("Edge 530")?.id).toBe("garmin_edge_530");
+  expect(matchGarminDeviceName("Edge 1030 Plus")?.id).toBe("garmin_edge_1030_plus");
+  expect(matchGarminDeviceName("Edge Explore 2")?.id).toBe("garmin_edge_explore_2");
+  expect(matchGarminDeviceName("eTrex SE")?.id).toBe("garmin_etrex_se");
+  expect(matchGarminDeviceName("GPSMAP 66S #12")?.id).toBe("garmin_gpsmap_66s");
+  expect(matchGarminDeviceName("GPSMAP 66SR")?.id).toBe("garmin_gpsmap_66sr");
+  expect(matchGarminDeviceName("GPSMAP 66I #7")?.id).toBe("garmin_gpsmap_66i");
+  expect(matchGarminDeviceName("GPSMAP H1")?.id).toBe("garmin_gpsmap_h1");
+  expect(matchGarminDeviceName("HRM 200")?.id).toBe("garmin_hrm_200");
+  expect(matchGarminDeviceName("HRM600:42")?.id).toBe("garmin_hrm_600");
+  expect(matchGarminDeviceName("HRMPro+:123")?.id).toBe("garmin_hrm_pro_plus");
+  expect(matchGarminDeviceName("inReach Mini 2")?.id).toBe("garmin_inreach_mini_2");
+  expect(matchGarminDeviceName("quatix 7")?.id).toBe("garmin_quatix_7");
+  expect(matchGarminDeviceName("quatix 7X")?.id).toBe("garmin_quatix_7x");
 });
 
 test("matchGarminDeviceName handles the accented vívo* names", () => {
@@ -112,4 +173,6 @@ test("matchGarminDeviceName rejects partial and differently-cased names", () => 
   expect(matchGarminDeviceName("Forerunner 570 Music")).toBeNull();
   expect(matchGarminDeviceName("Venu 3S UAT-4261")).toBeNull();
   expect(matchGarminDeviceName("vívoactive 99")).toBeNull();
+  expect(matchGarminDeviceName("Edge 530 Mountain")).toBeNull();
+  expect(matchGarminDeviceName("HRM 200 Pro")).toBeNull();
 });

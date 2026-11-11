@@ -47,6 +47,12 @@
 
 import type { Characteristic, Device, Subscription } from "react-native-ble-plx";
 
+import {
+  GarminCobsDecoder,
+  encodeGarminGfdiWrites,
+  type GarminGfdiFrame,
+} from "../protocol/garmin";
+
 // ---------------------------------------------------------------------------
 // UUIDs and profiles
 // ---------------------------------------------------------------------------
@@ -154,224 +160,22 @@ export async function selectGarminProfile(
 }
 
 // ---------------------------------------------------------------------------
-// CRC-16/ARC (ChecksumCalculator.java)
+// Codec re-exports (protocol/garmin.ts)
 // ---------------------------------------------------------------------------
 
-const GARMIN_CRC_CONSTANTS: readonly number[] = [
-  0x0000, 0xcc01, 0xd801, 0x1400, 0xf001, 0x3c00, 0x2800, 0xe401, 0xa001, 0x6c00, 0x7800, 0xb401,
-  0x5000, 0x9c01, 0x8801, 0x4400,
-];
-
-/** Upstream `ChecksumCalculator.computeCrc`, i.e. CRC-16/ARC. */
-export function garminCrc16(bytes: Uint8Array, initial = 0x0000): number {
-  let crc = initial;
-  for (const byte of bytes) {
-    crc = ((crc >> 4) & 4095) ^ GARMIN_CRC_CONSTANTS[crc & 15]!;
-    crc ^= GARMIN_CRC_CONSTANTS[byte & 15]!;
-    crc = ((crc >> 4) & 4095) ^ GARMIN_CRC_CONSTANTS[crc & 15]!;
-    crc ^= GARMIN_CRC_CONSTANTS[(byte >> 4) & 15]!;
-  }
-  return crc & 0xffff;
-}
-
-// ---------------------------------------------------------------------------
-// COBS (CobsCoDec.java)
-// ---------------------------------------------------------------------------
-
-/**
- * Encodes a payload with the upstream COBS variant: a leading 0x00, COBS
- * blocks, an optional 0x01 for a trailing zero, and a trailing 0x00.
- */
-export function encodeGarminCobs(data: Uint8Array): Uint8Array {
-  const out: number[] = [0];
-  let position = 0;
-  let lastByteWasZero = false;
-  while (position < data.length) {
-    const startPos = position;
-    while (position < data.length && data[position] !== 0) position += 1;
-    lastByteWasZero = position < data.length && data[position] === 0;
-    let payloadSize = position - startPos;
-    let start = startPos;
-    while (payloadSize >= 0xfe) {
-      out.push(0xff);
-      for (let index = 0; index < 0xfe; index += 1) out.push(data[start + index]!);
-      payloadSize -= 0xfe;
-      start += 0xfe;
-    }
-    out.push(payloadSize + 1);
-    for (let index = 0; index < payloadSize; index += 1) out.push(data[start + index]!);
-    if (lastByteWasZero) position += 1;
-  }
-  if (lastByteWasZero) out.push(0x01);
-  out.push(0);
-  return Uint8Array.from(out);
-}
-
-/**
- * Decodes exactly one complete COBS frame (leading and trailing 0x00).
- * Throws `GARMIN_COBS_*` on malformed or truncated input.
- */
-export function decodeGarminCobsFrame(frame: Uint8Array): Uint8Array {
-  if (frame.length < 4) throw new Error("GARMIN_COBS_TRUNCATED");
-  if (frame[0] !== 0 || frame[frame.length - 1] !== 0) throw new Error("GARMIN_COBS_FRAME");
-  const out: number[] = [];
-  const end = frame.length - 1;
-  let offset = 1;
-  while (offset < end) {
-    const code = frame[offset]!;
-    offset += 1;
-    if (code === 0) break;
-    const payloadSize = code - 1;
-    if (offset + payloadSize > end) throw new Error("GARMIN_COBS_TRUNCATED");
-    for (let index = 0; index < payloadSize; index += 1) out.push(frame[offset + index]!);
-    offset += payloadSize;
-    if (code !== 0xff && offset < end) out.push(0);
-  }
-  return Uint8Array.from(out);
-}
-
-/**
- * Streaming COBS decoder. Accumulates BLE notification fragments and yields
- * one decoded message at a time. Malformed frames are dropped and the
- * accumulator resets, matching upstream `CobsCoDec`.
- */
-export class GarminCobsDecoder {
-  private buffer: number[] = [];
-
-  accept(bytes: Uint8Array): Uint8Array | null {
-    for (const byte of bytes) this.buffer.push(byte);
-    if (this.buffer.length > 10_000) this.reset();
-    if (this.buffer.length < 4) return null;
-    if (this.buffer[0] !== 0) {
-      this.reset();
-      return null;
-    }
-    const end = this.buffer.indexOf(0, 1);
-    if (end < 0) return null;
-    const frame = Uint8Array.from(this.buffer.slice(0, end + 1));
-    this.buffer = this.buffer.slice(end + 1);
-    try {
-      return decodeGarminCobsFrame(frame);
-    } catch {
-      return null;
-    }
-  }
-
-  reset(): void {
-    this.buffer = [];
-  }
-}
-
-// ---------------------------------------------------------------------------
-// GFDI packet framing (GFDIMessage.java)
-// ---------------------------------------------------------------------------
-
-export type GarminGfdiFrame = Readonly<{
-  /** Raw message type. Incoming frames may carry a sequence number in bit 15. */
-  messageType: number;
-  payload: Uint8Array;
-}>;
-
-/**
- * GFDI `AUTH_NEGOTIATION`. The device sends an opaque flag bitmask; upstream
- * replies ACK / `GUESS_OK` with all flags cleared and derives no key.
- */
-export const GARMIN_AUTH_NEGOTIATION_MESSAGE_TYPE = 5101;
-/** Upstream `AuthNegotiationStatus.GUESS_OK`. */
-export const GARMIN_AUTH_NEGOTIATION_GUESS_OK = 0;
-
-function uint16le(bytes: Uint8Array, offset: number): number {
-  return bytes[offset]! | (bytes[offset + 1]! << 8);
-}
-
-function writeUint16le(out: Uint8Array, offset: number, value: number): void {
-  out[offset] = value & 0xff;
-  out[offset + 1] = (value >>> 8) & 0xff;
-}
-
-/**
- * Serializes one GFDI message: 2-byte little-endian total length (including
- * the length field and CRC), 2-byte little-endian message type, payload, then
- * the CRC-16/ARC over everything before it.
- */
-export function encodeGarminGfdiFrame(frame: GarminGfdiFrame): Uint8Array {
-  if (!Number.isInteger(frame.messageType) || frame.messageType < 0 || frame.messageType > 0xffff) {
-    throw new Error("GARMIN_MESSAGE_TYPE");
-  }
-  const total = 4 + frame.payload.length + 2;
-  if (total > 0xffff) throw new Error("GARMIN_PACKET_TOO_LARGE");
-  const out = new Uint8Array(total);
-  writeUint16le(out, 0, total);
-  writeUint16le(out, 2, frame.messageType);
-  out.set(frame.payload, 4);
-  writeUint16le(out, total - 2, garminCrc16(out.subarray(0, total - 2)));
-  return out;
-}
-
-/** Parses and verifies one complete GFDI message. */
-export function decodeGarminGfdiFrame(bytes: Uint8Array): GarminGfdiFrame {
-  if (bytes.length < 6) throw new Error("GARMIN_PACKET_TRUNCATED");
-  const length = uint16le(bytes, 0);
-  if (length !== bytes.length) throw new Error("GARMIN_PACKET_LENGTH");
-  const expectedCrc = uint16le(bytes, length - 2);
-  if (garminCrc16(bytes.subarray(0, length - 2)) !== expectedCrc) {
-    throw new Error("GARMIN_PACKET_CRC");
-  }
-  return {
-    messageType: uint16le(bytes, 2),
-    payload: bytes.slice(4, length - 2),
-  };
-}
-
-// ---------------------------------------------------------------------------
-// Write chunking (CommunicatorV1/V2.java)
-// ---------------------------------------------------------------------------
-
-export type GarminWriteOptions = Readonly<{
-  /** Maximum bytes accepted by one BLE write, including any handle prefix. */
-  maxWriteSize: number;
-  /** V2 GFDI handle; omitted for v0/v1. */
-  handle?: number;
-}>;
-
-/**
- * Splits an already-COBS-encoded payload into BLE writes. Upstream reserves
- * one byte per write (`maxWriteSize - 1`) and, for V2, prefixes every chunk
- * with the GFDI handle byte.
- */
-export function chunkGarminPayload(payload: Uint8Array, options: GarminWriteOptions): Uint8Array[] {
-  const { maxWriteSize, handle } = options;
-  if (!Number.isInteger(maxWriteSize) || maxWriteSize < 2) {
-    throw new Error("GARMIN_WRITE_SIZE");
-  }
-  if (handle !== undefined && (!Number.isInteger(handle) || handle < 0 || handle > 0xff)) {
-    throw new Error("GARMIN_HANDLE");
-  }
-  const chunkSize = maxWriteSize - 1;
-  const fragments: Uint8Array[] = [];
-  if (payload.length <= chunkSize) {
-    fragments.push(payload);
-  } else {
-    for (let offset = 0; offset < payload.length; offset += chunkSize) {
-      fragments.push(payload.subarray(offset, offset + chunkSize));
-    }
-  }
-  if (handle === undefined) return fragments;
-  return fragments.map((fragment) => {
-    const out = new Uint8Array(1 + fragment.length);
-    out[0] = handle;
-    out.set(fragment, 1);
-    return out;
-  });
-}
-
-/** COBS-encodes and chunks one GFDI frame for writing. */
-export function encodeGarminGfdiWrites(
-  frame: GarminGfdiFrame,
-  options: GarminWriteOptions,
-): Uint8Array[] {
-  return chunkGarminPayload(encodeGarminCobs(encodeGarminGfdiFrame(frame)), options);
-}
+export {
+  chunkGarminPayload,
+  decodeGarminCobsFrame,
+  decodeGarminGfdiFrame,
+  encodeGarminCobs,
+  encodeGarminGfdiFrame,
+  encodeGarminGfdiWrites,
+  garminCrc16,
+  GARMIN_AUTH_NEGOTIATION_GUESS_OK,
+  GARMIN_AUTH_NEGOTIATION_MESSAGE_TYPE,
+  GarminCobsDecoder,
+} from "../protocol/garmin";
+export type { GarminGfdiFrame, GarminWriteOptions } from "../protocol/garmin";
 
 // ---------------------------------------------------------------------------
 // Link adapter
@@ -387,8 +191,18 @@ type TransactionManager = { cancelTransaction(id: string): void };
 export interface GarminLink {
   readonly maxWriteBytes: number;
   subscribe(onMessage: (bytes: Uint8Array) => void, onFailure: () => void): () => void;
+  /**
+   * Raw BLE notifications, still carrying the V2 GFDI handle prefix. ML
+   * handle-management messages are not COBS/GFDI framed, so they can only be
+   * routed from this level.
+   */
+  subscribeRaw(onNotification: (bytes: Uint8Array) => void, onFailure: () => void): () => void;
   /** Writes one GFDI frame, COBS-encoded and chunked for the profile. */
   write(frame: GarminGfdiFrame, signal: AbortSignal): Promise<void>;
+  /** Writes raw bytes (ML handle management); no COBS, no handle prefix. */
+  writeRaw(bytes: Uint8Array, signal: AbortSignal): Promise<void>;
+  /** Sets the ML GFDI handle once the device has registered the service. */
+  setHandle(handle: number): void;
   close(): Promise<void>;
 }
 
@@ -430,18 +244,27 @@ function encodeBase64(bytes: Uint8Array): string {
 
 export class NativeGarminLink implements GarminLink {
   readonly maxWriteBytes: number;
+  readonly protocol: GarminBleProfile["protocol"];
   private queue: Promise<void> = Promise.resolve();
   private readonly subscriptions = new Set<Subscription>();
   private readonly decoder = new GarminCobsDecoder();
   private transaction = 0;
+  private handle: number | undefined;
 
   constructor(
     private readonly device: WriteDevice,
     private readonly profile: GarminBleProfile,
     private readonly manager?: TransactionManager,
-    private readonly handle?: number,
+    handle?: number,
   ) {
     this.maxWriteBytes = Math.min(512, Math.max(23, device.mtu ?? 23)) - 3;
+    this.protocol = profile.protocol;
+    this.handle = handle;
+  }
+
+  setHandle(handle: number): void {
+    if (!Number.isInteger(handle) || handle < 0 || handle > 0xff) throw new Error("GARMIN_HANDLE");
+    this.handle = handle;
   }
 
   subscribe(onMessage: (bytes: Uint8Array) => void, onFailure: () => void): () => void {
@@ -468,6 +291,29 @@ export class NativeGarminLink implements GarminLink {
     };
   }
 
+  subscribeRaw(onNotification: (bytes: Uint8Array) => void, onFailure: () => void): () => void {
+    const subscription = this.device.monitorCharacteristicForService(
+      this.profile.serviceUuid,
+      this.profile.readUuid,
+      (error, value: Characteristic | null) => {
+        if (error || !value?.value) {
+          onFailure();
+          return;
+        }
+        try {
+          onNotification(decodeBase64(value.value));
+        } catch {
+          onFailure();
+        }
+      },
+    );
+    this.subscriptions.add(subscription);
+    return () => {
+      subscription.remove();
+      this.subscriptions.delete(subscription);
+    };
+  }
+
   write(frame: GarminGfdiFrame, signal: AbortSignal): Promise<void> {
     const task = this.queue.then(async () => {
       if (signal.aborted) throw new Error("CANCELLED");
@@ -478,32 +324,49 @@ export class NativeGarminLink implements GarminLink {
         maxWriteSize: this.maxWriteBytes,
         ...(this.profile.handlePrefixed ? { handle: this.handle } : {}),
       });
-      for (const chunk of chunks) {
+      for (const chunk of chunks) await this.writeChunk(chunk, signal);
+      if (signal.aborted) throw new Error("CANCELLED");
+    });
+    this.queue = task.catch(() => undefined);
+    return task;
+  }
+
+  writeRaw(bytes: Uint8Array, signal: AbortSignal): Promise<void> {
+    const task = this.queue.then(async () => {
+      if (signal.aborted) throw new Error("CANCELLED");
+      // Handle-management frames are written verbatim: the first byte is the
+      // (zero) handle and there is no COBS wrapper (`CommunicatorV2`).
+      const chunkSize = this.maxWriteBytes - 1;
+      for (let offset = 0; offset < bytes.length; offset += chunkSize) {
         if (signal.aborted) throw new Error("CANCELLED");
-        const transactionId = `garmin-${++this.transaction}`;
-        const cancel = () => {
-          try {
-            this.manager?.cancelTransaction(transactionId);
-          } catch {
-            // Native cancellation is best effort.
-          }
-        };
-        signal.addEventListener("abort", cancel, { once: true });
-        try {
-          await this.device.writeCharacteristicWithResponseForService(
-            this.profile.serviceUuid,
-            this.profile.writeUuid,
-            encodeBase64(chunk),
-            transactionId,
-          );
-        } finally {
-          signal.removeEventListener("abort", cancel);
-        }
+        await this.writeChunk(bytes.subarray(offset, offset + chunkSize), signal);
       }
       if (signal.aborted) throw new Error("CANCELLED");
     });
     this.queue = task.catch(() => undefined);
     return task;
+  }
+
+  private async writeChunk(chunk: Uint8Array, signal: AbortSignal): Promise<void> {
+    const transactionId = `garmin-${++this.transaction}`;
+    const cancel = () => {
+      try {
+        this.manager?.cancelTransaction(transactionId);
+      } catch {
+        // Native cancellation is best effort.
+      }
+    };
+    signal.addEventListener("abort", cancel, { once: true });
+    try {
+      await this.device.writeCharacteristicWithResponseForService(
+        this.profile.serviceUuid,
+        this.profile.writeUuid,
+        encodeBase64(chunk),
+        transactionId,
+      );
+    } finally {
+      signal.removeEventListener("abort", cancel);
+    }
   }
 
   async close(): Promise<void> {

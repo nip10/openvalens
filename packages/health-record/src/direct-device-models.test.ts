@@ -10,7 +10,7 @@ import {
 test("direct-device catalog has unique family/model pairs and supported steps identity", () => {
   const keys = DIRECT_DEVICE_MODELS.map(({ family, modelId }) => `${family}:${modelId}`);
   expect(new Set(keys).size).toBe(keys.length);
-  expect(DIRECT_DEVICE_MODELS).toHaveLength(405);
+  expect(DIRECT_DEVICE_MODELS).toHaveLength(440);
   expect(
     findDirectDeviceModel({ family: "zepp_os", modelId: "amazfit_helio_strap" })?.displayName,
   ).toBe("Amazfit Helio Strap");
@@ -148,4 +148,43 @@ test("Moyoung catalog resolves the 31 catalog models", () => {
   expect(isDirectDeviceIdentity({ family: "moyoung", modelId: "moyoung_unknown" })).toBe(false);
   expect(isDirectDeviceIdentity({ family: "moyoung", modelId: "garmin_fenix_7" })).toBe(false);
   expect(isDirectDeviceIdentity({ family: "gloryfit", modelId: "moyoung_c20" })).toBe(false);
+});
+
+test("Garmin catalog resolves every upstream vendor model", () => {
+  // 190 upstream `vendor: garmin` entries in the committed Gadgetbridge catalog.
+  expect(DIRECT_DEVICE_MODELS.filter(({ family }) => family === "garmin")).toHaveLength(190);
+  expect(findDirectDeviceModel({ family: "garmin", modelId: "garmin_fenix_7" })).toEqual({
+    family: "garmin",
+    modelId: "garmin_fenix_7",
+    displayName: "Garmin Fenix 7",
+  });
+  expect(
+    findDirectDeviceModel({ family: "garmin", modelId: "garmin_edge_1040" })?.displayName,
+  ).toBe("Garmin Edge 1040");
+  expect(
+    findDirectDeviceModel({ family: "garmin", modelId: "garmin_edge_520_plus" })?.displayName,
+  ).toBe("Garmin Edge 520 Plus");
+  expect(
+    findDirectDeviceModel({ family: "garmin", modelId: "garmin_edge_explore_2" })?.displayName,
+  ).toBe("Garmin Edge Explore 2");
+  expect(findDirectDeviceModel({ family: "garmin", modelId: "garmin_etrex_se" })?.displayName).toBe(
+    "Garmin eTrex SE",
+  );
+  expect(
+    findDirectDeviceModel({ family: "garmin", modelId: "garmin_gpsmap_66i" })?.displayName,
+  ).toBe("Garmin GPSMAP 66i");
+  expect(
+    findDirectDeviceModel({ family: "garmin", modelId: "garmin_hrm_pro_plus" })?.displayName,
+  ).toBe("Garmin HRM Pro Plus");
+  expect(
+    findDirectDeviceModel({ family: "garmin", modelId: "garmin_inreach_mini_2" })?.displayName,
+  ).toBe("Garmin inReach Mini 2");
+  expect(
+    findDirectDeviceModel({ family: "garmin", modelId: "garmin_quatix_7x" })?.displayName,
+  ).toBe("Garmin Quatix 7X");
+  expect(isDirectDeviceIdentity({ family: "garmin", modelId: "garmin_hrm_600" })).toBe(true);
+  // Unknown models and cross-family model ids are rejected.
+  expect(isDirectDeviceIdentity({ family: "garmin", modelId: "garmin_unknown" })).toBe(false);
+  expect(isDirectDeviceIdentity({ family: "garmin", modelId: "amazfit_bip" })).toBe(false);
+  expect(isDirectDeviceIdentity({ family: "zepp_os", modelId: "garmin_fenix_7" })).toBe(false);
 });

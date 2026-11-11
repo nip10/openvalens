@@ -493,15 +493,17 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
         ? "gloryfit"
         : family === "huami_legacy"
           ? "huami"
-          : family === "huawei"
-            ? "huawei"
-            : family === "moyoung"
-              ? "moyoung"
-              : "ring";
+          : family === "garmin"
+            ? "garmin"
+            : family === "huawei"
+              ? "huawei"
+              : family === "moyoung"
+                ? "moyoung"
+                : "ring";
 
   /**
-   * Legacy Huami and Huawei BLE sync emit exact-minute `steps` records (the
-   * frozen contract for those families), not arbitrary `steps_interval`
+   * Legacy Huami, Garmin and Huawei BLE sync emit exact-minute `steps` records
+   * (the frozen contract for those families), not arbitrary `steps_interval`
    * buckets.
    */
   const huamiHistoryRecords = (
@@ -582,7 +584,7 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
     recordType: "steps" | "steps_interval" | "sleep_session" | "heart_rate";
     upserts: unknown[];
   }[] => {
-    if (family === "huami_legacy" || family === "huawei")
+    if (family === "huami_legacy" || family === "huawei" || family === "garmin")
       return huamiHistoryRecords(deviceId, prefix, samples);
     const steps = samples.filter(
       (sample): sample is Extract<DirectDeviceHistorySample, { type: "steps_interval" }> =>
@@ -726,6 +728,7 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
         state.connectedFamily !== "gloryfit" &&
         state.connectedFamily !== "moyoung" &&
         state.connectedFamily !== "huami_legacy" &&
+        state.connectedFamily !== "garmin" &&
         state.connectedFamily !== "huawei")
     )
       return;

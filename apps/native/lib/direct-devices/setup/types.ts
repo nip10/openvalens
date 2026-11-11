@@ -13,6 +13,7 @@ import type { BleGattSample } from "../protocol/ble-gatt";
 import type { BangleJsRecord } from "../protocol/bangle-js";
 import type { WeightMeasurementSample } from "../protocol/ble-scale";
 import type { ColmiRingRecord } from "../protocol/colmi-ring";
+import type { GarminRecord } from "../protocol/garmin";
 import type { GloryFitRecord } from "../protocol/gloryfit";
 import type { HuaweiRecord } from "../protocol/huawei";
 import type { HuamiLegacyRecord } from "../protocol/huami-legacy";
@@ -55,6 +56,7 @@ export type DirectDeviceHistorySample =
   | ColmiRingRecord
   | BangleJsRecord
   | GloryFitRecord
+  | GarminRecord
   | HuamiLegacyRecord
   | HuaweiRecord
   | MoyoungRecord;

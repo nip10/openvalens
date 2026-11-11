@@ -3560,8 +3560,8 @@ msgid "Connection checks only; measurement capture is not implemented for this m
 msgstr "Apenas verificações de ligação; a captura de medições ainda não está implementada para este modelo. Não verificado em hardware."
 
 #: apps/native/components/direct-device-settings.tsx
-msgid "Connection checks only; step history sync is not implemented. Not hardware-verified."
-msgstr "Apenas verificações de ligação; a sincronização do histórico de passos não está implementada. Não verificado em hardware."
+msgid "Connection checks only; this model carries no health-monitoring FIT files. Not hardware-verified."
+msgstr "Apenas verificações de ligação; este modelo não contém ficheiros FIT de monitorização de saúde. Não verificado em hardware."
 
 #: apps/native/components/direct-device-settings.tsx
 msgid "Connection checks only; this model syncs over Bluetooth Classic upstream, which this BLE-only stack does not implement. Not hardware-verified."
@@ -6460,6 +6460,10 @@ msgstr "Concluir treino"
 msgid "First setup"
 msgstr "Primeira configuração"
 
+#: apps/native/components/direct-device-settings.tsx
+msgid "FIT file sync on connection for exact-minute steps, heart rate and sleep; not hardware-verified."
+msgstr "Sincronização de ficheiros FIT na ligação para passos ao minuto exato, frequência cardíaca e sono; não verificado em hardware."
+
 #: apps/native/app/(drawer)/cycle.tsx
 msgid "Flow"
 msgstr "Fluxo"
@@ -6662,8 +6666,8 @@ msgid "Gadgetbridge pairing help"
 msgstr "Ajuda de emparelhamento do Gadgetbridge"
 
 #: apps/native/components/direct-device-settings.tsx
-msgid "Garmin support is limited to connection checks; step history sync is not implemented."
-msgstr "O suporte Garmin limita-se a verificações de ligação; a sincronização do histórico de passos não está implementada."
+msgid "Garmin FIT files (exact-minute steps, heart rate and sleep) sync when the watch connects. Records are saved in batches and sent only when you tap “Retry upload”."
+msgstr "Os ficheiros FIT Garmin (passos ao minuto exato, frequência cardíaca e sono) são sincronizados quando o relógio se liga. Os registos são guardados em lotes e só são enviados quando toca em “Tentar enviar novamente”."
 
 #. safety
 #: packages/api/src/presenters/micronutrients.ts
@@ -14976,6 +14980,10 @@ msgstr "Este alimento foi alterado noutro dispositivo"
 #: packages/api/src/presenters/custom-foods.ts
 msgid "This food was archived on another device. Restore it to edit."
 msgstr "Este alimento foi arquivado noutro dispositivo. Restaure-o para o editar."
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "This Garmin model is registered for connection checks only; it carries no health-monitoring FIT files."
+msgstr "Este modelo Garmin está registado apenas para verificações de ligação; não contém ficheiros FIT de monitorização de saúde."
 
 #: apps/web/src/routes/_auth/goals.$goalId.tsx
 msgid "This goal was replaced."

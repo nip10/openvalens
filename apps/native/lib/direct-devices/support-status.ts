@@ -40,6 +40,7 @@ export type OpenValensDeviceSupport =
   | "xiaomi_shared"
   | "huawei_history_sync"
   | "huawei_connection_only"
+  | "garmin_history_sync"
   | "garmin_connection_only"
   | "ble_gatt_live_capture"
   | "ble_scale_live_capture"
@@ -68,8 +69,10 @@ export function describeDeviceSupport(input: {
    */
   records?: readonly string[];
   /**
-   * Registry sync capability. Used only by the Huawei family: BLE models sync
-   * stored history, Bluetooth-Classic models stay connection-only.
+   * Registry sync capability. Used by the Huawei family (BLE models sync
+   * stored history, Bluetooth-Classic models stay connection-only) and the
+   * Garmin family (wearables sync FIT files, bike computers / navigators /
+   * chest straps stay connection-only).
    */
   sync?: boolean;
 }): DeviceSupportStatus {
@@ -105,7 +108,7 @@ function openValensSupport(
     case "huawei":
       return sync === true ? "huawei_history_sync" : "huawei_connection_only";
     case "garmin":
-      return "garmin_connection_only";
+      return sync === true ? "garmin_history_sync" : "garmin_connection_only";
     case "ble_gatt":
       return "ble_gatt_live_capture";
     case "ble_scale":
