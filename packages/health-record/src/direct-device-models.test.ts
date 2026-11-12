@@ -10,7 +10,7 @@ import {
 test("direct-device catalog has unique family/model pairs and supported steps identity", () => {
   const keys = DIRECT_DEVICE_MODELS.map(({ family, modelId }) => `${family}:${modelId}`);
   expect(new Set(keys).size).toBe(keys.length);
-  expect(DIRECT_DEVICE_MODELS).toHaveLength(473);
+  expect(DIRECT_DEVICE_MODELS).toHaveLength(476);
   expect(
     findDirectDeviceModel({ family: "zepp_os", modelId: "amazfit_helio_strap" })?.displayName,
   ).toBe("Amazfit Helio Strap");
@@ -318,4 +318,15 @@ test("Pebble catalog resolves the 8 catalog models", () => {
   expect(isDirectDeviceIdentity({ family: "pebble", modelId: "pebble_unknown" })).toBe(false);
   expect(isDirectDeviceIdentity({ family: "pebble", modelId: "garmin_fenix_7" })).toBe(false);
   expect(isDirectDeviceIdentity({ family: "casio", modelId: "pebble_classic" })).toBe(false);
+});
+
+test("the Fossil HR family registers exactly the three HR-adapter models", () => {
+  expect(
+    DIRECT_DEVICE_MODELS.filter(({ family }) => family === "fossil_hr").map(
+      ({ modelId }) => modelId,
+    ),
+  ).toEqual(["fossil_hybrid_hr", "fossil_gen_6_hybrid", "skagen_jorn_gen_6"]);
+  expect(
+    findDirectDeviceModel({ family: "fossil_hr", modelId: "fossil_q_hybrid" }),
+  ).toBeUndefined();
 });

@@ -20,6 +20,8 @@ import type { DirectDeviceIdentity } from "@openvalens/api/contracts/direct-devi
 import type { DirectDeviceStore } from "../persistence/store";
 import { drainDirectDeviceOutbox } from "../upload";
 import { projectPebbleCapture } from "./pebble-capture";
+import { projectFossilFiles } from "./fossil-capture";
+import { parseFossilActivityFile, parseFossilAuthKey } from "../protocol/fossil-hr";
 import type { PebbleIdentity, PebbleSessionOutcome } from "../pebble-types";
 import type { HelioCursor, HelioStepsPage } from "../protocol/types";
 import type { BleGattSample } from "../protocol/ble-gatt";
@@ -767,7 +769,7 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
    * drained. Never throws: projection is local, and a failure must not stop
    * the upload of envelopes that already exist.
    */
-  const projectPebbleInbox = (
+  const projectDurableInbox = (
     ticket: AuthorityTicket,
     onlyDeviceId?: string,
   ): { sleepHeld: number; unreadableItems: number; errorCode: string | null } => {
@@ -781,6 +783,24 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
       return { sleepHeld, unreadableItems, errorCode: safeError(error) };
     }
     for (const binding of bindings) {
+      if (
+        binding.family === "fossil_hr" &&
+        binding.modelId &&
+        binding.providerConnectionId !== null &&
+        (!onlyDeviceId || binding.deviceId === onlyDeviceId)
+      ) {
+        try {
+          unreadableItems += projectFossilFiles({
+            store: deps.store,
+            ticket,
+            deviceId: binding.deviceId,
+            identity: { family: "fossil_hr", modelId: binding.modelId } as DirectDeviceIdentity,
+          }).unreadableFiles;
+        } catch (error) {
+          errorCode ??= safeError(error);
+        }
+        continue;
+      }
       if (
         binding.family !== "pebble" ||
         !binding.modelId ||
@@ -936,7 +956,7 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
         }
         // Recover Pebble data an interrupted sync left unprojected, so the
         // pending count (and the retry button) reflects it.
-        projectPebbleInbox(ticket);
+        projectDurableInbox(ticket);
         owned = deps.store.listBindings(ticket);
         const selected =
           selectedBindingId && bindingsById.has(selectedBindingId)
@@ -1113,8 +1133,15 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
       // Huawei auth is automatic (MAC-derived key); only the key-entry
       // families require a user-supplied 16-byte key here.
       // Pebble pairs through the OS bond; it has no app-level key either.
+      // Fossil keys are parsed the upstream way (spaces and every "0x" removed).
+      const isFossil = snapshot.connectedFamily === "fossil_hr";
+      const fossilKey = isFossil ? parseFossilAuthKey(authKeyHex) : null;
+      if (isFossil && !fossilKey) {
+        publish({ phase: "error", errorCode: "INVALID_AUTH_KEY" });
+        return;
+      }
       const requiresKey =
-        snapshot.connectedFamily !== "huawei" && snapshot.connectedFamily !== "pebble";
+        !isFossil && snapshot.connectedFamily !== "huawei" && snapshot.connectedFamily !== "pebble";
       if (requiresKey && !/^((0x)?[0-9a-fA-F]{32})$/.test(authKeyHex)) {
         publish({ phase: "error", errorCode: "INVALID_AUTH_KEY" });
         return;
@@ -1153,9 +1180,65 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
         let checkpoint = binding.captureCheckpoint;
         let cursorSince = since;
         let captured = 0;
-        let pebbleNotice: string | null = null;
-        let pebbleResult: { complete: boolean; hardFailure: boolean } | null = null;
-        if (syncIdentity.family === "pebble") {
+        let inboxNotice: string | null = null;
+        let inboxResult: { complete: boolean; hardFailure: boolean } | null = null;
+        if (syncIdentity.family === "fossil_hr" && fossilKey) {
+          const peer = deps.setup.getFossilPeer();
+          if (!peer || peer.model.id !== syncIdentity.modelId)
+            throw new Error("FOSSIL_PEER_MISMATCH");
+          // One physical watch feeds one active binding (as for Pebble).
+          if (
+            deps.store
+              .listBindings(ticket)
+              .some(
+                (other) =>
+                  other.deviceId !== syncDeviceId &&
+                  other.pebbleNativeId === peer.nativeId &&
+                  bindingsById.has(other.deviceId),
+              )
+          )
+            throw new Error("FOSSIL_NATIVE_ID_IN_USE");
+          publish({ phase: "capturing", isBusy: true });
+          const download = await deps.setup.fossilDownload({
+            key: fossilKey,
+            signal: abort.signal,
+          });
+          if (!current(token) || !isAuthorityTicketCurrent(ticket)) return;
+          let notice: string | null = null;
+          if (download.status === "file") {
+            // 1. Durable: committed before the watch may delete anything.
+            deps.store.storeFossilFile(ticket, {
+              deviceId: syncDeviceId,
+              identity: syncIdentity,
+              nativeId: peer.nativeId,
+              data: download.data,
+              crc: download.crc,
+            });
+            // 2. Delete only a file that parses (upstream keeps unparseable
+            //    files on the watch), and only the exact handle fetched.
+            let parses = true;
+            try {
+              parseFossilActivityFile(download.data);
+            } catch {
+              parses = false;
+            }
+            if (!parses) notice = "FOSSIL_FILE_UNREADABLE";
+            else if (
+              !(await deps.setup
+                .fossilDelete({ handle: download.handle, signal: abort.signal })
+                .catch(() => false))
+            )
+              // Safe: the data is stored; the watch serves the same file again.
+              notice = "FOSSIL_DELETE_FAILED";
+          }
+          // 3. Project everything stored, including files from earlier syncs.
+          const projection = projectDurableInbox(ticket, syncDeviceId);
+          inboxNotice =
+            notice ??
+            projection.errorCode ??
+            (projection.unreadableItems ? "FOSSIL_FILE_UNREADABLE" : null);
+          inboxResult = { complete: true, hardFailure: !notice && !!projection.errorCode };
+        } else if (syncIdentity.family === "pebble") {
           const peer = deps.setup.getPebblePeer();
           if (
             !peer ||
@@ -1199,24 +1282,24 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
           // already ACKed may be gone from the watch: project them now. This
           // is local, needs only current authority, and never throws.
           const projection = isAuthorityTicketCurrent(ticket)
-            ? projectPebbleInbox(ticket, syncDeviceId)
+            ? projectDurableInbox(ticket, syncDeviceId)
             : null;
           if (!current(token) || !isAuthorityTicketCurrent(ticket)) return;
           if (outcome.status === "cancelled") throw new Error("CANCELLED");
           const notice = pebbleOutcomeNotice(outcome, projection?.sleepHeld ?? 0);
           // A projection failure must not hide the capture result, nor stop
           // the upload of what was already projected.
-          pebbleNotice =
+          inboxNotice =
             notice.code ??
             projection?.errorCode ??
             (projection?.unreadableItems ? "PEBBLE_UNREADABLE_SKIPPED" : null);
-          pebbleResult = {
+          inboxResult = {
             complete: outcome.status === "idle",
             hardFailure: notice.hardFailure || (!notice.code && !!projection?.errorCode),
           };
         }
         const result =
-          pebbleResult ??
+          inboxResult ??
           (await deps.setup.fetchSteps({
             authKey,
             since,
@@ -1273,14 +1356,14 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
         const queued = summary.queued;
         publish({
           // A Pebble capture ends the link, so it never returns to "connected".
-          phase: pebbleResult
-            ? pebbleResult.hardFailure
+          phase: inboxResult
+            ? inboxResult.hardFailure
               ? "error"
               : "processing"
             : result.complete
               ? "processing"
               : "connected",
-          ...(pebbleResult ? { errorCode: pebbleNotice } : {}),
+          ...(inboxResult ? { errorCode: inboxNotice } : {}),
           pendingEnvelopes: pending,
           blockedIdentityEnvelopes: deps.store.countBlockedIdentityEnvelopes(ticket),
           acceptedEnvelopes: Math.max(0, snapshot.acceptedEnvelopes + summary.sent),
@@ -1290,10 +1373,10 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
         if (summary.applied > 0) await deps.onApplied?.();
         await controller.refreshBindings();
         // refreshBindings resets phase/errorCode; the Pebble result outlives it.
-        if (pebbleResult && current(token) && (pebbleResult.hardFailure || pebbleNotice))
+        if (inboxResult && current(token) && (inboxResult.hardFailure || inboxNotice))
           publish({
-            phase: pebbleResult.hardFailure ? "error" : snapshot.phase,
-            errorCode: pebbleNotice,
+            phase: inboxResult.hardFailure ? "error" : snapshot.phase,
+            errorCode: inboxNotice,
           });
       } catch (error) {
         if (current(token))
@@ -1304,6 +1387,7 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
           });
       } finally {
         authKey.fill(0);
+        fossilKey?.fill(0);
         if (activeAbort === abort) activeAbort = null;
       }
     },
@@ -1317,7 +1401,7 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
         const ticket = fresh();
         // Pebble data left in the inbox by an interrupted sync is projected
         // here too, so it can be uploaded without reconnecting the watch.
-        projectPebbleInbox(ticket);
+        projectDurableInbox(ticket);
         const api = await captureClient(ticket, abort.signal);
         if (!current(token) || !isAuthorityTicketCurrent(ticket)) return;
         const summary = await drainDirectDeviceOutbox(ticket, {

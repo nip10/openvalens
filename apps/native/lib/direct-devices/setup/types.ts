@@ -1,3 +1,5 @@
+import type { FossilHandle } from "../protocol/fossil-hr";
+import type { FossilDownloadResult, FossilPeer } from "../transport/fossil-hr";
 import type { PebblePacketSink, PebblePeer, PebbleSessionOutcome } from "../pebble-types";
 import type { BleGattModelId } from "../models/ble-gatt";
 import type { BangleJsModelId } from "../models/bangle-js";
@@ -25,6 +27,7 @@ import type { HuaweiRecord } from "../protocol/huawei";
 import type { HuamiLegacyRecord } from "../protocol/huami-legacy";
 import type { MoyoungRecord } from "../protocol/moyoung";
 import type { PebbleRecord } from "../protocol/pebble";
+import type { FossilHrModelId } from "../models/fossil-hr";
 import type { HelioHistoryOptions, HelioHistoryResult } from "../protocol/types";
 
 /** A model id from any direct-device registry. */
@@ -42,7 +45,8 @@ export type DirectDeviceModelId =
   | MoyoungModelId
   | FitProModelId
   | CasioModelId
-  | PebbleModelId;
+  | PebbleModelId
+  | FossilHrModelId;
 
 /** The protocol family a discovered model belongs to. */
 export type DirectDeviceFamily =
@@ -59,7 +63,8 @@ export type DirectDeviceFamily =
   | "moyoung"
   | "fitpro"
   | "casio"
-  | "pebble";
+  | "pebble"
+  | "fossil_hr";
 
 /** A live sample from either connection-based capture family. */
 export type DirectDeviceLiveSample = BleGattSample | WeightMeasurementSample;
@@ -120,6 +125,12 @@ export interface HelioSetupController {
   disconnect(): Promise<void>;
   runCryptoSelfTest(): Promise<void>;
   fetchSteps(options: HelioHistoryOptions): Promise<HelioHistoryResult>;
+  /** The identity-resolved peer of the connected Fossil watch, or null. */
+  getFossilPeer(): FossilPeer | null;
+  /** Authenticates with `key` and downloads the activity file. Deletes nothing. */
+  fossilDownload(options: { key: Uint8Array; signal: AbortSignal }): Promise<FossilDownloadResult>;
+  /** Deletes exactly `handle` on the watch. Call only after durable storage. */
+  fossilDelete(options: { handle: FossilHandle; signal: AbortSignal }): Promise<boolean>;
   /** The firmware-verified peer of the connected Pebble, or null. */
   getPebblePeer(): PebblePeer | null;
   /**

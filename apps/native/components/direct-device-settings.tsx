@@ -24,6 +24,7 @@ import type { BleScaleModel, BleScaleModelId } from "@/lib/direct-devices/models
 import { getCasioModel } from "@/lib/direct-devices/models/casio";
 import type { CasioModel, CasioModelId } from "@/lib/direct-devices/models/casio";
 import { getPebbleModel } from "@/lib/direct-devices/models/pebble";
+import { parseFossilAuthKey } from "@/lib/direct-devices/protocol/fossil-hr";
 import type { PebbleModel, PebbleModelId } from "@/lib/direct-devices/models/pebble";
 import { getColmiRingModel } from "@/lib/direct-devices/models/colmi-ring";
 import type { ColmiRingModel, ColmiRingModelId } from "@/lib/direct-devices/models/colmi-ring";
@@ -177,7 +178,11 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
   const { t } = useLingui();
   const [authKey, setAuthKey] = useState("");
   const [working, setWorking] = useState(false);
-  const validKey = /^(?:0x)?[0-9a-fA-F]{32}$/.test(authKey.trim());
+  // Fossil keys are parsed the upstream way (spaces and any "0x" allowed).
+  const validKey =
+    snapshot.connectedFamily === "fossil_hr"
+      ? parseFossilAuthKey(authKey) !== null
+      : /^(?:0x)?[0-9a-fA-F]{32}$/.test(authKey.trim());
   const busy = working || snapshot.isBusy;
   const run = (action: () => Promise<void>, allowWhileBusy = false) => {
     if (busy && !allowWhileBusy) return;
@@ -325,6 +330,7 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
     casio_steps_history: t`History sync on connection for hourly step buckets only; the Casio protocol carries no heart rate or sleep data. Not hardware-verified.`,
     casio_connection_only: t`Connection checks only; the Casio protocol has no recorded-data path for this model. Not hardware-verified.`,
     pebble_history_sync: t`Steps, sleep and (where the watch has a sensor) heart rate sync when you tap “Sync steps”; each record is saved on the phone before the watch may delete it. Not hardware-verified.`,
+    fossil_hr_history_sync: t`Per-minute steps and heart rate sync when you enter the watch's 16-byte key and tap “Sync steps”. The watch's activity file is saved on this phone before the watch is told to delete it. Sleep is not synced for these watches. Not hardware-verified.`,
     pebble_bt_classic_unsupported: t`Not supported: this Pebble talks to phones over Bluetooth Classic, which this Bluetooth LE stack does not implement. Not hardware-verified.`,
   };
   const upstreamLevelText = {
@@ -361,7 +367,8 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
         <TextInput
           value={authKey}
           onChangeText={setAuthKey}
-          maxLength={34}
+          // Fossil keys are often written with spaces or a 0x per byte.
+          maxLength={connectedFamily === "fossil_hr" ? 96 : 34}
           secureTextEntry
           autoCapitalize="none"
           autoCorrect={false}
@@ -374,7 +381,11 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
         <Text className="font-sans text-sm text-ink-3">{t`Enter the 16-byte (32 hexadecimal character) key already configured for this device. Do not enter your vendor account password.`}</Text>
         <Text
           onPress={() =>
-            void Linking.openURL("https://gadgetbridge.org/basics/pairing/huami-xiaomi-server/")
+            void Linking.openURL(
+              connectedFamily === "fossil_hr"
+                ? "https://gadgetbridge.org/basics/pairing/fossil-server/"
+                : "https://gadgetbridge.org/basics/pairing/huami-xiaomi-server/",
+            )
           }
           className="font-sans text-sm font-medium text-signal underline"
         >{t`Gadgetbridge pairing help`}</Text>
@@ -391,7 +402,7 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
     <Section title={t`Direct devices`} icon={Bluetooth} tone="signal">
       <Sheet className="gap-3">
         <Text className="font-sans text-sm leading-relaxed text-ink-2">
-          {t`Experimental direct Bluetooth support for several kinds of devices. Zepp OS and Xiaomi devices sync step history in the foreground. BLE GATT health sensors (heart rate, blood pressure, temperature) record live while connected, and a PineTime running InfiniTime reports live heart rate the same way. Bluetooth smart scales record weight live, and some also report stored measurements on connection. Colmi and Yawell smart rings sync stored step, heart-rate and sleep history on connection. Bangle.js watches sync stored step and heart-rate history on connection and keep reporting live heart rate. Moyoung/Da Fit watches sync stored heart-rate and sleep history on connection; they report steps as daily totals only, so steps are not synced. FitPro bands sync 15-minute step buckets, staged sleep and realtime heart rate on connection. GloryFit watches sync stored step, heart-rate and sleep history on connection. Legacy Huami (Amazfit/Mi Band) watches sync exact-minute steps, heart rate and sleep when you enter their 16-byte key. Huawei/Honor BLE bands and watches sync exact-minute steps, heart rate and sleep automatically; their Bluetooth-Classic models support connection checks only. Garmin wearables sync exact-minute steps, heart rate and sleep from FIT files; other Garmin devices support connection checks only. Pebble Classic 2, Pebble 2 Duo and Pebble Time 2 sync stored steps, sleep and heart rate (the 2 Duo has no heart-rate sensor) when you tap “Sync steps”; on iPhone the watch must already be paired. Older Pebble models talk over Bluetooth Classic, which is not implemented here. No hardware verification has been done. No vendor login is requested.`}
+          {t`Experimental direct Bluetooth support for several kinds of devices. Zepp OS and Xiaomi devices sync step history in the foreground. BLE GATT health sensors (heart rate, blood pressure, temperature) record live while connected, and a PineTime running InfiniTime reports live heart rate the same way. Bluetooth smart scales record weight live, and some also report stored measurements on connection. Colmi and Yawell smart rings sync stored step, heart-rate and sleep history on connection. Bangle.js watches sync stored step and heart-rate history on connection and keep reporting live heart rate. Moyoung/Da Fit watches sync stored heart-rate and sleep history on connection; they report steps as daily totals only, so steps are not synced. FitPro bands sync 15-minute step buckets, staged sleep and realtime heart rate on connection. GloryFit watches sync stored step, heart-rate and sleep history on connection. Legacy Huami (Amazfit/Mi Band) watches sync exact-minute steps, heart rate and sleep when you enter their 16-byte key. Huawei/Honor BLE bands and watches sync exact-minute steps, heart rate and sleep automatically; their Bluetooth-Classic models support connection checks only. Garmin wearables sync exact-minute steps, heart rate and sleep from FIT files; other Garmin devices support connection checks only. Pebble Classic 2, Pebble 2 Duo and Pebble Time 2 sync stored steps, sleep and heart rate (the 2 Duo has no heart-rate sensor) when you tap “Sync steps”; on iPhone the watch must already be paired. Older Pebble models talk over Bluetooth Classic, which is not implemented here. Fossil Hybrid HR, Fossil Gen 6 Hybrid and Skagen Jorn Gen 6 sync per-minute steps and heart rate when you enter their 16-byte key; other Fossil hybrids are not supported. No hardware verification has been done. No vendor login is requested.`}
         </Text>
         <Text className="font-sans text-sm leading-relaxed text-ink-3">
           {t`Use the same saved device on both phones. Choose an existing binding to avoid duplicates, or add another only when you mean to create a separate binding. Nearby connection is a separate step.`}
@@ -571,6 +582,17 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
             <Text className="font-sans text-sm text-ink-3">
               {t`This Huawei/Honor model syncs over Bluetooth Classic upstream; this BLE-only stack supports connection checks only.`}
             </Text>
+          ) : connectedFamily === "fossil_hr" && canSyncSelected ? (
+            <>
+              <Text className="font-sans text-sm text-ink-3">
+                {t`Fossil activity (per-minute steps and heart rate) downloads when you enter the watch's 16-byte key and tap “Sync steps”. The activity file is saved on this phone before the watch is told to delete it, then uploaded. Sleep is not synced for these watches.`}
+              </Text>
+              {authKeyPanel}
+            </>
+          ) : connectedFamily === "fossil_hr" ? (
+            <Text className="font-sans text-sm text-ink-3">
+              {t`Save a binding for this watch to sync its Fossil activity.`}
+            </Text>
           ) : connectedFamily === "huami_legacy" && canSyncSelected ? (
             <>
               <Text className="font-sans text-sm text-ink-3">
@@ -673,6 +695,43 @@ function friendlyError(code: string) {
     return "The Casio watch did not expose its Watch Features service. Move it away from the phone, then reconnect.";
   if (code === "CASIO_STEPS_UNSUPPORTED")
     return "This Casio model is registered for connection checks only; the protocol has no recorded-data path for it.";
+  if (code === "FOSSIL_AUTH_FAILED")
+    return "The Fossil watch rejected the key. Check the 16-byte key and try again.";
+  if (code === "FOSSIL_FILE_UNREADABLE")
+    return "The watch's activity file could not be read, so it was left on the watch and kept on this phone. Nothing was deleted.";
+  if (code === "FOSSIL_DELETE_FAILED")
+    return "Activity was saved on this phone, but the watch did not confirm deleting its copy. Syncing again is safe: nothing is sent twice.";
+  if (code === "FOSSIL_MODEL_UNSUPPORTED")
+    return "This Fossil watch is not supported. Only Fossil Hybrid HR, Fossil Gen 6 Hybrid and Skagen Jorn Gen 6 can sync.";
+  if (code === "FOSSIL_NATIVE_ID_IMMUTABLE")
+    return "This binding belongs to a different Fossil watch. Create a new binding for this watch.";
+  if (code === "FOSSIL_NATIVE_ID_IN_USE")
+    return "This Fossil watch already syncs into another binding on this phone. Select that binding instead.";
+  if (code === "FOSSIL_FILE_HANDLE_MISMATCH")
+    return "The watch answered for a different file, so nothing was saved and the watch kept its data. Try again.";
+  if (code === "FOSSIL_PEER_MISMATCH")
+    return "This watch's model does not match the selected binding. Select a matching binding or create a new one.";
+  if (code === "FOSSIL_INBOX_FULL")
+    return "This phone's Fossil queue is full, so the watch kept its data. Sync again later; if it keeps happening, contact support.";
+  if (
+    code === "FOSSIL_FILE_CRC_MISMATCH" ||
+    code === "FOSSIL_FILE_INCOMPLETE" ||
+    code === "FOSSIL_FILE_COUNTER_UNKNOWN" ||
+    code === "FOSSIL_FILE_SIZE_MISMATCH" ||
+    code === "FOSSIL_FILE_OVERFLOW"
+  )
+    return "The activity download was corrupted, so nothing was saved and the watch kept its data. Try again.";
+  if (
+    code === "FOSSIL_RESPONSE_TIMEOUT" ||
+    code === "FOSSIL_DOWNLOAD_TIMEOUT" ||
+    code === "FOSSIL_WRITE_FAILED" ||
+    code === "FOSSIL_MONITOR_FAILED" ||
+    code === "FOSSIL_LOOKUP_FAILED" ||
+    code === "FOSSIL_FILE_GET_FAILED"
+  )
+    return "The Fossil watch stopped responding. The watch kept its data; keep it close and try again.";
+  if (code === "FOSSIL_SERVICE_MISSING" || code === "FOSSIL_DEVICE_INFO_UNAVAILABLE")
+    return "This watch did not offer the Fossil services needed to sync. Reconnect and try again.";
   if (code === "PEBBLE_NO_DATA_OFFERED")
     return "The Pebble did not start sending health data within 30 seconds, so nothing was transferred. Anything still on the watch stays there; reconnect and try again.";
   if (code === "PEBBLE_SYNC_INCOMPLETE")

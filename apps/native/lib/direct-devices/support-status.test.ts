@@ -22,6 +22,7 @@ import { HUAMI_LEGACY_MODELS } from "./models/huami-legacy";
 import { CASIO_MODELS } from "./models/casio";
 import { FITPRO_MODELS } from "./models/fitpro";
 import { PEBBLE_MODELS } from "./models/pebble";
+import { FOSSIL_HR_MODELS } from "./models/fossil-hr";
 import { GARMIN_MODELS } from "./models/garmin";
 import { HUAWEI_MODELS } from "./models/huawei";
 import { XIAOMI_MODELS } from "./models/xiaomi";
@@ -385,4 +386,18 @@ test("Casio reports hourly step buckets only where a fetch exists", () => {
       records: [],
     }).openValens,
   ).toBe("casio_connection_only");
+});
+
+test("every Fossil HR model reports history sync", () => {
+  for (const model of FOSSIL_HR_MODELS)
+    expect(
+      describeDeviceSupport({
+        family: "fossil_hr",
+        modelId: model.id,
+        transportValidated: model.transportValidated,
+        records: model.records,
+        sync: model.sync,
+      }),
+      model.id,
+    ).toMatchObject({ openValens: "fossil_hr_history_sync" });
 });

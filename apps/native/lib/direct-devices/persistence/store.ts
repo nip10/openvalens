@@ -94,6 +94,33 @@ export type PebbleProjectionInput = Readonly<{
   /** Settled sleep inputs (tags 83/84, seq <= throughSeq) to delete in this transaction. */
   compactSleepSeqs?: readonly number[];
 }>;
+/** A durably stored, CRC-verified Fossil activity file awaiting projection. */
+export type FossilStoredFile = Readonly<{
+  seq: number;
+  fileCrc: number;
+  fileSize: number;
+  rawHex: string;
+  state: "stored" | "unreadable";
+}>;
+/** Published minute ranges `[startMinute, endMinuteExclusive)`. */
+export type FossilCoverage = Readonly<{
+  revision: number;
+  ranges: readonly (readonly [number, number])[];
+}>;
+export type FossilProjectionInput = Readonly<{
+  deviceId: string;
+  identity: DirectDeviceIdentity;
+  fileSeq: number;
+  /**
+   * "partial" publishes one chunk and keeps the file; "projected" publishes the
+   * last chunk and removes it; "unreadable" keeps it for a future parser.
+   */
+  outcome: "partial" | "projected" | "unreadable";
+  expectedRevision: number;
+  ranges: readonly (readonly [number, number])[];
+  envelopes: readonly IngestDirectDeviceBatchInput[];
+}>;
+
 export type PebbleInboxItem = Readonly<{
   seq: number;
   logTag: 81 | 83 | 84;
@@ -136,6 +163,25 @@ export interface DirectDeviceStore {
     kind: PebbleProjectionKind,
   ): PebbleProjectionSnapshot;
   commitPebbleProjection(ticket: AuthorityTicket, input: PebbleProjectionInput): void;
+  /**
+   * Commits one CRC-verified Fossil activity file before the watch is told to
+   * delete it. Re-downloads of a stored file are no-ops. Returns only after the
+   * transaction committed.
+   */
+  storeFossilFile(
+    ticket: AuthorityTicket,
+    input: {
+      deviceId: string;
+      identity: DirectDeviceIdentity;
+      /** The physical watch; bound to the binding on first use, immutable after. */
+      nativeId: string;
+      data: Uint8Array;
+      crc: number;
+    },
+  ): Readonly<{ durable: true; inserted: boolean; seq: number }>;
+  readFossilFiles(ticket: AuthorityTicket, deviceId: string): readonly FossilStoredFile[];
+  readFossilCoverage(ticket: AuthorityTicket, deviceId: string): FossilCoverage;
+  commitFossilProjection(ticket: AuthorityTicket, input: FossilProjectionInput): void;
   listPending(ticket: AuthorityTicket, limit: number): DirectOutboxRow[];
   recordServerReceipt(
     ticket: AuthorityTicket,
@@ -162,6 +208,9 @@ export const MAX_REQUEST_BYTES = 1_000_000;
 export const MAX_CAPTURE_BYTES = 4_000_000;
 export const MAX_PEBBLE_RAW_BYTES = 8 * 1024 * 1024;
 export const MAX_PEBBLE_ITEMS = 50_000;
+/** Pending (stored or unreadable) Fossil files per binding. */
+export const MAX_FOSSIL_FILES = 32;
+export const MAX_FOSSIL_RAW_BYTES = 8 * 1024 * 1024;
 
 export class DirectDeviceStorageError extends Error {
   constructor(message = "DIRECT_DEVICE_STORAGE_UNAVAILABLE") {
@@ -542,6 +591,10 @@ export function createSqliteDirectDeviceStore(
       // Pebble history must go through the durable inbox and projector.
       if (input.deviceIdentity?.family === "pebble")
         throw new DirectDeviceConflictError("PEBBLE_CAPTURE_REQUIRES_INBOX");
+      // Fossil history must go through the stored-file path, which gates the
+      // watch-side delete on durable storage.
+      if (input.deviceIdentity?.family === "fossil_hr")
+        throw new DirectDeviceConflictError("FOSSIL_CAPTURE_REQUIRES_FILE_STORE");
       if (
         !input.captureId ||
         input.captureId.length > 200 ||
@@ -933,6 +986,279 @@ export function createSqliteDirectDeviceStore(
       });
     },
 
+    storeFossilFile(ticket, input) {
+      validateDeviceId(input.deviceId);
+      const identity = directDeviceIdentity.parse(input.identity);
+      if (identity.family !== "fossil_hr")
+        throw new DirectDeviceConflictError("DIRECT_DEVICE_IDENTITY_MISMATCH");
+      if (
+        !(input.data instanceof Uint8Array) ||
+        input.data.length === 0 ||
+        input.data.length > MAX_FOSSIL_RAW_BYTES ||
+        !Number.isSafeInteger(input.crc) ||
+        input.crc < 0 ||
+        input.crc > 0xffffffff
+      )
+        throw new DirectDeviceConflictError("FOSSIL_FILE_INVALID");
+      if (!input.nativeId || input.nativeId.length > 512)
+        throw new DirectDeviceConflictError("FOSSIL_NATIVE_ID_INVALID");
+      const scope = requireTicketScope(ticket);
+      const rawHex = bytesToHex(input.data);
+      let inserted = false;
+      let seq = 0;
+      db.withTransactionSync(() => {
+        assertAuthorityTicket(ticket);
+        const binding = db.getFirstSync<{
+          provider_connection_id: number | null;
+          family: string | null;
+          model_id: string | null;
+          pebble_native_id: string | null;
+        }>(
+          "SELECT provider_connection_id, family, model_id, pebble_native_id FROM direct_device_binding WHERE scope = ? AND device_id = ?",
+          scope,
+          input.deviceId,
+        );
+        if (
+          !binding ||
+          binding.provider_connection_id === null ||
+          binding.family !== identity.family ||
+          binding.model_id !== identity.modelId
+        )
+          throw new DirectDeviceConflictError("DIRECT_DEVICE_IDENTITY_MISMATCH");
+        // One physical watch per binding (the native-peer column is shared
+        // with Pebble): a second watch of the same model cannot feed it.
+        if (binding.pebble_native_id !== null && binding.pebble_native_id !== input.nativeId)
+          throw new DirectDeviceConflictError("FOSSIL_NATIVE_ID_IMMUTABLE");
+        if (binding.pebble_native_id === null)
+          db.runSync(
+            "UPDATE direct_device_binding SET pebble_native_id = ? WHERE scope = ? AND device_id = ? AND pebble_native_id IS NULL",
+            input.nativeId,
+            scope,
+            input.deviceId,
+          );
+        const existing = db.getFirstSync<{ seq: number; raw_hex: string }>(
+          "SELECT seq, raw_hex FROM direct_device_fossil_file WHERE scope = ? AND device_id = ? AND file_crc = ? AND file_size = ?",
+          scope,
+          input.deviceId,
+          input.crc,
+          input.data.length,
+        );
+        if (existing) {
+          if (existing.raw_hex !== rawHex)
+            throw new DirectDeviceConflictError("FOSSIL_FILE_COLLISION");
+          seq = existing.seq;
+          return;
+        }
+        // Unreadable copies are pruned to the newest when the next one is
+        // marked, so they do not count here: a new copy can always be stored.
+        const current = db.getFirstSync<{ files: number; bytes: number }>(
+          "SELECT COUNT(*) AS files, COALESCE(SUM(file_size), 0) AS bytes FROM direct_device_fossil_file WHERE scope = ? AND device_id = ? AND state = 'stored'",
+          scope,
+          input.deviceId,
+        )!;
+        if (
+          current.files + 1 > MAX_FOSSIL_FILES ||
+          current.bytes + input.data.length > MAX_FOSSIL_RAW_BYTES
+        )
+          throw new DirectDeviceAdmissionError("FOSSIL_INBOX_FULL");
+        db.runSync(
+          `INSERT INTO direct_device_fossil_file(scope, device_id, file_crc, file_size, raw_hex, state, created_at)
+           VALUES (?, ?, ?, ?, ?, 'stored', ?)`,
+          scope,
+          input.deviceId,
+          input.crc,
+          input.data.length,
+          rawHex,
+          now(),
+        );
+        seq =
+          db.getFirstSync<{ seq: number }>(
+            "SELECT seq FROM direct_device_fossil_file WHERE scope = ? AND device_id = ? AND file_crc = ? AND file_size = ?",
+            scope,
+            input.deviceId,
+            input.crc,
+            input.data.length,
+          )?.seq ?? 0;
+        inserted = true;
+      });
+      return Object.freeze({ durable: true as const, inserted, seq });
+    },
+
+    readFossilFiles(ticket, deviceId) {
+      validateDeviceId(deviceId);
+      const scope = requireTicketScope(ticket);
+      return db
+        .getAllSync<{
+          seq: number;
+          file_crc: number;
+          file_size: number;
+          raw_hex: string;
+          state: "stored" | "unreadable";
+        }>(
+          `SELECT seq, file_crc, file_size, raw_hex, state FROM direct_device_fossil_file
+           WHERE scope = ? AND device_id = ? ORDER BY seq`,
+          scope,
+          deviceId,
+        )
+        .map((row) =>
+          Object.freeze({
+            seq: row.seq,
+            fileCrc: row.file_crc,
+            fileSize: row.file_size,
+            rawHex: row.raw_hex,
+            state: row.state,
+          }),
+        );
+    },
+
+    readFossilCoverage(ticket, deviceId) {
+      validateDeviceId(deviceId);
+      const scope = requireTicketScope(ticket);
+      const row = db.getFirstSync<{ revision: number; coverage_json: string }>(
+        "SELECT revision, coverage_json FROM direct_device_fossil_projection WHERE scope = ? AND device_id = ?",
+        scope,
+        deviceId,
+      );
+      if (!row) return Object.freeze({ revision: 0, ranges: Object.freeze([]) });
+      try {
+        const ranges = JSON.parse(row.coverage_json) as [number, number][];
+        if (
+          !Array.isArray(ranges) ||
+          ranges.some(
+            (range) =>
+              !Array.isArray(range) ||
+              range.length !== 2 ||
+              !Number.isSafeInteger(range[0]) ||
+              !Number.isSafeInteger(range[1]) ||
+              range[1] <= range[0],
+          )
+        )
+          throw new Error("invalid coverage");
+        return Object.freeze({ revision: row.revision, ranges: Object.freeze(ranges) });
+      } catch {
+        throw new DirectDeviceStorageError("FOSSIL_COVERAGE_CORRUPT");
+      }
+    },
+
+    commitFossilProjection(ticket, input) {
+      validateDeviceId(input.deviceId);
+      const identity = directDeviceIdentity.parse(input.identity);
+      if (identity.family !== "fossil_hr")
+        throw new DirectDeviceConflictError("DIRECT_DEVICE_IDENTITY_MISMATCH");
+      if (
+        !Number.isSafeInteger(input.expectedRevision) ||
+        input.expectedRevision < 0 ||
+        !Number.isSafeInteger(input.fileSeq) ||
+        input.ranges.some(
+          (range) =>
+            !Number.isSafeInteger(range[0]) ||
+            !Number.isSafeInteger(range[1]) ||
+            range[1] <= range[0],
+        )
+      )
+        throw new DirectDeviceConflictError("FOSSIL_PROJECTION_INVALID");
+      const scope = requireTicketScope(ticket);
+      const requests = input.envelopes.map((envelope) =>
+        validateRequest(ticket, input.deviceId, envelope),
+      );
+      if (
+        requests.length > MAX_CAPTURE_ENVELOPES ||
+        requests.reduce((sum, request) => sum + utf8ByteLength(request), 0) > MAX_CAPTURE_BYTES
+      )
+        throw new DirectDeviceAdmissionError("DIRECT_DEVICE_CAPTURE_TOO_LARGE");
+      if (
+        input.envelopes.some(
+          (envelope) =>
+            envelope.batch.deviceIdentity?.family !== identity.family ||
+            envelope.batch.deviceIdentity.modelId !== identity.modelId,
+        )
+      )
+        throw new DirectDeviceConflictError("DIRECT_DEVICE_IDENTITY_MISMATCH");
+      db.withTransactionSync(() => {
+        assertAuthorityTicket(ticket);
+        const binding = db.getFirstSync<{
+          provider_connection_id: number | null;
+          family: string | null;
+          model_id: string | null;
+        }>(
+          "SELECT provider_connection_id, family, model_id FROM direct_device_binding WHERE scope = ? AND device_id = ?",
+          scope,
+          input.deviceId,
+        );
+        if (
+          !binding ||
+          binding.provider_connection_id === null ||
+          binding.family !== identity.family ||
+          binding.model_id !== identity.modelId
+        )
+          throw new DirectDeviceConflictError("DIRECT_DEVICE_IDENTITY_MISMATCH");
+        const file = db.getFirstSync<{ state: string }>(
+          "SELECT state FROM direct_device_fossil_file WHERE scope = ? AND device_id = ? AND seq = ?",
+          scope,
+          input.deviceId,
+          input.fileSeq,
+        );
+        if (!file || file.state !== "stored")
+          throw new DirectDeviceConflictError("FOSSIL_PROJECTION_CONFLICT");
+        const current = db.getFirstSync<{ revision: number }>(
+          "SELECT revision FROM direct_device_fossil_projection WHERE scope = ? AND device_id = ?",
+          scope,
+          input.deviceId,
+        );
+        if ((current?.revision ?? 0) !== input.expectedRevision)
+          throw new DirectDeviceConflictError("FOSSIL_PROJECTION_CONFLICT");
+        if (requests.length)
+          insertCaptureInTransaction(
+            scope,
+            input.deviceId,
+            `fossil-${input.fileSeq}-${input.expectedRevision + 1}`,
+            canonicalJson({ fileSeq: input.fileSeq, revision: input.expectedRevision + 1 }),
+            requests,
+          );
+        const coverageJson = JSON.stringify(input.ranges);
+        if (current)
+          db.runSync(
+            "UPDATE direct_device_fossil_projection SET revision = ?, coverage_json = ? WHERE scope = ? AND device_id = ? AND revision = ?",
+            input.expectedRevision + 1,
+            coverageJson,
+            scope,
+            input.deviceId,
+            input.expectedRevision,
+          );
+        else
+          db.runSync(
+            "INSERT INTO direct_device_fossil_projection(scope, device_id, revision, coverage_json) VALUES (?, ?, ?, ?)",
+            scope,
+            input.deviceId,
+            1,
+            coverageJson,
+          );
+        if (input.outcome === "projected")
+          db.runSync(
+            "DELETE FROM direct_device_fossil_file WHERE scope = ? AND device_id = ? AND seq = ?",
+            scope,
+            input.deviceId,
+            input.fileSeq,
+          );
+        else if (input.outcome === "unreadable") {
+          db.runSync(
+            "UPDATE direct_device_fossil_file SET state = 'unreadable' WHERE scope = ? AND device_id = ? AND seq = ?",
+            scope,
+            input.deviceId,
+            input.fileSeq,
+          );
+          // The watch keeps an unreadable file and grows it, so each sync
+          // stores a larger copy; only the newest copy is worth keeping.
+          db.runSync(
+            "DELETE FROM direct_device_fossil_file WHERE scope = ? AND device_id = ? AND state = 'unreadable' AND seq < ?",
+            scope,
+            input.deviceId,
+            input.fileSeq,
+          );
+        }
+      });
+    },
+
     listPending(ticket, limit) {
       const scope = requireTicketScope(ticket);
       if (!Number.isSafeInteger(limit) || limit < 1 || limit > 1000)
@@ -1056,6 +1382,8 @@ export function createSqliteDirectDeviceStore(
         db.runSync("DELETE FROM direct_device_capture WHERE scope = ?", scope);
         db.runSync("DELETE FROM direct_device_pebble_projection WHERE scope = ?", scope);
         db.runSync("DELETE FROM direct_device_pebble_item WHERE scope = ?", scope);
+        db.runSync("DELETE FROM direct_device_fossil_file WHERE scope = ?", scope);
+        db.runSync("DELETE FROM direct_device_fossil_projection WHERE scope = ?", scope);
         db.runSync("DELETE FROM direct_device_binding WHERE scope = ?", scope);
       });
     },
@@ -1067,6 +1395,8 @@ export function createSqliteDirectDeviceStore(
         db.runSync("DELETE FROM direct_device_capture");
         db.runSync("DELETE FROM direct_device_pebble_projection");
         db.runSync("DELETE FROM direct_device_pebble_item");
+        db.runSync("DELETE FROM direct_device_fossil_file");
+        db.runSync("DELETE FROM direct_device_fossil_projection");
         db.runSync("DELETE FROM direct_device_binding");
       });
     },
@@ -1111,6 +1441,7 @@ function initializeDatabase(db: SyncSqliteDatabase): void {
         db.execSync("ALTER TABLE direct_device_binding ADD COLUMN model_id TEXT");
       if (!names.has("pebble_native_id"))
         db.execSync("ALTER TABLE direct_device_binding ADD COLUMN pebble_native_id TEXT");
+      // v4 adds the Fossil tables through CREATE TABLE IF NOT EXISTS above.
       db.execSync(`PRAGMA user_version = ${DIRECT_DEVICE_SCHEMA_VERSION}`);
     });
     db.getAllSync("SELECT * FROM direct_device_binding LIMIT 0");
@@ -1118,6 +1449,8 @@ function initializeDatabase(db: SyncSqliteDatabase): void {
     db.getAllSync("SELECT * FROM direct_device_outbox LIMIT 0");
     db.getAllSync("SELECT * FROM direct_device_pebble_item LIMIT 0");
     db.getAllSync("SELECT * FROM direct_device_pebble_projection LIMIT 0");
+    db.getAllSync("SELECT * FROM direct_device_fossil_file LIMIT 0");
+    db.getAllSync("SELECT * FROM direct_device_fossil_projection LIMIT 0");
   } catch (error) {
     if (error instanceof DirectDeviceStorageError) throw error;
     throw new DirectDeviceStorageError();

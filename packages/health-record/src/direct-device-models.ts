@@ -14,6 +14,7 @@ export const DIRECT_DEVICE_FAMILIES = [
   "fitpro",
   "casio",
   "pebble",
+  "fossil_hr",
 ] as const;
 export type DirectDeviceFamily = (typeof DIRECT_DEVICE_FAMILIES)[number];
 export type DirectDeviceIdentity = { family: DirectDeviceFamily; modelId: string };
@@ -2439,6 +2440,24 @@ export const DIRECT_DEVICE_MODELS: readonly DirectDeviceModelDescriptor[] = [
     family: "pebble",
     modelId: "pebble_time_2",
     displayName: "Pebble Time 2",
+  },
+  // Fossil Hybrid HR family (#429): authenticated activity-file download with
+  // the user's 16-byte key; per-minute steps and heart rate. Non-HR Q Hybrids
+  // and Citizen CZ use other adapters and are not registered.
+  {
+    family: "fossil_hr",
+    modelId: "fossil_hybrid_hr",
+    displayName: "Fossil Hybrid HR",
+  },
+  {
+    family: "fossil_hr",
+    modelId: "fossil_gen_6_hybrid",
+    displayName: "Fossil Gen 6 Hybrid",
+  },
+  {
+    family: "fossil_hr",
+    modelId: "skagen_jorn_gen_6",
+    displayName: "Skagen Jorn Gen 6",
   },
 ];
 

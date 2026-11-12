@@ -23,6 +23,8 @@ import { HUAMI_LEGACY_MODELS } from "../models/huami-legacy";
 import { MOYOUNG_MODELS } from "../models/moyoung";
 import { FITPRO_MODELS } from "../models/fitpro";
 import { PEBBLE_MODELS } from "../models/pebble";
+import { FOSSIL_HR_MODELS } from "../models/fossil-hr";
+import type { FossilPeer } from "../transport/fossil-hr";
 import {
   HUAMI_ACTIVITY_CONTROL_UUID,
   HUAMI_ACTIVITY_DATA_UUID,
@@ -112,6 +114,11 @@ test("native model registries remain in parity with the shared identity catalog"
       modelId: model.id,
       displayName: model.displayName,
     })),
+    ...FOSSIL_HR_MODELS.map((model) => ({
+      family: "fossil_hr",
+      modelId: model.id,
+      displayName: model.displayName,
+    })),
     ...PEBBLE_MODELS.map((model) => ({
       family: "pebble",
       modelId: model.id,
@@ -120,7 +127,7 @@ test("native model registries remain in parity with the shared identity catalog"
   ].sort((left, right) =>
     `${left.family}:${left.modelId}`.localeCompare(`${right.family}:${right.modelId}`),
   );
-  expect(native).toHaveLength(473);
+  expect(native).toHaveLength(476);
   expect(native as unknown).toEqual(
     [...DIRECT_DEVICE_MODELS].sort((left, right) =>
       `${left.family}:${left.modelId}`.localeCompare(`${right.family}:${right.modelId}`),
@@ -174,6 +181,9 @@ function fixture(
       options: HelioHistoryOptions,
     ) => XiaomiHistoryTransport;
     onHistorySample?: (sample: import("./types").DirectDeviceHistorySample) => void;
+    createFossilSession?: NonNullable<
+      NonNullable<Parameters<typeof createHelioSetupController>[0]>["createFossilSession"]
+    >;
     createPebbleSession?: Parameters<typeof createHelioSetupController>[0] extends infer D
       ? D extends { createPebbleSession?: infer C }
         ? C
@@ -281,6 +291,10 @@ function fixture(
     xiaomiHistoryTransport: options.xiaomiHistoryTransport,
     onHistorySample: options.onHistorySample,
     createPebbleSession: options.createPebbleSession,
+    createFossilSession: options.createFossilSession,
+    fossilCrypto: async () => {
+      throw new Error("crypto unused in setup tests");
+    },
     pebbleBondAdapter: () => ({
       getState: async () => "bonded",
       ensureBonded: async () => undefined,
@@ -1837,5 +1851,93 @@ test("a capture that ends cancelled without the caller aborting is reported as a
       sink: async () => ({ durable: true, insertedItems: 0, throughSeq: 0 }),
     }),
   ).resolves.toEqual({ status: "failed", code: "PEBBLE_LINK_LOST" });
+  await f.controller.dispose();
+});
+
+const FOSSIL_SERVICES = async () => [
+  { uuid: "3dda0001-957f-7d4a-34a6-74696673696d" },
+  { uuid: "0000180a-0000-1000-8000-00805f9b34fb" },
+];
+
+function fakeFossilSessions(prepare?: () => Promise<FossilPeer>) {
+  const calls: { nativeId: string; advertisedName?: string | null }[] = [];
+  let closes = 0;
+  const factory = ((options: { nativeId: string; advertisedName?: string | null }) => {
+    calls.push({ nativeId: options.nativeId, advertisedName: options.advertisedName });
+    return {
+      prepare:
+        prepare ??
+        (async () => ({
+          nativeId: options.nativeId,
+          model: FOSSIL_HR_MODELS.find((model) => model.id === "fossil_gen_6_hybrid")!,
+          firmwareRevision: "VA0.0.2.20r",
+          modelNumber: "VA.0.0",
+        })),
+      downloadActivity: async () => ({ status: "empty" }) as const,
+      deleteFile: async () => true,
+      close: async () => {
+        closes += 1;
+      },
+    };
+  }) as never;
+  return { factory, calls, closes: () => closes };
+}
+
+test("a device advertising the Fossil service is a model-less candidate; the model comes from identity reads", async () => {
+  const sessions = fakeFossilSessions();
+  const f = fixture({
+    deviceName: "Gen 6 Hybrid",
+    serviceUuids: ["3dda0001-957f-7d4a-34a6-74696673696d"],
+    services: FOSSIL_SERVICES,
+    createFossilSession: sessions.factory,
+  });
+  await f.controller.startScan();
+  f.emit();
+  const listed = f.controller.getSnapshot().devices.find((device) => device.id === "local-id");
+  expect(listed?.family).toBe("fossil_hr");
+  expect(listed?.modelId).toBeUndefined();
+  await f.controller.connect("local-id");
+  const snapshot = f.controller.getSnapshot();
+  if (snapshot.phase !== "connected") await f.controller.dispose();
+  expect(snapshot).toMatchObject({
+    phase: "connected",
+    connectedFamily: "fossil_hr",
+    connectedModelId: "fossil_gen_6_hybrid",
+  });
+  expect(snapshot.capabilities.stepsHistory).toBe(true);
+  expect(sessions.calls).toEqual([{ nativeId: "local-id", advertisedName: "Gen 6 Hybrid" }]);
+  expect(f.controller.getFossilPeer()?.model.id).toBe("fossil_gen_6_hybrid");
+  await expect(
+    f.controller.fetchSteps({ signal: new AbortController().signal } as never),
+  ).rejects.toThrow("FOSSIL_USE_FILE_SYNC");
+  await expect(
+    f.controller.fossilDownload({ key: new Uint8Array(16), signal: new AbortController().signal }),
+  ).resolves.toEqual({ status: "empty" });
+  await f.controller.dispose();
+  expect(sessions.closes()).toBeGreaterThan(0);
+});
+
+test("a Fossil watch whose identity is unsupported is refused and nothing stays connected", async () => {
+  const sessions = fakeFossilSessions(async () => {
+    throw new Error("FOSSIL_MODEL_UNSUPPORTED");
+  });
+  const f = fixture({
+    deviceName: "Q Commuter",
+    serviceUuids: ["3dda0001-957f-7d4a-34a6-74696673696d"],
+    services: FOSSIL_SERVICES,
+    createFossilSession: sessions.factory,
+  });
+  await f.controller.startScan();
+  f.emit();
+  await f.controller.connect("local-id");
+  expect(f.controller.getSnapshot()).toMatchObject({
+    phase: "error",
+    errorCode: "FOSSIL_MODEL_UNSUPPORTED",
+    connectedDeviceId: null,
+  });
+  expect(sessions.closes()).toBe(1);
+  await expect(
+    f.controller.fossilDownload({ key: new Uint8Array(16), signal: new AbortController().signal }),
+  ).rejects.toThrow("FOSSIL_NOT_CONNECTED");
   await f.controller.dispose();
 });

@@ -499,7 +499,7 @@ test("v2 migration adds Pebble tables and native association without dropping pr
     modelId: "pebble_classic_2",
     pebbleNativeId: null,
   });
-  expect(db.query("PRAGMA user_version").get()).toEqual({ user_version: 3 });
+  expect(db.query("PRAGMA user_version").get()).toEqual({ user_version: 4 });
   db.close();
 });
 

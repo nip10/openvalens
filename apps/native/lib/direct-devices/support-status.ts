@@ -54,6 +54,7 @@ export type OpenValensDeviceSupport =
   | "casio_steps_history"
   | "casio_connection_only"
   | "pebble_history_sync"
+  | "fossil_hr_history_sync"
   | "pebble_bt_classic_unsupported";
 
 export type DeviceSupportStatus = Readonly<{
@@ -136,5 +137,7 @@ function openValensSupport(
       return records?.includes("steps_interval") ? "casio_steps_history" : "casio_connection_only";
     case "pebble":
       return sync === true ? "pebble_history_sync" : "pebble_bt_classic_unsupported";
+    case "fossil_hr":
+      return "fossil_hr_history_sync";
   }
 }

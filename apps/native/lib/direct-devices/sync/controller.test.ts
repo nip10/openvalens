@@ -36,6 +36,9 @@ import type { HelioCursor, HelioStepsPage } from "../protocol/types";
 import { weightMeasurementExternalRecordId } from "../protocol/ble-scale";
 import type { DirectDeviceConfirmationTarget, HelioSyncSnapshot } from "./types";
 import type { PebblePacket, PebblePeer } from "../pebble-types";
+import type { FossilPeer } from "../transport/fossil-hr";
+import { FOSSIL_HR_MODELS } from "../models/fossil-hr";
+import { crc32 as fossilCrc32 } from "../protocol/fossil-hr";
 import { pebbleOutcomeNotice } from "./controller";
 import {
   createHelioSyncControllerWithDependencies,
@@ -136,6 +139,9 @@ function setup(
     historySync?: boolean;
     pebblePeer?: PebblePeer | null;
     capturePebble?: HelioSetupController["capturePebble"];
+    fossilPeer?: FossilPeer | null;
+    fossilDownload?: HelioSetupController["fossilDownload"];
+    fossilDelete?: HelioSetupController["fossilDelete"];
   } = {},
 ): MutableSetupController {
   const state: HelioSetupSnapshot = {
@@ -167,6 +173,13 @@ function setup(
     disconnect: async () => {},
     runCryptoSelfTest: async () => {},
     fetchSteps,
+    getFossilPeer: () => overrides.fossilPeer ?? null,
+    fossilDownload:
+      overrides.fossilDownload ??
+      (async () => {
+        throw new Error("FOSSIL_NOT_CONNECTED");
+      }),
+    fossilDelete: overrides.fossilDelete ?? (async () => false),
     getPebblePeer: () => overrides.pebblePeer ?? null,
     capturePebble:
       overrides.capturePebble ?? (async () => ({ status: "failed", code: "PEBBLE_NOT_CONNECTED" })),
@@ -2899,4 +2912,190 @@ test("a watch already feeding another listed binding is refused; a revoked one d
     await controller.dispose();
     db.close();
   }
+});
+
+const FOSSIL_KEY = "0x01 0x02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f 10";
+const FOSSIL_PEER: FossilPeer = {
+  nativeId: "AA:BB:CC:DD:EE:FF",
+  model: FOSSIL_HR_MODELS.find((model) => model.id === "fossil_gen_6_hybrid")!,
+  firmwareRevision: "VA0.0.2.20r",
+  modelNumber: "VA.0.0",
+};
+
+/** A minimal version-22 HR-variant activity file with one minute per entry. */
+function fossilFile(start: number, entries: readonly { steps: number; hr: number }[]): Uint8Array {
+  const head = Array.from({ length: 52 }, () => 0);
+  head[2] = 22;
+  head.splice(8, 4, ...le32(start));
+  const body: number[] = [];
+  entries.forEach(({ steps, hr }, index) => {
+    if (index === 0) body.push(0xce, 0x08, 0xe2, 0x04, ...le32(start), 60, 0, 0, 0);
+    else body.push(0xce, 0x08, 0x11, 0x22);
+    body.push(steps & 0xfe, 0x00, hr, 0x00);
+  });
+  return Uint8Array.from([...head, ...body, 0xde, 0xad, 0xbe, 0xef]);
+}
+
+async function fossilController(args: {
+  fossilDownload: HelioSetupController["fossilDownload"];
+  fossilDelete?: HelioSetupController["fossilDelete"];
+  peer?: FossilPeer | null;
+  received?: IngestDirectDeviceBatchInput[];
+}) {
+  const { db, store } = sqlite();
+  const fossilBinding: DirectDeviceBindingSummary = {
+    ...binding,
+    family: "fossil_hr",
+    modelId: "fossil_gen_6_hybrid",
+    displayName: "Fossil Gen 6 Hybrid",
+  };
+  const ready = await readyController({
+    store,
+    setup: setup(async () => ({ pages: 0, minutes: 0, complete: true }), "fossil_gen_6_hybrid", {
+      family: "fossil_hr",
+      stepsHistory: true,
+      fossilPeer: args.peer === undefined ? FOSSIL_PEER : args.peer,
+      fossilDownload: args.fossilDownload,
+      fossilDelete: args.fossilDelete,
+    }),
+    localIdentity: { family: "fossil_hr", modelId: "fossil_gen_6_hybrid" } as DirectDeviceIdentity,
+    makeClient: () => ({
+      directDevice: {
+        listDirectDevices: async () => ({ devices: [fossilBinding] }),
+        registerDirectDevice: async () => ({ providerConnectionId: 41 }),
+        ingestDirectDeviceBatch: async (input: unknown) => {
+          args.received?.push(input as IngestDirectDeviceBatchInput);
+          return APPLIED;
+        },
+      },
+    }),
+  });
+  await ready.controller.connect("native-1");
+  return { db, store, ...ready };
+}
+
+test("Fossil sync stores the file durably, then deletes exactly its handle, then uploads", async () => {
+  const received: IngestDirectDeviceBatchInput[] = [];
+  const start = Date.parse("2026-02-01T00:00:00.000Z") / 1000;
+  const file = fossilFile(start, [
+    { steps: 10, hr: 70 },
+    { steps: 4, hr: 0 },
+  ]);
+  const handle = { minor: 0x05, major: 0x01 };
+  let keySeen: Uint8Array | null = null;
+  let storedAtDelete = -1;
+  const deleted: unknown[] = [];
+  const holder: { store?: ReturnType<typeof sqlite>["store"]; ticket?: unknown } = {};
+  const { db, store, controller, ticket } = await fossilController({
+    received,
+    fossilDownload: async ({ key }) => {
+      keySeen = key.slice();
+      return { status: "file", handle, data: file, crc: fossilCrc32(file) };
+    },
+    fossilDelete: async (options) => {
+      // The file must already be durable when the watch is told to delete it.
+      storedAtDelete = holder.store!.readFossilFiles(holder.ticket as never, deviceId).length;
+      deleted.push(options.handle);
+      return true;
+    },
+  });
+  holder.store = store;
+  holder.ticket = ticket;
+  expect(controller.getSnapshot().canSync).toBe(true);
+  await controller.syncSteps(FOSSIL_KEY);
+  expect(controller.getSnapshot().errorCode).toBeNull();
+  expect(Array.from(keySeen!)).toEqual(Array.from({ length: 16 }, (_, index) => index + 1));
+  expect(storedAtDelete).toBe(1);
+  expect(deleted).toEqual([handle]);
+  expect(received.map((input) => input.batch.recordType)).toEqual(["steps", "heart_rate"]);
+  expect(received[0]!.batch.deviceIdentity).toEqual({
+    family: "fossil_hr",
+    modelId: "fossil_gen_6_hybrid",
+  });
+  expect(store.readFossilFiles(ticket, deviceId)).toHaveLength(0);
+  expect(store.countUnaccepted(ticket.scope)).toBe(0);
+  await controller.dispose();
+  db.close();
+});
+
+test("an unparseable Fossil file is kept on the watch and on the phone, and reported", async () => {
+  const file = fossilFile(1_700_000_040, [{ steps: 10, hr: 70 }]);
+  file[2] = 21; // unsupported version
+  let deletes = 0;
+  const { db, store, controller, ticket } = await fossilController({
+    fossilDownload: async () => ({
+      status: "file",
+      handle: { minor: 1, major: 1 },
+      data: file,
+      crc: fossilCrc32(file),
+    }),
+    fossilDelete: async () => {
+      deletes += 1;
+      return true;
+    },
+  });
+  await controller.syncSteps(FOSSIL_KEY);
+  expect(deletes).toBe(0);
+  expect(controller.getSnapshot().errorCode).toBe("FOSSIL_FILE_UNREADABLE");
+  expect(store.readFossilFiles(ticket, deviceId).map((stored) => stored.state)).toEqual([
+    "unreadable",
+  ]);
+  await controller.dispose();
+  db.close();
+});
+
+test("a failed watch-side delete still uploads the stored data and says so", async () => {
+  const received: IngestDirectDeviceBatchInput[] = [];
+  const file = fossilFile(Date.parse("2026-02-01T00:00:00.000Z") / 1000, [{ steps: 6, hr: 0 }]);
+  const { db, controller } = await fossilController({
+    received,
+    fossilDownload: async () => ({
+      status: "file",
+      handle: { minor: 1, major: 1 },
+      data: file,
+      crc: fossilCrc32(file),
+    }),
+    fossilDelete: async () => {
+      throw new Error("FOSSIL_RESPONSE_TIMEOUT");
+    },
+  });
+  await controller.syncSteps(FOSSIL_KEY);
+  expect(controller.getSnapshot()).toMatchObject({ errorCode: "FOSSIL_DELETE_FAILED" });
+  expect(received.map((input) => input.batch.recordType)).toEqual(["steps"]);
+  await controller.dispose();
+  db.close();
+});
+
+test("an empty activity file is a quiet success; a bad key or a mismatched watch never reaches the download", async () => {
+  let downloads = 0;
+  const empty = await fossilController({
+    fossilDownload: async () => {
+      downloads += 1;
+      return { status: "empty" };
+    },
+  });
+  await empty.controller.syncSteps(FOSSIL_KEY);
+  expect(empty.controller.getSnapshot().errorCode).toBeNull();
+  expect(downloads).toBe(1);
+  await empty.controller.syncSteps("not a key");
+  expect(empty.controller.getSnapshot().errorCode).toBe("INVALID_AUTH_KEY");
+  expect(downloads).toBe(1);
+  await empty.controller.dispose();
+  empty.db.close();
+
+  const mismatch = await fossilController({
+    fossilDownload: async () => {
+      downloads += 1;
+      return { status: "empty" };
+    },
+    peer: {
+      ...FOSSIL_PEER,
+      model: FOSSIL_HR_MODELS.find((model) => model.id === "fossil_hybrid_hr")!,
+    },
+  });
+  await mismatch.controller.syncSteps(FOSSIL_KEY);
+  expect(mismatch.controller.getSnapshot().errorCode).toBe("FOSSIL_PEER_MISMATCH");
+  expect(downloads).toBe(1);
+  await mismatch.controller.dispose();
+  mismatch.db.close();
 });

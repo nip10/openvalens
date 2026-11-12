@@ -3,6 +3,7 @@ import { describe, expect, test } from "bun:test";
 import {
   assertDirectDeviceIdentity,
   confirmedDirectDeviceIdentity,
+  directDeviceFamilySupportsRecordType,
   DirectDeviceIdentityError,
 } from "./direct-device-identity";
 
@@ -396,4 +397,17 @@ describe("direct-device identity guard", () => {
       ),
     ).toEqual({ family: "zepp_os", modelId: "amazfit_helio_strap" });
   });
+});
+
+test("fossil_hr publishes per-minute steps and heart rate, and nothing else", () => {
+  expect(directDeviceFamilySupportsRecordType("fossil_hr", "steps")).toBe(true);
+  expect(directDeviceFamilySupportsRecordType("fossil_hr", "heart_rate")).toBe(true);
+  for (const recordType of [
+    "steps_interval",
+    "sleep_session",
+    "weight_measurement",
+    "body_temperature",
+    "blood_pressure",
+  ] as const)
+    expect(directDeviceFamilySupportsRecordType("fossil_hr", recordType), recordType).toBe(false);
 });

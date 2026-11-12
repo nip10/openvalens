@@ -97,7 +97,8 @@ export function directDeviceFamilySupportsRecordType(
       family === "huami_legacy" ||
       family === "huawei" ||
       family === "garmin" ||
-      family === "pebble"
+      family === "pebble" ||
+      family === "fossil_hr"
     );
   if (recordType === "steps_interval")
     return (
@@ -130,7 +131,8 @@ export function directDeviceFamilySupportsRecordType(
       family === "moyoung" ||
       family === "huawei" ||
       family === "garmin" ||
-      family === "pebble"
+      family === "pebble" ||
+      family === "fossil_hr"
     );
   return family === "ble_gatt";
 }
