@@ -16,7 +16,7 @@
       "@orpc/server": "^1.15.0",
       "@orpc/openapi": "^1.15.0",
       "@orpc/zod": "^1.15.0",
-      "better-auth": "1.7.5",
+      "better-auth": "1.7.22",
       "lucide-react": "^1.41.0",
       "next-themes": "^0.4.6",
       "sonner": "^2.0.8",
@@ -30,7 +30,7 @@
       "ai": "^6.0.191",
       "@ai-sdk/anthropic": "^3.0.79",
       "@ai-sdk/openai-compatible": "2.0.80",
-      "@better-auth/expo": "1.7.5",
+      "@better-auth/expo": "1.7.22",
       "drizzle-orm": "1.0.0-rc.4"
     }
   },
