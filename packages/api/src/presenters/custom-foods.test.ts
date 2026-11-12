@@ -96,6 +96,30 @@ describe("custom food form", () => {
     expect(parseCustomFood({ ...base, name: "x".repeat(201) }).ok).toBe(false);
   });
 
+  test("a decimal comma is a decimal in every amount (#448)", () => {
+    const base = { ...EMPTY_CUSTOM_FOOD_FIELDS, name: "Food" };
+    for (const raw of ["82,4", "82.4", " 82,4 "])
+      expect(
+        parseCustomFood({
+          ...base,
+          basisAmount: raw,
+          servingSizeAmount: raw,
+          nutrients: { proteinG: raw },
+        }),
+      ).toMatchObject({
+        ok: true,
+        food: { nutrientBasisAmount: 82.4, servingSizeAmount: 82.4, nutrients: { proteinG: 82.4 } },
+      });
+    expect(parseCustomFood({ ...base, servingSizeAmount: "1,5" })).toMatchObject({
+      ok: true,
+      food: { servingSizeAmount: 1.5 },
+    });
+    for (const raw of ["1.234,5", "abc"]) {
+      expect(parseCustomFood({ ...base, servingSizeAmount: raw }).ok).toBe(false);
+      expect(parseCustomFood({ ...base, basisAmount: raw }).ok).toBe(false);
+    }
+  });
+
   test("summaries state the basis and how much was entered", () => {
     expect(describeBasis(food.basis, englishI18n)).toBe("Values per 100 g (1 slice = 40 g)");
     expect(

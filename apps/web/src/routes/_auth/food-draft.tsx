@@ -29,6 +29,7 @@ import { controlLinkClass, textLinkClass } from "@/components/food-classes";
 import { Page, PageHeader, Section, StatusPill, ToneIcon } from "@/components/page";
 import { client } from "@/utils/orpc";
 import { ModuleHiddenNote } from "@/components/module-hidden-note";
+import { parseDecimal } from "@openvalens/i18n/numbers";
 
 export const Route = createFileRoute("/_auth/food-draft")({ component: FoodDraftPage });
 
@@ -306,11 +307,8 @@ function FoodDraftPage() {
                       inputMode="decimal"
                       value={item.quantity ?? ""}
                       onChange={(event) => {
-                        const value = Number(event.target.value);
-                        const quantity =
-                          event.target.value.trim() && Number.isFinite(value) && value > 0
-                            ? value
-                            : null;
+                        const value = parseDecimal(event.target.value);
+                        const quantity = value !== null && value > 0 ? value : null;
                         edit(item.id, {
                           quantity,
                           flags: withFlags(

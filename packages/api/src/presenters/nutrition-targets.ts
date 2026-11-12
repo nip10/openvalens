@@ -13,6 +13,7 @@
  */
 import type { I18n, MessageDescriptor } from "@lingui/core";
 import { msg, select } from "@lingui/core/macro";
+import { parseDecimal } from "@openvalens/i18n/numbers";
 import { DECLARATION_LABELS, NUTRITION_SAFETY_COPY } from "@openvalens/nutrition/nutrition-safety";
 
 import type { NutrientKey, NutrientTotal, NutrientValues } from "../contracts/nutrition-diary";
@@ -286,10 +287,9 @@ export function parseTargetForm(
     }
   | { ok: false; error: MessageDescriptor } {
   const parse = (raw: string): number | null | "invalid" => {
-    const text = raw.trim().replace(/,/g, "");
-    if (!text) return null;
-    const value = Number(text);
-    return Number.isFinite(value) && value >= 0 && value <= MAX_TARGET_AMOUNT ? value : "invalid";
+    if (!raw.trim()) return null;
+    const value = parseDecimal(raw);
+    return value !== null && value >= 0 && value <= MAX_TARGET_AMOUNT ? value : "invalid";
   };
   const min = parse(fields.min);
   const max = parse(fields.max);
@@ -330,8 +330,8 @@ export function parseHeight(
 ): { ok: true; value: number | null } | { ok: false; error: MessageDescriptor } {
   const text = raw.trim();
   if (!text) return { ok: true, value: null };
-  const value = Number(text);
-  if (!Number.isFinite(value) || value < 100 || value > 250)
+  const value = parseDecimal(text);
+  if (value === null || value < 100 || value > 250)
     return { ok: false, error: msg`Height must be between 100 and 250 cm, or left blank.` };
   return { ok: true, value: Math.round(value * 10) / 10 };
 }

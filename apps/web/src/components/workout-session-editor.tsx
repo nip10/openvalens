@@ -12,6 +12,7 @@ import { offlineScope } from "@openvalens/api/presenters/offline";
 import { authClient } from "@/lib/auth-client";
 import { INTENSITY_LABELS } from "@openvalens/api/presenters/activity-load";
 import { workoutTypeLabel } from "@openvalens/api/presenters/workouts";
+import { parseDecimal } from "@openvalens/i18n/numbers";
 
 export type WorkoutEditorValue = Omit<
   Parameters<typeof client.plans.workouts.upsertWorkout>[0],
@@ -545,14 +546,14 @@ export function WorkoutSessionEditor({
                                   const text = e.target.value;
                                   setWeights((current) => ({ ...current, [set.clientId]: text }));
                                   if (text === "") changeSet(ei, si, { weightKg: null });
-                                  else if (
-                                    /^\d*(\.\d*)?$/.test(text) &&
-                                    Number.isFinite(Number(text))
-                                  )
-                                    changeSet(ei, si, {
-                                      weightKg:
-                                        Number(text) / (units === "imperial" ? 2.2046226218 : 1),
-                                    });
+                                  else {
+                                    const weight = parseDecimal(text);
+                                    if (weight !== null && weight >= 0)
+                                      changeSet(ei, si, {
+                                        weightKg:
+                                          weight / (units === "imperial" ? 2.2046226218 : 1),
+                                      });
+                                  }
                                 }}
                               />
                               {fieldErrors[`weight-${key}`] && (

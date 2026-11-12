@@ -8,6 +8,7 @@ import {
   goalListGroup,
   goalRuleName,
   goalTodayMessage,
+  parseManualAmount,
   quickActionKind,
 } from "./-goals-ui";
 import { buildRule } from "./-goal-editor";
@@ -120,6 +121,18 @@ describe("Goals presentation decisions", () => {
     expect(checkinCorrectionPayload("", false, false)).toBeNull();
     expect(checkinCorrectionPayload("9", false, false)).toEqual({ value: 9 });
     expect(checkinCorrectionPayload("", true, false)).toEqual({ completed: false });
+  });
+
+  test("manual amounts read a decimal comma as a decimal (#448)", () => {
+    for (const raw of ["82,4", "82.4", " 82,4 "]) {
+      expect(parseManualAmount(raw)).toBe(82.4);
+      expect(checkinCorrectionPayload(raw, false, false)).toEqual({ value: 82.4 });
+    }
+    expect(parseManualAmount("1,5")).toBe(1.5);
+    for (const raw of ["", "1.234,5", "abc"]) {
+      expect(parseManualAmount(raw)).toBeNull();
+      expect(checkinCorrectionPayload(raw, false, false)).toBeNull();
+    }
   });
 
   test("replacement navigation carries the newly created goal id", () => {

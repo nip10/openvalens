@@ -570,11 +570,24 @@ describe("parsing", () => {
   });
 
   test("refuses blank, zero, negative and non-numeric text", () => {
-    for (const raw of ["", "   ", "0", "-1", "abc", "1,5"])
+    for (const raw of ["", "   ", "0", "-1", "abc", "1,2,3"])
       expect(parseWaterAmount(raw, "ml")).toEqual({
         ok: false,
         error: WATER_COPY.amountInvalid,
       });
+  });
+
+  test("a decimal comma is a decimal (#448)", () => {
+    for (const raw of ["82,4", "82.4", " 82,4 "])
+      expect(parseWaterAmount(raw, "ml")).toMatchObject({ ok: true, quantity: 82.4 });
+    expect(parseWaterAmount("1,5", "l")).toMatchObject({
+      ok: true,
+      quantity: 1.5,
+      quantityMl: 1500,
+    });
+    for (const raw of ["1.234,5", "abc"])
+      expect(parseWaterAmount(raw, "ml")).toEqual({ ok: false, error: WATER_COPY.amountInvalid });
+    expect(parseWaterGoal("1,5", "l")).toEqual({ ok: true, personalGoalMl: 1500 });
   });
 
   test("refuses an amount past the technical storage limit", () => {

@@ -1,3 +1,5 @@
+import { parseDecimal } from "@openvalens/i18n/numbers";
+
 export const PRIVATE_KINDS = [
   "weight",
   "waist",
@@ -59,7 +61,7 @@ export function makeMeasurementPayload(input: {
   value: string;
   measuredAtLocal: string;
 }) {
-  const value = Number(input.value);
+  const value = parseDecimal(input.value) ?? Number.NaN;
   const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(input.measuredAtLocal);
   const date = new Date(input.measuredAtLocal);
   const validTime = Boolean(

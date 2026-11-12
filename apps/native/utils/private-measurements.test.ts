@@ -161,5 +161,8 @@ describe("native private measurement screen adapter", () => {
     expect(makeMeasurementPayload(base)).not.toBeNull();
     expect(makeMeasurementPayload({ ...base, measuredAtLocal: "2026-02-31T10:30" })).toBeNull();
     expect(makeMeasurementPayload({ ...base, unit: "cm" })).toBeNull();
+    // #448: a decimal comma is a decimal; mixed separators are refused.
+    expect(makeMeasurementPayload({ ...base, value: "62,5" })?.value).toBe(62.5);
+    expect(makeMeasurementPayload({ ...base, value: "1.062,5" })).toBeNull();
   });
 });

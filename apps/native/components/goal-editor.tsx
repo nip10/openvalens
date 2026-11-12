@@ -13,6 +13,7 @@ import { Text, TextInput, View } from "react-native";
 import { Icon, Sheet } from "@/components/bloom";
 import { orpc } from "@/utils/orpc";
 import { canEditEvidenceSource } from "@/utils/goal-ui";
+import { parseDecimal } from "@openvalens/i18n/numbers";
 
 type Source = GoalDefinition["source"];
 type Kind = GoalRule["kind"];
@@ -127,8 +128,8 @@ export function GoalEditor({ initial, seed, replacesId, replacesVersion, onSaved
     }),
   );
 
-  const lower = Number(minimum);
-  const upper = Number(maximum);
+  const lower = parseDecimal(minimum) ?? Number.NaN;
+  const upper = parseDecimal(maximum) ?? Number.NaN;
   const comparator = makeComparator(comparison, lower, upper);
   const selectedModeComparator =
     mode === "completion" ? { kind: "minimum" as const, value: 1 } : comparator;
@@ -236,8 +237,8 @@ export function GoalEditor({ initial, seed, replacesId, replacesVersion, onSaved
 
   function addMilestone() {
     if (!milestoneValue.trim() || !milestoneDate) return;
-    const value = Number(milestoneValue);
-    if (!Number.isFinite(value)) return;
+    const value = parseDecimal(milestoneValue);
+    if (value === null) return;
     setMilestones((current) => [
       ...current,
       { id: globalThis.crypto.randomUUID(), value, targetDate: milestoneDate },
@@ -656,7 +657,9 @@ function MilestoneRow({
       <Field
         label={t`Value`}
         value={String(milestone.value)}
-        onChangeText={(value) => onChange({ ...milestone, value: Number(value) })}
+        onChangeText={(value) =>
+          onChange({ ...milestone, value: parseDecimal(value) ?? Number.NaN })
+        }
         keyboardType="decimal-pad"
       />
       <Field

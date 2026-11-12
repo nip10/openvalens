@@ -9,6 +9,7 @@
  */
 import type { I18n, MessageDescriptor } from "@lingui/core";
 import { msg, plural, select } from "@lingui/core/macro";
+import { parseDecimal } from "@openvalens/i18n/numbers";
 import { summarizeNutrients } from "@openvalens/nutrition/totals";
 
 import {
@@ -470,15 +471,15 @@ export function parseQuickAdd(
 ): { ok: true; food: ManualFoodInput } | { ok: false; error: MessageDescriptor } {
   const name = fields.name.trim();
   if (!name) return { ok: false, error: msg`Enter a food name.` };
-  const basisAmount = Number(fields.basisAmount);
-  if (!fields.basisAmount.trim() || !Number.isFinite(basisAmount) || basisAmount <= 0)
+  const basisAmount = parseDecimal(fields.basisAmount);
+  if (basisAmount === null || basisAmount <= 0)
     return { ok: false, error: msg`Values are per a positive amount, for example 100 g.` };
   const nutrients: Partial<NutrientValues> = {};
   for (const key of NUTRIENT_KEYS) {
     const raw = fields.nutrients[key]?.trim();
     if (!raw) continue;
-    const value = Number(raw);
-    if (!Number.isFinite(value) || value < 0) return { ok: false, error: nutrientValueError(key) };
+    const value = parseDecimal(raw);
+    if (value === null || value < 0) return { ok: false, error: nutrientValueError(key) };
     nutrients[key] = value;
   }
   const rawBarcode = fields.barcode?.replace(/[\s-]/g, "") ?? "";

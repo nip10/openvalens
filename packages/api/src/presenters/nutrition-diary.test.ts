@@ -302,6 +302,35 @@ describe("portion preview", () => {
       parseQuickAdd({ name: "x", basisAmount: "1", basisUnit: "g", nutrients: { fatG: "-1" } }),
     ).toMatchObject({ ok: false });
   });
+
+  test("quick add: a decimal comma is a decimal (#448)", () => {
+    const quick = (value: string) =>
+      parseQuickAdd({
+        name: "Oats",
+        basisAmount: value,
+        basisUnit: "g",
+        nutrients: { fatG: value },
+      });
+    for (const raw of ["82,4", "82.4", " 82,4 "])
+      expect(quick(raw)).toMatchObject({
+        ok: true,
+        food: { nutrientBasisAmount: 82.4, nutrients: { fatG: 82.4 } },
+      });
+    expect(quick("1,5")).toMatchObject({
+      ok: true,
+      food: { nutrientBasisAmount: 1.5, nutrients: { fatG: 1.5 } },
+    });
+    expect(quick("1.234,5").ok).toBe(false);
+    expect(quick("abc").ok).toBe(false);
+    expect(
+      parseQuickAdd({
+        name: "x",
+        basisAmount: "100",
+        basisUnit: "g",
+        nutrients: { fatG: "1.234,5" },
+      }).ok,
+    ).toBe(false);
+  });
 });
 
 describe("diary row figures (#393)", () => {

@@ -22,6 +22,7 @@ import { weightFromKg, weightToKg, type RoutineExerciseSnapshot } from "@/lib/wo
 import { orpc } from "@/utils/orpc";
 import { exercisePickTestId } from "@/lib/exercises/detail";
 import { useThemeColor } from "@/utils/theme";
+import { parseDecimal } from "@openvalens/i18n/numbers";
 
 export type EditorExercise = RoutineExerciseSnapshot;
 
@@ -98,8 +99,11 @@ function ExerciseFields({
         onChangeText={(value) => {
           setWeightText(value);
           if (value === "") onChange({ targetWeightKg: null });
-          else if (/^\d+(?:\.\d+)?$/.test(value))
-            onChange({ targetWeightKg: weightToKg(Number(value), units) });
+          else {
+            const weight = parseDecimal(value);
+            if (weight !== null && weight >= 0)
+              onChange({ targetWeightKg: weightToKg(weight, units) });
+          }
         }}
         className={field}
       />
@@ -148,8 +152,9 @@ function ExerciseFields({
             value={incrementText}
             onChangeText={(value) => {
               setIncrementText(value);
-              if (!/^\d+(?:\.\d*)?$/.test(value)) return;
-              const incrementKg = weightToKg(Number(value), units);
+              const increment = parseDecimal(value);
+              if (increment === null || increment < 0) return;
+              const incrementKg = weightToKg(increment, units);
               const progression = exercise.progression;
               if (incrementKg > 0 && progression.kind !== "none")
                 onChange({ progression: { ...progression, incrementKg } });

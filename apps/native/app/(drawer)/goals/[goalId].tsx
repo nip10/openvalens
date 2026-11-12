@@ -14,6 +14,7 @@ import { Container } from "@/components/container";
 import { GoalEditor } from "@/components/goal-editor";
 import { orpc } from "@/utils/orpc";
 import { checkinCorrectionPayload, goalDetailRouteParams } from "@/utils/goal-ui";
+import { parseDecimal } from "@openvalens/i18n/numbers";
 
 const mutationId = () => globalThis.crypto.randomUUID();
 
@@ -322,8 +323,8 @@ function TodaySection({
               <Button
                 isDisabled={!value.trim() || save.isPending}
                 onPress={() => {
-                  const amount = Number(value);
-                  if (Number.isFinite(amount))
+                  const amount = parseDecimal(value);
+                  if (amount !== null)
                     save.mutate({
                       goalId: goal.id,
                       date,

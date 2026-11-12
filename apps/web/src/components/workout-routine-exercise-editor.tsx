@@ -2,6 +2,7 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { Button } from "@openvalens/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
 import { Input } from "@openvalens/ui/components/input";
+import { parseDecimal } from "@openvalens/i18n/numbers";
 import { Label } from "@openvalens/ui/components/label";
 import { ArrowDown, ArrowUp, Trash2 } from "lucide-react";
 import { useEffect, useId, useState } from "react";
@@ -233,15 +234,9 @@ export function WorkoutRoutineExerciseEditor({
                   set({ targetWeightKg: null });
                   return;
                 }
-                if (/^\d+(\.\d*)?$/.test(raw)) {
-                  const value = Number(raw);
-                  if (
-                    Number.isFinite(value) &&
-                    value >= 0 &&
-                    value <= (units === "metric" ? 1000 : 2204.62)
-                  )
-                    set({ targetWeightKg: units === "metric" ? value : value / LB_PER_KG });
-                }
+                const value = parseDecimal(raw);
+                if (value !== null && value >= 0 && value <= (units === "metric" ? 1000 : 2204.62))
+                  set({ targetWeightKg: units === "metric" ? value : value / LB_PER_KG });
               }}
             />
             <p className="text-xs text-ink-3">
@@ -282,22 +277,20 @@ export function WorkoutRoutineExerciseEditor({
                 onChange={(e) => {
                   const raw = e.target.value;
                   setIncrementText(raw);
-                  if (/^\d+(\.\d*)?$/.test(raw)) {
-                    const n = Number(raw);
-                    const progression = exercise.progression;
-                    if (
-                      Number.isFinite(n) &&
-                      n > 0 &&
-                      n <= 100 &&
-                      (progression.kind === "double" || progression.kind === "linear")
-                    )
-                      set({
-                        progression: {
-                          ...progression,
-                          incrementKg: units === "metric" ? n : n / LB_PER_KG,
-                        },
-                      });
-                  }
+                  const n = parseDecimal(raw);
+                  const progression = exercise.progression;
+                  if (
+                    n !== null &&
+                    n > 0 &&
+                    n <= 100 &&
+                    (progression.kind === "double" || progression.kind === "linear")
+                  )
+                    set({
+                      progression: {
+                        ...progression,
+                        incrementKg: units === "metric" ? n : n / LB_PER_KG,
+                      },
+                    });
                 }}
               />
             </div>

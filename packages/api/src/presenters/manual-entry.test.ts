@@ -18,6 +18,16 @@ describe("manual-entry presenter", () => {
     expect(parseManualEntryValue(heart, "300")).toBeNull();
   });
 
+  test("parseManualEntryValue: a decimal comma is a decimal (#448)", () => {
+    const weight = MANUAL_ENTRY_FIELDS.weight;
+    expect(parseManualEntryValue(weight, "82,4")).toBe(82.4);
+    expect(parseManualEntryValue(weight, "82.4")).toBe(82.4);
+    expect(parseManualEntryValue(weight, " 82,4 ")).toBe(82.4);
+    expect(parseManualEntryValue(MANUAL_ENTRY_FIELDS.distance, "1,5")).toBe(1.5);
+    expect(parseManualEntryValue(weight, "1.234,5")).toBeNull();
+    expect(parseManualEntryValue(weight, "abc")).toBeNull();
+  });
+
   test("parseManualEntryValue: rounds to 3 decimal places", () => {
     expect(parseManualEntryValue(MANUAL_ENTRY_FIELDS.weight, "72.4567")).toBe(72.457);
     expect(parseManualEntryValue(MANUAL_ENTRY_FIELDS.heart_rate, "72.4567")).toBe(72.457);
