@@ -36,7 +36,7 @@ test("the registry contains the eight Pebble models exactly once", () => {
   expect(PEBBLE_MODELS.map((model) => model.id).sort()).toEqual([...EXPECTED_IDS].sort());
 });
 
-test("all Pebble models remain discoverable but advertise no capture or sync", () => {
+test("only the BLE Pebble models advertise capture; Duo has no heart rate", () => {
   const ble = PEBBLE_MODELS.filter((model) => model.bleOnly);
   expect(ble.map((model) => model.id).sort()).toEqual([
     "pebble_2_duo",
@@ -49,8 +49,10 @@ test("all Pebble models remain discoverable but advertise no capture or sync", (
     expect(model.sourceFiles.length, model.id).toBeGreaterThan(0);
     expect(isPebbleBleOnly(model), model.id).toBe(model.bleOnly);
     if (model.bleOnly) {
-      expect(model.records, model.id).toEqual([]);
-      expect(model.sync, model.id).toBe(false);
+      expect(model.records, model.id).toEqual(
+        model.hasHrm ? ["steps", "sleep_session", "heart_rate"] : ["steps", "sleep_session"],
+      );
+      expect(model.sync, model.id).toBe(true);
       expect(model.serviceUuids, model.id).toEqual([PEBBLE_SERVICE_UUID]);
       expect(model.hasHealth, model.id).toBe(true);
     } else {

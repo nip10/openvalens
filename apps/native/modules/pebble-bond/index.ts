@@ -42,7 +42,7 @@ export function createPebbleBondAdapter(
   return {
     async getState(nativeId) {
       if (isIOS() || !getNative()) return "unsupported";
-      const state: unknown = await getNative()!.getState(nativeId);
+      const state: unknown = await getNative()!.getState(nativeId).catch(rethrowCoded);
       if (!isPebbleBondState(state)) throw new Error("PEBBLE_PAIRING_INVALID_STATE");
       return state;
     },
@@ -50,13 +50,24 @@ export function createPebbleBondAdapter(
       if (isIOS() || !getNative()) {
         throw new Error("PEBBLE_PAIRING_UNSUPPORTED");
       }
-      await getNative()!.ensureBonded(nativeId, requestId, timeoutMs);
+      await getNative()!.ensureBonded(nativeId, requestId, timeoutMs).catch(rethrowCoded);
     },
     async cancelWait(requestId) {
       if (isIOS()) return;
       await getNative()?.cancelWait(requestId);
     },
   };
+}
+
+/**
+ * Expo rejects with `{ code, message }`: the stable code is in `code`, the
+ * message is prose. Callers map `message`, so surface the code there.
+ */
+function rethrowCoded(error: unknown): never {
+  const code = (error as { code?: unknown } | null)?.code;
+  if (typeof code === "string" && /^PEBBLE_PAIRING_[A-Z_]+$/.test(code))
+    throw new Error(code, { cause: error });
+  throw error;
 }
 
 function isPebbleBondState(state: unknown): state is PebbleBondState {

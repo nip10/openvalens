@@ -19,6 +19,8 @@ import type { HelioSetupController } from "../setup/types";
 import type { DirectDeviceIdentity } from "@openvalens/api/contracts/direct-device";
 import type { DirectDeviceStore } from "../persistence/store";
 import { drainDirectDeviceOutbox } from "../upload";
+import { projectPebbleCapture } from "./pebble-capture";
+import type { PebbleIdentity, PebbleSessionOutcome } from "../pebble-types";
 import type { HelioCursor, HelioStepsPage } from "../protocol/types";
 import type { BleGattSample } from "../protocol/ble-gatt";
 import {
@@ -760,6 +762,55 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
   };
   if (deps.historyCapture) deps.historyCapture.handler = handleHistorySample;
 
+  /**
+   * Projects durably captured Pebble inbox items into outbox envelopes until
+   * drained. Never throws: projection is local, and a failure must not stop
+   * the upload of envelopes that already exist.
+   */
+  const projectPebbleInbox = (
+    ticket: AuthorityTicket,
+    onlyDeviceId?: string,
+  ): { sleepHeld: number; unreadableItems: number; errorCode: string | null } => {
+    let sleepHeld = 0;
+    let unreadableItems = 0;
+    let errorCode: string | null = null;
+    let bindings: ReturnType<DirectDeviceStore["listBindings"]> = [];
+    try {
+      bindings = deps.store.listBindings(ticket);
+    } catch (error) {
+      return { sleepHeld, unreadableItems, errorCode: safeError(error) };
+    }
+    for (const binding of bindings) {
+      if (
+        binding.family !== "pebble" ||
+        !binding.modelId ||
+        !binding.pebbleNativeId ||
+        binding.providerConnectionId === null ||
+        (onlyDeviceId && binding.deviceId !== onlyDeviceId)
+      )
+        continue;
+      let bindingHeld = 0;
+      try {
+        for (let round = 0; round < 100_000; round += 1) {
+          const projected = projectPebbleCapture({
+            store: deps.store,
+            ticket,
+            deviceId: binding.deviceId,
+            identity: { family: "pebble", modelId: binding.modelId } as PebbleIdentity,
+          });
+          // Held groups are recomputed each round; the last count is current.
+          bindingHeld = projected.sleepHeld;
+          unreadableItems += projected.unreadableItems;
+          if (projected.activityItems < 16) break;
+        }
+      } catch (error) {
+        errorCode ??= safeError(error);
+      }
+      sleepHeld += bindingHeld;
+    }
+    return { sleepHeld, unreadableItems, errorCode };
+  };
+
   const bumpConnectionGeneration = () => {
     connectionGeneration += 1;
     activeConfirmationAbort?.abort();
@@ -883,6 +934,9 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
           else if (local.providerConnectionId !== remote.providerConnectionId)
             throw new Error("DIRECT_DEVICE_REGISTRATION_IMMUTABLE");
         }
+        // Recover Pebble data an interrupted sync left unprojected, so the
+        // pending count (and the retry button) reflects it.
+        projectPebbleInbox(ticket);
         owned = deps.store.listBindings(ticket);
         const selected =
           selectedBindingId && bindingsById.has(selectedBindingId)
@@ -904,6 +958,7 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
             selectedSummary.family === snapshot.connectedFamily &&
             selectedSummary.modelId === snapshot.connectedModelId,
           blockedIdentityEnvelopes: deps.store.countBlockedIdentityEnvelopes(ticket),
+          pendingEnvelopes: deps.store.countUnaccepted(ticket.scope),
         });
       } catch (error) {
         if (current(token)) publish({ phase: "error", isBusy: false, errorCode: safeError(error) });
@@ -1057,7 +1112,9 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
         return;
       // Huawei auth is automatic (MAC-derived key); only the key-entry
       // families require a user-supplied 16-byte key here.
-      const requiresKey = snapshot.connectedFamily !== "huawei";
+      // Pebble pairs through the OS bond; it has no app-level key either.
+      const requiresKey =
+        snapshot.connectedFamily !== "huawei" && snapshot.connectedFamily !== "pebble";
       if (requiresKey && !/^((0x)?[0-9a-fA-F]{32})$/.test(authKeyHex)) {
         publish({ phase: "error", errorCode: "INVALID_AUTH_KEY" });
         return;
@@ -1096,40 +1153,104 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
         let checkpoint = binding.captureCheckpoint;
         let cursorSince = since;
         let captured = 0;
-        const result = await deps.setup.fetchSteps({
-          authKey,
-          since,
-          signal: abort.signal,
-          onPhase(phase) {
-            if (current(token)) publish({ phase, isBusy: true });
-          },
-          async onPage(page) {
-            if (!current(token) || !isAuthorityTicketCurrent(ticket) || abort.signal.aborted)
-              throw new Error("STALE_DIRECT_DEVICE_AUTHORITY");
-            publish({ phase: "capturing", isBusy: true });
-            const envelopes = pageRequests(
-              syncDeviceId,
-              syncIdentity,
-              { userId: context.userId, organizationId: context.organizationId },
-              page.minutes,
-              "UTC",
-            );
-            // Empty pages do not advance durable state. Protocol must not deliver unfinished minutes.
-            if (!envelopes.length) return;
-            const captureId = pageCaptureId(syncDeviceId, cursorSince, page.nextCursor);
-            deps.store.commitCapture(ticket, {
-              deviceId: syncDeviceId,
-              deviceIdentity: syncIdentity,
-              captureId,
-              expectedPreviousCheckpoint: checkpoint,
-              nextCheckpoint: cursorString(page.nextCursor),
-              envelopes,
-            });
-            checkpoint = cursorString(page.nextCursor);
-            cursorSince = page.nextCursor;
-            captured += page.minutes.length;
-          },
-        });
+        let pebbleNotice: string | null = null;
+        let pebbleResult: { complete: boolean; hardFailure: boolean } | null = null;
+        if (syncIdentity.family === "pebble") {
+          const peer = deps.setup.getPebblePeer();
+          if (
+            !peer ||
+            peer.identity.family !== syncIdentity.family ||
+            peer.identity.modelId !== syncIdentity.modelId
+          )
+            throw new Error("PEBBLE_PEER_MISMATCH");
+          // One physical watch feeds one active binding, so its history does
+          // not split across two server connections. Only bindings the server
+          // still lists count: a revoked one must not lock the watch out.
+          if (
+            deps.store
+              .listBindings(ticket)
+              .some(
+                (other) =>
+                  other.deviceId !== syncDeviceId &&
+                  other.pebbleNativeId === peer.nativeId &&
+                  bindingsById.has(other.deviceId),
+              )
+          )
+            throw new Error("PEBBLE_NATIVE_ID_IN_USE");
+          // Associates this physical watch with the binding once; a different
+          // watch of the same model is refused (PEBBLE_NATIVE_ID_IMMUTABLE).
+          deps.store.attachPebblePeripheral(ticket, syncDeviceId, peer.identity, peer.nativeId);
+          publish({ phase: "capturing", isBusy: true });
+          const target = {
+            deviceId: syncDeviceId,
+            identity: peer.identity,
+            nativeId: peer.nativeId,
+          };
+          const outcome = await deps.setup.capturePebble({
+            signal: abort.signal,
+            // Each packet is ACKed to the watch only after this resolves.
+            sink: async (packet) => {
+              if (!current(token) || !isAuthorityTicketCurrent(ticket) || abort.signal.aborted)
+                throw new Error("STALE_DIRECT_DEVICE_AUTHORITY");
+              return deps.store.appendPebblePacket(ticket, target, packet);
+            },
+          });
+          // Whatever the outcome (even a cancel or a superseded sync), packets
+          // already ACKed may be gone from the watch: project them now. This
+          // is local, needs only current authority, and never throws.
+          const projection = isAuthorityTicketCurrent(ticket)
+            ? projectPebbleInbox(ticket, syncDeviceId)
+            : null;
+          if (!current(token) || !isAuthorityTicketCurrent(ticket)) return;
+          if (outcome.status === "cancelled") throw new Error("CANCELLED");
+          const notice = pebbleOutcomeNotice(outcome, projection?.sleepHeld ?? 0);
+          // A projection failure must not hide the capture result, nor stop
+          // the upload of what was already projected.
+          pebbleNotice =
+            notice.code ??
+            projection?.errorCode ??
+            (projection?.unreadableItems ? "PEBBLE_UNREADABLE_SKIPPED" : null);
+          pebbleResult = {
+            complete: outcome.status === "idle",
+            hardFailure: notice.hardFailure || (!notice.code && !!projection?.errorCode),
+          };
+        }
+        const result =
+          pebbleResult ??
+          (await deps.setup.fetchSteps({
+            authKey,
+            since,
+            signal: abort.signal,
+            onPhase(phase) {
+              if (current(token)) publish({ phase, isBusy: true });
+            },
+            async onPage(page) {
+              if (!current(token) || !isAuthorityTicketCurrent(ticket) || abort.signal.aborted)
+                throw new Error("STALE_DIRECT_DEVICE_AUTHORITY");
+              publish({ phase: "capturing", isBusy: true });
+              const envelopes = pageRequests(
+                syncDeviceId,
+                syncIdentity,
+                { userId: context.userId, organizationId: context.organizationId },
+                page.minutes,
+                "UTC",
+              );
+              // Empty pages do not advance durable state. Protocol must not deliver unfinished minutes.
+              if (!envelopes.length) return;
+              const captureId = pageCaptureId(syncDeviceId, cursorSince, page.nextCursor);
+              deps.store.commitCapture(ticket, {
+                deviceId: syncDeviceId,
+                deviceIdentity: syncIdentity,
+                captureId,
+                expectedPreviousCheckpoint: checkpoint,
+                nextCheckpoint: cursorString(page.nextCursor),
+                envelopes,
+              });
+              checkpoint = cursorString(page.nextCursor);
+              cursorSince = page.nextCursor;
+              captured += page.minutes.length;
+            },
+          }));
         if (!current(token) || !isAuthorityTicketCurrent(ticket)) return;
         // Legacy Huami history arrives through the buffered history sink during
         // the transfer; commit it before draining the outbox.
@@ -1151,7 +1272,15 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
         const pending = deps.store.countUnaccepted(ticket.scope);
         const queued = summary.queued;
         publish({
-          phase: result.complete ? "processing" : "connected",
+          // A Pebble capture ends the link, so it never returns to "connected".
+          phase: pebbleResult
+            ? pebbleResult.hardFailure
+              ? "error"
+              : "processing"
+            : result.complete
+              ? "processing"
+              : "connected",
+          ...(pebbleResult ? { errorCode: pebbleNotice } : {}),
           pendingEnvelopes: pending,
           blockedIdentityEnvelopes: deps.store.countBlockedIdentityEnvelopes(ticket),
           acceptedEnvelopes: Math.max(0, snapshot.acceptedEnvelopes + summary.sent),
@@ -1160,6 +1289,12 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
         });
         if (summary.applied > 0) await deps.onApplied?.();
         await controller.refreshBindings();
+        // refreshBindings resets phase/errorCode; the Pebble result outlives it.
+        if (pebbleResult && current(token) && (pebbleResult.hardFailure || pebbleNotice))
+          publish({
+            phase: pebbleResult.hardFailure ? "error" : snapshot.phase,
+            errorCode: pebbleNotice,
+          });
       } catch (error) {
         if (current(token))
           publish({
@@ -1180,6 +1315,9 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
       publish({ phase: "uploading", isBusy: true, errorCode: null });
       try {
         const ticket = fresh();
+        // Pebble data left in the inbox by an interrupted sync is projected
+        // here too, so it can be uploaded without reconnecting the watch.
+        projectPebbleInbox(ticket);
         const api = await captureClient(ticket, abort.signal);
         if (!current(token) || !isAuthorityTicketCurrent(ticket)) return;
         const summary = await drainDirectDeviceOutbox(ticket, {
@@ -1232,6 +1370,31 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
     },
   };
   return controller;
+}
+
+/**
+ * What the user should be told after a Pebble capture. Durable data was
+ * uploaded either way; only `hardFailure` turns the sync into an error.
+ */
+export function pebbleOutcomeNotice(
+  outcome: PebbleSessionOutcome,
+  sleepHeld: number,
+): { code: string | null; hardFailure: boolean } {
+  if (outcome.status === "idle") {
+    if (outcome.rejectedPackets > 0) return { code: "PEBBLE_SYNC_INCOMPLETE", hardFailure: false };
+    if (sleepHeld > 0) return { code: "PEBBLE_SLEEP_RECONCILIATION_REQUIRED", hardFailure: false };
+    return { code: null, hardFailure: false };
+  }
+  if (outcome.status === "cancelled") return { code: "CANCELLED", hardFailure: true };
+  // The watch did not open any health session: nothing was waiting.
+  if (outcome.code === "PEBBLE_CAPTURE_TIMEOUT")
+    return { code: "PEBBLE_NO_DATA_OFFERED", hardFailure: false };
+  if (outcome.code === "PEBBLE_CAPTURE_STALLED" && (outcome.receivedPackets ?? 0) > 0)
+    return { code: "PEBBLE_SYNC_INCOMPLETE", hardFailure: false };
+  return {
+    code: /^[A-Z0-9_]{1,64}$/.test(outcome.code) ? outcome.code : "PEBBLE_CAPTURE_FAILED",
+    hardFailure: true,
+  };
 }
 
 function safeError(error: unknown): string {

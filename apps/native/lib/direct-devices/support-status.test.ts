@@ -325,7 +325,8 @@ test("FitPro reports history sync for 15-minute steps, sleep and realtime heart 
   }
 });
 
-test("Pebble capture is unavailable for every model until pairing and safe storage are complete", () => {
+test("only the three BLE Pebble models sync; Classic-mode generations are unsupported", () => {
+  const syncing = new Set(["pebble_classic_2", "pebble_2_duo", "pebble_time_2"]);
   for (const model of PEBBLE_MODELS) {
     expect(
       describeDeviceSupport({
@@ -336,13 +337,23 @@ test("Pebble capture is unavailable for every model until pairing and safe stora
         sync: model.sync,
       }),
       model.id,
-    ).toMatchObject({ openValens: "pebble_capture_unavailable" });
+    ).toMatchObject({
+      openValens: syncing.has(model.id) ? "pebble_history_sync" : "pebble_bt_classic_unsupported",
+    });
+    expect(model.sync, model.id).toBe(syncing.has(model.id));
   }
-  // The safety gate leaves every Pebble model without records or sync.
-  for (const model of PEBBLE_MODELS) {
+  // Records follow the hardware: the 2 Duo has no heart-rate sensor.
+  expect(PEBBLE_MODELS.find((model) => model.id === "pebble_2_duo")?.records).toEqual([
+    "steps",
+    "sleep_session",
+  ]);
+  expect(PEBBLE_MODELS.find((model) => model.id === "pebble_time_2")?.records).toEqual([
+    "steps",
+    "sleep_session",
+    "heart_rate",
+  ]);
+  for (const model of PEBBLE_MODELS.filter((entry) => !syncing.has(entry.id)))
     expect(model.records, model.id).toEqual([]);
-    expect(model.sync, model.id).toBe(false);
-  }
 });
 
 test("Casio reports hourly step buckets only where a fetch exists", () => {

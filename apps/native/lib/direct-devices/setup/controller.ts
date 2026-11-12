@@ -56,8 +56,8 @@ import { FITPRO_SERVICE_UUID, matchFitProDevice } from "../models/fitpro";
 import { createFitProSession, selectFitProProfile } from "../transport/fitpro";
 import type { FitProProfile, FitProSession } from "../transport/fitpro";
 import { PEBBLE_SERVICE_UUID, isPebbleCandidateName, matchPebbleDevice } from "../models/pebble";
-import { createPebbleSession, selectPebbleProfile } from "../transport/pebble";
-import type { PebbleProfile, PebbleSession } from "../transport/pebble";
+import { createDurablePebbleSession, type PebbleBondAdapter } from "../transport/pebble";
+import type { DurablePebbleSession, PebblePeer, PebbleSessionOutcome } from "../pebble-types";
 import { createHuamiLegacySession, selectHuamiLegacyProfile } from "../transport/huami-legacy";
 import { createGarminSession, type GarminSession } from "../transport/garmin";
 import type { HuamiLegacyProfile, HuamiLegacySession } from "../transport/huami-legacy";
@@ -113,6 +113,12 @@ type Deps = {
    * Without it the ring session is not started.
    */
   onHistorySample?: (sample: DirectDeviceHistorySample) => void;
+  /** Test seam for the durable Pebble transport. */
+  createPebbleSession?: typeof createDurablePebbleSession;
+  /** Android bond adapter; production loads the local `pebble-bond` module lazily. */
+  pebbleBondAdapter?: () => PebbleBondAdapter;
+  /** Pairing/handshake/identity budget for the Pebble prepare step. */
+  pebblePrepareTimeoutMs?: number;
 };
 type NativeDeviceLease = {
   operationDone: Promise<void>;
@@ -199,7 +205,13 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
   let connectedBangleJsSession: BangleJsSession | null = null;
   let connectedMoyoungSession: MoyoungSession | null = null;
   let connectedFitProSession: FitProSession | null = null;
-  let connectedPebbleSession: PebbleSession | null = null;
+  /** Prepared (paired, handshaken, firmware-identified) durable Pebble session. */
+  let connectedPebbleSession: DurablePebbleSession | null = null;
+  let connectedPebblePeer: PebblePeer | null = null;
+  /** Aborts an in-flight Pebble prepare when the attempt is superseded. */
+  let pebblePrepareAbort: AbortController | null = null;
+  /** Set while a capture runs: its terminal disconnect is expected, not an error. */
+  let pebbleCaptureEnding = false;
   let connectedHuamiLegacySession: HuamiLegacySession | null = null;
   let connectedHuaweiSession: HuaweiSession | null = null;
   let connectedCasioSession: CasioSession | null = null;
@@ -626,56 +638,57 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
           const selected = r.devices.get(deviceId);
           const knownDevice = snapshot.devices.find((device) => device.id === deviceId);
           if (!selected || !knownDevice) throw new Error("DEVICE_NOT_DISCOVERED");
-          // Gate every Pebble-shaped name or Pebble-family entry before model
-          // resolution and routing-family narrowing, so a generic candidate or
-          // stale discovered-family metadata cannot reach the BLE connect.
-          if (knownDevice.family === "pebble" || isPebbleCandidateName(knownDevice.name))
-            pebbleCaptureUnavailable();
-          const model =
-            matchDeviceName(knownDevice.name) ??
-            matchXiaomiDeviceName(knownDevice.name) ??
-            matchHuaweiDeviceName(knownDevice.name) ??
-            matchGarminDeviceName(knownDevice.name) ??
-            matchBleGattDevice(knownDevice.name, knownDevice.serviceUuids) ??
-            matchBangleJsDevice(knownDevice.name, knownDevice.serviceUuids) ??
-            matchMoyoungDevice(knownDevice.name) ??
-            matchFitProDevice(knownDevice.name) ??
-            matchHuamiLegacyDevice(knownDevice.name) ??
-            matchGloryFitDevice(knownDevice.name) ??
-            matchBleScaleDevice(knownDevice.name) ??
-            matchColmiRingDevice(knownDevice.name) ??
-            matchCasioDevice(knownDevice.name) ??
-            matchPebbleDevice(knownDevice.name);
-          if (!model) throw new Error("DEVICE_NOT_DISCOVERED");
-          const family =
-            knownDevice.family ??
-            (matchDeviceName(knownDevice.name)
-              ? "zepp_os"
-              : matchXiaomiDeviceName(knownDevice.name)
-                ? "xiaomi"
-                : matchHuaweiDeviceName(knownDevice.name)
-                  ? "huawei"
-                  : matchGarminDeviceName(knownDevice.name)
-                    ? "garmin"
-                    : matchBleGattDevice(knownDevice.name, knownDevice.serviceUuids)
-                      ? "ble_gatt"
-                      : matchBangleJsDevice(knownDevice.name, knownDevice.serviceUuids)
-                        ? "bangle_js"
-                        : matchMoyoungDevice(knownDevice.name)
-                          ? "moyoung"
-                          : matchFitProDevice(knownDevice.name)
-                            ? "fitpro"
-                            : matchHuamiLegacyDevice(knownDevice.name)
-                              ? "huami_legacy"
-                              : matchGloryFitDevice(knownDevice.name)
-                                ? "gloryfit"
-                                : matchBleScaleDevice(knownDevice.name)
-                                  ? "ble_scale"
-                                  : matchColmiRingDevice(knownDevice.name)
-                                    ? "colmi_ring"
-                                    : matchCasioDevice(knownDevice.name)
-                                      ? "casio"
-                                      : "pebble");
+          // Every Pebble-shaped name or Pebble-family entry takes the durable
+          // Pebble path: the model is never guessed from the advertised name,
+          // only taken from the firmware identity during prepare.
+          const pebbleCandidate =
+            knownDevice.family === "pebble" || isPebbleCandidateName(knownDevice.name);
+          const model = pebbleCandidate
+            ? null
+            : (matchDeviceName(knownDevice.name) ??
+              matchXiaomiDeviceName(knownDevice.name) ??
+              matchHuaweiDeviceName(knownDevice.name) ??
+              matchGarminDeviceName(knownDevice.name) ??
+              matchBleGattDevice(knownDevice.name, knownDevice.serviceUuids) ??
+              matchBangleJsDevice(knownDevice.name, knownDevice.serviceUuids) ??
+              matchMoyoungDevice(knownDevice.name) ??
+              matchFitProDevice(knownDevice.name) ??
+              matchHuamiLegacyDevice(knownDevice.name) ??
+              matchGloryFitDevice(knownDevice.name) ??
+              matchBleScaleDevice(knownDevice.name) ??
+              matchColmiRingDevice(knownDevice.name) ??
+              matchCasioDevice(knownDevice.name));
+          if (!model && !pebbleCandidate) throw new Error("DEVICE_NOT_DISCOVERED");
+          const family: DirectDeviceFamily = pebbleCandidate
+            ? "pebble"
+            : (knownDevice.family ??
+              (matchDeviceName(knownDevice.name)
+                ? "zepp_os"
+                : matchXiaomiDeviceName(knownDevice.name)
+                  ? "xiaomi"
+                  : matchHuaweiDeviceName(knownDevice.name)
+                    ? "huawei"
+                    : matchGarminDeviceName(knownDevice.name)
+                      ? "garmin"
+                      : matchBleGattDevice(knownDevice.name, knownDevice.serviceUuids)
+                        ? "ble_gatt"
+                        : matchBangleJsDevice(knownDevice.name, knownDevice.serviceUuids)
+                          ? "bangle_js"
+                          : matchMoyoungDevice(knownDevice.name)
+                            ? "moyoung"
+                            : matchFitProDevice(knownDevice.name)
+                              ? "fitpro"
+                              : matchHuamiLegacyDevice(knownDevice.name)
+                                ? "huami_legacy"
+                                : matchGloryFitDevice(knownDevice.name)
+                                  ? "gloryfit"
+                                  : matchBleScaleDevice(knownDevice.name)
+                                    ? "ble_scale"
+                                    : matchColmiRingDevice(knownDevice.name)
+                                      ? "colmi_ring"
+                                      : matchCasioDevice(knownDevice.name)
+                                        ? "casio"
+                                        : "pebble"));
           await stopRadioScan();
           if (current !== generation || disposed) return;
           let cancelWait!: () => void;
@@ -742,7 +755,6 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
           const colmiRingModel =
             family === "colmi_ring" ? matchColmiRingDevice(knownDevice.name) : null;
           const casioModel = family === "casio" ? matchCasioDevice(knownDevice.name) : null;
-          const pebbleModel = family === "pebble" ? matchPebbleDevice(knownDevice.name) : null;
           const hasRequiredService =
             family === "xiaomi"
               ? services.some((service) => XIAOMI_BLE_SERVICE_UUIDS.has(service.uuid.toLowerCase()))
@@ -853,7 +865,8 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
           let huamiLegacyProfile: HuamiLegacyProfile | null = null;
           let colmiRingProfile: ColmiRingProfile | null = null;
           let casioProfile: CasioProfile | null = null;
-          let pebbleProfile: PebbleProfile | null = null;
+          let pebblePeer: PebblePeer | null = null;
+          let pebbleSession: DurablePebbleSession | null = null;
           if (family === "xiaomi") {
             profile = await selectXiaomiProfile(
               discovered,
@@ -955,13 +968,33 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
               );
             }
             if (!casioProfile) throw new Error("CASIO_SERVICE_MISSING");
-          } else if (family === "pebble" && pebbleModel) {
-            pebbleProfile = await selectPebbleProfile(
-              discovered,
-              services.map((service) => service.uuid),
-              pebbleModel,
-            );
-            if (!pebbleProfile) throw new Error("PEBBLE_PPOGATT_MISSING");
+          } else if (family === "pebble") {
+            // Pairing, PPoGATT readiness and firmware identity only; history is
+            // requested later, by the sync action, with a durable sink.
+            const prepareAbort = new AbortController();
+            pebblePrepareAbort = prepareAbort;
+            pebbleSession = (deps.createPebbleSession ?? createDurablePebbleSession)({
+              device: discovered,
+              // The scanned peripheral id: Android MAC address, iOS UUID.
+              nativeId: deviceId,
+              advertisedName: knownDevice.name,
+              bondAdapter: (deps.pebbleBondAdapter ?? loadPebbleBondAdapter)(),
+              ...(deps.pebblePrepareTimeoutMs !== undefined
+                ? { prepareTimeoutMs: deps.pebblePrepareTimeoutMs }
+                : {}),
+            });
+            try {
+              pebblePeer = await pebbleSession.prepare(prepareAbort.signal);
+            } catch (error) {
+              await pebbleSession.close().catch(() => undefined);
+              throw error;
+            } finally {
+              if (pebblePrepareAbort === prepareAbort) pebblePrepareAbort = null;
+            }
+            if (current !== generation || disposed) {
+              await pebbleSession.close().catch(() => undefined);
+              return;
+            }
           }
           disconnectSubscription = r.manager.onDeviceDisconnected(discovered.id, () => {
             if (disposed || connected !== discovered || current !== generation) return;
@@ -995,6 +1028,10 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
             connectedCasioSession = null;
             void connectedPebbleSession?.close();
             connectedPebbleSession = null;
+            connectedPebblePeer = null;
+            // A finished Pebble capture ends the link itself; that is not an error.
+            const expectedDisconnect = pebbleCaptureEnding;
+            pebbleCaptureEnding = false;
             connectedLease = null;
             disconnectSubscription?.remove();
             disconnectSubscription = null;
@@ -1012,7 +1049,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
                 liveCapture: false,
                 historySync: false,
               }),
-              errorCode: "DEVICE_DISCONNECTED",
+              errorCode: expectedDisconnect ? null : "DEVICE_DISCONNECTED",
             });
           });
           connected = discovered;
@@ -1133,17 +1170,10 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
             });
             connectedCasioSession.start();
           }
-          if (pebbleProfile && deps.onHistorySample) {
+          if (pebbleSession && pebblePeer) {
             void connectedPebbleSession?.close();
-            // The three BLE models push their queued health data on connection;
-            // `fetchSteps` only awaits the session so its records commit inside
-            // the sync action's authority window.
-            connectedPebbleSession = createPebbleSession({
-              device: discovered,
-              profile: pebbleProfile,
-              onRecord: deps.onHistorySample,
-            });
-            connectedPebbleSession.start();
+            connectedPebbleSession = pebbleSession;
+            connectedPebblePeer = pebblePeer;
           }
           if (huaweiProfile && huaweiModel?.sync && deps.onHistorySample) {
             void connectedHuaweiSession?.close();
@@ -1161,7 +1191,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
           publish({
             phase: "connected",
             connectedDeviceId: deviceId,
-            connectedModelId: model.id,
+            connectedModelId: pebblePeer ? pebblePeer.identity.modelId : model!.id,
             connectedFamily: family,
             capabilities: Object.freeze({
               stepsHistory:
@@ -1170,7 +1200,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
                 family === "fitpro" ||
                 family === "huami_legacy" ||
                 (family === "casio" && casioProfile?.source !== null) ||
-                (family === "pebble" && pebbleProfile !== null) ||
+                (family === "pebble" && pebblePeer !== null) ||
                 (family === "huawei" && huaweiModel?.sync === true) ||
                 (family === "garmin" && garminModel?.sync === true),
               liveCapture: family === "ble_gatt" || family === "ble_scale",
@@ -1182,7 +1212,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
                 family === "gloryfit" ||
                 family === "huami_legacy" ||
                 (family === "casio" && casioProfile?.source !== null) ||
-                (family === "pebble" && pebbleProfile !== null) ||
+                (family === "pebble" && pebblePeer !== null) ||
                 (family === "huawei" && huaweiModel?.sync === true) ||
                 (family === "garmin" && garminModel?.sync === true),
             }),
@@ -1268,8 +1298,12 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
       connectedHuaweiSession = null;
       void connectedCasioSession?.close();
       connectedCasioSession = null;
+      pebblePrepareAbort?.abort();
+      pebblePrepareAbort = null;
+      pebbleCaptureEnding = false;
       void connectedPebbleSession?.close();
       connectedPebbleSession = null;
+      connectedPebblePeer = null;
       connectionAttempt = null;
       connectingLease = null;
       connectedLease = null;
@@ -1319,6 +1353,31 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
           publish({ crypto: Object.freeze({ status: "unavailable", code: "CRYPTO_UNAVAILABLE" }) });
       }
     },
+    getPebblePeer() {
+      return connected && connectedFamily === "pebble" ? connectedPebblePeer : null;
+    },
+    async capturePebble(options) {
+      const session = connectedPebbleSession;
+      if (!connected || connectedFamily !== "pebble" || !session || !connectedPebblePeer)
+        return Object.freeze({ status: "failed", code: "PEBBLE_NOT_CONNECTED" } as const);
+      // The transport ends the link at every terminal outcome; mark that
+      // disconnect as expected so it is not reported as a dropped connection.
+      pebbleCaptureEnding = true;
+      let outcome: PebbleSessionOutcome;
+      try {
+        outcome = await session.capture(options);
+      } catch {
+        outcome = Object.freeze({ status: "failed", code: "PEBBLE_CAPTURE_FAILED" } as const);
+      }
+      // "cancelled" the caller did not ask for is a dropped link (the
+      // disconnect handler closes the session), not a user cancel.
+      if (outcome.status === "cancelled" && !options.signal.aborted)
+        outcome = Object.freeze({ status: "failed", code: "PEBBLE_LINK_LOST" } as const);
+      // Settle setup state (lease, handles, snapshot) before the caller
+      // publishes its result, so a late link event cannot overwrite it.
+      if (connectedPebbleSession === session) await controller.disconnect();
+      return outcome;
+    },
     async fetchSteps(options) {
       if (disposed) throw new Error("CANCELLED");
       if (!connected) throw new Error("NOT_CONNECTED");
@@ -1356,7 +1415,8 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
       // GloryFit watches also sync on connection through their own session.
       if (connectedFamily === "gloryfit") throw new Error("GLORYFIT_HISTORY_UNSUPPORTED");
       // Protect against stale/manually constructed connected state too.
-      if (connectedFamily === "pebble") pebbleCaptureUnavailable();
+      // Pebble history goes through `capturePebble` with a durable sink.
+      if (connectedFamily === "pebble") throw new Error("PEBBLE_USE_DURABLE_CAPTURE");
       // Casio client-role models fetch their hourly step buckets on connection;
       // the sync action only awaits that fetch.
       if (connectedFamily === "casio") {
@@ -1530,8 +1590,12 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
       connectedHuaweiSession = null;
       void connectedCasioSession?.close();
       connectedCasioSession = null;
+      pebblePrepareAbort?.abort();
+      pebblePrepareAbort = null;
+      pebbleCaptureEnding = false;
       void connectedPebbleSession?.close();
       connectedPebbleSession = null;
+      connectedPebblePeer = null;
       connectionAttempt = null;
       connectingLease = null;
       connectedLease = null;
@@ -1645,8 +1709,10 @@ function bluetoothErrorCode(state: State): string {
 function errorCode(error: unknown): string {
   return error instanceof Error ? error.message : "";
 }
-function pebbleCaptureUnavailable(): never {
-  throw new Error("PEBBLE_CAPTURE_UNAVAILABLE");
+function loadPebbleBondAdapter(): PebbleBondAdapter {
+  // Lazy: the local Expo module is only required on a real Pebble connect.
+  return (require("../../../modules/pebble-bond") as typeof import("../../../modules/pebble-bond"))
+    .pebbleBondAdapter;
 }
 function safeCode(error: unknown): string {
   const code = errorCode(error);
@@ -1654,6 +1720,27 @@ function safeCode(error: unknown): string {
 }
 const SAFE_CODES = new Set([
   "PEBBLE_CAPTURE_UNAVAILABLE",
+  "PEBBLE_SERVICE_MISSING",
+  "PEBBLE_PPOGATT_MISSING",
+  "PEBBLE_NOT_CONNECTED",
+  "PEBBLE_CONNECTIVITY_STALE",
+  "PEBBLE_CONNECTIVITY_INCONSISTENT",
+  "PEBBLE_PAIRING_UNSUPPORTED",
+  "PEBBLE_PAIRING_INCOMPLETE",
+  "PEBBLE_PAIRING_TIMEOUT",
+  "PEBBLE_PAIRING_FAILED",
+  "PEBBLE_PAIRING_BUSY",
+  "PEBBLE_PAIRING_CANCELLED",
+  "PEBBLE_PAIRING_INVALID_DEVICE",
+  "PEBBLE_PAIRING_PERMISSION",
+  "PEBBLE_PAIRING_UNAVAILABLE",
+  "PEBBLE_PAIRING_INVALID_STATE",
+  "PEBBLE_PREPARE_TIMEOUT",
+  "PEBBLE_MONITOR_FAILED",
+  "PEBBLE_WRITE_FAILED",
+  "PEBBLE_IDENTITY_UNSUPPORTED",
+  "PEBBLE_IDENTITY_CONFLICT",
+  "PEBBLE_LINK_LOST",
   "UNSUPPORTED",
   "PERMISSION_DENIED",
   "CANCELLED",

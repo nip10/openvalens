@@ -1089,10 +1089,16 @@ export class DurablePebbleTransport implements DurablePebbleSession {
         let receipt;
         try {
           receipt = await this.captureSink!(packet);
-        } catch {
+        } catch (error) {
           // Storage failure: no reply at all (safe whatever the watch does
           // with a NACK), then disconnect. The packet stays on the watch.
-          this.finish({ status: "failed", code: "PEBBLE_PERSISTENCE_FAILED" });
+          this.finish({
+            status: "failed",
+            code:
+              error instanceof Error && error.message === "PEBBLE_INBOX_FULL"
+                ? "PEBBLE_INBOX_FULL"
+                : "PEBBLE_PERSISTENCE_FAILED",
+          });
           return;
         }
         if (!receipt.durable) {

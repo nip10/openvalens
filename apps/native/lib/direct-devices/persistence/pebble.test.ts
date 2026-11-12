@@ -328,7 +328,11 @@ test("a held sleep split does not block publication of later nights", () => {
   const start = 1_700_000_000;
   store.appendPebblePacket(ticket, target(), packet(84, overlay(1, start, 600)));
   projectPebbleCapture({ store, ticket, deviceId, identity });
-  const original = store.readPebbleProjection(ticket, deviceId, "sleep").manifest;
+  const nights = () =>
+    store
+      .readPebbleProjection(ticket, deviceId, "sleep")
+      .manifest.filter((entry) => !entry.recordId.endsWith(":sleep-settled"));
+  const original = nights();
   expect(original).toHaveLength(1);
   // An activity overlay splits the published session in two: held.
   store.appendPebblePacket(
@@ -342,7 +346,7 @@ test("a held sleep split does not block publication of later nights", () => {
   store.appendPebblePacket(ticket, target(), packet(84, overlay(1, nextNight, 600), nextNight));
   const projected = projectPebbleCapture({ store, ticket, deviceId, identity });
   expect(projected.sleepHeld).toBe(1);
-  const manifest = store.readPebbleProjection(ticket, deviceId, "sleep").manifest;
+  const manifest = nights();
   expect(manifest.map((entry) => entry.recordId)).toEqual([
     original[0]!.recordId,
     `dd-pebble:${deviceId}:sleep:${nextNight}`,
@@ -574,7 +578,10 @@ test("nights older than the settle horizon are compacted and leave the manifest"
   // Only the recent night's input remains, and only it is tracked.
   expect(store.readPebbleItems(ticket, deviceId).map((item) => item.logTag)).toEqual([84]);
   expect(
-    store.readPebbleProjection(ticket, deviceId, "sleep").manifest.map((entry) => entry.recordId),
+    store
+      .readPebbleProjection(ticket, deviceId, "sleep")
+      .manifest.map((entry) => entry.recordId)
+      .filter((id) => !id.endsWith(":sleep-settled")),
   ).toEqual([`dd-pebble:${deviceId}:sleep:${recent}`]);
   // The old night was published before it settled; nothing disappears or is held later.
   const published = store
@@ -588,5 +595,30 @@ test("nights older than the settle horizon are compacted and leave the manifest"
     packet(84, overlay(1, recent + 86_400, 600), recent + 9),
   );
   expect(projectPebbleCapture({ store, ticket, deviceId, identity }).sleepHeld).toBe(0);
+  db.close();
+});
+
+test("a late sleep bound for a settled night is held, never published as a second record", () => {
+  const { store, ticket, db } = open();
+  const old = 1_700_000_000;
+  store.appendPebblePacket(ticket, target(), packet(84, overlay(1, old + 600, 1_200)));
+  projectPebbleCapture({ store, ticket, deviceId, identity });
+  // More than the settle horizon of newer data: the old night settles.
+  const recent = old + 20 * 86_400;
+  store.appendPebblePacket(ticket, target(), packet(84, overlay(1, recent, 600), recent));
+  projectPebbleCapture({ store, ticket, deviceId, identity });
+  const published = () =>
+    store
+      .listPending(ticket, 100)
+      .filter((row) => row.request.batch.recordType === "sleep_session")
+      .flatMap((row) => row.request.batch.upserts.map((record) => record.externalRecordId));
+  const before = published();
+  expect(before).toContain(`dd-pebble:${deviceId}:sleep:${old + 600}`);
+  // The old night's tag-83 bound finally arrives.
+  store.appendPebblePacket(ticket, target(), packet(83, bounds(old, old + 3_600), old + 5));
+  const projected = projectPebbleCapture({ store, ticket, deviceId, identity });
+  expect(projected.sleepHeld).toBe(1);
+  expect(published()).toEqual(before);
+  expect(published()).not.toContain(`dd-pebble:${deviceId}:sleep:${old}`);
   db.close();
 });

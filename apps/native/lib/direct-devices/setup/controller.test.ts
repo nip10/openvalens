@@ -3,6 +3,7 @@ import { DIRECT_DEVICE_MODELS } from "../../../../../packages/health-record/src/
 import type { Device, State, Subscription } from "react-native-ble-plx";
 
 import { createHelioSetupController } from "./controller";
+import type { PebblePacketSink, PebblePeer, PebbleSessionOutcome } from "../pebble-types";
 import { BLE_GATT_MODELS } from "../models/ble-gatt";
 import { BANGLE_JS_MODELS } from "../models/bangle-js";
 import { BANGLE_JS_RX_UUID, BANGLE_JS_SERVICE_UUID, BANGLE_JS_TX_UUID } from "../models/bangle-js";
@@ -173,6 +174,11 @@ function fixture(
       options: HelioHistoryOptions,
     ) => XiaomiHistoryTransport;
     onHistorySample?: (sample: import("./types").DirectDeviceHistorySample) => void;
+    createPebbleSession?: Parameters<typeof createHelioSetupController>[0] extends infer D
+      ? D extends { createPebbleSession?: infer C }
+        ? C
+        : never
+      : never;
   } = {},
 ) {
   let scanCallback: ((error: unknown, device: Device | null) => void) | undefined;
@@ -274,6 +280,12 @@ function fixture(
     cryptoTest: options.cryptoTest,
     xiaomiHistoryTransport: options.xiaomiHistoryTransport,
     onHistorySample: options.onHistorySample,
+    createPebbleSession: options.createPebbleSession,
+    pebbleBondAdapter: () => ({
+      getState: async () => "bonded",
+      ensureBonded: async () => undefined,
+      cancelWait: async () => undefined,
+    }),
   });
   return {
     controller,
@@ -295,7 +307,50 @@ function fixture(
   };
 }
 
-test("every Pebble connect attempt is rejected before BLE connect or health writes", async () => {
+const PEBBLE_SERVICES = async () => [
+  { uuid: "0000fed9-0000-1000-8000-00805f9b34fb" },
+  { uuid: "30000003-328e-0fbb-c642-1aa6699bdada" },
+];
+
+function fakePebbleSessions(
+  prepare: (signal: AbortSignal) => Promise<PebblePeer> = async () => ({
+    nativeId: "local-id",
+    hardwareId: 15,
+    identity: { family: "pebble", modelId: "pebble_2_duo" },
+  }),
+) {
+  const calls: { nativeId: string; advertisedName?: string | null }[] = [];
+  let closes = 0;
+  let capture: (options: {
+    signal: AbortSignal;
+    sink: PebblePacketSink;
+  }) => Promise<PebbleSessionOutcome> = async () => ({
+    status: "idle",
+    receivedPackets: 0,
+    durableItems: 0,
+    rejectedPackets: 0,
+  });
+  const factory = ((options: { nativeId: string; advertisedName?: string | null }) => {
+    calls.push({ nativeId: options.nativeId, advertisedName: options.advertisedName });
+    return {
+      prepare,
+      capture: (args: { signal: AbortSignal; sink: PebblePacketSink }) => capture(args),
+      close: async () => {
+        closes += 1;
+      },
+    };
+  }) as never;
+  return {
+    factory,
+    calls,
+    closes: () => closes,
+    setCapture(next: typeof capture) {
+      capture = next;
+    },
+  };
+}
+
+test("every Pebble-shaped name connects only through the durable prepare; the model comes from firmware", async () => {
   const names = [
     "Pebble",
     "Pebble Steel",
@@ -306,14 +361,12 @@ test("every Pebble connect attempt is rejected before BLE connect or health writ
     "Pebble 2D0A",
   ];
   for (const deviceName of names) {
-    let transportStarts = 0;
     let healthWrites = 0;
+    const sessions = fakePebbleSessions();
     const f = fixture({
       deviceName,
-      connect: async () => {
-        transportStarts += 1;
-        throw new Error("transport must not start");
-      },
+      services: PEBBLE_SERVICES,
+      createPebbleSession: sessions.factory,
       onHistorySample: () => {
         healthWrites += 1;
       },
@@ -326,13 +379,107 @@ test("every Pebble connect attempt is rejected before BLE connect or health writ
     if (/^Pebble [0-9A-F]{4}$/.test(deviceName))
       expect(listed?.modelId, deviceName).toBeUndefined();
     await f.controller.connect("local-id");
-    expect(f.controller.getSnapshot().errorCode, deviceName).toBe("PEBBLE_CAPTURE_UNAVAILABLE");
-    expect(f.controller.getSnapshot().phase, deviceName).toBe("error");
-    expect(transportStarts, deviceName).toBe(0);
+    const snapshot = f.controller.getSnapshot();
+    // Release the module-wide device lease even if an assertion below fails.
+    if (snapshot.phase !== "connected") await f.controller.dispose();
+    expect(sessions.calls, deviceName).toEqual([
+      { nativeId: "local-id", advertisedName: deviceName },
+    ]);
+    expect(snapshot.phase, deviceName).toBe("connected");
+    expect(snapshot.connectedFamily, deviceName).toBe("pebble");
+    expect(snapshot.connectedModelId, deviceName).toBe("pebble_2_duo");
+    expect(snapshot.capabilities, deviceName).toEqual({
+      stepsHistory: true,
+      liveCapture: false,
+      historySync: true,
+    });
+    expect(f.controller.getPebblePeer()?.hardwareId, deviceName).toBe(15);
+    // History never flows through the legacy sample callback or fetchSteps.
+    await expect(
+      f.controller.fetchSteps({ signal: new AbortController().signal } as never),
+    ).rejects.toThrow("PEBBLE_USE_DURABLE_CAPTURE");
     expect(healthWrites, deviceName).toBe(0);
-    expect(f.controller.getSnapshot().connectedDeviceId, deviceName).toBeNull();
     await f.controller.dispose();
+    expect(sessions.closes(), deviceName).toBeGreaterThan(0);
   }
+});
+
+test("a refused Pebble prepare surfaces its code and leaves nothing connected", async () => {
+  const sessions = fakePebbleSessions(async () => {
+    throw new Error("PEBBLE_IDENTITY_UNSUPPORTED");
+  });
+  const f = fixture({
+    deviceName: "Pebble 1A2B",
+    services: PEBBLE_SERVICES,
+    createPebbleSession: sessions.factory,
+  });
+  await f.controller.startScan();
+  f.emit();
+  await f.controller.connect("local-id");
+  const snapshot = f.controller.getSnapshot();
+  expect(snapshot.phase).toBe("error");
+  expect(snapshot.errorCode).toBe("PEBBLE_IDENTITY_UNSUPPORTED");
+  expect(snapshot.connectedDeviceId).toBeNull();
+  expect(f.controller.getPebblePeer()).toBeNull();
+  expect(sessions.closes()).toBe(1);
+  await expect(
+    f.controller.capturePebble({
+      signal: new AbortController().signal,
+      sink: async () => ({ durable: true, insertedItems: 0, throughSeq: 0 }),
+    }),
+  ).resolves.toEqual({ status: "failed", code: "PEBBLE_NOT_CONNECTED" });
+  await f.controller.dispose();
+});
+
+test("a Pebble without the pairing service never reaches prepare", async () => {
+  const sessions = fakePebbleSessions();
+  const f = fixture({ deviceName: "Pebble 1A2B", createPebbleSession: sessions.factory });
+  await f.controller.startScan();
+  f.emit();
+  await f.controller.connect("local-id");
+  expect(f.controller.getSnapshot().errorCode).toBe("PEBBLE_SERVICE_MISSING");
+  expect(sessions.calls).toHaveLength(0);
+  await f.controller.dispose();
+});
+
+test("capturePebble forwards the sink, and its own link teardown is not reported as a drop", async () => {
+  const sessions = fakePebbleSessions();
+  const f = fixture({
+    deviceName: "Pebble 1A2B",
+    services: PEBBLE_SERVICES,
+    createPebbleSession: sessions.factory,
+  });
+  await f.controller.startScan();
+  f.emit();
+  await f.controller.connect("local-id");
+  const receipts: unknown[] = [];
+  sessions.setCapture(async ({ sink }) => {
+    receipts.push(
+      await sink({
+        uuid: "00000000-0000-0000-0000-000000000000",
+        sessionTimestamp: 1,
+        logTag: 81,
+        itemType: 0,
+        itemSize: 1,
+        data: Uint8Array.of(1),
+      }),
+    );
+    // The transport ends the link at its terminal outcome.
+    f.disconnect();
+    return { status: "idle", receivedPackets: 1, durableItems: 1, rejectedPackets: 0 };
+  });
+  const outcome = await f.controller.capturePebble({
+    signal: new AbortController().signal,
+    sink: async () => ({ durable: true, insertedItems: 1, throughSeq: 7 }),
+  });
+  expect(outcome).toMatchObject({ status: "idle", receivedPackets: 1 });
+  expect(receipts).toEqual([{ durable: true, insertedItems: 1, throughSeq: 7 }]);
+  const snapshot = f.controller.getSnapshot();
+  expect(snapshot.phase).toBe("idle");
+  expect(snapshot.errorCode).toBeNull();
+  expect(snapshot.connectedDeviceId).toBeNull();
+  expect(f.controller.getPebblePeer()).toBeNull();
+  await f.controller.dispose();
 });
 
 test("factory is inert; real injected Android runtime asks both Android 12 permissions", async () => {
@@ -1670,5 +1817,25 @@ test("discovers a PineTime as a live heart-rate sensor", async () => {
     connectedFamily: "ble_gatt",
     capabilities: { stepsHistory: false, liveCapture: true, historySync: false },
   });
+  await f.controller.dispose();
+});
+
+test("a capture that ends cancelled without the caller aborting is reported as a lost link", async () => {
+  const sessions = fakePebbleSessions();
+  const f = fixture({
+    deviceName: "Pebble 1A2B",
+    services: PEBBLE_SERVICES,
+    createPebbleSession: sessions.factory,
+  });
+  await f.controller.startScan();
+  f.emit();
+  await f.controller.connect("local-id");
+  sessions.setCapture(async () => ({ status: "cancelled" }));
+  await expect(
+    f.controller.capturePebble({
+      signal: new AbortController().signal,
+      sink: async () => ({ durable: true, insertedItems: 0, throughSeq: 0 }),
+    }),
+  ).resolves.toEqual({ status: "failed", code: "PEBBLE_LINK_LOST" });
   await f.controller.dispose();
 });

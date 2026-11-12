@@ -6273,8 +6273,8 @@ msgid "Experimental"
 msgstr "Experimental"
 
 #: apps/native/components/direct-device-settings.tsx
-msgid "Experimental direct Bluetooth support for several kinds of devices. Zepp OS and Xiaomi devices sync step history in the foreground. BLE GATT health sensors (heart rate, blood pressure, temperature) record live while connected, and a PineTime running InfiniTime reports live heart rate the same way. Bluetooth smart scales record weight live, and some also report stored measurements on connection. Colmi and Yawell smart rings sync stored step, heart-rate and sleep history on connection. Bangle.js watches sync stored step and heart-rate history on connection and keep reporting live heart rate. Moyoung/Da Fit watches sync stored heart-rate and sleep history on connection; they report steps as daily totals only, so steps are not synced. FitPro bands sync 15-minute step buckets, staged sleep and realtime heart rate on connection. GloryFit watches sync stored step, heart-rate and sleep history on connection. Legacy Huami (Amazfit/Mi Band) watches sync exact-minute steps, heart rate and sleep when you enter their 16-byte key. Huawei/Honor BLE bands and watches sync exact-minute steps, heart rate and sleep automatically; their Bluetooth-Classic models and Garmin support connection checks only. Pebble discovery remains available, but capture is temporarily unavailable while pairing and safe history storage are completed. Pebble Time, Time Steel and Time Round have LE companions upstream, but those companions are not implemented here; Classic and Steel models have no built-in health data. No hardware verification has been done. No vendor login is requested."
-msgstr "Suporte direto experimental por Bluetooth para vários tipos de dispositivos. Os dispositivos Zepp OS e Xiaomi sincronizam o histórico de passos em primeiro plano. Os sensores de saúde BLE GATT (frequência cardíaca, tensão arterial, temperatura) registam em direto enquanto ligados, e um PineTime com InfiniTime reporta a frequência cardíaca em direto da mesma forma. As balanças Bluetooth registam o peso em direto, e algumas também reportam medições guardadas ao ligar. Os anéis inteligentes Colmi e Yawell sincronizam o histórico guardado de passos, frequência cardíaca e sono ao ligar. Os relógios Bangle.js sincronizam o histórico guardado de passos e frequência cardíaca ao ligar e continuam a reportar a frequência cardíaca em direto. Os relógios Moyoung/Da Fit sincronizam o histórico guardado de frequência cardíaca e sono ao ligar; reportam os passos apenas como totais diários, por isso os passos não são sincronizados. As pulseiras FitPro sincronizam intervalos de passos de 15 minutos, sono por fases e frequência cardíaca em tempo real ao ligar. Os relógios GloryFit sincronizam o histórico guardado de passos, frequência cardíaca e sono ao ligar. Os relógios Huami antigos (Amazfit/Mi Band) sincronizam passos minuto a minuto, frequência cardíaca e sono quando introduz a chave de 16 bytes. As pulseiras e relógios Huawei/Honor BLE sincronizam automaticamente passos minuto a minuto, frequência cardíaca e sono; os modelos Bluetooth Classic e os dispositivos Garmin permitem apenas verificar a ligação. A descoberta de dispositivos Pebble continua disponível, mas a captura está temporariamente indisponível enquanto o emparelhamento e o armazenamento seguro do histórico são concluídos. Pebble Time, Time Steel e Time Round têm modelos complementares LE a montante, mas estes não estão implementados aqui; os modelos Classic e Steel não têm dados de saúde integrados. Não foi feito qualquer teste em hardware. Não é pedida uma conta do fabricante."
+msgid "Experimental direct Bluetooth support for several kinds of devices. Zepp OS and Xiaomi devices sync step history in the foreground. BLE GATT health sensors (heart rate, blood pressure, temperature) record live while connected, and a PineTime running InfiniTime reports live heart rate the same way. Bluetooth smart scales record weight live, and some also report stored measurements on connection. Colmi and Yawell smart rings sync stored step, heart-rate and sleep history on connection. Bangle.js watches sync stored step and heart-rate history on connection and keep reporting live heart rate. Moyoung/Da Fit watches sync stored heart-rate and sleep history on connection; they report steps as daily totals only, so steps are not synced. FitPro bands sync 15-minute step buckets, staged sleep and realtime heart rate on connection. GloryFit watches sync stored step, heart-rate and sleep history on connection. Legacy Huami (Amazfit/Mi Band) watches sync exact-minute steps, heart rate and sleep when you enter their 16-byte key. Huawei/Honor BLE bands and watches sync exact-minute steps, heart rate and sleep automatically; their Bluetooth-Classic models support connection checks only. Garmin wearables sync exact-minute steps, heart rate and sleep from FIT files; other Garmin devices support connection checks only. Pebble Classic 2, Pebble 2 Duo and Pebble Time 2 sync stored steps, sleep and heart rate (the 2 Duo has no heart-rate sensor) when you tap “Sync steps”; on iPhone the watch must already be paired. Older Pebble models talk over Bluetooth Classic, which is not implemented here. No hardware verification has been done. No vendor login is requested."
+msgstr "Suporte direto experimental por Bluetooth para vários tipos de dispositivos. Os dispositivos Zepp OS e Xiaomi sincronizam o histórico de passos em primeiro plano. Os sensores de saúde BLE GATT (frequência cardíaca, tensão arterial, temperatura) registam em direto enquanto ligados, e um PineTime com InfiniTime reporta a frequência cardíaca em direto da mesma forma. As balanças Bluetooth registam o peso em direto, e algumas também reportam medições guardadas ao ligar. Os anéis inteligentes Colmi e Yawell sincronizam o histórico guardado de passos, frequência cardíaca e sono ao ligar. Os relógios Bangle.js sincronizam o histórico guardado de passos e frequência cardíaca ao ligar e continuam a reportar a frequência cardíaca em direto. Os relógios Moyoung/Da Fit sincronizam o histórico guardado de frequência cardíaca e sono ao ligar; reportam os passos apenas como totais diários, por isso os passos não são sincronizados. As pulseiras FitPro sincronizam intervalos de passos de 15 minutos, sono por fases e frequência cardíaca em tempo real ao ligar. Os relógios GloryFit sincronizam o histórico guardado de passos, frequência cardíaca e sono ao ligar. Os relógios Huami antigos (Amazfit/Mi Band) sincronizam passos minuto a minuto, frequência cardíaca e sono quando introduz a chave de 16 bytes. As pulseiras e relógios Huawei/Honor BLE sincronizam automaticamente passos minuto a minuto, frequência cardíaca e sono; os modelos Bluetooth Classic permitem apenas verificar a ligação. Os wearables Garmin sincronizam passos minuto a minuto, frequência cardíaca e sono a partir de ficheiros FIT; os outros dispositivos Garmin permitem apenas verificar a ligação. Os Pebble Classic 2, Pebble 2 Duo e Pebble Time 2 sincronizam passos, sono e frequência cardíaca guardados (o 2 Duo não tem sensor de frequência cardíaca) quando toca em “Sincronizar passos”; no iPhone, o relógio tem de estar já emparelhado. Os modelos Pebble mais antigos comunicam por Bluetooth Classic, que não está implementado aqui. Não foi feito qualquer teste em hardware. Não é pedida uma conta do fabricante."
 
 #: packages/api/src/presenters/energy-estimate.ts
 msgid "Experimental estimate: not a target or a measure of what you ate."
@@ -10116,6 +10116,10 @@ msgstr "Não mostrados para si"
 msgid "Not started"
 msgstr "Não iniciado"
 
+#: apps/native/components/direct-device-settings.tsx
+msgid "Not supported: this Pebble talks to phones over Bluetooth Classic, which this Bluetooth LE stack does not implement. Not hardware-verified."
+msgstr "Não suportado: este Pebble comunica com telemóveis por Bluetooth Classic, que esta stack Bluetooth LE não implementa. Não verificado em hardware."
+
 #: packages/api/src/presenters/food-draft.ts
 msgid "Not sure what this is"
 msgstr "Não é claro o que é"
@@ -10945,8 +10949,8 @@ msgid "Payment failed"
 msgstr "Pagamento falhou"
 
 #: apps/native/components/direct-device-settings.tsx
-msgid "Pebble capture is temporarily unavailable while pairing and safe history storage are completed. Not hardware-verified."
-msgstr "A captura do Pebble está temporariamente indisponível enquanto o emparelhamento e o armazenamento seguro do histórico são concluídos. Não verificado em hardware."
+msgid "Pebble health history (steps, sleep and heart rate) downloads when you tap “Sync steps”. Each record is saved on this phone before the watch is told it can delete it, then uploaded. The watch disconnects when the sync ends; reconnect to sync again."
+msgstr "O histórico de saúde do Pebble (passos, sono e frequência cardíaca) é descarregado quando toca em “Sincronizar passos”. Cada registo é guardado neste telemóvel antes de o relógio ser informado de que o pode apagar, e depois é enviado. O relógio desliga-se quando a sincronização termina; volte a ligar para sincronizar novamente."
 
 #: apps/native/app/(drawer)/sharing.tsx
 #: apps/web/src/routes/_auth/sharing.tsx
@@ -12630,6 +12634,10 @@ msgstr "Guardar"
 msgid "Save a binding for this device to sync its legacy Huami history."
 msgstr "Guarde uma associação para este dispositivo para sincronizar o seu histórico Huami legado."
 
+#: apps/native/components/direct-device-settings.tsx
+msgid "Save a binding for this watch to sync its Pebble health history."
+msgstr "Guarde uma associação para este relógio para sincronizar o seu histórico de saúde Pebble."
+
 #: apps/native/components/training-home.tsx
 msgid "Save a routine to start it here in one tap."
 msgstr "Guarde uma rotina para a iniciar aqui com um toque."
@@ -14038,6 +14046,10 @@ msgstr "Passos / dia ativo"
 #: packages/api/src/presenters/modules.ts
 msgid "Steps, sessions, effort"
 msgstr "Passos, sessões, esforço"
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "Steps, sleep and (where the watch has a sensor) heart rate sync when you tap “Sync steps”; each record is saved on the phone before the watch may delete it. Not hardware-verified."
+msgstr "Os passos, o sono e (quando o relógio tem sensor) a frequência cardíaca sincronizam quando toca em “Sincronizar passos”; cada registo é guardado no telemóvel antes de o relógio o poder apagar. Não verificado em hardware."
 
 #. placeholder {0}: c.stepDays
 #: packages/api/src/presenters/activity-load.ts

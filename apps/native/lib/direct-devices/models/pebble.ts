@@ -131,9 +131,13 @@ export type PebbleModel = Readonly<{
   hardwareIds: readonly number[];
   /** Codename prefixes from `PebbleHardware.Platform`. */
   codenamePrefixes: readonly string[];
-  /** Record kinds currently advertised for capture (empty while gated). */
+  /**
+   * Record kinds captured through the durable Pebble path: steps and sleep for
+   * the three BLE models, plus heart rate where the model has an HRM. Empty
+   * for Classic-mode generations, which this BLE-only stack cannot reach.
+   */
   records: readonly PebbleRecordType[];
-  /** True when the model syncs stored history on connection. */
+  /** True for the BLE models, whose health data log is captured on sync. */
   sync: boolean;
   /** Services the upstream support subscribes to or writes. */
   serviceUuids: readonly string[];
@@ -298,8 +302,13 @@ export const PEBBLE_MODELS: readonly PebbleModel[] = DEFINITIONS.map((definition
   bleNamePatterns: definition.patterns,
   hardwareIds: definition.hardwareIds,
   codenamePrefixes: definition.codenamePrefixes,
-  records: NO_RECORDS,
-  sync: false,
+  records:
+    definition.bleOnly && definition.hasHealth
+      ? definition.hasHrm
+        ? (["steps", "sleep_session", "heart_rate"] as const)
+        : (["steps", "sleep_session"] as const)
+      : NO_RECORDS,
+  sync: definition.bleOnly && definition.hasHealth,
   serviceUuids: definition.bleOnly ? BLE_SERVICES : NO_SERVICES,
   sourceFiles: [...(definition.extraSourceFiles ?? []), ...SHARED_SOURCE_FILES],
 }));

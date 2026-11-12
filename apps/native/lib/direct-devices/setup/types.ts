@@ -1,3 +1,4 @@
+import type { PebblePacketSink, PebblePeer, PebbleSessionOutcome } from "../pebble-types";
 import type { BleGattModelId } from "../models/ble-gatt";
 import type { BangleJsModelId } from "../models/bangle-js";
 import type { BleScaleModelId } from "../models/ble-scale";
@@ -119,5 +120,16 @@ export interface HelioSetupController {
   disconnect(): Promise<void>;
   runCryptoSelfTest(): Promise<void>;
   fetchSteps(options: HelioHistoryOptions): Promise<HelioHistoryResult>;
+  /** The firmware-verified peer of the connected Pebble, or null. */
+  getPebblePeer(): PebblePeer | null;
+  /**
+   * Runs one Pebble health capture into `sink`. Each packet is ACKed to the
+   * watch only after `sink` resolves with a durable receipt. The link closes
+   * when capture ends; reconnect for the next one.
+   */
+  capturePebble(options: {
+    signal: AbortSignal;
+    sink: PebblePacketSink;
+  }): Promise<PebbleSessionOutcome>;
   dispose(): Promise<void>;
 }

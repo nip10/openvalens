@@ -956,3 +956,19 @@ test("cancelling while the health-sync request is in flight leaves no capture ti
   await settle();
   expect(clock.pendingMs()).toEqual([]);
 });
+
+test("a full inbox is reported as PEBBLE_INBOX_FULL, not a generic storage failure", async () => {
+  const f = await preparedTransport(manualTimers().timers);
+  const capture = f.session.capture({
+    signal: new AbortController().signal,
+    sink: async () => {
+      throw new Error("PEBBLE_INBOX_FULL");
+    },
+  });
+  await settle();
+  openStepsSession(f.monitors, 40);
+  await settle();
+  sendSteps(f.monitors, 40);
+  await expect(capture).resolves.toEqual({ status: "failed", code: "PEBBLE_INBOX_FULL" });
+  expect(datalogReplies(f.writes, "ack")).toEqual([40]);
+});

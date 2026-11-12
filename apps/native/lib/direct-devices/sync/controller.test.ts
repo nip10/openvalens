@@ -11,6 +11,7 @@ import type {
 } from "@openvalens/api/contracts/direct-device";
 import {
   createAuthorityTicket,
+  directDeviceScopeKey,
   installDirectDeviceAuthority,
   invalidateDirectDeviceAuthority,
 } from "../authority";
@@ -34,6 +35,8 @@ import type { XiaomiCommand } from "../protocol/xiaomi-proto";
 import type { HelioCursor, HelioStepsPage } from "../protocol/types";
 import { weightMeasurementExternalRecordId } from "../protocol/ble-scale";
 import type { DirectDeviceConfirmationTarget, HelioSyncSnapshot } from "./types";
+import type { PebblePacket, PebblePeer } from "../pebble-types";
+import { pebbleOutcomeNotice } from "./controller";
 import {
   createHelioSyncControllerWithDependencies,
   immutableClient,
@@ -131,6 +134,8 @@ function setup(
     stepsHistory?: boolean;
     liveCapture?: boolean;
     historySync?: boolean;
+    pebblePeer?: PebblePeer | null;
+    capturePebble?: HelioSetupController["capturePebble"];
   } = {},
 ): MutableSetupController {
   const state: HelioSetupSnapshot = {
@@ -162,6 +167,9 @@ function setup(
     disconnect: async () => {},
     runCryptoSelfTest: async () => {},
     fetchSteps,
+    getPebblePeer: () => overrides.pebblePeer ?? null,
+    capturePebble:
+      overrides.capturePebble ?? (async () => ({ status: "failed", code: "PEBBLE_NOT_CONNECTED" })),
     dispose: async () => {},
     setSnapshot(snapshot) {
       Object.assign(state, snapshot);
@@ -2569,4 +2577,326 @@ test("Casio hourly bins are committed as a steps_interval batch", async () => {
   await controller.dispose();
   db.close();
   invalidateDirectDeviceAuthority();
+});
+
+const APPLIED = {
+  status: "applied",
+  rawArtifactId: 1,
+  accepted: 1,
+  duplicates: 0,
+  rejected: 0,
+  superseded: 0,
+  targetId: "target",
+};
+const PEBBLE_PEER: PebblePeer = {
+  nativeId: "native-1",
+  hardwareId: 14,
+  identity: { family: "pebble", modelId: "pebble_classic_2" },
+};
+
+function le32(value: number) {
+  return [value & 255, (value >>> 8) & 255, (value >>> 16) & 255, (value >>> 24) & 255];
+}
+/** Tag-81 v5 record carrying `counts.length` consecutive minute samples. */
+function pebbleSteps(timestamp: number, counts: readonly number[]): PebblePacket {
+  const record = Uint8Array.from([
+    5,
+    0,
+    ...le32(timestamp),
+    0,
+    6,
+    counts.length,
+    ...counts.flatMap((count) => [count, 0, 0, 0, 0, 0]),
+  ]);
+  return {
+    uuid: "00000000-0000-0000-0000-000000000000",
+    sessionTimestamp: timestamp,
+    logTag: 81,
+    itemType: 0,
+    itemSize: record.length,
+    data: record,
+  };
+}
+
+async function pebbleController(args: {
+  capturePebble: HelioSetupController["capturePebble"];
+  peer?: PebblePeer | null;
+  received?: IngestDirectDeviceBatchInput[];
+  /** Extra bindings the server still lists. */
+  alsoListed?: readonly DirectDeviceBindingSummary[];
+}) {
+  const { db, store } = sqlite();
+  const pebbleBinding: DirectDeviceBindingSummary = {
+    ...binding,
+    family: "pebble",
+    modelId: "pebble_classic_2",
+    displayName: "Pebble 2",
+  };
+  const ready = await readyController({
+    store,
+    setup: setup(async () => ({ pages: 0, minutes: 0, complete: true }), "pebble_classic_2", {
+      family: "pebble",
+      stepsHistory: true,
+      historySync: true,
+      pebblePeer: args.peer === undefined ? PEBBLE_PEER : args.peer,
+      capturePebble: args.capturePebble,
+    }),
+    localIdentity: { family: "pebble", modelId: "pebble_classic_2" } as DirectDeviceIdentity,
+    makeClient: () => ({
+      directDevice: {
+        listDirectDevices: async () => ({ devices: [pebbleBinding, ...(args.alsoListed ?? [])] }),
+        registerDirectDevice: async () => ({ providerConnectionId: 41 }),
+        ingestDirectDeviceBatch: async (input: unknown) => {
+          args.received?.push(input as IngestDirectDeviceBatchInput);
+          return APPLIED;
+        },
+      },
+    }),
+  });
+  await ready.controller.connect("native-1");
+  return { db, store, ...ready };
+}
+
+test("Pebble sync captures into the durable inbox, projects, compacts and uploads without a key", async () => {
+  const received: IngestDirectDeviceBatchInput[] = [];
+  const minute = Date.parse("2026-02-01T00:00:00.000Z") / 1000;
+  const receipts: unknown[] = [];
+  const { db, store, controller, ticket } = await pebbleController({
+    received,
+    capturePebble: async ({ sink }) => {
+      receipts.push(await sink(pebbleSteps(minute, [4, 9, 0])));
+      return { status: "idle", receivedPackets: 1, durableItems: 1, rejectedPackets: 0 };
+    },
+  });
+  expect(controller.getSnapshot().canSync).toBe(true);
+  await controller.syncSteps("");
+  const snapshot = controller.getSnapshot();
+  expect(snapshot.errorCode).toBeNull();
+  // Like every family, the closing binding refresh settles the phase to idle.
+  expect(snapshot.phase).toBe("idle");
+  expect(receipts).toEqual([{ durable: true, insertedItems: 1, throughSeq: 1 }]);
+  const steps = received.find((input) => input.batch.recordType === "steps")!;
+  expect(steps.batch.deviceIdentity).toEqual({ family: "pebble", modelId: "pebble_classic_2" });
+  expect(
+    steps.batch.upserts.map((record) => [
+      record.externalRecordId,
+      (record as { count: number }).count,
+    ]),
+  ).toEqual([
+    [`dd-pebble:${deviceId}:steps:${minute / 60}`, 4],
+    [`dd-pebble:${deviceId}:steps:${minute / 60 + 1}`, 9],
+    [`dd-pebble:${deviceId}:steps:${minute / 60 + 2}`, 0],
+  ]);
+  expect(store.readPebbleItems(ticket, deviceId)).toHaveLength(0);
+  expect(store.getBinding(ticket, deviceId)?.pebbleNativeId).toBe("native-1");
+  expect(store.countUnaccepted(ticket.scope)).toBe(0);
+  await controller.dispose();
+  db.close();
+});
+
+test("a failed Pebble capture still uploads what was durably received, then reports the failure", async () => {
+  const received: IngestDirectDeviceBatchInput[] = [];
+  const minute = Date.parse("2026-02-01T00:00:00.000Z") / 1000;
+  const { db, controller } = await pebbleController({
+    received,
+    capturePebble: async ({ sink }) => {
+      await sink(pebbleSteps(minute, [3]));
+      return { status: "failed", code: "PEBBLE_WRITE_FAILED" };
+    },
+  });
+  await controller.syncSteps("");
+  expect(controller.getSnapshot()).toMatchObject({
+    phase: "error",
+    errorCode: "PEBBLE_WRITE_FAILED",
+  });
+  expect(received.map((input) => input.batch.recordType)).toEqual(["steps"]);
+  await controller.dispose();
+  db.close();
+});
+
+test("a different physical Pebble cannot sync into a binding bound to another watch", async () => {
+  let captures = 0;
+  const { db, store, controller, ticket } = await pebbleController({
+    capturePebble: async () => {
+      captures += 1;
+      return { status: "idle", receivedPackets: 0, durableItems: 0, rejectedPackets: 0 };
+    },
+    peer: { ...PEBBLE_PEER, nativeId: "native-1" },
+  });
+  store.attachPebblePeripheral(ticket, deviceId, PEBBLE_PEER.identity, "some-other-watch");
+  await controller.syncSteps("");
+  expect(controller.getSnapshot()).toMatchObject({
+    phase: "error",
+    errorCode: "PEBBLE_NATIVE_ID_IMMUTABLE",
+  });
+  expect(captures).toBe(0);
+  await controller.dispose();
+  db.close();
+});
+
+test("a Pebble peer whose firmware model differs from the binding is refused before capture", async () => {
+  let captures = 0;
+  const { db, controller } = await pebbleController({
+    capturePebble: async () => {
+      captures += 1;
+      return { status: "idle", receivedPackets: 0, durableItems: 0, rejectedPackets: 0 };
+    },
+    peer: { ...PEBBLE_PEER, identity: { family: "pebble", modelId: "pebble_time_2" } },
+  });
+  await controller.syncSteps("");
+  expect(controller.getSnapshot()).toMatchObject({
+    phase: "error",
+    errorCode: "PEBBLE_PEER_MISMATCH",
+  });
+  expect(captures).toBe(0);
+  await controller.dispose();
+  db.close();
+});
+
+test("Pebble outcome notices separate soft results from real failures", () => {
+  const idle = { status: "idle", receivedPackets: 1, durableItems: 1, rejectedPackets: 0 } as const;
+  expect(pebbleOutcomeNotice(idle, 0)).toEqual({ code: null, hardFailure: false });
+  expect(pebbleOutcomeNotice({ ...idle, rejectedPackets: 2 }, 0)).toEqual({
+    code: "PEBBLE_SYNC_INCOMPLETE",
+    hardFailure: false,
+  });
+  expect(pebbleOutcomeNotice(idle, 1)).toEqual({
+    code: "PEBBLE_SLEEP_RECONCILIATION_REQUIRED",
+    hardFailure: false,
+  });
+  expect(pebbleOutcomeNotice({ status: "failed", code: "PEBBLE_CAPTURE_TIMEOUT" }, 0)).toEqual({
+    code: "PEBBLE_NO_DATA_OFFERED",
+    hardFailure: false,
+  });
+  expect(
+    pebbleOutcomeNotice(
+      {
+        status: "failed",
+        code: "PEBBLE_CAPTURE_STALLED",
+        receivedPackets: 3,
+        durableItems: 3,
+        rejectedPackets: 0,
+      },
+      0,
+    ),
+  ).toEqual({ code: "PEBBLE_SYNC_INCOMPLETE", hardFailure: false });
+  expect(
+    pebbleOutcomeNotice(
+      {
+        status: "failed",
+        code: "PEBBLE_CAPTURE_STALLED",
+        receivedPackets: 0,
+        durableItems: 0,
+        rejectedPackets: 0,
+      },
+      0,
+    ),
+  ).toEqual({ code: "PEBBLE_CAPTURE_STALLED", hardFailure: true });
+  expect(pebbleOutcomeNotice({ status: "failed", code: "lowercase oops" }, 0)).toEqual({
+    code: "PEBBLE_CAPTURE_FAILED",
+    hardFailure: true,
+  });
+});
+
+test("a cancelled Pebble capture still projects what the watch already handed over", async () => {
+  const minute = Date.parse("2026-02-01T00:00:00.000Z") / 1000;
+  const { db, store, controller, ticket } = await pebbleController({
+    capturePebble: async ({ sink }) => {
+      // ACKed to the watch (which may now delete it), then the user cancels.
+      await sink(pebbleSteps(minute, [5]));
+      return { status: "cancelled" };
+    },
+  });
+  await controller.syncSteps("");
+  expect(controller.getSnapshot().errorCode).toBe("CANCELLED");
+  // Not stranded in the inbox: it is an outbox envelope ready for upload.
+  expect(store.readPebbleItems(ticket, deviceId)).toHaveLength(0);
+  expect(store.countUnaccepted(ticket.scope)).toBe(1);
+  await controller.dispose();
+  db.close();
+});
+
+test("Pebble inbox items left by an interrupted sync are projected by retry upload", async () => {
+  const received: IngestDirectDeviceBatchInput[] = [];
+  const minute = Date.parse("2026-02-01T00:00:00.000Z") / 1000;
+  const { db, store, controller, ticket } = await pebbleController({
+    received,
+    capturePebble: async () => ({ status: "failed", code: "PEBBLE_NOT_CONNECTED" }),
+  });
+  store.attachPebblePeripheral(ticket, deviceId, PEBBLE_PEER.identity, PEBBLE_PEER.nativeId);
+  store.appendPebblePacket(
+    ticket,
+    { deviceId, identity: PEBBLE_PEER.identity, nativeId: PEBBLE_PEER.nativeId },
+    pebbleSteps(minute, [6]),
+  );
+  await controller.retryUpload();
+  expect(received.map((input) => input.batch.recordType)).toEqual(["steps"]);
+  expect(store.readPebbleItems(ticket, deviceId)).toHaveLength(0);
+  await controller.dispose();
+  db.close();
+});
+
+test("an unreadable inbox item is skipped instead of wedging every later Pebble sync", async () => {
+  const received: IngestDirectDeviceBatchInput[] = [];
+  const minute = Date.parse("2026-02-01T00:00:00.000Z") / 1000;
+  const { db, store, controller, ticket } = await pebbleController({
+    received,
+    capturePebble: async ({ sink }) => {
+      await sink(pebbleSteps(minute + 60, [7]));
+      return { status: "idle", receivedPackets: 1, durableItems: 1, rejectedPackets: 0 };
+    },
+  });
+  store.attachPebblePeripheral(ticket, deviceId, PEBBLE_PEER.identity, PEBBLE_PEER.nativeId);
+  // Simulates a row a stricter future parser can no longer read.
+  db.query(
+    "INSERT INTO direct_device_pebble_item(scope, device_id, log_tag, item_type, item_size, session_timestamp, raw_hex, created_at) VALUES (?, ?, 81, 0, 4, 1, 'ffffffff', 1)",
+  ).run(directDeviceScopeKey(ticket.scope), deviceId);
+  await controller.syncSteps("");
+  // Skipped, not silently: the user is told some records could not be read.
+  expect(controller.getSnapshot().errorCode).toBe("PEBBLE_UNREADABLE_SKIPPED");
+  const steps = received.filter((input) => input.batch.recordType === "steps");
+  expect(
+    steps.flatMap((input) => input.batch.upserts.map((record) => record.externalRecordId)),
+  ).toEqual([`dd-pebble:${deviceId}:steps:${minute / 60 + 1}`]);
+  expect(store.readPebbleItems(ticket, deviceId)).toHaveLength(0);
+  await controller.dispose();
+  db.close();
+});
+
+test("a watch already feeding another listed binding is refused; a revoked one does not lock it out", async () => {
+  const otherId = "55555555-5555-4555-8555-555555555555";
+  const other: DirectDeviceBindingSummary = {
+    ...binding,
+    deviceId: otherId,
+    providerConnectionId: 42,
+    family: "pebble",
+    modelId: "pebble_classic_2",
+    displayName: "Pebble 2",
+  };
+  for (const listed of [true, false]) {
+    let captures = 0;
+    const { db, store, controller, ticket } = await pebbleController({
+      capturePebble: async () => {
+        captures += 1;
+        return { status: "idle", receivedPackets: 0, durableItems: 0, rejectedPackets: 0 };
+      },
+      alsoListed: listed ? [other] : [],
+    });
+    if (!listed) {
+      store.createBinding(ticket, otherId, PEBBLE_PEER.identity);
+      store.markRegistered(ticket, otherId, 42);
+    }
+    store.attachPebblePeripheral(ticket, otherId, PEBBLE_PEER.identity, PEBBLE_PEER.nativeId);
+    controller.selectBinding(deviceId);
+    await controller.syncSteps("");
+    if (listed) {
+      expect(controller.getSnapshot().errorCode).toBe("PEBBLE_NATIVE_ID_IN_USE");
+      expect(captures).toBe(0);
+    } else {
+      expect(controller.getSnapshot().errorCode).toBeNull();
+      expect(captures).toBe(1);
+    }
+    await controller.dispose();
+    db.close();
+  }
 });

@@ -99,6 +99,22 @@ test("preserves native permission and pairing errors", async () => {
   await expect(adapter.getState("watch-id")).resolves.toBe("none");
 });
 
+test("Expo coded rejections surface their stable code as the error message", async () => {
+  const { native } = fakeNative();
+  const adapter = createPebbleBondAdapter(
+    () => native,
+    () => false,
+  );
+  const coded = Object.assign(new Error("Bond wait timed out"), { code: "PEBBLE_PAIRING_TIMEOUT" });
+  native.setEnsureResult(Promise.reject(coded));
+  const rejection = await adapter
+    .ensureBonded({ nativeId: "watch-id", requestId: "request-9", timeoutMs: 50 })
+    .catch((error: Error) => error);
+  expect(rejection).toBeInstanceOf(Error);
+  expect((rejection as Error).message).toBe("PEBBLE_PAIRING_TIMEOUT");
+  expect((rejection as Error).cause).toBe(coded);
+});
+
 test("rejects malformed native state instead of asserting the declared union", async () => {
   const { native } = fakeNative();
   const malformed = {

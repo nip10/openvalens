@@ -53,7 +53,8 @@ export type OpenValensDeviceSupport =
   | "fitpro_history_sync"
   | "casio_steps_history"
   | "casio_connection_only"
-  | "pebble_capture_unavailable";
+  | "pebble_history_sync"
+  | "pebble_bt_classic_unsupported";
 
 export type DeviceSupportStatus = Readonly<{
   upstream: UpstreamDeviceSupport;
@@ -134,6 +135,6 @@ function openValensSupport(
     case "casio":
       return records?.includes("steps_interval") ? "casio_steps_history" : "casio_connection_only";
     case "pebble":
-      return "pebble_capture_unavailable";
+      return sync === true ? "pebble_history_sync" : "pebble_bt_classic_unsupported";
   }
 }

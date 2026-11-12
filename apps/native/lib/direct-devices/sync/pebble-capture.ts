@@ -57,10 +57,18 @@ function envelopes(
   return result;
 }
 
+/**
+ * Parses one inbox item, or null when it can no longer be read (append-time
+ * validation uses the same parsers, so this only happens if a parser became
+ * stricter). An unreadable item is skipped, never allowed to wedge projection.
+ */
 function parseSteps(item: PebbleInboxItem) {
-  const packet = parseStepsSessionData(bytesFromHex(item.rawHex), item.itemSize);
-  if (!packet) throw new Error("PEBBLE_INBOX_CORRUPT");
-  return packet.flatMap((part) => part.samples);
+  try {
+    const packet = parseStepsSessionData(bytesFromHex(item.rawHex), item.itemSize);
+    return packet ? packet.flatMap((part) => part.samples) : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Settled sleep: nights ending this long before the newest sleep input are final. */
@@ -71,11 +79,21 @@ function sleepRecords(items: readonly PebbleInboxItem[]) {
   const overlays = [];
   /** Latest instant (ms) each item covers, for settling. */
   const itemEnds: { seq: number; endMs: number }[] = [];
+  let unreadable = 0;
   for (const item of items) {
-    const bytes = bytesFromHex(item.rawHex);
+    let bytes: Uint8Array;
+    try {
+      bytes = bytesFromHex(item.rawHex);
+    } catch {
+      unreadable += 1;
+      continue;
+    }
     if (item.logTag === 83) {
       const parsed = parseSleepSessionData(bytes, item.itemSize);
-      if (!parsed) throw new Error("PEBBLE_INBOX_CORRUPT");
+      if (!parsed?.length) {
+        unreadable += 1;
+        continue;
+      }
       bounds.push(...parsed);
       itemEnds.push({
         seq: item.seq,
@@ -83,7 +101,10 @@ function sleepRecords(items: readonly PebbleInboxItem[]) {
       });
     } else if (item.logTag === 84) {
       const parsed = parseOverlaySessionData(bytes, item.itemSize);
-      if (!parsed) throw new Error("PEBBLE_INBOX_CORRUPT");
+      if (!parsed?.length) {
+        unreadable += 1;
+        continue;
+      }
       overlays.push(...parsed);
       itemEnds.push({
         seq: item.seq,
@@ -93,8 +114,11 @@ function sleepRecords(items: readonly PebbleInboxItem[]) {
       });
     }
   }
-  return { sessions: assembleSleepSessions(bounds, overlays), itemEnds };
+  return { sessions: assembleSleepSessions(bounds, overlays), itemEnds, unreadable };
 }
+
+/** Manifest sentinel whose endTime is the settled horizon (sleep only). */
+const settledSentinelId = (deviceId: string) => `${idPrefix(deviceId)}:sleep-settled`;
 
 /** FNV-1a over the canonical session content; stable across re-projections. */
 function contentHash(value: unknown): string {
@@ -257,6 +281,8 @@ export function projectPebbleCapture(args: {
   sleepSessions: number;
   /** Sleep groups that need reconciliation and were not published. */
   sleepHeld: number;
+  /** Inbox items that could not be parsed and were skipped. */
+  unreadableItems: number;
   activityThroughSeq: number;
   sleepThroughSeq: number;
 }> {
@@ -272,6 +298,7 @@ export function projectPebbleCapture(args: {
   )
     throw new Error("PEBBLE_PEER_AUTHORITY_MISMATCH");
   const allItems = store.readPebbleItems(ticket, deviceId);
+  let unreadableItems = 0;
 
   const activity = store.readPebbleProjection(ticket, deviceId, "activity");
   const activityItems = allItems
@@ -285,12 +312,17 @@ export function projectPebbleCapture(args: {
     // which outlives the compacted raw items) are never sent again.
     const coverage = coverageFromManifest(activity.manifest);
     const seenMinutes = new Set<number>();
-    const samples = activityItems.flatMap(parseSteps).filter((sample) => {
-      const minute = Math.floor(sample.timestamp / 60);
-      if (seenMinutes.has(minute) || isCovered(coverage, minute)) return false;
-      seenMinutes.add(minute);
-      return true;
-    });
+    const parsedItems = activityItems.map(parseSteps);
+    unreadableItems += parsedItems.filter((samples) => samples === null).length;
+    // Unreadable step items are passed by the cursor (and compacted with it).
+    const samples = parsedItems
+      .flatMap((samples) => samples ?? [])
+      .filter((sample) => {
+        const minute = Math.floor(sample.timestamp / 60);
+        if (seenMinutes.has(minute) || isCovered(coverage, minute)) return false;
+        seenMinutes.add(minute);
+        return true;
+      });
     const records = stepsSamplesToRecords(samples);
     const stepRecords = records.steps.map((record) => ({
       ...record,
@@ -326,9 +358,30 @@ export function projectPebbleCapture(args: {
   const sleep = store.readPebbleProjection(ticket, deviceId, "sleep");
   const sleepItems = allItems.filter((item) => item.logTag === 83 || item.logTag === 84);
   const sleepHighwater = sleepItems.at(-1)?.seq ?? sleep.throughSeq;
-  const { sessions, itemEnds } = sleepRecords(sleepItems);
-  const assigned = assignSleepIds(sleep.manifest, sessions, deviceId);
-  const { publish, held } = assigned;
+  const { sessions: assembled, itemEnds, unreadable } = sleepRecords(sleepItems);
+  // Unreadable sleep items are skipped and retained; they never block a night.
+  unreadableItems += unreadable;
+  // Nights ending before the settled horizon were published and their inputs
+  // deleted; a late input for one would rebuild it without its old id and
+  // publish a second, overlapping record. Such sessions are held instead.
+  const settledId = settledSentinelId(deviceId);
+  const previousSettledBefore = Math.max(
+    0,
+    ...sleep.manifest
+      .filter((entry) => entry.recordId === settledId)
+      .map((entry) => Date.parse(entry.endTime)),
+  );
+  const sessions = assembled.filter(
+    (session) => Date.parse(session.endTime) >= previousSettledBefore,
+  );
+  const lateHeld = assembled.length - sessions.length;
+  const assigned = assignSleepIds(
+    sleep.manifest.filter((entry) => entry.recordId !== settledId),
+    sessions,
+    deviceId,
+  );
+  const { publish } = assigned;
+  const held = assigned.held + lateHeld;
   // Settle old nights so sleep work and storage stay bounded: inputs that end
   // before the horizon and before every still-open night are deleted, and
   // settled manifest entries are dropped (their records stay published).
@@ -343,7 +396,19 @@ export function projectPebbleCapture(args: {
   const compactSleepSeqs = itemEnds
     .filter((item) => item.endMs < keepFrom && item.seq <= sleepHighwater)
     .map((item) => item.seq);
-  const manifest = assigned.manifest.filter((entry) => Date.parse(entry.endTime) >= keepFrom);
+  const settledBefore = Math.max(previousSettledBefore, keepFrom);
+  const manifest = [
+    ...(settledBefore > 0
+      ? [
+          {
+            recordId: settledId,
+            startTime: new Date(0).toISOString(),
+            endTime: new Date(settledBefore).toISOString(),
+          },
+        ]
+      : []),
+    ...assigned.manifest.filter((entry) => Date.parse(entry.endTime) >= settledBefore),
+  ];
   const sleepUpserts = publish.map(({ index, recordId }) => ({
     ...sessions[index]!,
     externalRecordId: recordId,
@@ -365,6 +430,7 @@ export function projectPebbleCapture(args: {
     activityItems: activityItems.length,
     sleepSessions: sessions.length,
     sleepHeld: held,
+    unreadableItems,
     activityThroughSeq: activityHighwater,
     sleepThroughSeq: sleepHighwater,
   };
