@@ -32,20 +32,30 @@
  *
  * Completion
  * ----------
- * The watch gives no explicit "sync finished" marker, so the session finishes
- * when the last health session closes and the line stays quiet for
- * `PEBBLE_SYNC_QUIET_MS`, or when no session opens within
- * `PEBBLE_SYNC_START_MS` (nothing to sync). A 30 s watchdog guards a silent
- * watch and reports a failure instead of hanging.
+ * The watch gives no explicit "sync finished" marker. `DurablePebbleTransport`
+ * reports `idle` once every health session has closed and no health traffic
+ * follows for `PEBBLE_SYNC_QUIET_MS` (any later open or data cancels that
+ * window). It fails with `PEBBLE_CAPTURE_TIMEOUT` when no health session opens
+ * within `PEBBLE_SYNC_WATCHDOG_MS`, and with `PEBBLE_CAPTURE_STALLED` when an
+ * open session goes silent for that long. `idle` is not proof of complete
+ * history. The legacy `PebbleSession` facade above it never starts.
  *
  * Licence: AGPL-3.0-or-later (same as upstream).
  */
 
 import type { Characteristic, Device, Subscription } from "react-native-ble-plx";
 
-import { PEBBLE_SERVICE_UUID, type PebbleModel, type PebbleModelId } from "../models/pebble";
+import {
+  PEBBLE_SERVICE_UUID,
+  isPebbleCandidateName,
+  type PebbleModel,
+  type PebbleModelId,
+} from "../models/pebble";
 import { normalizeServiceUuid } from "../models/ble-gatt";
 import {
+  PEBBLE_CONNECTIVITY_UUID,
+  PEBBLE_PAIRING_TRIGGER_UUID,
+  PEBBLE_MTU_UUID,
   PEBBLE_ENDPOINT_DATALOG,
   PEBBLE_MTU_LIMIT_DEFAULT,
   PEBBLE_MTU_LIMIT_MAX,
@@ -75,6 +85,7 @@ import {
   parseOverlaySessionData,
   parseSleepSessionData,
   parseStepsSessionData,
+  parseFirmwareVersion,
   ppogattMagicResponse,
   stepsSamplesToRecords,
   type PebbleDatalogFrame,
@@ -85,6 +96,13 @@ import {
   type PebbleSleepBounds,
   type PebbleSleepOverlay,
 } from "../protocol/pebble";
+import type {
+  DurablePebbleSession,
+  PebblePacket,
+  PebblePacketSink,
+  PebblePeer,
+  PebbleSessionOutcome,
+} from "../pebble-types";
 
 /** Services a registered Pebble BLE model exposes. */
 export const PEBBLE_SERVICE_UUIDS: ReadonlySet<string> = new Set([
@@ -148,6 +166,26 @@ export async function selectPebbleProfile(
   if (!characteristics.includes(PEBBLE_PPOGATT_WRITE_UUID)) return null;
   return {
     modelId: model.id,
+    serviceUuid: PEBBLE_SERVICE_UUID,
+    ppogattServiceUuid: PEBBLE_PPOGATT_SERVICE_UUID,
+    readUuid: PEBBLE_PPOGATT_READ_UUID,
+    writeUuid: PEBBLE_PPOGATT_WRITE_UUID,
+    mtuLimit: clampPebbleMtuLimit(options?.mtuLimit),
+  };
+}
+
+/** Selects GATT characteristics before firmware identity is known. */
+export async function selectPebbleCandidateProfile(
+  device: ProfileDevice,
+  serviceUuids: readonly string[],
+  options?: { mtuLimit?: number },
+): Promise<Omit<PebbleProfile, "modelId"> | null> {
+  const services = new Set(serviceUuids.map(normalizeServiceUuid));
+  if (!services.has(PEBBLE_SERVICE_UUID) || !services.has(PEBBLE_PPOGATT_SERVICE_UUID)) return null;
+  const characteristics = await characteristicUuidsFor(device, PEBBLE_PPOGATT_SERVICE_UUID);
+  if (!characteristics.includes(PEBBLE_PPOGATT_READ_UUID)) return null;
+  if (!characteristics.includes(PEBBLE_PPOGATT_WRITE_UUID)) return null;
+  return {
     serviceUuid: PEBBLE_SERVICE_UUID,
     ppogattServiceUuid: PEBBLE_PPOGATT_SERVICE_UUID,
     readUuid: PEBBLE_PPOGATT_READ_UUID,
@@ -289,8 +327,10 @@ export class PebbleSession {
 
   start(): void {
     if (this.closed) return;
-    this.monitor();
-    void this.run();
+    // Legacy callback sessions cannot prove durable persistence before a
+    // DATALOG ACK. Keep the export as an explicit unavailable facade until all
+    // callers use createDurablePebbleSession.
+    throw new Error("PEBBLE_CAPTURE_UNAVAILABLE");
   }
 
   async close(): Promise<void> {
@@ -499,7 +539,7 @@ export class PebbleSession {
         const session = this.sessions.get(frame.id);
         this.sessions.delete(frame.id);
         if (session) this.noteHealthSessionClosed(session);
-        // Upstream answers a TIMEOUT with a NACK.
+        // Legacy facade (never started). Upstream ignores TIMEOUT; see DurablePebbleTransport.
         this.reply(frame.id, "nack");
         return;
       }
@@ -639,4 +679,578 @@ export class PebbleSession {
 /** Creates a watch session for a selected profile. */
 export function createPebbleSession(options: PebbleSessionOptions): PebbleSession {
   return new PebbleSession(options);
+}
+
+/** Bond APIs are platform adapters; transport never assumes a pairing succeeded. */
+export type PebbleBondAdapter = Readonly<{
+  getState(nativeId: string): Promise<"none" | "bonding" | "bonded" | "unsupported">;
+  ensureBonded(args: { nativeId: string; requestId: string; timeoutMs: number }): Promise<void>;
+  cancelWait(requestId: string): Promise<void>;
+}>;
+
+export type DurablePebbleOptions = Readonly<{
+  device: Device;
+  nativeId: string;
+  advertisedName?: string | null;
+  advertisedHardwareId?: number | null;
+  bondAdapter?: PebbleBondAdapter;
+  timers?: PebbleTimers;
+  pairingTimeoutMs?: number;
+  prepareTimeoutMs?: number;
+}>;
+
+type DurableProfile = Omit<PebbleProfile, "modelId">;
+type DurableOpen = Extract<PebbleDatalogFrame, { command: "open_session" }>;
+
+function pebbleIdentity(hardwareId: number): PebblePeer["identity"] | null {
+  if ([12, 14, 248, 250].includes(hardwareId))
+    return { family: "pebble", modelId: "pebble_classic_2" };
+  if (hardwareId === 15) return { family: "pebble", modelId: "pebble_2_duo" };
+  if ([13, 16, 17, 18, 243, 244, 247, 249].includes(hardwareId))
+    return { family: "pebble", modelId: "pebble_time_2" };
+  return null;
+}
+
+/** Health sessions: UUID zero, tags 81/83/84, a usable item size. */
+function isHealthOpen(frame: DurableOpen): boolean {
+  return (
+    frame.uuid === PEBBLE_UUID_ZERO && [81, 83, 84].includes(frame.logTag) && frame.itemSize > 0
+  );
+}
+
+function characteristicBytes(value: Characteristic | null): Uint8Array {
+  return value?.value ? decodeBase64(value.value) : new Uint8Array();
+}
+
+/** Prepare performs pairing/identity only; capture is the only history request. */
+export class DurablePebbleTransport implements DurablePebbleSession {
+  private readonly subscriptions = new Set<Subscription>();
+  private readonly reassembler = createPebbleReassembler();
+  /** Open health sessions (UUID zero, tags 81/83/84). */
+  private readonly sessions = new Map<number, DurableOpen>();
+  /** Sessions we ACK-open (as upstream does) but never accept data for. */
+  private readonly foreignSessions = new Set<number>();
+  /** Opens that arrive between prepare() and capture(); replayed at capture start. */
+  private readonly preCaptureOpens: DurableOpen[] = [];
+  private readonly timers: PebbleTimers;
+  private profile: DurableProfile | null = null;
+  private peer: PebblePeer | null = null;
+  private serial = 0;
+  private writeQueue: Promise<void> = Promise.resolve();
+  private inboundQueue: Promise<void> = Promise.resolve();
+  private inboundPending = 0;
+  private outboundPending = 0;
+  private writeFailure: unknown = null;
+  private captureSignal: AbortSignal | null = null;
+  private active = false;
+  private terminal = false;
+  private closed = false;
+  private handshakeResolve: (() => void) | null = null;
+  private handshakePromise: Promise<void>;
+  /** Rejects once the session turns terminal, so prepare waits fail fast. */
+  private readonly terminated: Promise<never>;
+  private rejectTerminated: (error: Error) => void = () => undefined;
+  private firmwareResolve: ((hardwareId: number) => void) | null = null;
+  private terminalResolve: ((outcome: PebbleSessionOutcome) => void) | null = null;
+  private receivedPackets = 0;
+  private durableItems = 0;
+  private device: Device;
+
+  constructor(private readonly options: DurablePebbleOptions) {
+    this.timers = options.timers ?? defaultTimers;
+    this.device = options.device;
+    this.handshakePromise = new Promise((resolve) => {
+      this.handshakeResolve = resolve;
+    });
+    this.terminated = new Promise<never>((_, reject) => {
+      this.rejectTerminated = reject;
+    });
+    // Observed only through withTimeout races; never an unhandled rejection.
+    this.terminated.catch(() => undefined);
+  }
+
+  async prepare(signal: AbortSignal): Promise<PebblePeer> {
+    if (this.closed) throw new Error("PEBBLE_CLOSED");
+    if (signal.aborted) throw new Error("CANCELLED");
+    const adapter = this.options.bondAdapter;
+    let pairingRequest: string | null = null;
+    // Cancellation covers the whole prepare, including the (long) bond wait.
+    const abort = () => {
+      if (pairingRequest) void adapter?.cancelWait(pairingRequest).catch(() => undefined);
+      void this.close();
+    };
+    signal.addEventListener("abort", abort, { once: true });
+    const checkpoint = () => {
+      if (signal.aborted || this.closed) throw new Error("CANCELLED");
+    };
+    try {
+      const device = this.device;
+      const services = await device.services();
+      checkpoint();
+      const profile = await selectPebbleCandidateProfile(
+        device,
+        services.map((service) => service.uuid),
+      );
+      if (!profile) throw new Error("PEBBLE_PPOGATT_MISSING");
+      this.profile = profile;
+      const connectivity = await device.readCharacteristicForService(
+        PEBBLE_SERVICE_UUID,
+        PEBBLE_CONNECTIVITY_UUID,
+      );
+      checkpoint();
+      let flags = characteristicBytes(connectivity)[0] ?? 0;
+      if ((flags & 0x20) !== 0) throw new Error("PEBBLE_CONNECTIVITY_STALE");
+      if ((flags & 0x01) === 0) throw new Error("PEBBLE_NOT_CONNECTED");
+      const paired = (flags & 0x02) !== 0;
+      const encrypted = (flags & 0x04) !== 0;
+      if (encrypted && !paired) throw new Error("PEBBLE_CONNECTIVITY_INCONSISTENT");
+      if (!paired) {
+        if (!adapter) throw new Error("PEBBLE_PAIRING_UNSUPPORTED");
+        const requestId = `${this.options.nativeId}:${Date.now()}`;
+        // Check support first: the trigger can raise a system pairing prompt,
+        // which must not appear for a connection that is about to be refused.
+        const state = await adapter.getState(this.options.nativeId);
+        if (state === "unsupported") throw new Error("PEBBLE_PAIRING_UNSUPPORTED");
+        checkpoint();
+        await device.writeCharacteristicWithResponseForService(
+          PEBBLE_SERVICE_UUID,
+          PEBBLE_PAIRING_TRIGGER_UUID,
+          encodeBase64(Uint8Array.of(0x11)),
+        );
+        checkpoint();
+        pairingRequest = requestId;
+        try {
+          await adapter.ensureBonded({
+            nativeId: this.options.nativeId,
+            requestId,
+            timeoutMs: this.options.pairingTimeoutMs ?? 30_000,
+          });
+        } finally {
+          pairingRequest = null;
+          await adapter.cancelWait(requestId).catch(() => undefined);
+        }
+        checkpoint();
+        flags =
+          characteristicBytes(
+            await device.readCharacteristicForService(
+              PEBBLE_SERVICE_UUID,
+              PEBBLE_CONNECTIVITY_UUID,
+            ),
+          )[0] ?? 0;
+        checkpoint();
+        if ((flags & 0x20) !== 0 || (flags & 0x06) !== 0x06)
+          throw new Error("PEBBLE_PAIRING_INCOMPLETE");
+      } else if (!encrypted) {
+        throw new Error("PEBBLE_CONNECTIVITY_INCONSISTENT");
+      }
+
+      await this.startMonitor();
+      checkpoint();
+      await this.withTimeout(this.handshakePromise, this.options.prepareTimeoutMs ?? 10_000);
+      // Listen before asking: the reply can arrive before the write settles.
+      const firmware = new Promise<number>((resolve) => {
+        this.firmwareResolve = resolve;
+      });
+      await this.writeFrame(encodeFirmwareVersionReq());
+      const hardwareId = await this.withTimeout(firmware, this.options.prepareTimeoutMs ?? 10_000);
+      this.firmwareResolve = null;
+      if (
+        this.options.advertisedHardwareId !== undefined &&
+        this.options.advertisedHardwareId !== null &&
+        this.options.advertisedHardwareId !== hardwareId
+      )
+        throw new Error("PEBBLE_IDENTITY_CONFLICT");
+      const identity = pebbleIdentity(hardwareId);
+      if (!identity) throw new Error("PEBBLE_IDENTITY_UNSUPPORTED");
+      if (this.options.advertisedName && !isPebbleCandidateName(this.options.advertisedName))
+        throw new Error("PEBBLE_IDENTITY_CONFLICT");
+      this.peer = { nativeId: this.options.nativeId, hardwareId, identity };
+      return this.peer;
+    } catch (error) {
+      await this.close();
+      throw signal.aborted ? new Error("CANCELLED") : error;
+    } finally {
+      signal.removeEventListener("abort", abort);
+    }
+  }
+
+  async capture(args: {
+    signal: AbortSignal;
+    sink: PebblePacketSink;
+  }): Promise<PebbleSessionOutcome> {
+    if (this.terminal) return { status: "failed", code: "PEBBLE_SESSION_TERMINAL" };
+    if (!this.peer || !this.profile || this.closed)
+      return { status: "failed", code: "PEBBLE_NOT_PREPARED" };
+    if (this.active) return { status: "failed", code: "PEBBLE_CAPTURE_BUSY" };
+    if (args.signal.aborted) return { status: "cancelled" };
+    this.active = true;
+    this.captureSink = args.sink;
+    this.captureSignal = args.signal;
+    this.openedAnySession = false;
+    const done = new Promise<PebbleSessionOutcome>((resolve) => {
+      this.terminalResolve = resolve;
+    });
+    const abort = () => this.finish({ status: "cancelled" });
+    args.signal.addEventListener("abort", abort, { once: true });
+    try {
+      for (const open of this.preCaptureOpens.splice(0)) this.enqueueInbound(open);
+      await this.writeFrame(encodeHealthSync());
+      // A cancel or failure during the write must not leave a timer armed.
+      if (!this.terminal && !this.openedAnySession)
+        this.captureTimer = this.timers.setTimeout(() => {
+          if (!this.openedAnySession)
+            this.finish({ status: "failed", code: "PEBBLE_CAPTURE_TIMEOUT" });
+        }, PEBBLE_SYNC_WATCHDOG_MS);
+      const outcome = await done;
+      return outcome;
+    } catch (error) {
+      this.finish({
+        status: "failed",
+        code: error instanceof Error ? error.message : "PEBBLE_CAPTURE_FAILED",
+      });
+      return done;
+    } finally {
+      args.signal.removeEventListener("abort", abort);
+      this.active = false;
+    }
+  }
+
+  async close(): Promise<void> {
+    if (this.closed) return;
+    this.closed = true;
+    this.finish({ status: "cancelled" });
+    for (const subscription of this.subscriptions) subscription.remove();
+    this.subscriptions.clear();
+    await this.device.cancelConnection().catch(() => undefined);
+  }
+
+  private async startMonitor(): Promise<void> {
+    const profile = this.profile!;
+    const device = this.device;
+    // Initialize the upstream MTU characteristic, then consume ble-plx's returned device.
+    await device.writeCharacteristicWithResponseForService(
+      PEBBLE_SERVICE_UUID,
+      PEBBLE_MTU_UUID,
+      encodeBase64(Uint8Array.of(PEBBLE_MTU_REQUEST & 0xff, (PEBBLE_MTU_REQUEST >>> 8) & 0xff)),
+    );
+    let current = device;
+    let mtuNegotiated = false;
+    try {
+      current = await device.requestMTU(PEBBLE_MTU_REQUEST);
+      mtuNegotiated = true;
+    } catch {
+      // Platforms that cannot negotiate use the conservative BLE default.
+    }
+    this.device = current;
+    const mtu =
+      mtuNegotiated && Number.isFinite(current.mtu) && current.mtu >= 23 ? current.mtu : 23;
+    this.profile = { ...profile, mtuLimit: Math.min(mtu, profile.mtuLimit) };
+    try {
+      const subscription = device.monitorCharacteristicForService(
+        profile.ppogattServiceUuid,
+        profile.readUuid,
+        (error, value) => {
+          if (error) {
+            this.finish({ status: "failed", code: "PEBBLE_MONITOR_FAILED" });
+            return;
+          }
+          if (!value?.value) return;
+          this.handleNotification(characteristicBytes(value));
+        },
+      );
+      this.subscriptions.add(subscription);
+    } catch (error) {
+      throw new Error("PEBBLE_MONITOR_FAILED", { cause: error });
+    }
+  }
+
+  private handleNotification(bytes: Uint8Array): void {
+    // Late notifications after a terminal outcome are dropped, not ACKed.
+    if (this.closed || this.terminal || bytes.length === 0) return;
+    const { command, serial } = decodePpogattHeader(bytes[0]!);
+    if (command === 2) {
+      void this.queueRaw(ppogattMagicResponse(bytes.length > 1))
+        .then(() => {
+          this.handshakeResolve?.();
+          this.handshakeResolve = null;
+        })
+        .catch(() => this.finish({ status: "failed", code: "PEBBLE_WRITE_FAILED" }));
+      return;
+    }
+    if (command !== 0) return;
+    void this.queueRaw(encodePpogattAck(serial)).catch(() =>
+      this.finish({ status: "failed", code: "PEBBLE_WRITE_FAILED" }),
+    );
+    for (const frame of this.reassembler.push(bytes.slice(1))) {
+      if (frame.endpoint === PEBBLE_ENDPOINT_FIRMWARE_VERSION) {
+        const firmware = parseFirmwareVersion(frame.payload);
+        if (firmware) this.firmwareResolve?.(firmware.hardwareId);
+      } else if (frame.endpoint === PEBBLE_ENDPOINT_DATALOG) {
+        const datalog = decodeDatalogPayload(frame.payload);
+        if (datalog) this.enqueueInbound(datalog);
+      }
+    }
+  }
+
+  private enqueueInbound(frame: PebbleDatalogFrame): void {
+    if (this.terminal || this.closed) return;
+    if (!this.active) {
+      // The watch may push its data log as soon as the link is ready. Keep the
+      // opens (bounded) so the sessions are known once capture starts; any
+      // early data is left unanswered and the watch re-sends it.
+      // Only health opens are kept (foreign ones cannot crowd them out), and
+      // from as soon as the link is monitored, including the firmware wait.
+      if (
+        this.profile &&
+        frame.command === "open_session" &&
+        isHealthOpen(frame) &&
+        this.preCaptureOpens.length < 16
+      ) {
+        const existing = this.preCaptureOpens.findIndex((open) => open.id === frame.id);
+        if (existing >= 0) this.preCaptureOpens.splice(existing, 1);
+        this.preCaptureOpens.push(frame);
+      }
+      return;
+    }
+    if (this.inboundPending >= 64) {
+      this.finish({ status: "failed", code: "PEBBLE_INBOUND_QUEUE_FULL" });
+      return;
+    }
+    this.inboundPending += 1;
+    this.inboundQueue = this.inboundQueue
+      .then(() => this.processDatalog(frame))
+      .catch(() => this.finish({ status: "failed", code: "PEBBLE_PERSISTENCE_FAILED" }))
+      .finally(() => {
+        this.inboundPending -= 1;
+      });
+  }
+
+  /**
+   * Mirrors upstream `PebbleProtocol.decodeDatalog` replies: every OPEN is
+   * ACKed; DATA for an unknown or unparseable session is NACKed (and capture
+   * continues); CLOSE is answered with a NACK; TIMEOUT gets no reply. Only
+   * health sessions (UUID zero, tags 81/83/84) are accepted; others are
+   * ACK-opened but their data is NACKed so the watch keeps it.
+   */
+  private async processDatalog(frame: PebbleDatalogFrame): Promise<void> {
+    if (!this.active || this.terminal || this.closed) return;
+    switch (frame.command) {
+      case "open_session": {
+        if (isHealthOpen(frame)) {
+          this.sessions.set(frame.id, frame);
+          this.foreignSessions.delete(frame.id);
+          this.noteHealthActivity();
+          this.openedAnySession = true;
+          if (this.captureTimer !== null) this.timers.clearTimeout(this.captureTimer);
+          this.captureTimer = null;
+        } else {
+          this.sessions.delete(frame.id);
+          this.foreignSessions.add(frame.id);
+        }
+        await this.datalogReply(frame.id, true);
+        return;
+      }
+      case "send_data": {
+        const session = this.sessions.get(frame.id);
+        if (!session) {
+          // Foreign or unknown (e.g. opened on an earlier connection): the
+          // watch keeps NACKed data and re-opens or re-sends it. Unknown ones
+          // may be health data left on the watch, so they count as rejected.
+          if (!this.foreignSessions.has(frame.id)) this.rejectedPackets += 1;
+          await this.datalogReply(frame.id, false);
+          return;
+        }
+        const payloadValid =
+          frame.data.length > 0 &&
+          frame.data.length % session.itemSize === 0 &&
+          frame.data.length / session.itemSize <= 10_000 &&
+          ((session.logTag === PEBBLE_HEALTH_LOG_TAG_STEPS &&
+            parseStepsSessionData(frame.data, session.itemSize) !== null) ||
+            (session.logTag === PEBBLE_HEALTH_LOG_TAG_SLEEP &&
+              parseSleepSessionData(frame.data, session.itemSize) !== null) ||
+            (session.logTag === PEBBLE_HEALTH_LOG_TAG_OVERLAY &&
+              parseOverlaySessionData(frame.data, session.itemSize) !== null));
+        if (!payloadValid) {
+          // Not counted as activity: a watch re-sending a bad packet must not
+          // keep the stall watchdog from ending capture.
+          this.rejectedPackets += 1;
+          await this.datalogReply(frame.id, false);
+          return;
+        }
+        this.noteHealthActivity();
+        const packet: PebblePacket = {
+          uuid: session.uuid,
+          sessionTimestamp: session.timestamp,
+          logTag: session.logTag as 81 | 83 | 84,
+          itemType: session.itemType,
+          itemSize: session.itemSize,
+          data: frame.data.slice(),
+        };
+        let receipt;
+        try {
+          receipt = await this.captureSink!(packet);
+        } catch {
+          // Storage failure: no reply at all (safe whatever the watch does
+          // with a NACK), then disconnect. The packet stays on the watch.
+          this.finish({ status: "failed", code: "PEBBLE_PERSISTENCE_FAILED" });
+          return;
+        }
+        if (!receipt.durable) {
+          this.finish({ status: "failed", code: "PEBBLE_DURABILITY_UNCONFIRMED" });
+          return;
+        }
+        if (this.terminal || this.closed || this.captureSignal?.aborted) return;
+        this.receivedPackets += 1;
+        this.durableItems += receipt.insertedItems;
+        await this.datalogReply(frame.id, true);
+        return;
+      }
+      case "close": {
+        const wasHealth = this.sessions.delete(frame.id);
+        this.foreignSessions.delete(frame.id);
+        if (wasHealth) this.noteHealthActivity();
+        await this.datalogReply(frame.id, false);
+        if (wasHealth && this.sessions.size === 0) this.startQuietWindow();
+        return;
+      }
+      case "timeout":
+        return; // Upstream logs and ignores TIMEOUT without replying.
+      default:
+        return;
+    }
+  }
+
+  private captureSink: PebblePacketSink | null = null;
+  private quietTimer: unknown = null;
+  private captureTimer: unknown = null;
+  private stallTimer: unknown = null;
+  private openedAnySession = false;
+  private rejectedPackets = 0;
+
+  /** Health traffic: cancel a pending quiet window and re-arm the stall watchdog. */
+  private noteHealthActivity(): void {
+    if (this.quietTimer !== null) this.timers.clearTimeout(this.quietTimer);
+    this.quietTimer = null;
+    if (this.stallTimer !== null) this.timers.clearTimeout(this.stallTimer);
+    this.stallTimer = this.timers.setTimeout(() => {
+      this.stallTimer = null;
+      if (this.active && !this.terminal)
+        this.finish({
+          status: "failed",
+          code: "PEBBLE_CAPTURE_STALLED",
+          // Durable data was still received; rejected packets stay on the watch.
+          receivedPackets: this.receivedPackets,
+          durableItems: this.durableItems,
+          rejectedPackets: this.rejectedPackets,
+        });
+    }, PEBBLE_SYNC_WATCHDOG_MS);
+  }
+
+  private startQuietWindow(): void {
+    if (this.quietTimer !== null) this.timers.clearTimeout(this.quietTimer);
+    this.quietTimer = this.timers.setTimeout(() => {
+      this.quietTimer = null;
+      if (this.active && !this.terminal && this.sessions.size === 0)
+        this.finish({
+          status: "idle",
+          receivedPackets: this.receivedPackets,
+          durableItems: this.durableItems,
+          rejectedPackets: this.rejectedPackets,
+        });
+    }, PEBBLE_SYNC_QUIET_MS);
+  }
+
+  private async datalogReply(id: number, accepted: boolean): Promise<void> {
+    if (this.terminal || this.closed) return;
+    await this.writeFrame(
+      encodeDatalogFrame(accepted ? encodeDatalogAck(id) : encodeDatalogNack(id)),
+      true,
+    );
+  }
+
+  private writeFrame(frame: Uint8Array, captureOnly = false): Promise<void> {
+    return this.enqueueWrite(async () => {
+      if (this.closed) throw new Error("PEBBLE_CLOSED");
+      if (captureOnly && (!this.active || this.terminal || this.captureSignal?.aborted)) return;
+      const packets = chunkPpogatt(frame, this.profile?.mtuLimit ?? 23, this.serial);
+      this.serial = (this.serial + packets.length) & 0x1f;
+      for (const packet of packets) await this.writeRawDirect(packet);
+    });
+  }
+
+  private queueRaw(packet: Uint8Array): Promise<void> {
+    return this.enqueueWrite(() => this.writeRawDirect(packet));
+  }
+
+  private enqueueWrite(work: () => Promise<void>): Promise<void> {
+    if (this.outboundPending >= 64) {
+      this.finish({ status: "failed", code: "PEBBLE_OUTBOUND_QUEUE_FULL" });
+      return Promise.reject(new Error("PEBBLE_OUTBOUND_QUEUE_FULL"));
+    }
+    this.outboundPending += 1;
+    const job = this.writeQueue.then(async () => {
+      if (this.writeFailure) throw this.writeFailure;
+      await work();
+    });
+    this.writeQueue = job
+      .catch((error) => {
+        this.writeFailure = error;
+        this.finish({ status: "failed", code: "PEBBLE_WRITE_FAILED" });
+      })
+      .finally(() => {
+        this.outboundPending -= 1;
+      });
+    return job;
+  }
+
+  private async writeRawDirect(packet: Uint8Array): Promise<void> {
+    const profile = this.profile;
+    if (!profile) throw new Error("PEBBLE_NOT_PREPARED");
+    await this.device.writeCharacteristicWithResponseForService(
+      profile.ppogattServiceUuid,
+      profile.writeUuid,
+      encodeBase64(packet),
+    );
+  }
+
+  private withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      const timer = this.timers.setTimeout(() => reject(new Error("PEBBLE_PREPARE_TIMEOUT")), ms);
+      Promise.race([promise, this.terminated])
+        .then(resolve, reject)
+        .finally(() => this.timers.clearTimeout(timer));
+    });
+  }
+
+  private finish(outcome: PebbleSessionOutcome): void {
+    if (this.terminal) return;
+    this.terminal = true;
+    this.rejectTerminated(
+      new Error(
+        outcome.status === "failed"
+          ? outcome.code
+          : outcome.status === "cancelled"
+            ? "CANCELLED"
+            : "PEBBLE_SESSION_TERMINAL",
+      ),
+    );
+    if (this.quietTimer !== null) this.timers.clearTimeout(this.quietTimer);
+    if (this.captureTimer !== null) this.timers.clearTimeout(this.captureTimer);
+    if (this.stallTimer !== null) this.timers.clearTimeout(this.stallTimer);
+    this.quietTimer = null;
+    this.captureTimer = null;
+    this.stallTimer = null;
+    this.sessions.clear();
+    this.foreignSessions.clear();
+    this.preCaptureOpens.length = 0;
+    this.terminalResolve?.(outcome);
+    this.terminalResolve = null;
+    for (const subscription of this.subscriptions) subscription.remove();
+    this.subscriptions.clear();
+    void this.options.device.cancelConnection().catch(() => undefined);
+  }
+}
+
+export function createDurablePebbleSession(options: DurablePebbleOptions): DurablePebbleSession {
+  return new DurablePebbleTransport(options);
 }

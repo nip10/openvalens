@@ -508,7 +508,7 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
                       : "ring";
 
   /**
-   * Legacy Huami, Garmin, Huawei and Pebble BLE sync emit exact-minute `steps`
+   * Legacy Huami, Garmin and Huawei BLE sync emit exact-minute `steps`
    * records (the frozen contract for those families), not arbitrary
    * `steps_interval` buckets.
    */
@@ -590,12 +590,7 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
     recordType: "steps" | "steps_interval" | "sleep_session" | "heart_rate";
     upserts: unknown[];
   }[] => {
-    if (
-      family === "huami_legacy" ||
-      family === "huawei" ||
-      family === "garmin" ||
-      family === "pebble"
-    )
+    if (family === "huami_legacy" || family === "huawei" || family === "garmin")
       return huamiHistoryRecords(deviceId, prefix, samples);
     const steps = samples.filter(
       (sample): sample is Extract<DirectDeviceHistorySample, { type: "steps_interval" }> =>
@@ -742,9 +737,10 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
         state.connectedFamily !== "huami_legacy" &&
         state.connectedFamily !== "garmin" &&
         state.connectedFamily !== "huawei" &&
-        state.connectedFamily !== "casio" &&
-        state.connectedFamily !== "pebble")
+        state.connectedFamily !== "casio")
     )
+      // Pebble is deliberately absent: its history must reach the durable
+      // inbox (and be ACKed to the watch) only through the Pebble capture path.
       return;
     const bindingId = selectedBindingId;
     if (!bindingId) return;

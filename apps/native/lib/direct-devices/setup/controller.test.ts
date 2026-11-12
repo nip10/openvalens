@@ -320,6 +320,11 @@ test("every Pebble connect attempt is rejected before BLE connect or health writ
     });
     await f.controller.startScan();
     f.emit();
+    const listed = f.controller.getSnapshot().devices.find((device) => device.id === "local-id");
+    expect(listed?.family, deviceName).toBe("pebble");
+    // Generic BLE names are candidates only: no model is guessed before firmware identity.
+    if (/^Pebble [0-9A-F]{4}$/.test(deviceName))
+      expect(listed?.modelId, deviceName).toBeUndefined();
     await f.controller.connect("local-id");
     expect(f.controller.getSnapshot().errorCode, deviceName).toBe("PEBBLE_CAPTURE_UNAVAILABLE");
     expect(f.controller.getSnapshot().phase, deviceName).toBe("error");

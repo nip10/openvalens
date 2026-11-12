@@ -12,6 +12,7 @@ import {
   PEBBLE_MODELS,
   PEBBLE_SERVICE_UUID,
   getPebbleModel,
+  isPebbleCandidateName,
   isPebbleBleOnly,
   matchPebbleDevice,
   pebbleModelByHardwareId,
@@ -85,10 +86,17 @@ test("advertised names resolve to the right model", () => {
     ["Pebble Time Steel", "pebble_time_steel"],
     ["Pebble Time Round", "pebble_time_round"],
     ["Pebble Time Round LE 1A2B", "pebble_time_round"],
-    ["Pebble 1A2B", "pebble_classic_2"],
-    ["Pebble 0f3c", "pebble_classic_2"],
   ];
   for (const [name, id] of cases) expect(matchPebbleDevice(name)?.id, name).toBe(id);
+  expect(matchPebbleDevice("Pebble 1A2B")).toBeNull();
+  expect(matchPebbleDevice("Pebble 1A2B", 15)?.id).toBe("pebble_2_duo");
+  expect(matchPebbleDevice("Pebble 1A2B", 19)).toBeNull();
+});
+
+test("generic Pebble advertisements are candidates without false identity", () => {
+  for (const name of ["Pebble", "Pebble 1A2B", "Pebble Time LE 1A2B", "Pebble Mystery"])
+    expect(isPebbleCandidateName(name), name).toBe(true);
+  expect(isPebbleCandidateName("Amazfit Helio Strap")).toBe(false);
 });
 
 test("the hardware revision resolves the exact model", () => {

@@ -55,7 +55,7 @@ import type { CasioProfile, CasioSession } from "../transport/casio";
 import { FITPRO_SERVICE_UUID, matchFitProDevice } from "../models/fitpro";
 import { createFitProSession, selectFitProProfile } from "../transport/fitpro";
 import type { FitProProfile, FitProSession } from "../transport/fitpro";
-import { PEBBLE_SERVICE_UUID, matchPebbleDevice } from "../models/pebble";
+import { PEBBLE_SERVICE_UUID, isPebbleCandidateName, matchPebbleDevice } from "../models/pebble";
 import { createPebbleSession, selectPebbleProfile } from "../transport/pebble";
 import type { PebbleProfile, PebbleSession } from "../transport/pebble";
 import { createHuamiLegacySession, selectHuamiLegacyProfile } from "../transport/huami-legacy";
@@ -500,7 +500,10 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
               colmiRingModel ??
               casioModel ??
               pebbleModel;
-            if (!model) return;
+            // Generic `Pebble XXXX` names carry no trustworthy model: list them
+            // as Pebble candidates without a model id rather than guess one.
+            const pebbleCandidate = !model && isPebbleCandidateName(name);
+            if (!model && !pebbleCandidate) return;
             const family = zeppModel
               ? "zepp_os"
               : xiaomiModel
@@ -536,7 +539,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
                 id: device.id,
                 name: name ?? "Unnamed BLE device",
                 rssi: device.rssi ?? null,
-                modelId: model.id,
+                ...(model ? { modelId: model.id } : {}),
                 family,
                 serviceUuids,
               }),
@@ -623,6 +626,11 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
           const selected = r.devices.get(deviceId);
           const knownDevice = snapshot.devices.find((device) => device.id === deviceId);
           if (!selected || !knownDevice) throw new Error("DEVICE_NOT_DISCOVERED");
+          // Gate every Pebble-shaped name or Pebble-family entry before model
+          // resolution and routing-family narrowing, so a generic candidate or
+          // stale discovered-family metadata cannot reach the BLE connect.
+          if (knownDevice.family === "pebble" || isPebbleCandidateName(knownDevice.name))
+            pebbleCaptureUnavailable();
           const model =
             matchDeviceName(knownDevice.name) ??
             matchXiaomiDeviceName(knownDevice.name) ??
@@ -639,9 +647,6 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
             matchCasioDevice(knownDevice.name) ??
             matchPebbleDevice(knownDevice.name);
           if (!model) throw new Error("DEVICE_NOT_DISCOVERED");
-          // Gate based on the Pebble identity before routing-family narrowing;
-          // this also prevents stale discovered-family metadata bypassing it.
-          if (matchPebbleDevice(knownDevice.name)) pebbleCaptureUnavailable();
           const family =
             knownDevice.family ??
             (matchDeviceName(knownDevice.name)

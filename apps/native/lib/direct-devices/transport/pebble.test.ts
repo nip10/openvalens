@@ -9,35 +9,29 @@ import type { BleError, Characteristic, Subscription } from "react-native-ble-pl
 
 import {
   PEBBLE_SERVICE_UUIDS,
-  PEBBLE_SYNC_QUIET_MS,
-  PEBBLE_SYNC_WATCHDOG_MS,
   clampPebbleMtuLimit,
+  createDurablePebbleSession,
   createPebbleSession,
   selectPebbleProfile,
   type PebbleProfile,
-  type PebbleTimers,
 } from "./pebble";
 import { PEBBLE_SERVICE_UUID, type PebbleModel } from "../models/pebble";
 import {
   PEBBLE_ENDPOINT_DATALOG,
-  PEBBLE_ENDPOINT_FIRMWARE_VERSION,
-  PEBBLE_ENDPOINT_HEALTH_SYNC,
   PEBBLE_PPOGATT_READ_UUID,
   PEBBLE_PPOGATT_SERVICE_UUID,
   PEBBLE_PPOGATT_WRITE_UUID,
-  PEBBLE_SLEEP_TYPE_DEEP_SLEEP,
-  PEBBLE_SLEEP_TYPE_LIGHT_SLEEP,
   PEBBLE_UUID_ZERO,
-  chunkPpogatt,
-  decodeDatalogPayload,
-  decodePebbleFrame,
-  decodePpogattHeader,
   encodeDatalogClose,
   encodeDatalogFrame,
   encodeDatalogOpenSession,
   encodeDatalogSendData,
-  encodeDatalogTimeout,
-  type PebbleRecord,
+  decodePebbleFrame,
+  decodeDatalogPayload,
+  decodePpogattHeader,
+  chunkPpogatt,
+  encodePebbleFrame,
+  encodePpogattData,
 } from "../protocol/pebble";
 
 const HEALTH_PROFILE = { heightCm: 175, weightKg: 75, age: 30, gender: 0, token: 0 };
@@ -51,14 +45,21 @@ const PROFILE: PebbleProfile = {
   mtuLimit: 512,
 };
 
-function fakeDevice(initialMtu = 339) {
+function fakeDevice(initialMtu = 339, initialConnectivity = 0x07) {
   const monitors = new Map<
     string,
     (error: BleError | null, value: Characteristic | null) => void
   >();
   const writes: { service: string; characteristic: string; value: Uint8Array }[] = [];
   const characteristics = new Map<string, string[]>();
+  characteristics.set(PEBBLE_PPOGATT_SERVICE_UUID, [
+    PEBBLE_PPOGATT_READ_UUID,
+    PEBBLE_PPOGATT_WRITE_UUID,
+  ]);
   let mtu = initialMtu;
+  let connectivity = initialConnectivity;
+  let disconnects = 0;
+  let writeHook: ((characteristic: string) => Promise<void>) | null = null;
   const device = {
     get mtu() {
       return mtu;
@@ -69,6 +70,14 @@ function fakeDevice(initialMtu = 339) {
     },
     characteristicsForService: async (service: string) =>
       (characteristics.get(service) ?? []).map((uuid) => ({ uuid }) as Characteristic),
+    services: async () =>
+      [PEBBLE_SERVICE_UUID, PEBBLE_PPOGATT_SERVICE_UUID].map((uuid) => ({ uuid })),
+    readCharacteristicForService: async () =>
+      ({ value: Buffer.from([connectivity]).toString("base64") }) as Characteristic,
+    cancelConnection: async () => {
+      disconnects += 1;
+      return device;
+    },
     monitorCharacteristicForService: (
       service: string,
       characteristic: string,
@@ -82,6 +91,7 @@ function fakeDevice(initialMtu = 339) {
       characteristic: string,
       value: string,
     ) => {
+      await writeHook?.(characteristic);
       writes.push({
         service,
         characteristic,
@@ -90,349 +100,317 @@ function fakeDevice(initialMtu = 339) {
       return {} as Characteristic;
     },
   };
-  return { device, monitors, writes, characteristics };
+  return {
+    device,
+    monitors,
+    writes,
+    characteristics,
+    setConnectivity: (flags: number) => {
+      connectivity = flags;
+    },
+    setWriteHook: (hook: ((characteristic: string) => Promise<void>) | null) => {
+      writeHook = hook;
+    },
+    disconnects: () => disconnects,
+  };
 }
 
-function fakeTimers() {
-  let next = 1;
-  let now = 0;
-  const pending = new Map<number, { callback: () => void; at: number }>();
-  const timers: PebbleTimers = {
-    setTimeout(callback, ms) {
-      const id = next++;
-      pending.set(id, { callback, at: now + ms });
-      return id;
+/** Timers that only fire when the test says so. */
+function manualTimers() {
+  let nextId = 1;
+  const pending = new Map<number, { callback: () => void; ms: number }>();
+  return {
+    timers: {
+      setTimeout: (callback: () => void, ms: number) => {
+        const id = nextId++;
+        pending.set(id, { callback, ms });
+        return id;
+      },
+      clearTimeout: (handle: unknown) => {
+        pending.delete(handle as number);
+      },
     },
-    clearTimeout(handle) {
-      pending.delete(handle as number);
-    },
-  };
-  const advance = (ms: number) => {
-    now += ms;
-    let ran = true;
-    while (ran) {
-      ran = false;
-      for (const [id, timer] of pending) {
-        if (timer.at <= now) {
+    fire(ms: number) {
+      // Snapshot first: a callback may schedule a new timer with the same delay.
+      for (const [id, timer] of Array.from(pending))
+        if (timer.ms === ms) {
           pending.delete(id);
           timer.callback();
-          ran = true;
         }
-      }
-    }
+    },
+    pendingMs: () => [...pending.values()].map((timer) => timer.ms),
   };
-  return { timers, advance, pendingCount: () => pending.size };
 }
 
-function feed(
+function notify(
   monitors: Map<string, (error: BleError | null, value: Characteristic | null) => void>,
-  frame: Uint8Array,
-  mtu = 339,
+  bytes: Uint8Array,
 ) {
   const callback = monitors.get(`${PEBBLE_PPOGATT_SERVICE_UUID}|${PEBBLE_PPOGATT_READ_UUID}`);
   if (!callback) throw new Error("TEST_MONITOR_MISSING");
-  for (const packet of chunkPpogatt(frame, mtu))
-    callback(null, { value: Buffer.from(packet).toString("base64") } as Characteristic);
-}
-
-function stepsPacket(version: number, timestamp: number, steps: readonly number[]): Uint8Array {
-  const recordLength = version >= 7 ? 13 : 12;
-  const out = new Uint8Array(9 + recordLength * steps.length);
-  out[0] = version;
-  out[1] = 0;
-  out[2] = timestamp & 0xff;
-  out[3] = (timestamp >>> 8) & 0xff;
-  out[4] = (timestamp >>> 16) & 0xff;
-  out[5] = (timestamp >>> 24) & 0xff;
-  out[7] = recordLength;
-  out[8] = steps.length;
-  steps.forEach((count, index) => {
-    const offset = 9 + index * recordLength;
-    out[offset] = count;
-    out[offset + 1] = 0;
-    out[offset + 2] = 0;
-    out[offset + 3] = 0;
-    out[offset + 4] = 0;
-    if (version >= 5) out[offset + 5] = 0;
-    if (version >= 7) out[offset + 12] = 70 + index;
-  });
-  return out;
-}
-
-function sleepRecord(start: number, end: number): Uint8Array {
-  return Uint8Array.from([1, 0, 0, 0, 0, 0, ...i32(start), ...i32(end), ...i32(3600)]);
-}
-
-function overlayRecord(type: number, start: number, duration: number): Uint8Array {
-  return Uint8Array.from([1, 0, 0, 0, ...u16(type), 0, 0, 0, 0, ...i32(start), ...i32(duration)]);
-}
-
-function i32(value: number): number[] {
-  return [value & 0xff, (value >>> 8) & 0xff, (value >>> 16) & 0xff, (value >>> 24) & 0xff];
-}
-
-function u16(value: number): number[] {
-  return [value & 0xff, (value >>> 8) & 0xff];
+  callback(null, { value: Buffer.from(bytes).toString("base64") } as Characteristic);
 }
 
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 
-test("the session negotiates the MTU and sends the health-enable chain", async () => {
+function validStepsItem(): Uint8Array {
+  const data = new Uint8Array(22);
+  data[0] = 7;
+  const timestamp = 1_700_000_040;
+  data[2] = timestamp & 0xff;
+  data[3] = (timestamp >>> 8) & 0xff;
+  data[4] = (timestamp >>> 16) & 0xff;
+  data[5] = (timestamp >>> 24) & 0xff;
+  data[7] = 13;
+  data[8] = 1;
+  data[9] = 10;
+  return data;
+}
+
+function feedFrame(
+  monitors: Map<string, (error: BleError | null, value: Characteristic | null) => void>,
+  frame: Uint8Array,
+) {
+  const callback = monitors.get(`${PEBBLE_PPOGATT_SERVICE_UUID}|${PEBBLE_PPOGATT_READ_UUID}`);
+  if (!callback) throw new Error("TEST_MONITOR_MISSING");
+  for (const packet of chunkPpogatt(frame, 339))
+    callback(null, { value: Buffer.from(packet).toString("base64") } as Characteristic);
+}
+
+function hasDatalogAck(writes: readonly { value: Uint8Array }[], id: number): boolean {
+  return writes.some((write) => {
+    const frame = decodePebbleFrame(write.value.slice(1));
+    if (!frame || frame.endpoint !== PEBBLE_ENDPOINT_DATALOG) return false;
+    const payload = decodeDatalogPayload(frame.payload);
+    return payload?.command === "ack" && payload.id === id;
+  });
+}
+
+function datalogAckCount(writes: readonly { value: Uint8Array }[], id: number): number {
+  return writes.filter((write) => {
+    const frame = decodePebbleFrame(write.value.slice(1));
+    if (!frame || frame.endpoint !== PEBBLE_ENDPOINT_DATALOG) return false;
+    const payload = decodeDatalogPayload(frame.payload);
+    return payload?.command === "ack" && payload.id === id;
+  }).length;
+}
+
+async function preparedTransport(timers?: ReturnType<typeof manualTimers>["timers"]) {
+  const fake = fakeDevice(339);
+  const session = createDurablePebbleSession({
+    device: fake.device as never,
+    nativeId: "peer-1",
+    ...(timers ? { timers } : {}),
+  });
+  const preparing = session.prepare(new AbortController().signal);
+  await tick();
+  notify(fake.monitors, Uint8Array.of(0x02, 0x01));
+  await tick();
+  const firmware = new Uint8Array(47);
+  firmware[46] = 15;
+  notify(fake.monitors, encodePpogattData(0, encodePebbleFrame(16, firmware)));
+  await preparing;
+  return { ...fake, session };
+}
+
+test("legacy Pebble callback sessions fail closed without starting capture", async () => {
   const { device, monitors, writes } = fakeDevice(339);
   const failures: string[] = [];
   const session = createPebbleSession({
     device,
     profile: PROFILE,
-    onRecord: () => undefined,
+    onRecord: () => {
+      throw new Error("legacy callback must not receive data");
+    },
     onFailure: (failure) => failures.push(failure),
     healthProfile: HEALTH_PROFILE,
   });
-  session.start();
+  expect(() => session.start()).toThrow("PEBBLE_CAPTURE_UNAVAILABLE");
   await tick();
-
-  expect(monitors.size).toBe(1);
-  // firmware version, activate health, activate HRM, health sync.
-  expect(writes.length).toBe(4);
-  const endpoints = writes.map((write) => {
-    const packet = write.value;
-    const header = decodePpogattHeader(packet[0]!);
-    expect(header.command).toBe(0);
-    return decodePebbleFrame(packet.slice(1))!.endpoint;
-  });
-  expect(endpoints).toEqual([
-    PEBBLE_ENDPOINT_FIRMWARE_VERSION,
-    0xb1db,
-    0xb1db,
-    PEBBLE_ENDPOINT_HEALTH_SYNC,
-  ]);
+  expect(monitors.size).toBe(0);
+  expect(writes).toHaveLength(0);
   expect(failures).toEqual([]);
   await session.close();
 });
 
-test("an end-to-end sync emits steps, heart rate and staged sleep", async () => {
+test("prepare waits for PPoGATT readiness and resolves model only from firmware identity", async () => {
   const { device, monitors, writes } = fakeDevice(339);
-  const { timers, advance } = fakeTimers();
-  const records: PebbleRecord[] = [];
-  const failures: string[] = [];
-  const session = createPebbleSession({
-    device,
-    profile: PROFILE,
-    onRecord: (record) => records.push(record),
-    onFailure: (failure) => failures.push(failure),
-    timers,
+  const session = createDurablePebbleSession({
+    device: device as never,
+    nativeId: "peer-1",
+    advertisedName: "Pebble A1B2",
   });
-  session.start();
+  const preparing = session.prepare(new AbortController().signal);
   await tick();
-  const writesBefore = writes.length;
+  expect(writes.some((write) => write.characteristic === PEBBLE_PPOGATT_WRITE_UUID)).toBe(false);
+  notify(monitors, Uint8Array.of(0x02, 0x01));
+  await tick();
+  const firmware = new Uint8Array(47);
+  firmware[46] = 15;
+  notify(monitors, encodePpogattData(0, encodePebbleFrame(16, firmware)));
+  await expect(preparing).resolves.toMatchObject({
+    nativeId: "peer-1",
+    hardwareId: 15,
+    identity: { family: "pebble", modelId: "pebble_2_duo" },
+  });
+  const requestEndpoints = writes
+    .filter((write) => write.characteristic === PEBBLE_PPOGATT_WRITE_UUID)
+    .map((write) => decodePebbleFrame(write.value.slice(1))?.endpoint)
+    .filter((endpoint): endpoint is number => endpoint !== undefined);
+  expect(requestEndpoints).toContain(16);
+  expect(requestEndpoints).not.toContain(911);
+  expect(requestEndpoints).not.toContain(0xb1db);
+  await session.close();
+});
 
-  // DATALOG step records are minute-aligned; use an honest minute boundary.
-  const start = 1_699_999_980;
-  const steps = stepsPacket(7, start, [10, 20]);
+test("prepare rejects unsupported firmware hardware identities", async () => {
+  const { device, monitors } = fakeDevice(339);
+  const session = createDurablePebbleSession({ device: device as never, nativeId: "peer-1" });
+  const preparing = session.prepare(new AbortController().signal);
+  await tick();
+  notify(monitors, Uint8Array.of(0x02, 0x01));
+  await tick();
+  const firmware = new Uint8Array(47);
+  firmware[46] = 19;
+  notify(monitors, encodePpogattData(0, encodePebbleFrame(16, firmware)));
+  await expect(preparing).rejects.toThrow("PEBBLE_IDENTITY_UNSUPPORTED");
+});
 
-  // Steps session: open, send, close.
-  feed(
-    monitors,
-    encodeDatalogFrame(
-      encodeDatalogOpenSession({
-        id: 1,
-        uuid: PEBBLE_UUID_ZERO,
-        timestamp: start,
-        logTag: 81,
-        itemType: 0,
-        itemSize: steps.length,
+test("first pairing triggers client-only pairing and waits for encrypted flags", async () => {
+  const fake = fakeDevice(339, 0x01);
+  const order: string[] = [];
+  const session = createDurablePebbleSession({
+    device: fake.device as never,
+    nativeId: "pairing-peer",
+    bondAdapter: {
+      getState: async () => {
+        order.push("state");
+        return "none";
+      },
+      ensureBonded: async ({ requestId }) => {
+        order.push("bond");
+        expect(requestId).toContain("pairing-peer:");
+        fake.setConnectivity(0x07);
+      },
+      cancelWait: async () => {
+        order.push("cancel-wait");
+      },
+    },
+  });
+  const preparing = session.prepare(new AbortController().signal);
+  await tick();
+  expect(fake.writes[0]?.value).toEqual(Uint8Array.of(0x11));
+  expect(order).toEqual(["state", "bond", "cancel-wait"]);
+  notify(fake.monitors, Uint8Array.of(0x02, 0x01));
+  await tick();
+  const firmware = new Uint8Array(47);
+  firmware[46] = 15;
+  notify(fake.monitors, encodePpogattData(0, encodePebbleFrame(16, firmware)));
+  await expect(preparing).resolves.toMatchObject({ hardwareId: 15 });
+  await session.close();
+});
+
+test("prepare refuses stale and inconsistent connectivity evidence", async () => {
+  const stale = fakeDevice(339, 0x21);
+  const staleSession = createDurablePebbleSession({
+    device: stale.device as never,
+    nativeId: "stale",
+  });
+  await expect(staleSession.prepare(new AbortController().signal)).rejects.toThrow(
+    "PEBBLE_CONNECTIVITY_STALE",
+  );
+  const inconsistent = fakeDevice(339, 0x05);
+  const inconsistentSession = createDurablePebbleSession({
+    device: inconsistent.device as never,
+    nativeId: "inconsistent",
+  });
+  await expect(inconsistentSession.prepare(new AbortController().signal)).rejects.toThrow(
+    "PEBBLE_CONNECTIVITY_INCONSISTENT",
+  );
+});
+
+test("DATALOG data is ACKed only after its durable sink receipt", async () => {
+  const f = await preparedTransport();
+  let commit!: (receipt: { durable: true; insertedItems: number; throughSeq: number }) => void;
+  const capture = f.session.capture({
+    signal: new AbortController().signal,
+    sink: () =>
+      new Promise((resolve) => {
+        commit = resolve;
       }),
-    ),
-  );
-  feed(
-    monitors,
-    encodeDatalogFrame(encodeDatalogSendData({ id: 1, itemsLeft: 0, crc: 0, data: steps })),
-  );
-  feed(monitors, encodeDatalogFrame(encodeDatalogClose(1)));
+  });
   await tick();
-
-  // Sleep bounds (tag 83) and overlays (tag 84) arrive as separate sessions.
-  const bounds = sleepRecord(start, start + 8 * 3600);
-  feed(
-    monitors,
+  feedFrame(
+    f.monitors,
     encodeDatalogFrame(
       encodeDatalogOpenSession({
         id: 2,
         uuid: PEBBLE_UUID_ZERO,
-        timestamp: start,
-        logTag: 83,
-        itemType: 0,
-        itemSize: bounds.length,
-      }),
-    ),
-  );
-  feed(
-    monitors,
-    encodeDatalogFrame(encodeDatalogSendData({ id: 2, itemsLeft: 0, crc: 0, data: bounds })),
-  );
-  feed(monitors, encodeDatalogFrame(encodeDatalogClose(2)));
-
-  const overlays = Uint8Array.from([
-    ...overlayRecord(PEBBLE_SLEEP_TYPE_LIGHT_SLEEP, start, 3600),
-    ...overlayRecord(PEBBLE_SLEEP_TYPE_DEEP_SLEEP, start + 3600, 1800),
-  ]);
-  feed(
-    monitors,
-    encodeDatalogFrame(
-      encodeDatalogOpenSession({
-        id: 3,
-        uuid: PEBBLE_UUID_ZERO,
-        timestamp: start,
-        logTag: 84,
-        itemType: 0,
-        itemSize: 18,
-      }),
-    ),
-  );
-  feed(
-    monitors,
-    encodeDatalogFrame(encodeDatalogSendData({ id: 3, itemsLeft: 0, crc: 0, data: overlays })),
-  );
-  feed(monitors, encodeDatalogFrame(encodeDatalogClose(3)));
-  await tick();
-
-  // The quiet window finishes the sync and flushes the combined sleep record.
-  advance(PEBBLE_SYNC_QUIET_MS);
-  await session.whenDone();
-  await tick();
-
-  const stepsRecords = records.filter((record) => record.type === "steps");
-  expect(stepsRecords).toHaveLength(2);
-  expect(stepsRecords[0]).toEqual({
-    type: "steps",
-    startTime: new Date(start * 1000).toISOString(),
-    endTime: new Date((start + 60) * 1000).toISOString(),
-    count: 10,
-  });
-  expect(stepsRecords[1]).toMatchObject({ count: 20 });
-
-  const heartRate = records.filter((record) => record.type === "heart_rate");
-  expect(heartRate.map((record) => (record as { bpm: number }).bpm)).toEqual([70, 71]);
-
-  const sleep = records.filter((record) => record.type === "sleep_session");
-  expect(sleep).toHaveLength(1);
-  expect(sleep[0]).toMatchObject({
-    type: "sleep_session",
-    startTime: new Date(start * 1000).toISOString(),
-    endTime: new Date((start + 8 * 3600) * 1000).toISOString(),
-  });
-  expect((sleep[0] as { stages?: unknown[] }).stages).toHaveLength(2);
-
-  // Every inbound data packet was ACKed, starting at serial 0.
-  const acks = writes
-    .slice(writesBefore)
-    .map((write) => write.value)
-    .filter((packet) => decodePpogattHeader(packet[0]!).command === 1);
-  expect(acks.length).toBeGreaterThanOrEqual(9);
-  expect(acks[0]![0]).toBe(0x01);
-
-  expect(failures).toEqual([]);
-  await session.close();
-});
-
-test("the watchdog reports a silent watch and settles the session", async () => {
-  const { device } = fakeDevice(339);
-  const { timers, advance } = fakeTimers();
-  const failures: string[] = [];
-  const session = createPebbleSession({
-    device,
-    profile: PROFILE,
-    onRecord: () => undefined,
-    onFailure: (failure) => failures.push(failure),
-    timers,
-  });
-  session.start();
-  await tick();
-  advance(PEBBLE_SYNC_WATCHDOG_MS);
-  await session.whenDone();
-  // The chain reaches the sync phase before the watchdog fires.
-  expect(failures).toEqual(["sync"]);
-  await session.close();
-});
-
-test("the MTU limit clamps the outbound chunk size", async () => {
-  const { device, writes } = fakeDevice(339);
-  const session = createPebbleSession({
-    device,
-    profile: { ...PROFILE, mtuLimit: 20 },
-    onRecord: () => undefined,
-    healthProfile: HEALTH_PROFILE,
-  });
-  session.start();
-  await tick();
-  // 17-byte chunks: firmware 5 -> 1, health enable 39 -> 3, HRM 22 -> 2,
-  // health sync 9 -> 1.
-  expect(writes).toHaveLength(7);
-  expect(writes[0]!.value.length).toBe(6);
-  await session.close();
-});
-
-test("command 2 is answered with the magic response", async () => {
-  const { device, monitors, writes } = fakeDevice(339);
-  const session = createPebbleSession({ device, profile: PROFILE, onRecord: () => undefined });
-  session.start();
-  await tick();
-  const before = writes.length;
-  const callback = monitors.get(`${PEBBLE_PPOGATT_SERVICE_UUID}|${PEBBLE_PPOGATT_READ_UUID}`)!;
-  callback(null, { value: Buffer.from([0x0a, 0x00]).toString("base64") } as Characteristic);
-  await tick();
-  expect(writes.length).toBe(before + 1);
-  expect([...writes.at(-1)!.value]).toEqual([0x03, 0x19, 0x19]);
-  await session.close();
-});
-
-test("DATALOG TIMEOUT is answered with a NACK", async () => {
-  const { device, monitors, writes } = fakeDevice(339);
-  const session = createPebbleSession({ device, profile: PROFILE, onRecord: () => undefined });
-  session.start();
-  await tick();
-  const before = writes.length;
-  feed(
-    monitors,
-    encodeDatalogFrame(
-      encodeDatalogOpenSession({
-        id: 9,
-        uuid: PEBBLE_UUID_ZERO,
-        timestamp: 0,
+        timestamp: 1_700_000_040,
         logTag: 81,
         itemType: 0,
         itemSize: 22,
       }),
     ),
   );
-  feed(monitors, encodeDatalogFrame(encodeDatalogTimeout(9)));
   await tick();
-  const replies = writes
-    .slice(before)
-    .map((write) => write.value)
-    .filter((packet) => decodePpogattHeader(packet[0]!).command === 0)
-    .map((packet) => decodeDatalogPayload(decodePebbleFrame(packet.slice(1))!.payload));
-  expect(replies.at(-1)).toEqual({ command: "nack", id: 9 });
-  await session.close();
-});
-
-test("an unknown session SENDDATA is NACKed", async () => {
-  const { device, monitors, writes } = fakeDevice(339);
-  const session = createPebbleSession({ device, profile: PROFILE, onRecord: () => undefined });
-  session.start();
-  await tick();
-  const before = writes.length;
-  feed(
-    monitors,
+  const acksBeforeData = datalogAckCount(f.writes, 2);
+  feedFrame(
+    f.monitors,
     encodeDatalogFrame(
-      encodeDatalogSendData({ id: 11, itemsLeft: 0, crc: 0, data: Uint8Array.from([1]) }),
+      encodeDatalogSendData({ id: 2, itemsLeft: 0, crc: 0, data: validStepsItem() }),
     ),
   );
   await tick();
-  const reply = decodeDatalogPayload(decodePebbleFrame(writes.at(-1)!.value.slice(1))!.payload);
-  expect(reply).toEqual({ command: "nack", id: 11 });
-  // One PPoGATT ACK plus the DATALOG NACK.
-  expect(writes.length).toBe(before + 2);
-  await session.close();
+  expect(datalogAckCount(f.writes, 2)).toBe(acksBeforeData);
+  commit({ durable: true, insertedItems: 1, throughSeq: 1 });
+  await tick();
+  await tick();
+  expect(hasDatalogAck(f.writes, 2)).toBe(true);
+  await f.session.close();
+  await expect(capture).resolves.toMatchObject({ status: "cancelled" });
+});
+
+test("cancellation during a durable write leaves the packet unacknowledged", async () => {
+  const f = await preparedTransport();
+  const abort = new AbortController();
+  let commit!: (receipt: { durable: true; insertedItems: number; throughSeq: number }) => void;
+  const capture = f.session.capture({
+    signal: abort.signal,
+    sink: () =>
+      new Promise((resolve) => {
+        commit = resolve;
+      }),
+  });
+  await tick();
+  feedFrame(
+    f.monitors,
+    encodeDatalogFrame(
+      encodeDatalogOpenSession({
+        id: 3,
+        uuid: PEBBLE_UUID_ZERO,
+        timestamp: 1_700_000_040,
+        logTag: 81,
+        itemType: 0,
+        itemSize: 22,
+      }),
+    ),
+  );
+  await tick();
+  const acksBeforeData = datalogAckCount(f.writes, 3);
+  feedFrame(
+    f.monitors,
+    encodeDatalogFrame(
+      encodeDatalogSendData({ id: 3, itemsLeft: 0, crc: 0, data: validStepsItem() }),
+    ),
+  );
+  await tick();
+  abort.abort();
+  commit({ durable: true, insertedItems: 1, throughSeq: 1 });
+  await expect(capture).resolves.toEqual({ status: "cancelled" });
+  await tick();
+  expect(datalogAckCount(f.writes, 3)).toBe(acksBeforeData);
+  await f.session.close();
 });
 
 test("selectPebbleProfile requires the pairing and PPoGATT services", async () => {
@@ -475,4 +453,506 @@ test("the MTU limit helper clamps to the upstream range", () => {
   expect(clampPebbleMtuLimit(200)).toBe(200);
   expect(PEBBLE_SERVICE_UUIDS.has(PEBBLE_PPOGATT_SERVICE_UUID)).toBe(true);
   expect(PEBBLE_ENDPOINT_DATALOG).toBe(6778);
+});
+
+type Monitors = ReturnType<typeof fakeDevice>["monitors"];
+const RECEIPT = { durable: true as const, insertedItems: 1, throughSeq: 1 };
+
+function openStepsSession(monitors: Monitors, id: number) {
+  feedFrame(
+    monitors,
+    encodeDatalogFrame(
+      encodeDatalogOpenSession({
+        id,
+        uuid: PEBBLE_UUID_ZERO,
+        timestamp: 1_700_000_040,
+        logTag: 81,
+        itemType: 0,
+        itemSize: 22,
+      }),
+    ),
+  );
+}
+
+function sendSteps(monitors: Monitors, id: number) {
+  feedFrame(
+    monitors,
+    encodeDatalogFrame(encodeDatalogSendData({ id, itemsLeft: 0, crc: 0, data: validStepsItem() })),
+  );
+}
+
+function datalogReplies(writes: readonly { value: Uint8Array }[], command: "ack" | "nack") {
+  return writes.flatMap((write) => {
+    const frame = decodePebbleFrame(write.value.slice(1));
+    if (!frame || frame.endpoint !== PEBBLE_ENDPOINT_DATALOG) return [];
+    const payload = decodeDatalogPayload(frame.payload);
+    return payload?.command === command ? [payload.id] : [];
+  });
+}
+
+async function settle(rounds = 6) {
+  for (let round = 0; round < rounds; round += 1) await tick();
+}
+
+test("cancelling during the bond wait cancels pairing, closes the link and rejects CANCELLED", async () => {
+  const fake = fakeDevice(339, 0x01);
+  const cancelledWaits: string[] = [];
+  let rejectBond: ((error: Error) => void) | null = null;
+  const session = createDurablePebbleSession({
+    device: fake.device as never,
+    nativeId: "pairing-peer",
+    timers: manualTimers().timers,
+    bondAdapter: {
+      getState: async () => "none",
+      ensureBonded: () =>
+        new Promise<void>((_, reject) => {
+          rejectBond = reject;
+        }),
+      cancelWait: async (requestId) => {
+        cancelledWaits.push(requestId);
+        rejectBond?.(new Error("BOND_WAIT_ABORTED"));
+      },
+    },
+  });
+  const abort = new AbortController();
+  const preparing = session.prepare(abort.signal);
+  await settle();
+  expect(rejectBond).not.toBeNull();
+  abort.abort();
+  await expect(preparing).rejects.toThrow(/^CANCELLED$/);
+  expect(cancelledWaits.length).toBeGreaterThan(0);
+  expect(fake.disconnects()).toBeGreaterThan(0);
+  expect(fake.writes.some((write) => write.characteristic === PEBBLE_PPOGATT_WRITE_UUID)).toBe(
+    false,
+  );
+});
+
+test("a monitor failure during the readiness handshake fails prepare without waiting for the timeout", async () => {
+  const fake = fakeDevice(339);
+  const clock = manualTimers();
+  const session = createDurablePebbleSession({
+    device: fake.device as never,
+    nativeId: "peer-1",
+    timers: clock.timers,
+  });
+  const preparing = session.prepare(new AbortController().signal);
+  await settle();
+  const callback = fake.monitors.get(`${PEBBLE_PPOGATT_SERVICE_UUID}|${PEBBLE_PPOGATT_READ_UUID}`);
+  callback?.({ message: "link lost" } as BleError, null);
+  // No timer fires: the rejection comes from the terminal transition itself.
+  await expect(preparing).rejects.toThrow("PEBBLE_MONITOR_FAILED");
+});
+
+test("all PPoGATT writes are serialized session-wide, including link ACKs and DATALOG replies", async () => {
+  const f = await preparedTransport(manualTimers().timers);
+  let inflight = 0;
+  let maxInflight = 0;
+  f.setWriteHook(async () => {
+    inflight += 1;
+    maxInflight = Math.max(maxInflight, inflight);
+    await tick();
+    inflight -= 1;
+  });
+  const capture = f.session.capture({
+    signal: new AbortController().signal,
+    sink: async () => RECEIPT,
+  });
+  await settle();
+  openStepsSession(f.monitors, 4);
+  openStepsSession(f.monitors, 5);
+  sendSteps(f.monitors, 4);
+  sendSteps(f.monitors, 5);
+  await settle(30);
+  expect(maxInflight).toBe(1);
+  expect(datalogReplies(f.writes, "ack")).toEqual([4, 5, 4, 5]);
+  await f.session.close();
+  await expect(capture).resolves.toEqual({ status: "cancelled" });
+});
+
+test("outbound PPoGATT data serials are consecutive and wrap at 32", async () => {
+  const f = await preparedTransport(manualTimers().timers);
+  const capture = f.session.capture({
+    signal: new AbortController().signal,
+    sink: async () => RECEIPT,
+  });
+  await settle();
+  for (let id = 0; id < 40; id += 1) {
+    openStepsSession(f.monitors, id);
+    await settle(2);
+  }
+  await settle();
+  const serials = f.writes
+    .filter((write) => write.characteristic === PEBBLE_PPOGATT_WRITE_UUID)
+    .map((write) => decodePpogattHeader(write.value[0]!))
+    .filter((header) => header.command === 0)
+    .map((header) => header.serial);
+  expect(serials.length).toBeGreaterThan(33);
+  for (let index = 1; index < serials.length; index += 1)
+    expect(serials[index]).toBe((serials[index - 1]! + 1) & 0x1f);
+  expect(serials).toContain(31);
+  await f.session.close();
+  await capture;
+});
+
+test("a failed write terminates capture and nothing further is written", async () => {
+  const f = await preparedTransport(manualTimers().timers);
+  f.setWriteHook(async () => {
+    throw new Error("GATT write failed");
+  });
+  const outcome = await f.session.capture({
+    signal: new AbortController().signal,
+    sink: async () => RECEIPT,
+  });
+  expect(outcome).toEqual({ status: "failed", code: "PEBBLE_WRITE_FAILED" });
+  f.setWriteHook(null);
+  const writesAfter = f.writes.length;
+  openStepsSession(f.monitors, 6);
+  await settle();
+  expect(f.writes.length).toBe(writesAfter);
+  expect(datalogReplies(f.writes, "ack")).not.toContain(6);
+  expect(f.disconnects()).toBeGreaterThan(0);
+});
+
+test("a storage failure gets no DATALOG reply at all, fails capture and disconnects", async () => {
+  const f = await preparedTransport(manualTimers().timers);
+  const capture = f.session.capture({
+    signal: new AbortController().signal,
+    sink: async () => {
+      throw new Error("SQLITE_FULL");
+    },
+  });
+  await settle();
+  openStepsSession(f.monitors, 7);
+  await settle();
+  sendSteps(f.monitors, 7);
+  await expect(capture).resolves.toEqual({ status: "failed", code: "PEBBLE_PERSISTENCE_FAILED" });
+  expect(datalogReplies(f.writes, "ack")).toEqual([7]); // the open, never the data
+  expect(datalogReplies(f.writes, "nack")).toEqual([]);
+  expect(f.disconnects()).toBeGreaterThan(0);
+});
+
+test("idle is reported only after every session closes and the quiet window elapses; late packets are ignored", async () => {
+  const clock = manualTimers();
+  const f = await preparedTransport(clock.timers);
+  let sinkCalls = 0;
+  const capture = f.session.capture({
+    signal: new AbortController().signal,
+    sink: async () => {
+      sinkCalls += 1;
+      return RECEIPT;
+    },
+  });
+  await settle();
+  openStepsSession(f.monitors, 8);
+  await settle();
+  sendSteps(f.monitors, 8);
+  await settle();
+  // Data alone never completes capture; only CLOSE starts the quiet window.
+  expect(clock.pendingMs()).not.toContain(2_000);
+  feedFrame(f.monitors, encodeDatalogFrame(encodeDatalogClose(8)));
+  await settle();
+  expect(clock.pendingMs()).toContain(2_000);
+  clock.fire(2_000);
+  await expect(capture).resolves.toEqual({
+    status: "idle",
+    receivedPackets: 1,
+    durableItems: 1,
+    rejectedPackets: 0,
+  });
+  // Upstream answers CLOSE with a NACK.
+  expect(datalogReplies(f.writes, "nack")).toEqual([8]);
+  const writesAfter = f.writes.length;
+  openStepsSession(f.monitors, 9);
+  sendSteps(f.monitors, 9);
+  await settle();
+  expect(sinkCalls).toBe(1);
+  expect(f.writes.length).toBe(writesAfter);
+  await expect(
+    f.session.capture({ signal: new AbortController().signal, sink: async () => RECEIPT }),
+  ).resolves.toEqual({ status: "failed", code: "PEBBLE_SESSION_TERMINAL" });
+});
+
+test("capture fails with a timeout when the watch never opens a DATALOG session", async () => {
+  const clock = manualTimers();
+  const f = await preparedTransport(clock.timers);
+  const capture = f.session.capture({
+    signal: new AbortController().signal,
+    sink: async () => RECEIPT,
+  });
+  await settle();
+  clock.fire(30_000);
+  await expect(capture).resolves.toEqual({ status: "failed", code: "PEBBLE_CAPTURE_TIMEOUT" });
+});
+
+test("a second session opened inside the quiet window keeps capture running until it closes", async () => {
+  const clock = manualTimers();
+  const f = await preparedTransport(clock.timers);
+  const capture = f.session.capture({
+    signal: new AbortController().signal,
+    sink: async () => RECEIPT,
+  });
+  await settle();
+  openStepsSession(f.monitors, 10);
+  sendSteps(f.monitors, 10);
+  feedFrame(f.monitors, encodeDatalogFrame(encodeDatalogClose(10)));
+  await settle();
+  expect(clock.pendingMs()).toContain(2_000);
+  openStepsSession(f.monitors, 11);
+  await settle();
+  expect(clock.pendingMs()).not.toContain(2_000);
+  clock.fire(2_000);
+  sendSteps(f.monitors, 11);
+  await settle();
+  expect(datalogReplies(f.writes, "ack")).toEqual([10, 10, 11, 11]);
+  feedFrame(f.monitors, encodeDatalogFrame(encodeDatalogClose(11)));
+  await settle();
+  clock.fire(2_000);
+  await expect(capture).resolves.toMatchObject({ status: "idle", receivedPackets: 2 });
+});
+
+test("an open session that goes silent fails capture as stalled instead of hanging", async () => {
+  const clock = manualTimers();
+  const f = await preparedTransport(clock.timers);
+  const capture = f.session.capture({
+    signal: new AbortController().signal,
+    sink: async () => RECEIPT,
+  });
+  await settle();
+  openStepsSession(f.monitors, 12);
+  await settle();
+  clock.fire(30_000);
+  await expect(capture).resolves.toEqual({
+    status: "failed",
+    code: "PEBBLE_CAPTURE_STALLED",
+    receivedPackets: 0,
+    durableItems: 0,
+    rejectedPackets: 0,
+  });
+});
+
+test("a stall after delivered and rejected packets reports both counts", async () => {
+  const clock = manualTimers();
+  const f = await preparedTransport(clock.timers);
+  const capture = f.session.capture({
+    signal: new AbortController().signal,
+    sink: async () => RECEIPT,
+  });
+  await settle();
+  openStepsSession(f.monitors, 30);
+  sendSteps(f.monitors, 30);
+  sendSteps(f.monitors, 31); // never opened: health data left on the watch
+  await settle();
+  clock.fire(30_000);
+  await expect(capture).resolves.toEqual({
+    status: "failed",
+    code: "PEBBLE_CAPTURE_STALLED",
+    receivedPackets: 1,
+    durableItems: 1,
+    rejectedPackets: 1,
+  });
+});
+
+test("foreign opens cannot crowd a health open out of the pre-capture buffer", async () => {
+  const f = await preparedTransport(manualTimers().timers);
+  for (let id = 100; id < 120; id += 1)
+    feedFrame(
+      f.monitors,
+      encodeDatalogFrame(
+        encodeDatalogOpenSession({
+          id,
+          uuid: "12345678-1234-1234-1234-123456789abc",
+          timestamp: 1_700_000_040,
+          logTag: 81,
+          itemSize: 22,
+          itemType: 0,
+        }),
+      ),
+    );
+  openStepsSession(f.monitors, 5);
+  await settle();
+  const capture = f.session.capture({
+    signal: new AbortController().signal,
+    sink: async () => RECEIPT,
+  });
+  await settle();
+  expect(datalogReplies(f.writes, "ack")).toEqual([5]);
+  await f.session.close();
+  await capture;
+});
+
+test("foreign and unknown sessions are NACKed without failing capture", async () => {
+  const clock = manualTimers();
+  const f = await preparedTransport(clock.timers);
+  let sinkCalls = 0;
+  const capture = f.session.capture({
+    signal: new AbortController().signal,
+    sink: async () => {
+      sinkCalls += 1;
+      return RECEIPT;
+    },
+  });
+  await settle();
+  // Tag 85 (heart-rate stub upstream) and a third-party app's data log.
+  feedFrame(
+    f.monitors,
+    encodeDatalogFrame(
+      encodeDatalogOpenSession({
+        id: 20,
+        uuid: PEBBLE_UUID_ZERO,
+        timestamp: 1_700_000_040,
+        logTag: 85,
+        itemSize: 22,
+        itemType: 0,
+      }),
+    ),
+  );
+  feedFrame(
+    f.monitors,
+    encodeDatalogFrame(
+      encodeDatalogOpenSession({
+        id: 21,
+        uuid: "12345678-1234-1234-1234-123456789abc",
+        timestamp: 1_700_000_040,
+        logTag: 81,
+        itemSize: 22,
+        itemType: 0,
+      }),
+    ),
+  );
+  await settle();
+  sendSteps(f.monitors, 20);
+  sendSteps(f.monitors, 21);
+  sendSteps(f.monitors, 22); // never opened on this connection
+  await settle();
+  expect(datalogReplies(f.writes, "ack")).toEqual([20, 21]);
+  expect(datalogReplies(f.writes, "nack")).toEqual([20, 21, 22]);
+  expect(sinkCalls).toBe(0);
+  // Health data still flows afterwards.
+  openStepsSession(f.monitors, 23);
+  sendSteps(f.monitors, 23);
+  await settle();
+  expect(sinkCalls).toBe(1);
+  await f.session.close();
+  await expect(capture).resolves.toEqual({ status: "cancelled" });
+});
+
+test("an unparseable packet is NACKed and counted, and capture continues", async () => {
+  const clock = manualTimers();
+  const f = await preparedTransport(clock.timers);
+  const capture = f.session.capture({
+    signal: new AbortController().signal,
+    sink: async () => RECEIPT,
+  });
+  await settle();
+  openStepsSession(f.monitors, 24);
+  await settle();
+  const bad = validStepsItem();
+  bad[0] = 99; // unsupported record version
+  feedFrame(
+    f.monitors,
+    encodeDatalogFrame(encodeDatalogSendData({ id: 24, itemsLeft: 0, crc: 0, data: bad })),
+  );
+  sendSteps(f.monitors, 24);
+  feedFrame(f.monitors, encodeDatalogFrame(encodeDatalogClose(24)));
+  await settle();
+  clock.fire(2_000);
+  await expect(capture).resolves.toEqual({
+    status: "idle",
+    receivedPackets: 1,
+    durableItems: 1,
+    rejectedPackets: 1,
+  });
+});
+
+test("a session the watch opens before capture() starts is honoured once capture begins", async () => {
+  const f = await preparedTransport(manualTimers().timers);
+  openStepsSession(f.monitors, 3);
+  await settle();
+  expect(datalogReplies(f.writes, "ack")).toEqual([]);
+  let sinkCalls = 0;
+  const capture = f.session.capture({
+    signal: new AbortController().signal,
+    sink: async () => {
+      sinkCalls += 1;
+      return RECEIPT;
+    },
+  });
+  await settle();
+  expect(datalogReplies(f.writes, "ack")).toEqual([3]);
+  sendSteps(f.monitors, 3);
+  await settle();
+  expect(sinkCalls).toBe(1);
+  expect(datalogReplies(f.writes, "ack")).toEqual([3, 3]);
+  await f.session.close();
+  await capture;
+});
+
+test("a firmware reply that arrives before its request write settles is not lost", async () => {
+  const fake = fakeDevice(339);
+  const session = createDurablePebbleSession({
+    device: fake.device as never,
+    nativeId: "peer-1",
+    timers: manualTimers().timers,
+  });
+  const firmware = new Uint8Array(47);
+  firmware[46] = 15;
+  let sawRequest = false;
+  // The fake records a write only after the hook returns, so the request is
+  // recognised by counting PPoGATT writes: magic reply first, then the request.
+  let ppogattWrites = 0;
+  fake.setWriteHook(async (characteristic) => {
+    if (characteristic !== PEBBLE_PPOGATT_WRITE_UUID) return;
+    ppogattWrites += 1;
+    if (ppogattWrites !== 2) return;
+    sawRequest = true;
+    // Reply while the firmware request write is still pending.
+    notify(fake.monitors, encodePpogattData(0, encodePebbleFrame(16, firmware)));
+  });
+  const preparing = session.prepare(new AbortController().signal);
+  await settle();
+  notify(fake.monitors, Uint8Array.of(0x02, 0x01));
+  await settle();
+  expect(sawRequest).toBe(true);
+  await expect(preparing).resolves.toMatchObject({ hardwareId: 15 });
+  expect(decodePebbleFrame(fake.writes.at(-2)!.value.slice(1))?.endpoint).toBe(16);
+  await session.close();
+});
+
+test("an unsupported bond adapter refuses pairing without writing the pairing trigger", async () => {
+  const fake = fakeDevice(339, 0x01);
+  const session = createDurablePebbleSession({
+    device: fake.device as never,
+    nativeId: "ios-peer",
+    bondAdapter: {
+      getState: async () => "unsupported",
+      ensureBonded: async () => {
+        throw new Error("must not be called");
+      },
+      cancelWait: async () => undefined,
+    },
+  });
+  await expect(session.prepare(new AbortController().signal)).rejects.toThrow(
+    "PEBBLE_PAIRING_UNSUPPORTED",
+  );
+  expect(fake.writes).toHaveLength(0);
+});
+
+test("cancelling while the health-sync request is in flight leaves no capture timer armed", async () => {
+  const clock = manualTimers();
+  const f = await preparedTransport(clock.timers);
+  let release!: () => void;
+  f.setWriteHook(
+    () =>
+      new Promise<void>((resolve) => {
+        release = resolve;
+      }),
+  );
+  const abort = new AbortController();
+  const capture = f.session.capture({ signal: abort.signal, sink: async () => RECEIPT });
+  await settle();
+  abort.abort();
+  release();
+  await expect(capture).resolves.toEqual({ status: "cancelled" });
+  await settle();
+  expect(clock.pendingMs()).toEqual([]);
 });

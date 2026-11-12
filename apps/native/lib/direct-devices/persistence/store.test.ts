@@ -303,7 +303,7 @@ test("v1 SQLite upgrades in place, preserves legacy rows, resets cursor once, an
   ).run(key, deviceId, "old-capture", JSON.stringify(legacyRequest));
   const store = createSqliteDirectDeviceStore(adapter(db));
   const ticket = createAuthorityTicket(scope, "v1-upgrade");
-  expect(db.query("PRAGMA user_version").get()).toEqual({ user_version: 2 });
+  expect(db.query("PRAGMA user_version").get()).toEqual({ user_version: 3 });
   expect(store.getBinding(ticket, deviceId)?.captureCheckpoint).toBe("old-cursor");
   store.adoptBindingIdentity(ticket, deviceId, identity);
   expect(store.getBinding(ticket, deviceId)).toMatchObject({

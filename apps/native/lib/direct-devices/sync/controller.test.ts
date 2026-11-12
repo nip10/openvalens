@@ -1907,7 +1907,7 @@ test("FitPro history is committed as steps_interval, sleep_session and heart_rat
   invalidateDirectDeviceAuthority();
 });
 
-test("Pebble history is committed as steps, sleep_session and heart_rate batches", async () => {
+test("Pebble history samples never enter the generic history buffer or outbox", async () => {
   const { db, store } = sqlite();
   const historyCapture: { handler: ((sample: DirectDeviceHistorySample) => void) | null } = {
     handler: null,
@@ -1986,44 +1986,8 @@ test("Pebble history is committed as steps, sleep_session and heart_rate batches
   }
   await new Promise((resolve) => setTimeout(resolve, 0));
 
-  const pending = store.listPending(ticket, 10);
-  expect(pending).toHaveLength(3);
-  const byType = new Map(pending.map((row) => [row.request.batch.recordType, row.request.batch]));
-  expect([...byType.keys()].sort()).toEqual(["heart_rate", "sleep_session", "steps"]);
-  for (const batch of byType.values())
-    expect(batch).toMatchObject({
-      mode: "backfill",
-      deviceIdentity: { family: "pebble", modelId: "pebble_classic_2" },
-    });
-
-  const steps = byType.get("steps")!.upserts;
-  expect(steps).toHaveLength(50);
-  expect(steps[0]).toMatchObject({
-    type: "steps",
-    startTime: "2026-02-01T00:00:00.000Z",
-    endTime: "2026-02-01T00:01:00.000Z",
-    count: 10,
-  });
-  expect(steps[0]!.externalRecordId).toStartWith(`dd-pebble:${deviceId}:steps:`);
-
-  const sleep = byType.get("sleep_session")!.upserts;
-  expect(sleep).toHaveLength(1);
-  expect(sleep[0]).toMatchObject({
-    type: "sleep_session",
-    startTime: "2026-02-01T23:00:00.000Z",
-    endTime: "2026-02-02T07:00:00.000Z",
-  });
-  expect(sleep[0]!.externalRecordId).toStartWith(`dd-pebble:${deviceId}:sleep:`);
-  expect(sleep[0]).toHaveProperty("stages");
-
-  const heartRate = byType.get("heart_rate")!.upserts;
-  expect(heartRate).toHaveLength(1);
-  expect(heartRate[0]).toMatchObject({ type: "heart_rate" });
-  expect(heartRate[0]!.externalRecordId).toStartWith(`dd-pebble:${deviceId}:hr:`);
-  if (heartRate[0]!.type === "heart_rate") {
-    expect(heartRate[0]!.samples).toHaveLength(1);
-    expect(heartRate[0]!.samples[0]).toMatchObject({ bpm: 71 });
-  }
+  // Pebble history only reaches the outbox via the durable inbox + projector.
+  expect(store.listPending(ticket, 10)).toHaveLength(0);
 
   await controller.dispose();
   db.close();

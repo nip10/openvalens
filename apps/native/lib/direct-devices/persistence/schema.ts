@@ -1,4 +1,4 @@
-export const DIRECT_DEVICE_SCHEMA_VERSION = 2;
+export const DIRECT_DEVICE_SCHEMA_VERSION = 3;
 
 export const DIRECT_DEVICE_SCHEMA_SQL = `
   CREATE TABLE IF NOT EXISTS direct_device_binding (
@@ -8,6 +8,7 @@ export const DIRECT_DEVICE_SCHEMA_SQL = `
     capture_checkpoint TEXT,
     family TEXT,
     model_id TEXT,
+    pebble_native_id TEXT,
     PRIMARY KEY(scope, device_id)
   );
   CREATE TABLE IF NOT EXISTS direct_device_capture (
@@ -34,4 +35,27 @@ export const DIRECT_DEVICE_SCHEMA_SQL = `
   );
   CREATE INDEX IF NOT EXISTS direct_device_outbox_pending
     ON direct_device_outbox(scope, state, seq);
+  CREATE TABLE IF NOT EXISTS direct_device_pebble_item (
+    seq INTEGER PRIMARY KEY AUTOINCREMENT,
+    scope TEXT NOT NULL,
+    device_id TEXT NOT NULL,
+    log_tag INTEGER NOT NULL CHECK(log_tag IN (81, 83, 84)),
+    item_type INTEGER NOT NULL,
+    item_size INTEGER NOT NULL,
+    session_timestamp INTEGER NOT NULL,
+    raw_hex TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    UNIQUE(scope, device_id, log_tag, item_type, item_size, raw_hex)
+  );
+  CREATE INDEX IF NOT EXISTS direct_device_pebble_item_order
+    ON direct_device_pebble_item(scope, device_id, seq);
+  CREATE TABLE IF NOT EXISTS direct_device_pebble_projection (
+    scope TEXT NOT NULL,
+    device_id TEXT NOT NULL,
+    kind TEXT NOT NULL CHECK(kind IN ('activity', 'sleep')),
+    revision INTEGER NOT NULL,
+    through_seq INTEGER NOT NULL,
+    manifest_json TEXT NOT NULL,
+    PRIMARY KEY(scope, device_id, kind)
+  );
 `;

@@ -18,6 +18,17 @@ import {
   type DirectDeviceScope,
 } from "../authority";
 import { DIRECT_DEVICE_SCHEMA_SQL, DIRECT_DEVICE_SCHEMA_VERSION } from "./schema";
+import {
+  parseOverlaySessionData,
+  parseSleepSessionData,
+  parseStepsSessionData,
+} from "../protocol/pebble";
+import {
+  isPebbleCaptureIdentity,
+  type PebbleIdentity,
+  type PebblePacket,
+  type PebbleDurableReceipt,
+} from "../pebble-types";
 
 export type DirectDeviceErrorCode =
   | "NETWORK"
@@ -56,6 +67,40 @@ export type DirectBinding = Readonly<{
   captureCheckpoint: string | null;
   family: DirectDeviceIdentity["family"] | null;
   modelId: string | null;
+  pebbleNativeId?: string | null;
+}>;
+
+export type PebbleProjectionKind = "activity" | "sleep";
+export type PebbleProjectionManifestEntry = Readonly<{
+  recordId: string;
+  startTime: string;
+  endTime: string;
+  /** Hash of the last published content (sleep), so unchanged sessions are not resent. */
+  contentHash?: string;
+}>;
+export type PebbleProjectionSnapshot = Readonly<{
+  revision: number;
+  throughSeq: number;
+  manifest: readonly PebbleProjectionManifestEntry[];
+}>;
+export type PebbleProjectionInput = Readonly<{
+  deviceId: string;
+  identity: PebbleIdentity;
+  kind: PebbleProjectionKind;
+  expectedRevision: number;
+  throughSeq: number;
+  manifest: readonly PebbleProjectionManifestEntry[];
+  envelopes: readonly IngestDirectDeviceBatchInput[];
+  /** Settled sleep inputs (tags 83/84, seq <= throughSeq) to delete in this transaction. */
+  compactSleepSeqs?: readonly number[];
+}>;
+export type PebbleInboxItem = Readonly<{
+  seq: number;
+  logTag: 81 | 83 | 84;
+  itemType: number;
+  itemSize: number;
+  sessionTimestamp: number;
+  rawHex: string;
 }>;
 
 export interface DirectDeviceStore {
@@ -69,6 +114,28 @@ export interface DirectDeviceStore {
   ): void;
   markRegistered(ticket: AuthorityTicket, deviceId: string, providerConnectionId: number): void;
   commitCapture(ticket: AuthorityTicket, input: CaptureInput): void;
+  attachPebblePeripheral(
+    ticket: AuthorityTicket,
+    deviceId: string,
+    identity: PebbleIdentity,
+    nativeId: string,
+  ): void;
+  appendPebblePacket(
+    ticket: AuthorityTicket,
+    target: { deviceId: string; identity: PebbleIdentity; nativeId: string },
+    packet: PebblePacket,
+  ): PebbleDurableReceipt;
+  readPebbleItems(
+    ticket: AuthorityTicket,
+    deviceId: string,
+    throughSeq?: number,
+  ): readonly PebbleInboxItem[];
+  readPebbleProjection(
+    ticket: AuthorityTicket,
+    deviceId: string,
+    kind: PebbleProjectionKind,
+  ): PebbleProjectionSnapshot;
+  commitPebbleProjection(ticket: AuthorityTicket, input: PebbleProjectionInput): void;
   listPending(ticket: AuthorityTicket, limit: number): DirectOutboxRow[];
   recordServerReceipt(
     ticket: AuthorityTicket,
@@ -93,6 +160,8 @@ export interface SyncSqliteDatabase {
 export const MAX_CAPTURE_ENVELOPES = 100;
 export const MAX_REQUEST_BYTES = 1_000_000;
 export const MAX_CAPTURE_BYTES = 4_000_000;
+export const MAX_PEBBLE_RAW_BYTES = 8 * 1024 * 1024;
+export const MAX_PEBBLE_ITEMS = 50_000;
 
 export class DirectDeviceStorageError extends Error {
   constructor(message = "DIRECT_DEVICE_STORAGE_UNAVAILABLE") {
@@ -260,6 +329,36 @@ function deepFreeze<T>(value: T): T {
   return value;
 }
 
+function bytesToHex(bytes: Uint8Array): string {
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function validatePebblePacket(packet: PebblePacket): readonly Uint8Array[] {
+  if (
+    !packet.uuid ||
+    !Number.isSafeInteger(packet.sessionTimestamp) ||
+    !Number.isInteger(packet.itemType) ||
+    !Number.isInteger(packet.itemSize) ||
+    packet.itemSize <= 0 ||
+    packet.data.length === 0 ||
+    packet.data.length % packet.itemSize !== 0
+  )
+    throw new DirectDeviceConflictError("PEBBLE_PACKET_INVALID");
+  const valid =
+    packet.logTag === 81
+      ? parseStepsSessionData(packet.data, packet.itemSize)
+      : packet.logTag === 83
+        ? parseSleepSessionData(packet.data, packet.itemSize)
+        : packet.logTag === 84
+          ? parseOverlaySessionData(packet.data, packet.itemSize)
+          : null;
+  if (!valid) throw new DirectDeviceConflictError("PEBBLE_PACKET_INVALID");
+  const items: Uint8Array[] = [];
+  for (let offset = 0; offset < packet.data.length; offset += packet.itemSize)
+    items.push(packet.data.slice(offset, offset + packet.itemSize));
+  return items;
+}
+
 export function createSqliteDirectDeviceStore(
   db: SyncSqliteDatabase,
   now = Date.now,
@@ -269,6 +368,39 @@ export function createSqliteDirectDeviceStore(
   const requireTicketScope = (ticket: AuthorityTicket): string => {
     assertAuthorityTicket(ticket);
     return ticket.scopeKey;
+  };
+
+  // Transaction-local only: callers establish the enclosing atomic boundary.
+  const insertCaptureInTransaction = (
+    scope: string,
+    deviceId: string,
+    captureId: string,
+    checkpointJson: string,
+    requests: readonly string[],
+  ): void => {
+    db.runSync(
+      `INSERT INTO direct_device_capture(scope, device_id, capture_id, checkpoint_json, envelope_count, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      scope,
+      deviceId,
+      captureId,
+      checkpointJson,
+      requests.length,
+      now(),
+    );
+    requests.forEach((requestJson, envelopeIndex) =>
+      db.runSync(
+        `INSERT INTO direct_device_outbox(
+          scope, device_id, capture_id, envelope_index, request_json, state, receipt_json, last_error_code, created_at
+        ) VALUES (?, ?, ?, ?, ?, 'pending', NULL, NULL, ?)`,
+        scope,
+        deviceId,
+        captureId,
+        envelopeIndex,
+        requestJson,
+        now(),
+      ),
+    );
   };
 
   const store: DirectDeviceStore = {
@@ -281,8 +413,9 @@ export function createSqliteDirectDeviceStore(
           capture_checkpoint: string | null;
           family: DirectBinding["family"];
           model_id: string | null;
+          pebble_native_id: string | null;
         }>(
-          `SELECT device_id, provider_connection_id, capture_checkpoint, family, model_id FROM direct_device_binding WHERE scope = ? ORDER BY device_id`,
+          `SELECT device_id, provider_connection_id, capture_checkpoint, family, model_id, pebble_native_id FROM direct_device_binding WHERE scope = ? ORDER BY device_id`,
           scope,
         )
         .map((row) =>
@@ -292,6 +425,7 @@ export function createSqliteDirectDeviceStore(
             captureCheckpoint: row.capture_checkpoint,
             family: row.family,
             modelId: row.model_id,
+            pebbleNativeId: row.pebble_native_id,
           }),
         );
     },
@@ -305,8 +439,9 @@ export function createSqliteDirectDeviceStore(
         capture_checkpoint: string | null;
         family: DirectBinding["family"];
         model_id: string | null;
+        pebble_native_id: string | null;
       }>(
-        `SELECT device_id, provider_connection_id, capture_checkpoint, family, model_id FROM direct_device_binding WHERE scope = ? AND device_id = ?`,
+        `SELECT device_id, provider_connection_id, capture_checkpoint, family, model_id, pebble_native_id FROM direct_device_binding WHERE scope = ? AND device_id = ?`,
         scope,
         deviceId,
       );
@@ -317,6 +452,7 @@ export function createSqliteDirectDeviceStore(
             captureCheckpoint: row.capture_checkpoint,
             family: row.family,
             modelId: row.model_id,
+            pebbleNativeId: row.pebble_native_id,
           })
         : null;
     },
@@ -403,6 +539,9 @@ export function createSqliteDirectDeviceStore(
 
     commitCapture(ticket, input) {
       validateDeviceId(input.deviceId);
+      // Pebble history must go through the durable inbox and projector.
+      if (input.deviceIdentity?.family === "pebble")
+        throw new DirectDeviceConflictError("PEBBLE_CAPTURE_REQUIRES_INBOX");
       if (
         !input.captureId ||
         input.captureId.length > 200 ||
@@ -477,29 +616,13 @@ export function createSqliteDirectDeviceStore(
           throw new DirectDeviceConflictError("DIRECT_DEVICE_IDENTITY_MISMATCH");
         if (binding.capture_checkpoint !== input.expectedPreviousCheckpoint)
           throw new DirectDeviceConflictError("DIRECT_DEVICE_CHECKPOINT_CONFLICT");
-        db.runSync(
-          `INSERT INTO direct_device_capture(scope, device_id, capture_id, checkpoint_json, envelope_count, created_at)
-           VALUES (?, ?, ?, ?, ?, ?)`,
+        insertCaptureInTransaction(
           scope,
           input.deviceId,
           input.captureId,
           checkpointJson,
-          requests.length,
-          now(),
+          requests,
         );
-        requests.forEach((requestJson, envelopeIndex) => {
-          db.runSync(
-            `INSERT INTO direct_device_outbox(
-              scope, device_id, capture_id, envelope_index, request_json, state, receipt_json, last_error_code, created_at
-            ) VALUES (?, ?, ?, ?, ?, 'pending', NULL, NULL, ?)`,
-            scope,
-            input.deviceId,
-            input.captureId,
-            envelopeIndex,
-            requestJson,
-            now(),
-          );
-        });
         const updated = db.runSync(
           `UPDATE direct_device_binding SET capture_checkpoint = ?
            WHERE scope = ? AND device_id = ? AND capture_checkpoint IS ?`,
@@ -510,6 +633,303 @@ export function createSqliteDirectDeviceStore(
         );
         if (updated.changes !== 1)
           throw new DirectDeviceConflictError("DIRECT_DEVICE_CHECKPOINT_CONFLICT");
+      });
+    },
+
+    attachPebblePeripheral(ticket, deviceId, identityInput, nativeId) {
+      validateDeviceId(deviceId);
+      if (!nativeId || nativeId.length > 512)
+        throw new DirectDeviceConflictError("PEBBLE_NATIVE_ID_INVALID");
+      const identity = directDeviceIdentity.parse(identityInput);
+      if (!isPebbleCaptureIdentity(identity))
+        throw new DirectDeviceConflictError("DIRECT_DEVICE_IDENTITY_MISMATCH");
+      const scope = requireTicketScope(ticket);
+      db.withTransactionSync(() => {
+        assertAuthorityTicket(ticket);
+        const binding = db.getFirstSync<{
+          provider_connection_id: number | null;
+          family: string | null;
+          model_id: string | null;
+          pebble_native_id: string | null;
+        }>(
+          "SELECT provider_connection_id, family, model_id, pebble_native_id FROM direct_device_binding WHERE scope = ? AND device_id = ?",
+          scope,
+          deviceId,
+        );
+        if (!binding || binding.provider_connection_id === null)
+          throw new DirectDeviceConflictError("DIRECT_DEVICE_BINDING_REQUIRED");
+        if (binding.family !== identity.family || binding.model_id !== identity.modelId)
+          throw new DirectDeviceConflictError("DIRECT_DEVICE_IDENTITY_MISMATCH");
+        if (binding.pebble_native_id !== null && binding.pebble_native_id !== nativeId)
+          throw new DirectDeviceConflictError("PEBBLE_NATIVE_ID_IMMUTABLE");
+        db.runSync(
+          "UPDATE direct_device_binding SET pebble_native_id = ? WHERE scope = ? AND device_id = ? AND pebble_native_id IS NULL",
+          nativeId,
+          scope,
+          deviceId,
+        );
+      });
+    },
+
+    appendPebblePacket(ticket, target, packet) {
+      validateDeviceId(target.deviceId);
+      const identity = directDeviceIdentity.parse(target.identity);
+      if (!isPebbleCaptureIdentity(identity) || !target.nativeId)
+        throw new DirectDeviceConflictError("DIRECT_DEVICE_IDENTITY_MISMATCH");
+      const items = validatePebblePacket(packet);
+      const scope = requireTicketScope(ticket);
+      const itemHex = items.map(bytesToHex);
+      let insertedItems = 0;
+      let throughSeq = 0;
+      db.withTransactionSync(() => {
+        assertAuthorityTicket(ticket);
+        const binding = db.getFirstSync<{
+          provider_connection_id: number | null;
+          family: string | null;
+          model_id: string | null;
+          pebble_native_id: string | null;
+        }>(
+          "SELECT provider_connection_id, family, model_id, pebble_native_id FROM direct_device_binding WHERE scope = ? AND device_id = ?",
+          scope,
+          target.deviceId,
+        );
+        if (
+          !binding ||
+          binding.provider_connection_id === null ||
+          binding.family !== identity.family ||
+          binding.model_id !== identity.modelId ||
+          binding.pebble_native_id !== target.nativeId
+        )
+          throw new DirectDeviceConflictError("PEBBLE_PEER_AUTHORITY_MISMATCH");
+        const current = db.getFirstSync<{ items: number; bytes: number }>(
+          "SELECT COUNT(*) AS items, COALESCE(SUM(length(raw_hex) / 2), 0) AS bytes FROM direct_device_pebble_item WHERE scope = ? AND device_id = ?",
+          scope,
+          target.deviceId,
+        )!;
+        const uniqueNew = [...new Set(itemHex)].filter(
+          (rawHex) =>
+            !db.getFirstSync<{ present: number }>(
+              `SELECT 1 AS present FROM direct_device_pebble_item
+             WHERE scope = ? AND device_id = ? AND log_tag = ? AND item_type = ? AND item_size = ? AND raw_hex = ?`,
+              scope,
+              target.deviceId,
+              packet.logTag,
+              packet.itemType,
+              packet.itemSize,
+              rawHex,
+            ),
+        );
+        const additionalBytes = uniqueNew.reduce((total, hex) => total + hex.length / 2, 0);
+        if (
+          current.items + uniqueNew.length > MAX_PEBBLE_ITEMS ||
+          current.bytes + additionalBytes > MAX_PEBBLE_RAW_BYTES
+        )
+          throw new DirectDeviceAdmissionError("PEBBLE_INBOX_FULL");
+        for (const rawHex of itemHex) {
+          const result = db.runSync(
+            `INSERT OR IGNORE INTO direct_device_pebble_item
+             (scope, device_id, log_tag, item_type, item_size, session_timestamp, raw_hex, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            scope,
+            target.deviceId,
+            packet.logTag,
+            packet.itemType,
+            packet.itemSize,
+            packet.sessionTimestamp,
+            rawHex,
+            now(),
+          );
+          insertedItems += result.changes;
+        }
+        const max = db.getFirstSync<{ seq: number | null }>(
+          "SELECT MAX(seq) AS seq FROM direct_device_pebble_item WHERE scope = ? AND device_id = ?",
+          scope,
+          target.deviceId,
+        );
+        throughSeq = max?.seq ?? 0;
+      });
+      return Object.freeze({ durable: true as const, insertedItems, throughSeq });
+    },
+
+    readPebbleItems(ticket, deviceId, throughSeq = Number.MAX_SAFE_INTEGER) {
+      validateDeviceId(deviceId);
+      const scope = requireTicketScope(ticket);
+      return db
+        .getAllSync<PebbleInboxItem>(
+          `SELECT seq, log_tag AS logTag, item_type AS itemType, item_size AS itemSize,
+                session_timestamp AS sessionTimestamp, raw_hex AS rawHex
+         FROM direct_device_pebble_item WHERE scope = ? AND device_id = ? AND seq <= ? ORDER BY seq`,
+          scope,
+          deviceId,
+          throughSeq,
+        )
+        .map((row) => Object.freeze({ ...row, logTag: row.logTag as 81 | 83 | 84 }));
+    },
+
+    readPebbleProjection(ticket, deviceId, kind) {
+      validateDeviceId(deviceId);
+      const scope = requireTicketScope(ticket);
+      const row = db.getFirstSync<{ revision: number; through_seq: number; manifest_json: string }>(
+        "SELECT revision, through_seq, manifest_json FROM direct_device_pebble_projection WHERE scope = ? AND device_id = ? AND kind = ?",
+        scope,
+        deviceId,
+        kind,
+      );
+      if (!row) return Object.freeze({ revision: 0, throughSeq: 0, manifest: Object.freeze([]) });
+      try {
+        const manifest = JSON.parse(row.manifest_json) as PebbleProjectionManifestEntry[];
+        if (!Array.isArray(manifest)) throw new Error("invalid manifest");
+        return Object.freeze({
+          revision: row.revision,
+          throughSeq: row.through_seq,
+          manifest: Object.freeze(manifest),
+        });
+      } catch {
+        throw new DirectDeviceStorageError("PEBBLE_PROJECTION_CORRUPT");
+      }
+    },
+
+    commitPebbleProjection(ticket, input) {
+      validateDeviceId(input.deviceId);
+      if (
+        !Number.isSafeInteger(input.expectedRevision) ||
+        input.expectedRevision < 0 ||
+        !Number.isSafeInteger(input.throughSeq) ||
+        input.throughSeq < 0
+      )
+        throw new DirectDeviceConflictError("PEBBLE_PROJECTION_CURSOR_INVALID");
+      const manifestIds = new Set<string>();
+      for (const entry of input.manifest) {
+        if (
+          !entry.recordId ||
+          entry.recordId.length > 120 ||
+          manifestIds.has(entry.recordId) ||
+          !Number.isFinite(Date.parse(entry.startTime)) ||
+          !Number.isFinite(Date.parse(entry.endTime)) ||
+          Date.parse(entry.endTime) <= Date.parse(entry.startTime)
+        )
+          throw new DirectDeviceConflictError("PEBBLE_PROJECTION_MANIFEST_INVALID");
+        manifestIds.add(entry.recordId);
+      }
+      const identity = directDeviceIdentity.parse(input.identity);
+      if (!isPebbleCaptureIdentity(identity))
+        throw new DirectDeviceConflictError("DIRECT_DEVICE_IDENTITY_MISMATCH");
+      const scope = requireTicketScope(ticket);
+      const requests = input.envelopes.map((envelope) =>
+        validateRequest(ticket, input.deviceId, envelope),
+      );
+      if (
+        requests.length > MAX_CAPTURE_ENVELOPES ||
+        requests.reduce((sum, request) => sum + utf8ByteLength(request), 0) > MAX_CAPTURE_BYTES
+      )
+        throw new DirectDeviceAdmissionError("DIRECT_DEVICE_CAPTURE_TOO_LARGE");
+      if (
+        input.envelopes.some(
+          (envelope) =>
+            envelope.batch.deviceIdentity?.family !== identity.family ||
+            envelope.batch.deviceIdentity.modelId !== identity.modelId,
+        )
+      )
+        throw new DirectDeviceConflictError("DIRECT_DEVICE_IDENTITY_MISMATCH");
+      const manifestJson = canonicalJson(input.manifest);
+      const captureId = `pebble-${input.kind}-${input.expectedRevision + 1}-${input.throughSeq}`;
+      db.withTransactionSync(() => {
+        assertAuthorityTicket(ticket);
+        const binding = db.getFirstSync<{
+          provider_connection_id: number | null;
+          family: string | null;
+          model_id: string | null;
+          pebble_native_id: string | null;
+        }>(
+          "SELECT provider_connection_id, family, model_id, pebble_native_id FROM direct_device_binding WHERE scope = ? AND device_id = ?",
+          scope,
+          input.deviceId,
+        );
+        if (
+          !binding ||
+          binding.provider_connection_id === null ||
+          binding.family !== identity.family ||
+          binding.model_id !== identity.modelId ||
+          !binding.pebble_native_id
+        )
+          throw new DirectDeviceConflictError("PEBBLE_PEER_AUTHORITY_MISMATCH");
+        const current = db.getFirstSync<{ revision: number; through_seq: number }>(
+          "SELECT revision, through_seq FROM direct_device_pebble_projection WHERE scope = ? AND device_id = ? AND kind = ?",
+          scope,
+          input.deviceId,
+          input.kind,
+        );
+        const revision = current?.revision ?? 0;
+        const cursor = current?.through_seq ?? 0;
+        if (revision !== input.expectedRevision || input.throughSeq < cursor)
+          throw new DirectDeviceConflictError("PEBBLE_PROJECTION_CONFLICT");
+        const inbox = db.getFirstSync<{ seq: number | null }>(
+          "SELECT MAX(seq) AS seq FROM direct_device_pebble_item WHERE scope = ? AND device_id = ?",
+          scope,
+          input.deviceId,
+        );
+        if (input.throughSeq > (inbox?.seq ?? 0))
+          throw new DirectDeviceConflictError("PEBBLE_PROJECTION_CURSOR_INVALID");
+        if (input.kind === "activity") {
+          // Projected step items are fully represented by the outbox rows and
+          // the coverage manifest committed here, so they leave the inbox in
+          // the same transaction. Sleep inputs stay: sleep is re-assembled
+          // from every retained bound and overlay.
+          db.runSync(
+            "DELETE FROM direct_device_pebble_item WHERE scope = ? AND device_id = ? AND log_tag = 81 AND seq <= ?",
+            scope,
+            input.deviceId,
+            input.throughSeq,
+          );
+        }
+        if (input.kind === "sleep" && input.compactSleepSeqs?.length) {
+          for (const seq of input.compactSleepSeqs)
+            db.runSync(
+              "DELETE FROM direct_device_pebble_item WHERE scope = ? AND device_id = ? AND log_tag IN (83, 84) AND seq = ? AND seq <= ?",
+              scope,
+              input.deviceId,
+              seq,
+              input.throughSeq,
+            );
+        }
+        if (input.envelopes.length) {
+          insertCaptureInTransaction(
+            scope,
+            input.deviceId,
+            captureId,
+            canonicalJson({ revision, throughSeq: input.throughSeq }),
+            requests,
+          );
+        }
+        if (current) {
+          const updated = db.runSync(
+            `UPDATE direct_device_pebble_projection
+             SET revision = ?, through_seq = ?, manifest_json = ?
+             WHERE scope = ? AND device_id = ? AND kind = ? AND revision = ?`,
+            revision + 1,
+            input.throughSeq,
+            manifestJson,
+            scope,
+            input.deviceId,
+            input.kind,
+            input.expectedRevision,
+          );
+          if (updated.changes !== 1)
+            throw new DirectDeviceConflictError("PEBBLE_PROJECTION_CONFLICT");
+        } else {
+          if (input.expectedRevision !== 0)
+            throw new DirectDeviceConflictError("PEBBLE_PROJECTION_CONFLICT");
+          db.runSync(
+            `INSERT INTO direct_device_pebble_projection(scope, device_id, kind, revision, through_seq, manifest_json)
+             VALUES (?, ?, ?, ?, ?, ?)`,
+            scope,
+            input.deviceId,
+            input.kind,
+            1,
+            input.throughSeq,
+            manifestJson,
+          );
+        }
       });
     },
 
@@ -634,6 +1054,8 @@ export function createSqliteDirectDeviceStore(
       db.withTransactionSync(() => {
         db.runSync("DELETE FROM direct_device_outbox WHERE scope = ?", scope);
         db.runSync("DELETE FROM direct_device_capture WHERE scope = ?", scope);
+        db.runSync("DELETE FROM direct_device_pebble_projection WHERE scope = ?", scope);
+        db.runSync("DELETE FROM direct_device_pebble_item WHERE scope = ?", scope);
         db.runSync("DELETE FROM direct_device_binding WHERE scope = ?", scope);
       });
     },
@@ -643,6 +1065,8 @@ export function createSqliteDirectDeviceStore(
       db.withTransactionSync(() => {
         db.runSync("DELETE FROM direct_device_outbox");
         db.runSync("DELETE FROM direct_device_capture");
+        db.runSync("DELETE FROM direct_device_pebble_projection");
+        db.runSync("DELETE FROM direct_device_pebble_item");
         db.runSync("DELETE FROM direct_device_binding");
       });
     },
@@ -667,6 +1091,10 @@ function isBlockedCode(code: DirectDeviceErrorCode): boolean {
 
 function initializeDatabase(db: SyncSqliteDatabase): void {
   try {
+    db.execSync("PRAGMA synchronous = FULL");
+    const synchronous = db.getFirstSync<{ synchronous: number }>("PRAGMA synchronous");
+    if (!synchronous || synchronous.synchronous !== 2)
+      throw new DirectDeviceStorageError("DIRECT_DEVICE_DURABILITY_UNAVAILABLE");
     const integrity = db.getFirstSync<Record<string, string>>("PRAGMA integrity_check");
     if (!integrity || Object.values(integrity)[0] !== "ok")
       throw new DirectDeviceStorageError("DIRECT_DEVICE_DATABASE_CORRUPT");
@@ -681,11 +1109,15 @@ function initializeDatabase(db: SyncSqliteDatabase): void {
         db.execSync("ALTER TABLE direct_device_binding ADD COLUMN family TEXT");
       if (!names.has("model_id"))
         db.execSync("ALTER TABLE direct_device_binding ADD COLUMN model_id TEXT");
+      if (!names.has("pebble_native_id"))
+        db.execSync("ALTER TABLE direct_device_binding ADD COLUMN pebble_native_id TEXT");
       db.execSync(`PRAGMA user_version = ${DIRECT_DEVICE_SCHEMA_VERSION}`);
     });
     db.getAllSync("SELECT * FROM direct_device_binding LIMIT 0");
     db.getAllSync("SELECT * FROM direct_device_capture LIMIT 0");
     db.getAllSync("SELECT * FROM direct_device_outbox LIMIT 0");
+    db.getAllSync("SELECT * FROM direct_device_pebble_item LIMIT 0");
+    db.getAllSync("SELECT * FROM direct_device_pebble_projection LIMIT 0");
   } catch (error) {
     if (error instanceof DirectDeviceStorageError) throw error;
     throw new DirectDeviceStorageError();

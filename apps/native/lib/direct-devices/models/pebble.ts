@@ -55,11 +55,11 @@
  *   marketed BR/EDR names (`Pebble Steel`, `Pebble Time Steel`); upstream's
  *   single `Pebble.*` pattern accepts those too.
  *
- * `matchPebbleDevice(name, hardwareId?)` resolves the hardware id first when
- * it is available (the exact model), then falls back to the name shape. The
- * name-only fallback returns the first model registered for that shape, which
- * is documented on each entry; callers that need the exact model must pass the
- * hardware id (or parse the firmware-version reply).
+ * `matchPebbleDevice(name, hardwareId?)` resolves the hardware id when it is
+ * available (the exact model, or null for an unknown id). Without it, the
+ * Classic/Time name shapes return the first model registered for that shape,
+ * while the BLE-only `Pebble XXXX` shape returns null: it is only a candidate
+ * (`isPebbleCandidateName`) until the firmware-version reply supplies the id.
  *
  * Health coverage
  * ---------------
@@ -330,10 +330,11 @@ export function pebbleModelByHardwareId(hardwareId: number): PebbleModel | null 
  * Matches an advertised BLE name (and, when available, the hardware revision
  * id from manufacturer data) to a registered Pebble model.
  *
- * The hardware id wins when supplied. Otherwise the name shape decides, and
- * the first registered model for that shape is returned: `Pebble XXXX` is
- * ambiguous between the three BLE models, and the Classic/Time shapes are
- * ambiguous between each generation's two models. Returns null when nothing
+ * The hardware id is authoritative when supplied: an unknown id returns null
+ * rather than falling back to the name. Without it, the BLE-only `Pebble XXXX`
+ * shape returns null because it is ambiguous between the three BLE models (use
+ * `isPebbleCandidateName` to discover it); the Classic/Time shapes return the
+ * first registered model of their generation. Returns null when nothing
  * matches.
  */
 export function matchPebbleDevice(
@@ -341,14 +342,19 @@ export function matchPebbleDevice(
   hardwareId?: number | null,
 ): PebbleModel | null {
   if (hardwareId !== undefined && hardwareId !== null) {
-    const byHardware = pebbleModelByHardwareId(hardwareId);
-    if (byHardware) return byHardware;
+    return pebbleModelByHardwareId(hardwareId);
   }
   if (!name) return null;
+  if (BLE_ONLY_NAME.test(name)) return null;
   for (const model of PEBBLE_MODELS) {
     if (model.bleNamePatterns.some((pattern) => pattern.test(name))) return model;
   }
   return null;
+}
+
+/** Pebble-shaped advertisements are candidates even before hardware identity is known. */
+export function isPebbleCandidateName(name: string | null | undefined): boolean {
+  return typeof name === "string" && /^Pebble(?:.*)$/.test(name);
 }
 
 /** The three models that can actually connect over BLE. */
