@@ -5,6 +5,7 @@ import { organization } from "@openvalens/db/schema/auth";
 import { metricDefinition, metricSample } from "@openvalens/db/schema/health-record";
 import { and, eq } from "drizzle-orm";
 
+import { listRecentBloodPressureReadings } from "./blood-pressure";
 import { listDailyVitals, listRecentHeartRateSamples } from "./queries";
 
 const url = process.env.VITALS_TEST_DATABASE_URL;
@@ -258,4 +259,109 @@ describe.skipIf(!url)("vitals queries against disposable PostgreSQL", () => {
     expect(samples[0]?.heartRateBpm).toBe(70);
     expect(samples[1]?.heartRateBpm).toBe(80);
   });
+
+  btest(
+    "blood pressure: pairs readings with pulse, keeps typed-in and device apart (#440)",
+    async () => {
+      await db.insert(metricDefinition).values(
+        ["blood_pressure_systolic", "blood_pressure_diastolic"].map((code) => ({
+          organizationId: ORG_A,
+          code,
+          displayName: code,
+          category: "vitals",
+          unit: "mmHg",
+          valueType: "number" as const,
+          aggregationDefault: "latest",
+        })),
+      );
+      const sys = await defId("blood_pressure_systolic");
+      const dia = await defId("blood_pressure_diastolic");
+      const hr = await defId("heart_rate");
+      const device = new Date("2026-11-12T08:00:00.000Z");
+      const typedNear = new Date("2026-11-12T08:04:00.000Z");
+      const typedAlone = new Date("2026-11-11T20:00:00.000Z");
+      const manual = { ingestedByUserId: "user-a" };
+      await db.insert(metricSample).values([
+        {
+          organizationId: ORG_A,
+          metricDefinitionId: sys,
+          sampledAt: device,
+          numericValue: 122,
+          dedupeHash: "bp-d-s",
+        },
+        {
+          organizationId: ORG_A,
+          metricDefinitionId: dia,
+          sampledAt: device,
+          numericValue: 81,
+          dedupeHash: "bp-d-d",
+        },
+        {
+          organizationId: ORG_A,
+          metricDefinitionId: hr,
+          sampledAt: device,
+          numericValue: 66,
+          dedupeHash: "bp-d-p",
+        },
+        {
+          organizationId: ORG_A,
+          metricDefinitionId: sys,
+          sampledAt: typedNear,
+          numericValue: 120,
+          dedupeHash: "bp-m-s",
+          metadataJson: manual,
+        },
+        {
+          organizationId: ORG_A,
+          metricDefinitionId: dia,
+          sampledAt: typedNear,
+          numericValue: 80,
+          dedupeHash: "bp-m-d",
+          metadataJson: manual,
+        },
+        {
+          organizationId: ORG_A,
+          metricDefinitionId: sys,
+          sampledAt: typedAlone,
+          numericValue: 118,
+          dedupeHash: "bp-a-s",
+          metadataJson: manual,
+        },
+        {
+          organizationId: ORG_A,
+          metricDefinitionId: dia,
+          sampledAt: typedAlone,
+          numericValue: 76,
+          dedupeHash: "bp-a-d",
+          metadataJson: manual,
+        },
+        {
+          organizationId: ORG_A,
+          metricDefinitionId: hr,
+          sampledAt: typedAlone,
+          numericValue: 61,
+          dedupeHash: "bp-a-p",
+          metadataJson: manual,
+        },
+      ]);
+
+      const readings = await listRecentBloodPressureReadings(db, ORG_A, 10);
+      expect(
+        readings.map((r) => [
+          r.observedAt,
+          r.systolic,
+          r.diastolic,
+          r.pulse,
+          r.manual,
+          r.possibleDuplicate,
+        ]),
+      ).toEqual([
+        [typedNear.toISOString(), 120, 80, null, true, true],
+        [device.toISOString(), 122, 81, 66, false, false],
+        [typedAlone.toISOString(), 118, 76, 61, true, false],
+      ]);
+      expect(await listRecentBloodPressureReadings(db, ORG_B, 10)).toEqual([]);
+      expect(await listRecentBloodPressureReadings(db, ORG_A, 1)).toHaveLength(1);
+    },
+  );
 });

@@ -3,6 +3,7 @@ import { healthEvent } from "@openvalens/db/schema/health-record";
 import { and, desc, eq, gte, isNull, lte } from "drizzle-orm";
 
 import { deriveSleepDailySummaries } from "./derive-daily-summary";
+import { isManualSleepPayload, manualSleepDuplicateIds } from "./manual";
 import { summarizeSleepWindow } from "./scoring";
 import type { SleepDailySummary, SleepSessionInput, SleepWindowSummary } from "./types";
 
@@ -95,6 +96,7 @@ function toSessionInput(row: SleepEventRow): SleepSessionInput {
     sourceApp: asString(payload.sourceApp),
     sourceDevice: asString(payload.sourceDevice),
     stageIntervals: asStageIntervals(payload.sleepStageIntervals),
+    ...(isManualSleepPayload(payload) ? { manual: true } : {}),
   };
 }
 
@@ -297,7 +299,10 @@ export async function getPersonalSleepDailyEvidence(
     string,
     Array<{ id: string; start: number; end: number; asleep: Array<{ start: number; end: number }> }>
   >();
+  // A manual night that overlaps a device night never adds credit: device data wins.
+  const duplicates = manualSleepDuplicateIds(rows.map(toSessionInput));
   for (const row of rows) {
+    if (duplicates.has(String(row.id))) continue;
     const payload = isRecord(row.payloadJson) ? row.payloadJson : {};
     const endValue = asString(payload.endAt);
     if (!endValue) continue;

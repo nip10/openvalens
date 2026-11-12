@@ -1,3 +1,4 @@
+import { countedSleepSessions } from "./manual";
 import { scoreSleepSummary } from "./scoring";
 import type { SleepDailySummary, SleepSessionInput, SleepStage } from "./types";
 
@@ -190,7 +191,8 @@ export function deriveSleepDailySummaries({
 }: DeriveSleepDailySummariesInput): SleepDailySummary[] {
   const byDate = new Map<string, SleepSessionInput[]>();
 
-  for (const session of sessions) {
+  // A manual night that overlaps a device night never counts: device data wins.
+  for (const session of countedSleepSessions(sessions)) {
     if (!session.end) continue;
     const startMs = new Date(session.start).getTime();
     const endMs = new Date(session.end).getTime();

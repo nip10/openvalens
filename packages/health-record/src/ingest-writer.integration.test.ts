@@ -9,7 +9,7 @@ import {
   metricDefinition,
   metricSample,
 } from "@openvalens/db/schema/health-record";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { CanonicalMetricNotFoundError, CrossTenantReferenceError } from "./ingest";
 import { createHealthRecordRepository } from "./repository";
 
@@ -236,6 +236,54 @@ describe.skipIf(!url)("ingest write seam real PostgreSQL schema", () => {
           observedAt: "2026-09-29T15:00:00.000Z",
           valueNumeric: 84,
         },
+      }),
+    ).rejects.toBeInstanceOf(CanonicalMetricNotFoundError);
+  });
+
+  test("ingestMetricSample registers a missing fixed metric for manual entry, never a lab marker (#440)", async () => {
+    const sample = await repo.ingestMetricSample({
+      organizationId: "org-b",
+      userId: "user-b",
+      payload: {
+        metricCode: "blood_pressure_systolic",
+        observedAt: "2026-11-12T08:00:00.000Z",
+        valueNumeric: 120,
+      },
+      registerCanonicalDefinition: true,
+    });
+    expect(sample.unit).toBe("mmHg");
+    const [definition] = await db
+      .select()
+      .from(metricDefinition)
+      .where(
+        and(
+          eq(metricDefinition.organizationId, "org-b"),
+          eq(metricDefinition.code, "blood_pressure_systolic"),
+        ),
+      );
+    expect(definition?.id).toBe(sample.metricDefinitionId);
+    // A second reading reuses the registered definition.
+    const again = await repo.ingestMetricSample({
+      organizationId: "org-b",
+      userId: "user-b",
+      payload: {
+        metricCode: "blood_pressure_systolic",
+        observedAt: "2026-11-12T09:00:00.000Z",
+        valueNumeric: 118,
+      },
+      registerCanonicalDefinition: true,
+    });
+    expect(again.metricDefinitionId).toBe(sample.metricDefinitionId);
+    await expect(
+      repo.ingestMetricSample({
+        organizationId: "org-b",
+        userId: "user-b",
+        payload: {
+          metricCode: "blood_marker_glucose",
+          observedAt: "2026-11-12T08:00:00.000Z",
+          valueNumeric: 90,
+        },
+        registerCanonicalDefinition: true,
       }),
     ).rejects.toBeInstanceOf(CanonicalMetricNotFoundError);
   });

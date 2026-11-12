@@ -628,11 +628,17 @@ export function createHealthRecordRepository(db: Database) {
      * registered in the active tenant's catalog — the schema's FK
      * enforces that, and we surface a typed `NOT_FOUND` error to the
      * API layer.
+     *
+     * `registerCanonicalDefinition` (manual entry, #440) first registers a
+     * missing fixed taxonomy metric (e.g. `blood_pressure_systolic` for a
+     * member who never synced a monitor) from the taxonomy. Lab markers
+     * (`blood_marker_*`) are never auto-registered: they carry a lab unit.
      */
     async ingestMetricSample(input: {
       organizationId: string;
       userId: string;
       payload: IngestMetricSampleInput;
+      registerCanonicalDefinition?: boolean;
     }) {
       const resolved = resolveCanonicalMetricCode({ metricCode: input.payload.metricCode });
       if (!resolved) {
@@ -642,16 +648,28 @@ export function createHealthRecordRepository(db: Database) {
         valueNumeric: input.payload.valueNumeric ?? null,
         valueString: input.payload.valueString ?? null,
       });
-      const [definition] = await db
-        .select({ id: metricDefinition.id, code: metricDefinition.code })
-        .from(metricDefinition)
-        .where(
-          and(
-            eq(metricDefinition.organizationId, input.organizationId),
-            eq(metricDefinition.code, resolved.canonicalMetricCode),
-          ),
-        )
-        .limit(1);
+      const findDefinition = () =>
+        db
+          .select({ id: metricDefinition.id, code: metricDefinition.code })
+          .from(metricDefinition)
+          .where(
+            and(
+              eq(metricDefinition.organizationId, input.organizationId),
+              eq(metricDefinition.code, resolved.canonicalMetricCode),
+            ),
+          )
+          .limit(1);
+      let [definition] = await findDefinition();
+      if (!definition && input.registerCanonicalDefinition && !resolved.isBloodMarkerFamily) {
+        const row = buildIngestDefinitionRow({ organizationId: input.organizationId, resolved });
+        await db
+          .insert(metricDefinition)
+          .values({ ...row, valueType: row.valueType as "number" | "text" | "boolean" | "json" })
+          .onConflictDoNothing({
+            target: [metricDefinition.organizationId, metricDefinition.code],
+          });
+        [definition] = await findDefinition();
+      }
       if (!definition) {
         throw new CanonicalMetricNotFoundError(resolved.canonicalMetricCode);
       }

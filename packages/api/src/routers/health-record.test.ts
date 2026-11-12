@@ -95,6 +95,7 @@ const ingestMetricSample = mock(
       valueNumeric?: number | null;
       valueString?: string | null;
     };
+    registerCanonicalDefinition?: boolean;
   }) => ({
     id: 7,
     organizationId: input.organizationId,
@@ -322,6 +323,7 @@ test("ingestMetricSample audits once with targetType metric_sample and taxonomy 
           observedAt: "2026-09-29T12:00:00.000Z",
           valueNumeric: 84,
         },
+        registerCanonicalDefinition: true,
       },
     ]);
     expect(audit).toHaveBeenCalledTimes(1);

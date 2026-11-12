@@ -1,4 +1,8 @@
-import { listDailyVitals, listRecentHeartRateSamples } from "@openvalens/vitals";
+import {
+  listDailyVitals,
+  listRecentBloodPressureReadings,
+  listRecentHeartRateSamples,
+} from "@openvalens/vitals";
 import { z } from "zod";
 
 import { permissionedProcedure, validateInput } from "../index";
@@ -55,6 +59,22 @@ const recentSamplesOutput = z.array(
   }),
 );
 
+const bloodPressureInput = z.strictObject({
+  limit: z.number().int().min(1).max(200).optional(),
+});
+
+const bloodPressureOutput = z.array(
+  z.object({
+    observedAt: z.string(),
+    systolic: z.number(),
+    diastolic: z.number(),
+    pulse: z.number().nullable(),
+    source: z.string().nullable(),
+    manual: z.boolean(),
+    possibleDuplicate: z.boolean(),
+  }),
+);
+
 export const vitalsRouter = {
   daily: permissionedProcedure({ resource: "records", action: "read" })
     .use(validateInput(dailyInput))
@@ -70,5 +90,22 @@ export const vitalsRouter = {
     .output(recentSamplesOutput)
     .handler(async ({ input, context }) =>
       listRecentHeartRateSamples(context.db, context.authz.activeOrganizationId, input.limit ?? 20),
+    ),
+
+  /**
+   * Recent blood pressure readings (#440), newest first: device and typed-in
+   * readings side by side. A typed-in reading close to a device one is flagged
+   * `possibleDuplicate`; nothing is merged or overwritten.
+   */
+  bloodPressureReadings: permissionedProcedure({ resource: "records", action: "read" })
+    .use(validateInput(bloodPressureInput))
+    .input(bloodPressureInput)
+    .output(bloodPressureOutput)
+    .handler(async ({ input, context }) =>
+      listRecentBloodPressureReadings(
+        context.db,
+        context.authz.activeOrganizationId,
+        input.limit ?? 10,
+      ),
     ),
 };

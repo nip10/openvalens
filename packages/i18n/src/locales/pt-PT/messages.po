@@ -1296,6 +1296,14 @@ msgstr "Foi criada uma nova chave de API pessoal para o {appName}"
 msgid "A newer version is available. Reload the latest settings to continue."
 msgstr "Está disponível uma versão mais recente. Recarregue as definições mais recentes para continuar."
 
+#: packages/api/src/presenters/manual-sleep.ts
+msgid "A night can be at most 24 hours."
+msgstr "Uma noite pode ter no máximo 24 horas."
+
+#: packages/api/src/presenters/manual-sleep.ts
+msgid "A night needs at least 10 minutes."
+msgstr "Uma noite precisa de pelo menos 10 minutos."
+
 #: apps/native/app/(drawer)/goals.tsx
 msgid "A non-scheduled day is not a miss."
 msgstr "Um dia não programado não conta como falha."
@@ -1607,6 +1615,11 @@ msgstr "Adicione um objetivo com um alvo para ver o progresso dos objetivos."
 #: packages/api/src/presenters/nutrition-templates.ts
 msgid "Add a name and at least one fully matched ingredient with an amount and unit."
 msgstr "Adicione um nome e pelo menos um ingrediente totalmente associado, com quantidade e unidade."
+
+#: apps/native/components/manual-sleep-section.tsx
+#: apps/web/src/components/manual-sleep-section.tsx
+msgid "Add a night"
+msgstr "Adicionar uma noite"
 
 #: apps/web/src/components/progress-photos.tsx
 msgid "Add a photo (JPEG or PNG, up to 10 MB)"
@@ -2022,6 +2035,7 @@ msgstr "Sempre disponíveis: Cronologia, Pontuações, Partilha e Definições"
 
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 #: apps/web/src/routes/_auth/nutrition.tsx
+#: packages/api/src/presenters/log-kinds.ts
 #: packages/api/src/presenters/nutrition-diary.ts
 #: packages/api/src/presenters/nutrition-templates.ts
 #: packages/api/src/presenters/plain-water.ts
@@ -2499,6 +2513,12 @@ msgstr "Baseado numa estimativa experimental que não foi validada."
 msgid "Based on your expenditure estimate ({kcal} kcal a day) and your goal: {goal}."
 msgstr "Com base na sua estimativa de gasto ({kcal} kcal por dia) e no seu objetivo: {goal}."
 
+#: apps/native/components/manual-sleep-section.tsx
+#: apps/web/src/components/manual-sleep-section.tsx
+#: packages/api/src/presenters/log-kinds.ts
+msgid "Bedtime"
+msgstr "Hora de deitar"
+
 #: apps/web/src/components/admin-backup-status.tsx
 msgid "before an upgrade"
 msgstr "antes de uma atualização"
@@ -2583,6 +2603,12 @@ msgstr "Quinzenal"
 #: packages/api/src/presenters/clinical-export.ts
 msgid "Blood"
 msgstr "Sangue"
+
+#: apps/native/components/blood-pressure-section.tsx
+#: apps/web/src/components/blood-pressure-section.tsx
+#: packages/api/src/presenters/log-kinds.ts
+msgid "Blood pressure"
+msgstr "Tensão arterial"
 
 #: packages/api/src/presenters/insights.ts
 msgctxt "insight topic"
@@ -4569,7 +4595,11 @@ msgstr "Não foi possível guardar a definição. Tente novamente."
 #: apps/native/app/(drawer)/records/vitals.tsx
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/native/app/(drawer)/workouts.tsx
+#: apps/native/components/blood-pressure-section.tsx
+#: apps/native/components/manual-sleep-section.tsx
 #: apps/native/components/onboarding/steps.tsx
+#: apps/web/src/components/blood-pressure-section.tsx
+#: apps/web/src/components/manual-sleep-section.tsx
 #: apps/web/src/routes/_auth/body.tsx
 #: apps/web/src/routes/_auth/records/activity.tsx
 #: apps/web/src/routes/_auth/records/labs.tsx
@@ -5348,6 +5378,11 @@ msgstr "Detalhes"
 msgid "Details are unavailable. Refresh the library and try again."
 msgstr "Os detalhes não estão disponíveis. Atualize a biblioteca e tente novamente."
 
+#: packages/api/src/presenters/vitals.ts
+msgctxt "data source"
+msgid "Device"
+msgstr "Dispositivo"
+
 #: apps/native/components/direct-device-settings.tsx
 msgid "Device authentication key"
 msgstr "Chave de autenticação do dispositivo"
@@ -5387,6 +5422,15 @@ msgstr "Data do diário"
 #: packages/api/src/presenters/insights.ts
 msgid "Diary marked complete on {diaryCompleteDays, plural, one {# day} other {# days}}; workouts were recorded on {workoutDays, plural, one {# day} other {# days}}."
 msgstr "Diário marcado como completo em {diaryCompleteDays, plural, one {# dia} other {# dias}}; foram registados treinos em {workoutDays, plural, one {# dia} other {# dias}}."
+
+#: packages/api/src/presenters/manual-entry.ts
+msgid "Diastolic"
+msgstr "Diastólica"
+
+#: apps/native/components/blood-pressure-section.tsx
+#: apps/web/src/components/blood-pressure-section.tsx
+msgid "Diastolic (mmHg)"
+msgstr "Diastólica (mmHg)"
 
 #. safety
 #: packages/api/src/presenters/nutrition-diary.ts
@@ -5942,6 +5986,10 @@ msgstr "As inscrições estão fechadas. Inicie sessão abaixo se já tiver uma 
 #: apps/web/src/components/admission-form.tsx
 msgid "Enrollment is not available right now."
 msgstr "As inscrições não estão disponíveis neste momento."
+
+#: packages/api/src/presenters/manual-sleep.ts
+msgid "Enter a bedtime and a wake time."
+msgstr "Indique a hora de deitar e a hora de acordar."
 
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Enter a food name."
@@ -6577,6 +6625,7 @@ msgstr "Fluxo (opcional)"
 #: apps/native/app/(drawer)/(tabs)/_layout.tsx
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 #: apps/web/src/routes/_auth/food-draft.tsx
+#: packages/api/src/presenters/log-kinds.ts
 msgid "Food"
 msgstr "Alimento"
 
@@ -6846,6 +6895,7 @@ msgstr "Subir"
 #: apps/native/components/onboarding/steps.tsx
 #: apps/web/src/routes/_auth/goals.$goalId.tsx
 #: apps/web/src/routes/_auth/profile.tsx
+#: packages/api/src/presenters/log-kinds.ts
 msgid "Goal"
 msgstr "Objetivo"
 
@@ -6860,6 +6910,10 @@ msgstr "Objetivo adicionado. Pode editá-lo em Treinos."
 #: packages/api/src/presenters/plain-water.ts
 msgid "Goal amount"
 msgstr "Quantidade da meta"
+
+#: packages/api/src/presenters/log-kinds.ts
+msgid "Goal check-in"
+msgstr "Registo do objetivo"
 
 #: apps/native/app/(drawer)/goals.tsx
 msgid "Goal dates follow the goal timezone and cutoff."
@@ -6904,6 +6958,11 @@ msgstr "objetivos"
 msgid "Goals"
 msgstr "Objetivos"
 
+#: packages/api/src/presenters/manual-sleep.ts
+msgctxt "sleep quality"
+msgid "Good"
+msgstr "Bem"
+
 #: apps/native/app/(drawer)/(tabs)/index.tsx
 #: apps/web/src/routes/_auth/dashboard.tsx
 msgid "Good afternoon"
@@ -6929,6 +6988,11 @@ msgstr "Concedido"
 #: apps/web/src/components/ai-consent-card.tsx
 msgid "Granted on {0}"
 msgstr "Concedido em {0}"
+
+#: packages/api/src/presenters/manual-sleep.ts
+msgctxt "sleep quality"
+msgid "Great"
+msgstr "Muito bem"
 
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "Grip strength: not recorded by OpenValens yet."
@@ -7245,6 +7309,11 @@ msgstr "Como estou?"
 #: apps/web/src/utils/onboarding.ts
 msgid "How data arrives"
 msgstr "Como chegam os dados"
+
+#: apps/native/components/manual-sleep-section.tsx
+#: apps/web/src/components/manual-sleep-section.tsx
+msgid "How did it feel? (optional)"
+msgstr "Como se sentiu? (opcional)"
 
 #: packages/api/src/presenters/score.ts
 msgid "How far you have moved toward the targets you set, weighted by your priorities."
@@ -7983,6 +8052,10 @@ msgstr "Intervalo do laboratório até {high} {unit}"
 #: packages/api/src/presenters/labs.ts
 msgid "Lab range: {text} {unit}"
 msgstr "Intervalo do laboratório: {text} {unit}"
+
+#: packages/api/src/presenters/log-kinds.ts
+msgid "Lab result"
+msgstr "Resultado de análises"
 
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/records/labs.tsx
@@ -8791,6 +8864,10 @@ msgstr "marcado como completo"
 msgid "Marked complete"
 msgstr "Marcado como completo"
 
+#: packages/api/src/presenters/log-kinds.ts
+msgid "Marker"
+msgstr "Marcador"
+
 #: apps/native/app/(drawer)/records/labs.tsx
 #: apps/web/src/routes/_auth/records/labs.tsx
 msgid "Markers appear here once a lab reading is recorded for your account. Importing lab reports is not available yet."
@@ -8924,6 +9001,7 @@ msgstr "Composição medida"
 #: apps/native/app/(drawer)/private-measurements.tsx
 #: apps/web/src/routes/_auth/body-map.tsx
 #: apps/web/src/routes/_auth/private-measurements.tsx
+#: packages/api/src/presenters/log-kinds.ts
 msgid "Measurement"
 msgstr "Medição"
 
@@ -9084,6 +9162,17 @@ msgstr "A ausência de dados é desconhecida, não é zero. As datas seguem o fu
 #: apps/web/src/routes/_auth/goals.$goalId.tsx
 msgid "Missing data is unknown, not zero. Dates follow this goal’s timezone and cutoff."
 msgstr "A ausência de dados é desconhecida, não é zero. As datas seguem o fuso horário e a hora de fecho desta meta."
+
+#. Unit symbol; keep as is.
+#: packages/api/src/presenters/log-kinds.ts
+msgid "ml"
+msgstr "ml"
+
+#. Unit symbol; keep as is.
+#. Unit symbol; keep as is.
+#: packages/api/src/presenters/manual-entry.ts
+msgid "mmHg"
+msgstr "mmHg"
 
 #. safety
 #. safety
@@ -9473,6 +9562,11 @@ msgstr "Próxima: {nextDay}"
 #: packages/api/src/presenters/wearables.ts
 msgid "Nightly Recharge status, overnight HRV and sleep sessions."
 msgstr "Estado do Nightly Recharge, VFC noturna e sessões de sono."
+
+#: apps/native/components/manual-sleep-section.tsx
+#: apps/web/src/components/manual-sleep-section.tsx
+msgid "Nights you added"
+msgstr "Noites que adicionou"
 
 #: packages/api/src/presenters/modules.ts
 msgid "Nights, stages, rest"
@@ -10460,6 +10554,8 @@ msgstr "As observações descrevem apenas a cronologia registada. Não são acon
 #: apps/native/app/(drawer)/records/activity.tsx
 #: apps/native/app/(drawer)/records/labs.tsx
 #: apps/native/app/(drawer)/records/vitals.tsx
+#: apps/native/components/blood-pressure-section.tsx
+#: apps/web/src/components/blood-pressure-section.tsx
 #: apps/web/src/routes/_auth/body.tsx
 #: apps/web/src/routes/_auth/private-measurements.tsx
 #: apps/web/src/routes/_auth/records/activity.tsx
@@ -10589,6 +10685,11 @@ msgstr "Sem ligação. Não há nenhuma correspondência para este código de ba
 #: packages/api/src/presenters/food-lookup.ts
 msgid "Offline. Searching food databases needs a connection; showing foods saved on this device."
 msgstr "Sem ligação. A pesquisa nas bases de dados de alimentos precisa de ligação; a mostrar os alimentos guardados neste dispositivo."
+
+#: packages/api/src/presenters/manual-sleep.ts
+msgctxt "sleep quality"
+msgid "Okay"
+msgstr "Razoável"
 
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/native/app/(drawer)/insight-settings.tsx
@@ -10801,7 +10902,9 @@ msgstr "O OpenValens mostra informação pública destas autoridades. Estas não
 msgid "Optimal"
 msgstr "Ótimo"
 
+#: apps/native/components/blood-pressure-section.tsx
 #: apps/native/components/routine-editor.tsx
+#: apps/web/src/components/blood-pressure-section.tsx
 #: apps/web/src/components/workout-routine-exercise-editor.tsx
 #: packages/api/src/presenters/plain-water.ts
 msgid "Optional"
@@ -11379,6 +11482,21 @@ msgstr "Portugal"
 msgid "Portugal (EU)"
 msgstr "Portugal (UE)"
 
+#: apps/native/components/blood-pressure-section.tsx
+#: apps/native/components/manual-sleep-section.tsx
+#: apps/web/src/components/blood-pressure-section.tsx
+#: apps/web/src/components/manual-sleep-section.tsx
+msgid "Possible duplicate"
+msgstr "Possível duplicado"
+
+#: packages/api/src/presenters/vitals.ts
+msgid "Possible duplicate: a device reading is within 10 minutes. Both are kept."
+msgstr "Possível duplicado: há uma leitura de um dispositivo a menos de 10 minutos. Ambas são guardadas."
+
+#: packages/api/src/presenters/manual-sleep.ts
+msgid "Possible duplicate: a device recorded sleep at the same time. The device night counts in your totals."
+msgstr "Possível duplicado: um dispositivo registou sono à mesma hora. A noite do dispositivo é a que conta nos seus totais."
+
 #: packages/api/src/presenters/micronutrients.ts
 msgid "Potassium"
 msgstr "Potássio"
@@ -11539,6 +11657,10 @@ msgstr "Medições corporais privadas"
 #: apps/native/app/(drawer)/index.tsx
 msgid "Private Data"
 msgstr "Dados privados"
+
+#: packages/api/src/presenters/log-kinds.ts
+msgid "Private measurement"
+msgstr "Medição privada"
 
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/private-measurements.tsx
@@ -11708,6 +11830,15 @@ msgstr "Valores das recomendações publicadas citados com atribuição (factos,
 msgid "Published reference"
 msgstr "Referência publicada"
 
+#: packages/api/src/presenters/log-kinds.ts
+msgid "Pulse"
+msgstr "Pulsação"
+
+#: apps/native/components/blood-pressure-section.tsx
+#: apps/web/src/components/blood-pressure-section.tsx
+msgid "Pulse (bpm)"
+msgstr "Pulsação (bpm)"
+
 #: packages/api/src/presenters/insights.ts
 msgid "Push and email can only be turned on by the owner of this workspace. You can still see insights in the app."
 msgstr "As notificações push e o email só podem ser ativados pelo proprietário deste espaço de trabalho. Pode continuar a ver as perspetivas na aplicação."
@@ -11735,6 +11866,11 @@ msgstr "As notificações push não estão configuradas neste servidor."
 #: packages/api/src/presenters/body-map.ts
 msgid "Quads"
 msgstr "Quadríceps"
+
+#: apps/web/src/components/manual-sleep-section.tsx
+#: packages/api/src/presenters/log-kinds.ts
+msgid "Quality"
+msgstr "Qualidade"
 
 #: apps/web/src/routes/_auth/food-draft.tsx
 msgid "Quantity"
@@ -11891,6 +12027,7 @@ msgstr "Carga de atividade recente"
 msgid "Recent days"
 msgstr "Dias recentes"
 
+#: apps/web/src/components/blood-pressure-section.tsx
 #: apps/web/src/routes/_auth/records/vitals.tsx
 msgid "Recent readings"
 msgstr "Leituras recentes"
@@ -12203,6 +12340,11 @@ msgstr "Remover série {0}"
 msgid "Remove the entry."
 msgstr "Remover o registo."
 
+#: apps/native/components/manual-sleep-section.tsx
+#: apps/web/src/components/manual-sleep-section.tsx
+msgid "Remove the night of {day}"
+msgstr "Remover a noite de {day}"
+
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 #: apps/web/src/routes/_auth/nutrition.tsx
 msgid "Removed from favourites"
@@ -12331,6 +12473,11 @@ msgstr "Temporizador de descanso concluído"
 #: packages/api/src/presenters/score.ts
 msgid "Resting heart rate"
 msgstr "Frequência cardíaca em repouso"
+
+#: packages/api/src/presenters/manual-sleep.ts
+msgctxt "sleep quality"
+msgid "Restless"
+msgstr "Agitado"
 
 #: apps/web/src/components/admin-backup-status.tsx
 #: packages/api/src/presenters/custom-foods.ts
@@ -12678,6 +12825,11 @@ msgstr "Média móvel · {0} dias"
 msgid "Rolling window (days)"
 msgstr "Período da média móvel (dias)"
 
+#: packages/api/src/presenters/manual-sleep.ts
+msgctxt "sleep quality"
+msgid "Rough"
+msgstr "Mal"
+
 #: apps/native/components/workout-routines.tsx
 msgid "Routine changed or couldn’t be deleted. Refresh and try again."
 msgstr "A rotina foi alterada ou não foi possível eliminá-la. Atualize e tente novamente."
@@ -12779,8 +12931,12 @@ msgstr "Ácidos gordos saturados"
 #: apps/native/app/(drawer)/records/vitals.tsx
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/native/components/active-workout.tsx
+#: apps/native/components/blood-pressure-section.tsx
+#: apps/native/components/manual-sleep-section.tsx
 #: apps/native/components/routine-editor.tsx
 #: apps/native/components/workout-exercise-tools.tsx
+#: apps/web/src/components/blood-pressure-section.tsx
+#: apps/web/src/components/manual-sleep-section.tsx
 #: apps/web/src/components/product-settings-form.tsx
 #: apps/web/src/components/wellness-profile-editor.tsx
 #: apps/web/src/routes/_auth/body.tsx
@@ -12945,6 +13101,8 @@ msgstr "Guardar treino"
 #: apps/native/app/(drawer)/records/labs.tsx
 #: apps/native/app/(drawer)/records/vitals.tsx
 #: apps/native/app/(drawer)/supplements.tsx
+#: apps/native/components/blood-pressure-section.tsx
+#: apps/web/src/components/blood-pressure-section.tsx
 #: apps/web/src/components/wellness-profile-editor.tsx
 #: apps/web/src/routes/_auth/body.tsx
 #: apps/web/src/routes/_auth/records/activity.tsx
@@ -12959,6 +13117,11 @@ msgstr "Guardado"
 msgctxt "add food mode"
 msgid "Saved"
 msgstr "Guardados"
+
+#: apps/native/components/manual-sleep-section.tsx
+#: apps/web/src/components/manual-sleep-section.tsx
+msgid "Saved · {duration}"
+msgstr "Guardado · {duration}"
 
 #. placeholder {0}: quickUndo.name
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
@@ -13043,11 +13206,15 @@ msgstr "A guardar fotografia…"
 #: apps/native/app/(drawer)/records/labs.tsx
 #: apps/native/app/(drawer)/records/vitals.tsx
 #: apps/native/app/(drawer)/supplements.tsx
+#: apps/native/components/blood-pressure-section.tsx
 #: apps/native/components/goal-editor.tsx
+#: apps/native/components/manual-sleep-section.tsx
 #: apps/native/components/onboarding/flow.tsx
 #: apps/native/components/routine-editor.tsx
 #: apps/native/components/workout-routines.tsx
+#: apps/web/src/components/blood-pressure-section.tsx
 #: apps/web/src/components/health-data-consent-prompt.tsx
+#: apps/web/src/components/manual-sleep-section.tsx
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
 #: apps/web/src/components/product-settings-form.tsx
 #: apps/web/src/components/wellness-profile-editor.tsx
@@ -13873,6 +14040,7 @@ msgstr "sono"
 #: apps/web/src/routes/_auth/records/sleep.tsx
 #: packages/api/src/presenters/cockpit.ts
 #: packages/api/src/presenters/insights.ts
+#: packages/api/src/presenters/log-kinds.ts
 #: packages/api/src/presenters/modules.ts
 #: packages/api/src/presenters/score.ts
 #: packages/api/src/presenters/timeline.ts
@@ -14412,6 +14580,7 @@ msgstr "As sugestões nunca ficam abaixo de 1200 kcal por dia, do mínimo do seu
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/web/src/routes/_auth/-goal-editor.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
+#: packages/api/src/presenters/log-kinds.ts
 msgid "Supplement"
 msgstr "Suplemento"
 
@@ -14419,6 +14588,10 @@ msgstr "Suplemento"
 #: apps/web/src/routes/_auth/-goal-editor.tsx
 msgid "Supplement intake"
 msgstr "Toma de suplemento"
+
+#: packages/api/src/presenters/log-kinds.ts
+msgid "Supplement taken"
+msgstr "Suplemento tomado"
 
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/supplements.tsx
@@ -14540,6 +14713,25 @@ msgstr "Prontidão do sistema"
 #: apps/native/app/(drawer)/index.tsx
 msgid "System Status"
 msgstr "Estado do sistema"
+
+#: packages/api/src/presenters/manual-entry.ts
+msgid "Systolic"
+msgstr "Sistólica"
+
+#: apps/native/components/blood-pressure-section.tsx
+#: apps/web/src/components/blood-pressure-section.tsx
+msgid "Systolic (mmHg)"
+msgstr "Sistólica (mmHg)"
+
+#: apps/native/components/blood-pressure-section.tsx
+#: apps/web/src/components/blood-pressure-section.tsx
+msgid "Systolic {systolicMin}–{systolicMax}, diastolic {diastolicMin}–{diastolicMax}, pulse {pulseMin}–{pulseMax}."
+msgstr "Sistólica {systolicMin}–{systolicMax}, diastólica {diastolicMin}–{diastolicMax}, pulsação {pulseMin}–{pulseMax}."
+
+#: apps/native/components/blood-pressure-section.tsx
+#: apps/web/src/components/blood-pressure-section.tsx
+msgid "Systolic must be higher than diastolic."
+msgstr "A sistólica tem de ser superior à diastólica."
 
 #: packages/api/src/presenters/food-logger-capture.ts
 msgid "Take a meal photo"
@@ -15501,6 +15693,7 @@ msgid "This workspace's OpenValens Cloud access has ended. Its records are still
 msgstr "O acesso deste espaço de trabalho ao OpenValens Cloud terminou. Os registos continuam aqui e pode exportá-los."
 
 #: apps/web/src/routes/_auth/records/vitals.tsx
+#: packages/api/src/presenters/log-kinds.ts
 #: packages/api/src/presenters/plain-water.ts
 msgid "Time"
 msgstr "Hora"
@@ -15912,6 +16105,11 @@ msgstr "Escrever os dígitos"
 msgid "Type the digits printed under the barcode. Camera scanning is available in the mobile app."
 msgstr "Escreva os dígitos impressos por baixo do código de barras. A leitura com a câmara está disponível na aplicação para telemóvel."
 
+#: packages/api/src/presenters/vitals.ts
+msgctxt "data source"
+msgid "Typed in"
+msgstr "Introduzido à mão"
+
 #: apps/native/app/(drawer)/(tabs)/index.tsx
 #: apps/native/components/energy-estimate-card.tsx
 #: apps/web/src/components/energy-estimate-card.tsx
@@ -16257,6 +16455,7 @@ msgstr "Usa o sono e a frequência cardíaca em repouso, mais a atividade recent
 #: apps/native/components/goal-editor.tsx
 #: apps/web/src/routes/_auth/goals.$goalId.tsx
 #: apps/web/src/routes/_auth/records/labs.tsx
+#: packages/api/src/presenters/log-kinds.ts
 msgid "Value"
 msgstr "Valor"
 
@@ -16467,10 +16666,28 @@ msgstr "A aguardar a preparação da exportação…"
 msgid "Waiting to sync"
 msgstr "A aguardar sincronização"
 
+#: apps/native/components/manual-sleep-section.tsx
+#: apps/web/src/components/manual-sleep-section.tsx
+#: packages/api/src/presenters/log-kinds.ts
+msgid "Wake time"
+msgstr "Hora de acordar"
+
+#: packages/api/src/presenters/manual-sleep.ts
+msgid "Wake time can't be in the future."
+msgstr "A hora de acordar não pode estar no futuro."
+
+#: packages/api/src/presenters/manual-sleep.ts
+msgid "Wake time must be after bedtime."
+msgstr "A hora de acordar tem de ser depois da hora de deitar."
+
 #: apps/native/components/onboarding/steps.tsx
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
 msgid "Walk 8,000 steps a day"
 msgstr "Andar 8000 passos por dia"
+
+#: packages/api/src/presenters/log-kinds.ts
+msgid "Water"
+msgstr "Água"
 
 #: packages/api/src/presenters/plain-water.ts
 msgid "Water changes on this device"
@@ -16775,6 +16992,7 @@ msgid "Working…"
 msgstr "A processar…"
 
 #: apps/native/components/active-workout.tsx
+#: packages/api/src/presenters/log-kinds.ts
 #: packages/api/src/presenters/timeline.ts
 msgid "Workout"
 msgstr "Treino"

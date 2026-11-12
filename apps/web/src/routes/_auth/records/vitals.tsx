@@ -55,6 +55,7 @@ import {
   Section,
   StatTile,
 } from "@/components/page";
+import { BloodPressureSection } from "@/components/blood-pressure-section";
 import { SyncStatusBadge } from "@/components/sync-status-badge";
 import { friendlyDate } from "@/utils/friendly";
 import { client, orpc } from "@/utils/orpc";
@@ -321,12 +322,15 @@ function VitalsPage() {
       )}
 
       <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
-        <AddReadingForm
-          onSaved={() => {
-            void daily.refetch();
-            void samples.refetch();
-          }}
-        />
+        <div className="grid min-w-0 content-start gap-8">
+          <AddReadingForm
+            onSaved={() => {
+              void daily.refetch();
+              void samples.refetch();
+            }}
+          />
+          <BloodPressureSection />
+        </div>
         {today ? (
           <Details summary={<Trans>Recent readings</Trans>}>
             <div className="grid gap-4">

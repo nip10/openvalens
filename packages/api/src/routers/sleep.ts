@@ -2,8 +2,12 @@ import { writeAuditLog, type AuditEventType } from "@openvalens/audit-security";
 import { AuthzHttpError, requirePermission } from "@openvalens/auth/authz/guard";
 import {
   buildSleepCoachContext,
+  deleteManualSleepSession,
   getSleepSummary,
+  insertManualSleepSession,
+  listManualSleepSessions,
   listSleepDailySummaries,
+  overlapsDeviceSleep,
   type SleepCoachContext,
   type SleepDailySummary,
   type SleepWindowSummary,
@@ -11,6 +15,12 @@ import {
 import { z } from "zod";
 
 import { permissionedProcedure, protectedProcedure, raiseApiError, validateInput } from "../index";
+import {
+  checkManualSleepWindow,
+  manualSleepDedupeHash,
+  SLEEP_QUALITY_MAX,
+  SLEEP_QUALITY_MIN,
+} from "../presenters/manual-sleep";
 
 /**
  * Sleep analytics oRPC surface (Issue #18).
@@ -123,6 +133,37 @@ const coachContextShape: z.ZodType<SleepCoachContext> = z.object({
   recommendedConstraint: z.enum(["prioritize_recovery", "avoid_max_effort_training"]).nullable(),
 });
 
+const MANUAL_SESSIONS_MAX_DAYS = 365;
+
+const logManualSessionInput = z.strictObject({
+  startAt: z.string().datetime({ offset: true }),
+  endAt: z.string().datetime({ offset: true }),
+  quality: z.number().int().min(SLEEP_QUALITY_MIN).max(SLEEP_QUALITY_MAX).nullish(),
+});
+
+const manualSessionsInput = z.strictObject({
+  days: z.number().int().min(1).max(MANUAL_SESSIONS_MAX_DAYS).optional(),
+});
+
+const deleteManualSessionInput = z.strictObject({
+  id: z.number().int().positive(),
+});
+
+const manualSessionShape = z.object({
+  id: z.number(),
+  startAt: z.string(),
+  endAt: z.string(),
+  quality: z.number().nullable(),
+  possibleDuplicate: z.boolean(),
+});
+
+const manualSessionWriteOutput = z.object({
+  id: z.number(),
+  created: z.boolean(),
+  possibleDuplicate: z.boolean(),
+  targetId: z.string(),
+});
+
 const recordFromHealthConnectOutput = z.object({
   eventId: z.number(),
   window: windowSummaryShape,
@@ -224,5 +265,88 @@ export const sleepRouter = {
         coachContext: buildSleepCoachContext(window),
         targetId: String(row.id),
       };
+    }),
+
+  /**
+   * Log a night by hand (#440): bedtime, wake time and an optional quality
+   * from 1 to 5. Stored as its own `sleep_session` event marked manual — it
+   * never overwrites or merges into device sleep. An overlap with a device
+   * night comes back as `possibleDuplicate`, and the device night counts in
+   * the totals. Retrying the same night is a no-op (`created: false`).
+   */
+  logManualSession: permissionedProcedure({ resource: "records", action: "write" })
+    .use(validateInput(logManualSessionInput))
+    .input(logManualSessionInput)
+    .output(manualSessionWriteOutput)
+    .handler(async ({ input, context }) => {
+      const checked = checkManualSleepWindow(input.startAt, input.endAt);
+      if (!checked.ok) throw raiseApiError("INVALID_INPUT", `Sleep window: ${checked.error}.`);
+      const organizationId = context.authz.activeOrganizationId;
+      const userId = context.authz.user.id;
+      const { id, created } = await insertManualSleepSession(context.db, {
+        organizationId,
+        userId,
+        startAt: checked.window.startAt,
+        endAt: checked.window.endAt,
+        quality: input.quality ?? null,
+        dedupeHash: manualSleepDedupeHash(checked.window),
+      });
+      if (created)
+        await writeAuditLog({
+          db: context.db,
+          organizationId,
+          actorUserId: userId,
+          eventType: "RECORD_CREATED" satisfies AuditEventType,
+          targetType: "health_event",
+          targetId: String(id),
+          correlationId: context.correlationId,
+          metadata: { source: "manual", eventType: "sleep_session" },
+        });
+      const possibleDuplicate = await overlapsDeviceSleep(context.db, {
+        organizationId,
+        startAt: checked.window.startAt,
+        endAt: checked.window.endAt,
+      });
+      return { id, created, possibleDuplicate, targetId: String(id) };
+    }),
+
+  /** The member's own manual nights, newest first, with possible duplicates flagged. */
+  manualSessions: permissionedProcedure({ resource: "records", action: "read" })
+    .use(validateInput(manualSessionsInput))
+    .input(manualSessionsInput)
+    .output(z.array(manualSessionShape))
+    .handler(async ({ input, context }) =>
+      listManualSleepSessions(context.db, {
+        organizationId: context.authz.activeOrganizationId,
+        userId: context.authz.user.id,
+        days: input.days ?? 30,
+      }),
+    ),
+
+  /** Remove one of the member's own manual nights. Device sleep can't be removed here. */
+  deleteManualSession: permissionedProcedure({ resource: "records", action: "write" })
+    .use(validateInput(deleteManualSessionInput))
+    .input(deleteManualSessionInput)
+    .output(z.object({ deleted: z.boolean(), targetId: z.string() }))
+    .handler(async ({ input, context }) => {
+      const organizationId = context.authz.activeOrganizationId;
+      const userId = context.authz.user.id;
+      const deleted = await deleteManualSleepSession(context.db, {
+        organizationId,
+        userId,
+        id: input.id,
+      });
+      if (!deleted) throw raiseApiError("NOT_FOUND", "Manual sleep session not found.");
+      await writeAuditLog({
+        db: context.db,
+        organizationId,
+        actorUserId: userId,
+        eventType: "RECORD_DELETED" satisfies AuditEventType,
+        targetType: "health_event",
+        targetId: String(input.id),
+        correlationId: context.correlationId,
+        metadata: { source: "manual", eventType: "sleep_session" },
+      });
+      return { deleted, targetId: String(input.id) };
     }),
 };

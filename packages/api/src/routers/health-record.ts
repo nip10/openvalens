@@ -291,9 +291,10 @@ export const healthRecordRouter = {
     }),
 
   /**
-   * Persist a `metric_sample` row. The metric must already be
-   * registered in the active tenant's catalog; cross-tenant
-   * `sourceId` references reject with `NOT_FOUND`.
+   * Persist a `metric_sample` row. A fixed taxonomy metric missing from
+   * the active tenant's catalog is registered first; an unknown code or
+   * an unregistered lab marker rejects with `NOT_FOUND`, as do
+   * cross-tenant `sourceId` references.
    */
   ingestMetricSample: permissionedProcedure({ resource: "records", action: "write" })
     .use(validateInput(metricSampleInputSchema))
@@ -306,6 +307,9 @@ export const healthRecordRouter = {
           organizationId: context.authz.activeOrganizationId,
           userId: context.authz.user.id,
           payload: input,
+          // A member's first typed-in reading of a fixed metric (e.g. blood
+          // pressure without a monitor) registers it in the workspace catalog.
+          registerCanonicalDefinition: true,
         });
       } catch (error) {
         if (error instanceof CanonicalMetricNotFoundError)

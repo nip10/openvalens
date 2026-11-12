@@ -31,3 +31,16 @@ export type VitalsSample = {
   heartRateBpm: number;
   source: string | null;
 };
+
+/** One blood pressure reading (#440): systolic/diastolic in mmHg, pulse in bpm. */
+export type BloodPressureReading = {
+  observedAt: string;
+  systolic: number;
+  diastolic: number;
+  pulse: number | null;
+  /** The data source key, or `manual` for a reading typed in by the member. */
+  source: string | null;
+  manual: boolean;
+  /** A typed-in reading close in time to a device reading. */
+  possibleDuplicate: boolean;
+};
