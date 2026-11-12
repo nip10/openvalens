@@ -1,3 +1,5 @@
+import { parseDecimal } from "@openvalens/i18n/numbers";
+
 export type WorkoutKind = "weights" | "tennis" | "running" | "cycling" | "swimming" | "other";
 export type DraftSet = {
   id: string;
@@ -304,11 +306,8 @@ export function validateWorkoutDraft(draft: WorkoutDraft): string | null {
         (!Number.isFinite(set.weightKg) || set.weightKg < 0 || set.weightKg > 1000)
       )
         return "INVALID_WEIGHT";
-      if (
-        set.rpe &&
-        (!Number.isFinite(Number(set.rpe)) || Number(set.rpe) < 0 || Number(set.rpe) > 10)
-      )
-        return "INVALID_RPE";
+      const rpe = set.rpe ? parseDecimal(set.rpe) : null;
+      if (set.rpe && (rpe === null || rpe < 0 || rpe > 10)) return "INVALID_RPE";
     }
   }
   return null;
@@ -342,7 +341,7 @@ export function draftToWorkoutInput(
         .map((set) => ({
           reps: Number(set.reps),
           ...(set.weightKg == null ? {} : { weightKg: set.weightKg }),
-          ...(set.rpe ? { rpe: Number(set.rpe) } : {}),
+          ...(set.rpe ? { rpe: parseDecimal(set.rpe) ?? Number.NaN } : {}),
           ...(set.notes !== undefined ? { notes: set.notes } : {}),
         })),
     })),

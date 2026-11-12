@@ -39,6 +39,7 @@ import {
 } from "@/components/page";
 import { orpc } from "@/utils/orpc";
 import { ModuleHiddenNote } from "@/components/module-hidden-note";
+import { parseDecimal } from "@openvalens/i18n/numbers";
 
 export const Route = createFileRoute("/_auth/supplements")({
   component: SupplementsPage,
@@ -98,8 +99,8 @@ function AddSupplementForm({ onSaved }: { onSaved: () => void }) {
   const addSupplement = useMutation(orpc.plans.upsertSupplement.mutationOptions());
   const addSchedule = useMutation(orpc.plans.upsertSchedule.mutationOptions());
 
-  const numeric = Number(dose);
-  const valid = name.trim().length > 0 && dose.trim().length > 0 && Number.isFinite(numeric);
+  const numeric = parseDecimal(dose) ?? Number.NaN;
+  const valid = name.trim().length > 0 && Number.isFinite(numeric);
   const pending = addSupplement.isPending || addSchedule.isPending;
 
   const submit = async () => {
@@ -204,8 +205,8 @@ function AddMedicationForm({ onSaved }: { onSaved: () => void }) {
 
   const addMedication = useMutation(orpc.plans.upsertMedication.mutationOptions());
 
-  const numeric = Number(dose);
-  const valid = name.trim().length > 0 && dose.trim().length > 0 && Number.isFinite(numeric);
+  const numeric = parseDecimal(dose) ?? Number.NaN;
+  const valid = name.trim().length > 0 && Number.isFinite(numeric);
 
   const submit = () => {
     if (!valid || addMedication.isPending) return;

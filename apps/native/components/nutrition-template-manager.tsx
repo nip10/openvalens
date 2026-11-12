@@ -18,6 +18,7 @@ import { useLingui } from "@lingui/react/macro";
 import { Button } from "heroui-native";
 import { useEffect, useRef, useState } from "react";
 import { ScrollView, Text, TextInput, View } from "react-native";
+import { parseDecimal } from "@openvalens/i18n/numbers";
 
 export type TemplateFoodChoice = {
   food: FoodRef;
@@ -121,10 +122,7 @@ export function NutritionTemplateManager(props: NutritionTemplateManagerProps) {
         ...blankIngredient(`import-${item.id}`),
         foodName: item.foodText ?? item.rawText,
         unit: "serving",
-        amount:
-          item.quantityText && Number.isFinite(Number(item.quantityText))
-            ? Number(item.quantityText)
-            : 1,
+        amount: (item.quantityText ? parseDecimal(item.quantityText) : null) ?? 1,
       })),
     );
     setNotice(i18n._(COPY.matchImported));
@@ -210,8 +208,8 @@ export function NutritionTemplateManager(props: NutritionTemplateManagerProps) {
       unit: item.unit,
     }));
     if ((editing?.kind ?? creating) === "recipe") {
-      const yieldServings = Number(yieldText);
-      if (!Number.isFinite(yieldServings) || yieldServings <= 0) return null;
+      const yieldServings = parseDecimal(yieldText);
+      if (yieldServings === null || yieldServings <= 0) return null;
       return { kind: "recipe", name: name.trim(), yieldServings, ingredients: contentIngredients };
     }
     return { kind: "meal", name: name.trim(), ingredients: contentIngredients };
@@ -222,7 +220,7 @@ export function NutritionTemplateManager(props: NutritionTemplateManagerProps) {
     if (!content) {
       setNotice(
         i18n._(
-          (editing?.kind ?? creating) === "recipe" && Number(yieldText) <= 0
+          (editing?.kind ?? creating) === "recipe" && !((parseDecimal(yieldText) ?? 0) > 0)
             ? COPY.badYield
             : COPY.invalidTemplate,
         ),
@@ -370,11 +368,10 @@ export function NutritionTemplateManager(props: NutritionTemplateManagerProps) {
       ) : (
         active.map((template) => {
           const recipeServings = servings[template.id] ?? "1";
+          const servingsValue = parseDecimal(recipeServings);
           const scale =
-            template.kind === "recipe" &&
-            Number.isFinite(Number(recipeServings)) &&
-            template.yieldServings
-              ? Number(recipeServings) / template.yieldServings
+            template.kind === "recipe" && servingsValue !== null && template.yieldServings
+              ? servingsValue / template.yieldServings
               : 1;
           return (
             <View
@@ -402,7 +399,7 @@ export function NutritionTemplateManager(props: NutritionTemplateManagerProps) {
                 <View className="min-h-11 flex-row items-center gap-2">
                   <Text>{i18n._(COPY.servings)}</Text>
                   <TextInput
-                    value={templateAmountValue(Number(recipeServings), hidden)}
+                    value={hidden ? "" : recipeServings}
                     editable={!hidden}
                     onChangeText={(value) =>
                       setServings((current) => ({ ...current, [template.id]: value }))
@@ -417,13 +414,12 @@ export function NutritionTemplateManager(props: NutritionTemplateManagerProps) {
                 <Button
                   isDisabled={
                     !props.canMutate ||
-                    (template.kind === "recipe" &&
-                      (!Number.isFinite(Number(recipeServings)) || Number(recipeServings) <= 0))
+                    (template.kind === "recipe" && (servingsValue === null || servingsValue <= 0))
                   }
                   onPress={() =>
                     props.onLog(
                       template,
-                      template.kind === "recipe" ? Number(recipeServings) : undefined,
+                      template.kind === "recipe" ? (servingsValue ?? undefined) : undefined,
                     )
                   }
                 >
@@ -463,7 +459,7 @@ export function NutritionTemplateManager(props: NutritionTemplateManagerProps) {
             />
             {formKind === "recipe" ? (
               <TextInput
-                value={templateAmountValue(Number(yieldText), hidden)}
+                value={hidden ? "" : yieldText}
                 editable={!hidden}
                 onChangeText={setYieldText}
                 keyboardType="decimal-pad"
@@ -519,7 +515,9 @@ export function NutritionTemplateManager(props: NutritionTemplateManagerProps) {
                   <TextInput
                     value={templateAmountValue(item.amount, hidden)}
                     onChangeText={(value) =>
-                      updateIngredient(item.key, { amount: value === "" ? null : Number(value) })
+                      updateIngredient(item.key, {
+                        amount: value === "" ? null : (parseDecimal(value) ?? Number.NaN),
+                      })
                     }
                     editable={!hidden}
                     keyboardType="decimal-pad"

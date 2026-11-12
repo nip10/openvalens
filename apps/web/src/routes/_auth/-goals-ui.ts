@@ -1,3 +1,4 @@
+import { parseDecimal } from "@openvalens/i18n/numbers";
 import type { GoalEvaluation } from "@openvalens/plans/goal-evaluation";
 import type { GoalDefinition } from "@openvalens/plans/goal-model";
 
@@ -69,9 +70,7 @@ export function quickActionKind(
 }
 
 export function parseManualAmount(value: string): number | null {
-  if (!value.trim()) return null;
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
+  return parseDecimal(value);
 }
 
 export function checkinCorrectionPayload(
@@ -80,6 +79,6 @@ export function checkinCorrectionPayload(
   completed: boolean,
 ) {
   if (completionOnly) return { completed };
-  if (!value.trim() || !Number.isFinite(Number(value))) return null;
-  return { value: Number(value) };
+  const parsed = parseDecimal(value);
+  return parsed === null ? null : { value: parsed };
 }

@@ -79,6 +79,18 @@ describe("native Goals presentation and safe actions", () => {
     expect(checkinCorrectionPayload("", true, false)).toEqual({ completed: false });
   });
 
+  test("manual values read a decimal comma as a decimal (#448)", () => {
+    for (const raw of ["82,4", "82.4", " 82,4 "]) {
+      expect(parseManualGoalValue(raw)).toBe(82.4);
+      expect(checkinCorrectionPayload(raw, false, false)).toEqual({ value: 82.4 });
+    }
+    expect(parseManualGoalValue("1,5")).toBe(1.5);
+    for (const raw of ["1.234,5", "abc"]) {
+      expect(parseManualGoalValue(raw)).toBeNull();
+      expect(checkinCorrectionPayload(raw, false, false)).toBeNull();
+    }
+  });
+
   test("replacement navigation targets the newly created goal", () => {
     expect(goalDetailRouteParams(42)).toEqual({
       pathname: "/goals/[goalId]",

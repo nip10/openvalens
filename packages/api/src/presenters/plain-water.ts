@@ -17,6 +17,7 @@
  */
 import type { I18n, MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
+import { parseDecimal } from "@openvalens/i18n/numbers";
 
 import { HIDDEN_VALUE } from "./nutrition-targets";
 import {
@@ -502,9 +503,8 @@ export type WaterAmountResult =
 export function parseWaterAmount(raw: string, unit: WaterUnit): WaterAmountResult {
   const text = raw.trim();
   if (!text) return { ok: false, error: WATER_COPY.amountInvalid };
-  const quantity = Number(text);
-  if (!Number.isFinite(quantity) || quantity <= 0)
-    return { ok: false, error: WATER_COPY.amountInvalid };
+  const quantity = parseDecimal(text);
+  if (quantity === null || quantity <= 0) return { ok: false, error: WATER_COPY.amountInvalid };
   const quantityMl = waterQuantityMl(quantity, unit);
   if (!Number.isFinite(quantityMl) || quantityMl >= MAX_QUANTITY_ML)
     return { ok: false, error: WATER_COPY.amountTooLarge };

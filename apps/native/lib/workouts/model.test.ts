@@ -10,6 +10,7 @@ const {
   workoutSummary,
   createDraftFromWorkout,
   createDraftFromRoutinePreview,
+  validateWorkoutDraft,
 } = await import("./model");
 
 describe("workout draft model", () => {
@@ -83,6 +84,27 @@ describe("workout draft model", () => {
     expect(draftToWorkoutInput(draft, new Date("2026-01-02T03:17:00Z")).duration).toBe(17);
     draft.duration = 33;
     expect(draftToWorkoutInput(draft).duration).toBe(33);
+  });
+  test("RPE typed with a decimal comma is a decimal (#448)", () => {
+    const draft = createWorkoutDraft(
+      new Date("2026-01-02T03:00:00Z"),
+      () => "11111111-1111-4111-8111-111111111111",
+    );
+    const withRpe = (rpe: string) => {
+      draft.exercises = [
+        {
+          id: "x",
+          exerciseId: null,
+          name: "Squat",
+          sets: [{ id: "s", weightKg: 80, reps: "5", rpe, done: true }],
+        },
+      ];
+      return draft;
+    };
+    expect(draftToWorkoutInput(withRpe("7,5")).exercises[0]?.sets[0]?.rpe).toBe(7.5);
+    expect(validateWorkoutDraft(withRpe("7.5"))).toBeNull();
+    expect(validateWorkoutDraft(withRpe("1.234,5"))).toBe("INVALID_RPE");
+    expect(validateWorkoutDraft(withRpe("abc"))).toBe("INVALID_RPE");
   });
   test("editing server detail makes fresh draft rows and preserves exact set values", () => {
     const draft = createDraftFromWorkout(

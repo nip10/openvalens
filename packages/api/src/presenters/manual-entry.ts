@@ -6,6 +6,7 @@
  */
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
+import { parseDecimal } from "@openvalens/i18n/numbers";
 
 export type ManualEntryMetric =
   | "heart_rate"
@@ -102,8 +103,8 @@ export function parseManualEntryValue(
   field: Pick<ManualEntryField, "min" | "max">,
   raw: string,
 ): number | null {
-  const value = Number(raw);
-  if (!Number.isFinite(value)) return null;
+  const value = parseDecimal(raw);
+  if (value === null) return null;
   const rounded = Math.round(value * 1000) / 1000;
   if (rounded < field.min || rounded > field.max) return null;
   return rounded;

@@ -1,5 +1,6 @@
 import type { I18n, MessageDescriptor } from "@lingui/core";
 import { msg, select } from "@lingui/core/macro";
+import { parseDecimal } from "@openvalens/i18n/numbers";
 
 import type { CustomFood, CustomFoodContent } from "../contracts/nutrition-custom-foods";
 import {
@@ -120,8 +121,8 @@ export function parseCustomFood(
   if (servingLabel.length > 100)
     return { ok: false, error: msg`Use at most 100 characters for the serving name.` };
   const rawServing = fields.servingSizeAmount.trim();
-  const servingSizeAmount = rawServing ? Number(rawServing) : null;
-  if (servingSizeAmount !== null && (!Number.isFinite(servingSizeAmount) || servingSizeAmount <= 0))
+  const servingSizeAmount = rawServing ? parseDecimal(rawServing) : null;
+  if (rawServing && (servingSizeAmount === null || servingSizeAmount <= 0))
     return { ok: false, error: msg`Serving size must be a positive amount, or left blank.` };
   const nutrients = Object.fromEntries(
     NUTRIENT_KEYS.map((key) => [key, base.food.nutrients?.[key] ?? null]),

@@ -172,6 +172,7 @@ import {
   slotForHour,
   sumMacros,
 } from "@/lib/nutrition/timeline";
+import { parseDecimal } from "@openvalens/i18n/numbers";
 
 /**
  * Meal diary (Issue #77) with food search and barcode scan/lookup (#75).
@@ -1456,14 +1457,15 @@ function EntryCard({
         (row.change.op.kind === "log" && row.change.op.input.food.kind === "manual"
           ? row.change.op.input.food.food.nutrients
           : cachedCandidate?.nutrientsPerBasis));
+  const draftValue = parseDecimal(draft);
   const editorNutrients =
-    basis && perBasis && draft.trim() && Number.isFinite(Number(draft))
+    basis && perBasis && draftValue !== null
       ? previewNutrients(
           basis,
           Object.fromEntries(
             Object.keys(NUTRIENT_LABELS).map((key) => [key, perBasis[key as NutrientKey] ?? null]),
           ) as DiaryEntry["nutrients"],
-          Number(draft),
+          draftValue,
           draftUnit,
         )
       : null;
@@ -1490,8 +1492,8 @@ function EntryCard({
       generation !== liveGeneration.current
     )
       return;
-    const value = Number(draft);
-    if (amount === null || !Number.isFinite(value) || value <= 0) return;
+    const value = parseDecimal(draft);
+    if (amount === null || value === null || value <= 0) return;
     const ticket = outbox.beginWrite();
     const ref =
       row.kind === "server"
@@ -1875,6 +1877,7 @@ export function AddFood({
   const dismissalState = useRef<FoodLoggerDismissal | null>(null);
   if (dismissalState.current === null) dismissalState.current = new FoodLoggerDismissal();
   const [amount, setAmount] = useState("100");
+  const amountValue = parseDecimal(amount) ?? Number.NaN;
   const [unit, setUnit] = useState<AmountUnit>("g");
   const [quick, setQuick] = useState<QuickAddFields>(EMPTY_QUICK);
   /** Set while the quick-add form is a manual draft started from a barcode. */
@@ -2034,15 +2037,12 @@ export function AddFood({
             ...parsed.food.nutrients,
           } as DiaryEntry["nutrients"])
         : undefined;
-  const preview =
-    basis && perBasis ? previewNutrients(basis, perBasis, Number(amount), unit) : null;
+  const preview = basis && perBasis ? previewNutrients(basis, perBasis, amountValue, unit) : null;
   const units = basis ? unitsFor(basis) : (["g", "ml", "serving"] as AmountUnit[]);
   const missingNote = mode !== "quick" && chosen ? missingDataNote(chosen, i18n) : null;
   const slotLabel = i18n._(SLOT_LABELS[slot]);
   const reviewLine = () => {
-    const reviewAmount = hideNumbers
-      ? i18n._(HIDDEN_VALUE)
-      : formatAmount(Number(amount), unit, i18n);
+    const reviewAmount = hideNumbers ? i18n._(HIDDEN_VALUE) : formatAmount(amountValue, unit, i18n);
     const reviewName = mode !== "quick" && chosen ? chosen.name : null;
     const source =
       mode !== "quick" && chosen
@@ -2188,7 +2188,7 @@ export function AddFood({
                   timeZone,
                   slot,
                   food: created.ref,
-                  amount: Number(amount),
+                  amount: amountValue,
                   unit,
                   method,
                   ...(consumedAt ? { consumedAt } : {}),
@@ -2230,7 +2230,7 @@ export function AddFood({
           timeZone,
           slot,
           food,
-          amount: Number(amount),
+          amount: amountValue,
           unit,
           method,
           ...(consumedAt ? { consumedAt } : {}),

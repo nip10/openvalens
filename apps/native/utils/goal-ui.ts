@@ -1,3 +1,4 @@
+import { parseDecimal } from "@openvalens/i18n/numbers";
 import type { GoalDefinition } from "@openvalens/plans/goal-model";
 
 export type GoalActionKind =
@@ -23,8 +24,8 @@ export function checkinCorrectionPayload(
   completed: boolean,
 ) {
   if (completionOnly) return { completed };
-  if (!value.trim() || !Number.isFinite(Number(value))) return null;
-  return { value: Number(value) };
+  const parsed = parseDecimal(value);
+  return parsed === null ? null : { value: parsed };
 }
 
 export function goalActionKind(
@@ -63,7 +64,5 @@ export function goalRuleLabel(rule: GoalDefinition["rule"]): string {
 }
 
 export function parseManualGoalValue(value: string): number | null {
-  if (!value.trim()) return null;
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
+  return parseDecimal(value);
 }

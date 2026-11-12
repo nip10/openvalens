@@ -191,9 +191,6 @@ describe("forms", () => {
       ok: true,
       input: { nutrient: "proteinG", minAmount: 60, maxAmount: null, effectiveFrom: "2026-10-01" },
     });
-    expect(
-      parseTargetForm("energyKcal", { min: "2,000", max: "2,000", effectiveFrom: "2026-10-01" }),
-    ).toMatchObject({ ok: true, input: { minAmount: 2000, maxAmount: 2000 } });
     expect(parseTargetForm("proteinG", { min: "", max: "", effectiveFrom: "2026-10-01" }).ok).toBe(
       false,
     );
@@ -205,10 +202,26 @@ describe("forms", () => {
     ).toBe(false);
   });
 
+  test("target form: a decimal comma is a decimal, never a thousands separator (#448)", () => {
+    const form = (min: string) =>
+      parseTargetForm("proteinG", { min, max: "", effectiveFrom: "2026-10-01" });
+    for (const raw of ["82,4", "82.4", " 82,4 "])
+      expect(form(raw)).toMatchObject({ ok: true, input: { minAmount: 82.4 } });
+    expect(form("1,5")).toMatchObject({ ok: true, input: { minAmount: 1.5 } });
+    expect(form("1.234,5").ok).toBe(false);
+    expect(form("abc").ok).toBe(false);
+    // "2,000" is 2000 in English and 2 in Portuguese: refused, not guessed.
+    expect(
+      parseTargetForm("energyKcal", { min: "2,000", max: "", effectiveFrom: "2026-10-01" }).ok,
+    ).toBe(false);
+  });
+
   test("height: blank clears, out of range is refused", () => {
     expect(parseHeight("")).toEqual({ ok: true, value: null });
     expect(parseHeight("172.5")).toEqual({ ok: true, value: 172.5 });
     expect(parseHeight("72").ok).toBe(false);
+    expect(parseHeight("172,5")).toEqual({ ok: true, value: 172.5 });
+    expect(parseHeight("1.72,5").ok).toBe(false);
   });
 
   test("removing an eating-disorder answer is detected for the separate confirmation", () => {

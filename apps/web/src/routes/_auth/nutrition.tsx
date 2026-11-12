@@ -109,6 +109,7 @@ import { PlainWaterSection } from "@/components/plain-water-section";
 import { friendlyDate } from "@/utils/friendly";
 import { orpc } from "@/utils/orpc";
 import { ModuleHiddenNote } from "@/components/module-hidden-note";
+import { parseDecimal } from "@openvalens/i18n/numbers";
 
 /**
  * Meal diary (Issue #77) with food search and typed barcode lookup (#75). Online-only on web: every change goes straight to
@@ -443,6 +444,7 @@ function EntryRow({
 }) {
   const [editing, setEditing] = useState(false);
   const [amount, setAmount] = useState(String(entry.amount));
+  const amountValue = parseDecimal(amount) ?? Number.NaN;
   const [unit, setUnit] = useState<AmountUnit>(entry.unit);
   const [slot, setSlot] = useState<MealSlot>(entry.slot);
   const [conflict, setConflict] = useState<DiaryEntry | null>(null);
@@ -470,7 +472,7 @@ function EntryRow({
       clientMutationId: newClientMutationId(),
       entryId: entry.id,
       expectedRevision,
-      amount: Number(amount),
+      amount: amountValue,
       unit,
       slot,
     };
@@ -517,14 +519,14 @@ function EntryRow({
   };
 
   const units = unitsFor(entry.food.basis);
-  const mineAmount = formatAmount(Number(amount), unit, i18n);
+  const mineAmount = formatAmount(amountValue, unit, i18n);
   const mineSlot = i18n._(SLOT_LABELS[slot]);
   const otherAmount = conflict ? formatAmount(conflict.amount, conflict.unit, i18n) : "";
   const otherSlot = conflict ? i18n._(SLOT_LABELS[conflict.slot]) : "";
   const preview = previewNutrients(
     entry.food.basis,
     entry.food.nutrientsPerBasis,
-    Number(amount),
+    amountValue,
     unit,
   );
 
@@ -847,6 +849,7 @@ function AddFood({
   const [query, setQuery] = useState(initialQuery);
   const [chosen, setChosen] = useState<FoodCandidate | null>(null);
   const [amount, setAmount] = useState("100");
+  const amountValue = parseDecimal(amount) ?? Number.NaN;
   const [unit, setUnit] = useState<AmountUnit>("g");
   const [quick, setQuick] = useState<QuickAddFields>(EMPTY_QUICK);
   /** Set while the quick-add form is a manual draft started from a barcode. */
@@ -949,12 +952,11 @@ function AddFood({
             ]),
           ) as FoodChoice["nutrientsPerBasis"])
         : undefined;
-  const preview =
-    basis && perBasis ? previewNutrients(basis, perBasis, Number(amount), unit) : null;
+  const preview = basis && perBasis ? previewNutrients(basis, perBasis, amountValue, unit) : null;
   const allowedUnits = basis ? unitsFor(basis) : [...AMOUNT_UNITS];
   const missingNote = mode !== "quick" && chosen ? missingDataNote(chosen, i18n) : null;
   const slotLabel = i18n._(SLOT_LABELS[slot]);
-  const reviewAmount = formatAmount(Number(amount), unit, i18n);
+  const reviewAmount = formatAmount(amountValue, unit, i18n);
   const reviewSource =
     mode !== "quick" && chosen
       ? i18n._(chosen.sourceLabel)
@@ -999,7 +1001,7 @@ function AddFood({
       timeZone,
       slot,
       food,
-      amount: Number(amount),
+      amount: amountValue,
       unit,
       method,
     };
