@@ -122,6 +122,7 @@ export function directDeviceFamilySupportsRecordType(
   if (recordType === "weight_measurement") return family === "ble_scale";
   if (recordType === "heart_rate")
     return (
+      family === "zepp_os" ||
       family === "ble_gatt" ||
       family === "colmi_ring" ||
       family === "bangle_js" ||

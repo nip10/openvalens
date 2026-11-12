@@ -8,6 +8,8 @@ export type HelioStepMinute = Readonly<{
   startTime: string;
   endTime: string;
   count: number;
+  /** Zepp OS byte 3: bpm for the minute, present only for a plausible worn reading. */
+  heartRate?: number;
 }>;
 export type HelioStepsPage = Readonly<{
   minutes: readonly HelioStepMinute[];
@@ -31,12 +33,12 @@ export type HelioHistoryResult = Readonly<{
 export interface HelioLink {
   readonly maxWriteBytes: number;
   subscribe(
-    characteristic: "chunk_read" | "activity_data",
+    characteristic: "chunk_read" | "activity_data" | "activity_control",
     onBytes: (bytes: Uint8Array) => void,
     onFailure: () => void,
   ): () => void;
   write(
-    characteristic: "chunk_write" | "chunk_read",
+    characteristic: "chunk_write" | "chunk_read" | "activity_control",
     bytes: Uint8Array,
     signal: AbortSignal,
   ): Promise<void>;

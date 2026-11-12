@@ -39,7 +39,8 @@ import type { PebblePacket, PebblePeer } from "../pebble-types";
 import type { FossilPeer } from "../transport/fossil-hr";
 import { FOSSIL_HR_MODELS } from "../models/fossil-hr";
 import { crc32 as fossilCrc32 } from "../protocol/fossil-hr";
-import { pebbleOutcomeNotice } from "./controller";
+import { pageRequests, pebbleOutcomeNotice } from "./controller";
+import { directDeviceBatch } from "@openvalens/api/contracts/direct-device";
 import {
   createHelioSyncControllerWithDependencies,
   immutableClient,
@@ -3098,4 +3099,50 @@ test("an empty activity file is a quiet success; a bad key or a mismatched watch
   expect(downloads).toBe(1);
   await mismatch.controller.dispose();
   mismatch.db.close();
+});
+
+test("Zepp OS pages publish per-minute heart rate next to steps; other families do not", () => {
+  const minutes = [
+    {
+      externalRecordId: "minute:2026-02-01T00:00:00.000Z",
+      startTime: "2026-02-01T00:00:00.000Z",
+      endTime: "2026-02-01T00:01:00.000Z",
+      count: 10,
+      heartRate: 70,
+    },
+    {
+      externalRecordId: "minute:2026-02-01T00:01:00.000Z",
+      startTime: "2026-02-01T00:01:00.000Z",
+      endTime: "2026-02-01T00:02:00.000Z",
+      count: 3,
+    },
+  ];
+  const context2 = { userId: context.userId, organizationId: context.organizationId };
+  const zepp = pageRequests(
+    deviceId,
+    { family: "zepp_os", modelId: "amazfit_gtr_4" } as DirectDeviceIdentity,
+    context2,
+    minutes,
+    "UTC",
+  );
+  expect(zepp.map((request) => request.batch.recordType)).toEqual(["steps", "heart_rate"]);
+  expect(zepp[1]!.batch.upserts).toEqual([
+    {
+      type: "heart_rate",
+      externalRecordId: "hr-minute:2026-02-01T00:00:00.000Z",
+      sourceApp: null,
+      startTime: "2026-02-01T00:00:00.000Z",
+      endTime: "2026-02-01T00:00:01.000Z",
+      samples: [{ time: "2026-02-01T00:00:00.000Z", bpm: 70 }],
+    },
+  ]);
+  for (const request of zepp) expect(directDeviceBatch.safeParse(request.batch).success).toBe(true);
+  const xiaomi = pageRequests(
+    deviceId,
+    { family: "xiaomi", modelId: "xiaomi_mi_band_10" } as DirectDeviceIdentity,
+    context2,
+    minutes,
+    "UTC",
+  );
+  expect(xiaomi.map((request) => request.batch.recordType)).toEqual(["steps"]);
 });

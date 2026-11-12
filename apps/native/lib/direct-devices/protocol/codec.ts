@@ -10,6 +10,8 @@ export const FEE0 = "0000fee0-0000-1000-8000-00805f9b34fb";
 export const CHUNK_WRITE = "00000016-0000-3512-2118-0009af100700";
 export const CHUNK_READ = "00000017-0000-3512-2118-0009af100700";
 export const ACTIVITY_DATA = "00000005-0000-3512-2118-0009af100700";
+/** Plain activity control, used when the watch does not list endpoint 0x004b. */
+export const ACTIVITY_CONTROL = "00000004-0000-3512-2118-0009af100700";
 
 export function bytes(value: readonly number[]): Uint8Array {
   return Uint8Array.from(value);
@@ -25,20 +27,21 @@ export function readU32le(b: Uint8Array, i: number): number {
 
 export type ServiceEncryption = ReadonlyMap<number, boolean>;
 export function decodeServiceList(payload: Uint8Array): ServiceEncryption {
+  // As lenient as upstream (ZeppOsServicesService): trailing bytes are
+  // ignored, an unknown encryption byte keeps the default (unencrypted), and
+  // a missing 0x004b is allowed (activity control then uses characteristic
+  // 0004). Only a list too short for its declared count is refused.
   if (payload.length < 3 || payload[0] !== 4) throw new Error("INVALID_SERVICE_LIST");
   const count = readU16le(payload, 1);
-  if (count > 256 || payload.length !== 3 + count * 3)
-    throw new Error("INVALID_SERVICE_LIST_LENGTH");
+  if (count > 256 || payload.length < 3 + count * 3) throw new Error("INVALID_SERVICE_LIST_LENGTH");
   const result = new Map<number, boolean>();
   for (let i = 0; i < count; i += 1) {
     const offset = 3 + i * 3,
       endpoint = readU16le(payload, offset),
       flag = payload[offset + 2]!;
-    if (flag !== 0 && flag !== 1) throw new Error("INVALID_SERVICE_ENCRYPTION_FLAG");
-    if (result.has(endpoint)) throw new Error("DUPLICATE_SERVICE");
+    if (result.has(endpoint)) continue;
     result.set(endpoint, flag === 1);
   }
-  if (!result.has(ENDPOINT_HISTORY)) throw new Error("HISTORY_UNSUPPORTED");
   return result;
 }
 
@@ -138,12 +141,19 @@ export function makeStepMinutes(
     if (start >= now - (now % 60_000)) continue;
     const count = raw[i + 2]!;
     const externalRecordId = `minute:${startTime}`;
+    // Zepp OS layout: kind, intensity, steps, heart rate, … (FetchActivityOperation).
+    // Kinds 115 (not worn) and 118 (charging) carry no real reading; 0 and
+    // 255 are "not measured".
+    const kind = raw[i]!;
+    const bpm = raw[i + 3]!;
+    const worn = kind !== 115 && kind !== 118;
     result.push(
       Object.freeze({
         externalRecordId,
         startTime,
         endTime: new Date(start + 60_000).toISOString(),
         count,
+        ...(worn && bpm >= 25 && bpm <= 240 ? { heartRate: bpm } : {}),
       }),
     );
   }

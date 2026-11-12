@@ -139,7 +139,8 @@ function pageCaptureId(deviceId: string, before: HelioCursor, after: HelioCursor
   return `dd-v2:${deviceId}:${before.nextMinuteUtc}:${before.offsetQuarterHours}:${after.nextMinuteUtc}:${after.offsetQuarterHours}`;
 }
 
-function pageRequests(
+/** Exported for tests: page minutes → steps (and Zepp OS heart-rate) envelopes. */
+export function pageRequests(
   deviceId: string,
   deviceIdentity: DirectDeviceIdentity,
   expectedContext: { userId: string; organizationId: string },
@@ -171,6 +172,34 @@ function pageRequests(
         clientTimezone,
       },
     });
+  }
+  // Zepp OS minutes also carry heart rate (byte 3); other families leave it unset.
+  if (deviceIdentity.family === "zepp_os") {
+    const heartRate = minutes
+      .filter((minute) => minute.heartRate !== undefined)
+      .map((minute) => ({
+        type: "heart_rate" as const,
+        externalRecordId: `hr-minute:${minute.startTime}`,
+        sourceApp: null,
+        startTime: minute.startTime,
+        endTime: new Date(Date.parse(minute.startTime) + 1000).toISOString(),
+        samples: [{ time: minute.startTime, bpm: minute.heartRate! }],
+      }));
+    for (let start = 0; start < heartRate.length; start += 1000)
+      requests.push({
+        expectedContext,
+        batch: {
+          schemaVersion: 1,
+          deviceId,
+          deviceIdentity,
+          provider: "direct_device",
+          recordType: "heart_rate",
+          mode: "backfill",
+          upserts: heartRate.slice(start, start + 1000),
+          deletions: [],
+          clientTimezone,
+        },
+      });
   }
   return requests;
 }

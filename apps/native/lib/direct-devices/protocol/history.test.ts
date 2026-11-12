@@ -80,7 +80,7 @@ describe("Helio history exchange", () => {
     expect(f.calls.some((c) => c[0] === 3 && c[1] === 1)).toBe(false);
     expect(f.calls.some((c) => c.length === 1 && c[0] === 2)).toBe(true);
   });
-  test("does not ACK when durable persistence fails and still closes/unsubscribes", async () => {
+  test("a durable-persistence failure only ever keep-ACKs (never 03 01) and still closes", async () => {
     const f = fixtureLink(Uint8Array.of(0, 0, 4, 0, 0, 0, 0, 0));
     let closed = false;
     f.channel.close = async () => {
@@ -98,7 +98,9 @@ describe("Helio history exchange", () => {
         },
       ),
     ).rejects.toThrow("storage failed");
-    expect(f.calls.some((c) => c[0] === 3)).toBe(false);
+    // Upstream answers failed processing with 03 09 (keep); there is no
+    // watch-side pointer, so the next sync re-requests the same minutes.
+    expect(f.calls.filter((c) => c[0] === 3)).toEqual([[3, 9]]);
     expect(closed).toBe(true);
   });
   test("accepts no-data response only after retaining ACK without publishing a cursor", async () => {
@@ -133,22 +135,96 @@ describe("Helio history exchange", () => {
     expect(result.minutes).toBe(230);
     expect(result.complete).toBe(true);
   });
-  test("validates optional completion CRC when the source sends its seven-byte form", async () => {
+  test("accepts a mismatching seven-byte activity CRC like upstream, and still keeps the data", async () => {
+    // Upstream overrides validChecksum for activity (FetchActivityOperation:135-140);
+    // enforcing it would stall a watch whose CRC never matches.
     const f = fixtureLink(
       Uint8Array.of(0, 0, 1, 0, 0, 0, 0, 0),
       Uint8Array.of(0x10, 2, 1, 0, 0, 0, 0),
     );
-    await expect(
-      runHelioStepsHistory(
-        f.link,
-        options(async () => {}),
-        {
-          openChannel: async () => f.channel as never,
-          now: () => Date.parse("2026-11-05T13:00:00Z"),
-        },
-      ),
-    ).rejects.toThrow("HISTORY_INTEGRITY_ERROR");
-    expect(f.calls.some((c) => c[0] === 3)).toBe(false);
+    const pages: unknown[] = [];
+    await runHelioStepsHistory(
+      f.link,
+      options(async (page) => {
+        pages.push(page);
+      }),
+      {
+        openChannel: async () => f.channel as never,
+        now: () => Date.parse("2026-11-05T13:00:00Z"),
+      },
+    );
+    expect(pages).toHaveLength(1);
+    expect(f.calls).toContainEqual([3, 9]);
+    expect(f.calls.some((c) => c[0] === 3 && c[1] === 1)).toBe(false);
+  });
+  test("stopping at the minute limit still sends the keep ACK for the transfer received", async () => {
+    const f = fixtureLink(new Uint8Array(8 * 5));
+    const result = await runHelioStepsHistory(
+      f.link,
+      options(async () => {}),
+      {
+        openChannel: async () => f.channel as never,
+        now: () => Date.parse("2026-11-05T13:00:00Z"),
+        limits: { maxMinutes: 2 },
+      },
+    );
+    expect(result.complete).toBe(false);
+    const fetchIndex = f.calls.findIndex((c) => c.length === 1 && c[0] === 2);
+    expect(f.calls.slice(fetchIndex + 1)).toContainEqual([3, 9]);
+  });
+  test("watches without endpoint 0x004b use plain activity control on characteristic 0004", async () => {
+    const raw = Uint8Array.of(0, 0, 7, 70, 0, 0, 0, 0, 0, 0, 3, 71, 0, 0, 0, 0);
+    const listeners = new Map<string, (bytes: Uint8Array) => void>();
+    const controlWrites: number[][] = [];
+    let served = false;
+    const reply = (bytes: Uint8Array) =>
+      queueMicrotask(() => listeners.get("activity_control")?.(bytes));
+    const link: HelioLink = {
+      maxWriteBytes: 20,
+      subscribe: (characteristic, cb) => {
+        listeners.set(characteristic, cb);
+        return () => listeners.delete(characteristic);
+      },
+      write: async (characteristic, payload) => {
+        if (characteristic !== "activity_control") return;
+        controlWrites.push([...payload]);
+        if (payload[0] === 1 && payload[1] === 1) {
+          const response = new Uint8Array(16); // trailing byte tolerated
+          response.set([0x10, 1, 1]);
+          new DataView(response.buffer).setUint32(3, served ? 0 : raw.length, true);
+          response.set(Uint8Array.of(0xea, 0x07, 11, 5, 12, 0, 0, 0), 7);
+          reply(response);
+        } else if (payload.length === 1 && payload[0] === 2) {
+          served = true;
+          listeners.get("activity_data")?.(Uint8Array.of(0, ...raw.slice(0, 7)));
+          listeners.get("activity_data")?.(Uint8Array.of(1, ...raw.slice(7)));
+          reply(Uint8Array.of(0x10, 2, 1));
+        } else if (payload[0] === 3) reply(Uint8Array.of(0x10, 3, 1));
+      },
+    };
+    const channel = {
+      services: new Map<number, boolean>(),
+      close: async () => {},
+      request: async () => {
+        throw new Error("the encrypted endpoint must not be used");
+      },
+    };
+    const pages: { minutes: readonly { count: number; heartRate?: number }[] }[] = [];
+    await runHelioStepsHistory(
+      link,
+      options(async (page) => {
+        pages.push(page);
+      }),
+      { openChannel: async () => channel as never, now: () => Date.parse("2026-11-05T13:00:00Z") },
+    );
+    expect(pages[0]!.minutes.map((minute) => [minute.count, minute.heartRate])).toEqual([
+      [7, 70],
+      [3, 71],
+    ]);
+    expect(controlWrites.filter((c) => c[0] === 3)).toEqual([
+      [3, 9],
+      [3, 9],
+    ]);
   });
   test("reports a page limit as incomplete, never as a complete history", async () => {
     const f = fixtureLink(new Uint8Array(8 * 3));
@@ -162,5 +238,53 @@ describe("Helio history exchange", () => {
       },
     );
     expect(result).toEqual({ pages: 1, minutes: 3, complete: false });
+  });
+});
+
+describe("Helio history paging", () => {
+  test("a multi-day transfer is committed in bounded pages before one keep ACK", async () => {
+    const f = fixtureLink(new Uint8Array(8 * 9_000));
+    const pages: number[] = [];
+    const result = await runHelioStepsHistory(
+      f.link,
+      {
+        ...options(async (page) => {
+          pages.push(page.minutes.length);
+        }),
+        since: { version: 1, nextMinuteUtc: "2026-11-05T12:00:00.000Z", offsetQuarterHours: 0 },
+      },
+      {
+        openChannel: async () => f.channel as never,
+        now: () => Date.parse("2026-11-20T00:00:00Z"),
+      },
+    );
+    expect(pages).toEqual([4_000, 4_000, 1_000]);
+    expect(result.minutes).toBe(9_000);
+    expect(f.calls.filter((c) => c[0] === 3)).toEqual([
+      [3, 9],
+      [3, 9],
+    ]);
+  });
+  test("a transfer larger than the minute budget commits what fits and advances", async () => {
+    const f = fixtureLink(new Uint8Array(8 * 6_000));
+    const committed: string[] = [];
+    const result = await runHelioStepsHistory(
+      f.link,
+      {
+        ...options(async (page) => {
+          committed.push(page.nextCursor.nextMinuteUtc);
+        }),
+        since: { version: 1, nextMinuteUtc: "2026-11-05T12:00:00.000Z", offsetQuarterHours: 0 },
+      },
+      {
+        openChannel: async () => f.channel as never,
+        now: () => Date.parse("2026-11-20T00:00:00Z"),
+        limits: { maxMinutes: 5_000 },
+      },
+    );
+    expect(result).toMatchObject({ minutes: 5_000, complete: false });
+    // 4,000 + 1,000 minutes committed: the next sync resumes after them.
+    expect(committed).toEqual(["2026-11-08T06:40:00.000Z", "2026-11-08T23:20:00.000Z"]);
+    expect(f.calls.filter((c) => c[0] === 3)).toEqual([[3, 9]]);
   });
 });

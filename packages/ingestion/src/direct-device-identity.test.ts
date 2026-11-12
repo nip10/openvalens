@@ -411,3 +411,9 @@ test("fossil_hr publishes per-minute steps and heart rate, and nothing else", ()
   ] as const)
     expect(directDeviceFamilySupportsRecordType("fossil_hr", recordType), recordType).toBe(false);
 });
+
+test("zepp_os publishes steps and per-minute heart rate", () => {
+  expect(directDeviceFamilySupportsRecordType("zepp_os", "steps")).toBe(true);
+  expect(directDeviceFamilySupportsRecordType("zepp_os", "heart_rate")).toBe(true);
+  expect(directDeviceFamilySupportsRecordType("zepp_os", "sleep_session")).toBe(false);
+});

@@ -1,6 +1,6 @@
 import type { Device, Characteristic, Subscription } from "react-native-ble-plx";
 import type { HelioLink } from "../protocol/types";
-import { ACTIVITY_DATA, CHUNK_READ, CHUNK_WRITE, FEE0 } from "../protocol/codec";
+import { ACTIVITY_CONTROL, ACTIVITY_DATA, CHUNK_READ, CHUNK_WRITE, FEE0 } from "../protocol/codec";
 
 type WriteDevice = Pick<
   Device,
@@ -54,11 +54,16 @@ export class NativeHelioLink implements HelioLink {
     this.maxWriteBytes = Math.min(512, Math.max(23, device.mtu ?? 23)) - 3;
   }
   subscribe(
-    characteristic: "chunk_read" | "activity_data",
+    characteristic: "chunk_read" | "activity_data" | "activity_control",
     onBytes: (bytes: Uint8Array) => void,
     onFailure: () => void,
   ): () => void {
-    const uuid = characteristic === "chunk_read" ? CHUNK_READ : ACTIVITY_DATA;
+    const uuid =
+      characteristic === "chunk_read"
+        ? CHUNK_READ
+        : characteristic === "activity_control"
+          ? ACTIVITY_CONTROL
+          : ACTIVITY_DATA;
     const subscription = this.device.monitorCharacteristicForService(
       FEE0,
       uuid,
@@ -81,17 +86,22 @@ export class NativeHelioLink implements HelioLink {
     };
   }
   write(
-    characteristic: "chunk_write" | "chunk_read",
+    characteristic: "chunk_write" | "chunk_read" | "activity_control",
     bytes: Uint8Array,
     signal: AbortSignal,
   ): Promise<void> {
     const task = this.queue.then(async () => {
       if (signal.aborted) throw new Error("CANCELLED");
-      const uuid = characteristic === "chunk_write" ? CHUNK_WRITE : CHUNK_READ;
-      const write =
+      const uuid =
         characteristic === "chunk_write"
-          ? this.device.writeCharacteristicWithResponseForService
-          : this.device.writeCharacteristicWithoutResponseForService;
+          ? CHUNK_WRITE
+          : characteristic === "activity_control"
+            ? ACTIVITY_CONTROL
+            : CHUNK_READ;
+      const write =
+        characteristic === "chunk_read"
+          ? this.device.writeCharacteristicWithoutResponseForService
+          : this.device.writeCharacteristicWithResponseForService;
       const transactionId = `helio-${++this.transaction}`;
       const cancel = () => {
         try {
