@@ -39,7 +39,8 @@
  * `[command][sessionId][…]`. Opcodes: OPENSESSION 0x01, SENDDATA 0x02,
  * CLOSE 0x03, TIMEOUT 0x07, REPORTSESSIONS 0x84, ACK 0x85, NACK 0x86.
  * SENDDATA carries `items_left` (i32 LE) and `crc` (i32 LE) before the record
- * data. Health sessions are opened by the watch with `uuid == UUID_ZERO` and a
+ * TIMEOUT is an ignored notification (no response); CLOSE is a session-finish
+ * notification, not an ACK opcode. Health sessions are opened by the watch with `uuid == UUID_ZERO` and a
  * log tag: 78 analytics, 81 steps, 83 sleep bounds, 84 sleep overlays,
  * 85 standalone HR (a stub upstream that parses nothing).
  *
@@ -262,7 +263,9 @@ export function decodePebbleFrame(bytes: Uint8Array): PebbleFrame | null {
 }
 
 /** Incremental reassembler for frames split across GATT packets. */
-export type PebbleReassembler = Readonly<{ push(bytes: Uint8Array): readonly PebbleFrame[] }>;
+export type PebbleReassembler = Readonly<{
+  push(bytes: Uint8Array): readonly PebbleFrame[];
+}>;
 
 export function createPebbleReassembler(): PebbleReassembler {
   let buffer = new Uint8Array(0);
@@ -632,7 +635,7 @@ export function parseFirmwareVersion(payload: Uint8Array): PebbleFirmwareVersion
 export const PEBBLE_STEPS_VERSIONS: readonly number[] = [5, 6, 7, 12, 13, 14];
 
 export type PebbleStepsSample = Readonly<{
-  /** Unix seconds; each record advances by 60. */
+  /** Unix seconds; the packet timestamp and each record advance by 60. */
   timestamp: number;
   version: number;
   steps: number;
@@ -725,6 +728,7 @@ export function parseStepsSessionData(
     const version = readU16le(packet, 0);
     if (!PEBBLE_STEPS_VERSIONS.includes(version)) return null;
     const timestamp = readI32le(packet, 2);
+    if (timestamp % 60 !== 0) return null;
     // packet[6] is an unknown byte.
     const recordLength = packet[7]!;
     const recordNum = packet[8]!;
@@ -787,12 +791,17 @@ export function parseSleepSessionData(
   const records: PebbleSleepBounds[] = [];
   for (let base = 0; base < data.length; base += itemSize) {
     const record = data.slice(base, base + itemSize);
+    const version = readU16le(record, 0);
+    const bedTimeStart = readI32le(record, 6);
+    const bedTimeEnd = readI32le(record, 10);
+    const deepSleepSeconds = readI32le(record, 14);
+    if (version !== 1 || bedTimeEnd <= bedTimeStart || deepSleepSeconds < 0) return null;
     records.push({
-      version: readU16le(record, 0),
+      version,
       offsetUtc: readI32le(record, 2),
-      bedTimeStart: readI32le(record, 6),
-      bedTimeEnd: readI32le(record, 10),
-      deepSleepSeconds: readI32le(record, 14),
+      bedTimeStart,
+      bedTimeEnd,
+      deepSleepSeconds,
     });
   }
   return records;
@@ -808,13 +817,19 @@ export function parseOverlaySessionData(
   const records: PebbleSleepOverlay[] = [];
   for (let base = 0; base < data.length; base += itemSize) {
     const record = data.slice(base, base + itemSize);
+    const version = readU16le(record, 0);
+    const type = readU16le(record, 4);
+    const timestampStart = readI32le(record, 10);
+    const durationSeconds = readI32le(record, 14);
+    if ((version !== 1 && version !== 3) || !Number.isInteger(type) || durationSeconds <= 0)
+      return null;
     records.push({
-      version: readU16le(record, 0),
+      version,
       // record[2..3] is an unknown u16 upstream discards.
-      type: readU16le(record, 4),
+      type: type === 0xffff ? -1 : type,
       offsetUtc: readI32le(record, 6),
-      timestampStart: readI32le(record, 10),
-      durationSeconds: readI32le(record, 14),
+      timestampStart,
+      durationSeconds,
     });
   }
   return records;
@@ -880,7 +895,11 @@ export function stepsSamplesToRecords(samples: readonly PebbleStepsSample[]): {
       count: sample.steps,
     });
     if (sample.heartRate !== undefined && sample.heartRate > 0)
-      heartRate.push({ type: "heart_rate", time: iso(sample.timestamp), bpm: sample.heartRate });
+      heartRate.push({
+        type: "heart_rate",
+        time: iso(sample.timestamp),
+        bpm: sample.heartRate,
+      });
   }
   return { steps, heartRate };
 }
@@ -900,35 +919,120 @@ function sleepStageName(type: number): "light" | "deep" | null {
 }
 
 /**
- * Combines tag-83 bounds with tag-84 stage intervals. Overlays are clipped to
- * the sleep period and sorted by start; activity intervals are dropped. When
- * no overlay covers a period, `stages` is omitted rather than inventing a
- * placement for `deepSleepSeconds`.
+ * Combines tag-83 bounds with tag-84 stage intervals. Later overlays win,
+ * including activity records which mask earlier sleep. Tag-84-only sessions
+ * are emitted from the intervals themselves (without inferring bounds from
+ * tag-83 summaries or adjusting timestamps by offsetUTC).
  */
 export function assembleSleepSessions(
   bounds: readonly PebbleSleepBounds[],
   overlays: readonly PebbleSleepOverlay[],
 ): readonly PebbleSleepSession[] {
-  return bounds.map((period) => {
-    const start = period.bedTimeStart;
-    const end = period.bedTimeEnd;
-    const stages: PebbleSleepStage[] = [];
-    for (const overlay of overlays) {
-      const stage = sleepStageName(overlay.type);
-      if (!stage) continue;
-      const overlayStart = overlay.timestampStart;
-      const overlayEnd = overlay.timestampStart + overlay.durationSeconds;
-      const clippedStart = Math.max(overlayStart, start);
-      const clippedEnd = Math.min(overlayEnd, end);
-      if (clippedEnd <= clippedStart) continue;
-      stages.push({ stage, startTime: iso(clippedStart), endTime: iso(clippedEnd) });
+  // Merge overlapping/duplicate tag-83 bounds so the publisher never receives
+  // contradictory duplicate sleep sessions. Touching bounds are one period.
+  const periods = bounds
+    .filter((period) => period.bedTimeEnd > period.bedTimeStart)
+    .map(({ bedTimeStart, bedTimeEnd }) => ({ start: bedTimeStart, end: bedTimeEnd }))
+    .sort((left, right) => left.start - right.start)
+    .reduce<{ start: number; end: number }[]>((merged, period) => {
+      const previous = merged[merged.length - 1];
+      if (previous && period.start <= previous.end)
+        previous.end = Math.max(previous.end, period.end);
+      else merged.push({ ...period });
+      return merged;
+    }, []);
+
+  const sleepIntervals = overlays.filter((overlay) => overlay.durationSeconds > 0);
+  const points = [
+    ...new Set(
+      sleepIntervals.flatMap((overlay) => [
+        overlay.timestampStart,
+        overlay.timestampStart + overlay.durationSeconds,
+      ]),
+    ),
+  ].sort((a, b) => a - b);
+  const stages: PebbleSleepStage[] = [];
+  for (let index = 0; index < points.length - 1; index += 1) {
+    const start = points[index]!;
+    const end = points[index + 1]!;
+    // Input order is the protocol precedence: later received records win.
+    let winner: PebbleSleepOverlay | undefined;
+    for (const overlay of sleepIntervals) {
+      if (
+        overlay.timestampStart <= start &&
+        overlay.timestampStart + overlay.durationSeconds >= end
+      )
+        winner = overlay;
     }
-    stages.sort((left, right) => Date.parse(left.startTime) - Date.parse(right.startTime));
+    const stage = winner ? sleepStageName(winner.type) : null;
+    if (!stage) continue;
+    const prior = stages[stages.length - 1];
+    if (prior?.stage === stage && Date.parse(prior.endTime) / 1000 === start)
+      stages[stages.length - 1] = { stage, startTime: prior.startTime, endTime: iso(end) };
+    else stages.push({ stage, startTime: iso(start), endTime: iso(end) });
+  }
+  const clipStages = (start: number, end: number) =>
+    stages.flatMap((stage) => {
+      const stageStart = Math.max(start, Date.parse(stage.startTime) / 1000);
+      const stageEnd = Math.min(end, Date.parse(stage.endTime) / 1000);
+      return stageEnd > stageStart
+        ? [{ stage: stage.stage, startTime: iso(stageStart), endTime: iso(stageEnd) }]
+        : [];
+    });
+  const sessions: PebbleSleepSession[] = periods.map(({ start, end }) => {
+    const clipped = clipStages(start, end);
     return {
-      type: "sleep_session" as const,
+      type: "sleep_session",
       startTime: iso(start),
       endTime: iso(end),
-      ...(stages.length ? { stages } : {}),
+      ...(clipped.length ? { stages: clipped } : {}),
     };
   });
+
+  // Emit only sleep-stage portions not represented by any tag-83 period.
+  // Activity winners are absent from `stages`, so they continue to mask sleep.
+  const fragments: PebbleSleepStage[] = [];
+  for (const stage of stages) {
+    let cursor = Date.parse(stage.startTime) / 1000;
+    const end = Date.parse(stage.endTime) / 1000;
+    for (const period of periods) {
+      if (period.end <= cursor || period.start >= end) continue;
+      if (period.start > cursor)
+        fragments.push({
+          stage: stage.stage,
+          startTime: iso(cursor),
+          endTime: iso(Math.min(period.start, end)),
+        });
+      cursor = Math.max(cursor, period.end);
+      if (cursor >= end) break;
+    }
+    if (cursor < end)
+      fragments.push({ stage: stage.stage, startTime: iso(cursor), endTime: iso(end) });
+  }
+  let current: { start: number; end: number; stages: PebbleSleepStage[] } | null = null;
+  for (const stage of fragments) {
+    const start = Date.parse(stage.startTime) / 1000;
+    const end = Date.parse(stage.endTime) / 1000;
+    if (current && current.end === start) {
+      current.end = end;
+      current.stages.push(stage);
+    } else {
+      if (current)
+        sessions.push({
+          type: "sleep_session",
+          startTime: iso(current.start),
+          endTime: iso(current.end),
+          stages: current.stages,
+        });
+      current = { start, end, stages: [stage] };
+    }
+  }
+  if (current)
+    sessions.push({
+      type: "sleep_session",
+      startTime: iso(current.start),
+      endTime: iso(current.end),
+      stages: current.stages,
+    });
+  return sessions.sort((left, right) => Date.parse(left.startTime) - Date.parse(right.startTime));
 }

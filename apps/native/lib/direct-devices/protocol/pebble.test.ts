@@ -7,6 +7,7 @@
  */
 
 import { expect, test } from "bun:test";
+import { directDeviceBatch } from "@openvalens/api/contracts/direct-device";
 
 import {
   PEBBLE_DATALOG_ACK,
@@ -203,13 +204,30 @@ test("all six DATALOG opcodes encode and decode", () => {
       data: Uint8Array.from([0xaa, 0xbb]),
     }),
   );
-  expect(send).toMatchObject({ command: "send_data", id: 4, itemsLeft: 2, crc: 0x11223344 });
+  expect(send).toMatchObject({
+    command: "send_data",
+    id: 4,
+    itemsLeft: 2,
+    crc: 0x11223344,
+  });
   if (send?.command === "send_data") expect(hex(send.data)).toBe("aa bb");
 
-  expect(decodeDatalogPayload(encodeDatalogClose(4))).toEqual({ command: "close", id: 4 });
-  expect(decodeDatalogPayload(encodeDatalogTimeout(4))).toEqual({ command: "timeout", id: 4 });
-  expect(decodeDatalogPayload(encodeDatalogAck(4))).toEqual({ command: "ack", id: 4 });
-  expect(decodeDatalogPayload(encodeDatalogNack(4))).toEqual({ command: "nack", id: 4 });
+  expect(decodeDatalogPayload(encodeDatalogClose(4))).toEqual({
+    command: "close",
+    id: 4,
+  });
+  expect(decodeDatalogPayload(encodeDatalogTimeout(4))).toEqual({
+    command: "timeout",
+    id: 4,
+  });
+  expect(decodeDatalogPayload(encodeDatalogAck(4))).toEqual({
+    command: "ack",
+    id: 4,
+  });
+  expect(decodeDatalogPayload(encodeDatalogNack(4))).toEqual({
+    command: "nack",
+    id: 4,
+  });
   expect(encodeDatalogAck(4)[0]).toBe(PEBBLE_DATALOG_ACK);
   expect(encodeDatalogNack(4)[0]).toBe(PEBBLE_DATALOG_NACK);
   expect(encodeDatalogClose(4)[0]).toBe(PEBBLE_DATALOG_CLOSE);
@@ -224,9 +242,14 @@ test("all six DATALOG opcodes encode and decode", () => {
       itemSize: 0,
     })[0],
   ).toBe(PEBBLE_DATALOG_OPEN_SESSION);
-  expect(encodeDatalogSendData({ id: 0, itemsLeft: 0, crc: 0, data: new Uint8Array(0) })[0]).toBe(
-    PEBBLE_DATALOG_SEND_DATA,
-  );
+  expect(
+    encodeDatalogSendData({
+      id: 0,
+      itemsLeft: 0,
+      crc: 0,
+      data: new Uint8Array(0),
+    })[0],
+  ).toBe(PEBBLE_DATALOG_SEND_DATA);
 });
 
 test("unknown DATALOG opcodes and short payloads are rejected", () => {
@@ -317,7 +340,7 @@ function stepsPacket(
 test("steps records parse for every accepted version with the right field matrix", () => {
   expect(PEBBLE_STEPS_VERSIONS).toEqual([5, 6, 7, 12, 13, 14]);
   for (const version of PEBBLE_STEPS_VERSIONS) {
-    const packet = stepsPacket(version, 1_700_000_000, [
+    const packet = stepsPacket(version, 1_700_000_040, [
       {
         steps: 12,
         orientation: 3,
@@ -338,7 +361,7 @@ test("steps records parse for every accepted version with the right field matrix
     expect(parsed, String(version)).not.toBeNull();
     const sample = parsed![0]!.samples[0]!;
     expect(sample).toMatchObject({
-      timestamp: 1_700_000_000,
+      timestamp: 1_700_000_040,
       version,
       steps: 12,
       orientation: 3,
@@ -368,9 +391,27 @@ test("steps records parse for every accepted version with the right field matrix
 test("steps timestamps advance by 60 seconds per record and roll over midnight", () => {
   const start = Date.UTC(2026, 1, 1, 23, 59, 0) / 1000;
   const packet = stepsPacket(7, start, [
-    { steps: 1, orientation: 0, intensity: 0, lightIntensity: 0, heartRate: 60 },
-    { steps: 2, orientation: 0, intensity: 0, lightIntensity: 0, heartRate: 61 },
-    { steps: 3, orientation: 0, intensity: 0, lightIntensity: 0, heartRate: 62 },
+    {
+      steps: 1,
+      orientation: 0,
+      intensity: 0,
+      lightIntensity: 0,
+      heartRate: 60,
+    },
+    {
+      steps: 2,
+      orientation: 0,
+      intensity: 0,
+      lightIntensity: 0,
+      heartRate: 61,
+    },
+    {
+      steps: 3,
+      orientation: 0,
+      intensity: 0,
+      lightIntensity: 0,
+      heartRate: 62,
+    },
   ]);
   const parsed = parseStepsSessionData(packet, packet.length)!;
   expect(parsed[0]!.samples.map((sample) => sample.timestamp)).toEqual([
@@ -387,27 +428,55 @@ test("steps timestamps advance by 60 seconds per record and roll over midnight",
   });
   expect(steps[2]!.startTime).toBe("2026-02-02T00:01:00.000Z");
   expect(heartRate.map((sample) => sample.bpm)).toEqual([60, 61, 62]);
+  expect(
+    directDeviceBatch.safeParse({
+      schemaVersion: 1,
+      deviceId: "00000000-0000-4000-8000-000000000000",
+      provider: "direct_device",
+      recordType: "steps",
+      mode: "backfill",
+      upserts: steps.map((record) => ({
+        ...record,
+        externalRecordId: "pebble-step",
+        sourceApp: null,
+      })),
+      deletions: [],
+      clientTimezone: "UTC",
+    }).success,
+  ).toBe(true);
 });
 
 test("multiple packets in one SENDDATA are all parsed", () => {
   // A session has one itemSize, so every packet in it must share the shape.
-  const first = stepsPacket(6, 1_700_000_000, [
+  const first = stepsPacket(6, 1_700_000_040, [
     { steps: 5, orientation: 0, intensity: 0, lightIntensity: 0 },
   ]);
-  const second = stepsPacket(6, 1_700_000_060, [
+  const second = stepsPacket(6, 1_700_000_100, [
     { steps: 6, orientation: 0, intensity: 0, lightIntensity: 0 },
   ]);
   const data = concat([first, second]);
   const parsed = parseStepsSessionData(data, first.length)!;
   expect(parsed).toHaveLength(2);
   expect(parsed[0]!.version).toBe(6);
-  expect(parsed[1]!.timestamp).toBe(1_700_000_060);
+  expect(parsed[1]!.timestamp).toBe(1_700_000_100);
 
-  const v14First = stepsPacket(14, 1_700_000_000, [
-    { steps: 1, orientation: 0, intensity: 0, lightIntensity: 0, spoPercent: 98 },
+  const v14First = stepsPacket(14, 1_700_000_040, [
+    {
+      steps: 1,
+      orientation: 0,
+      intensity: 0,
+      lightIntensity: 0,
+      spoPercent: 98,
+    },
   ]);
-  const v14Second = stepsPacket(14, 1_700_000_060, [
-    { steps: 2, orientation: 0, intensity: 0, lightIntensity: 0, spoPercent: 97 },
+  const v14Second = stepsPacket(14, 1_700_000_100, [
+    {
+      steps: 2,
+      orientation: 0,
+      intensity: 0,
+      lightIntensity: 0,
+      spoPercent: 97,
+    },
   ]);
   const v14 = parseStepsSessionData(concat([v14First, v14Second]), v14First.length)!;
   expect(v14).toHaveLength(2);
@@ -425,6 +494,10 @@ test("unknown versions and malformed steps payloads are rejected", () => {
   expect(parseStepsSessionData(packet.slice(0, packet.length - 1), packet.length)).toBeNull();
   expect(parseStepsSessionData(packet, 0)).toBeNull();
   expect(parseStepsSessionData(new Uint8Array(0), 10)).toBeNull();
+  const unaligned = stepsPacket(7, 1_700_000_001, [
+    { steps: 1, orientation: 0, intensity: 0, lightIntensity: 0 },
+  ]);
+  expect(parseStepsSessionData(unaligned, unaligned.length)).toBeNull();
 });
 
 // ---------------------------------------------------------------------------
@@ -484,6 +557,41 @@ test("tag 83 sleep bounds parse one record per period", () => {
   expect(parseSleepSessionData(record.slice(0, 10), record.length)).toBeNull();
 });
 
+test("sleep parsers reject unknown versions and invalid intervals", () => {
+  const badBounds = sleepRecord({
+    version: 2,
+    offsetUtc: 0,
+    bedTimeStart: 10,
+    bedTimeEnd: 20,
+    deepSleepSeconds: 5,
+  });
+  expect(parseSleepSessionData(badBounds, badBounds.length)).toBeNull();
+  const reversed = sleepRecord({
+    version: 1,
+    offsetUtc: 0,
+    bedTimeStart: 20,
+    bedTimeEnd: 10,
+    deepSleepSeconds: 5,
+  });
+  expect(parseSleepSessionData(reversed, reversed.length)).toBeNull();
+  const badOverlay = overlayRecord({
+    version: 2,
+    type: 1,
+    offsetUtc: 0,
+    timestampStart: 10,
+    durationSeconds: 5,
+  });
+  expect(parseOverlaySessionData(badOverlay, badOverlay.length)).toBeNull();
+  const zeroOverlay = overlayRecord({
+    version: 3,
+    type: 1,
+    offsetUtc: 0,
+    timestampStart: 10,
+    durationSeconds: 0,
+  });
+  expect(parseOverlaySessionData(zeroOverlay, zeroOverlay.length)).toBeNull();
+});
+
 test("tag 84 overlays parse versions 1 and 3", () => {
   const light = overlayRecord({
     version: 1,
@@ -501,15 +609,29 @@ test("tag 84 overlays parse versions 1 and 3", () => {
   });
   const parsed = parseOverlaySessionData(concat([light, deep]), light.length)!;
   expect(parsed).toHaveLength(2);
-  expect(parsed[0]).toMatchObject({ version: 1, type: 1, durationSeconds: 3600 });
-  expect(parsed[1]).toMatchObject({ version: 3, type: 2, durationSeconds: 1800 });
+  expect(parsed[0]).toMatchObject({
+    version: 1,
+    type: 1,
+    durationSeconds: 3600,
+  });
+  expect(parsed[1]).toMatchObject({
+    version: 3,
+    type: 2,
+    durationSeconds: 1800,
+  });
 });
 
 test("sleep sessions combine bounds with clipped, sorted stages", () => {
   const start = 1_700_000_000;
   const end = start + 8 * 3600;
   const bounds = [
-    { version: 1, offsetUtc: 0, bedTimeStart: start, bedTimeEnd: end, deepSleepSeconds: 3600 },
+    {
+      version: 1,
+      offsetUtc: 0,
+      bedTimeStart: start,
+      bedTimeEnd: end,
+      deepSleepSeconds: 3600,
+    },
   ];
   const overlays = [
     // Deep interval that starts before the period and is clipped.
@@ -552,10 +674,22 @@ test("sleep sessions combine bounds with clipped, sorted stages", () => {
     },
   ];
   const sessions = assembleSleepSessions(bounds, overlays);
-  expect(sessions).toHaveLength(1);
-  expect(sessions[0]!.startTime).toBe(new Date(start * 1000).toISOString());
-  expect(sessions[0]!.endTime).toBe(new Date(end * 1000).toISOString());
-  expect(sessions[0]!.stages).toEqual([
+  expect(sessions).toHaveLength(3);
+  expect(sessions[0]).toEqual({
+    type: "sleep_session",
+    startTime: new Date((start - 600) * 1000).toISOString(),
+    endTime: new Date(start * 1000).toISOString(),
+    stages: [
+      {
+        stage: "deep",
+        startTime: new Date((start - 600) * 1000).toISOString(),
+        endTime: new Date(start * 1000).toISOString(),
+      },
+    ],
+  });
+  expect(sessions[1]!.startTime).toBe(new Date(start * 1000).toISOString());
+  expect(sessions[1]!.endTime).toBe(new Date(end * 1000).toISOString());
+  expect(sessions[1]!.stages).toEqual([
     {
       stage: "deep",
       startTime: new Date(start * 1000).toISOString(),
@@ -572,6 +706,8 @@ test("sleep sessions combine bounds with clipped, sorted stages", () => {
       endTime: new Date((start + 5400) * 1000).toISOString(),
     },
   ]);
+  expect(sessions[2]!.startTime).toBe(new Date((end + 60) * 1000).toISOString());
+  expect(sessions[2]!.endTime).toBe(new Date((end + 660) * 1000).toISOString());
 });
 
 test("sleep bounds without overlays carry no stages", () => {
@@ -587,6 +723,205 @@ test("sleep bounds without overlays carry no stages", () => {
   const sessions = assembleSleepSessions(bounds, []);
   expect(sessions).toHaveLength(1);
   expect(sessions[0]).not.toHaveProperty("stages");
+});
+
+test("later tag 84 records override earlier sleep and activity intervals", () => {
+  const start = 1_700_000_000;
+  const bounds = [
+    {
+      version: 1,
+      offsetUtc: 3600,
+      bedTimeStart: start,
+      bedTimeEnd: start + 600,
+      deepSleepSeconds: 300,
+    },
+  ];
+  const overlays = [
+    {
+      version: 1,
+      type: PEBBLE_SLEEP_TYPE_LIGHT_SLEEP,
+      offsetUtc: 3600,
+      timestampStart: start,
+      durationSeconds: 600,
+    },
+    {
+      version: 3,
+      type: PEBBLE_SLEEP_TYPE_DEEP_SLEEP,
+      offsetUtc: -18000,
+      timestampStart: start + 120,
+      durationSeconds: 360,
+    },
+    {
+      version: 3,
+      type: PEBBLE_SLEEP_TYPE_ACTIVITY,
+      offsetUtc: 0,
+      timestampStart: start + 240,
+      durationSeconds: 120,
+    },
+  ];
+  const stages = assembleSleepSessions(bounds, overlays)[0]!.stages!;
+  expect(
+    stages.map(({ stage, startTime, endTime }) => [
+      stage,
+      Date.parse(startTime) / 1000,
+      Date.parse(endTime) / 1000,
+    ]),
+  ).toEqual([
+    ["light", start, start + 120],
+    ["deep", start + 120, start + 240],
+    ["deep", start + 360, start + 480],
+    ["light", start + 480, start + 600],
+  ]);
+});
+
+test("tag 84-only sleep and nap intervals produce sessions without UTC-offset adjustment", () => {
+  const start = Date.UTC(2026, 2, 8, 6, 30) / 1000;
+  const sessions = assembleSleepSessions(
+    [],
+    [
+      {
+        version: 1,
+        type: PEBBLE_SLEEP_TYPE_LIGHT_NAP,
+        offsetUtc: -18000,
+        timestampStart: start,
+        durationSeconds: 600,
+      },
+      {
+        version: 3,
+        type: PEBBLE_SLEEP_TYPE_DEEP_NAP,
+        offsetUtc: -14400,
+        timestampStart: start + 600,
+        durationSeconds: 300,
+      },
+    ],
+  );
+  expect(sessions).toHaveLength(1);
+  expect(sessions[0]!.startTime).toBe(new Date(start * 1000).toISOString());
+  expect(sessions[0]!.endTime).toBe(new Date((start + 900) * 1000).toISOString());
+  expect(sessions[0]!.stages).toHaveLength(2);
+});
+
+test("mixed bounds preserve uncovered naps and clip overlays that straddle bounds", () => {
+  const start = 1_700_000_000;
+  const bounds = [
+    {
+      version: 1,
+      offsetUtc: 0,
+      bedTimeStart: start + 100,
+      bedTimeEnd: start + 300,
+      deepSleepSeconds: 0,
+    },
+  ];
+  const overlays = [
+    {
+      version: 1,
+      type: PEBBLE_SLEEP_TYPE_LIGHT_SLEEP,
+      offsetUtc: 0,
+      timestampStart: start,
+      durationSeconds: 500,
+    },
+    {
+      version: 1,
+      type: PEBBLE_SLEEP_TYPE_DEEP_NAP,
+      offsetUtc: 0,
+      timestampStart: start + 600,
+      durationSeconds: 100,
+    },
+  ];
+  const sessions = assembleSleepSessions(bounds, overlays);
+  expect(sessions).toHaveLength(4);
+  expect(
+    sessions.map(({ startTime, endTime }) => [
+      Date.parse(startTime) / 1000,
+      Date.parse(endTime) / 1000,
+    ]),
+  ).toEqual([
+    [start, start + 100],
+    [start + 100, start + 300],
+    [start + 300, start + 500],
+    [start + 600, start + 700],
+  ]);
+  expect(sessions[1]!.stages).toEqual([
+    {
+      stage: "light",
+      startTime: new Date((start + 100) * 1000).toISOString(),
+      endTime: new Date((start + 300) * 1000).toISOString(),
+    },
+  ]);
+  expect(sessions[3]!.stages).toEqual([
+    {
+      stage: "deep",
+      startTime: new Date((start + 600) * 1000).toISOString(),
+      endTime: new Date((start + 700) * 1000).toISOString(),
+    },
+  ]);
+  for (const session of sessions) {
+    expect(
+      directDeviceBatch.safeParse({
+        schemaVersion: 1,
+        deviceId: "00000000-0000-4000-8000-000000000000",
+        provider: "direct_device",
+        recordType: "sleep_session",
+        mode: "backfill",
+        upserts: [{ ...session, externalRecordId: "pebble-sleep", sourceApp: null }],
+        deletions: [],
+        clientTimezone: "UTC",
+      }).success,
+    ).toBe(true);
+  }
+});
+
+test("duplicate bounds and overlays are deduplicated with packet-order precedence", () => {
+  const start = 1_700_000_000;
+  const period = {
+    version: 1,
+    offsetUtc: 0,
+    bedTimeStart: start,
+    bedTimeEnd: start + 600,
+    deepSleepSeconds: 0,
+  };
+  const light = {
+    version: 1,
+    type: PEBBLE_SLEEP_TYPE_LIGHT_SLEEP,
+    offsetUtc: 0,
+    timestampStart: start,
+    durationSeconds: 600,
+  };
+  const deep = {
+    version: 3,
+    type: PEBBLE_SLEEP_TYPE_DEEP_SLEEP,
+    offsetUtc: 0,
+    timestampStart: start + 120,
+    durationSeconds: 120,
+  };
+  const first = assembleSleepSessions([period, { ...period }], [light, deep, { ...deep }]);
+  expect(first).toHaveLength(1);
+  expect(first[0]!.stages).toEqual([
+    {
+      stage: "light",
+      startTime: new Date(start * 1000).toISOString(),
+      endTime: new Date((start + 120) * 1000).toISOString(),
+    },
+    {
+      stage: "deep",
+      startTime: new Date((start + 120) * 1000).toISOString(),
+      endTime: new Date((start + 240) * 1000).toISOString(),
+    },
+    {
+      stage: "light",
+      startTime: new Date((start + 240) * 1000).toISOString(),
+      endTime: new Date((start + 600) * 1000).toISOString(),
+    },
+  ]);
+  // Packet arrival order defines precedence, not timestamp sorting.
+  const reversed = assembleSleepSessions([period], [deep, light]);
+  expect(reversed[0]!.stages).toEqual([
+    {
+      stage: "light",
+      startTime: new Date(start * 1000).toISOString(),
+      endTime: new Date((start + 600) * 1000).toISOString(),
+    },
+  ]);
 });
 
 // ---------------------------------------------------------------------------

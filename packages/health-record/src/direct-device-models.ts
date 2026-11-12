@@ -2391,12 +2391,11 @@ export const DIRECT_DEVICE_MODELS: readonly DirectDeviceModelDescriptor[] = [
     modelId: "casio_stb-1000",
     displayName: "Casio STB-1000",
   },
-  // Pebble watches via Gadgetbridge (Issue #427): 1-minute step history, staged
-  // sleep sessions and per-minute heart rate. Only the three BLE models can
-  // connect — `pebble_classic_2` (DIORITE), `pebble_2_duo` (FLINT) and
-  // `pebble_time_2` (EMERY). The original Pebble Classic, Steel, Time, Time
-  // Steel and Time Round are Bluetooth-Classic (SPP) only: they have no BLE
-  // radio, so they can never pair with our stack and carry no capabilities.
+  // Pebble watches via Gadgetbridge (Issue #427). The implemented capture
+  // path supports steps and sleep on Pebble 2 Duo (FLINT), and adds per-minute
+  // heart rate on Classic 2 (DIORITE) and Time 2 (EMERY). Classic and Steel
+  // have no built-in health data. Time, Time Steel and Time Round have BLE
+  // companions upstream but are outside our implemented capture path.
   // Health sync is independent of the app-install machinery (no installer, no
   // PBW reader, no appmsg handlers). The native lane owns the BLE protocol;
   // these rows only carry the shared identity vocabulary. None are

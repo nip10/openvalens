@@ -191,7 +191,6 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
   let connectedHuaweiProfile: HuaweiBleProfile | null = null;
   let connectedGarminProfile: GarminBleProfile | null = null;
   let connectedCasioProfile: CasioProfile | null = null;
-  let connectedPebbleProfile: PebbleProfile | null = null;
   let connectedGarminSession: GarminSession | null = null;
   let connectedBleGattSession: BleGattSession | null = null;
   let connectedBleScaleSession: BleScaleSession | null = null;
@@ -467,10 +466,9 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
                 ? null
                 : matchCasioDevice(name);
             // Pebble watches share one upstream name pattern (`Pebble.*`) and
-            // sit last. The three BLE models advertise as `Pebble XXXX`; the
-            // Bluetooth Classic generation advertises as `Pebble`,
-            // `Pebble-LE XXXX`, `Pebble Time …` and so on, and is matched so
-            // the UI can say plainly that it cannot connect.
+            // sit last. The three prospective BLE models advertise as
+            // `Pebble XXXX`; other shapes include Classic-mode and dual-mode
+            // generations. All remain discoverable but gated from connection.
             const pebbleModel =
               zeppModel ||
               xiaomiModel ||
@@ -641,6 +639,9 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
             matchCasioDevice(knownDevice.name) ??
             matchPebbleDevice(knownDevice.name);
           if (!model) throw new Error("DEVICE_NOT_DISCOVERED");
+          // Gate based on the Pebble identity before routing-family narrowing;
+          // this also prevents stale discovered-family metadata bypassing it.
+          if (matchPebbleDevice(knownDevice.name)) pebbleCaptureUnavailable();
           const family =
             knownDevice.family ??
             (matchDeviceName(knownDevice.name)
@@ -670,8 +671,6 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
                                     : matchCasioDevice(knownDevice.name)
                                       ? "casio"
                                       : "pebble");
-          if (family === "pebble" && matchPebbleDevice(knownDevice.name)?.bleOnly === false)
-            throw new Error("PEBBLE_BT_CLASSIC_UNSUPPORTED");
           await stopRadioScan();
           if (current !== generation || disposed) return;
           let cancelWait!: () => void;
@@ -967,7 +966,6 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
             connectedHuaweiProfile = null;
             connectedGarminProfile = null;
             connectedCasioProfile = null;
-            connectedPebbleProfile = null;
             void connectedGarminSession?.close();
             connectedGarminSession = null;
             void connectedBleGattSession?.close();
@@ -1018,7 +1016,6 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
           connectedHuaweiProfile = huaweiProfile;
           connectedGarminProfile = garminProfile;
           connectedCasioProfile = casioProfile;
-          connectedPebbleProfile = pebbleProfile;
           lease.held = true;
           connectedLease = lease;
           ownedDevice = null;
@@ -1244,7 +1241,6 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
       connectedHuaweiProfile = null;
       connectedGarminProfile = null;
       connectedCasioProfile = null;
-      connectedPebbleProfile = null;
       void connectedGarminSession?.close();
       connectedGarminSession = null;
       void connectedBleGattSession?.close();
@@ -1354,12 +1350,8 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
       if (connectedFamily === "fitpro") throw new Error("FITPRO_HISTORY_UNSUPPORTED");
       // GloryFit watches also sync on connection through their own session.
       if (connectedFamily === "gloryfit") throw new Error("GLORYFIT_HISTORY_UNSUPPORTED");
-      // Pebble BLE models push their queued health data on connection; the
-      // sync action only awaits the session.
-      if (connectedFamily === "pebble") {
-        if (!connectedPebbleProfile) throw new Error("PEBBLE_SERVICE_MISSING");
-        if (!connectedPebbleSession) throw new Error("PEBBLE_HISTORY_UNSUPPORTED");
-      }
+      // Protect against stale/manually constructed connected state too.
+      if (connectedFamily === "pebble") pebbleCaptureUnavailable();
       // Casio client-role models fetch their hourly step buckets on connection;
       // the sync action only awaits that fetch.
       if (connectedFamily === "casio") {
@@ -1409,13 +1401,14 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
                   granularity: "minute" as const,
                 };
               })()
-            : connectedFamily === "pebble"
+            : connectedFamily === "huawei"
               ? (async () => {
-                  const session = connectedPebbleSession;
-                  if (!session) throw new Error("PEBBLE_HISTORY_UNSUPPORTED");
+                  const session = connectedHuaweiSession;
+                  if (!session) throw new Error("HUAWEI_HISTORY_UNSUPPORTED");
                   const onAbort = () => void session.close();
                   linked.signal.addEventListener("abort", onAbort, { once: true });
                   try {
+                    session.start();
                     await session.whenDone();
                   } finally {
                     linked.signal.removeEventListener("abort", onAbort);
@@ -1427,14 +1420,15 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
                     granularity: "minute" as const,
                   };
                 })()
-              : connectedFamily === "huawei"
+              : connectedFamily === "huami_legacy"
                 ? (async () => {
-                    const session = connectedHuaweiSession;
-                    if (!session) throw new Error("HUAWEI_HISTORY_UNSUPPORTED");
+                    const session = connectedHuamiLegacySession;
+                    if (!session) throw new Error("HUAMI_LEGACY_SERVICE_MISSING");
+                    if (linked.authKey.length !== 16) throw new Error("INVALID_AUTH_KEY");
                     const onAbort = () => void session.close();
                     linked.signal.addEventListener("abort", onAbort, { once: true });
                     try {
-                      session.start();
+                      session.start(linked.authKey);
                       await session.whenDone();
                     } finally {
                       linked.signal.removeEventListener("abort", onAbort);
@@ -1446,50 +1440,28 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
                       granularity: "minute" as const,
                     };
                   })()
-                : connectedFamily === "huami_legacy"
-                  ? (async () => {
-                      const session = connectedHuamiLegacySession;
-                      if (!session) throw new Error("HUAMI_LEGACY_SERVICE_MISSING");
-                      if (linked.authKey.length !== 16) throw new Error("INVALID_AUTH_KEY");
-                      const onAbort = () => void session.close();
-                      linked.signal.addEventListener("abort", onAbort, { once: true });
-                      try {
-                        session.start(linked.authKey);
-                        await session.whenDone();
-                      } finally {
-                        linked.signal.removeEventListener("abort", onAbort);
-                      }
-                      return {
-                        pages: 0,
-                        minutes: 0,
-                        complete: !linked.signal.aborted,
-                        granularity: "minute" as const,
-                      };
+                : connectedFamily === "xiaomi"
+                  ? (() => {
+                      if (!connectedProfile) throw new Error("XIAOMI_HISTORY_UNSUPPORTED");
+                      const transport = deps.xiaomiHistoryTransport
+                        ? deps.xiaomiHistoryTransport(device, connectedProfile, linked)
+                        : createNativeXiaomiHistoryTransport(
+                            device,
+                            connectedProfile,
+                            {
+                              authKey: linked.authKey,
+                              phoneApiLevel: runtime().version,
+                              phoneName: "OpenValens",
+                              region: "US",
+                            },
+                            radio?.manager,
+                          );
+                      return runXiaomiStepsHistory(transport, linked);
                     })()
-                  : connectedFamily === "xiaomi"
-                    ? (() => {
-                        if (!connectedProfile) throw new Error("XIAOMI_HISTORY_UNSUPPORTED");
-                        const transport = deps.xiaomiHistoryTransport
-                          ? deps.xiaomiHistoryTransport(device, connectedProfile, linked)
-                          : createNativeXiaomiHistoryTransport(
-                              device,
-                              connectedProfile,
-                              {
-                                authKey: linked.authKey,
-                                phoneApiLevel: runtime().version,
-                                phoneName: "OpenValens",
-                                region: "US",
-                              },
-                              radio?.manager,
-                            );
-                        return runXiaomiStepsHistory(transport, linked);
-                      })()
-                    : (() => {
-                        const workLink = new NativeHelioLink(device, radio?.manager);
-                        return runHelioStepsHistory(workLink, linked).finally(() =>
-                          workLink.close(),
-                        );
-                      })();
+                  : (() => {
+                      const workLink = new NativeHelioLink(device, radio?.manager);
+                      return runHelioStepsHistory(workLink, linked).finally(() => workLink.close());
+                    })();
       historyCompletion = work;
       try {
         return await work;
@@ -1531,7 +1503,6 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
       connectedHuaweiProfile = null;
       connectedGarminProfile = null;
       connectedCasioProfile = null;
-      connectedPebbleProfile = null;
       void connectedGarminSession?.close();
       connectedGarminSession = null;
       void connectedBleGattSession?.close();
@@ -1669,11 +1640,15 @@ function bluetoothErrorCode(state: State): string {
 function errorCode(error: unknown): string {
   return error instanceof Error ? error.message : "";
 }
+function pebbleCaptureUnavailable(): never {
+  throw new Error("PEBBLE_CAPTURE_UNAVAILABLE");
+}
 function safeCode(error: unknown): string {
   const code = errorCode(error);
   return SAFE_CODES.has(code) ? code : "CONNECTION_FAILED";
 }
 const SAFE_CODES = new Set([
+  "PEBBLE_CAPTURE_UNAVAILABLE",
   "UNSUPPORTED",
   "PERMISSION_DENIED",
   "CANCELLED",

@@ -45,12 +45,11 @@ export type DirectDeviceBindingIdentity = {
  * straps) stay connection-only and are gated by the native registry before a
  * batch is ever created. Pebble watches publish 1-minute step records (with
  * per-minute heart rate in the v≥7 record layout), sleep sessions whose bounds
- * come from tag 83 and whose stages come from tag 84 intervals, so `steps`,
- * `heart_rate` and `sleep_session` are mapped. Only the three BLE models
- * (pebble_classic_2/DIORITE, pebble_2_duo/FLINT, pebble_time_2/EMERY) can
- * connect at all; the Bluetooth-Classic models (Classic, Steel, Time, Time
- * Steel, Time Round) have no BLE radio and are refused by the native registry
- * before a batch is ever created.
+ * come from tag 83 and whose stages come from tag 84 intervals. Capabilities
+ * are model-specific: Pebble 2 Duo supports steps and sleep, while Classic 2
+ * and Time 2 also support heart rate. The original Classic/Steel have no
+ * built-in health data; Time/Time Steel/Time Round have BLE companions but
+ * remain outside this implementation's supported capture path.
  */
 export type DirectDeviceRecordType =
   | "steps"
@@ -151,10 +150,22 @@ export function assertDirectDeviceIdentity(
     asserted.modelId !== confirmed.modelId
   )
     throw new DirectDeviceIdentityError("IDENTITY_MISMATCH");
-  if (
-    options.recordType &&
-    !directDeviceFamilySupportsRecordType(confirmed.family, options.recordType)
-  )
+  if (options.recordType && !directDeviceModelSupportsRecordType(confirmed, options.recordType))
     throw new DirectDeviceIdentityError("HISTORY_UNSUPPORTED");
   return confirmed;
+}
+
+/** Apply implemented per-model capabilities where family-level support is too broad. */
+function directDeviceModelSupportsRecordType(
+  identity: DirectDeviceIdentity,
+  recordType: DirectDeviceRecordType,
+): boolean {
+  if (identity.family !== "pebble")
+    return directDeviceFamilySupportsRecordType(identity.family, recordType);
+
+  if (identity.modelId === "pebble_2_duo")
+    return recordType === "steps" || recordType === "sleep_session";
+  if (identity.modelId === "pebble_classic_2" || identity.modelId === "pebble_time_2")
+    return recordType === "steps" || recordType === "sleep_session" || recordType === "heart_rate";
+  return false;
 }

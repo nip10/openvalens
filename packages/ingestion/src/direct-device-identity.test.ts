@@ -305,25 +305,49 @@ describe("direct-device identity guard", () => {
       );
   });
 
-  test("Pebble watches publish exact-minute steps, heart rate and sleep sessions", () => {
-    const pebble = { directDeviceFamily: "pebble", directDeviceModelId: "pebble_2_duo" };
-    const assertion = { family: "pebble", modelId: "pebble_2_duo" } as const;
-    // 1-minute step records carry per-minute heart rate in the v>=7 layout and
-    // sleep arrives as tag 83 session bounds plus tag 84 stage intervals. Only
-    // the BLE models reach this point: the Bluetooth-Classic models have no BLE
-    // radio and are refused by the native registry before a batch exists.
-    for (const recordType of ["steps", "heart_rate", "sleep_session"] as const)
-      expect(assertDirectDeviceIdentity(pebble, assertion, { recordType })).toEqual(assertion);
-    // Pebble has no interval buckets, scale or GATT sensor metrics.
-    for (const recordType of [
+  test("Pebble capabilities are enforced for every registered model and record type", () => {
+    const capabilities: Record<string, readonly string[]> = {
+      pebble_classic: [],
+      pebble_steel: [],
+      pebble_time: [],
+      pebble_time_steel: [],
+      pebble_time_round: [],
+      pebble_2_duo: ["steps", "sleep_session"],
+      pebble_classic_2: ["steps", "sleep_session", "heart_rate"],
+      pebble_time_2: ["steps", "sleep_session", "heart_rate"],
+    };
+    const recordTypes = [
+      "steps",
       "steps_interval",
-      "weight_measurement",
+      "sleep_session",
+      "heart_rate",
       "body_temperature",
       "blood_pressure",
-    ] as const)
-      expect(() => assertDirectDeviceIdentity(pebble, assertion, { recordType })).toThrow(
-        new DirectDeviceIdentityError("HISTORY_UNSUPPORTED"),
-      );
+      "weight_measurement",
+    ] as const;
+
+    for (const [modelId, supported] of Object.entries(capabilities)) {
+      const binding = { directDeviceFamily: "pebble", directDeviceModelId: modelId };
+      const assertion = { family: "pebble", modelId } as const;
+      for (const recordType of recordTypes) {
+        if (supported.includes(recordType))
+          expect(assertDirectDeviceIdentity(binding, assertion, { recordType })).toEqual(assertion);
+        else
+          expect(() => assertDirectDeviceIdentity(binding, assertion, { recordType })).toThrow(
+            new DirectDeviceIdentityError("HISTORY_UNSUPPORTED"),
+          );
+      }
+    }
+  });
+
+  test("Pebble identity mismatch cannot bypass model capability enforcement", () => {
+    expect(() =>
+      assertDirectDeviceIdentity(
+        { directDeviceFamily: "pebble", directDeviceModelId: "pebble_2_duo" },
+        { family: "pebble", modelId: "pebble_classic_2" },
+        { recordType: "heart_rate" },
+      ),
+    ).toThrow(new DirectDeviceIdentityError("IDENTITY_MISMATCH"));
   });
 
   test("record-type capability separates watch steps from BLE GATT sensors", () => {

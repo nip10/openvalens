@@ -324,7 +324,7 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
     fitpro_history_sync: t`History sync on connection for 15-minute step buckets, staged sleep and realtime heart rate; not hardware-verified.`,
     casio_steps_history: t`History sync on connection for hourly step buckets only; the Casio protocol carries no heart rate or sleep data. Not hardware-verified.`,
     casio_connection_only: t`Connection checks only; the Casio protocol has no recorded-data path for this model. Not hardware-verified.`,
-    pebble_health_sync: t`History sync on connection for 1-minute steps, staged sleep and per-minute heart rate on the three BLE models (Pebble 2, Pebble Time 2, Pebble 2 Duo). The five Bluetooth Classic models cannot connect at all because this stack is BLE-only. Not hardware-verified.`,
+    pebble_capture_unavailable: t`Pebble capture is temporarily unavailable while pairing and safe history storage are completed. Not hardware-verified.`,
   };
   const upstreamLevelText = {
     high: t`high`,
@@ -390,7 +390,7 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
     <Section title={t`Direct devices`} icon={Bluetooth} tone="signal">
       <Sheet className="gap-3">
         <Text className="font-sans text-sm leading-relaxed text-ink-2">
-          {t`Experimental direct Bluetooth support for several kinds of devices. Zepp OS and Xiaomi devices sync step history in the foreground. BLE GATT health sensors (heart rate, blood pressure, temperature) record live while connected, and a PineTime running InfiniTime reports live heart rate the same way. Bluetooth smart scales record weight live, and some also report stored measurements on connection. Colmi and Yawell smart rings sync stored step, heart-rate and sleep history on connection. Bangle.js watches sync stored step and heart-rate history on connection and keep reporting live heart rate. Moyoung/Da Fit watches sync stored heart-rate and sleep history on connection; they report steps as daily totals only, so steps are not synced. FitPro bands sync 15-minute step buckets, staged sleep and realtime heart rate on connection. GloryFit watches sync stored step, heart-rate and sleep history on connection. Legacy Huami (Amazfit/Mi Band) watches sync exact-minute steps, heart rate and sleep when you enter their 16-byte key. Huawei/Honor BLE bands and watches sync exact-minute steps, heart rate and sleep automatically; their Bluetooth-Classic models and Garmin support connection checks only. No hardware verification has been done. No vendor login is requested.`}
+          {t`Experimental direct Bluetooth support for several kinds of devices. Zepp OS and Xiaomi devices sync step history in the foreground. BLE GATT health sensors (heart rate, blood pressure, temperature) record live while connected, and a PineTime running InfiniTime reports live heart rate the same way. Bluetooth smart scales record weight live, and some also report stored measurements on connection. Colmi and Yawell smart rings sync stored step, heart-rate and sleep history on connection. Bangle.js watches sync stored step and heart-rate history on connection and keep reporting live heart rate. Moyoung/Da Fit watches sync stored heart-rate and sleep history on connection; they report steps as daily totals only, so steps are not synced. FitPro bands sync 15-minute step buckets, staged sleep and realtime heart rate on connection. GloryFit watches sync stored step, heart-rate and sleep history on connection. Legacy Huami (Amazfit/Mi Band) watches sync exact-minute steps, heart rate and sleep when you enter their 16-byte key. Huawei/Honor BLE bands and watches sync exact-minute steps, heart rate and sleep automatically; their Bluetooth-Classic models and Garmin support connection checks only. Pebble discovery remains available, but capture is temporarily unavailable while pairing and safe history storage are completed. Pebble Time, Time Steel and Time Round have LE companions upstream, but those companions are not implemented here; Classic and Steel models have no built-in health data. No hardware verification has been done. No vendor login is requested.`}
         </Text>
         <Text className="font-sans text-sm leading-relaxed text-ink-3">
           {t`Use the same saved device on both phones. Choose an existing binding to avoid duplicates, or add another only when you mean to create a separate binding. Nearby connection is a separate step.`}
@@ -519,9 +519,7 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
             </Text>
           ) : connectedFamily === "pebble" ? (
             <Text className="font-sans text-sm text-ink-3">
-              {snapshot.capabilities.historySync
-                ? t`Pebble health (1-minute steps, staged sleep and per-minute heart rate) syncs automatically while connected. Records are saved in batches and sent only when you tap “Retry upload”.`
-                : t`This Pebble model uses Bluetooth Classic upstream and cannot connect with this BLE-only stack.`}
+              {t`Pebble capture is temporarily unavailable while pairing and safe history storage are completed. Not hardware-verified.`}
             </Text>
           ) : connectedFamily === "fitpro" ? (
             <Text className="font-sans text-sm text-ink-3">
@@ -663,14 +661,16 @@ function friendlyError(code: string) {
     return "The Casio watch did not expose its Watch Features service. Move it away from the phone, then reconnect.";
   if (code === "CASIO_STEPS_UNSUPPORTED")
     return "This Casio model is registered for connection checks only; the protocol has no recorded-data path for it.";
+  if (code === "PEBBLE_CAPTURE_UNAVAILABLE")
+    return "Pebble capture is temporarily unavailable while pairing and safe history storage are completed. Not hardware-verified.";
   if (code === "PEBBLE_BT_CLASSIC_UNSUPPORTED")
-    return "This Pebble model uses Bluetooth Classic upstream, which this BLE-only stack cannot carry. Only Pebble 2, Pebble Time 2 and Pebble 2 Duo can connect.";
+    return "This Pebble model's Bluetooth LE companion is not implemented here. Pebble capture is temporarily unavailable while pairing and safe history storage are completed.";
   if (code === "PEBBLE_SERVICE_MISSING")
-    return "The Pebble did not expose its pairing service. Move it away from the phone, then reconnect.";
+    return "Pebble capture is temporarily unavailable while pairing and safe history storage are completed.";
   if (code === "PEBBLE_PPOGATT_MISSING")
-    return "This Pebble did not expose the PPoGATT service, so the BLE data path is unavailable. Only Pebble 2, Pebble Time 2 and Pebble 2 Duo are supported.";
+    return "Pebble capture is temporarily unavailable while pairing and safe history storage are completed.";
   if (code === "PEBBLE_HISTORY_UNSUPPORTED")
-    return "This Pebble connected, but its health session is not available. Reconnect and try again.";
+    return "Pebble capture is temporarily unavailable while pairing and safe history storage are completed.";
   if (code === "HISTORY_UNSUPPORTED")
     return "This device connected, but step history sync is not supported for it.";
   return "Could not sync device steps. Try again.";

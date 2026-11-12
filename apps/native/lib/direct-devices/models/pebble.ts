@@ -25,12 +25,13 @@
  *
  * - Pebble 2 (DIORITE), Pebble Time 2 (EMERY) and Pebble 2 Duo (FLINT) are
  *   `bleOnly` and talk PPoGATT over GATT.
- * - Pebble Classic (APLITE), Pebble Steel (APLITE), Pebble Time (BASALT),
- *   Pebble Time Steel (BASALT) and Pebble Time Round (CHALK) are Bluetooth
- *   Classic watches. Their data path is RFCOMM/SPP (UUID `00001101`), which a
- *   BLE-only stack cannot carry. They cannot pair at all here, so they are
- *   registered with `bleOnly: false`, `records: []` and `sync: false` so the
- *   UI can say so plainly instead of pretending a connection exists.
+ * - Pebble Classic (APLITE) and Pebble Steel (APLITE) use Bluetooth Classic
+ *   RFCOMM/SPP and have no built-in health. Pebble Time (BASALT), Time Steel
+ *   (BASALT) and Time Round (CHALK) have dual-mode BLE companions upstream,
+ *   but all five models are excluded from this BLE implementation.
+ * - All Pebble models are currently gated from connection/capture pending a
+ *   safe protocol implementation. They remain discoverable, with no advertised
+ *   records or sync capability.
  *
  * Name matching
  * -------------
@@ -62,7 +63,8 @@
  *
  * Health coverage
  * ---------------
- * The BLE models expose the DATALOG health sessions: 1-minute `steps`
+ * The prospective BLE models expose DATALOG health sessions upstream:
+ * 1-minute `steps`
  * (log tag 81, versions 5/6/7/12/13/14), `sleep_session` bounds (tag 83) with
  * stage intervals (tag 84), and per-minute `heart_rate` embedded in the steps
  * records (v>=7). Tag 85 (standalone HR) is a stub upstream and produces no
@@ -104,7 +106,8 @@ export type PebbleModel = Readonly<{
   platform: PebblePlatform;
   /**
    * Upstream `Platform.isBleOnly()`. True only for the three models whose data
-   * path is PPoGATT over GATT; false for the Bluetooth Classic generation.
+   * path is PPoGATT over GATT; false for Classic-mode generations. This does
+   * not mean a model lacks a BLE companion.
    */
   bleOnly: boolean;
   /** Upstream `Platform.hasHealth()`. */
@@ -128,7 +131,7 @@ export type PebbleModel = Readonly<{
   hardwareIds: readonly number[];
   /** Codename prefixes from `PebbleHardware.Platform`. */
   codenamePrefixes: readonly string[];
-  /** Record kinds the model's capture path can emit. Empty for BT-Classic. */
+  /** Record kinds currently advertised for capture (empty while gated). */
   records: readonly PebbleRecordType[];
   /** True when the model syncs stored history on connection. */
   sync: boolean;
@@ -161,7 +164,6 @@ const SHARED_SOURCE_FILES: readonly string[] = [
   `${SERVICE_ROOT}/ble/PebbleGATTConstants.java`,
 ];
 
-const BLE_RECORDS: readonly PebbleRecordType[] = ["steps", "heart_rate", "sleep_session"];
 const NO_RECORDS: readonly PebbleRecordType[] = [];
 const BLE_SERVICES: readonly string[] = [PEBBLE_SERVICE_UUID];
 const NO_SERVICES: readonly string[] = [];
@@ -296,8 +298,8 @@ export const PEBBLE_MODELS: readonly PebbleModel[] = DEFINITIONS.map((definition
   bleNamePatterns: definition.patterns,
   hardwareIds: definition.hardwareIds,
   codenamePrefixes: definition.codenamePrefixes,
-  records: definition.bleOnly ? BLE_RECORDS : NO_RECORDS,
-  sync: definition.bleOnly,
+  records: NO_RECORDS,
+  sync: false,
   serviceUuids: definition.bleOnly ? BLE_SERVICES : NO_SERVICES,
   sourceFiles: [...(definition.extraSourceFiles ?? []), ...SHARED_SOURCE_FILES],
 }));

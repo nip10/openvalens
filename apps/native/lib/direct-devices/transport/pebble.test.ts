@@ -225,7 +225,8 @@ test("an end-to-end sync emits steps, heart rate and staged sleep", async () => 
   await tick();
   const writesBefore = writes.length;
 
-  const start = 1_700_000_000;
+  // DATALOG step records are minute-aligned; use an honest minute boundary.
+  const start = 1_699_999_980;
   const steps = stepsPacket(7, start, [10, 20]);
 
   // Steps session: open, send, close.

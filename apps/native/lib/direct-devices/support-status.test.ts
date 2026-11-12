@@ -325,7 +325,7 @@ test("FitPro reports history sync for 15-minute steps, sleep and realtime heart 
   }
 });
 
-test("Pebble reports health sync for the BLE models and no capability for BT-Classic", () => {
+test("Pebble capture is unavailable for every model until pairing and safe storage are complete", () => {
   for (const model of PEBBLE_MODELS) {
     expect(
       describeDeviceSupport({
@@ -336,17 +336,12 @@ test("Pebble reports health sync for the BLE models and no capability for BT-Cla
         sync: model.sync,
       }),
       model.id,
-    ).toMatchObject({ openValens: "pebble_health_sync" });
+    ).toMatchObject({ openValens: "pebble_capture_unavailable" });
   }
-  // Only the three BLE models carry the frozen record kinds.
+  // The safety gate leaves every Pebble model without records or sync.
   for (const model of PEBBLE_MODELS) {
-    if (model.bleOnly) {
-      expect(model.records, model.id).toEqual(["steps", "heart_rate", "sleep_session"]);
-      expect(model.sync, model.id).toBe(true);
-    } else {
-      expect(model.records, model.id).toEqual([]);
-      expect(model.sync, model.id).toBe(false);
-    }
+    expect(model.records, model.id).toEqual([]);
+    expect(model.sync, model.id).toBe(false);
   }
 });
 

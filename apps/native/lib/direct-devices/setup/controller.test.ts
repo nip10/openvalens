@@ -172,6 +172,7 @@ function fixture(
       profile: XiaomiBleProfile,
       options: HelioHistoryOptions,
     ) => XiaomiHistoryTransport;
+    onHistorySample?: (sample: import("./types").DirectDeviceHistorySample) => void;
   } = {},
 ) {
   let scanCallback: ((error: unknown, device: Device | null) => void) | undefined;
@@ -272,6 +273,7 @@ function fixture(
     },
     cryptoTest: options.cryptoTest,
     xiaomiHistoryTransport: options.xiaomiHistoryTransport,
+    onHistorySample: options.onHistorySample,
   });
   return {
     controller,
@@ -292,6 +294,41 @@ function fixture(
     }),
   };
 }
+
+test("every Pebble connect attempt is rejected before BLE connect or health writes", async () => {
+  const names = [
+    "Pebble",
+    "Pebble Steel",
+    "Pebble Time",
+    "Pebble Time Steel",
+    "Pebble Time Round",
+    "Pebble 1A2B",
+    "Pebble 2D0A",
+  ];
+  for (const deviceName of names) {
+    let transportStarts = 0;
+    let healthWrites = 0;
+    const f = fixture({
+      deviceName,
+      connect: async () => {
+        transportStarts += 1;
+        throw new Error("transport must not start");
+      },
+      onHistorySample: () => {
+        healthWrites += 1;
+      },
+    });
+    await f.controller.startScan();
+    f.emit();
+    await f.controller.connect("local-id");
+    expect(f.controller.getSnapshot().errorCode, deviceName).toBe("PEBBLE_CAPTURE_UNAVAILABLE");
+    expect(f.controller.getSnapshot().phase, deviceName).toBe("error");
+    expect(transportStarts, deviceName).toBe(0);
+    expect(healthWrites, deviceName).toBe(0);
+    expect(f.controller.getSnapshot().connectedDeviceId, deviceName).toBeNull();
+    await f.controller.dispose();
+  }
+});
 
 test("factory is inert; real injected Android runtime asks both Android 12 permissions", async () => {
   const f = fixture({ runtime: { platform: "android", version: 32 } });
