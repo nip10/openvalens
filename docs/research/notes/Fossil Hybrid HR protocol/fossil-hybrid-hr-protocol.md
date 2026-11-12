@@ -12,40 +12,40 @@ Notation:
 
 ## 0. Path aliases used in citations
 
-| Alias | Path at the pin |
-|---|---|
-| `G/` | `app/src/main/java/nodomain/freeyourgadget/gadgetbridge/` |
-| `D/` | `G/devices/qhybrid/` |
-| `S/` | `G/service/devices/qhybrid/` |
-| `Coord` | `D/QHybridCoordinator.kt` |
-| `Sup` | `S/QHybridSupport.java` |
-| `Base` | `S/QHybridBaseSupport.java` |
-| `Fac` | `S/adapter/WatchAdapterFactory.java` |
-| `WA` | `S/adapter/WatchAdapter.java` |
-| `FWA` | `S/adapter/fossil/FossilWatchAdapter.java` (queue and base logic) |
-| `HRA` | `S/adapter/fossil_hr/FossilHRWatchAdapter.java` (HR subclass) |
-| `Req` | `S/requests/Request.java` |
-| `FReq` | `S/requests/fossil/FossilRequest.java` |
-| `Mtu` | `S/requests/fossil/RequestMtuRequest.java` |
-| `Auth*` | `S/requests/fossil_hr/authentication/<Name>.java` |
-| `Verify` | `S/requests/fossil_hr/authentication/VerifyPrivateKeyRequest.java` |
-| `Lookup` | `S/requests/fossil/file/FileLookupRequest.java` |
-| `RawGet` | `S/requests/fossil/file/FileGetRawRequest.java` |
-| `Get` | `S/requests/fossil/file/FileGetRequest.java` |
-| `EncGet` | `S/requests/fossil_hr/file/FileEncryptedGetRequest.java` |
-| `EncLAG` | `S/requests/fossil_hr/file/FileEncryptedLookupAndGetRequest.java` |
-| `EncPut` | `S/requests/fossil_hr/file/FileEncryptedPutRequest.java` |
-| `Put` | `S/requests/fossil/file/FilePutRequest.java` |
-| `Del` | `S/requests/fossil/file/FileDeleteRequest.java` |
-| `Close` | `S/requests/fossil/file/FileCloseRequest.java` |
-| `RC` | `S/requests/fossil_hr/file/ResultCode.java` |
-| `FH` | `S/file/FileHandle.java` |
-| `DevInfo` | `S/requests/fossil/device_info/GetDeviceInfoRequest.java` |
-| `AFP` | `S/parser/ActivityFileParser.java` |
-| `AE` | `S/parser/ActivityEntry.java` |
-| `WSP` | `S/parser/HybridHRWorkoutSummaryParser.java` |
-| `Prov` | `D/HybridHRActivitySampleProvider.java` |
-| `Dao` | `GBDaoGenerator/src/nodomain/freeyourgadget/gadgetbridge/daogen/GBDaoGenerator.java` |
+| Alias     | Path at the pin                                                                      |
+| --------- | ------------------------------------------------------------------------------------ |
+| `G/`      | `app/src/main/java/nodomain/freeyourgadget/gadgetbridge/`                            |
+| `D/`      | `G/devices/qhybrid/`                                                                 |
+| `S/`      | `G/service/devices/qhybrid/`                                                         |
+| `Coord`   | `D/QHybridCoordinator.kt`                                                            |
+| `Sup`     | `S/QHybridSupport.java`                                                              |
+| `Base`    | `S/QHybridBaseSupport.java`                                                          |
+| `Fac`     | `S/adapter/WatchAdapterFactory.java`                                                 |
+| `WA`      | `S/adapter/WatchAdapter.java`                                                        |
+| `FWA`     | `S/adapter/fossil/FossilWatchAdapter.java` (queue and base logic)                    |
+| `HRA`     | `S/adapter/fossil_hr/FossilHRWatchAdapter.java` (HR subclass)                        |
+| `Req`     | `S/requests/Request.java`                                                            |
+| `FReq`    | `S/requests/fossil/FossilRequest.java`                                               |
+| `Mtu`     | `S/requests/fossil/RequestMtuRequest.java`                                           |
+| `Auth*`   | `S/requests/fossil_hr/authentication/<Name>.java`                                    |
+| `Verify`  | `S/requests/fossil_hr/authentication/VerifyPrivateKeyRequest.java`                   |
+| `Lookup`  | `S/requests/fossil/file/FileLookupRequest.java`                                      |
+| `RawGet`  | `S/requests/fossil/file/FileGetRawRequest.java`                                      |
+| `Get`     | `S/requests/fossil/file/FileGetRequest.java`                                         |
+| `EncGet`  | `S/requests/fossil_hr/file/FileEncryptedGetRequest.java`                             |
+| `EncLAG`  | `S/requests/fossil_hr/file/FileEncryptedLookupAndGetRequest.java`                    |
+| `EncPut`  | `S/requests/fossil_hr/file/FileEncryptedPutRequest.java`                             |
+| `Put`     | `S/requests/fossil/file/FilePutRequest.java`                                         |
+| `Del`     | `S/requests/fossil/file/FileDeleteRequest.java`                                      |
+| `Close`   | `S/requests/fossil/file/FileCloseRequest.java`                                       |
+| `RC`      | `S/requests/fossil_hr/file/ResultCode.java`                                          |
+| `FH`      | `S/file/FileHandle.java`                                                             |
+| `DevInfo` | `S/requests/fossil/device_info/GetDeviceInfoRequest.java`                            |
+| `AFP`     | `S/parser/ActivityFileParser.java`                                                   |
+| `AE`      | `S/parser/ActivityEntry.java`                                                        |
+| `WSP`     | `S/parser/HybridHRWorkoutSummaryParser.java`                                         |
+| `Prov`    | `D/HybridHRActivitySampleProvider.java`                                              |
+| `Dao`     | `GBDaoGenerator/src/nodomain/freeyourgadget/gadgetbridge/daogen/GBDaoGenerator.java` |
 
 ---
 
@@ -77,14 +77,14 @@ The same handler extracts a clean firmware version (`firmwareVersion2`) with the
 
 **Model Number (`0x2A24`) sets the display name**, through `gbDevice.setName(watchAdapter.getModelName())` (`Sup:766-769`). The mapping is at `WA:80-96`:
 
-| 0x2A24 value | Name upstream assigns |
-|---|---|
-| `HW.0.0` | Q Commuter |
-| `HL.0.0` | Q Activist |
-| `IV.0.0` | Hybrid HR |
-| `DN.1.0` | Hybrid HR Collider |
-| `VA.0.0`, `WA.0.0` | Fossil Gen. 6 Hybrid |
-| anything else | `unknown Q` |
+| 0x2A24 value       | Name upstream assigns |
+| ------------------ | --------------------- |
+| `HW.0.0`           | Q Commuter            |
+| `HL.0.0`           | Q Activist            |
+| `IV.0.0`           | Hybrid HR             |
+| `DN.1.0`           | Hybrid HR Collider    |
+| `VA.0.0`, `WA.0.0` | Fossil Gen. 6 Hybrid  |
+| anything else      | `unknown Q`           |
 
 **Capability gates depend on that name:**
 
@@ -106,21 +106,21 @@ The same handler extracts a clean firmware version (`firmwareVersion2`) with the
 
 **Characteristic roles:**
 
-| UUID | Role (source) | Direction |
-|---|---|---|
-| `3dda0002-957f-7d4a-34a6-74696673696d` | "Basic" request channel, the default `Request` UUID (`Req:53-55`). Carries `CheckDevicePairing` / `PerformDevicePairing` (`AuthCheckDevicePairingRequest:55-58`). | write + notify |
-| `3dda0003-957f-7d4a-34a6-74696673696d` | File-transfer control, the default `FossilRequest` UUID (`FReq:30-33`). Used for lookup, get, delete, put and close. | write + notify |
-| `3dda0004-957f-7d4a-34a6-74696673696d` | File data. Downloads arrive as notifications (`RawGet:126-131`, `EncGet:175-214`). Upload packets are written here (`EncPut:90`). | notify (download), write (upload) |
-| `3dda0005-957f-7d4a-34a6-74696673696d` | Authentication (`AuthAuthenticationRequest:24-27`). | write + notify |
-| `3dda0006-957f-7d4a-34a6-74696673696d` | Asynchronous watch events such as buttons, JSON requests and workout-app requests (`FWA:742-745`, `FWA:810-822`, `HRA:1946-1960`). Not routed to the request queue. | notify |
-| `3dda0007-957f-7d4a-34a6-74696673696d` | Notifications enabled by the `2..7` loop (`Sup:508-509`). No handler found. UNKNOWN purpose. | notify |
-| `010541ae-efe8-11c0-91c0-105d1a1155f0` | Voice status (`HRA:481-483`) | notify |
-| `842d2791-0d20-4ce4-1ada-105d1a1155f0` | Voice data (`HRA:484-486`) | notify |
-| `fef9589f-9c21-4d19-9fc0-105d1a1155f0` | Notifications enabled (`Sup:512`). No handler found. UNKNOWN. | notify |
-| `0x2A19` Battery Level | Read once at init (`Sup:516`, `Sup:779-788`) | read |
-| `0x2A26` Firmware Revision | Read, and creates the adapter (`Sup:517`, `Sup:750-764`) | read |
-| `0x2A24` Model Number | Read, and sets the name (`Sup:518`, `Sup:766-777`) | read |
-| `0x2A37` HR Measurement | A handler exists (`FWA:746-748`, `HRA:1937-1943`), but the notify line is commented out at init (`Sup:519`). | (not enabled) |
+| UUID                                   | Role (source)                                                                                                                                                       | Direction                         |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
+| `3dda0002-957f-7d4a-34a6-74696673696d` | "Basic" request channel, the default `Request` UUID (`Req:53-55`). Carries `CheckDevicePairing` / `PerformDevicePairing` (`AuthCheckDevicePairingRequest:55-58`).   | write + notify                    |
+| `3dda0003-957f-7d4a-34a6-74696673696d` | File-transfer control, the default `FossilRequest` UUID (`FReq:30-33`). Used for lookup, get, delete, put and close.                                                | write + notify                    |
+| `3dda0004-957f-7d4a-34a6-74696673696d` | File data. Downloads arrive as notifications (`RawGet:126-131`, `EncGet:175-214`). Upload packets are written here (`EncPut:90`).                                   | notify (download), write (upload) |
+| `3dda0005-957f-7d4a-34a6-74696673696d` | Authentication (`AuthAuthenticationRequest:24-27`).                                                                                                                 | write + notify                    |
+| `3dda0006-957f-7d4a-34a6-74696673696d` | Asynchronous watch events such as buttons, JSON requests and workout-app requests (`FWA:742-745`, `FWA:810-822`, `HRA:1946-1960`). Not routed to the request queue. | notify                            |
+| `3dda0007-957f-7d4a-34a6-74696673696d` | Notifications enabled by the `2..7` loop (`Sup:508-509`). No handler found. UNKNOWN purpose.                                                                        | notify                            |
+| `010541ae-efe8-11c0-91c0-105d1a1155f0` | Voice status (`HRA:481-483`)                                                                                                                                        | notify                            |
+| `842d2791-0d20-4ce4-1ada-105d1a1155f0` | Voice data (`HRA:484-486`)                                                                                                                                          | notify                            |
+| `fef9589f-9c21-4d19-9fc0-105d1a1155f0` | Notifications enabled (`Sup:512`). No handler found. UNKNOWN.                                                                                                       | notify                            |
+| `0x2A19` Battery Level                 | Read once at init (`Sup:516`, `Sup:779-788`)                                                                                                                        | read                              |
+| `0x2A26` Firmware Revision             | Read, and creates the adapter (`Sup:517`, `Sup:750-764`)                                                                                                            | read                              |
+| `0x2A24` Model Number                  | Read, and sets the name (`Sup:518`, `Sup:766-777`)                                                                                                                  | read                              |
+| `0x2A37` HR Measurement                | A handler exists (`FWA:746-748`, `HRA:1937-1943`), but the notify line is commented out at init (`Sup:519`).                                                        | (not enabled)                     |
 
 **Write type (with or without response): UNKNOWN from source.**
 
@@ -143,6 +143,7 @@ The order below is exactly what upstream does. Steps 1 to 3 belong to `QHybridSu
    - `010541ae…`, `fef9589f…`, `842d2791…` (`Sup:511-513`)
 
    A missing characteristic is skipped with a warning (`G/service/btle/TransactionBuilder.java:260-266`).
+
 2. **Read `0x2A19`** (battery), **`0x2A26`** (firmware) and **`0x2A24`** (model), in that order (`Sup:515-518`).
 3. **The `0x2A26` result creates the adapter and calls `FossilHRWatchAdapter.initialize()`** (`Sup:761-762`). The `0x2A24` read is still pending at that point; when it arrives it calls `watchAdapter.getModelName()` (`Sup:769`).
 4. **`HRA.initialize()`** (`HRA:255-264`):
@@ -183,23 +184,23 @@ All traffic goes over `3dda0005` (`AuthAuthenticationRequest:24-27`).
 
 **Step 1. Phone to watch (write, 11 bytes)** (`Verify:115-130`):
 
-| Offset | Bytes | Meaning |
-|---|---|---|
-| 0 | `02` | op |
-| 1 | `01` | sub-op "start" |
-| 2 | `01` | |
-| 3..10 | 8 bytes | `phoneRandom`, from `java.util.Random().nextBytes` |
+| Offset | Bytes   | Meaning                                            |
+| ------ | ------- | -------------------------------------------------- |
+| 0      | `02`    | op                                                 |
+| 1      | `01`    | sub-op "start"                                     |
+| 2      | `01`    |                                                    |
+| 3..10  | 8 bytes | `phoneRandom`, from `java.util.Random().nextBytes` |
 
 Implementation detail: `getStartSequence()` generates a new random every time it is called. The `Request` constructor calls it once and stores the result as `data` (`Req:33-35`). Upstream never calls it again for this request, because `getType()` is only used for `3dda0003` notifications (`FWA:757-758`). A port must generate the random exactly once and keep the same value it sent.
 
 **Step 2. Watch to phone (notification on `3dda0005`), recognised by `value[1] == 0x01`** (`Verify:54-95`):
 
-| Offset | Meaning |
-|---|---|
-| 0 | Not checked by upstream. INFERRED `0x03` (the response byte seen in the sibling requests). |
-| 1 | `0x01` |
-| 2..3 | Not checked. UNKNOWN. |
-| 4..19 | 16-byte ciphertext `C` |
+| Offset | Meaning                                                                                    |
+| ------ | ------------------------------------------------------------------------------------------ |
+| 0      | Not checked by upstream. INFERRED `0x03` (the response byte seen in the sibling requests). |
+| 1      | `0x01`                                                                                     |
+| 2..3   | Not checked. UNKNOWN.                                                                      |
+| 4..19  | 16-byte ciphertext `C`                                                                     |
 
 The phone then computes:
 
@@ -243,12 +244,12 @@ Flow at `HRA:295-378`:
 
 The confirmation requests:
 
-| Request | Characteristic | Phone to watch | Watch to phone | Source |
-|---|---|---|---|---|
-| CheckDeviceNeedsConfirmation | `3dda0005` | `01 07` | `03 07 XX` (exactly 3 bytes); needs confirmation iff `XX == 00` | `AuthCheckDeviceNeedsConfirmationRequest:23-41` |
-| ConfirmOnDevice | `3dda0005` | `02 06 30 75 00 00 00` (`0x7530` = 30000, INFERRED to be a timeout in ms) | `03 06 00 XX` (exactly 4 bytes); confirmed iff `XX == 01` | `AuthConfirmOnDeviceRequest:24-42` |
-| CheckDevicePairing | `3dda0002` | `01 16` | `03 16 XX` (exactly 3 bytes); paired iff `XX == 01` | `AuthCheckDevicePairingRequest:28-58` |
-| PerformDevicePairing | `3dda0002` | `02 16` | same parser as CheckDevicePairing | `AuthPerformDevicePairingRequest:19-23` |
+| Request                      | Characteristic | Phone to watch                                                            | Watch to phone                                                  | Source                                          |
+| ---------------------------- | -------------- | ------------------------------------------------------------------------- | --------------------------------------------------------------- | ----------------------------------------------- |
+| CheckDeviceNeedsConfirmation | `3dda0005`     | `01 07`                                                                   | `03 07 XX` (exactly 3 bytes); needs confirmation iff `XX == 00` | `AuthCheckDeviceNeedsConfirmationRequest:23-41` |
+| ConfirmOnDevice              | `3dda0005`     | `02 06 30 75 00 00 00` (`0x7530` = 30000, INFERRED to be a timeout in ms) | `03 06 00 XX` (exactly 4 bytes); confirmed iff `XX == 01`       | `AuthConfirmOnDeviceRequest:24-42`              |
+| CheckDevicePairing           | `3dda0002`     | `01 16`                                                                   | `03 16 XX` (exactly 3 bytes); paired iff `XX == 01`             | `AuthCheckDevicePairingRequest:28-58`           |
+| PerformDevicePairing         | `3dda0002`     | `02 16`                                                                   | same parser as CheckDevicePairing                               | `AuthPerformDevicePairingRequest:19-23`         |
 
 Sequencing:
 
@@ -284,26 +285,26 @@ Nested requests behave differently. `FileEncryptedLookupAndGetRequest.handleFile
 
 The handle is `(major << 8) | minor` as a `u16` (`FH:69-71`). On the wire it is little-endian, so the byte order is `[minor][major]` (`EncGet:61-67`, `Del:35-39`).
 
-| Name | major | minor |
-|---|---|---|
-| OTA_FILE | 0x00 | 0x00 |
-| **ACTIVITY_FILE** | **0x01** | **0x00** |
-| HARDWARE_LOG_FILE | 0x02 | 0x00 |
-| FONT_FILE | 0x03 | 0x00 |
-| MUSIC_INFO | 0x04 | 0x00 |
-| UI_CONTROL | 0x05 | 0x00 |
-| HAND_ACTIONS / SETTINGS_BUTTONS | 0x06 | 0x00 |
-| ASSET_BACKGROUND_IMAGES / NOTIFICATION_IMAGES / TRANSLATIONS / REPLY_IMAGES | 0x07 | 0x00 / 0x01 / 0x02 / 0x03 |
-| CONFIGURATION | 0x08 | 0x00 |
-| NOTIFICATION_PLAY | 0x09 | 0x00 |
-| ALARMS | 0x0A | 0x00 |
-| DEVICE_INFO | 0x0B | 0x00 |
-| NOTIFICATION_FILTER | 0x0C | 0x00 |
-| WATCH_PARAMETERS | 0x0E | 0x00 |
-| LOOK_UP_TABLE | 0x0F | 0x00 |
-| RATE | 0x10 | 0x00 |
-| REPLY_MESSAGES | 0x13 | 0x00 |
-| APP_CODE | 0x15 | 0xFE |
+| Name                                                                        | major    | minor                     |
+| --------------------------------------------------------------------------- | -------- | ------------------------- |
+| OTA_FILE                                                                    | 0x00     | 0x00                      |
+| **ACTIVITY_FILE**                                                           | **0x01** | **0x00**                  |
+| HARDWARE_LOG_FILE                                                           | 0x02     | 0x00                      |
+| FONT_FILE                                                                   | 0x03     | 0x00                      |
+| MUSIC_INFO                                                                  | 0x04     | 0x00                      |
+| UI_CONTROL                                                                  | 0x05     | 0x00                      |
+| HAND_ACTIONS / SETTINGS_BUTTONS                                             | 0x06     | 0x00                      |
+| ASSET_BACKGROUND_IMAGES / NOTIFICATION_IMAGES / TRANSLATIONS / REPLY_IMAGES | 0x07     | 0x00 / 0x01 / 0x02 / 0x03 |
+| CONFIGURATION                                                               | 0x08     | 0x00                      |
+| NOTIFICATION_PLAY                                                           | 0x09     | 0x00                      |
+| ALARMS                                                                      | 0x0A     | 0x00                      |
+| DEVICE_INFO                                                                 | 0x0B     | 0x00                      |
+| NOTIFICATION_FILTER                                                         | 0x0C     | 0x00                      |
+| WATCH_PARAMETERS                                                            | 0x0E     | 0x00                      |
+| LOOK_UP_TABLE                                                               | 0x0F     | 0x00                      |
+| RATE                                                                        | 0x10     | 0x00                      |
+| REPLY_MESSAGES                                                              | 0x13     | 0x00                      |
+| APP_CODE                                                                    | 0x15     | 0xFE                      |
 
 ### 4.2 Shape of control responses on `3dda0003`
 
@@ -334,12 +335,12 @@ INFERRED: `FF 01` is handle `0x01FF` in little-endian, meaning "minor wildcard, 
 
 **Response 1** (notify `3dda0003`, low nibble 2) (`Lookup:73-96`):
 
-| Offset | Type | Meaning |
-|---|---|---|
-| 0 | u8 | `0x?2` |
-| 1..2 | u16 LE | handle. Upstream ignores it; the comparison is commented out (`Lookup:87-89`). |
-| 3 | u8 | ResultCode. Non-zero throws (`Lookup:80-85`). |
-| 4..7 | u32 LE | size of the lookup payload. **`0` means FILE_EMPTY**: there is no activity data, and the request finishes (`Lookup:91-95`, `HRA:1321-1323`). |
+| Offset | Type   | Meaning                                                                                                                                      |
+| ------ | ------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0      | u8     | `0x?2`                                                                                                                                       |
+| 1..2   | u16 LE | handle. Upstream ignores it; the comparison is commented out (`Lookup:87-89`).                                                               |
+| 3      | u8     | ResultCode. Non-zero throws (`Lookup:80-85`).                                                                                                |
+| 4..7   | u32 LE | size of the lookup payload. **`0` means FILE_EMPTY**: there is no activity data, and the request finishes (`Lookup:91-95`, `HRA:1321-1323`). |
 
 **Data** (notify `3dda0004`, **not encrypted** for lookup) (`Lookup:119-124`): byte 0 is the packet marker, and bytes 1 onward are appended. A marker with `0x80` set ends the payload.
 
@@ -354,22 +355,22 @@ The HR adapter wraps the get in `queueWrite(FileEncryptedInterface)`, so a new v
 
 **Request** (write `3dda0003`, 11 bytes) (`EncGet:56-72`, `EncGet:217-225`):
 
-| Offset | Bytes |
-|---|---|
-| 0 | `01` (op get) |
-| 1 | minor (from the lookup handle) |
-| 2 | major |
-| 3..6 | `00 00 00 00` (u32 LE start offset, INFERRED) |
-| 7..10 | `FF FF FF FF` (u32 LE length or end, meaning "all", INFERRED) |
+| Offset | Bytes                                                         |
+| ------ | ------------------------------------------------------------- |
+| 0      | `01` (op get)                                                 |
+| 1      | minor (from the lookup handle)                                |
+| 2      | major                                                         |
+| 3..6   | `00 00 00 00` (u32 LE start offset, INFERRED)                 |
+| 7..10  | `FF FF FF FF` (u32 LE length or end, meaning "all", INFERRED) |
 
 **Response 1** (notify `3dda0003`, low nibble 1) (`EncGet:124-148`):
 
-| Offset | Meaning |
-|---|---|
-| 1 | minor (must match, otherwise throw) |
-| 2 | major (must match, otherwise throw) |
-| 3 | ResultCode (non-zero throws) |
-| 4..7 | u32 LE `fileSize`. The receive buffer is allocated to exactly this size. |
+| Offset | Meaning                                                                  |
+| ------ | ------------------------------------------------------------------------ |
+| 1      | minor (must match, otherwise throw)                                      |
+| 2      | major (must match, otherwise throw)                                      |
+| 3      | ResultCode (non-zero throws)                                             |
+| 4..7   | u32 LE `fileSize`. The receive buffer is allocated to exactly this size. |
 
 Upstream builds the IV when this response arrives (`initDecryption`, `EncGet:74-98`):
 
@@ -382,9 +383,9 @@ iv[7]++;                                           // iv[7] = (phoneRandom[5] + 
 
 Resulting IV layout:
 
-| iv byte | 0 | 1 | 2..6 | 7 | 8 | 9..15 |
-|---|---|---|---|---|---|---|
-| value | 00 | 00 | phone[0..4] | phone[5]+1 | 00 | watch[0..6] |
+| iv byte | 0   | 1   | 2..6        | 7          | 8   | 9..15       |
+| ------- | --- | --- | ----------- | ---------- | --- | ----------- |
+| value   | 00  | 00  | phone[0..4] | phone[5]+1 | 00  | watch[0..6] |
 
 The same construction is used for uploads (`EncPut:104-115`).
 
@@ -426,12 +427,12 @@ After decryption (`EncGet:203-208`):
 
 **Response 2** (notify `3dda0003`, low nibble 8) (`EncGet:149-174`):
 
-| Offset | Meaning |
-|---|---|
-| 1 | minor (must match) |
-| 2 | major (must match) |
-| 3..7 | Not read. UNKNOWN. INFERRED status and size. |
-| 8..11 | u32 LE CRC |
+| Offset | Meaning                                      |
+| ------ | -------------------------------------------- |
+| 1      | minor (must match)                           |
+| 2      | major (must match)                           |
+| 3..7   | Not read. UNKNOWN. INFERRED status and size. |
+| 8..11  | u32 LE CRC                                   |
 
 - **CRC check:** `java.util.zip.CRC32` (standard IEEE/zlib CRC-32, **not CRC32C**) over the full reassembled **plaintext** `fileData`. That is every packet's bytes after the marker, including the file's own 12-byte header and 4-byte trailer (`EncGet:164-171`).
 - On a match, `handleFileData(fileData)` runs synchronously inside the notification callback (`EncGet:173`).
@@ -463,30 +464,30 @@ Any mismatch throws. The adapter logs the exception and moves to the next reques
 
 ### 4.8 ResultCode table (`RC:19-45`)
 
-| Code | Name |
-|---|---|
-| 0 | SUCCESS (the only success value) |
-| 1 | INVALID_OPERATION_DATA |
-| 2 | OPERATION_IN_PROGRESS |
-| 3 | MISS_PACKET |
-| 4 | SOCKET_BUSY |
-| 5 | VERIFICATION_FAIL |
-| 6 | OVERFLOW |
-| 7 | SIZE_OVER_LIMIT |
-| 128 | FIRMWARE_INTERNAL_ERROR |
-| 129 | …NOT_OPEN |
-| 130 | …ACCESS_ERROR |
-| 131 | …NOT_FOUND |
-| 132 | …NOT_VALID |
-| 133 | …ALREADY_CREATE |
-| 134 | …NOT_ENOUGH_MEMORY |
-| 135 | …NOT_IMPLEMENTED |
-| 136 | …NOT_SUPPORT |
-| 137 | …SOCKET_BUSY |
-| 138 | …SOCKET_ALREADY_OPEN |
-| 139 | …INPUT_DATA_INVALID |
-| 140 | FIRMWARE_INTERNAL_NOT_AUTHENTICATE |
-| 141 | FIRMWARE_INTERNAL_SIZE_OVER_LIMIT |
+| Code | Name                               |
+| ---- | ---------------------------------- |
+| 0    | SUCCESS (the only success value)   |
+| 1    | INVALID_OPERATION_DATA             |
+| 2    | OPERATION_IN_PROGRESS              |
+| 3    | MISS_PACKET                        |
+| 4    | SOCKET_BUSY                        |
+| 5    | VERIFICATION_FAIL                  |
+| 6    | OVERFLOW                           |
+| 7    | SIZE_OVER_LIMIT                    |
+| 128  | FIRMWARE_INTERNAL_ERROR            |
+| 129  | …NOT_OPEN                          |
+| 130  | …ACCESS_ERROR                      |
+| 131  | …NOT_FOUND                         |
+| 132  | …NOT_VALID                         |
+| 133  | …ALREADY_CREATE                    |
+| 134  | …NOT_ENOUGH_MEMORY                 |
+| 135  | …NOT_IMPLEMENTED                   |
+| 136  | …NOT_SUPPORT                       |
+| 137  | …SOCKET_BUSY                       |
+| 138  | …SOCKET_ALREADY_OPEN               |
+| 139  | …INPUT_DATA_INVALID                |
+| 140  | FIRMWARE_INTERNAL_NOT_AUTHENTICATE |
+| 141  | FIRMWARE_INTERNAL_SIZE_OVER_LIMIT  |
 
 Remember the signed-byte quirk from §3.2.
 
@@ -498,18 +499,18 @@ Remember the signed-byte quirk from §3.2.
 
 ### 5.1 Header
 
-| Offset | Type | Read by upstream | Meaning |
-|---|---|---|---|
-| 0..1 | u16 | no | File handle (INFERRED from the container layout at `Put:43`) |
-| 2..3 | u16 | **yes** | **File version. Must be 22**, otherwise `RuntimeException` (`AFP:49-50`). The message wrongly says "16 required". |
-| 4..7 | u32 | no | INFERRED offset (container layout `Put:48`) |
-| 8..11 | i32 | **yes** | Initial `currentTimestamp` in Unix seconds (`AFP:52`). This conflicts with the upload container layout, where bytes 8..11 are the payload length (`Put:50`). UNKNOWN which is right for activity files; see §9. |
-| 12..13 | i16 | read, **discarded** | `timeOffsetMinutes` (`AFP:54`) |
-| 16..17 | i16 | read, **discarded** | `fileId` (`AFP:56`) |
-| 32..41 | | no-HR variant only | Timestamp-sync block `E2 04 <ts i32> <duration i16> <offset i16>`. The comment says it is always at offset 32 (`AFP:82-85`). |
-| 34..37 | i32 | no-HR variant | Replaces `currentTimestamp` (`AFP:85`) |
-| 44 | | no-HR variant | First 4-byte record (`AFP:87`) |
-| 52 | | HR variant | Marker stream starts here (`AFP:116`) |
+| Offset | Type | Read by upstream    | Meaning                                                                                                                                                                                                         |
+| ------ | ---- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0..1   | u16  | no                  | File handle (INFERRED from the container layout at `Put:43`)                                                                                                                                                    |
+| 2..3   | u16  | **yes**             | **File version. Must be 22**, otherwise `RuntimeException` (`AFP:49-50`). The message wrongly says "16 required".                                                                                               |
+| 4..7   | u32  | no                  | INFERRED offset (container layout `Put:48`)                                                                                                                                                                     |
+| 8..11  | i32  | **yes**             | Initial `currentTimestamp` in Unix seconds (`AFP:52`). This conflicts with the upload container layout, where bytes 8..11 are the payload length (`Put:50`). UNKNOWN which is right for activity files; see §9. |
+| 12..13 | i16  | read, **discarded** | `timeOffsetMinutes` (`AFP:54`)                                                                                                                                                                                  |
+| 16..17 | i16  | read, **discarded** | `fileId` (`AFP:56`)                                                                                                                                                                                             |
+| 32..41 |      | no-HR variant only  | Timestamp-sync block `E2 04 <ts i32> <duration i16> <offset i16>`. The comment says it is always at offset 32 (`AFP:82-85`).                                                                                    |
+| 34..37 | i32  | no-HR variant       | Replaces `currentTimestamp` (`AFP:85`)                                                                                                                                                                          |
+| 44     |      | no-HR variant       | First 4-byte record (`AFP:87`)                                                                                                                                                                                  |
+| 52     |      | HR variant          | Marker stream starts here (`AFP:116`)                                                                                                                                                                           |
 
 **Only version 22 is handled.** There is no other version branch.
 
@@ -521,12 +522,12 @@ The file is the HR variant if `file[52]` is one of `CE C2 E2 E0 DD D6 CB CC CF`.
 
 Records start at offset 44 and repeat while `pos <= len - 4`:
 
-| Byte | Meaning |
-|---|---|
-| 0 | `varLo` (variability and steps, §5.5) |
-| 1 | `varHi` |
-| 2 | Must be `0xFF`, otherwise **parsing stops** (`AFP:94`) |
-| 3 | flags: `active = (b & 0x40) != 0`, `calories = b & 0x3F` |
+| Byte | Meaning                                                  |
+| ---- | -------------------------------------------------------- |
+| 0    | `varLo` (variability and steps, §5.5)                    |
+| 1    | `varHi`                                                  |
+| 2    | Must be `0xFF`, otherwise **parsing stops** (`AFP:94`)   |
+| 3    | flags: `active = (b & 0x40) != 0`, `calories = b & 0x3F` |
 
 Each record also gets:
 
@@ -546,22 +547,22 @@ The loop runs `while position < capacity - 4`, so the last 4 bytes (INFERRED tra
 
 `valid(x)` means `x` is one of `CE DD CB CC CF D6 E2`. This set excludes `C2` and `E0` (`AFP:286-291`).
 
-| Lead byte | Layout (after the lead byte) | Effect | Source |
-|---|---|---|---|
-| `CE` | `wear` | Sets the wear state from bits 3-4 and HR quality from bits 5-7 (§5.5). Followed by `f1 f2` and one of the sub-cases below. | `AFP:124-127`, `AFP:312-320` |
-| `CE` → `f1 f2 = E2 04` | `ts i32`, `duration i16`, `minutesOffset i16`, then a 4-byte sample | **Resyncs `currentTimestamp = ts`.** The duration and offset are discarded. | `AFP:129-133`, `AFP:191-200` |
-| `CE` → `f1 = D3` (workout-related) | `f2` = hr1, `info[2]`, then: if the next byte is `DF`, skip 1 plus either 11 bytes (when `info[0]==08`) or 3 bytes (when `!valid(peek+4)`); if it is `E2 04`, skip 13 plus 3 conditionally; otherwise skip 1 when `!valid(peek+4)`. Then a 4-byte sample. | Heuristic skip only; nothing is stored | `AFP:135-156` |
-| `CE` → `f1 = CF` or `DF` | none | `continue` (nothing else consumed) | `AFP:158-159` |
-| `CE` → `f1 = D6` | `f2` (consumed), `spo2 u8`, 3 skipped bytes, then a 4-byte sample | SpO2 sample at `currentTimestamp * 1000` ms | `AFP:161-166` |
-| `CE` → `f1 f2 = FE FE` | optional third `FE`, then a 4-byte sample | skip | `AFP:168-171` |
-| `CE` → else, if `valid(byte at pos+2)` | `f1`=varLo, `f2`=varHi, then `hr u8`, `cal u8` (**6-byte minute record**) | One minute sample | `AFP:173-185` |
-| `CE` → else | `f1 f2` discarded, then `varLo varHi hr cal` (**8-byte minute record**) | One minute sample | `AFP:187-202` |
-| `C2` | 3 bytes | skip (the comment cites upstream issue #2884) | `AFP:204-206` |
-| `E2` | 9 bytes, plus 6 more if `!valid(next)` | skip. INFERRED: `E2 04 ts dur off`. Does **not** resync the timestamp. | `AFP:208-213` |
-| `E0` | 14 TLV attributes `[id u8][size u8][size bytes]` | Workout summary (§5.7) | `AFP:215-260` |
-| `DD` | 20 bytes | skip ("no idea") | `AFP:262-264` |
-| `D6` | `x u8` (a statistic), `spo2 u8` | SpO2 sample at `currentTimestamp * 1000` | `AFP:266-272` |
-| `CB` / `CC` / `CF` | 1 byte | skip | `AFP:274-278` |
+| Lead byte                              | Layout (after the lead byte)                                                                                                                                                                                                                              | Effect                                                                                                                     | Source                       |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
+| `CE`                                   | `wear`                                                                                                                                                                                                                                                    | Sets the wear state from bits 3-4 and HR quality from bits 5-7 (§5.5). Followed by `f1 f2` and one of the sub-cases below. | `AFP:124-127`, `AFP:312-320` |
+| `CE` → `f1 f2 = E2 04`                 | `ts i32`, `duration i16`, `minutesOffset i16`, then a 4-byte sample                                                                                                                                                                                       | **Resyncs `currentTimestamp = ts`.** The duration and offset are discarded.                                                | `AFP:129-133`, `AFP:191-200` |
+| `CE` → `f1 = D3` (workout-related)     | `f2` = hr1, `info[2]`, then: if the next byte is `DF`, skip 1 plus either 11 bytes (when `info[0]==08`) or 3 bytes (when `!valid(peek+4)`); if it is `E2 04`, skip 13 plus 3 conditionally; otherwise skip 1 when `!valid(peek+4)`. Then a 4-byte sample. | Heuristic skip only; nothing is stored                                                                                     | `AFP:135-156`                |
+| `CE` → `f1 = CF` or `DF`               | none                                                                                                                                                                                                                                                      | `continue` (nothing else consumed)                                                                                         | `AFP:158-159`                |
+| `CE` → `f1 = D6`                       | `f2` (consumed), `spo2 u8`, 3 skipped bytes, then a 4-byte sample                                                                                                                                                                                         | SpO2 sample at `currentTimestamp * 1000` ms                                                                                | `AFP:161-166`                |
+| `CE` → `f1 f2 = FE FE`                 | optional third `FE`, then a 4-byte sample                                                                                                                                                                                                                 | skip                                                                                                                       | `AFP:168-171`                |
+| `CE` → else, if `valid(byte at pos+2)` | `f1`=varLo, `f2`=varHi, then `hr u8`, `cal u8` (**6-byte minute record**)                                                                                                                                                                                 | One minute sample                                                                                                          | `AFP:173-185`                |
+| `CE` → else                            | `f1 f2` discarded, then `varLo varHi hr cal` (**8-byte minute record**)                                                                                                                                                                                   | One minute sample                                                                                                          | `AFP:187-202`                |
+| `C2`                                   | 3 bytes                                                                                                                                                                                                                                                   | skip (the comment cites upstream issue #2884)                                                                              | `AFP:204-206`                |
+| `E2`                                   | 9 bytes, plus 6 more if `!valid(next)`                                                                                                                                                                                                                    | skip. INFERRED: `E2 04 ts dur off`. Does **not** resync the timestamp.                                                     | `AFP:208-213`                |
+| `E0`                                   | 14 TLV attributes `[id u8][size u8][size bytes]`                                                                                                                                                                                                          | Workout summary (§5.7)                                                                                                     | `AFP:215-260`                |
+| `DD`                                   | 20 bytes                                                                                                                                                                                                                                                  | skip ("no idea")                                                                                                           | `AFP:262-264`                |
+| `D6`                                   | `x u8` (a statistic), `spo2 u8`                                                                                                                                                                                                                           | SpO2 sample at `currentTimestamp * 1000`                                                                                   | `AFP:266-272`                |
+| `CB` / `CC` / `CF`                     | 1 byte                                                                                                                                                                                                                                                    | skip                                                                                                                       | `AFP:274-278`                |
 
 **Minute sample construction** (`finishCurrentPacket`, `AFP:322-333`):
 
@@ -598,11 +599,11 @@ The semantics of `variability` are UNKNOWN. It is stored raw.
 
 **Wear byte** (`AFP:312-320`):
 
-| `(wear >> 3) & 0x03` | Wear state | Stored `wear_type` | ActivityKind |
-|---|---|---|---|
-| 0 | NOT_WEARING | 1 | NOT_WORN |
-| 1 | WEARING | 0 | NOT_MEASURED |
-| 2, 3 | UNKNOWN | 2 | UNKNOWN |
+| `(wear >> 3) & 0x03` | Wear state  | Stored `wear_type` | ActivityKind |
+| -------------------- | ----------- | ------------------ | ------------ |
+| 0                    | NOT_WEARING | 1                  | NOT_WORN     |
+| 1                    | WEARING     | 0                  | NOT_MEASURED |
+| 2, 3                 | UNKNOWN     | 2                  | UNKNOWN      |
 
 (Stored values from `AE:52-55`.)
 
@@ -627,11 +628,11 @@ The semantics of `variability` are UNKNOWN. It is stored raw.
 
 ### 5.8 What upstream persists
 
-| Data | Table and fields | Primary key | Write call | Source |
-|---|---|---|---|---|
-| Minute samples | `HybridHRActivitySample`: `timestamp` (int, s), `deviceId`, `userId`, `steps`, `calories`, `variability`, `max_variability`, `heartrate_quality`, `active` (bool), `wear_type` (byte), `heartRate` | `(timestamp, deviceId)` | `insertOrReplaceInTx`, so re-importing is idempotent | `Dao:1103-1118`, `Dao:1622-1626`, `AE:36-50`, `G/devices/AbstractSampleProvider.java:123-125` |
-| SpO2 | `HybridHRSpo2Sample`: `timestamp` (long, **ms**), `deviceId`, `userId`, `spo2` | `(timestamp, deviceId)` | `persistSamples` → `insertOrReplaceInTx`. **Exceptions are caught and only toasted.** | `Dao:1120-1125`, `Dao:1635-1639`, `G/devices/AbstractTimeSampleProvider.java:225-263` |
-| Workouts | `BaseActivitySummary` with name, kind, start, end and raw TLV | autoincrement | `summaryDao.insert`, so **re-importing duplicates rows** | `HRA:1292-1299` |
+| Data           | Table and fields                                                                                                                                                                                   | Primary key             | Write call                                                                            | Source                                                                                        |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- | ------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| Minute samples | `HybridHRActivitySample`: `timestamp` (int, s), `deviceId`, `userId`, `steps`, `calories`, `variability`, `max_variability`, `heartrate_quality`, `active` (bool), `wear_type` (byte), `heartRate` | `(timestamp, deviceId)` | `insertOrReplaceInTx`, so re-importing is idempotent                                  | `Dao:1103-1118`, `Dao:1622-1626`, `AE:36-50`, `G/devices/AbstractSampleProvider.java:123-125` |
+| SpO2           | `HybridHRSpo2Sample`: `timestamp` (long, **ms**), `deviceId`, `userId`, `spo2`                                                                                                                     | `(timestamp, deviceId)` | `persistSamples` → `insertOrReplaceInTx`. **Exceptions are caught and only toasted.** | `Dao:1120-1125`, `Dao:1635-1639`, `G/devices/AbstractTimeSampleProvider.java:225-263`         |
+| Workouts       | `BaseActivitySummary` with name, kind, start, end and raw TLV                                                                                                                                      | autoincrement           | `summaryDao.insert`, so **re-importing duplicates rows**                              | `HRA:1292-1299`                                                                               |
 
 Upstream normalises intensity as `steps / 128`, capped at 1 (`Prov:72-74`, `G/entities/AbstractHybridHRActivitySample.java:28-31`).
 
@@ -696,6 +697,7 @@ A heart-rate-plus-movement sleep estimator does exist in Gadgetbridge (`SleepSta
    The exception is `VerifyPrivateKeyRequest`, which calls `handleAuthenticationResult` **before** setting `isFinished` (`Verify:99-104`). The follow-up is inserted at the queue head instead, and runs right after the verify finishes.
 
    The net effect is a strict chain. A port should make the order explicit: lookup → verify → encrypted get → persist → delete.
+
 5. **Writes outside the queue.** The verify step-3 write (`Verify:90-92`) and upload data writes (`EncPut:89-125`) go directly to the GATT queue while the request stays in flight. GATT operations must still be serialized, as Gadgetbridge's `BtLEQueue` does.
 6. **The MTU request gates everything after it** (`FWA:949-960`). See the stall cases in §2.
 7. **Persistence is synchronous on the notification path** before the delete is queued (§6, step 2). A JavaScript port that persists asynchronously must `await` durability before it writes `0B`.
@@ -727,13 +729,13 @@ A heart-rate-plus-movement sleep estimator does exist in Gadgetbridge (`SleepSta
 
 **Catalog entries** (`packages/health-record/src/device-catalog/gadgetbridge-catalog.json`):
 
-| id | line | pairMode | Notes |
-|---|---|---|---|
-| `fossil_hybrid_hr` | 2585 | `fossil` | firmware_info link `internals/specifics/fossil-hybrid` |
-| `fossil_gen_6_hybrid` | 2568 | `fossil` | same link |
-| `skagen_jorn_gen_6` | 9590 | `fossil` | same link |
-| `fossil_q_hybrid` | 2602 | `free` | Non-HR QHybrid. Uses the non-encrypted path, so it is out of scope. |
-| `citizen_cz_gen2` | 1892 | `fossil` | Vendor `fossil`, but no Citizen mapping exists in the reviewed upstream code. UNKNOWN, out of scope. |
+| id                    | line | pairMode | Notes                                                                                                |
+| --------------------- | ---- | -------- | ---------------------------------------------------------------------------------------------------- |
+| `fossil_hybrid_hr`    | 2585 | `fossil` | firmware_info link `internals/specifics/fossil-hybrid`                                               |
+| `fossil_gen_6_hybrid` | 2568 | `fossil` | same link                                                                                            |
+| `skagen_jorn_gen_6`   | 9590 | `fossil` | same link                                                                                            |
+| `fossil_q_hybrid`     | 2602 | `free`   | Non-HR QHybrid. Uses the non-encrypted path, so it is out of scope.                                  |
+| `citizen_cz_gen2`     | 1892 | `fossil` | Vendor `fossil`, but no Citizen mapping exists in the reviewed upstream code. UNKNOWN, out of scope. |
 
 **Naming conventions in `apps/native/lib/direct-devices`** (Huami legacy as the key-entry reference):
 
