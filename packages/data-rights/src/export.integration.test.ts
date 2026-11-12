@@ -518,9 +518,13 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
     expect(all).not.toContain("signup-token-hash-");
     expect(all).not.toContain("c".repeat(64));
     expect(all).not.toContain("e".repeat(64));
+    // #439 — personal API key digests never leave the server.
+    expect(all).not.toContain("seed-key-hash-");
+    expect(parse("ai_app_key")[0]).not.toHaveProperty("key_hash");
     expect(exported.manifest.redacted.map((r) => r.table).sort()).toEqual([
       "account",
       "admission_grant",
+      "ai_app_key",
       "exercise_catalog_mutation",
       "goal_mutation",
       "insight_preference",

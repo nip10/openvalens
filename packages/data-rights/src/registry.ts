@@ -118,6 +118,14 @@ export const DATA_RIGHTS_REGISTRY: Readonly<Record<string, TableEntry>> = Object
   // call count only, no content. The person's own: exported, and erased with
   // the account.
   ai_usage_month: { kind: "user" },
+  // Connected AI apps (#439): the member's grants (workspace, scopes, AI-app
+  // consent version, times), their personal keys and the per-call usage
+  // record (tool, status, row count; never arguments or results). Exported to
+  // the member with the key digest redacted; erasing the account or the
+  // workspace removes every grant, key and call row.
+  ai_app_grant: { kind: "user" },
+  ai_app_key: { kind: "user", redact: ["key_hash"] },
+  ai_app_call: { kind: "user" },
   coach_template: {
     kind: "reference",
     reason: "Shared coach presets, not user data.",

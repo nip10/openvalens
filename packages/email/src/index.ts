@@ -15,3 +15,4 @@ export * from "./templates/invitation-reminder";
 export * from "./templates/invitation-revoked";
 export * from "./templates/magic-link";
 export * from "./templates/billing";
+export * from "./templates/ai-app-key-created";

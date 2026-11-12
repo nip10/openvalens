@@ -115,6 +115,10 @@ export async function seedEveryModule(db: Database, who: string): Promise<void> 
     `insert into user_ai_consent (user_id, granted) values ('${user}', true)`,
     // AI usage per month (#299): counts only.
     `insert into ai_usage_month (user_id, month, input_tokens, output_tokens, cost_micros, call_count) values ('${user}', '2026-10-01', 1200, 300, 5400, 2)`,
+    // Connected AI apps (#439): one personal-key grant, its key and one call.
+    `with grant_row as (insert into ai_app_grant (organization_id, user_id, kind, label, scopes, consent_version, consented_at) values ('${org}', '${user}', 'personal_key', 'Seeded key ${who}', '{records:read}', 'mcp-v1', now()) returning id),
+          key_row as (insert into ai_app_key (grant_id, user_id, key_hash, display_prefix) select id, '${user}', 'seed-key-hash-${who}', 'ov_seed00' from grant_row)
+       insert into ai_app_call (grant_id, user_id, tool, transport, status, row_count) select id, '${user}', 'labs', 'mcp', 'ok', 3 from grant_row`,
     `insert into wellness_profile (user_id, revision) values ('${user}', 1)`,
     // Weight and Health Connect
     `insert into weight_event (organization_id, user_id, date, measured_at, source, weight_kg, created_at) values ('${org}', '${user}', '2026-10-01', '2026-10-01T07:00', 'manual', 72, '2026-10-01')`,

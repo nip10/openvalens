@@ -10,6 +10,7 @@ import type { IntegrationStatuses } from "@openvalens/config/integrations";
 import type { Database } from "@openvalens/db";
 import type { EmailService } from "@openvalens/email";
 import type { StorageService } from "@openvalens/storage";
+import type { AiAppsService } from "@openvalens/mcp";
 import type { FoodLookupProvider } from "@openvalens/nutrition/food-lookup";
 import type { PushProvider } from "@openvalens/push";
 import type { TelegramClient } from "@openvalens/telegram";
@@ -275,6 +276,12 @@ export type Context = {
    * default). Phone-first ingestion never needs it.
    */
   wearables?: WearablesService | null;
+  /**
+   * Issue #439 — connected AI apps (grants and personal API keys), or
+   * `null`/absent when the operator has not enabled the MCP server
+   * (`MCP_ENABLED`). The procedures answer `NOT_FOUND` without it.
+   */
+  aiApps?: AiAppsService | null;
   /** Issue #53 — optional server-only analytics adapter; absent is fail-closed. */
   analytics?: AnalyticsService;
   /**

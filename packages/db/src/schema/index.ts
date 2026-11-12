@@ -25,3 +25,4 @@ export * from "./storage";
 export * from "./preventive-care";
 export * from "./wearables";
 export * from "./wearables";
+export * from "./ai-apps";
