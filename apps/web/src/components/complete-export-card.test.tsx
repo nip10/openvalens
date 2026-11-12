@@ -8,7 +8,10 @@ let queryState: Record<string, unknown>;
 let queryOptions:
   | { refetchInterval?: (query: { state: { data?: unknown } }) => unknown }
   | undefined;
-mock.module("@/utils/orpc", () => ({ client: { dataRights: {} } }));
+// Bun keeps module mocks for the rest of the process, so a partial mock must
+// keep the real exports (`orpc`, `queryClient`, ...) for later test files.
+const actualOrpc = await import("@/utils/orpc");
+mock.module("@/utils/orpc", () => ({ ...actualOrpc, client: { dataRights: {} } }));
 mock.module("@/env", () => ({ ENV: { VITE_SERVER_URL: "https://health.example/" } }));
 mock.module("@tanstack/react-router", () => ({
   Link: ({ to, children }: { to: string; children: ReactNode }) => <a href={to}>{children}</a>,

@@ -14,7 +14,10 @@ mock.module("@/lib/auth-client", () => ({
     }),
   },
 }));
-mock.module("@/utils/orpc", () => ({ client: { privateBody: {} } }));
+// Bun keeps module mocks for the rest of the process, so a partial mock must
+// keep the real exports (`orpc`, `queryClient`, ...) for later test files.
+const actualOrpc = await import("@/utils/orpc");
+mock.module("@/utils/orpc", () => ({ ...actualOrpc, client: { privateBody: {} } }));
 mock.module("@tanstack/react-query", () => ({
   useQueryClient: () => ({ invalidateQueries: () => Promise.resolve() }),
   useQuery: ({ queryKey }: { queryKey: unknown[] }) =>
