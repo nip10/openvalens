@@ -24,6 +24,7 @@ import {
   insightUnsubscribeKey,
   integrations,
   invitationEmails,
+  mcpOAuthConsent,
   productSettingsService,
   publicSignUpService,
   pushProvider,
@@ -134,6 +135,8 @@ export async function createContext({ context }: CreateContextOptions): Promise<
     wearables: wearablesService,
     // Issue #439 — connected AI apps, or `null` when `MCP_ENABLED` is off.
     aiApps: aiAppsService,
+    // Issue #439 (M1b) — OAuth consent screen, or `null` while OAuth is off.
+    aiAppsOAuth: mcpOAuthConsent,
     webOrigin: admissionOriginFrom(ENV.CORS_ORIGIN),
     insightUnsubscribeKey: insightUnsubscribeKey ?? undefined,
     // Hand the Hono context through so authz guards and cron auth can read

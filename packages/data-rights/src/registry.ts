@@ -126,6 +126,33 @@ export const DATA_RIGHTS_REGISTRY: Readonly<Record<string, TableEntry>> = Object
   ai_app_grant: { kind: "user" },
   ai_app_key: { kind: "user", redact: ["key_hash"] },
   ai_app_call: { kind: "user" },
+  // OAuth 2.1 for AI apps (#439, M1b), owned by Better Auth. The member's
+  // consents and opaque tokens (each pointing at its `ai_app_grant`) are
+  // theirs: exported with the token digests and the stored refresh response
+  // redacted, and erased with the account. Revoking a grant deletes them.
+  oauth_consent: { kind: "user" },
+  oauth_access_token: { kind: "user", redact: ["token"] },
+  oauth_refresh_token: {
+    kind: "user",
+    redact: ["token", "rotation_replay_response", "confirmation"],
+  },
+  // AI app clients are registered anonymously (DCR, `user_id` null) or
+  // discovered (CIMD) and shared by every member who connects them; unused
+  // dynamic registrations are deleted after 24 hours. Only a client a member
+  // registered while signed in has a `user_id`; it is theirs.
+  oauth_client: { kind: "user", redact: ["client_secret"] },
+  oauth_resource: {
+    kind: "reference",
+    reason: "The MCP endpoint OAuth tokens are issued for; server configuration.",
+  },
+  oauth_client_resource: {
+    kind: "system",
+    reason: "Links an AI app client to the MCP endpoint; no member data.",
+  },
+  oauth_client_assertion: {
+    kind: "system",
+    reason: "Single-use client assertion ids that expire within minutes.",
+  },
   coach_template: {
     kind: "reference",
     reason: "Shared coach presets, not user data.",

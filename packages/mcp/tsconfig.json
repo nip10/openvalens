@@ -13,6 +13,7 @@
     { "path": "../ai" },
     { "path": "../observability" },
     { "path": "../audit-security" },
+    { "path": "../auth" },
     { "path": "../data-rights" },
     { "path": "../config" }
   ]

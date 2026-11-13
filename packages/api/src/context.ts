@@ -11,6 +11,7 @@ import type { Database } from "@openvalens/db";
 import type { EmailService } from "@openvalens/email";
 import type { StorageService } from "@openvalens/storage";
 import type { AiAppsService } from "@openvalens/mcp";
+import type { McpOAuthConsent } from "@openvalens/auth/mcp-oauth";
 import type { FoodLookupProvider } from "@openvalens/nutrition/food-lookup";
 import type { PushProvider } from "@openvalens/push";
 import type { TelegramClient } from "@openvalens/telegram";
@@ -282,6 +283,12 @@ export type Context = {
    * (`MCP_ENABLED`). The procedures answer `NOT_FOUND` without it.
    */
   aiApps?: AiAppsService | null;
+  /**
+   * Issue #439 (M1b) — the OAuth consent screen's server side (signed request
+   * check, Better Auth consent), or `null`/absent while OAuth is off. The
+   * `aiApps.oauth.*` procedures answer `NOT_FOUND` without it.
+   */
+  aiAppsOAuth?: McpOAuthConsent | null;
   /** Issue #53 — optional server-only analytics adapter; absent is fail-closed. */
   analytics?: AnalyticsService;
   /**

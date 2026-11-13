@@ -13,7 +13,7 @@
 
 	header Strict-Transport-Security "max-age=31536000"
 
-	@api path /api /api/* /rpc /rpc/* /api-reference /api-reference/* /.well-known/openvalens
+	@api path /api /api/* /rpc /rpc/* /api-reference /api-reference/* /.well-known/openvalens /.well-known/oauth-protected-resource /.well-known/oauth-protected-resource/* /.well-known/oauth-authorization-server /.well-known/oauth-authorization-server/*
 	handle @api {
 		reverse_proxy server:3000
 	}

@@ -39,7 +39,15 @@ import {
   parseFoodLookupConfig,
 } from "@openvalens/nutrition/food-lookup";
 import { createPushProvider, describePushIntegration, parsePushConfig } from "@openvalens/push";
-import { createAiAppsService, describeMcpIntegration, parseMcpConfig } from "@openvalens/mcp";
+import { createMcpOAuthConsent } from "@openvalens/auth/mcp-oauth";
+import {
+  BASE_SCOPE,
+  createAiAppsService,
+  describeMcpIntegration,
+  GRANTABLE_SCOPES,
+  mcpOAuthEndpointsFor,
+  parseMcpConfig,
+} from "@openvalens/mcp";
 import { createAiAppsHttp } from "@openvalens/mcp/http";
 import { createMcpDataSources } from "@openvalens/mcp/sources";
 import { createExerciseCatalogService } from "@openvalens/api/services/exercise-catalog";
@@ -64,7 +72,7 @@ import {
 } from "@openvalens/telegram";
 
 import { createAdmissionEmailDelivery, createSignUpEmailDelivery } from "./admission-email";
-import { createAiAppKeyCreatedEmail } from "./ai-app-email";
+import { createAiAppConnectedEmail, createAiAppKeyCreatedEmail } from "./ai-app-email";
 import { ENV } from "./env.server";
 import { initErrorReporting } from "./error-reporting";
 import { createAnalyticsService } from "./services/analytics";
@@ -305,8 +313,76 @@ export const socialSignUpService = createSocialSignUpService({
   ...(onCloudAccountCreated ? { onAccountCreated: onCloudAccountCreated } : {}),
 });
 
+// Issue #439 — connected AI apps: the MCP server and REST tool API with
+// personal API keys and (M1b) OAuth 2.1 connections. Off on self-host until
+// `MCP_ENABLED=true`, on in Cloud unless `MCP_ENABLED=false`. Separate from the
+// Coach AI family below: it never calls a model provider, and its consent
+// (`mcp-v1`) is its own. With it off, `aiAppsService` is `null`, no MCP, REST
+// tool, OAuth or well-known route is mounted and the grant procedures answer
+// `NOT_FOUND`.
+export const mcpConfig = parseMcpConfig({
+  MCP_ENABLED: ENV.MCP_ENABLED,
+  DEPLOYMENT_MODE: ENV.DEPLOYMENT_MODE,
+  MCP_RATE_LIMIT_PER_GRANT_PER_MINUTE: ENV.MCP_RATE_LIMIT_PER_GRANT_PER_MINUTE,
+  MCP_RATE_LIMIT_PER_MEMBER_PER_MINUTE: ENV.MCP_RATE_LIMIT_PER_MEMBER_PER_MINUTE,
+});
+
+/**
+ * Issue #439 (M1b) — OAuth endpoints for AI apps, derived from the server URL:
+ * the MCP resource (`<BETTER_AUTH_URL>/api/mcp`), its RFC 9728 metadata, and
+ * the web login and consent pages. `null` when the MCP server is off, or when
+ * the server URL is plain HTTP off loopback (OAuth needs HTTPS; personal keys
+ * keep working).
+ */
+export const mcpOAuthEndpoints = (() => {
+  if (!mcpConfig.enabled) return null;
+  const endpoints = mcpOAuthEndpointsFor({
+    serverUrl: ENV.BETTER_AUTH_URL,
+    webOrigin: ENV.CORS_ORIGIN,
+  });
+  if (!endpoints) {
+    createStructuredLogger({ level: "info" }).warn("ai_apps.oauth.disabled", {
+      reason: "server URL is not HTTPS",
+    });
+  }
+  return endpoints;
+})();
+
+export const aiAppsService = mcpConfig.enabled
+  ? createAiAppsService({
+      db,
+      logger: createStructuredLogger({ level: "info" }).child({ component: "ai-apps" }),
+      onKeyCreated: createAiAppKeyCreatedEmail({
+        db,
+        email,
+        locales: databaseMessageLocales(db),
+        webOrigin: ENV.CORS_ORIGIN,
+      }),
+      onOAuthConnected: createAiAppConnectedEmail({
+        db,
+        email,
+        locales: databaseMessageLocales(db),
+        webOrigin: ENV.CORS_ORIGIN,
+      }),
+      oauth: mcpOAuthEndpoints ? { resource: mcpOAuthEndpoints.resource } : null,
+    })
+  : null;
+
 // Issue #58 — auth must be constructed only after the email service exists.
 export const auth = createAuth(ENV, db, {
+  // Issue #439 (M1b) — OAuth 2.1 authorization server for AI apps.
+  mcpOAuth:
+    mcpOAuthEndpoints && aiAppsService
+      ? {
+          resource: mcpOAuthEndpoints.resource,
+          loginPage: mcpOAuthEndpoints.loginPage,
+          consentPage: mcpOAuthEndpoints.consentPage,
+          grantableScopes: GRANTABLE_SCOPES,
+          onRefreshTokenReplay: async (event) => {
+            await aiAppsService.revokeOAuthAfterReplay(event);
+          },
+        }
+      : null,
   email,
   healthDataConsentVersion:
     deploymentConfig.mode === "cloud" ? deploymentConfig.legal.healthDataConsent.version : null,
@@ -392,32 +468,6 @@ export const aiUsageConfig = parseAiUsageConfig(ENV);
 assertCloudAiUsageCap({ mode: deploymentConfig.mode, ai: aiConfig, usage: aiUsageConfig });
 export const aiUsageMeter = createPgAiUsageMeter({ db, config: aiUsageConfig });
 
-// Issue #439 — connected AI apps: the MCP server and REST tool API with
-// personal API keys. Off on self-host until `MCP_ENABLED=true`, on in Cloud
-// unless `MCP_ENABLED=false`. Separate from the Coach AI family above: it never
-// calls a model provider, and its consent (`mcp-v1`) is its own. With it off,
-// `aiAppsService` is `null`, no MCP or REST tool route is mounted and the grant
-// procedures answer `NOT_FOUND`.
-export const mcpConfig = parseMcpConfig({
-  MCP_ENABLED: ENV.MCP_ENABLED,
-  DEPLOYMENT_MODE: ENV.DEPLOYMENT_MODE,
-  MCP_RATE_LIMIT_PER_GRANT_PER_MINUTE: ENV.MCP_RATE_LIMIT_PER_GRANT_PER_MINUTE,
-  MCP_RATE_LIMIT_PER_MEMBER_PER_MINUTE: ENV.MCP_RATE_LIMIT_PER_MEMBER_PER_MINUTE,
-});
-
-export const aiAppsService = mcpConfig.enabled
-  ? createAiAppsService({
-      db,
-      logger: createStructuredLogger({ level: "info" }).child({ component: "ai-apps" }),
-      onKeyCreated: createAiAppKeyCreatedEmail({
-        db,
-        email,
-        locales: databaseMessageLocales(db),
-        webOrigin: ENV.CORS_ORIGIN,
-      }),
-    })
-  : null;
-
 /**
  * Issue #439 — the MCP server and REST tool API over {@link aiAppsService}, or
  * `null` when `MCP_ENABLED` is off (then no route is mounted). The tools read
@@ -430,6 +480,14 @@ export const aiAppsHttp = aiAppsService
       service: aiAppsService,
       config: mcpConfig,
       version: "1.0.0",
+      // Issue #439 (M1b) — 401/403 challenges point MCP clients at the RFC
+      // 9728 metadata, and OAuth access tokens are accepted on `/api/mcp`.
+      oauth: mcpOAuthEndpoints
+        ? {
+            resourceMetadataUrl: mcpOAuthEndpoints.resourceMetadataUrl,
+            challengeScopes: [BASE_SCOPE],
+          }
+        : null,
       logger: createStructuredLogger({ level: "info" }).child({ component: "ai-apps" }),
       sources: createMcpDataSources(db, async (input) => {
         const rows = await createExerciseCatalogService(db).search({
@@ -453,6 +511,14 @@ export const aiAppsHttp = aiAppsService
       }),
     })
   : null;
+
+/**
+ * Issue #439 (M1b) — the server side of the web consent screen: reads the
+ * signed authorization request and completes or denies it through Better
+ * Auth. `null` while OAuth is off.
+ */
+export const mcpOAuthConsent =
+  mcpOAuthEndpoints && aiAppsService ? createMcpOAuthConsent(auth) : null;
 
 // Issue #62 — server-side object storage instantiation. `STORAGE_PROVIDER`
 // selects local disk (default) or an S3-compatible bucket. When S3 is selected

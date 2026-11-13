@@ -55,17 +55,24 @@ export type AiAppsHttpOptions = {
   version: string;
   logger?: StructuredLogger;
   now?: () => Date;
+  /**
+   * OAuth 2.1 (M1b): when set, `/api/mcp` challenges carry the RFC 9728
+   * `resource_metadata` URL and a `scope` hint so MCP clients can start the
+   * authorization flow, and OAuth access tokens are accepted there.
+   */
+  oauth?: { resourceMetadataUrl: string; challengeScopes: readonly string[] } | null;
 };
 
 type Authorized = { principal: AiAppGrantPrincipal };
 
 const FAILURE_MESSAGES: Record<AiAppAuthFailure, string> = {
-  missing: "Send a personal API key as `Authorization: Bearer ov_…`.",
-  invalid: "This key is not valid.",
-  revoked: "This key was revoked.",
-  expired: "This key has expired.",
-  not_owner: "This key no longer has access to its workspace.",
+  missing: "Sign in, or send a personal API key as `Authorization: Bearer ov_…`.",
+  invalid: "This key or token is not valid.",
+  revoked: "This key or connection was revoked.",
+  expired: "This key or token has expired.",
+  not_owner: "This key or connection no longer has access to its workspace.",
   workspace_disabled: "The workspace owner has turned off connected AI apps.",
+  wrong_audience: "This token was not issued for this endpoint.",
 };
 
 function json(status: number, body: unknown, headers: Record<string, string> = {}): Response {
@@ -75,7 +82,24 @@ function json(status: number, body: unknown, headers: Record<string, string> = {
   });
 }
 
-function authFailure(reason: AiAppAuthFailure): Response {
+/** RFC 6750 §3 quoted-string: no `"` or `\`, printable ASCII only. */
+function quoted(value: string): string {
+  return value.replace(/["\\]/g, "'").replace(/[^\x20-\x7e]/g, " ");
+}
+
+type Challenge = { resourceMetadataUrl: string; scopes: readonly string[] } | null;
+
+function bearerChallenge(params: Array<[string, string | null]>, challenge: Challenge): string {
+  const parts: string[] = ['realm="OpenValens"'];
+  for (const [name, value] of params) if (value) parts.push(`${name}="${quoted(value)}"`);
+  if (challenge) {
+    parts.push(`resource_metadata="${quoted(challenge.resourceMetadataUrl)}"`);
+    if (challenge.scopes.length) parts.push(`scope="${quoted(challenge.scopes.join(" "))}"`);
+  }
+  return `Bearer ${parts.join(", ")}`;
+}
+
+function authFailure(reason: AiAppAuthFailure, challenge: Challenge): Response {
   if (reason === "workspace_disabled") {
     return json(403, { error: "access_denied", error_description: FAILURE_MESSAGES[reason] });
   }
@@ -86,10 +110,32 @@ function authFailure(reason: AiAppAuthFailure): Response {
     {
       "www-authenticate":
         reason === "missing"
-          ? 'Bearer realm="OpenValens"'
-          : `Bearer realm="OpenValens", error="invalid_token", error_description="${FAILURE_MESSAGES[reason]}"`,
+          ? bearerChallenge([], challenge)
+          : bearerChallenge(
+              [
+                ["error", "invalid_token"],
+                ["error_description", FAILURE_MESSAGES[reason]],
+              ],
+              challenge,
+            ),
     },
   );
+}
+
+/** A `tools/call` request's tool name, read from a clone of the body. */
+async function calledToolName(request: Request): Promise<string | null> {
+  if (request.method !== "POST") return null;
+  try {
+    const body = (await request.clone().json()) as {
+      method?: unknown;
+      params?: { name?: unknown };
+    } | null;
+    return body?.method === "tools/call" && typeof body.params?.name === "string"
+      ? body.params.name
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 type ToolOutcome =
@@ -114,16 +160,26 @@ export function createAiAppsHttp(options: AiAppsHttpOptions) {
     memberLimiter.sweep();
   }, 5 * 60_000).unref();
 
+  const mcpChallenge: Challenge = options.oauth
+    ? {
+        resourceMetadataUrl: options.oauth.resourceMetadataUrl,
+        scopes: options.oauth.challengeScopes,
+      }
+    : null;
+
   async function authorize(
     request: Request,
     correlationId: string | undefined,
+    transport: "mcp" | "rest",
   ): Promise<Authorized | Response> {
     const auth = await options.service.authenticate(request.headers.get("authorization"), {
       correlationId,
+      // OAuth tokens are audience-bound to `/api/mcp`; REST takes personal keys only.
+      allowOAuth: transport === "mcp" && Boolean(options.oauth),
     });
     if (!auth.ok) {
       logger.info("ai_apps.request.refused", { correlationId, reason: auth.reason });
-      return authFailure(auth.reason);
+      return authFailure(auth.reason, transport === "mcp" ? mcpChallenge : null);
     }
     const { principal } = auth;
     for (const [limiter, key] of [
@@ -291,8 +347,37 @@ export function createAiAppsHttp(options: AiAppsHttpOptions) {
 
   /** `/api/mcp`: authenticate, rate-limit, then hand the request to the SDK. */
   async function handleMcp(request: Request, correlationId?: string): Promise<Response> {
-    const authorized = await authorize(request, correlationId);
+    const authorized = await authorize(request, correlationId, "mcp");
     if (authorized instanceof Response) return authorized;
+    // A call to a known tool this grant lacks the scope for is answered with
+    // an HTTP 403 `insufficient_scope` challenge (MCP step-up), so the client
+    // can ask the member to approve the extra scope and retry.
+    const called = await calledToolName(request);
+    const calledTool = called ? findTool(called) : undefined;
+    if (calledTool && !hasScope(authorized.principal.scopes, calledTool.scope)) {
+      await options.service.recordCall({
+        principal: authorized.principal,
+        tool: calledTool.name,
+        transport: "mcp",
+        status: "insufficient_scope",
+      });
+      const scopes = [...new Set([...authorized.principal.scopes, calledTool.scope])];
+      const description = `This connection does not have the ${calledTool.scope} scope needed by ${calledTool.name}.`;
+      return json(
+        403,
+        { jsonrpc: "2.0", error: { code: -32_000, message: description }, id: null },
+        {
+          "www-authenticate": bearerChallenge(
+            [
+              ["error", "insufficient_scope"],
+              ["error_description", description],
+              ...(mcpChallenge ? [] : ([["scope", scopes.join(" ")]] as Array<[string, string]>)),
+            ],
+            mcpChallenge ? { ...mcpChallenge, scopes } : null,
+          ),
+        },
+      );
+    }
     const authInfo: AuthInfo = {
       token: `grant:${authorized.principal.grantId}`,
       clientId: authorized.principal.grantId,
@@ -308,7 +393,7 @@ export function createAiAppsHttp(options: AiAppsHttpOptions) {
     name: string,
     correlationId?: string,
   ): Promise<Response> {
-    const authorized = await authorize(request, correlationId);
+    const authorized = await authorize(request, correlationId, "rest");
     if (authorized instanceof Response) return authorized;
     const tool = findTool(name);
     if (!tool)
@@ -344,7 +429,7 @@ export function createAiAppsHttp(options: AiAppsHttpOptions) {
 
   /** `GET /api/v1/tools`: the tools this key may call, with their input schemas. */
   async function handleRestList(request: Request, correlationId?: string): Promise<Response> {
-    const authorized = await authorize(request, correlationId);
+    const authorized = await authorize(request, correlationId, "rest");
     if (authorized instanceof Response) return authorized;
     return json(200, {
       tools: toolsForScopes(authorized.principal.scopes).map((tool) => ({

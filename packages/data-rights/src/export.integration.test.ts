@@ -521,6 +521,13 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
     // #439 — personal API key digests never leave the server.
     expect(all).not.toContain("seed-key-hash-");
     expect(parse("ai_app_key")[0]).not.toHaveProperty("key_hash");
+    // #439 (M1b) — OAuth token digests and the stored refresh response neither.
+    expect(all).not.toContain("seed-access-hash-");
+    expect(all).not.toContain("seed-refresh-hash-");
+    expect(all).not.toContain("seed-replay-response-");
+    expect(all).not.toContain("seed-client-secret-");
+    expect(parse("oauth_access_token")[0]).not.toHaveProperty("token");
+    expect(parse("oauth_consent")[0]).toHaveProperty("reference_id");
     expect(exported.manifest.redacted.map((r) => r.table).sort()).toEqual([
       "account",
       "admission_grant",
@@ -530,6 +537,9 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
       "insight_preference",
       "nutrition_diary_batch",
       "nutrition_template_revision",
+      "oauth_access_token",
+      "oauth_client",
+      "oauth_refresh_token",
       "push_device",
       "session",
       "sign_up_request",

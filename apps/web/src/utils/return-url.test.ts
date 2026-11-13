@@ -18,6 +18,12 @@ describe("validateReturnUrl", () => {
     expect(v(`${origin}/join`)).toBe("/join");
   });
 
+  test("allows the OAuth resume page without any query", () => {
+    expect(v("/oauth/login")).toBe("/oauth/login");
+    expect(v("/oauth/login?client_id=x")).toBeNull();
+    expect(v("/oauth/consent")).toBeNull();
+  });
+
   test("allows same-origin /accept-invitation/<opaqueId>", () => {
     expect(v(`${origin}/accept-invitation/inv_123`)).toBe("/accept-invitation/inv_123");
   });

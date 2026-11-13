@@ -9,12 +9,12 @@ and in Coolify itself.
 
 ## What runs where
 
-| Piece                 | Coolify resource      | Builds from                      | Domain                                                                                 |
-| --------------------- | --------------------- | -------------------------------- | -------------------------------------------------------------------------------------- |
-| API (`apps/server`)   | `openvalens-api`      | `main`, `apps/server/Dockerfile` | `app.openvalens.com` paths `/api`, `/rpc`, `/api-reference`, `/.well-known/openvalens` |
-| Web app (`apps/web`)  | `openvalens-web`      | `main`, `apps/web/Dockerfile`    | `app.openvalens.com` (everything else)                                                 |
-| Website (`apps/site`) | `openvalens-site`     | `main`, `apps/site/Dockerfile`   | `openvalens.com`, `www.openvalens.com`                                                 |
-| Database              | `openvalens-postgres` | `postgres:18`                    | not public                                                                             |
+| Piece                 | Coolify resource      | Builds from                      | Domain                                                                                                                                                                       |
+| --------------------- | --------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| API (`apps/server`)   | `openvalens-api`      | `main`, `apps/server/Dockerfile` | `app.openvalens.com` paths `/api`, `/rpc`, `/api-reference`, `/.well-known/openvalens`, `/.well-known/oauth-protected-resource*`, `/.well-known/oauth-authorization-server*` |
+| Web app (`apps/web`)  | `openvalens-web`      | `main`, `apps/web/Dockerfile`    | `app.openvalens.com` (everything else)                                                                                                                                       |
+| Website (`apps/site`) | `openvalens-site`     | `main`, `apps/site/Dockerfile`   | `openvalens.com`, `www.openvalens.com`                                                                                                                                       |
+| Database              | `openvalens-postgres` | `postgres:18`                    | not public                                                                                                                                                                   |
 
 The server is a netcup VPS in Nuremberg, Germany, managed with self-hosted
 Coolify. Email goes through Resend (`openvalens.com`, region eu-west-1).
@@ -47,6 +47,9 @@ the deployment log for `migrations applied successfully`. Then check:
 - `https://app.openvalens.com/.well-known/openvalens` returns the API's JSON
   (with `"mode"`), not the web app's HTML;
 - `https://app.openvalens.com/api/health` returns `{"status":"ok","database":"ok"}`;
+- with connected AI apps on, `https://app.openvalens.com/.well-known/oauth-protected-resource/api/mcp`
+  and `https://app.openvalens.com/.well-known/oauth-authorization-server/api/auth`
+  return JSON from the API, not the web app's HTML (see [connected AI apps](ai-apps.md));
 - the API log shows `Started server` and no errors.
 
 Coolify builds each image on the VPS itself (2 vCPU, 3.9 GB RAM). During a
