@@ -37,6 +37,7 @@
     "@openvalens/sleep": "workspace:*",
     "@openvalens/storage": "workspace:*",
     "@openvalens/telegram": "workspace:*",
+    "@openvalens/trackers": "workspace:*",
     "@openvalens/vitals": "workspace:*",
     "@openvalens/wearables": "workspace:*",
     "@orpc/client": "catalog:",

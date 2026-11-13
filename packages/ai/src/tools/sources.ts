@@ -31,6 +31,11 @@ import {
   type SupplementSchedule,
 } from "@openvalens/plans";
 import { getSleepSummary, type SleepWindowSummary } from "@openvalens/sleep";
+import {
+  listAiReadableTrackers,
+  listAiTrackerDays,
+  type AiTrackerRow,
+} from "@openvalens/trackers/service";
 import { listDailyVitals, type DailyVitalsSummary } from "@openvalens/vitals";
 
 export type BodyCompositionTimeline = Awaited<ReturnType<typeof getBodyCompositionTimeline>>;
@@ -92,6 +97,20 @@ export type AiHealthToolSources = {
     scope: NutritionScope,
     range: { from: string; to: string },
   ) => Promise<DailyTotals[]>;
+  /**
+   * The member's own custom trackers that have "Coach and connected AI apps
+   * can read this" on (#441), each with its per-day values in the range. No
+   * notes, and never another member's tracker.
+   */
+  listAiTrackers: (
+    scope: { organizationId: string; userId: string },
+    range: { from: string; to: string },
+  ) => Promise<AiTrackerWithDays[]>;
+};
+
+export type AiTrackerWithDays = AiTrackerRow & {
+  /** Newest first. */
+  days: { date: string; value: number; count: number }[];
 };
 
 /** Binds the ports to the real domain packages for one database handle. */
@@ -124,5 +143,10 @@ export function createDomainHealthToolSources(db: Database, userId: string): AiH
       (await goals.listCheckins(organizationId, goalId)).filter((item) => item.deletedAt == null),
     listTimeline: (organizationId, filters) => healthRecord.listTimeline(organizationId, filters),
     listNutritionDailyTotals: (scope, range) => nutritionTotals.listDays(scope, range),
+    listAiTrackers: async (scope, range) => {
+      const trackers = await listAiReadableTrackers(db, scope);
+      const days = await listAiTrackerDays(db, scope, trackers, range);
+      return trackers.map((tracker) => ({ ...tracker, days: days.get(tracker.id) ?? [] }));
+    },
   };
 }

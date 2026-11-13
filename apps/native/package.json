@@ -32,6 +32,7 @@
     "@openvalens/i18n": "workspace:*",
     "@openvalens/observability": "workspace:*",
     "@openvalens/plans": "workspace:*",
+    "@openvalens/trackers": "workspace:*",
     "@openvalens/ui": "workspace:*",
     "@orpc/client": "catalog:",
     "@orpc/tanstack-query": "catalog:",

@@ -3,7 +3,8 @@ import { consultation, imagingStudy, cardiacExam } from "@openvalens/db/schema/c
 import { insight } from "@openvalens/db/schema/coach";
 import { scheduledEvent, weeklyReview } from "@openvalens/db/schema/plans";
 import { dailyReminder } from "@openvalens/db/schema/integrations";
-import { eq } from "drizzle-orm";
+import { customTracker, customTrackerEntry } from "@openvalens/db/schema/trackers";
+import { and, eq, gte, lte, or } from "drizzle-orm";
 import type { DomainTimelineRows } from "./timeline-adapters";
 
 /** Internal domain projection boundary, called only after the API records:read guard.
@@ -12,11 +13,23 @@ import type { DomainTimelineRows } from "./timeline-adapters";
  * after merge rather than lexically truncating same-day timestamps/offsets.
  */
 export type DomainTimelineReader = {
-  read(organizationId: string): Promise<DomainTimelineRows>;
+  read(organizationId: string, options?: DomainTimelineReadOptions): Promise<DomainTimelineRows>;
+};
+
+export type DomainTimelineReadOptions = {
+  /**
+   * The member viewing the timeline (#441). Custom tracker entries are read
+   * only for a viewer: their own trackers, and other members' trackers while
+   * shared. Without a viewer (Coach, background jobs) there are none.
+   */
+  viewerUserId?: string | null;
+  fromIso?: string;
+  toIso?: string;
 };
 export function createDomainTimelineReader(db: Database): DomainTimelineReader {
   return {
-    async read(organizationId) {
+    async read(organizationId, options = {}) {
+      const viewerUserId = options.viewerUserId ?? null;
       // No per-domain LIMIT: source/severity/cursor filtering must precede slicing.
       const [
         consultations,
@@ -26,6 +39,7 @@ export function createDomainTimelineReader(db: Database): DomainTimelineReader {
         insights,
         scheduledEvents,
         dailyReminders,
+        trackerEntries,
       ] = await Promise.all([
         db
           .select({
@@ -108,6 +122,47 @@ export function createDomainTimelineReader(db: Database): DomainTimelineReader {
           })
           .from(dailyReminder)
           .where(eq(dailyReminder.organizationId, organizationId)),
+        viewerUserId
+          ? db
+              .select({
+                id: customTrackerEntry.id,
+                trackerId: customTrackerEntry.trackerId,
+                loggedAt: customTrackerEntry.loggedAt,
+                localDate: customTrackerEntry.localDate,
+                value: customTrackerEntry.value,
+                note: customTrackerEntry.note,
+                source: customTrackerEntry.source,
+                loggedByUserId: customTrackerEntry.loggedByUserId,
+                trackerName: customTracker.name,
+                trackerType: customTracker.type,
+                trackerUnit: customTracker.unit,
+                trackerDecimals: customTracker.decimals,
+                trackerIcon: customTracker.icon,
+                trackerOwnerId: customTracker.userId,
+              })
+              .from(customTrackerEntry)
+              .innerJoin(
+                customTracker,
+                and(
+                  eq(customTracker.id, customTrackerEntry.trackerId),
+                  eq(customTracker.organizationId, customTrackerEntry.organizationId),
+                ),
+              )
+              .where(
+                and(
+                  eq(customTrackerEntry.organizationId, organizationId),
+                  // Private trackers only for their owner; shared ones for every
+                  // member the API already let read records.
+                  or(eq(customTracker.userId, viewerUserId), eq(customTracker.shared, true)),
+                  ...(options.fromIso
+                    ? [gte(customTrackerEntry.loggedAt, new Date(options.fromIso))]
+                    : []),
+                  ...(options.toIso
+                    ? [lte(customTrackerEntry.loggedAt, new Date(options.toIso))]
+                    : []),
+                ),
+              )
+          : Promise.resolve([]),
       ]);
       return {
         consultations,
@@ -117,6 +172,11 @@ export function createDomainTimelineReader(db: Database): DomainTimelineReader {
         insights,
         scheduledEvents,
         dailyReminders,
+        trackerEntries: trackerEntries.map(({ loggedAt, trackerOwnerId, ...row }) => ({
+          ...row,
+          loggedAt: loggedAt.toISOString(),
+          viewerOwnsTracker: trackerOwnerId === viewerUserId,
+        })),
       };
     },
   };

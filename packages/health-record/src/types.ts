@@ -10,6 +10,8 @@ export const CANONICAL_TIMELINE_DOMAINS = [
   "sync",
   "imaging",
   "cardiac",
+  /** Custom trackers (#441): visible only to members who can see the tracker. */
+  "custom",
   "unknown",
 ] as const;
 export type CanonicalTimelineDomain = (typeof CANONICAL_TIMELINE_DOMAINS)[number];

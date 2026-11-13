@@ -54,6 +54,33 @@ describe("timeline presenter", () => {
     expect(inEnglish(domainLabel("meds_supplements"))).toBe("Meds and supplements");
     expect(inEnglish(domainLabel("vitals"))).toBe("Vitals");
     expect(inEnglish(domainLabel("something_new"))).toBe("Other");
+    expect(inEnglish(domainLabel("custom"))).toBe("Trackers");
+  });
+
+  test("custom tracker entries read as their value and note (#441)", () => {
+    const entry = {
+      ...item("t", "2026-10-01T08:00:00.000Z"),
+      kind: "event",
+      domain: "custom",
+      title: "Sauna",
+      summary: "20 min",
+      canonical: {
+        table: "custom_tracker_entry",
+        trackerType: "duration",
+        value: 1500,
+        unit: null,
+        decimals: 0,
+        note: "Hot one",
+      },
+    };
+    expect(timelineTitle(entry, englishI18n)).toBe("Sauna");
+    expect(timelineSummary(entry, englishI18n)).toBe("25 min · Hot one");
+    expect(
+      timelineSummary(
+        { ...entry, canonical: { ...entry.canonical, trackerType: "scale", value: 4, note: null } },
+        englishI18n,
+      ),
+    ).toBe("4 of 5");
   });
 
   test("technical day/time keys stay ISO and follow the explicit timezone only", () => {

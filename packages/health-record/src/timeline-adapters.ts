@@ -1,3 +1,5 @@
+import { formatDurationShort, roundForDisplay } from "@openvalens/trackers/model";
+
 import type { CanonicalTimelineDomain, TimelineEvent, CanonicalTimelineSeverity } from "./types";
 
 // Source: anchovy/apps/web/src/lib/v2/health-record/timeline-adapters.ts.
@@ -54,7 +56,25 @@ export type DailyReminderTimelineRow = BaseRow & {
   label: string;
   status: string;
 };
+/** A custom tracker entry (#441), already filtered to what the viewer may see. */
+export type CustomTrackerEntryTimelineRow = {
+  id: string;
+  trackerId: string;
+  loggedAt: string;
+  localDate: string;
+  value: number;
+  note?: string | null;
+  source: string;
+  loggedByUserId?: string | null;
+  trackerName: string;
+  trackerType: string;
+  trackerUnit?: string | null;
+  trackerDecimals: number;
+  trackerIcon: string;
+  viewerOwnsTracker: boolean;
+};
 export type DomainTimelineRows = {
+  trackerEntries?: CustomTrackerEntryTimelineRow[];
   consultations?: ConsultationTimelineRow[];
   imagingStudies?: ImagingStudyTimelineRow[];
   cardiacExams?: CardiacExamTimelineRow[];
@@ -96,8 +116,60 @@ function parseInsightSeverity(value: string | null | undefined): CanonicalTimeli
 function scheduledEventDomain(type: string): CanonicalTimelineDomain {
   return type === "medication" || type === "supplement" ? "meds_supplements" : "calendar";
 }
+/** The server's plain summary of a tracker value; the apps format it in the member's language. */
+function customTrackerSummary(row: CustomTrackerEntryTimelineRow): string {
+  switch (row.trackerType) {
+    case "duration":
+      return formatDurationShort(row.value);
+    case "yes_no":
+      return row.value > 0 ? "Yes" : "No";
+    case "scale":
+      return `${roundForDisplay(row.value, 1)} of 5`;
+    default:
+      return `${roundForDisplay(row.value, row.trackerDecimals)}${row.trackerUnit ? ` ${row.trackerUnit}` : ""}`;
+  }
+}
+
+function customTrackerItem(row: CustomTrackerEntryTimelineRow): TimelineEvent {
+  return {
+    kind: "event",
+    id: `custom_tracker_entry:${row.id}`,
+    at: toIso(row.loggedAt),
+    domain: "custom",
+    title: row.trackerName,
+    summary: customTrackerSummary(row),
+    severity: "none",
+    confidence: "high",
+    reviewState: "unreviewed",
+    sourceRefs: [
+      {
+        type: "source_record",
+        label: `custom_tracker_entry:${row.id}`,
+        id: row.id,
+        provider: row.source,
+      },
+    ],
+    provenanceRefs: [],
+    relatedRefs: [],
+    canonical: {
+      table: "custom_tracker_entry",
+      trackerId: row.trackerId,
+      trackerType: row.trackerType,
+      trackerIcon: row.trackerIcon,
+      unit: row.trackerUnit ?? null,
+      decimals: row.trackerDecimals,
+      value: row.value,
+      localDate: row.localDate,
+      note: row.note ?? null,
+      loggedByUserId: row.loggedByUserId ?? null,
+      viewerOwnsTracker: row.viewerOwnsTracker,
+    },
+  };
+}
+
 export function buildDomainTimelineItems(rows: DomainTimelineRows): TimelineEvent[] {
   return [
+    ...(rows.trackerEntries ?? []).map(customTrackerItem),
     ...(rows.consultations ?? []).map((row) =>
       item({
         id: `consultation:${row.id}`,

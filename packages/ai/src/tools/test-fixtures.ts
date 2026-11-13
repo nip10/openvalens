@@ -16,6 +16,7 @@ import type { StructuredLogger } from "@openvalens/observability";
 import type { AiHealthToolContext } from "./access";
 import type {
   AiHealthToolSources,
+  AiTrackerWithDays,
   BodyCompositionTimeline,
   DexaScanRow,
   LegacyWeightCheckinRow,
@@ -180,6 +181,7 @@ export function createFakeSources(data: Partial<Record<string, Partial<FakeOrgDa
     goals: [],
     timeline: [],
     nutritionTotals: [],
+    trackers: [],
     ...data[organizationId],
   });
 
@@ -274,6 +276,13 @@ export function createFakeSources(data: Partial<Record<string, Partial<FakeOrgDa
           (day) => day.localDate >= range.from && day.localDate <= range.to,
         );
       },
+      listAiTrackers: async (scope, range) => {
+        calls.push({ port: "listAiTrackers", organizationId: scope.organizationId });
+        return forOrg(scope.organizationId).trackers.map((tracker) => ({
+          ...tracker,
+          days: tracker.days.filter((day) => day.date >= range.from && day.date <= range.to),
+        }));
+      },
     },
   };
 }
@@ -292,6 +301,8 @@ export type FakeOrgData = {
   goals: Array<{ goal: Goal; checkins: GoalCheckin[] }>;
   timeline: TimelineEvent[];
   nutritionTotals: DailyTotals[];
+  /** Already filtered as the real port filters (own, AI on, not archived). */
+  trackers: AiTrackerWithDays[];
 };
 
 function newestPanelsFirst(panels: readonly BloodPanelWithContext[]): BloodPanelWithContext[] {

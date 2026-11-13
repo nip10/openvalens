@@ -53,6 +53,7 @@ import { signUpRouter } from "./sign-up";
 import { sleepRouter } from "./sleep";
 import { supplementIntakeRouter } from "./supplement-intake";
 import { storageRouter } from "./storage";
+import { trackersRouter } from "./trackers";
 import { telegramRouter } from "./telegram";
 import { timelineRouter } from "./timeline";
 import { vitalsRouter } from "./vitals";
@@ -117,6 +118,7 @@ type AppRouterShape = {
   sleep: typeof sleepRouter;
   supplementIntake: typeof supplementIntakeRouter;
   storage: typeof storageRouter;
+  trackers: typeof trackersRouter;
   telegram: typeof telegramRouter;
   timeline: typeof timelineRouter;
   vitals: typeof vitalsRouter;
@@ -178,6 +180,7 @@ export const appRouter: AppRouterShape = {
   sleep: sleepRouter,
   supplementIntake: supplementIntakeRouter,
   storage: storageRouter,
+  trackers: trackersRouter,
   telegram: telegramRouter,
   timeline: timelineRouter,
   vitals: vitalsRouter,

@@ -54,6 +54,8 @@ export class ProvenanceReferenceError extends Error {
   }
 }
 export type HealthRecordRepository = ReturnType<typeof createHealthRecordRepository>;
+/** The member reading the timeline; decides which custom tracker entries appear (#441). */
+export type TimelineViewer = { userId: string };
 type MaintenanceDb = Pick<Database, "select" | "delete" | "execute">;
 type PruneInput = {
   organizationId: string;
@@ -175,10 +177,16 @@ async function dedupeSamples(
 }
 
 export function createHealthRecordRepository(db: Database) {
+  /**
+   * `viewer` is the member filter (#441): custom tracker entries appear only
+   * for a viewer, for their own trackers and other members' shared ones.
+   * Callers without a member (Coach, jobs) pass none and get no tracker rows.
+   */
   async function listTimeline(
     organizationId: string,
     filters: TimelineFilters = {},
     excludedIds: readonly string[] = [],
+    viewer: TimelineViewer | null = null,
   ) {
     const { fromIso, toIso } = normalizeTimelineDateRange(filters);
     const sourceFields = {
@@ -253,7 +261,11 @@ export function createHealthRecordRepository(db: Database) {
           ),
         ),
       db.select().from(provenanceLink).where(eq(provenanceLink.organizationId, organizationId)),
-      createDomainTimelineReader(db).read(organizationId),
+      createDomainTimelineReader(db).read(organizationId, {
+        viewerUserId: viewer?.userId ?? null,
+        ...(fromIso ? { fromIso } : {}),
+        ...(toIso ? { toIso } : {}),
+      }),
     ]);
     const items = [...events.map(canonicalEvent), ...metrics.map(canonicalMetric)];
     const linksByTarget = new Map<string, typeof links>();
@@ -310,7 +322,7 @@ export function createHealthRecordRepository(db: Database) {
     // a database mutation diff. No deleted/updated claims without history.
     async listChangesSinceReview(
       organizationId: string,
-      options: { limit?: number; now?: Date } = {},
+      options: { limit?: number; now?: Date; viewer?: TimelineViewer | null } = {},
     ) {
       const [review] = await db
         .select({ id: weeklyReview.id, weekStart: weeklyReview.weekStart })
@@ -326,6 +338,7 @@ export function createHealthRecordRepository(db: Database) {
         organizationId,
         { from, limit },
         review ? [`weekly_review:${review.id}`] : [],
+        options.viewer ?? null,
       );
       return {
         since: {
