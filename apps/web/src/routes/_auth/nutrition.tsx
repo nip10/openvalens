@@ -107,6 +107,7 @@ import {
   StatusPill,
   ToneIcon,
 } from "@/components/page";
+import { DrinksSection } from "@/components/drinks-section";
 import { PlainWaterSection } from "@/components/plain-water-section";
 import { friendlyDate } from "@/utils/friendly";
 import { orpc } from "@/utils/orpc";
@@ -190,6 +191,7 @@ function NutritionPage() {
     Promise.all([
       queryClient.invalidateQueries({ queryKey: orpc.nutritionDiary.key() }),
       queryClient.invalidateQueries({ queryKey: orpc.nutritionTargets.loggingStreak.key() }),
+      queryClient.invalidateQueries({ queryKey: orpc.nutritionDrinks.key() }),
     ]);
 
   const go = (date: string) => {
@@ -391,6 +393,18 @@ function NutritionPage() {
                 localDate={localDate}
                 timeZone={timeZone}
                 foods={foodsQuery.data}
+                hideNumbers={hideNumbers}
+                onSaved={(name, slot) => {
+                  const meal = i18n._(SLOT_LABELS[slot]);
+                  announce(t`Saved ${name} to ${meal} on ${localDate}`);
+                  void refresh();
+                }}
+                announce={announce}
+              />
+
+              <DrinksSection
+                localDate={localDate}
+                timeZone={timeZone}
                 hideNumbers={hideNumbers}
                 onSaved={(name, slot) => {
                   const meal = i18n._(SLOT_LABELS[slot]);

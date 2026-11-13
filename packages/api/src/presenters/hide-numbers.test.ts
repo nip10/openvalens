@@ -4,6 +4,7 @@ import { englishI18n, inEnglish } from "@openvalens/i18n/testing";
 
 import type { NutrientKey, NutrientTotal } from "../contracts/nutrition-diary";
 import type { NutritionTargetWire } from "../contracts/nutrition-targets";
+import { formatAlcoholTotal, formatCaffeineTotal, formatStandardDrinks } from "./drinks";
 import { presentEnergyEstimate, presentProposal } from "./energy-estimate";
 import {
   describeDisplayedTotal,
@@ -92,6 +93,31 @@ describe("hide-numbers mode (#88)", () => {
       expectNoNumbers(formatWaterSubtotal(view, unit, true, englishI18n));
       expectNoNumbers(describeWaterSubtotal(view, unit, true, englishI18n));
     }
+  });
+
+  test("caffeine and alcohol totals are withheld (#443)", () => {
+    const drink = { knownEntries: 1, totalEntries: 2, amount: 163, atLeast: true };
+    expectNoNumbers(formatCaffeineTotal(drink, englishI18n, true));
+    expectNoNumbers(formatAlcoholTotal(drink, englishI18n, true));
+    expect(
+      formatStandardDrinks(
+        {
+          status: "ready",
+          total: drink,
+          standardDrinks: 16.3,
+          definition: {
+            region: "pt",
+            grams: 10,
+            unit: "standard_drink",
+            org: "DGS",
+            document: "Norma 030/2012",
+            url: "https://example.org",
+          },
+        },
+        englishI18n,
+        true,
+      ),
+    ).toBeNull();
   });
 
   test("the same values are shown when the mode is off", () => {

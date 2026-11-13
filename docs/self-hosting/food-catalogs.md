@@ -10,12 +10,13 @@ importing them is a separate, opt-in step: `deploy/setup.sh catalogs`.
 
 ## Without catalogs
 
-| Feature        | With no catalog imported                                                                                                                           |
-| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Food search    | Finds only the member's own custom foods.                                                                                                          |
-| Barcode lookup | Matches only the member's own custom foods. Every other code is a miss that offers manual entry, unless [live lookup](#live-barcode-lookup) is on. |
-| Logging        | Works: members can always enter a food by hand or save it as a custom food.                                                                        |
-| Micronutrients | Only foods that report them count. Custom foods usually report few, so the [daily summary](../micronutrients.md) shows low coverage.               |
+| Feature        | With no catalog imported                                                                                                                                               |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Food search    | Finds only the member's own custom foods.                                                                                                                              |
+| Barcode lookup | Matches only the member's own custom foods. Every other code is a miss that offers manual entry, unless [live lookup](#live-barcode-lookup) is on.                     |
+| Logging        | Works: members can always enter a food by hand or save it as a custom food.                                                                                            |
+| Micronutrients | Only foods that report them count. Custom foods usually report few, so the [daily summary](../micronutrients.md) shows low coverage.                                   |
+| Drink presets  | Not offered; the diary says why. The espresso, coffee, tea, cola, energy drink, beer, wine and spirits shortcuts are FDC SR Legacy foods, so they need `--source fdc`. |
 
 ## What to import
 

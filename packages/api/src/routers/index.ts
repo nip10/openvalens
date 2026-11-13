@@ -18,6 +18,7 @@ import { comparisonRouter } from "./comparison";
 import { cronRouter } from "./cron";
 import { bodyMapRouter } from "./body-map";
 import { nutritionMicronutrientsRouter } from "./nutrition-micronutrients";
+import { nutritionDrinksRouter } from "./nutrition-drinks";
 import { cycleRouter } from "./cycle";
 import { dataRightsRouter } from "./data-rights";
 import { directDeviceRouter } from "./direct-device";
@@ -85,6 +86,7 @@ type AppRouterShape = {
   cycle: typeof cycleRouter;
   bodyMap: typeof bodyMapRouter;
   nutritionMicronutrients: typeof nutritionMicronutrientsRouter;
+  nutritionDrinks: typeof nutritionDrinksRouter;
   dataRights: typeof dataRightsRouter;
   directDevice: typeof directDeviceRouter;
   example: typeof exampleRouter;
@@ -148,6 +150,7 @@ export const appRouter: AppRouterShape = {
   cycle: cycleRouter,
   bodyMap: bodyMapRouter,
   nutritionMicronutrients: nutritionMicronutrientsRouter,
+  nutritionDrinks: nutritionDrinksRouter,
   dataRights: dataRightsRouter,
   directDevice: directDeviceRouter,
   example: exampleRouter,

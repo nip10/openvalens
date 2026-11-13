@@ -310,6 +310,8 @@ describe.skipIf(!url)("nutritionTargets over HTTP against disposable PostgreSQL"
       voiceDraftsEnabled: false,
       photoDraftsEnabled: false,
       micronutrientsEnabled: false,
+      caffeineTotalsEnabled: false,
+      alcoholTotalsEnabled: false,
       micronutrientReferenceSource: null,
       micronutrientPopulation: null,
       heightCm: null,
