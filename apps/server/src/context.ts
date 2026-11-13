@@ -5,6 +5,7 @@ import type { Context as HonoContext } from "hono";
 import { buildAdminConfigInventory } from "./admin-config-inventory";
 import { ENV } from "./env.server";
 import {
+  aiAppsMcpUrl,
   aiAppsService,
   aiConfig,
   aiRateLimiter,
@@ -137,6 +138,7 @@ export async function createContext({ context }: CreateContextOptions): Promise<
     aiApps: aiAppsService,
     // Issue #439 (M1b) — OAuth consent screen, or `null` while OAuth is off.
     aiAppsOAuth: mcpOAuthConsent,
+    aiAppsMcpUrl,
     webOrigin: admissionOriginFrom(ENV.CORS_ORIGIN),
     insightUnsubscribeKey: insightUnsubscribeKey ?? undefined,
     // Hand the Hono context through so authz guards and cron auth can read

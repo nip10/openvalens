@@ -110,8 +110,11 @@ member's browser, so the server must be reachable from the public internet
 over HTTPS: `BETTER_AUTH_URL` must be an `https://` URL on a public domain,
 with the paths above routed to the server (`deploy/Caddyfile` does this,
 including the `/.well-known/oauth-*` documents at the domain root). If you
-filter inbound traffic, allow Anthropic's egress range `160.79.104.0/21` for
-claude.ai, and OpenAI's published egress ranges for ChatGPT. When the server
+filter inbound traffic, allow Anthropic's outbound ranges `160.79.104.0/21`
+and `153.61.208.0/20` for claude.ai
+([list](https://platform.claude.com/docs/en/api/ip-addresses)), and OpenAI's
+[published egress ranges](https://developers.openai.com/api/docs/guides/ip-addresses)
+for ChatGPT. When the server
 URL is plain HTTP (other than `localhost`), OAuth stays off and only personal
 keys work.
 
@@ -133,9 +136,24 @@ claude mcp add --transport http openvalens https://<your-server>/api/mcp \
   --header "Authorization: Bearer ov_…"
 ```
 
-claude.ai: Settings → Connectors → Add custom connector, URL
-`https://<your-server>/api/mcp`. ChatGPT: developer mode, add the same URL as
-an MCP server.
+claude.ai: Customize → Connectors → Add → Add custom connector, URL
+`https://<your-server>/api/mcp`. ChatGPT: Plugins → Add custom MCP server (it
+was called developer mode), the same URL with OAuth.
+
+Member-facing, step-by-step pages per client (claude.ai, Claude Desktop,
+Claude Code, Cursor, ChatGPT, a local model) are in
+[help/ai-apps](help/ai-apps/README.md); Settings → Connected AI apps links to
+them.
+
+### Settings → Connected AI apps
+
+The web page (`/settings/ai-apps`, linked from the security emails) lists the
+member's **Connections** (OAuth) and **Personal keys** in the active
+workspace, with scopes, consent version, dates, each grant's recent activity
+and Revoke, and creates keys (shown once, with a ready-to-paste Claude Code
+command). Settings also carries the owner's **Members can connect AI apps**
+switch. The mobile app can view and revoke only. Both hide everything while
+`aiApps.status` reports `enabled: false`.
 
 ### Trying OAuth locally
 

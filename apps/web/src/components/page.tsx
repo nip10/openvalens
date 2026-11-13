@@ -179,15 +179,26 @@ export function Details({
   summary,
   children,
   defaultOpen = false,
+  onOpenChange,
   className,
 }: {
   summary: ReactNode;
   children: ReactNode;
   defaultOpen?: boolean;
+  /** Called when the reader opens or closes it (to load its content lazily). */
+  onOpenChange?: (open: boolean) => void;
   className?: string;
 }) {
   return (
-    <details className={cn("group min-w-0", className)} open={defaultOpen}>
+    <details
+      className={cn("group min-w-0", className)}
+      open={defaultOpen}
+      onToggle={
+        onOpenChange
+          ? (event) => onOpenChange((event.currentTarget as HTMLDetailsElement).open)
+          : undefined
+      }
+    >
       <summary className="flex w-fit cursor-pointer list-none items-center gap-1.5 rounded-md px-1 py-1 font-display text-sm font-medium text-ink-2 transition-colors duration-[var(--dur-short)] hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
         <ChevronRight
           className="size-4 transition-transform duration-[var(--dur-short)] group-open:rotate-90 motion-reduce:transition-none"

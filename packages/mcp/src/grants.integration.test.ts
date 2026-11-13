@@ -99,6 +99,7 @@ describe.skipIf(!url)("AI-app grants against disposable PostgreSQL", () => {
       consentVersion: "mcp-v1",
       status: "active",
       displayPrefix: created.key.slice(0, 9),
+      clientIdHost: null,
     });
     expect(created.grant.expiresAt).toBe("2027-02-10T10:00:00.000Z");
 
@@ -303,6 +304,22 @@ describe.skipIf(!url)("AI-app grants against disposable PostgreSQL", () => {
       "tool",
       "transport",
     ]);
+    // One grant's own activity, for its card in settings.
+    const ofGrant = await service.listRecentCalls({
+      userId: OWNER,
+      organizationId: grant!.organizationId,
+      limit: 10,
+      grantId: grant!.id,
+    });
+    expect(ofGrant.every((call) => call.grantId === grant!.id)).toBe(true);
+    expect(ofGrant).toHaveLength(recent.filter((call) => call.grantId === grant!.id).length);
+    const ofOther = await service.listRecentCalls({
+      userId: OWNER,
+      organizationId: grant!.organizationId,
+      limit: 10,
+      grantId: "00000000-0000-4000-8000-000000000000",
+    });
+    expect(ofOther).toEqual([]);
     clock = new Date("2027-02-11T10:00:00.000Z");
     expect(await service.purgeExpiredCalls()).toBeGreaterThanOrEqual(1);
     const left = await db.select().from(aiAppCall).where(eq(aiAppCall.grantId, grant!.id));

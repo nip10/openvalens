@@ -111,6 +111,16 @@ msgstr "{0, plural, one {# remoção a aguardar sincronização.} other {# remo�
 msgid "{0, plural, one {# rest day} other {# rest days}} available: a day without logging won't reset the count."
 msgstr "{0, plural, one {# dia de pausa disponível} other {# dias de pausa disponíveis}}: um dia sem registos não reinicia a contagem."
 
+#. placeholder {0}: props.inactive.length
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "{0, plural, one {# revoked or expired} other {# revoked or expired}}"
+msgstr "{0, plural, one {# revogada ou expirada} other {# revogadas ou expiradas}}"
+
+#. placeholder {0}: call.rowCount
+#: apps/native/app/(drawer)/settings/ai-apps.tsx
+msgid "{0, plural, one {# row} other {# rows}}"
+msgstr "{0, plural, one {# linha} other {# linhas}}"
+
 #. placeholder {0}: supplement.activeScheduleCount
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
@@ -588,6 +598,7 @@ msgstr "{days, plural, one {# dia seguido} other {# dias seguidos}} com registo 
 msgid "{days, plural, one {This invitation expires in # day.} other {This invitation expires in # days.}}"
 msgstr "{days, plural, one {Este convite expira dentro de # dia.} other {Este convite expira dentro de # dias.}}"
 
+#: packages/api/src/presenters/ai-apps.ts
 #: packages/api/src/presenters/trackers.ts
 msgid "{days} days"
 msgstr "{days} dias"
@@ -1193,6 +1204,10 @@ msgstr "1 = muito suave, 5 = muito enérgico. Atualmente {assertiveness} de 5."
 msgid "1 to 5"
 msgstr "1 a 5"
 
+#: packages/api/src/presenters/ai-apps.ts
+msgid "1 year"
+msgstr "1 ano"
+
 #: packages/api/src/presenters/activity-load.ts
 msgid "1: Very, very easy"
 msgstr "1: Muito, muito fácil"
@@ -1236,6 +1251,7 @@ msgstr "3: Moderado"
 #: apps/web/src/routes/_auth/body.tsx
 #: apps/web/src/routes/_auth/dashboard.tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
+#: packages/api/src/presenters/ai-apps.ts
 msgid "30 days"
 msgstr "30 dias"
 
@@ -1293,6 +1309,7 @@ msgstr "8 a menos de 12"
 
 #: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
+#: packages/api/src/presenters/ai-apps.ts
 msgid "90 days"
 msgstr "90 dias"
 
@@ -1339,9 +1356,22 @@ msgstr "Uma referência geral com base no seu peso recente, não um objetivo. Se
 msgid "A goal (optional)"
 msgstr "Um objetivo (opcional)"
 
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "A key lets a tool on your computer, like Claude Code or a local model, read your records to answer questions about your sleep, training and labs."
+msgstr "Uma chave permite que uma ferramenta no seu computador, como o Claude Code ou um modelo local, leia os seus registos para responder a perguntas sobre o seu sono, treino e análises."
+
 #: packages/email/src/templates/ai-app-key-created.tsx
 msgid "A key that can read your records was just created."
 msgstr "Acabou de ser criada uma chave que pode ler os seus registos."
+
+#. placeholder {0}: status.maxActiveKeys
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "A key works like a password for one app, such as Claude Code, Cursor, a script or a local model. You see it once when you create it. You can have up to {0} active keys."
+msgstr "Uma chave funciona como uma palavra-passe para uma aplicação, como o Claude Code, o Cursor, um script ou um modelo local. Só a vê uma vez, quando a cria. Pode ter até {0} chaves ativas."
+
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "A local model"
+msgstr "Um modelo local"
 
 #: apps/native/components/goal-editor.tsx
 msgid "A measure you enter"
@@ -1569,6 +1599,11 @@ msgstr "Alcançado"
 msgid "Active"
 msgstr "Ativo"
 
+#: packages/api/src/presenters/ai-apps.ts
+msgctxt "ai app"
+msgid "Active"
+msgstr "Ativa"
+
 #. safety
 #: packages/api/src/presenters/supplements.ts
 msgctxt "medication status"
@@ -1779,6 +1814,10 @@ msgstr "Adicionar aqui"
 msgid "Add ingredient"
 msgstr "Adicionar ingrediente"
 
+#: apps/web/src/components/ai-app-key-form.tsx
+msgid "Add it to Claude Code"
+msgstr "Adicioná-la ao Claude Code"
+
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
 msgid "Add medication"
@@ -1967,6 +2006,14 @@ msgstr "Aceitar guardar os dados do ciclo"
 #: apps/web/src/components/ai-workspace-consent-section.tsx
 msgid "AI allowed in this workspace"
 msgstr "IA permitida neste espaço de trabalho"
+
+#: apps/web/src/components/ai-apps-settings-section.tsx
+msgid "AI apps allowed in this workspace"
+msgstr "Aplicações de IA permitidas neste espaço de trabalho"
+
+#: apps/web/src/components/ai-apps-settings-section.tsx
+msgid "AI apps turned off for this workspace"
+msgstr "Aplicações de IA desativadas neste espaço de trabalho"
 
 #. safety
 #. safety
@@ -2219,6 +2266,11 @@ msgstr "outro membro"
 msgid "Answered"
 msgstr "Respondido"
 
+#: packages/api/src/presenters/ai-apps.ts
+msgctxt "ai app call"
+msgid "Answered"
+msgstr "Respondido"
+
 #: apps/native/components/goal-editor.tsx
 #: apps/web/src/routes/_auth/-goal-editor.tsx
 msgid "Any days each week"
@@ -2261,6 +2313,14 @@ msgstr "Aplica-se a partir de"
 #: packages/api/src/presenters/micronutrients.ts
 msgid "Applies to supplements only, not food."
 msgstr "Aplica-se apenas a suplementos, não a alimentos."
+
+#: apps/native/app/(drawer)/settings/ai-apps.tsx
+msgid "Apps that can read your records to answer your questions."
+msgstr "Aplicações que podem ler os seus registos para responder às suas perguntas."
+
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "Apps you approved by signing in from the app itself, such as claude.ai or ChatGPT. Each one reads only your own records in this workspace."
+msgstr "Aplicações que aprovou ao iniciar sessão a partir da própria aplicação, como o claude.ai ou o ChatGPT. Cada uma lê apenas os seus próprios registos neste espaço de trabalho."
 
 #: packages/api/src/presenters/custom-foods.ts
 #: packages/api/src/presenters/nutrition-templates.ts
@@ -2570,6 +2630,11 @@ msgstr "Cópias de segurança a falhar"
 #: apps/web/src/components/onboarding/server-checklist.tsx
 msgid "Backups healthy"
 msgstr "Cópias de segurança em dia"
+
+#: packages/api/src/presenters/ai-apps.ts
+msgctxt "ai app call"
+msgid "Bad request"
+msgstr "Pedido inválido"
 
 #: packages/api/src/presenters/coach-settings.ts
 msgid "Balanced"
@@ -2929,6 +2994,14 @@ msgstr "A permissão da câmara está desativada. Permita o acesso à câmara na
 msgid "Camera view for scanning a barcode"
 msgstr "Imagem da câmara para ler um código de barras"
 
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "Can read"
+msgstr "Pode ler"
+
+#: apps/native/app/(drawer)/settings/ai-apps.tsx
+msgid "Can read: {scopes}"
+msgstr "Pode ler: {scopes}"
+
 #: apps/native/components/language-section.tsx
 #: apps/web/src/components/language-section.tsx
 #: apps/web/src/components/product-settings-form.tsx
@@ -2940,6 +3013,7 @@ msgstr "Canadá"
 #: apps/native/app/(drawer)/goals.tsx
 #: apps/native/app/(drawer)/goals/[goalId].tsx
 #: apps/native/app/(drawer)/private-measurements.tsx
+#: apps/native/app/(drawer)/settings/ai-apps.tsx
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/native/app/(drawer)/workouts.tsx
@@ -2955,6 +3029,8 @@ msgstr "Canadá"
 #: apps/native/components/workout-session-detail.tsx
 #: apps/native/components/workout-session.tsx
 #: apps/native/utils/sharing-confirm.ts
+#: apps/web/src/components/ai-app-key-form.tsx
+#: apps/web/src/components/ai-apps-view.tsx
 #: apps/web/src/components/ai-consent-card.tsx
 #: apps/web/src/components/complete-export-card.tsx
 #: apps/web/src/components/sharing-confirm-dialog.tsx
@@ -3480,6 +3556,10 @@ msgstr "Escolha a sua região no seu perfil para ver as orientações das autori
 msgid "Choose…"
 msgstr "Escolher…"
 
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "Claude Code, signing in from the app:"
+msgstr "Claude Code, com início de sessão a partir da aplicação:"
+
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 #: apps/native/components/date-field.tsx
 #: apps/native/components/recipe-draft-editor.tsx
@@ -3816,6 +3896,20 @@ msgctxt "wearable"
 msgid "Connected"
 msgstr "Ligado"
 
+#: apps/native/app/(drawer)/_layout.tsx
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings/ai-apps.tsx
+#: apps/web/src/components/ai-apps-settings-card.tsx
+#: apps/web/src/routes/_auth/settings/ai-apps.tsx
+#: apps/web/src/routes/_auth/settings/index.tsx
+msgid "Connected AI apps"
+msgstr "Aplicações de IA ligadas"
+
+#: apps/native/app/(drawer)/settings/ai-apps.tsx
+#: apps/web/src/routes/_auth/settings/ai-apps.tsx
+msgid "Connected AI apps are not available on this server"
+msgstr "As aplicações de IA ligadas não estão disponíveis neste servidor"
+
 #: apps/native/components/direct-device-settings.tsx
 msgid "Connected device"
 msgstr "Dispositivo ligado"
@@ -3856,6 +3950,15 @@ msgstr "Apenas verificações de ligação; este modelo não contém ficheiros F
 msgid "Connection lost. Check your network and try again."
 msgstr "A ligação perdeu-se. Verifique a rede e tente novamente."
 
+#: apps/native/app/(drawer)/settings/ai-apps.tsx
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "Connections"
+msgstr "Ligações"
+
+#: apps/web/src/components/ai-apps-settings-card.tsx
+msgid "Connections, personal keys and recent activity"
+msgstr "Ligações, chaves pessoais e atividade recente"
+
 #: apps/native/components/goal-editor.tsx
 #: apps/web/src/routes/_auth/-goal-editor.tsx
 msgid "Consecutive days"
@@ -3871,6 +3974,17 @@ msgstr "Dias consecutivos · {0}"
 #: apps/native/components/goal-editor.tsx
 msgid "Consecutive-day streak"
 msgstr "Sequência de dias consecutivos"
+
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "Consent"
+msgstr "Consentimento"
+
+#. placeholder {0}: grant.consentVersion
+#. placeholder {1}: day(grant.createdAt)
+#. placeholder {2}: day(grant.lastUsedAt)
+#: apps/native/app/(drawer)/settings/ai-apps.tsx
+msgid "Consent {0} · created {1} · last used {2}"
+msgstr "Consentimento {0} · criada {1} · último uso {2}"
 
 #: apps/native/components/health-data-consent-prompt.tsx
 #: apps/web/src/components/health-data-consent-prompt.tsx
@@ -3976,6 +4090,10 @@ msgstr "Convertido de {0}"
 msgid "Cooked"
 msgstr "Cozinhado"
 
+#: apps/web/src/components/ai-app-key-form.tsx
+msgid "Copied"
+msgstr "Copiado"
+
 #. placeholder {0}: result.created
 #: apps/web/src/routes/_auth/nutrition.tsx
 msgid "Copied {0, plural, one {# item} other {# items}} to {localDate}"
@@ -4003,6 +4121,10 @@ msgstr "Copiar {0, plural, one {# item} other {# itens}} para {localDate}"
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 msgid "Copy {0} to {localDate}"
 msgstr "Copiar {0} para {localDate}"
+
+#: apps/web/src/components/ai-app-key-form.tsx
+msgid "Copy command"
+msgstr "Copiar comando"
 
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 #: apps/web/src/routes/_auth/nutrition.tsx
@@ -4032,6 +4154,14 @@ msgstr "Copiar para {date}"
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 msgid "Copy into a different meal"
 msgstr "Copiar para outra refeição"
+
+#: apps/web/src/components/ai-app-key-form.tsx
+msgid "Copy it now and keep it somewhere safe. You will not see it again; if you lose it, revoke it and make a new one."
+msgstr "Copie-a agora e guarde-a num local seguro. Não a voltará a ver; se a perder, revogue-a e crie uma nova."
+
+#: apps/web/src/components/ai-app-key-form.tsx
+msgid "Copy key"
+msgstr "Copiar chave"
 
 #: apps/web/src/components/workout-session-editor.tsx
 msgid "Copy set"
@@ -4206,6 +4336,10 @@ msgstr "Não foi possível ligar {displayName}. Tente novamente."
 msgid "Could not connect {name}. Please try again."
 msgstr "Não foi possível ligar {name}. Tente novamente."
 
+#: apps/web/src/components/ai-app-key-form.tsx
+msgid "Could not copy. Select the text and copy it yourself."
+msgstr "Não foi possível copiar. Selecione o texto e copie-o manualmente."
+
 #: apps/web/src/utils/sign-in-options.ts
 msgid "Could not create an account with {displayName}. Try again or use your email."
 msgstr "Não foi possível criar uma conta com {displayName}. Tente novamente ou use o seu email."
@@ -4214,6 +4348,10 @@ msgstr "Não foi possível criar uma conta com {displayName}. Tente novamente ou
 #: apps/web/src/routes/_auth/trackers.index.tsx
 msgid "Could not create it. Try again."
 msgstr "Não foi possível criar. Tente novamente."
+
+#: apps/web/src/routes/_auth/settings/ai-apps.tsx
+msgid "Could not create the key."
+msgstr "Não foi possível criar a chave."
 
 #: apps/web/src/components/accept-invitation-view.tsx
 msgid "Could not decline the invitation."
@@ -4327,6 +4465,11 @@ msgstr "Não foi possível carregar as definições do coach."
 #: apps/native/app/(drawer)/admin/settings.tsx
 msgid "Could not load configuration"
 msgstr "Não foi possível carregar a configuração"
+
+#: apps/native/app/(drawer)/settings/ai-apps.tsx
+#: apps/web/src/routes/_auth/settings/ai-apps.tsx
+msgid "Could not load connected AI apps."
+msgstr "Não foi possível carregar as aplicações de IA ligadas."
 
 #: apps/web/src/components/product-settings-form.tsx
 #: apps/web/src/routes/_auth/admin/settings.tsx
@@ -4503,6 +4646,11 @@ msgstr "Não foi possível carregar a versão mais recente"
 msgid "Could not load the readiness index."
 msgstr "Não foi possível carregar o índice de prontidão."
 
+#: apps/native/app/(drawer)/settings/ai-apps.tsx
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "Could not load the recent activity."
+msgstr "Não foi possível carregar a atividade recente."
+
 #: apps/native/app/(drawer)/goals.tsx
 #: apps/web/src/routes/_auth/goals.index.tsx
 msgid "Could not load the selected supplement. Open Supplements to retry."
@@ -4521,6 +4669,10 @@ msgstr "Não foi possível carregar a cronologia."
 #: apps/web/src/components/ai-workspace-consent-card.tsx
 msgid "Could not load the workspace AI setting."
 msgstr "Não foi possível carregar a definição de IA do espaço de trabalho."
+
+#: apps/web/src/components/ai-apps-settings-card.tsx
+msgid "Could not load the workspace setting."
+msgstr "Não foi possível carregar a definição do espaço de trabalho."
 
 #: apps/native/app/(drawer)/coach/[conversationId].tsx
 #: apps/web/src/routes/_auth/coach/$conversationId.tsx
@@ -4576,6 +4728,10 @@ msgstr "Não foi possível carregar o treino."
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Could not load workouts."
 msgstr "Não foi possível carregar os treinos."
+
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "Could not load your connected apps."
+msgstr "Não foi possível carregar as suas aplicações ligadas."
 
 #: apps/web/src/routes/_auth/dashboard.tsx
 msgid "Could not load your data."
@@ -4717,6 +4873,11 @@ msgstr "Não foi possível restaurar. Tente novamente."
 #: apps/web/src/components/admin-invitations-view.tsx
 msgid "Could not revoke invitation."
 msgstr "Não foi possível revogar o convite."
+
+#: apps/native/app/(drawer)/settings/ai-apps.tsx
+#: apps/web/src/routes/_auth/settings/ai-apps.tsx
+msgid "Could not revoke. Try again."
+msgstr "Não foi possível revogar. Tente novamente."
 
 #: apps/native/app/(drawer)/supplements.tsx
 msgid "Could not save intake. Retry the same dose."
@@ -4982,6 +5143,10 @@ msgstr "Não foi possível atualizar as definições de observações. A escolha
 msgid "Could not update the comparison setting."
 msgstr "Não foi possível atualizar a definição de comparação."
 
+#: apps/web/src/components/ai-apps-settings-section.tsx
+msgid "Could not update the setting."
+msgstr "Não foi possível atualizar a definição."
+
 #: apps/web/src/components/ai-workspace-consent-section.tsx
 msgid "Could not update the workspace AI setting."
 msgstr "Não foi possível atualizar a definição de IA do espaço de trabalho."
@@ -5049,6 +5214,10 @@ msgstr "Criar uma meta"
 msgid "Create a goal or review paused and completed goals below."
 msgstr "Crie uma meta ou reveja abaixo as metas em pausa e concluídas."
 
+#: apps/web/src/components/ai-app-key-form.tsx
+msgid "Create a personal key"
+msgstr "Criar uma chave pessoal"
+
 #: apps/web/src/routes/_auth/goals.$goalId.tsx
 msgid "Create a replacement"
 msgstr "Criar uma meta de substituição"
@@ -5071,6 +5240,11 @@ msgstr "Criar rascunho"
 #: apps/web/src/components/exercise-library.tsx
 msgid "Create exercise"
 msgstr "Criar exercício"
+
+#: apps/web/src/components/ai-app-key-form.tsx
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "Create key"
+msgstr "Criar chave"
 
 #: packages/email/src/templates/public-sign-up.tsx
 msgid "Create my account"
@@ -5102,6 +5276,10 @@ msgstr "Criar a sua conta"
 msgid "Create your OpenValens account"
 msgstr "Crie a sua conta OpenValens"
 
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "Created"
+msgstr "Criada"
+
 #: apps/native/app/(drawer)/goals/[goalId].tsx
 #: apps/web/src/routes/_auth/goals.$goalId.tsx
 msgid "Creating a replacement ends this goal. Its history and source records remain available."
@@ -5109,6 +5287,7 @@ msgstr "Criar uma meta de substituição termina esta meta. O respetivo históri
 
 #: apps/native/app/(drawer)/trackers.tsx
 #: apps/native/components/exercise-library.tsx
+#: apps/web/src/components/ai-app-key-form.tsx
 #: apps/web/src/components/exercise-library.tsx
 #: apps/web/src/routes/_auth/trackers.index.tsx
 msgid "Creating…"
@@ -5145,6 +5324,7 @@ msgid "Custom"
 msgstr "Personalizado"
 
 #: apps/web/src/components/oauth-consent-view.tsx
+#: packages/api/src/presenters/ai-apps.ts
 msgid "Custom trackers"
 msgstr "Acompanhamentos personalizados"
 
@@ -5783,6 +5963,13 @@ msgstr "Descartar o treino?"
 msgid "Disconnect"
 msgstr "Desligar"
 
+#. placeholder {0}: grant.label
+#. placeholder {0}: props.confirmRevoke.label
+#: apps/native/app/(drawer)/settings/ai-apps.tsx
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "Disconnect {0}?"
+msgstr "Desligar {0}?"
+
 #: apps/web/src/components/wearable-devices-view.tsx
 msgid "Disconnect {confirmName}?"
 msgstr "Desligar {confirmName}?"
@@ -5856,6 +6043,7 @@ msgstr "Domínios"
 #: apps/native/components/nutrition-date-picker.tsx
 #: apps/native/components/nutrition-selection-bar.tsx
 #: apps/native/components/workout-overview-sheet.tsx
+#: apps/web/src/components/ai-app-key-form.tsx
 #: apps/web/src/routes/_auth/goals.$goalId.tsx
 #: apps/web/src/routes/_auth/profile.tsx
 #: packages/api/src/presenters/trackers.ts
@@ -6222,6 +6410,10 @@ msgstr "Data de fim, opcional (AAAA-MM-DD)"
 #: apps/native/app/(drawer)/cycle.tsx
 msgid "End date, optional, YYYY-MM-DD"
 msgstr "Data de fim, opcional, AAAA-MM-DD"
+
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "Ended"
+msgstr "Terminada"
 
 #: apps/native/app/(drawer)/goals/[goalId].tsx
 #: apps/web/src/routes/_auth/goals.$goalId.tsx
@@ -6731,7 +6923,13 @@ msgstr "Grupo de especialistas que elaborou a diretriz com base numa revisão si
 msgid "Expired"
 msgstr "Expirado"
 
+#: packages/api/src/presenters/ai-apps.ts
+msgctxt "ai app"
+msgid "Expired"
+msgstr "Expirada"
+
 #: apps/web/src/components/admin-invitations-view.tsx
+#: apps/web/src/components/ai-apps-view.tsx
 msgid "Expires"
 msgstr "Expira"
 
@@ -6741,6 +6939,15 @@ msgstr "Expira"
 #: apps/web/src/routes/_auth/settings/telegram.tsx
 msgid "Expires {0}."
 msgstr "Expira {0}."
+
+#: apps/web/src/components/ai-app-key-form.tsx
+msgid "Expires after"
+msgstr "Expira após"
+
+#. placeholder {0}: day(grant.expiresAt)
+#: apps/native/app/(drawer)/settings/ai-apps.tsx
+msgid "Expires: {0}"
+msgstr "Expira: {0}"
 
 #: apps/native/components/complete-export-card.tsx
 #: apps/web/src/components/complete-export-card.tsx
@@ -6765,6 +6972,11 @@ msgstr "O armazenamento da exportação não está disponível neste momento. Te
 msgctxt "fat letter"
 msgid "F"
 msgstr "L"
+
+#: packages/api/src/presenters/ai-apps.ts
+msgctxt "ai app call"
+msgid "Failed"
+msgstr "Falhou"
 
 #: apps/native/components/sync-status-badge.tsx
 #: apps/web/src/components/sync-status-badge.tsx
@@ -6994,12 +7206,20 @@ msgstr "Por exemplo, 20 min."
 msgid "For example https://health.example.org."
 msgstr "Por exemplo, https://health.example.org."
 
+#: apps/web/src/components/ai-app-key-form.tsx
+msgid "For example: Claude Code on my laptop"
+msgstr "Por exemplo: Claude Code no meu portátil"
+
 #: apps/native/app/(drawer)/profile.tsx
 #: apps/native/components/onboarding/steps.tsx
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
 #: apps/web/src/routes/_auth/profile.tsx
 msgid "For example: walk most days"
 msgstr "Por exemplo: caminhar na maioria dos dias"
+
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "For now only the workspace owner can connect AI apps, because a workspace holds one person's records."
+msgstr "Por agora, só o proprietário do espaço de trabalho pode ligar aplicações de IA, porque um espaço de trabalho guarda os registos de uma pessoa."
 
 #: apps/native/app/(drawer)/preventive-care.tsx
 #: apps/web/src/components/preventive-care-view.tsx
@@ -7057,6 +7277,7 @@ msgid "Free trial"
 msgstr "Período experimental gratuito"
 
 #: apps/web/src/components/oauth-consent-view.tsx
+#: packages/api/src/presenters/ai-apps.ts
 msgid "Free-text notes on your workouts, labs and other entries."
 msgstr "Notas de texto livre nos seus treinos, análises e outros registos."
 
@@ -7699,6 +7920,10 @@ msgstr "Como fazer"
 msgid "How to add"
 msgstr "Como adicionar"
 
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "How to connect an app"
+msgstr "Como ligar uma aplicação"
+
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "How totals are shown"
 msgstr "Como os totais são mostrados"
@@ -7727,6 +7952,12 @@ msgstr "O histórico Huawei/Honor (passos minuto a minuto, frequência cardíaca
 #: packages/api/src/presenters/food-logger-capture.ts
 msgid "I agree to send this photo now"
 msgstr "Concordo em enviar esta fotografia agora"
+
+#. safety
+#. placeholder {0}: props.consentVersion
+#: apps/web/src/components/ai-app-key-form.tsx
+msgid "I agree to share the records chosen above with the app I use this key in (consent {0})."
+msgstr "Concordo em partilhar os registos escolhidos acima com a aplicação em que usar esta chave (consentimento {0})."
 
 #. safety
 #: apps/web/src/components/oauth-consent-view.tsx
@@ -8420,6 +8651,10 @@ msgstr "Análises"
 msgid "Labs & clinical"
 msgstr "Análises e registos clínicos"
 
+#: packages/api/src/presenters/ai-apps.ts
+msgid "Labs, sleep, workouts, vitals, weight and body composition, supplements and goals. Always included."
+msgstr "Análises, sono, treinos, sinais vitais, peso e composição corporal, suplementos e objetivos. Sempre incluído."
+
 #: apps/web/src/components/oauth-consent-view.tsx
 msgid "Labs, sleep, workouts, vitals, weight and body composition, supplements and goals. Required."
 msgstr "Análises, sono, treinos, sinais vitais, peso e composição corporal, suplementos e objetivos. Obrigatório."
@@ -8506,6 +8741,10 @@ msgstr "Última sincronização: {lastSynced}"
 #: apps/web/src/components/admin-backup-status.tsx
 msgid "Last upload {0}"
 msgstr "Último envio {0}"
+
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "Last used"
+msgstr "Último uso"
 
 #: apps/web/src/components/admin-backup-status.tsx
 msgid "Last verify"
@@ -8652,6 +8891,15 @@ msgstr "Sessão antiga · só de leitura"
 #: apps/web/src/routes/_auth/body-map.tsx
 msgid "Legend"
 msgstr "Legenda"
+
+#: apps/web/src/routes/_auth/settings/ai-apps.tsx
+msgid "Let an AI app read your records to answer your questions."
+msgstr "Permita que uma aplicação de IA leia os seus registos para responder às suas perguntas."
+
+#. safety
+#: apps/web/src/components/ai-apps-settings-card.tsx
+msgid "Let an AI app such as Claude or ChatGPT read your own records to answer your questions. This is separate from Coach AI and needs its own consent."
+msgstr "Permita que uma aplicação de IA, como o Claude ou o ChatGPT, leia os seus próprios registos para responder às suas perguntas. Isto é independente da IA do Coach e precisa do seu próprio consentimento."
 
 #: apps/native/components/onboarding/steps.tsx
 #: apps/web/src/components/onboarding/welcome-flow.tsx
@@ -9397,6 +9645,7 @@ msgid "Measurement type"
 msgstr "Tipo de medição"
 
 #: apps/web/src/components/oauth-consent-view.tsx
+#: packages/api/src/presenters/ai-apps.ts
 msgid "Measurements you keep private."
 msgstr "Medições que mantém privadas."
 
@@ -9439,6 +9688,10 @@ msgstr "membro"
 #: apps/web/src/routes/_auth/sharing.tsx
 msgid "Members"
 msgstr "Membros"
+
+#: apps/web/src/components/ai-apps-settings-card.tsx
+msgid "Members can connect AI apps"
+msgstr "Os membros podem ligar aplicações de IA"
 
 #: apps/native/components/trackers/tracker-editor.tsx
 #: apps/web/src/components/trackers/tracker-editor.tsx
@@ -9777,6 +10030,7 @@ msgstr "A app de saúde do meu telemóvel"
 #: apps/native/components/routine-editor.tsx
 #: apps/native/components/trackers/tracker-editor.tsx
 #: apps/web/src/components/admin-settings-view.tsx
+#: apps/web/src/components/ai-app-key-form.tsx
 #: apps/web/src/components/exercise-library.tsx
 #: apps/web/src/components/trackers/tracker-editor.tsx
 #: apps/web/src/components/workout-routines.tsx
@@ -9851,6 +10105,12 @@ msgstr "Precisa de passos em pelo menos 2 dos últimos 3 dias completos (encontr
 #: packages/api/src/presenters/wellness-profile.ts
 msgid "Neither fits me"
 msgstr "Nenhuma se aplica a mim"
+
+#: apps/native/app/(drawer)/settings/ai-apps.tsx
+#: apps/web/src/components/ai-apps-view.tsx
+#: packages/api/src/presenters/ai-apps.ts
+msgid "Never"
+msgstr "Nunca"
 
 #: apps/native/app/(drawer)/coach/index.tsx
 #: apps/native/components/workout-routines.tsx
@@ -10043,6 +10303,11 @@ msgstr "Ainda não houve chamadas de IA este mês."
 #: apps/web/src/components/admin-ai-usage.tsx
 msgid "No AI prices configured, so cost is not estimated"
 msgstr "Sem preços de IA configurados, por isso o custo não é estimado"
+
+#: apps/native/app/(drawer)/settings/ai-apps.tsx
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "No apps connected yet"
+msgstr "Ainda não há aplicações ligadas"
 
 #: apps/native/app/(drawer)/trackers.tsx
 #: apps/web/src/routes/_auth/trackers.index.tsx
@@ -10315,6 +10580,11 @@ msgstr "Ainda sem períodos registados."
 msgid "No personal goal set."
 msgstr "Sem meta pessoal definida."
 
+#: apps/native/app/(drawer)/settings/ai-apps.tsx
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "No personal keys"
+msgstr "Sem chaves pessoais"
+
 #: apps/native/components/progress-photos.tsx
 #: apps/web/src/components/progress-photos.tsx
 msgid "No photos yet."
@@ -10414,6 +10684,11 @@ msgstr "Não foram escolhidos valores de referência. Escolha-os nas definiçõe
 #: apps/native/components/workout-history.tsx
 msgid "No reps-at-weight records yet."
 msgstr "Ainda não há registos de repetições com peso."
+
+#: apps/native/app/(drawer)/settings/ai-apps.tsx
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "No requests in the last 90 days."
+msgstr "Sem pedidos nos últimos 90 dias."
 
 #: apps/web/src/components/workout-history.tsx
 msgid "No result"
@@ -10531,6 +10806,7 @@ msgstr "Não, tenho menos de 18 anos"
 
 #: apps/native/app/(drawer)/nutrition-targets.tsx
 #: apps/web/src/components/admin-backup-status.tsx
+#: apps/web/src/components/ai-apps-view.tsx
 #: apps/web/src/components/workout-routine-exercise-editor.tsx
 #: apps/web/src/routes/_auth/nutrition-targets.tsx
 msgid "None"
@@ -10561,6 +10837,11 @@ msgstr "Ainda nenhuma"
 msgctxt "goal priority"
 msgid "Normal"
 msgstr "Normal"
+
+#: packages/api/src/presenters/ai-apps.ts
+msgctxt "ai app call"
+msgid "Not allowed"
+msgstr "Não permitido"
 
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 msgid "Not available"
@@ -10826,6 +11107,7 @@ msgstr "Nota (opcional)"
 
 #: apps/native/components/active-workout.tsx
 #: apps/web/src/components/oauth-consent-view.tsx
+#: packages/api/src/presenters/ai-apps.ts
 msgid "Notes"
 msgstr "Notas"
 
@@ -10974,6 +11256,7 @@ msgid "Nutrients and source"
 msgstr "Nutrientes e origem"
 
 #: apps/web/src/components/oauth-consent-view.tsx
+#: packages/api/src/presenters/ai-apps.ts
 #: packages/api/src/presenters/wellness-profile.ts
 msgid "Nutrition"
 msgstr "Nutrição"
@@ -11107,6 +11390,14 @@ msgstr "Cópia externa"
 msgid "Off-site copy failing"
 msgstr "Cópia externa a falhar"
 
+#: apps/web/src/components/ai-apps-settings-card.tsx
+msgid "Off. Keys and connections in this workspace are paused."
+msgstr "Desativado. As chaves e ligações neste espaço de trabalho estão em pausa."
+
+#: apps/web/src/components/ai-apps-settings-card.tsx
+msgid "Off. Only the workspace owner can change this."
+msgstr "Desativado. Só o proprietário do espaço de trabalho pode alterar isto."
+
 #. safety
 #: packages/api/src/presenters/preventive-care.ts
 msgid "Offered by a health-system programme"
@@ -11173,6 +11464,14 @@ msgstr "Ligado"
 #: apps/web/src/components/ai-workspace-consent-card.tsx
 msgid "On for this workspace"
 msgstr "Ligada neste espaço de trabalho"
+
+#: apps/web/src/components/ai-apps-settings-card.tsx
+msgid "On. Only the workspace owner can change this."
+msgstr "Ativado. Só o proprietário do espaço de trabalho pode alterar isto."
+
+#: apps/web/src/components/ai-apps-settings-card.tsx
+msgid "On. Turning it off stops every key and connection in this workspace."
+msgstr "Ativado. Ao desativar, todas as chaves e ligações neste espaço de trabalho deixam de funcionar."
 
 #. safety
 #: packages/api/src/presenters/supplements.ts
@@ -11766,6 +12065,11 @@ msgstr "Meta pessoal: <0>{0}</0>"
 msgid "Personal goals"
 msgstr "Metas pessoais"
 
+#: apps/native/app/(drawer)/settings/ai-apps.tsx
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "Personal keys"
+msgstr "Chaves pessoais"
+
 #: apps/native/components/workout-history.tsx
 msgid "Personal record · Estimated 1RM (Epley)"
 msgstr "Recorde pessoal · estimativa de 1RM (Epley)"
@@ -12131,6 +12435,7 @@ msgid "Privacy choices"
 msgstr "Escolhas de privacidade"
 
 #: apps/web/src/components/oauth-consent-view.tsx
+#: packages/api/src/presenters/ai-apps.ts
 msgid "Private body measurements"
 msgstr "Medições corporais privadas"
 
@@ -12512,6 +12817,8 @@ msgid "Recent {recent}. Your usual needs {minimum} days with data in the previou
 msgstr "Recente {recent}. O seu habitual precisa de {minimum} dias com dados nos {window} anteriores; encontrados {days}."
 
 #: apps/native/app/(drawer)/(tabs)/index.tsx
+#: apps/native/app/(drawer)/settings/ai-apps.tsx
+#: apps/web/src/routes/_auth/settings/ai-apps.tsx
 msgid "Recent activity"
 msgstr "Atividade recente"
 
@@ -12528,6 +12835,10 @@ msgstr "Dias recentes"
 #: apps/web/src/routes/_auth/records/vitals.tsx
 msgid "Recent readings"
 msgstr "Leituras recentes"
+
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "Recent requests, newest first. Kept for 90 days."
+msgstr "Pedidos recentes, os mais novos primeiro. Guardados durante 90 dias."
 
 #: apps/native/app/(drawer)/records/vitals.tsx
 msgid "Recent samples"
@@ -12711,6 +13022,11 @@ msgstr "Região"
 #: apps/web/src/components/oauth-consent-view.tsx
 msgid "registered automatically, no verified identity"
 msgstr "registada automaticamente, sem identidade verificada"
+
+#: apps/native/app/(drawer)/settings/ai-apps.tsx
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "Registered automatically, no verified identity"
+msgstr "Registada automaticamente, sem identidade verificada"
 
 #: apps/native/app/(drawer)/sharing.tsx
 #: apps/web/src/routes/_auth/sharing.tsx
@@ -13007,6 +13323,10 @@ msgstr "Restaurar registo"
 msgid "Restore tracker"
 msgstr "Restaurar acompanhamento"
 
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "Result"
+msgstr "Resultado"
+
 #: packages/api/src/presenters/modules.ts
 msgid "Results with the lab's ranges"
 msgstr "Resultados com os intervalos do laboratório"
@@ -13046,6 +13366,7 @@ msgstr "Versão anterior"
 #: apps/native/app/(drawer)/records/sleep.tsx
 #: apps/native/app/(drawer)/records/vitals.tsx
 #: apps/native/app/(drawer)/scores.tsx
+#: apps/native/app/(drawer)/settings/ai-apps.tsx
 #: apps/native/app/(drawer)/settings/devices.tsx
 #: apps/native/app/(drawer)/settings/modules.tsx
 #: apps/native/app/(drawer)/settings/telegram.tsx
@@ -13065,6 +13386,8 @@ msgstr "Versão anterior"
 #: apps/web/src/components/admin-backup-status.tsx
 #: apps/web/src/components/admin-invitations-view.tsx
 #: apps/web/src/components/admin-settings-view.tsx
+#: apps/web/src/components/ai-apps-settings-card.tsx
+#: apps/web/src/components/ai-apps-view.tsx
 #: apps/web/src/components/ai-consent-card.tsx
 #: apps/web/src/components/ai-workspace-consent-card.tsx
 #: apps/web/src/components/analytics-consent-section.tsx
@@ -13098,6 +13421,7 @@ msgstr "Versão anterior"
 #: apps/web/src/routes/_auth/records/vitals.tsx
 #: apps/web/src/routes/_auth/route.tsx
 #: apps/web/src/routes/_auth/scores.tsx
+#: apps/web/src/routes/_auth/settings/ai-apps.tsx
 #: apps/web/src/routes/_auth/settings/billing.tsx
 #: apps/web/src/routes/_auth/settings/index.tsx
 #: apps/web/src/routes/_auth/settings/telegram.tsx
@@ -13216,15 +13540,23 @@ msgstr "Rever: {reviewName}, {reviewAmount}, {slotLabel}, {localDate} ({source})
 msgid "Revise and try again"
 msgstr "Rever e tentar novamente"
 
+#: apps/native/app/(drawer)/settings/ai-apps.tsx
 #: apps/native/app/(drawer)/sharing.tsx
 #: apps/native/components/ai-section.tsx
 #: apps/native/utils/sharing-confirm.ts
 #: apps/web/src/components/admin-invitations-view.tsx
+#: apps/web/src/components/ai-apps-view.tsx
 #: apps/web/src/components/ai-consent-card.tsx
 #: apps/web/src/components/sharing-confirm-dialog.tsx
 #: apps/web/src/routes/_auth/sharing.tsx
 msgid "Revoke"
 msgstr "Revogar"
+
+#. placeholder {0}: grant.label
+#: apps/native/app/(drawer)/settings/ai-apps.tsx
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "Revoke {0}"
+msgstr "Revogar {0}"
 
 #. safety
 #. safety
@@ -13238,7 +13570,25 @@ msgstr "Revogar o consentimento para IA?"
 msgid "Revoke the invitation for {email}?"
 msgstr "Revogar o convite para {email}?"
 
+#. placeholder {0}: grant.label
+#. placeholder {0}: props.confirmRevoke?.label
+#: apps/native/app/(drawer)/settings/ai-apps.tsx
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "Revoke the key {0}?"
+msgstr "Revogar a chave {0}?"
+
+#: packages/api/src/presenters/ai-apps.ts
+msgctxt "ai app"
+msgid "Revoked"
+msgstr "Revogada"
+
+#: apps/native/app/(drawer)/settings/ai-apps.tsx
+msgid "Revoked and expired"
+msgstr "Revogadas e expiradas"
+
+#: apps/native/app/(drawer)/settings/ai-apps.tsx
 #: apps/web/src/components/admin-invitations-view.tsx
+#: apps/web/src/components/ai-apps-view.tsx
 msgid "Revoking…"
 msgstr "A revogar…"
 
@@ -13373,6 +13723,10 @@ msgstr "A rotina não foi guardada. As suas alterações continuam aqui; tente n
 #: apps/native/components/workout-routines.tsx
 msgid "Routines"
 msgstr "Rotinas"
+
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "Rows"
+msgstr "Linhas"
 
 #: apps/web/src/components/workout-session-editor.tsx
 msgid "RPE (optional)"
@@ -14052,6 +14406,10 @@ msgstr "Servidor"
 msgid "Server address"
 msgstr "Endereço do servidor"
 
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "Server address for your app"
+msgstr "Endereço do servidor para a sua aplicação"
+
 #: apps/web/src/components/onboarding/server-checklist.tsx
 msgid "Server checklist"
 msgstr "Lista de verificação do servidor"
@@ -14198,10 +14556,12 @@ msgstr "Séries de {trainingFrom} a {trainingTo}"
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/(tabs)/_layout.tsx
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings/ai-apps.tsx
 #: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/web/src/components/header.tsx
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
 #: apps/web/src/routes/_auth/cycle.tsx
+#: apps/web/src/routes/_auth/settings/ai-apps.tsx
 #: apps/web/src/routes/_auth/settings/billing.tsx
 #: apps/web/src/routes/_auth/settings/devices.tsx
 #: apps/web/src/routes/_auth/settings/index.tsx
@@ -14546,6 +14906,10 @@ msgstr "Sessão iniciada como {email}. Introduza novamente o token para continua
 #: apps/web/src/components/admission-form.tsx
 msgid "Signed in as <0>{sessionEmail}</0>."
 msgstr "Sessão iniciada como <0>{sessionEmail}</0>."
+
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "Signing in from an app is not available on this server. Use a personal key instead."
+msgstr "O início de sessão a partir de uma aplicação não está disponível neste servidor. Use uma chave pessoal."
 
 #: apps/native/components/sign-in.tsx
 msgid "Signing in to {host}"
@@ -14953,6 +15317,10 @@ msgstr "Passo {position} de {total}: {stepTitle}"
 #: apps/native/components/direct-device-settings.tsx
 msgid "Step sync is unavailable for this unrecognized device model."
 msgstr "A sincronização de passos não está disponível para este modelo de dispositivo não reconhecido."
+
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "Step-by-step guides"
+msgstr "Guias passo a passo"
 
 #. safety
 #: packages/api/src/presenters/manual-entry.ts
@@ -15538,6 +15906,7 @@ msgstr "Essa hora não existe nesta data no seu fuso horário. Escolha outra hor
 msgid "The AI provider is not set up on this server. Use the on-server draft instead."
 msgstr "O fornecedor de IA não está configurado neste servidor. Use o rascunho feito no servidor."
 
+#: apps/web/src/components/ai-app-key-form.tsx
 #: apps/web/src/components/oauth-consent-view.tsx
 msgid "The app cannot change your records. Cycle data and progress photos are never shared."
 msgstr "A aplicação não pode alterar os seus registos. Os dados do ciclo e as fotografias de progresso nunca são partilhados."
@@ -15561,6 +15930,14 @@ msgstr "A aplicação não conseguiu confirmar que não há alterações por env
 #: apps/web/src/components/oauth-consent-view.tsx
 msgid "The app reads only your own records in this workspace."
 msgstr "A aplicação lê apenas os seus próprios registos neste espaço de trabalho."
+
+#: apps/native/app/(drawer)/settings/ai-apps.tsx
+msgid "The app stops reading your records on its next request. What it already read stays with the app."
+msgstr "A aplicação deixa de ler os seus registos no próximo pedido. O que já leu fica com a aplicação."
+
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "The app stops reading your records on its next request. What it already read stays with the app. This can't be undone; you can connect again later."
+msgstr "A aplicação deixa de ler os seus registos no próximo pedido. O que já leu fica com a aplicação. Isto não pode ser anulado; pode voltar a ligar mais tarde."
 
 #: apps/native/components/goal-editor.tsx
 msgid "The average window must be at least one day."
@@ -15647,6 +16024,10 @@ msgstr "A contagem decrescente na aplicação funciona sem autorização. Os ale
 #: packages/email/src/templates/ai-app-key-created.tsx
 msgid "The key does not expire. It works until you revoke it."
 msgstr "A chave não expira. Funciona até a revogar."
+
+#: apps/web/src/components/ai-app-key-form.tsx
+msgid "The key reads only your own records in the workspace you are in now. Switch workspace first to make a key for another one."
+msgstr "A chave lê apenas os seus próprios registos no espaço de trabalho em que está agora. Mude primeiro de espaço de trabalho para criar uma chave para outro."
 
 #: packages/email/src/templates/ai-app-key-created.tsx
 msgid "The key stops working on {expiresAt}."
@@ -15822,6 +16203,10 @@ msgstr "O servidor não aceitou esta alteração ({errorCode}). Fica neste dispo
 msgid "The server did not accept this change."
 msgstr "O servidor não aceitou esta alteração."
 
+#: apps/web/src/routes/_auth/settings/ai-apps.tsx
+msgid "The server's operator has not turned this on. Everything else works as usual."
+msgstr "O operador do servidor não ativou esta funcionalidade. Tudo o resto funciona como habitualmente."
+
 #: packages/api/src/presenters/food-lookup.ts
 msgid "The source has this barcode but no product name. Enter the food from its label instead."
 msgstr "A fonte tem este código de barras, mas sem nome de produto. Em alternativa, introduza o alimento a partir do rótulo."
@@ -15873,6 +16258,10 @@ msgstr "O email semanal de perspetivas está desligado. Pode voltar a ligá-lo n
 #: apps/web/src/components/ai-workspace-consent-card.tsx
 msgid "The workspace owner decides whether AI features can be used in this workspace. When it is on, each person still has to give their own consent below before AI processes their data."
 msgstr "O proprietário do espaço de trabalho decide se as funcionalidades de IA podem ser usadas neste espaço de trabalho. Quando está ligada, cada pessoa tem ainda de dar o seu próprio consentimento abaixo antes de a IA tratar os seus dados."
+
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "The workspace owner has turned off connecting AI apps. Existing keys and connections in this workspace are paused until it is turned back on."
+msgstr "O proprietário do espaço de trabalho desativou a ligação de aplicações de IA. As chaves e ligações existentes neste espaço de trabalho estão em pausa até voltar a ser ativada."
 
 #: apps/web/src/components/magic-link-form.tsx
 msgid "There is no account for this email yet."
@@ -16160,6 +16549,11 @@ msgstr "Isto só está disponível depois de confirmar que tem 18 anos ou mais."
 msgid "This is separate from Coach AI consent. You can revoke the connection at any time in Settings → Connected AI apps; revoking stops it on its next request."
 msgstr "Isto é independente do consentimento da IA do Coach. Pode revogar a ligação a qualquer momento em Definições → Aplicações de IA ligadas; ao revogar, a ligação deixa de funcionar no pedido seguinte."
 
+#. safety
+#: apps/web/src/components/ai-app-key-form.tsx
+msgid "This is separate from Coach AI consent. You can revoke the key at any time on this page; revoking stops it on its next request."
+msgstr "Isto é independente do consentimento da IA do Coach. Pode revogar a chave a qualquer momento nesta página; ao revogar, deixa de funcionar no próximo pedido."
+
 #: apps/web/src/components/onboarding/welcome-flow.tsx
 msgid "This is the only question you can't skip."
 msgstr "Esta é a única pergunta que não pode saltar."
@@ -16388,6 +16782,10 @@ msgstr "Para continuar a adicionar e sincronizar registos depois disso, escolha 
 msgid "To keep your account, subscribe in Plan & billing on the web before that day."
 msgstr "Para manter a sua conta, subscreva em Plano e faturação na web antes desse dia."
 
+#: apps/native/app/(drawer)/settings/ai-apps.tsx
+msgid "To make a personal key or connect a new app, sign in to the web app and open Settings, then Connected AI apps. You can revoke access here."
+msgstr "Para criar uma chave pessoal ou ligar uma nova aplicação, inicie sessão na aplicação web e abra Definições e depois Aplicações de IA ligadas. Aqui pode revogar o acesso."
+
 #. placeholder {0}: oidc.displayName
 #: apps/web/src/routes/join.tsx
 msgid "To sign in with {0} later, finish joining, sign in with the email link, then choose Connect under Settings → Sign-in methods."
@@ -16491,6 +16889,10 @@ msgstr "Demasiadas tentativas. Aguarde um momento e tente novamente."
 msgid "Too many imports just now. Try again in a minute."
 msgstr "Demasiadas importações neste momento. Tente novamente daqui a um minuto."
 
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "Tool"
+msgstr "Ferramenta"
+
 #: apps/native/components/workout-history.tsx
 #: apps/web/src/components/workout-history.tsx
 msgid "Top weight"
@@ -16549,6 +16951,7 @@ msgid "Trackers are private unless you share one with this workspace. Each has i
 msgstr "Os acompanhamentos são privados, a menos que partilhe um com este espaço de trabalho. Cada um tem o seu próprio interruptor para o Coach e as apps de IA ligadas. As notas nunca são partilhadas com o Coach."
 
 #: apps/web/src/components/oauth-consent-view.tsx
+#: packages/api/src/presenters/ai-apps.ts
 msgid "Trackers you made, except those with \"Coach and connected AI apps can read this\" off."
 msgstr "Os acompanhamentos que criou, exceto os que têm desligado \"O Coach e as apps de IA ligadas podem ler isto\"."
 
@@ -16950,6 +17353,8 @@ msgstr "Receita sem título"
 msgid "Untracked"
 msgstr "Não registado"
 
+#: apps/native/app/(drawer)/settings/ai-apps.tsx
+#: apps/web/src/components/ai-apps-view.tsx
 #: apps/web/src/components/oauth-consent-view.tsx
 msgid "Unverified app"
 msgstr "Aplicação não verificada"
@@ -17266,6 +17671,10 @@ msgstr "Certeza muito baixa (“a evidência é muito incerta”)"
 msgid "Very stressed"
 msgstr "Muito stressado"
 
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+msgid "View and revoke apps that read your records"
+msgstr "Ver e revogar aplicações que leem os seus registos"
+
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "View details"
 msgstr "Ver detalhes"
@@ -17478,6 +17887,10 @@ msgstr "Vamos enviar-lhe por email uma ligação para iniciar sessão. Não prec
 msgid "Wearable accounts such as Oura or WHOOP connect in Settings › Devices."
 msgstr "Contas de dispositivos como Oura ou WHOOP ligam-se em Definições › Dispositivos."
 
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "Web apps such as claude.ai and ChatGPT connect from their own servers, so this server has to be reachable on the public internet over HTTPS. A server on a home network or VPN works with personal keys from apps on your own computer."
+msgstr "Aplicações web como o claude.ai e o ChatGPT ligam-se a partir dos seus próprios servidores, por isso este servidor tem de estar acessível na internet pública por HTTPS. Um servidor numa rede doméstica ou VPN funciona com chaves pessoais a partir de aplicações no seu próprio computador."
+
 #: apps/web/src/routes/_auth/goals.index.tsx
 msgid "Week complete"
 msgstr "Semana concluída"
@@ -17624,6 +18037,7 @@ msgstr "O que requer atenção hoje e, depois, o seu progresso a longo prazo."
 msgid "What public-health authorities in your region publish for people of your age and sex, with the source of each item. This is general public-health information, not personal medical advice, and it may not apply to you. Talk to your clinician about what is right for you."
 msgstr "O que as autoridades de saúde pública da sua região publicam para pessoas da sua idade e sexo, com a fonte de cada item. Isto é informação geral de saúde pública, não aconselhamento médico personalizado, e pode não se aplicar a si. Fale com o seu profissional de saúde sobre o que é adequado para si."
 
+#: apps/web/src/components/ai-app-key-form.tsx
 #: apps/web/src/components/oauth-consent-view.tsx
 msgid "What the app may read"
 msgstr "O que a aplicação pode ler"
@@ -17647,6 +18061,15 @@ msgstr "Novidades da versão {shortVersion}"
 #: apps/web/src/components/oauth-consent-view.tsx
 msgid "Whatever this connection reads goes to {appName}, under that app's own terms and privacy policy. OpenValens cannot control what the app does with it."
 msgstr "Tudo o que esta ligação ler é enviado para {appName}, nos termos e na política de privacidade dessa aplicação. O OpenValens não controla o que a aplicação faz com esses dados."
+
+#. safety
+#: apps/web/src/components/ai-app-key-form.tsx
+msgid "Whatever this key reads goes to the app you give it to, under that app's own terms and privacy policy. OpenValens cannot control what the app does with it."
+msgstr "Tudo o que esta chave ler vai para a aplicação a que a der, ao abrigo dos termos e da política de privacidade dessa aplicação. A OpenValens não consegue controlar o que a aplicação faz com isso."
+
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "When"
+msgstr "Quando"
 
 #: apps/web/src/routes/_auth/goals.index.tsx
 msgid "When taken"
@@ -17749,6 +18172,7 @@ msgid "Works out protein, carbohydrate and fat targets from your energy target a
 msgstr "Calcula objetivos de proteína, hidratos de carbono e lípidos a partir do seu objetivo de energia e do seu peso recente. Nada muda até os guardar."
 
 #: apps/native/app/(drawer)/invitations.tsx
+#: apps/web/src/components/ai-app-key-form.tsx
 #: apps/web/src/components/oauth-consent-view.tsx
 msgid "Workspace"
 msgstr "Espaço de trabalho"
@@ -17833,6 +18257,14 @@ msgstr "Está sem ligação."
 msgid "You can close this page."
 msgstr "Pode fechar esta página."
 
+#: apps/native/app/(drawer)/settings/ai-apps.tsx
+msgid "You can let an AI assistant read your sleep, workouts, labs and other records so it can answer questions about them."
+msgstr "Pode permitir que um assistente de IA leia o seu sono, treinos, análises e outros registos para responder a perguntas sobre eles."
+
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "You can let an AI assistant read your sleep, workouts, labs and other records so it can answer questions about them. Add this server in the app, then sign in here to approve it."
+msgstr "Pode permitir que um assistente de IA leia o seu sono, treinos, análises e outros registos para responder a perguntas sobre eles. Adicione este servidor na aplicação e depois inicie sessão aqui para a aprovar."
+
 #: apps/web/src/components/oauth-consent-view.tsx
 msgid "You can only connect AI apps to a workspace you own, and the owner must allow it. None of your workspaces can be connected right now."
 msgstr "Só pode ligar aplicações de IA a um espaço de trabalho de que é proprietário, e o proprietário tem de o permitir. Neste momento, nenhum dos seus espaços de trabalho pode ser ligado."
@@ -17887,6 +18319,10 @@ msgstr "Recebe este email porque definiu um lembrete no OpenValens e ativou as n
 #: packages/api/src/presenters/insights.ts
 msgid "You get this email because you turned on the weekly insights summary. It contains values from your health records."
 msgstr "Recebe este email porque ativou o resumo semanal de perspetivas. Contém valores dos seus registos de saúde."
+
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "You have {activeKeyCount} active keys, the most allowed. Revoke one to make another."
+msgstr "Tem {activeKeyCount} chaves ativas, o máximo permitido. Revogue uma para criar outra."
 
 #: apps/native/app/(drawer)/trackers.tsx
 #: apps/web/src/routes/_auth/trackers.index.tsx
@@ -18164,6 +18600,7 @@ msgid "Your export is ready. It will be available for 24 hours after preparation
 msgstr "A sua exportação está pronta. Ficará disponível durante 24 horas após a preparação."
 
 #: apps/web/src/components/oauth-consent-view.tsx
+#: packages/api/src/presenters/ai-apps.ts
 msgid "Your food diary and nutrient totals."
 msgstr "O seu diário alimentar e os totais de nutrientes."
 
@@ -18232,6 +18669,11 @@ msgstr "O seu último pagamento do OpenValens Cloud não foi concluído."
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
 msgid "Your modules"
 msgstr "Os seus módulos"
+
+#. placeholder {0}: props.label
+#: apps/web/src/components/ai-app-key-form.tsx
+msgid "Your new key: {0}"
+msgstr "A sua nova chave: {0}"
 
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Your next check-in is not open yet."
@@ -18330,6 +18772,7 @@ msgstr "O seu registo de {title}"
 
 #: apps/native/app/(drawer)/private-measurements.tsx
 #: apps/web/src/components/oauth-consent-view.tsx
+#: packages/api/src/presenters/ai-apps.ts
 msgid "Your records"
 msgstr "Os seus registos"
 

@@ -48,6 +48,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { AboutSection } from "@/components/about-section";
+import { AiAppsSettingsSection, useAiAppsEnabled } from "@/components/ai-apps-settings-section";
 import { AiConsentSection } from "@/components/ai-consent-section";
 import { AiWorkspaceConsentSection } from "@/components/ai-workspace-consent-section";
 import { AnalyticsConsentSection } from "@/components/analytics-consent-section";
@@ -79,6 +80,8 @@ function SettingsPage() {
   // off (the section hides itself too); the index entry follows.
   const analytics = useQuery(orpc.analytics.getPreference.queryOptions({ input: {} })).data;
   const showAnalytics = !analytics || analytics.available || analytics.enabled;
+  // Issue #439 — hidden entirely while the server has AI apps off.
+  const showAiApps = useAiAppsEnabled();
   // The in-page index: each entry anchors a section below. Sign-in methods
   // sits under Account, the two AI switches under one entry.
   const index = [
@@ -90,6 +93,7 @@ function SettingsPage() {
     { id: "notifications", label: i18n._(INSIGHT_DELIVERY_COPY.settingsTitle) },
     { id: "whats-new", label: t`What's new` },
     { id: "integrations", label: t`Integrations` },
+    ...(showAiApps ? [{ id: "ai-apps", label: t`Connected AI apps` }] : []),
     ...(showAnalytics ? [{ id: "analytics", label: t`Usage analytics` }] : []),
     { id: "coach", label: t`Coach` },
     { id: "ai", label: t`AI processing` },
@@ -144,6 +148,11 @@ function SettingsPage() {
           <div id="integrations" className="scroll-mt-10">
             <IntegrationsSection />
           </div>
+          {showAiApps ? (
+            <div id="ai-apps" className="scroll-mt-10">
+              <AiAppsSettingsSection />
+            </div>
+          ) : null}
           {showAnalytics ? (
             <div id="analytics" className="scroll-mt-10">
               <AnalyticsConsentSection />

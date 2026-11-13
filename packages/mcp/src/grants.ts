@@ -88,6 +88,11 @@ export type AiAppGrantSummary = {
   status: AiAppGrantStatus;
   /** `ov_` and six characters of a personal key; `null` for OAuth. */
   displayPrefix: string | null;
+  /**
+   * Host of an OAuth app's client id when it is a metadata document URL
+   * (CIMD); `null` for a personal key or a dynamically registered app.
+   */
+  clientIdHost: string | null;
   createdAt: string;
   lastUsedAt: string | null;
   expiresAt: string | null;
@@ -228,6 +233,17 @@ function iso(value: Date | null): string | null {
   return value ? value.toISOString() : null;
 }
 
+/** The host of a CIMD client id (an `https://` URL); `null` for any other id. */
+function clientIdHostOf(clientId: string | null): string | null {
+  if (!clientId) return null;
+  try {
+    const url = new URL(clientId);
+    return url.protocol === "https:" ? url.host : null;
+  } catch {
+    return null;
+  }
+}
+
 function grantStatus(
   row: { revokedAt: Date | null; revokedReason: string | null; expiresAt: Date | null },
   now: Date,
@@ -283,6 +299,7 @@ export function createAiAppsService(options: AiAppsServiceOptions) {
       consentVersion: row.consentVersion,
       status: grantStatus(row, now()),
       displayPrefix,
+      clientIdHost: row.kind === "oauth" ? clientIdHostOf(row.oauthClientId) : null,
       createdAt: row.createdAt.toISOString(),
       lastUsedAt: iso(row.lastUsedAt),
       expiresAt: iso(row.expiresAt),
@@ -713,11 +730,15 @@ export function createAiAppsService(options: AiAppsServiceOptions) {
     }
   }
 
-  /** The member's most recent calls in one workspace ("Recent activity"). */
+  /**
+   * The member's most recent calls in one workspace ("Recent activity"), or
+   * of one of their grants there when `grantId` is given.
+   */
   async function listRecentCalls(input: {
     userId: string;
     organizationId: string;
     limit: number;
+    grantId?: string;
   }): Promise<AiAppCallSummary[]> {
     const rows = await db
       .select({
@@ -734,6 +755,7 @@ export function createAiAppsService(options: AiAppsServiceOptions) {
         and(
           eq(aiAppCall.userId, input.userId),
           eq(aiAppGrant.organizationId, input.organizationId),
+          input.grantId ? eq(aiAppCall.grantId, input.grantId) : undefined,
         ),
       )
       .orderBy(desc(aiAppCall.createdAt), desc(aiAppCall.id))

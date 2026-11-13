@@ -1,6 +1,8 @@
 import { requireTrustedIdentity } from "@openvalens/auth/authz/trusted-session";
 import { McpOAuthConsentError, type McpOAuthConsent } from "@openvalens/auth/mcp-oauth";
+import { organization } from "@openvalens/db/schema/auth";
 import { ORPCError } from "@orpc/server";
+import { eq } from "drizzle-orm";
 import {
   AI_APP_CONSENT_VERSION,
   AiAppGrantError,
@@ -36,6 +38,8 @@ const grantShape = z.object({
   consentVersion: z.string(),
   status: z.enum(["active", "revoked", "expired"]),
   displayPrefix: z.string().nullable(),
+  /** Host of an OAuth app's metadata-document client id; `null` otherwise. */
+  clientIdHost: z.string().nullable(),
   createdAt: z.string(),
   lastUsedAt: z.string().nullable(),
   expiresAt: z.string().nullable(),
@@ -55,6 +59,12 @@ const statusOutput = z.object({
   expiryDays: z.array(z.number().nullable()),
   defaultExpiryDays: z.number().nullable(),
   maxActiveKeys: z.number(),
+  /** The active workspace's name: grants are listed and created there. */
+  workspaceName: z.string(),
+  /** `https://<server>/api/mcp`, for the ready-to-paste client commands; `null` when off. */
+  mcpUrl: z.string().nullable(),
+  /** Whether apps can sign in with OAuth here (off on a plain-HTTP server URL). */
+  oauthEnabled: z.boolean(),
 });
 
 const createKeyInput = z
@@ -71,7 +81,21 @@ const createKeyInput = z
   .strict();
 
 const grantIdInput = z.object({ grantId: z.uuid() }).strict();
-const activityInput = z.object({ limit: z.number().int().min(1).max(100).default(50) }).strict();
+const activityInput = z
+  .object({
+    limit: z.number().int().min(1).max(100).default(50),
+    /** Only this grant's calls (one card's "Recent activity"). */
+    grantId: z.uuid().optional(),
+  })
+  .strict();
+
+async function workspaceNameOf(db: Context["db"], organizationId: string): Promise<string> {
+  const [row] = await db
+    .select({ name: organization.name })
+    .from(organization)
+    .where(eq(organization.id, organizationId));
+  return row?.name ?? "";
+}
 const settingInput = z.object({ membersCanConnect: z.boolean() }).strict();
 
 function requireService(context: Context): AiAppsService {
@@ -211,14 +235,21 @@ export const aiAppsRouter = {
           membersCanConnect: false,
           canCreate: false,
           blockedReason: null,
+          workspaceName: "",
+          mcpUrl: null,
+          oauthEnabled: false,
         };
       }
-      const [setting, eligibility] = await Promise.all([
+      const [setting, eligibility, workspaceName] = await Promise.all([
         context.aiApps.readWorkspaceSetting(organizationId),
         context.aiApps.canCreate({ userId: context.authz.user.id, organizationId }),
+        workspaceNameOf(context.db, organizationId),
       ]);
       return {
         ...base,
+        workspaceName,
+        mcpUrl: context.aiAppsMcpUrl ?? null,
+        oauthEnabled: Boolean(context.aiAppsOAuth),
         enabled: true,
         membersCanConnect: setting.membersCanConnect,
         canCreate: eligibility.allowed,
@@ -261,6 +292,7 @@ export const aiAppsRouter = {
         userId: context.authz.user.id,
         organizationId: context.authz.activeOrganizationId,
         limit: input.limit,
+        grantId: input.grantId,
       }),
     })),
 
