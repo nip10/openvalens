@@ -2,10 +2,12 @@ import { describe, expect, test } from "bun:test";
 
 import {
   blankTrackerDraft,
+  draftFromTracker,
   parseTargetValue,
   templateTrackerDraft,
   trackerCreatePayload,
   trackerDraftProblems,
+  trackerUpdatePayload,
 } from "./tracker-draft";
 
 describe("tracker drafts", () => {
@@ -44,5 +46,40 @@ describe("tracker drafts", () => {
       { value: 5, period: "week" },
     );
     expect(parseTargetValue({ ...sauna, type: "number", target: "2,5" }, "pt-PT")).toBe(2.5);
+  });
+});
+
+describe("editing a stored tracker", () => {
+  const stored = {
+    template: "sauna" as const,
+    name: "Sauna",
+    icon: "flame" as const,
+    type: "duration" as const,
+    unit: null,
+    decimals: 0,
+    aggregation: "sum" as const,
+    target: { value: 1200, period: "day" as const },
+    shared: true,
+    aiVisible: true,
+    locked: true,
+  };
+
+  test("round-trips the target in minutes and leaves locked fields out", () => {
+    const draft = draftFromTracker(stored);
+    expect(draft).toMatchObject({ target: "20 min", targetEnabled: true, shared: true });
+    expect(trackerUpdatePayload("id-1", stored, { ...draft, name: "Hot room" })).toEqual({
+      id: "id-1",
+      name: "Hot room",
+      icon: "flame",
+      target: { value: 1200, period: "day" },
+      decimals: 0,
+      shared: true,
+      aiVisible: true,
+    });
+    expect(trackerUpdatePayload("id-1", { locked: false }, draft)).toMatchObject({
+      type: "duration",
+      unit: null,
+      aggregation: "sum",
+    });
   });
 });

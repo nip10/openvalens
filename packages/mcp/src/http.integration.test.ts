@@ -73,6 +73,7 @@ describe.skipIf(!url)("MCP server and REST tools against disposable PostgreSQL",
   });
   let baseKey = "";
   let fullKey = "";
+  let trackersKey = "";
 
   async function key(scopes: string[], label: string): Promise<string> {
     const created = await service.createPersonalKey({
@@ -149,10 +150,31 @@ describe.skipIf(!url)("MCP server and REST tools against disposable PostgreSQL",
         insert into metric_sample (organization_id, metric_definition_id, sampled_at, dedupe_hash, numeric_value)
         select '${ORG}', id, '2026-10-12T07:00:00Z', 'rhr-${WHO}', 54 from definition;
       update insight_preference set time_zone = 'Europe/Lisbon' where user_id = '${USER}';
+      -- Custom trackers (#441): one readable (seeded "Sauna" plus this one), one
+      -- with the AI switch off, and another member's shared tracker.
+      with t as (insert into custom_tracker (organization_id, user_id, name, icon, type, aggregation, target_value, target_period)
+        values ('${ORG}', '${USER}', 'Dead hang', 'hand', 'duration', 'sum', 60, 'day') returning id, organization_id, user_id)
+        insert into custom_tracker_entry (tracker_id, organization_id, user_id, logged_by_user_id, value, logged_at, local_date, note)
+        select id, organization_id, user_id, user_id, s, ts, '2026-10-12', 'tracker-note-secret' from t,
+          (values (45, timestamptz '2026-10-12T08:00:00Z'), (30, timestamptz '2026-10-12T18:00:00Z')) v(s, ts);
+      with t as (insert into custom_tracker (organization_id, user_id, name, icon, type, aggregation, ai_visible)
+        values ('${ORG}', '${USER}', 'Mood ai-off-secret', 'smile', 'scale', 'average', false) returning id, organization_id, user_id)
+        insert into custom_tracker_entry (tracker_id, organization_id, user_id, logged_by_user_id, value, logged_at, local_date)
+        select id, organization_id, user_id, user_id, 2, '2026-10-12T09:00:00Z', '2026-10-12' from t;
+      insert into "user" (id, email) values ('user-other-${WHO}', 'other-${WHO}@example.test');
+      insert into member (id, organization_id, user_id, role) values ('m-other-${WHO}', '${ORG}', 'user-other-${WHO}', 'collaborator');
+      with t as (insert into custom_tracker (organization_id, user_id, name, icon, type, unit, aggregation, shared)
+        values ('${ORG}', 'user-other-${WHO}', 'Other member shared-secret', 'book', 'number', 'pages', 'sum', true) returning id, organization_id, user_id)
+        insert into custom_tracker_entry (tracker_id, organization_id, user_id, logged_by_user_id, value, logged_at, local_date)
+        select id, organization_id, user_id, user_id, 10, '2026-10-12T09:00:00Z', '2026-10-12' from t;
     `),
     );
     baseKey = await key([], "Base");
-    fullKey = await key(["nutrition:read", "private_body:read", "notes:read"], "Full");
+    fullKey = await key(
+      ["nutrition:read", "private_body:read", "notes:read", "trackers:read"],
+      "Full",
+    );
+    trackersKey = await key(["trackers:read"], "Trackers");
   });
 
   test("MCP tools/list holds only the tools the scopes allow, with the purpose statement", async () => {
@@ -199,7 +221,7 @@ describe.skipIf(!url)("MCP server and REST tools against disposable PostgreSQL",
     const bodies: string[] = [];
     for (const tool of MCP_TOOLS) {
       const input =
-        tool.name.includes(".") && tool.name !== "exercises.search"
+        tool.name.includes(".") && tool.name !== "exercises.search" && tool.name !== "trackers.list"
           ? RANGE
           : tool.name === "markerTrend"
             ? { markerKey: "ferritin" }
@@ -276,6 +298,52 @@ describe.skipIf(!url)("MCP server and REST tools against disposable PostgreSQL",
       )
     ).json()) as any;
     expect(second.result.results[0]).not.toEqual(first.result.results[0]);
+  });
+
+  test("custom trackers need trackers:read, and a tracker with AI off or another member's is invisible", async () => {
+    for (const name of ["trackers.list", "trackers.daily", "trackers.entries"]) {
+      const response = await rest(name, name === "trackers.list" ? {} : RANGE, baseKey);
+      expect(response.status).toBe(403);
+    }
+    const base = await mcp(baseKey, "tools/list");
+    expect(
+      (base.body.result.tools as Array<{ name: string }>).some((tool) =>
+        tool.name.startsWith("trackers."),
+      ),
+    ).toBe(false);
+
+    const list = (await (await rest("trackers.list", {}, trackersKey)).json()) as any;
+    expect(list.result.trackers.map((tracker: { name: string }) => tracker.name).sort()).toEqual([
+      "Dead hang",
+      "Sauna",
+    ]);
+    expect(
+      list.result.trackers.find((t: { name: string }) => t.name === "Dead hang"),
+    ).toMatchObject({
+      unit: "min",
+      target: { value: 1, unit: "min", per: "day" },
+    });
+
+    const daily = (await (await rest("trackers.daily", RANGE, trackersKey)).json()) as any;
+    const hang = daily.result.trackers.find((t: { name: string }) => t.name === "Dead hang");
+    expect(hang.days).toEqual([{ day: "2026-10-12", value: 1.3, unit: "min", entryCount: 2 }]);
+
+    const entries = (await (await rest("trackers.entries", RANGE, trackersKey)).json()) as any;
+    // Two dead hangs plus the seeded sauna entry; never the AI-off or other member's rows.
+    expect(entries.result.entries.length).toBe(3);
+    expect(entries.result.entries[0]).toMatchObject({
+      tracker: "Dead hang",
+      day: "2026-10-12",
+      loggedBy: "member",
+    });
+    const all = JSON.stringify([list, daily, entries]);
+    for (const hidden of ["ai-off-secret", "shared-secret", "tracker-note-secret", "seeded mcp"])
+      expect(all).not.toContain(hidden);
+
+    // Notes only with the notes scope; still never the AI-off tracker.
+    const withNotes = await (await rest("trackers.entries", RANGE, fullKey)).text();
+    expect(withNotes).toContain("tracker-note-secret");
+    expect(withNotes).not.toContain("ai-off-secret");
   });
 
   test("calls are recorded without arguments or results", async () => {

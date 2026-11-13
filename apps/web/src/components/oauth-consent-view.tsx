@@ -245,6 +245,10 @@ function ScopeRow(props: {
       title: t`Notes`,
       detail: t`Free-text notes on your workouts, labs and other entries.`,
     },
+    "trackers:read": {
+      title: t`Custom trackers`,
+      detail: t`Trackers you made, except those with "Coach and connected AI apps can read this" off.`,
+    },
   };
   const label = labels[props.scope] ?? { title: props.scope, detail: "" };
   return (

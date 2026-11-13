@@ -12,6 +12,7 @@
     { "path": "../db" },
     { "path": "../ai" },
     { "path": "../observability" },
+    { "path": "../trackers" },
     { "path": "../audit-security" },
     { "path": "../auth" },
     { "path": "../data-rights" },
