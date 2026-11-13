@@ -35,11 +35,11 @@ import {
 } from "@/components/page";
 import { trackerIcon } from "@/components/tracker-icons";
 import {
-  blankTrackerDraft,
   browserTimeZone,
-  trackerCreatePayload,
+  draftFromTracker,
+  trackerUpdatePayload,
   type TrackerDraft,
-} from "@/components/trackers/tracker-draft";
+} from "@openvalens/api/presenters/tracker-draft";
 import { TrackerEditor } from "@/components/trackers/tracker-editor";
 import { TrackerLogForm } from "@/components/trackers/tracker-log-form";
 import { TrackerValueInput } from "@/components/trackers/tracker-value-input";
@@ -493,53 +493,19 @@ function EntryEditor({
   );
 }
 
-function draftFrom(tracker: Tracker): TrackerDraft {
-  return {
-    ...blankTrackerDraft(),
-    template: tracker.template,
-    name: tracker.name,
-    icon: tracker.icon,
-    type: tracker.type,
-    unit: tracker.unit ?? "",
-    decimals: tracker.decimals,
-    aggregation: tracker.aggregation === "any" ? "sum" : tracker.aggregation,
-    targetEnabled: tracker.target !== null,
-    target:
-      tracker.target === null
-        ? ""
-        : tracker.type === "duration"
-          ? `${Math.round(tracker.target.value / 60)} min`
-          : String(tracker.target.value),
-    targetPeriod: tracker.target?.period ?? "day",
-    shared: tracker.shared,
-    aiVisible: tracker.aiVisible,
-  };
-}
-
 function SettingsSection({ tracker, onChanged }: { tracker: Tracker; onChanged: () => void }) {
   const { t, i18n } = useLingui();
   const navigate = useNavigate();
-  const [draft, setDraft] = useState<TrackerDraft>(() => draftFrom(tracker));
+  const [draft, setDraft] = useState<TrackerDraft>(() => draftFromTracker(tracker));
   const [showErrors, setShowErrors] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [typed, setTyped] = useState("");
 
   const save = useMutation({
     mutationFn: () => {
-      const payload = trackerCreatePayload(draft, i18n.locale);
+      const payload = trackerUpdatePayload(tracker.id, tracker, draft, i18n.locale);
       if (!payload) throw new Error(t`Check the highlighted fields.`);
-      return client.trackers.update({
-        id: tracker.id,
-        name: payload.name,
-        icon: payload.icon,
-        target: payload.target ?? null,
-        decimals: payload.decimals,
-        shared: payload.shared,
-        aiVisible: payload.aiVisible,
-        ...(tracker.locked
-          ? {}
-          : { type: payload.type, unit: payload.unit ?? null, aggregation: payload.aggregation }),
-      });
+      return client.trackers.update(payload);
     },
     onSuccess: () => {
       toast.success(t`Tracker saved.`);

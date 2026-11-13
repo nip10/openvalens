@@ -31,7 +31,7 @@ import {
   templateTrackerDraft,
   trackerCreatePayload,
   type TrackerDraft,
-} from "@/components/trackers/tracker-draft";
+} from "@openvalens/api/presenters/tracker-draft";
 import { TrackerEditor } from "@/components/trackers/tracker-editor";
 import { TrackerLogForm } from "@/components/trackers/tracker-log-form";
 import { client, orpc } from "@/utils/orpc";

@@ -15,6 +15,7 @@ import {
   History,
   LayoutDashboard,
   Leaf,
+  ListChecks,
   Lock,
   type LucideIcon,
   Mail,
@@ -67,6 +68,7 @@ type DrawerItem = {
     | "/body"
     | "/records/labs"
     | "/goals"
+    | "/trackers"
     | "/exercise-library"
     | "/exports"
     | "/coach"
@@ -113,6 +115,7 @@ const DRAWER_GROUPS: readonly { label: MessageDescriptor; items: readonly Drawer
       { label: msg`Recipe draft`, href: "/recipe-drafts", icon: ChefHat },
       { label: msg`Micronutrients`, href: "/micronutrients", icon: Leaf },
       { label: msg`Goals`, href: "/goals", icon: Target },
+      { label: msg`Trackers`, href: "/trackers", icon: ListChecks },
       { label: msg`Supplements`, href: "/supplements", icon: Pill },
     ],
   },
@@ -159,6 +162,7 @@ const HEADER_TITLES: Readonly<Record<string, MessageDescriptor>> = {
   "/workouts": msg`Training`,
   "/training": msg`Training`,
   "/goals": msg`Goals`,
+  "/trackers": msg`Trackers`,
   "/routines": msg`Routines`,
   "/exercise-library": msg`Exercise library`,
   "/exports": msg`Clinical export`,
@@ -299,9 +303,11 @@ function DrawerLayout() {
     ? "/coach"
     : pathname.startsWith("/goals/")
       ? "/goals"
-      : pathname.startsWith("/exercise/")
-        ? "/exercise-library"
-        : pathname;
+      : pathname.startsWith("/trackers/")
+        ? "/trackers"
+        : pathname.startsWith("/exercise/")
+          ? "/exercise-library"
+          : pathname;
   const headerTitle = _(HEADER_TITLES[titleKey] ?? msg`Cockpit`);
 
   return (
@@ -410,6 +416,20 @@ function DrawerLayout() {
           name="goals/[goalId]"
           options={{
             headerTitle: headerTitle,
+            drawerItemStyle: { display: "none" },
+          }}
+        />
+        <Drawer.Screen
+          name="trackers"
+          options={{
+            headerTitle,
+            drawerItemStyle: { display: "none" },
+          }}
+        />
+        <Drawer.Screen
+          name="trackers/[trackerId]"
+          options={{
+            headerTitle,
             drawerItemStyle: { display: "none" },
           }}
         />

@@ -5,6 +5,7 @@ import { healthEvent, metricDefinition, metricSample } from "@openvalens/db/sche
 import { insightPreference } from "@openvalens/db/schema/insights";
 import { workout, workoutExercise } from "@openvalens/db/schema/plans";
 import { productSettings } from "@openvalens/db/schema/product-settings";
+import { customTracker, customTrackerEntry } from "@openvalens/db/schema/trackers";
 import { and, asc, between, desc, eq, ilike, inArray, isNull, sql } from "drizzle-orm";
 
 import type { Units } from "./format";
@@ -36,6 +37,10 @@ export const MCP_SOURCE_TABLES = [
   "blood_panel",
   "blood_marker",
   "private_body_measurement", // only with `private_body:read`
+  // Custom trackers (#441): only with `trackers:read`, only the member's own,
+  // and only trackers whose "Coach and connected AI apps" switch is on.
+  "custom_tracker",
+  "custom_tracker_entry", // `note` only with `notes:read`
   // Member display preferences
   "insight_preference", // time zone only
   "product_settings", // units only
@@ -109,6 +114,27 @@ export type LabRow = {
   flag: string | null;
 };
 export type PrivateMeasurementRow = { kind: string; value: number; unit: string; measuredAt: Date };
+export type TrackerRow = {
+  id: string;
+  name: string;
+  template: string | null;
+  type: string;
+  unit: string | null;
+  decimals: number;
+  aggregation: string;
+  targetValue: number | null;
+  targetPeriod: string | null;
+};
+export type TrackerEntryRow = {
+  id: string;
+  trackerId: string;
+  value: number;
+  loggedAt: Date;
+  localDate: string;
+  /** Read only when the grant has `notes:read`; null otherwise. */
+  note: string | null;
+  loggedByMember: boolean;
+};
 
 export type McpDataSources = {
   preferences: (scope: GrantScope) => Promise<{ timeZone: string | null; units: Units }>;
@@ -126,6 +152,17 @@ export type McpDataSources = {
     range: DayRange,
     timeZone: string,
   ) => Promise<PrivateMeasurementRow[]>;
+  /** The member's own trackers with the AI switch on, not archived (#441). */
+  trackers: (scope: GrantScope) => Promise<TrackerRow[]>;
+  /**
+   * Entries of those trackers by local day, newest first. `withNotes` is the
+   * grant's `notes:read`; without it the note column is never selected.
+   */
+  trackerEntries: (
+    scope: GrantScope,
+    range: DayRange,
+    options: { trackerIds: readonly string[]; withNotes: boolean },
+  ) => Promise<TrackerEntryRow[]>;
   searchExercises: ExerciseSearchPort;
 };
 
@@ -321,6 +358,67 @@ export function createMcpDataSources(
         .orderBy(desc(privateBodyMeasurement.measuredAt), desc(privateBodyMeasurement.id))
         .limit(range.limit)
         .offset(range.offset);
+    },
+
+    async trackers(scope) {
+      return db
+        .select({
+          id: customTracker.id,
+          name: customTracker.name,
+          template: customTracker.template,
+          type: customTracker.type,
+          unit: customTracker.unit,
+          decimals: customTracker.decimals,
+          aggregation: customTracker.aggregation,
+          targetValue: customTracker.targetValue,
+          targetPeriod: customTracker.targetPeriod,
+        })
+        .from(customTracker)
+        .where(
+          and(
+            eq(customTracker.organizationId, scope.organizationId),
+            eq(customTracker.userId, scope.userId),
+            eq(customTracker.aiVisible, true),
+            isNull(customTracker.archivedAt),
+          ),
+        )
+        .orderBy(asc(customTracker.createdAt), asc(customTracker.id));
+    },
+
+    async trackerEntries(scope, range, options) {
+      if (options.trackerIds.length === 0) return [];
+      const query = db
+        .select({
+          id: customTrackerEntry.id,
+          trackerId: customTrackerEntry.trackerId,
+          value: customTrackerEntry.value,
+          loggedAt: customTrackerEntry.loggedAt,
+          localDate: customTrackerEntry.localDate,
+          note: options.withNotes ? customTrackerEntry.note : sql<null>`null`,
+          loggedByMember: sql<boolean>`coalesce(${customTrackerEntry.loggedByUserId} = ${scope.userId}, false)`,
+        })
+        .from(customTrackerEntry)
+        .innerJoin(
+          customTracker,
+          and(
+            eq(customTracker.id, customTrackerEntry.trackerId),
+            eq(customTracker.organizationId, customTrackerEntry.organizationId),
+            eq(customTracker.userId, customTrackerEntry.userId),
+          ),
+        )
+        .where(
+          and(
+            eq(customTrackerEntry.organizationId, scope.organizationId),
+            eq(customTrackerEntry.userId, scope.userId),
+            // Re-checked here so a stale id list can never widen the read.
+            eq(customTracker.aiVisible, true),
+            isNull(customTracker.archivedAt),
+            inArray(customTrackerEntry.trackerId, [...options.trackerIds]),
+            between(customTrackerEntry.localDate, range.from, range.to),
+          ),
+        )
+        .orderBy(desc(customTrackerEntry.loggedAt), desc(customTrackerEntry.id));
+      return range.limit > 0 ? query.limit(range.limit).offset(range.offset) : query;
     },
 
     searchExercises,

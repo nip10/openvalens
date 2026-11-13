@@ -22,7 +22,7 @@ import { useId, type ReactNode } from "react";
 
 import { trackerIcon } from "@/components/tracker-icons";
 
-import { trackerDraftProblems, type TrackerDraft } from "./tracker-draft";
+import { trackerDraftProblems, type TrackerDraft } from "@openvalens/api/presenters/tracker-draft";
 
 const NATIVE_SELECT =
   "h-9 rounded-md border border-input bg-card px-3 text-ink hover:bg-muted focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-55";

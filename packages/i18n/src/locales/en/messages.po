@@ -562,6 +562,10 @@ msgstr "{count} from {label}"
 msgid "{count} sets"
 msgstr "{count} sets"
 
+#: apps/native/app/(drawer)/trackers.tsx
+msgid "{current} of {targetText}"
+msgstr "{current} of {targetText}"
+
 #: apps/web/src/routes/_auth/trackers.index.tsx
 msgid "{currentText} of {targetText}"
 msgstr "{currentText} of {targetText}"
@@ -1175,6 +1179,7 @@ msgstr "0 min"
 msgid "0: Rest"
 msgstr "0: Rest"
 
+#: apps/native/components/trackers/tracker-value-input.tsx
 #: apps/web/src/components/trackers/tracker-value-input.tsx
 msgid "1 = {low}, 5 = {high}. Your own rating."
 msgstr "1 = {low}, 5 = {high}. Your own rating."
@@ -1216,6 +1221,7 @@ msgstr "18-member multidisciplinary expert panel using the RAND/UCLA Appropriate
 msgid "2: Easy"
 msgstr "2: Easy"
 
+#: apps/native/components/trackers/tracker-value-input.tsx
 #: apps/web/src/components/trackers/tracker-value-input.tsx
 msgid "20 min, 1:30 or 45 s"
 msgstr "20 min, 1:30 or 45 s"
@@ -1226,6 +1232,7 @@ msgstr "3: Moderate"
 
 #: apps/native/app/(drawer)/(tabs)/body.tsx
 #: apps/native/app/(drawer)/(tabs)/index.tsx
+#: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/web/src/routes/_auth/body.tsx
 #: apps/web/src/routes/_auth/dashboard.tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
@@ -1242,6 +1249,7 @@ msgstr "30-day trend"
 msgid "32 hexadecimal characters (16 bytes)"
 msgstr "32 hexadecimal characters (16 bytes)"
 
+#: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 msgid "365 days"
 msgstr "365 days"
@@ -1283,6 +1291,7 @@ msgstr "7: Very hard"
 msgid "8 to under 12"
 msgstr "8 to under 12"
 
+#: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 msgid "90 days"
 msgstr "90 days"
@@ -1366,6 +1375,7 @@ msgstr "A night needs at least 10 minutes."
 msgid "A non-scheduled day is not a miss."
 msgstr "A non-scheduled day is not a miss."
 
+#: apps/native/app/(drawer)/trackers.tsx
 #: apps/web/src/routes/_auth/trackers.index.tsx
 msgid "A number, a 1 to 5 rating, yes or no, or a duration."
 msgstr "A number, a 1 to 5 rating, yes or no, or a duration."
@@ -1383,6 +1393,7 @@ msgstr "A photo can be misread. Check each item, fix or remove anything wrong, t
 msgid "A PRI or RDA covers the needs of nearly all people in the group; your own needs may be lower. An adequate intake (AI) is used when there is too little evidence for that; it is not a cutoff for deficiency. An upper level is not a goal."
 msgstr "A PRI or RDA covers the needs of nearly all people in the group; your own needs may be lower. An adequate intake (AI) is used when there is too little evidence for that; it is not a cutoff for deficiency. An upper level is not a goal."
 
+#: apps/native/components/trackers/tracker-editor.tsx
 #: apps/web/src/components/trackers/tracker-editor.tsx
 msgid "A rating from 1 to 5."
 msgstr "A rating from 1 to 5."
@@ -1686,6 +1697,10 @@ msgstr "Add a name and at least one fully matched ingredient with an amount and 
 #: apps/web/src/components/manual-sleep-section.tsx
 msgid "Add a night"
 msgstr "Add a night"
+
+#: apps/native/components/trackers/tracker-log-form.tsx
+msgid "Add a note"
+msgstr "Add a note"
 
 #: apps/web/src/components/progress-photos.tsx
 msgid "Add a photo (JPEG or PNG, up to 10 MB)"
@@ -2194,6 +2209,7 @@ msgstr "Annual"
 msgid "Annual plan"
 msgstr "Annual plan"
 
+#: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 msgid "another member"
 msgstr "another member"
@@ -2256,10 +2272,13 @@ msgstr "Archive"
 msgid "Archive {0}"
 msgstr "Archive {0}"
 
+#: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 msgid "Archive tracker"
 msgstr "Archive tracker"
 
+#: apps/native/app/(drawer)/trackers.tsx
+#: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 #: packages/api/src/presenters/custom-foods.ts
 #: packages/api/src/presenters/workouts.ts
@@ -2270,6 +2289,7 @@ msgstr "Archived"
 msgid "Archiving hides a food from search and logging. Meals you already logged keep their values, and you can restore it later."
 msgstr "Archiving hides a food from search and logging. Meals you already logged keep their values, and you can restore it later."
 
+#: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 msgid "Archiving hides the tracker and keeps its entries."
 msgstr "Archiving hides the tracker and keeps its entries."
@@ -2421,6 +2441,7 @@ msgstr "Available, not part of this profile"
 msgid "Average"
 msgstr "Average"
 
+#: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 msgid "Average day"
 msgstr "Average day"
@@ -2492,6 +2513,7 @@ msgstr "Back to meal diary"
 msgid "Back to settings"
 msgstr "Back to settings"
 
+#: apps/native/app/(drawer)/trackers.tsx
 #: apps/web/src/routes/_auth/trackers.index.tsx
 msgid "Back to templates"
 msgstr "Back to templates"
@@ -2596,6 +2618,7 @@ msgstr "Barcode matches"
 msgid "Barcode must be 8 to 14 digits, or left blank."
 msgstr "Barcode must be 8 to 14 digits, or left blank."
 
+#: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 msgid "Bars show minutes per day."
 msgstr "Bars show minutes per day."
@@ -2918,6 +2941,7 @@ msgstr "Canada"
 #: apps/native/app/(drawer)/goals/[goalId].tsx
 #: apps/native/app/(drawer)/private-measurements.tsx
 #: apps/native/app/(drawer)/supplements.tsx
+#: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/native/components/active-workout.tsx
 #: apps/native/components/ai-section.tsx
@@ -3130,6 +3154,8 @@ msgstr "Check the address. If it is right, the server may need an update."
 msgid "Check the email and token, then try again."
 msgstr "Check the email and token, then try again."
 
+#: apps/native/app/(drawer)/trackers/[trackerId].tsx
+#: apps/native/components/trackers/tracker-editor.tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 msgid "Check the highlighted fields."
 msgstr "Check the highlighted fields."
@@ -3338,6 +3364,7 @@ msgstr "Choose a supplement or catalog exercise."
 msgid "Choose a supplement."
 msgstr "Choose a supplement."
 
+#: apps/native/components/trackers/tracker-log-form.tsx
 #: apps/web/src/components/trackers/tracker-log-form.tsx
 msgid "Choose a value."
 msgstr "Choose a value."
@@ -3521,6 +3548,7 @@ msgid "Clinician decision for specific situations"
 msgstr "Clinician decision for specific situations"
 
 #: apps/native/app/(drawer)/goals.tsx
+#: apps/native/app/(drawer)/trackers.tsx
 #: apps/native/app/check-in.tsx
 #: apps/native/app/modal.tsx
 #: apps/native/components/change-server.tsx
@@ -3574,6 +3602,7 @@ msgstr "Coach"
 msgid "Coach (AI)"
 msgstr "Coach (AI)"
 
+#: apps/native/components/trackers/tracker-editor.tsx
 #: apps/web/src/components/trackers/tracker-editor.tsx
 msgid "Coach and connected AI apps can read this"
 msgstr "Coach and connected AI apps can read this"
@@ -4181,6 +4210,7 @@ msgstr "Could not connect {name}. Please try again."
 msgid "Could not create an account with {displayName}. Try again or use your email."
 msgstr "Could not create an account with {displayName}. Try again or use your email."
 
+#: apps/native/app/(drawer)/trackers.tsx
 #: apps/web/src/routes/_auth/trackers.index.tsx
 msgid "Could not create it. Try again."
 msgstr "Could not create it. Try again."
@@ -4189,6 +4219,7 @@ msgstr "Could not create it. Try again."
 msgid "Could not decline the invitation."
 msgstr "Could not decline the invitation."
 
+#: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 msgid "Could not delete it. Try again."
 msgstr "Could not delete it. Try again."
@@ -4446,10 +4477,12 @@ msgstr "Could not load Telegram status."
 msgid "Could not load the backup status."
 msgstr "Could not load the backup status."
 
+#: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 msgid "Could not load the chart."
 msgstr "Could not load the chart."
 
+#: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 msgid "Could not load the entries."
 msgstr "Could not load the entries."
@@ -4509,6 +4542,7 @@ msgstr "Could not load this scan."
 msgid "Could not load threads."
 msgstr "Could not load threads."
 
+#: apps/native/app/(drawer)/trackers.tsx
 #: apps/web/src/routes/_auth/trackers.index.tsx
 msgid "Could not load trackers."
 msgstr "Could not load trackers."
@@ -4814,6 +4848,8 @@ msgstr "Could not save. Retry the same dose."
 
 #: apps/native/app/(drawer)/goals.tsx
 #: apps/native/app/(drawer)/goals/[goalId].tsx
+#: apps/native/app/(drawer)/trackers/[trackerId].tsx
+#: apps/native/components/trackers/tracker-log-form.tsx
 #: apps/web/src/components/trackers/tracker-log-form.tsx
 #: apps/web/src/routes/_auth/goals.index.tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
@@ -5048,6 +5084,7 @@ msgstr "Create recipe"
 msgid "Create replacement"
 msgstr "Create replacement"
 
+#: apps/native/app/(drawer)/trackers.tsx
 #: apps/web/src/routes/_auth/trackers.index.tsx
 msgid "Create tracker"
 msgstr "Create tracker"
@@ -5070,6 +5107,7 @@ msgstr "Create your OpenValens account"
 msgid "Creating a replacement ends this goal. Its history and source records remain available."
 msgstr "Creating a replacement ends this goal. Its history and source records remain available."
 
+#: apps/native/app/(drawer)/trackers.tsx
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
 #: apps/web/src/routes/_auth/trackers.index.tsx
@@ -5100,10 +5138,15 @@ msgstr "Current target: {currentTarget}"
 msgid "Current version: {0}."
 msgstr "Current version: {0}."
 
+#: apps/native/app/(drawer)/trackers.tsx
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/routes/_auth/trackers.index.tsx
 msgid "Custom"
 msgstr "Custom"
+
+#: apps/web/src/components/oauth-consent-view.tsx
+msgid "Custom trackers"
+msgstr "Custom trackers"
 
 #: packages/api/src/presenters/coach-settings.ts
 msgid "Cut"
@@ -5320,14 +5363,17 @@ msgstr "Days each Monday–Sunday week"
 msgid "Days in each Monday–Sunday week"
 msgstr "Days in each Monday–Sunday week"
 
+#: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 msgid "Days logged"
 msgstr "Days logged"
 
+#: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 msgid "Days on target"
 msgstr "Days on target"
 
+#: apps/native/components/trackers/tracker-editor.tsx
 #: apps/web/src/components/trackers/tracker-editor.tsx
 msgid "Days with a yes: 1 per day, or up to 7 per week."
 msgstr "Days with a yes: 1 per day, or up to 7 per week."
@@ -5348,6 +5394,7 @@ msgstr "Decided: no"
 msgid "Decided: yes"
 msgstr "Decided: yes"
 
+#: apps/native/components/trackers/tracker-editor.tsx
 #: apps/web/src/components/trackers/tracker-editor.tsx
 msgid "Decimals shown"
 msgstr "Decimals shown"
@@ -5377,6 +5424,7 @@ msgstr "Degraded"
 #: apps/native/app/(drawer)/goals.tsx
 #: apps/native/app/(drawer)/goals/[goalId].tsx
 #: apps/native/app/(drawer)/private-measurements.tsx
+#: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/native/components/active-workout.tsx
 #: apps/native/components/nutrition-selection-bar.tsx
 #: apps/native/components/progress-photos.tsx
@@ -5437,6 +5485,7 @@ msgid "Delete check-in?"
 msgstr "Delete check-in?"
 
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
+#: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 #: packages/api/src/presenters/plain-water.ts
 msgid "Delete entry"
@@ -5450,6 +5499,7 @@ msgstr "Delete entry"
 msgid "Delete everything"
 msgstr "Delete everything"
 
+#: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 msgid "Delete for good"
 msgstr "Delete for good"
@@ -5494,6 +5544,7 @@ msgstr "Delete this check-in? Progress will be recalculated."
 msgid "Delete this entry?"
 msgstr "Delete this entry?"
 
+#: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 msgid "Delete this entry? This cannot be undone."
 msgstr "Delete this entry? This cannot be undone."
@@ -5529,6 +5580,7 @@ msgstr "Delete this private measurement? This cannot be undone."
 msgid "Delete this workout?"
 msgstr "Delete this workout?"
 
+#: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 msgid "Delete tracker"
 msgstr "Delete tracker"
@@ -5548,6 +5600,7 @@ msgid "Deletes every period and import you have logged, in every workspace, and 
 msgstr "Deletes every period and import you have logged, in every workspace, and withdraws your consent. This cannot be undone."
 
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/web/src/routes/_auth/settings/index.tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 msgid "Deleting…"
@@ -6209,6 +6262,7 @@ msgstr "Enrollment is not available right now."
 msgid "Enter a bedtime and a wake time."
 msgstr "Enter a bedtime and a wake time."
 
+#: apps/native/components/trackers/tracker-log-form.tsx
 #: apps/web/src/components/trackers/tracker-log-form.tsx
 msgid "Enter a duration such as 20 min, 1:30 or 45 s."
 msgstr "Enter a duration such as 20 min, 1:30 or 45 s."
@@ -6239,6 +6293,7 @@ msgstr "Enter a minimum, a maximum or both."
 msgid "Enter a name for this goal."
 msgstr "Enter a name for this goal."
 
+#: apps/native/components/trackers/tracker-log-form.tsx
 #: apps/web/src/components/trackers/tracker-log-form.tsx
 msgid "Enter a number."
 msgstr "Enter a number."
@@ -6252,6 +6307,7 @@ msgstr "Enter a positive number of consecutive days."
 msgid "Enter a public http or https recipe address."
 msgstr "Enter a public http or https recipe address."
 
+#: apps/native/components/trackers/tracker-editor.tsx
 #: apps/web/src/components/trackers/tracker-editor.tsx
 msgid "Enter a unit, up to 12 characters."
 msgstr "Enter a unit, up to 12 characters."
@@ -6365,6 +6421,7 @@ msgstr "Enter your sign-in code"
 msgid "Entered by you"
 msgstr "Entered by you"
 
+#: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 msgid "Entries"
 msgstr "Entries"
@@ -6374,6 +6431,7 @@ msgid "entry at {time}"
 msgstr "entry at {time}"
 
 #: apps/native/app/(drawer)/private-measurements.tsx
+#: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/web/src/routes/_auth/private-measurements.tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 msgid "Entry deleted."
@@ -6927,6 +6985,7 @@ msgstr "For {sex, select, female {women} male {men} other {adults}} aged {minAge
 msgid "For {sex, select, female {women} male {men} other {adults}} aged {minAge} to {maxAge}"
 msgstr "For {sex, select, female {women} male {men} other {adults}} aged {minAge} to {maxAge}"
 
+#: apps/native/components/trackers/tracker-editor.tsx
 #: apps/web/src/components/trackers/tracker-editor.tsx
 msgid "For example 20 min."
 msgstr "For example 20 min."
@@ -7014,6 +7073,7 @@ msgstr "Frequency"
 msgid "From 1 entry"
 msgstr "From 1 entry"
 
+#: apps/native/components/trackers/tracker-value-input.tsx
 #: apps/web/src/components/trackers/tracker-value-input.tsx
 msgid "From 1 to 5. Your own rating."
 msgstr "From 1 to 5. Your own rating."
@@ -7112,6 +7172,7 @@ msgstr "Get a quiet notification for new insights?"
 msgid "Get started"
 msgstr "Get started"
 
+#: apps/native/components/trackers/tracker-editor.tsx
 #: apps/web/src/components/trackers/tracker-editor.tsx
 msgid "Give the tracker a name, up to 40 characters."
 msgstr "Give the tracker a name, up to 40 characters."
@@ -7275,6 +7336,7 @@ msgid "Guideline-backed"
 msgstr "Guideline-backed"
 
 #: apps/native/app/(drawer)/_layout.tsx
+#: apps/native/app/(drawer)/trackers.tsx
 #: apps/web/src/components/header.tsx
 msgid "Habits"
 msgstr "Habits"
@@ -7414,6 +7476,7 @@ msgstr "Hidden"
 msgid "Hide"
 msgstr "Hide"
 
+#: apps/native/app/(drawer)/trackers.tsx
 #: apps/web/src/routes/_auth/trackers.index.tsx
 msgid "Hide archived trackers"
 msgstr "Hide archived trackers"
@@ -7492,6 +7555,7 @@ msgstr "Hips (front)"
 #: apps/native/app/(drawer)/cycle.tsx
 #: apps/native/app/(drawer)/goals/[goalId].tsx
 #: apps/native/app/(drawer)/private-measurements.tsx
+#: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/native/components/exercise-detail.tsx
 #: apps/web/src/components/exercise-library.tsx
 #: apps/web/src/routes/_auth/cycle.tsx
@@ -7747,6 +7811,7 @@ msgstr "I'll enter things myself"
 msgid "I'll type things in"
 msgstr "I'll type things in"
 
+#: apps/native/components/trackers/tracker-editor.tsx
 #: apps/web/src/components/trackers/tracker-editor.tsx
 msgid "Icon"
 msgstr "Icon"
@@ -7875,6 +7940,7 @@ msgstr "Importing…"
 msgid "Imports"
 msgstr "Imports"
 
+#: apps/native/components/trackers/tracker-editor.tsx
 #: apps/web/src/components/trackers/tracker-editor.tsx
 msgid "In {unitName}."
 msgstr "In {unitName}."
@@ -8180,6 +8246,7 @@ msgstr "It expires in 10 minutes."
 msgid "It is not medical advice and says nothing about your health status. It does not tell you whether or how hard to exercise, and it has not been validated."
 msgstr "It is not medical advice and says nothing about your health status. It does not tell you whether or how hard to exercise, and it has not been validated."
 
+#: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 msgid "It may have been deleted, or its owner stopped sharing it with this workspace."
 msgstr "It may have been deleted, or its owner stopped sharing it with this workspace."
@@ -8835,6 +8902,8 @@ msgstr "Locale"
 msgid "Location and other photo details are removed before sending. The photo is not stored here, and no nutrition values or portion sizes come from the reply. The provider processes it under its own terms."
 msgstr "Location and other photo details are removed before sending. The photo is not stored here, and no nutrition values or portion sizes come from the reply. The provider processes it under its own terms."
 
+#: apps/native/app/(drawer)/trackers/[trackerId].tsx
+#: apps/native/components/trackers/tracker-log-form.tsx
 #: apps/web/src/components/trackers/tracker-log-form.tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 #: packages/api/src/presenters/nutrition-templates.ts
@@ -8937,19 +9006,23 @@ msgctxt "day summary reading"
 msgid "Logged"
 msgstr "Logged"
 
+#: apps/native/components/trackers/tracker-log-form.tsx
 #: apps/web/src/components/trackers/tracker-log-form.tsx
 msgid "Logged {logged}."
 msgstr "Logged {logged}."
 
 #. placeholder {0}: entry.loggedBy.name
+#: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 msgid "logged by {0}"
 msgstr "logged by {0}"
 
+#: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 msgid "logged by a former member"
 msgstr "logged by a former member"
 
+#: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 msgid "logged by you"
 msgstr "logged by you"
@@ -9367,6 +9440,7 @@ msgstr "member"
 msgid "Members"
 msgstr "Members"
 
+#: apps/native/components/trackers/tracker-editor.tsx
 #: apps/web/src/components/trackers/tracker-editor.tsx
 msgid "Members who can read records see it; collaborators can add entries. Only you can change or delete it."
 msgstr "Members who can read records see it; collaborators can add entries. Only you can change or delete it."
@@ -9701,6 +9775,7 @@ msgstr "My phone's health app"
 #: apps/native/components/exercise-library.tsx
 #: apps/native/components/goal-editor.tsx
 #: apps/native/components/routine-editor.tsx
+#: apps/native/components/trackers/tracker-editor.tsx
 #: apps/web/src/components/admin-settings-view.tsx
 #: apps/web/src/components/exercise-library.tsx
 #: apps/web/src/components/trackers/tracker-editor.tsx
@@ -9835,6 +9910,7 @@ msgstr "New source for {metric, select, sleep_duration {sleep} resting_heart_rat
 msgid "New to OpenValens? <0>Create account</0>"
 msgstr "New to OpenValens? <0>Create account</0>"
 
+#: apps/native/app/(drawer)/trackers.tsx
 #: apps/web/src/routes/_auth/trackers.index.tsx
 msgid "New tracker"
 msgstr "New tracker"
@@ -9907,6 +9983,7 @@ msgstr "Nights you added"
 msgid "Nights, stages, rest"
 msgstr "Nights, stages, rest"
 
+#: apps/native/components/trackers/tracker-value-input.tsx
 #: apps/web/src/components/trackers/tracker-value-input.tsx
 #: packages/api/src/presenters/trackers.ts
 msgid "No"
@@ -9967,6 +10044,7 @@ msgstr "No AI calls yet this month."
 msgid "No AI prices configured, so cost is not estimated"
 msgstr "No AI prices configured, so cost is not estimated"
 
+#: apps/native/app/(drawer)/trackers.tsx
 #: apps/web/src/routes/_auth/trackers.index.tsx
 msgid "No archived trackers."
 msgstr "No archived trackers."
@@ -10050,6 +10128,7 @@ msgstr "No eligible values for this measure."
 msgid "No energy target set"
 msgstr "No energy target set"
 
+#: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 msgid "No entries yet."
 msgstr "No entries yet."
@@ -10407,6 +10486,7 @@ msgstr "No target"
 msgid "No targets set. Logging works the same without them."
 msgstr "No targets set. Logging works the same without them."
 
+#: apps/native/app/(drawer)/trackers.tsx
 #: apps/web/src/routes/_auth/trackers.index.tsx
 msgid "No trackers yet"
 msgstr "No trackers yet"
@@ -10738,6 +10818,7 @@ msgstr "Not you? Revoke the key now from Connected AI apps in your settings."
 msgid "Note"
 msgstr "Note"
 
+#: apps/native/components/trackers/tracker-log-form.tsx
 #: apps/web/src/components/trackers/tracker-log-form.tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 msgid "Note (optional)"
@@ -10752,6 +10833,7 @@ msgstr "Notes"
 msgid "Notes (optional)"
 msgstr "Notes (optional)"
 
+#: apps/native/components/trackers/tracker-editor.tsx
 #: apps/web/src/components/trackers/tracker-editor.tsx
 msgid "Notes are never shared with the Coach."
 msgstr "Notes are never shared with the Coach."
@@ -10793,6 +10875,7 @@ msgstr "Nothing logged on this day yet."
 msgid "Nothing logged on this day."
 msgstr "Nothing logged on this day."
 
+#: apps/native/app/(drawer)/trackers.tsx
 #: apps/web/src/routes/_auth/trackers.index.tsx
 msgid "Nothing logged today"
 msgstr "Nothing logged today"
@@ -10950,6 +11033,7 @@ msgstr "Observed at (local time)"
 msgid "Observed at local time"
 msgstr "Observed at local time"
 
+#: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 msgid "of {days}"
 msgstr "of {days}"
@@ -11158,9 +11242,15 @@ msgid "Only you can see these photos. Workspace owners and other members cannot.
 msgstr "Only you can see these photos. Workspace owners and other members cannot. Location, camera and other hidden details are removed before a photo is stored."
 
 #: apps/native/app/(drawer)/exports.tsx
+#: apps/native/app/(drawer)/trackers.tsx
 #: packages/api/src/presenters/workouts.ts
 msgid "Open"
 msgstr "Open"
+
+#. placeholder {0}: tracker.name
+#: apps/native/app/(drawer)/trackers.tsx
+msgid "Open {0}"
+msgstr "Open {0}"
 
 #: apps/native/app/(drawer)/exports.tsx
 msgid "Open {fileName}"
@@ -12077,6 +12167,7 @@ msgstr "Private measurements are on"
 msgid "Private measurements are on."
 msgstr "Private measurements are on."
 
+#: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 msgid "Private: only you see it."
 msgstr "Private: only you see it."
@@ -12814,6 +12905,7 @@ msgstr "Reps must be from 1 to 1,000."
 msgid "Reps PR"
 msgstr "Reps PR"
 
+#: apps/native/components/trackers/tracker-editor.tsx
 #: apps/web/src/components/trackers/tracker-editor.tsx
 msgid "reps, pages, cups"
 msgstr "reps, pages, cups"
@@ -12910,6 +13002,7 @@ msgstr "Restore {0}"
 msgid "Restore entry"
 msgstr "Restore entry"
 
+#: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 msgid "Restore tracker"
 msgstr "Restore tracker"
@@ -12958,6 +13051,7 @@ msgstr "Retired version"
 #: apps/native/app/(drawer)/settings/telegram.tsx
 #: apps/native/app/(drawer)/sharing.tsx
 #: apps/native/app/(drawer)/supplements.tsx
+#: apps/native/app/(drawer)/trackers.tsx
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/native/app/onboarding/[step].tsx
 #: apps/native/components/ai-section.tsx
@@ -13412,6 +13506,7 @@ msgid "Save cancelled. A food creation already sent may still complete."
 msgstr "Save cancelled. A food creation already sent may still complete."
 
 #: apps/native/app/(drawer)/private-measurements.tsx
+#: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/native/components/active-workout.tsx
 #: apps/web/src/routes/_auth/private-measurements.tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
@@ -13634,11 +13729,13 @@ msgstr "Saving photo…"
 #: apps/native/app/(drawer)/records/labs.tsx
 #: apps/native/app/(drawer)/records/vitals.tsx
 #: apps/native/app/(drawer)/supplements.tsx
+#: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/native/components/blood-pressure-section.tsx
 #: apps/native/components/goal-editor.tsx
 #: apps/native/components/manual-sleep-section.tsx
 #: apps/native/components/onboarding/flow.tsx
 #: apps/native/components/routine-editor.tsx
+#: apps/native/components/trackers/tracker-log-form.tsx
 #: apps/native/components/workout-routines.tsx
 #: apps/web/src/components/blood-pressure-section.tsx
 #: apps/web/src/components/health-data-consent-prompt.tsx
@@ -14101,6 +14198,7 @@ msgstr "Sets from {trainingFrom} to {trainingTo}"
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/(tabs)/_layout.tsx
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/web/src/components/header.tsx
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
 #: apps/web/src/routes/_auth/cycle.tsx
@@ -14142,6 +14240,7 @@ msgstr "Setup steps"
 msgid "Setup token"
 msgstr "Setup token"
 
+#: apps/native/components/trackers/tracker-editor.tsx
 #: apps/web/src/components/trackers/tracker-editor.tsx
 msgid "Several entries in a day"
 msgstr "Several entries in a day"
@@ -14158,22 +14257,27 @@ msgstr "Sex for reference tables is not available: {reason, select, not_provided
 msgid "Share optional usage analytics"
 msgstr "Share optional usage analytics"
 
+#: apps/native/components/trackers/tracker-editor.tsx
 #: apps/web/src/components/trackers/tracker-editor.tsx
 msgid "Share with this workspace"
 msgstr "Share with this workspace"
 
+#: apps/native/app/(drawer)/trackers.tsx
 #: apps/web/src/routes/_auth/trackers.index.tsx
 msgid "Shared"
 msgstr "Shared"
 
+#: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 msgid "Shared by {ownerName}."
 msgstr "Shared by {ownerName}."
 
+#: apps/native/app/(drawer)/trackers.tsx
 #: apps/web/src/routes/_auth/trackers.index.tsx
 msgid "Shared in this workspace"
 msgstr "Shared in this workspace"
 
+#: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 msgid "Shared with this workspace."
 msgstr "Shared with this workspace."
@@ -14232,6 +14336,7 @@ msgstr "Show all exercises in this workout"
 msgid "Show archived foods"
 msgstr "Show archived foods"
 
+#: apps/native/app/(drawer)/trackers.tsx
 #: apps/web/src/routes/_auth/trackers.index.tsx
 msgid "Show archived trackers"
 msgstr "Show archived trackers"
@@ -14558,6 +14663,7 @@ msgstr "Slightly higher"
 msgid "Slightly lower"
 msgstr "Slightly lower"
 
+#: apps/native/app/(drawer)/trackers.tsx
 #: apps/web/src/routes/_auth/trackers.index.tsx
 msgid "Small things you track yourself: mood, sauna, dead hangs and more."
 msgstr "Small things you track yourself: mood, sauna, dead hangs and more."
@@ -14749,10 +14855,12 @@ msgstr "Start date (YYYY-MM-DD)"
 msgid "Start date, YYYY-MM-DD"
 msgstr "Start date, YYYY-MM-DD"
 
+#: apps/native/app/(drawer)/trackers.tsx
 #: apps/web/src/routes/_auth/trackers.index.tsx
 msgid "Start from a template such as Mood or Sauna, or make your own."
 msgstr "Start from a template such as Mood or Sauna, or make your own."
 
+#: apps/native/app/(drawer)/trackers.tsx
 #: apps/web/src/routes/_auth/trackers.index.tsx
 msgid "Start from a template, or make your own."
 msgstr "Start from a template, or make your own."
@@ -15238,6 +15346,7 @@ msgid "Tap a region to see its value."
 msgstr "Tap a region to see its value."
 
 #: apps/native/app/(drawer)/records/sleep.tsx
+#: apps/native/components/trackers/tracker-editor.tsx
 #: apps/web/src/components/trackers/tracker-editor.tsx
 #: apps/web/src/routes/_auth/records/sleep.tsx
 msgid "Target"
@@ -15273,6 +15382,8 @@ msgstr "Target must start with a number, like \"70\" or \"70 kg\"."
 msgid "Target period"
 msgstr "Target period"
 
+#: apps/native/app/(drawer)/trackers.tsx
+#: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 #: apps/web/src/routes/_auth/trackers.index.tsx
 msgid "Target progress"
@@ -15282,6 +15393,7 @@ msgstr "Target progress"
 msgid "Target reached: {goalTitle}"
 msgstr "Target reached: {goalTitle}"
 
+#: apps/native/app/(drawer)/trackers.tsx
 #: apps/web/src/routes/_auth/trackers.index.tsx
 msgid "Target reached: {targetText}"
 msgstr "Target reached: {targetText}"
@@ -15327,6 +15439,7 @@ msgstr "Target: {target} (up)."
 msgid "Target: {target}."
 msgstr "Target: {target}."
 
+#: apps/native/app/(drawer)/trackers.tsx
 #: apps/native/components/nutrition-day-totals.tsx
 #: apps/web/src/components/nutrition-day-totals.tsx
 #: apps/web/src/routes/_auth/trackers.index.tsx
@@ -15721,6 +15834,7 @@ msgstr "The source is fixed after evidence. Create a replacement to change it."
 msgid "The source URL must be a credential-free HTTP or HTTPS URL."
 msgstr "The source URL must be a credential-free HTTP or HTTPS URL."
 
+#: apps/native/components/trackers/tracker-editor.tsx
 #: apps/web/src/components/trackers/tracker-editor.tsx
 msgid "the tracker's unit"
 msgstr "the tracker's unit"
@@ -15903,6 +16017,11 @@ msgstr "This entry changed on another device."
 #: packages/api/src/presenters/plain-water.ts
 msgid "This entry was already removed."
 msgstr "This entry was already removed."
+
+#. placeholder {0}: tracker.name
+#: apps/native/app/(drawer)/trackers/[trackerId].tsx
+msgid "This erases the tracker and all of its entries. Type {0} to confirm."
+msgstr "This erases the tracker and all of its entries. Type {0} to confirm."
 
 #. placeholder {0}: tracker.name
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
@@ -16157,6 +16276,7 @@ msgstr "This suggestion is no longer available."
 msgid "This token or code has expired. Request a new one."
 msgstr "This token or code has expired. Request a new one."
 
+#: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 msgid "This tracker is not available."
 msgstr "This tracker is not available."
@@ -16406,19 +16526,31 @@ msgstr "Tracker and {0} entries deleted."
 msgid "Tracker and 1 entry deleted."
 msgstr "Tracker and 1 entry deleted."
 
+#: apps/native/app/(drawer)/trackers/[trackerId].tsx
+msgid "Tracker name"
+msgstr "Tracker name"
+
+#: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 msgid "Tracker saved."
 msgstr "Tracker saved."
 
+#: apps/native/app/(drawer)/_layout.tsx
+#: apps/native/app/(drawer)/trackers.tsx
 #: apps/web/src/components/header.tsx
 #: apps/web/src/routes/_auth/trackers.index.tsx
 #: packages/api/src/presenters/timeline.ts
 msgid "Trackers"
 msgstr "Trackers"
 
+#: apps/native/app/(drawer)/trackers.tsx
 #: apps/web/src/routes/_auth/trackers.index.tsx
 msgid "Trackers are private unless you share one with this workspace. Each has its own switch for the Coach and connected AI apps. Notes are never shared with the Coach."
 msgstr "Trackers are private unless you share one with this workspace. Each has its own switch for the Coach and connected AI apps. Notes are never shared with the Coach."
+
+#: apps/web/src/components/oauth-consent-view.tsx
+msgid "Trackers you made, except those with \"Coach and connected AI apps can read this\" off."
+msgstr "Trackers you made, except those with \"Coach and connected AI apps can read this\" off."
 
 #: apps/native/app/(drawer)/goals.tsx
 #: apps/web/src/routes/_auth/goals.index.tsx
@@ -16621,6 +16753,7 @@ msgstr "Two separate numbers, each with its own explanation. They are never comb
 msgid "Two separate views of your own records: measured DEXA values by region, and the sets you logged this week by muscle group."
 msgstr "Two separate views of your own records: measured DEXA values by region, and the sets you logged this week by muscle group."
 
+#: apps/native/components/trackers/tracker-editor.tsx
 #: apps/web/src/components/trackers/tracker-editor.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Type"
@@ -16636,6 +16769,7 @@ msgstr "Type {confirmationPhrase} to confirm"
 msgid "Type <0>{confirmationPhrase}</0> to confirm"
 msgstr "Type <0>{confirmationPhrase}</0> to confirm"
 
+#: apps/native/components/trackers/tracker-editor.tsx
 #: apps/web/src/components/trackers/tracker-editor.tsx
 msgid "Type and unit cannot change after the first entry. Create a new tracker instead."
 msgstr "Type and unit cannot change after the first entry. Create a new tracker instead."
@@ -16676,6 +16810,7 @@ msgid "Under 4 sets"
 msgstr "Under 4 sets"
 
 #: apps/native/app/(drawer)/supplements.tsx
+#: apps/native/components/trackers/tracker-log-form.tsx
 #: apps/web/src/components/trackers/tracker-log-form.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
 #: packages/api/src/presenters/nutrition-diary.ts
@@ -16719,6 +16854,7 @@ msgstr "Unfinished sets will not be saved."
 #. safety
 #: apps/native/app/(drawer)/private-measurements.tsx
 #: apps/native/app/(drawer)/supplements.tsx
+#: apps/native/components/trackers/tracker-editor.tsx
 #: apps/web/src/components/trackers/tracker-editor.tsx
 #: apps/web/src/routes/_auth/-goal-editor.tsx
 #: apps/web/src/routes/_auth/food-draft.tsx
@@ -17032,6 +17168,7 @@ msgid "Value ({unit})"
 msgstr "Value ({unit})"
 
 #. placeholder {0}: tracker.name
+#: apps/native/components/trackers/tracker-log-form.tsx
 #: apps/web/src/components/trackers/tracker-log-form.tsx
 msgid "Value for {0}"
 msgstr "Value for {0}"
@@ -17391,6 +17528,7 @@ msgstr "Weekly insights email"
 msgid "Weekly tracking starts next Monday."
 msgstr "Weekly tracking starts next Monday."
 
+#: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 msgid "Weeks on target"
 msgstr "Weeks on target"
@@ -17632,6 +17770,7 @@ msgstr "Worth a look"
 msgid "Y-axis: avg bpm"
 msgstr "Y-axis: avg bpm"
 
+#: apps/native/components/trackers/tracker-value-input.tsx
 #: apps/web/src/components/trackers/tracker-value-input.tsx
 #: packages/api/src/presenters/trackers.ts
 msgid "Yes"
@@ -17642,6 +17781,7 @@ msgctxt "declaration answer"
 msgid "Yes"
 msgstr "Yes"
 
+#: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 msgid "Yes days"
 msgstr "Yes days"
@@ -17748,6 +17888,7 @@ msgstr "You get this email because you set a reminder in OpenValens and turned o
 msgid "You get this email because you turned on the weekly insights summary. It contains values from your health records."
 msgstr "You get this email because you turned on the weekly insights summary. It contains values from your health records."
 
+#: apps/native/app/(drawer)/trackers.tsx
 #: apps/web/src/routes/_auth/trackers.index.tsx
 msgid "You have 50 active trackers, the most you can have. Archive one to add another."
 msgstr "You have 50 active trackers, the most you can have. Archive one to add another."
@@ -18263,6 +18404,7 @@ msgstr "Your targets"
 msgid "Your Today"
 msgstr "Your Today"
 
+#: apps/native/app/(drawer)/trackers.tsx
 #: apps/web/src/routes/_auth/trackers.index.tsx
 msgid "Your trackers"
 msgstr "Your trackers"

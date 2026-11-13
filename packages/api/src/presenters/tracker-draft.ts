@@ -5,6 +5,7 @@ import {
   parseDuration,
   TRACKER_LIMITS,
   type NumberAggregation,
+  type TrackerAggregation,
   type TrackerCreateInput,
   type TrackerIcon,
   type TrackerTargetPeriod,
@@ -15,7 +16,7 @@ import {
 /**
  * The create / edit form's state for a custom tracker (#441), kept as the
  * strings the member typed so a half-typed value never turns into a number
- * too early. Pure, so the web form and its tests share one rule.
+ * too early. Pure, so the web and mobile forms share one rule.
  */
 export type TrackerDraft = {
   template: TrackerTemplateId | null;
@@ -113,7 +114,80 @@ export function trackerCreatePayload(
   };
 }
 
-/** The browser's IANA time zone; days follow it. */
+/** What the settings form needs from a stored tracker. */
+export type TrackerForDraft = {
+  template: TrackerTemplateId | null;
+  name: string;
+  icon: TrackerIcon;
+  type: TrackerType;
+  unit: string | null;
+  decimals: number;
+  aggregation: TrackerAggregation;
+  target: { value: number; period: TrackerTargetPeriod } | null;
+  shared: boolean;
+  aiVisible: boolean;
+  locked: boolean;
+};
+
+/** A stored tracker as an editable draft (durations' targets in minutes). */
+export function draftFromTracker(tracker: TrackerForDraft): TrackerDraft {
+  return {
+    ...blankTrackerDraft(),
+    template: tracker.template,
+    name: tracker.name,
+    icon: tracker.icon,
+    type: tracker.type,
+    unit: tracker.unit ?? "",
+    decimals: tracker.decimals,
+    aggregation:
+      tracker.aggregation === "average" || tracker.aggregation === "last"
+        ? tracker.aggregation
+        : "sum",
+    targetEnabled: tracker.target !== null,
+    target:
+      tracker.target === null
+        ? ""
+        : tracker.type === "duration"
+          ? `${Math.round(tracker.target.value / 60)} min`
+          : String(tracker.target.value),
+    targetPeriod: tracker.target?.period ?? "day",
+    shared: tracker.shared,
+    aiVisible: tracker.aiVisible,
+  };
+}
+
+/**
+ * The update input for the owner's settings form, or null while the draft has
+ * problems. Type, unit and aggregation are sent only while the tracker has no
+ * entries (the server refuses them after).
+ */
+export function trackerUpdatePayload(
+  id: string,
+  tracker: Pick<TrackerForDraft, "locked">,
+  draft: TrackerDraft,
+  locale?: string,
+) {
+  const payload = trackerCreatePayload(draft, locale);
+  if (!payload) return null;
+  return {
+    id,
+    name: payload.name,
+    icon: payload.icon,
+    target: payload.target ?? null,
+    decimals: payload.decimals ?? 0,
+    shared: payload.shared ?? false,
+    aiVisible: payload.aiVisible ?? true,
+    ...(tracker.locked
+      ? {}
+      : {
+          type: payload.type,
+          unit: payload.unit ?? null,
+          aggregation: payload.aggregation ?? defaultAggregation(payload.type),
+        }),
+  };
+}
+
+/** The device's IANA time zone; days follow it. */
 export function browserTimeZone(): string {
   try {
     return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";

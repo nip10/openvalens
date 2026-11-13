@@ -17,6 +17,7 @@ import {
 } from "@openvalens/ai/tools/timeline-summary";
 import { executeWeightTrend, weightTrendInput } from "@openvalens/ai/tools/weight-trend";
 import type { Database } from "@openvalens/db";
+import { aggregateValues, type TrackerAggregation } from "@openvalens/trackers/model";
 import type { StructuredLogger } from "@openvalens/observability";
 import { z } from "zod";
 
@@ -33,7 +34,7 @@ import {
 } from "./format";
 import type { AiAppGrantPrincipal } from "./grants";
 import { BASE_SCOPE, hasScope, type GrantableScope } from "./scopes";
-import type { McpDataSources } from "./sources";
+import type { McpDataSources, TrackerRow } from "./sources";
 
 /**
  * The read tools of the MCP server and the REST tool API (Issue #439, M1).
@@ -46,6 +47,8 @@ import type { McpDataSources } from "./sources";
  * - Date-range reads: sleep sessions, workouts, vitals, weights and lab
  *   history, at most 365 days per call, paginated with an opaque cursor; and
  *   private body measurements with `private_body:read`.
+ * - Custom trackers with `trackers:read` (#441): only the member's own trackers
+ *   whose AI switch is on; notes only with `notes:read`.
  * - `exercises.search`, for catalog ids.
  *
  * Results are the member's recorded values only, with no interpretation
@@ -397,6 +400,161 @@ const privateMeasurements: McpToolDefinition = {
   },
 };
 
+// ─── Custom trackers (#441) ───────────────────────────────────
+
+const TRACKER_KIND: Record<string, string> = {
+  number: "number",
+  scale: "self-rating from 1 (low) to 5 (high), recorded by the member",
+  yes_no: "yes or no",
+  duration: "duration",
+};
+
+const TRACKER_COMBINE: Record<string, string> = {
+  sum: "a day's entries are added up",
+  average: "a day's entries are averaged",
+  last: "the day's last entry counts",
+  any: "yes if any entry that day says yes",
+};
+
+/** A stored tracker value as the tool reports it: durations in minutes, yes/no as a boolean. */
+function trackerValue(type: string, value: number, decimals: number) {
+  switch (type) {
+    case "duration":
+      return { value: roundOrNull(value / 60, 1), unit: "min" };
+    case "yes_no":
+      return { value: value > 0 };
+    case "scale":
+      return { value: roundOrNull(value, 1), unit: "rating 1-5" };
+    default:
+      return { value: roundOrNull(value, Math.max(0, Math.min(2, decimals))) };
+  }
+}
+
+function trackerDescription(row: TrackerRow) {
+  return {
+    trackerId: row.id,
+    name: row.name,
+    kind: TRACKER_KIND[row.type] ?? row.type,
+    unit: row.type === "number" ? row.unit : row.type === "duration" ? "min" : null,
+    howDaysCombine: TRACKER_COMBINE[row.aggregation] ?? row.aggregation,
+    target:
+      row.targetValue !== null && row.targetPeriod
+        ? {
+            ...trackerValue(row.type === "yes_no" ? "number" : row.type, row.targetValue, 2),
+            per: row.targetPeriod,
+            ...(row.type === "yes_no" ? { unit: "days with yes" } : {}),
+          }
+        : null,
+  };
+}
+
+const trackerFilter = {
+  trackerId: z
+    .uuid()
+    .optional()
+    .describe("A `trackerId` from `trackers.list`, to read only that tracker."),
+};
+
+async function readableTrackers(context: McpToolContext, trackerId: unknown) {
+  const all = await context.sources.trackers(context.principal);
+  return typeof trackerId === "string" ? all.filter((row) => row.id === trackerId) : all;
+}
+
+const trackersList: McpToolDefinition = {
+  name: "trackers.list",
+  title: "Custom trackers",
+  description: `${RECORDED}: the custom trackers the member made (for example mood, sauna or dead hangs) and let connected AI apps read, with what each one records, its unit, how a day's entries combine and any daily or weekly target. Mood, energy and stress are the member's own 1-5 self-ratings, not scores. Needs the trackers scope.`,
+  scope: "trackers:read",
+  input: emptyInput,
+  run: async (context) => {
+    const rows = await context.sources.trackers(context.principal);
+    return { rowCount: rows.length, result: { trackers: rows.map(trackerDescription) } };
+  },
+};
+
+const trackersDaily: McpToolDefinition = {
+  name: "trackers.daily",
+  title: "Custom trackers by day",
+  description: `${RECORDED}: one combined value per day for each readable custom tracker in a date range (at most 365 days), by the tracker's own rule, with the number of entries that day. Days with no entry are left out. Needs the trackers scope.`,
+  scope: "trackers:read",
+  input: z.strictObject({ ...rangeInputShape, ...trackerFilter }),
+  run: async (context, input) => {
+    const { range } = rangeFor(context, input as RangeInput);
+    const trackers = await readableTrackers(context, input.trackerId);
+    const entries = await context.sources.trackerEntries(
+      context.principal,
+      { from: range.from, to: range.to, offset: 0, limit: 0 },
+      { trackerIds: trackers.map((row) => row.id), withNotes: false },
+    );
+    let rowCount = 0;
+    const result = trackers.map((tracker) => {
+      const byDay = new Map<string, { value: number; loggedAt: Date }[]>();
+      for (const entry of entries) {
+        if (entry.trackerId !== tracker.id) continue;
+        const list = byDay.get(entry.localDate) ?? [];
+        list.push(entry);
+        byDay.set(entry.localDate, list);
+      }
+      const days = [...byDay.entries()]
+        .sort(([a], [b]) => b.localeCompare(a))
+        .map(([day, list]) => ({
+          day,
+          ...trackerValue(
+            tracker.type,
+            aggregateValues(tracker.aggregation as TrackerAggregation, list) ?? 0,
+            tracker.decimals,
+          ),
+          entryCount: list.length,
+        }));
+      rowCount += days.length;
+      return { ...trackerDescription(tracker), days };
+    });
+    return { rowCount, result: { ...rangeEnvelope(context, range), trackers: result } };
+  },
+};
+
+const trackersEntries: McpToolDefinition = {
+  name: "trackers.entries",
+  title: "Custom tracker entries",
+  description: `${RECORDED}: the individual entries of the readable custom trackers logged in a date range (at most 365 days, paginated, newest first), with the time, the value and whether the member or another workspace member logged it. Notes are included only when the key has the notes scope. Needs the trackers scope.`,
+  scope: "trackers:read",
+  input: z.strictObject({ ...rangeInputShape, ...trackerFilter }),
+  run: async (context, input) => {
+    const { range, query } = rangeFor(context, input as RangeInput);
+    const trackers = await readableTrackers(context, input.trackerId);
+    const withNotes = hasScope(context.principal.scopes, "notes:read");
+    const rows = await context.sources.trackerEntries(context.principal, query, {
+      trackerIds: trackers.map((row) => row.id),
+      withNotes,
+    });
+    const { items, nextCursor } = page(rows, range);
+    const byId = new Map(trackers.map((row) => [row.id, row]));
+    return {
+      rowCount: items.length,
+      result: {
+        ...rangeEnvelope(context, range),
+        entries: items.flatMap((row) => {
+          const tracker = byId.get(row.trackerId);
+          if (!tracker) return [];
+          return [
+            {
+              trackerId: row.trackerId,
+              tracker: tracker.name,
+              loggedAt: zonedIso(row.loggedAt, context.timeZone),
+              day: row.localDate,
+              ...trackerValue(tracker.type, row.value, tracker.decimals),
+              ...(tracker.type === "number" && tracker.unit ? { unit: tracker.unit } : {}),
+              loggedBy: row.loggedByMember ? "member" : "another workspace member",
+              ...(withNotes ? { note: row.note } : {}),
+            },
+          ];
+        }),
+        nextCursor,
+      },
+    };
+  },
+};
+
 const exercisesSearch: McpToolDefinition = {
   name: "exercises.search",
   title: "Search exercises",
@@ -523,6 +681,9 @@ export const MCP_TOOLS: readonly McpToolDefinition[] = Object.freeze([
   weightsList,
   labsHistory,
   privateMeasurements,
+  trackersList,
+  trackersDaily,
+  trackersEntries,
   exercisesSearch,
 ]);
 
