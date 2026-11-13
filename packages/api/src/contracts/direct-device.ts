@@ -162,6 +162,38 @@ const directDeviceRecord = z.discriminatedUnion("type", [
     pulseRate: z.number().int().min(20).max(250).optional(),
   }),
   z.strictObject({
+    /** Nightly RMSSD heart-rate variability (Garmin HRV status, last-night average). */
+    type: z.literal("hrv_rmssd"),
+    externalRecordId: z.string().min(1).max(120),
+    sourceApp: z.null(),
+    startTime: isoUtc,
+    endTime: isoUtc,
+    rmssdMs: z.number().positive().max(500),
+  }),
+  z.strictObject({
+    type: z.literal("resting_heart_rate"),
+    externalRecordId: z.string().min(1).max(120),
+    sourceApp: z.null(),
+    startTime: isoUtc,
+    endTime: isoUtc,
+    bpm: z.number().int().min(20).max(250),
+    /**
+     * One record per UTC day; the watch's latest sample time. A later
+     * revision of the same day supersedes the earlier one.
+     */
+    lastModifiedAt: isoUtc.optional(),
+  }),
+  z.strictObject({
+    type: z.literal("workout"),
+    externalRecordId: z.string().min(1).max(120),
+    sourceApp: z.null(),
+    startTime: isoUtc,
+    endTime: isoUtc,
+    /** Lowercase activity name, e.g. the FIT sport `running`. */
+    activity: z.string().min(1).max(64),
+    title: z.string().max(200).nullable(),
+  }),
+  z.strictObject({
     type: z.literal("weight_measurement"),
     externalRecordId: z.string().min(1).max(120),
     sourceApp: z.null(),
@@ -186,6 +218,9 @@ export const directDeviceBatch = z
       "body_temperature",
       "blood_pressure",
       "weight_measurement",
+      "hrv_rmssd",
+      "resting_heart_rate",
+      "workout",
     ]),
     mode: z.literal("backfill"),
     window: z.strictObject({ from: isoUtc, to: isoUtc }).optional(),

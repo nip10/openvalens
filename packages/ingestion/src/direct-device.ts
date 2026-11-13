@@ -72,6 +72,32 @@ type DirectDeviceRecord =
       pulseRate?: number;
     }
   | {
+      type: "hrv_rmssd";
+      externalRecordId: string;
+      sourceApp: null;
+      startTime: string;
+      endTime: string;
+      rmssdMs: number;
+    }
+  | {
+      type: "resting_heart_rate";
+      externalRecordId: string;
+      sourceApp: null;
+      startTime: string;
+      endTime: string;
+      bpm: number;
+      lastModifiedAt?: string;
+    }
+  | {
+      type: "workout";
+      externalRecordId: string;
+      sourceApp: null;
+      startTime: string;
+      endTime: string;
+      activity: string;
+      title: string | null;
+    }
+  | {
       type: "weight_measurement";
       externalRecordId: string;
       sourceApp: null;
@@ -91,7 +117,10 @@ type DirectDeviceBatch = {
     | "heart_rate"
     | "body_temperature"
     | "blood_pressure"
-    | "weight_measurement";
+    | "weight_measurement"
+    | "hrv_rmssd"
+    | "resting_heart_rate"
+    | "workout";
   mode: "backfill";
   window?: { from: string; to: string };
   upserts: DirectDeviceRecord[];
@@ -133,6 +162,9 @@ const DIRECT_DEVICE_RECORD_TYPES = new Set<DirectDeviceRecordType>([
   "body_temperature",
   "blood_pressure",
   "weight_measurement",
+  "hrv_rmssd",
+  "resting_heart_rate",
+  "workout",
 ]);
 
 export async function registerDirectDevice(

@@ -57,6 +57,7 @@ import {
   garminFitRecords,
   isGarminDirectorySentinel,
   isGarminDirectoryType,
+  isGarminActivityFile,
   isGarminHealthFile,
   parseGarminDeviceInformation,
   parseGarminDirectory,
@@ -80,6 +81,13 @@ export const GARMIN_INIT_DELAY_MS = 1_000;
  * never sends it gets today's sequence after this delay.
  */
 export const GARMIN_CONFIGURATION_WAIT_MS = 5_000;
+/**
+ * A file transfer fails after this long without a chunk; the overall cap
+ * bounds one file (a long GPS workout at a few KB/s takes minutes).
+ */
+export const GARMIN_TRANSFER_MAX_MS = 10 * 60_000;
+/** Larger files are skipped (left on the watch, not archived). */
+export const GARMIN_MAX_FILE_BYTES = 8 * 1024 * 1024;
 /** Safety bound on files per sync, so a broken directory cannot loop. */
 export const GARMIN_MAX_FILES_PER_SYNC = 256;
 
@@ -182,9 +190,12 @@ function deferred<T>(): Deferred<T> {
 
 type TransferState = {
   expected: number;
-  buffer: number[];
+  buffer: Uint8Array;
+  received: number;
   crc: number;
   done: Deferred<Uint8Array>;
+  /** Restarts the inactivity timer; set by `receiveTransfer`. */
+  touch: () => void;
 };
 
 type MlWaiter = {
@@ -224,6 +235,8 @@ export class GarminSession {
   private settled = false;
   private started = false;
   private closed = false;
+  /** A transfer stalled and the remaining files were left for the next sync. */
+  private stalled = false;
 
   constructor(private readonly options: GarminSessionOptions) {
     this.timers = options.timers ?? defaultTimers;
@@ -262,6 +275,11 @@ export class GarminSession {
     return this.done;
   }
 
+  /** False when a stalled transfer cut the sync short (files remain on the watch). */
+  get complete(): boolean {
+    return !this.stalled;
+  }
+
   async close(): Promise<void> {
     if (this.closed) return;
     this.closed = true;
@@ -289,7 +307,8 @@ export class GarminSession {
       this.stage = "file_transfer";
       await this.syncFiles();
       if (this.closed) return this.settleResolve();
-      await this.sendSystemEvent(GARMIN_SYSTEM_EVENT.SYNC_COMPLETE);
+      // A stalled sync is not complete: the watch keeps its remaining files.
+      if (!this.stalled) await this.sendSystemEvent(GARMIN_SYSTEM_EVENT.SYNC_COMPLETE);
       this.settleResolve();
     } catch (error) {
       this.options.onFailure?.(this.stage);
@@ -340,9 +359,18 @@ export class GarminSession {
   private async syncFiles(): Promise<void> {
     const directory = await this.downloadFile(0);
     const entries = parseGarminDirectory(directory);
-    const queue = entries.filter(
-      (entry) => !isGarminDirectorySentinel(entry) && isGarminHealthFile(entry),
-    );
+    // Monitoring, sleep and HRV files first: ACTIVITY files can be large and
+    // slow, and must not crowd them out of the file budget or a failing sync.
+    const queue = entries
+      .filter(
+        (entry) =>
+          !isGarminDirectorySentinel(entry) &&
+          isGarminHealthFile(entry) &&
+          entry.fileSize <= GARMIN_MAX_FILE_BYTES,
+      )
+      .sort(
+        (left, right) => Number(isGarminActivityFile(left)) - Number(isGarminActivityFile(right)),
+      );
     let processed = 0;
     for (const entry of queue) {
       if (this.closed) return;
@@ -357,10 +385,15 @@ export class GarminSession {
       let bytes: Uint8Array;
       try {
         bytes = await this.downloadFile(entry.fileIndex);
-      } catch {
-        // One failed file must not abort the whole sync.
+      } catch (error) {
+        // One failed file must not abort the whole sync, but after a stalled
+        // transfer the watch may still be sending: stop asking for more.
         this.options.onFailure?.("file_transfer");
         if (this.closed) return;
+        if (error instanceof Error && error.message === "GARMIN_TRANSFER_TIMEOUT") {
+          this.stalled = true;
+          return;
+        }
         continue;
       }
       try {
@@ -403,6 +436,7 @@ export class GarminSession {
     ) {
       throw new Error("GARMIN_DOWNLOAD_REJECTED");
     }
+    if (status.maxFileSize > GARMIN_MAX_FILE_BYTES) throw new Error("GARMIN_FILE_TOO_LARGE");
     return this.receiveTransfer(status.maxFileSize);
   }
 
@@ -420,18 +454,34 @@ export class GarminSession {
     }
   }
 
+  /**
+   * Collects one file. The watchdog restarts on every chunk, so a large file
+   * that keeps arriving is not cut off; `GARMIN_TRANSFER_MAX_MS` caps it.
+   */
   private async receiveTransfer(expected: number): Promise<Uint8Array> {
     if (expected === 0) return new Uint8Array(0);
+    const done = deferred<Uint8Array>();
+    let idle: unknown = null;
+    const fail = () => done.reject(new Error("GARMIN_TRANSFER_TIMEOUT"));
     const transfer: TransferState = {
       expected,
-      buffer: [],
+      buffer: new Uint8Array(expected),
+      received: 0,
       crc: 0,
-      done: deferred<Uint8Array>(),
+      done,
+      touch: () => {
+        if (idle !== null) this.timers.clearTimeout(idle);
+        idle = this.timers.setTimeout(fail, this.watchdogMs);
+      },
     };
+    const cap = this.timers.setTimeout(fail, GARMIN_TRANSFER_MAX_MS);
+    transfer.touch();
     this.transfer = transfer;
     try {
-      return await this.withWatchdog(transfer.done.promise, "GARMIN_TRANSFER_TIMEOUT");
+      return await done.promise;
     } finally {
+      if (idle !== null) this.timers.clearTimeout(idle);
+      this.timers.clearTimeout(cap);
       if (this.transfer === transfer) this.transfer = null;
     }
   }
@@ -503,7 +553,7 @@ export class GarminSession {
       transfer.done.reject(new Error("GARMIN_TRANSFER_TRUNCATED"));
       return;
     }
-    if (chunk.dataOffset !== transfer.buffer.length) {
+    if (chunk.dataOffset !== transfer.received) {
       transfer.done.reject(new Error("GARMIN_TRANSFER_OFFSET"));
       return;
     }
@@ -513,8 +563,11 @@ export class GarminSession {
       return;
     }
     transfer.crc = crc;
-    for (const byte of chunk.data) transfer.buffer.push(byte);
-    const offset = transfer.buffer.length;
+    const take = Math.min(chunk.data.length, transfer.expected - transfer.received);
+    transfer.buffer.set(chunk.data.subarray(0, take), transfer.received);
+    transfer.received += chunk.data.length;
+    const offset = transfer.received;
+    transfer.touch();
     // Acknowledge every chunk, otherwise the watch stops sending.
     void this.writeFrame({
       messageType: GARMIN_MESSAGE.RESPONSE,
@@ -522,7 +575,7 @@ export class GarminSession {
     }).catch(() => undefined);
     if (offset >= transfer.expected) {
       this.transfer = null;
-      transfer.done.resolve(Uint8Array.from(transfer.buffer.slice(0, transfer.expected)));
+      transfer.done.resolve(transfer.buffer);
     }
   }
 

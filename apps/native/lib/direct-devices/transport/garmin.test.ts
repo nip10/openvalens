@@ -124,11 +124,46 @@ const MONITORING_TS16_FIELDS: readonly Field[] = [
   [27, 1, UINT8],
 ];
 
+const RESTING_HR_FIELDS: readonly Field[] = [
+  [253, 4, UINT32],
+  [0, 1, UINT8],
+  [1, 1, UINT8],
+];
+
 const MONITORING_FIT = fitFile([
   definition(0, GARMIN_FIT_MESSAGE.MONITORING, MONITORING_FIELDS),
   data(0, MONITORING_FIELDS, [0x50000, 120, 70]),
   definition(1, GARMIN_FIT_MESSAGE.MONITORING, MONITORING_TS16_FIELDS),
   data(1, MONITORING_TS16_FIELDS, [(0x50000 + 60) & 0xffff, 8, 71]),
+  // monitoring_hr_data: 7-day 55, current day 52 (upstream prefers field 1).
+  definition(2, GARMIN_FIT_MESSAGE.MONITORING_HR_DATA, RESTING_HR_FIELDS),
+  data(2, RESTING_HR_FIELDS, [0x50000 + 120, 55, 52]),
+]);
+
+const SESSION_FIELDS: readonly Field[] = [
+  [253, 4, UINT32],
+  [2, 4, UINT32],
+  [7, 4, UINT32],
+  [5, 1, ENUM],
+];
+const WORKOUT_START = 0x70000;
+// Two sessions (a brick): only the first becomes the workout, as upstream.
+const ACTIVITY_FIT = fitFile([
+  definition(0, GARMIN_FIT_MESSAGE.SESSION, SESSION_FIELDS),
+  data(0, SESSION_FIELDS, [WORKOUT_START + 1800, WORKOUT_START, 1_800_500, 1]),
+  data(0, SESSION_FIELDS, [WORKOUT_START + 3600, WORKOUT_START + 1800, 1_800_000, 2]),
+]);
+
+const HRV_FIELDS: readonly Field[] = [
+  [253, 4, UINT32],
+  [0, 2, UINT16],
+  [1, 2, UINT16],
+];
+const HRV_TIME = 0x80000;
+const HRV_FIT = fitFile([
+  definition(0, GARMIN_FIT_MESSAGE.HRV_STATUS_SUMMARY, HRV_FIELDS),
+  // weekly 50 ms, last night 41.6 ms (raw / 128) -> 42.
+  data(0, HRV_FIELDS, [HRV_TIME, 50 * 128, 5325]),
 ]);
 
 const SLEEP_START = 0x60000;
@@ -225,6 +260,9 @@ class FakeGarminServer implements GarminSessionLink {
   chunkSize = 32;
   /** Send DEVICE_INFORMATION after registration, and CONFIGURATION once it is answered. */
   handshake = true;
+  chunkDelayMs = 0;
+  /** Stop streaming a file after this many chunks (a stalled transfer). */
+  stallAfterChunks: number | null = null;
   handle = 0;
   private listener: ((bytes: Uint8Array) => void) | null = null;
   private runningCrc = 0;
@@ -326,9 +364,12 @@ class FakeGarminServer implements GarminSessionLink {
   }
 
   private async stream(file: Uint8Array): Promise<void> {
+    let sent = 0;
     for (let offset = 0; offset < file.length; offset += this.chunkSize) {
+      if (this.stallAfterChunks !== null && sent >= this.stallAfterChunks) return;
+      sent += 1;
       await new Promise<void>((resolve) => {
-        this.chunkTimer = setTimeout(resolve, 0);
+        this.chunkTimer = setTimeout(resolve, this.chunkDelayMs);
       });
       const chunk = file.subarray(offset, offset + this.chunkSize);
       this.runningCrc = garminCrc16(chunk, this.runningCrc);
@@ -370,11 +411,16 @@ function fixture(
         directoryPayload([
           directoryEntry({ fileIndex: 1, dataType: 128, subType: 32, size: MONITORING_FIT.length }),
           directoryEntry({ fileIndex: 2, dataType: 128, subType: 49, size: SLEEP_FIT.length }),
-          directoryEntry({ fileIndex: 3, dataType: 128, subType: 4, size: 64 }),
+          directoryEntry({ fileIndex: 3, dataType: 128, subType: 4, size: ACTIVITY_FIT.length }),
+          directoryEntry({ fileIndex: 4, dataType: 128, subType: 68, size: HRV_FIT.length }),
+          // METRICS (128/44) is not a health file here.
+          directoryEntry({ fileIndex: 5, dataType: 128, subType: 44, size: 64 }),
         ]),
       ],
       [1, MONITORING_FIT],
       [2, SLEEP_FIT],
+      [3, ACTIVITY_FIT],
+      [4, HRV_FIT],
     ]);
   const server = new FakeGarminServer(files);
   server.reliable = options.reliable ?? 0;
@@ -421,9 +467,9 @@ test("a full sync downloads health FIT files, emits records and archives them", 
   expect(parseGarminMlMessage(f.server.raw[1]!)?.requestType).toBe(
     GARMIN_ML_REQUEST.REGISTER_ML_REQ,
   );
-  // Directory, then only the two health files (ACTIVITY is skipped).
-  expect(f.server.downloads).toEqual([0, 1, 2]);
-  expect(f.server.archived).toEqual([1, 2]);
+  // Directory, then the health files (METRICS is skipped), workouts last.
+  expect(f.server.downloads).toEqual([0, 1, 2, 4, 3]);
+  expect(f.server.archived).toEqual([1, 2, 4, 3]);
   expect(f.server.systemEvents()).toEqual([8, 0]); // SYNC_READY, SYNC_COMPLETE
 
   const steps = f.records.filter((record) => record.type === "steps");
@@ -435,6 +481,22 @@ test("a full sync downloads health FIT files, emits records and archives them", 
   expect(sleep[0]!.startTime).toBe(
     new Date((SLEEP_START + GARMIN_TIME_EPOCH) * 1000).toISOString(),
   );
+  const epoch = (seconds: number) => new Date((seconds + GARMIN_TIME_EPOCH) * 1000).toISOString();
+  expect(f.records.filter((record) => record.type === "resting_heart_rate")).toEqual([
+    { type: "resting_heart_rate", time: epoch(0x50000 + 120), bpm: 52 },
+  ]);
+  expect(f.records.filter((record) => record.type === "workout")).toEqual([
+    {
+      type: "workout",
+      startTime: epoch(WORKOUT_START),
+      // 1 800 500 ms elapsed, rounded up to the second.
+      endTime: epoch(WORKOUT_START + 1801),
+      activity: "running",
+    },
+  ]);
+  expect(f.records.filter((record) => record.type === "hrv_rmssd")).toEqual([
+    { type: "hrv_rmssd", time: epoch(HRV_TIME), rmssdMs: 42 },
+  ]);
   expect(f.failures).toEqual([]);
 });
 
@@ -446,8 +508,8 @@ test("already-downloaded files are archived and not fetched again", async () => 
   f.session.start();
   await f.session.whenDone();
 
-  expect(f.server.downloads).toEqual([0, 1]);
-  expect(f.server.archived).toEqual([1, 2]);
+  expect(f.server.downloads).toEqual([0, 1, 4, 3]);
+  expect(f.server.archived).toEqual([1, 2, 4, 3]);
   expect(f.records.filter((record) => record.type === "sleep_session")).toEqual([]);
   expect(f.records.filter((record) => record.type === "steps")).toHaveLength(2);
 });
@@ -605,4 +667,59 @@ test("failed reply writes neither reject nor hang the session", async () => {
   await f.session.whenDone();
   expect(rejected).toBe(1); // the chain stops after the failed ACK
   expect(f.records.length).toBeGreaterThan(0);
+});
+
+test("a slow file keeps downloading while chunks keep arriving", async () => {
+  // 30 ms watchdog, 10 ms per chunk, many chunks: well past 30 ms in total.
+  const f = fixture({
+    watchdogMs: 30,
+    chunkSize: 8,
+    syncState: createMemoryGarminSyncStateStore(),
+  });
+  f.server.chunkDelayMs = 10;
+  f.session.start();
+  await f.session.whenDone();
+  expect(f.server.downloads).toEqual([0, 1, 2, 4, 3]);
+  expect(f.records.some((record) => record.type === "workout")).toBe(true);
+  expect(f.failures).toEqual([]);
+  expect(f.session.complete).toBe(true);
+});
+
+test("a stalled transfer stops the sync instead of requesting more files", async () => {
+  const f = fixture({ watchdogMs: 40, syncState: createMemoryGarminSyncStateStore() });
+  const write = f.server.write.bind(f.server);
+  f.server.write = async (frame: GarminGfdiFrame) => {
+    // The monitoring file (index 1) stalls after two chunks.
+    if (frame.messageType === GARMIN_MESSAGE.DOWNLOAD_REQUEST)
+      f.server.stallAfterChunks = (frame.payload[0]! | (frame.payload[1]! << 8)) === 1 ? 2 : null;
+    return write(frame);
+  };
+  f.session.start();
+  await f.session.whenDone();
+  expect(f.server.downloads).toEqual([0, 1]);
+  expect(f.failures).toContain("file_transfer");
+  expect(f.server.archived).toEqual([]);
+  // Not complete: no SYNC_COMPLETE, so the watch keeps its remaining files.
+  expect(f.session.complete).toBe(false);
+  expect(f.server.systemEvents()).toEqual([8]);
+});
+
+test("health files download before workouts, and oversized files are skipped", async () => {
+  const files = new Map<number, Uint8Array>([
+    [
+      DIRECTORY_INDEX,
+      directoryPayload([
+        directoryEntry({ fileIndex: 3, dataType: 128, subType: 4, size: ACTIVITY_FIT.length }),
+        directoryEntry({ fileIndex: 6, dataType: 128, subType: 4, size: 9 * 1024 * 1024 }),
+        directoryEntry({ fileIndex: 1, dataType: 128, subType: 32, size: MONITORING_FIT.length }),
+      ]),
+    ],
+    [1, MONITORING_FIT],
+    [3, ACTIVITY_FIT],
+  ]);
+  const f = fixture({ files, syncState: createMemoryGarminSyncStateStore() });
+  f.session.start();
+  await f.session.whenDone();
+  expect(f.server.downloads).toEqual([0, 1, 3]);
+  expect(f.server.archived).toEqual([1, 3]);
 });

@@ -44,6 +44,10 @@ export type MobileHealthRecord = MobileRecordBase &
     /** One HealthKit sleep sample; grouped into sessions by `healthkit-sleep.ts`. */
     | ({ type: "sleep_segment"; value: HealthKitSleepValue; timeZone?: string } & Interval)
     | ({ type: "body_temperature"; celsius: number } & Interval)
+    /** Direct devices only: a nightly RMSSD value. */
+    | ({ type: "hrv_rmssd"; rmssdMs: number } & Interval)
+    /** Direct devices only: the device's resting heart rate for a day. */
+    | ({ type: "resting_heart_rate"; bpm: number } & Interval)
     | ({
         type: "blood_pressure";
         systolic: number;
@@ -152,6 +156,12 @@ export function adaptMobileHealthRecords(
         break;
       case "body_temperature":
         metric("body_temperature", record.celsius, "°C");
+        break;
+      case "hrv_rmssd":
+        metric("hrv_rmssd", record.rmssdMs, "ms");
+        break;
+      case "resting_heart_rate":
+        metric("resting_heart_rate", record.bpm, "bpm");
         break;
       case "blood_pressure": {
         const base = record.externalRecordId;

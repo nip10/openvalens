@@ -1535,7 +1535,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
               return {
                 pages: 0,
                 minutes: 0,
-                complete: !linked.signal.aborted,
+                complete: !linked.signal.aborted && session.complete,
                 granularity: "minute" as const,
               };
             })()

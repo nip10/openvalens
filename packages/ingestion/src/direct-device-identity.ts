@@ -58,7 +58,10 @@ export type DirectDeviceRecordType =
   | "heart_rate"
   | "body_temperature"
   | "blood_pressure"
-  | "weight_measurement";
+  | "weight_measurement"
+  | "hrv_rmssd"
+  | "resting_heart_rate"
+  | "workout";
 
 export class DirectDeviceIdentityError extends Error {
   constructor(
@@ -121,6 +124,8 @@ export function directDeviceFamilySupportsRecordType(
       family === "pebble"
     );
   if (recordType === "weight_measurement") return family === "ble_scale";
+  if (recordType === "hrv_rmssd" || recordType === "resting_heart_rate" || recordType === "workout")
+    return family === "garmin";
   if (recordType === "heart_rate")
     return (
       family === "zepp_os" ||

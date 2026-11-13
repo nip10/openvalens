@@ -91,6 +91,15 @@ const emptySnapshot: HelioSyncSnapshot = Object.freeze({
   canSync: false,
 });
 
+/** Record types of the exact-minute families (legacy Huami, Huawei, Garmin). */
+type HuamiHistoryRecordType =
+  | "steps"
+  | "sleep_session"
+  | "heart_rate"
+  | "hrv_rmssd"
+  | "resting_heart_rate"
+  | "workout";
+
 export function immutableClient(
   serverUrl: string,
   cookie: string,
@@ -718,7 +727,7 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
     deviceId: string,
     prefix: string,
     samples: readonly DirectDeviceHistorySample[],
-  ): { recordType: "steps" | "sleep_session" | "heart_rate"; upserts: unknown[] }[] => {
+  ): { recordType: HuamiHistoryRecordType; upserts: unknown[] }[] => {
     const steps = samples.filter(
       (sample): sample is Extract<DirectDeviceHistorySample, { type: "steps" }> =>
         sample.type === "steps",
@@ -731,10 +740,7 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
       (sample): sample is Extract<DirectDeviceHistorySample, { type: "heart_rate" }> =>
         sample.type === "heart_rate",
     );
-    const groups: {
-      recordType: "steps" | "sleep_session" | "heart_rate";
-      upserts: unknown[];
-    }[] = [];
+    const groups: { recordType: HuamiHistoryRecordType; upserts: unknown[] }[] = [];
     if (steps.length)
       groups.push({
         recordType: "steps",
@@ -780,6 +786,86 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
         ],
       });
     }
+    // Garmin only. Ids come from the watch's own timestamps, so a re-read
+    // file republishes the same records.
+    const pointRecord = (
+      sample: { time: string },
+      type: "hrv_rmssd" | "resting_heart_rate",
+      tag: string,
+      value: Record<string, number>,
+    ) => ({
+      type,
+      externalRecordId: `dd-${prefix}:${deviceId}:${tag}:${sample.time}`,
+      sourceApp: null,
+      startTime: sample.time,
+      endTime: new Date(Date.parse(sample.time) + 1000).toISOString(),
+      ...value,
+    });
+    const unique = <T extends { time: string }>(items: readonly T[]) => [
+      ...new Map(items.map((item) => [item.time, item])).values(),
+    ];
+    const hrv = unique(
+      samples.filter(
+        (sample): sample is Extract<DirectDeviceHistorySample, { type: "hrv_rmssd" }> =>
+          sample.type === "hrv_rmssd",
+      ),
+    );
+    if (hrv.length)
+      groups.push({
+        recordType: "hrv_rmssd",
+        upserts: hrv.map((sample) =>
+          pointRecord(sample, "hrv_rmssd", "hrv", { rmssdMs: sample.rmssdMs }),
+        ),
+      });
+    // Resting heart rate is a daily value: readers average a UTC day's
+    // samples, so publish the day's latest sample under a per-day id, with its
+    // time as the revision. A later sync's newer value supersedes it.
+    const restingByDay = new Map<
+      string,
+      Extract<DirectDeviceHistorySample, { type: "resting_heart_rate" }>
+    >();
+    for (const sample of samples) {
+      if (sample.type !== "resting_heart_rate") continue;
+      const day = sample.time.slice(0, 10);
+      const kept = restingByDay.get(day);
+      if (!kept || Date.parse(sample.time) > Date.parse(kept.time)) restingByDay.set(day, sample);
+    }
+    if (restingByDay.size)
+      groups.push({
+        recordType: "resting_heart_rate",
+        upserts: [...restingByDay].map(([day, sample]) => ({
+          type: "resting_heart_rate",
+          externalRecordId: `dd-${prefix}:${deviceId}:rhr:${day}`,
+          sourceApp: null,
+          startTime: `${day}T00:00:00.000Z`,
+          endTime: new Date(Date.parse(`${day}T00:00:00.000Z`) + 86_400_000).toISOString(),
+          bpm: sample.bpm,
+          lastModifiedAt: sample.time,
+        })),
+      });
+    const workouts = [
+      ...new Map(
+        samples
+          .filter(
+            (sample): sample is Extract<DirectDeviceHistorySample, { type: "workout" }> =>
+              sample.type === "workout",
+          )
+          .map((sample) => [sample.startTime, sample] as const),
+      ).values(),
+    ];
+    if (workouts.length)
+      groups.push({
+        recordType: "workout",
+        upserts: workouts.map((sample) => ({
+          type: "workout",
+          externalRecordId: `dd-${prefix}:${deviceId}:workout:${sample.startTime}`,
+          sourceApp: null,
+          startTime: sample.startTime,
+          endTime: sample.endTime,
+          activity: sample.activity,
+          title: null,
+        })),
+      });
     return groups;
   };
 
@@ -789,7 +875,7 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
     samples: readonly DirectDeviceHistorySample[],
     family: DirectDeviceFamily,
   ): {
-    recordType: "steps" | "steps_interval" | "sleep_session" | "heart_rate";
+    recordType: HuamiHistoryRecordType | "steps_interval";
     upserts: unknown[];
   }[] => {
     if (family === "huami_legacy" || family === "huawei" || family === "garmin")
@@ -879,7 +965,7 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
       );
       if (!groups.length) return;
       const starts = buffer.samples.map((sample) =>
-        Date.parse(sample.type === "heart_rate" ? sample.time : sample.startTime),
+        Date.parse("time" in sample ? sample.time : sample.startTime),
       );
       const startTime = new Date(Math.min(...starts)).toISOString();
       const endTime = new Date(Math.max(...starts) + 1000).toISOString();

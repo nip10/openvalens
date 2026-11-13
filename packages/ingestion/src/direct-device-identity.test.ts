@@ -233,16 +233,27 @@ describe("direct-device identity guard", () => {
       );
   });
 
-  test("Garmin devices publish exact-minute steps, heart rate and sleep sessions", () => {
+  test("Garmin devices publish steps, heart rate, sleep, HRV, resting heart rate and workouts", () => {
     const garmin = { directDeviceFamily: "garmin", directDeviceModelId: "garmin_fenix_7" };
     const assertion = { family: "garmin", modelId: "garmin_fenix_7" } as const;
     // FIT monitoring samples are per-minute, so they map to exact-minute steps
     // and heart rate; sleep sessions come from the same FIT files. Only
     // BLE-transport models reach this point: the native registry refuses
     // Bluetooth-Classic/RFCOMM models before a batch exists.
-    for (const recordType of ["steps", "heart_rate", "sleep_session"] as const)
+    for (const recordType of [
+      "steps",
+      "heart_rate",
+      "sleep_session",
+      "hrv_rmssd",
+      "resting_heart_rate",
+      "workout",
+    ] as const)
       expect(assertDirectDeviceIdentity(garmin, assertion, { recordType })).toEqual(assertion);
     // Garmin has no interval buckets, scale or GATT sensor metrics.
+    // HRV, resting heart rate and workouts are Garmin-only.
+    for (const family of ["zepp_os", "pebble", "huawei", "fossil_hr", "ble_gatt"] as const)
+      for (const recordType of ["hrv_rmssd", "resting_heart_rate", "workout"] as const)
+        expect(directDeviceFamilySupportsRecordType(family, recordType)).toBe(false);
     for (const recordType of [
       "steps_interval",
       "weight_measurement",

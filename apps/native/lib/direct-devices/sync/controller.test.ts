@@ -2212,7 +2212,7 @@ test("legacy Huami history is committed as exact-minute steps, sleep_session and
   invalidateDirectDeviceAuthority();
 });
 
-test("Garmin FIT history is committed as exact-minute steps, sleep_session and heart_rate batches", async () => {
+test("Garmin FIT history is committed as steps, sleep, heart rate, HRV, resting HR and workout batches", async () => {
   const { db, store } = sqlite();
   const historyCapture: { handler: ((sample: DirectDeviceHistorySample) => void) | null } = {
     handler: null,
@@ -2276,12 +2276,74 @@ test("Garmin FIT history is committed as exact-minute steps, sleep_session and h
       time: new Date(Date.UTC(2026, 2, 1, 8, index, 0)).toISOString(),
       bpm: 60 + index,
     });
+  const hrvTime = new Date(Date.UTC(2026, 2, 2, 6, 0, 0)).toISOString();
+  // The same summary read from two files publishes once.
+  historyCapture.handler!({ type: "hrv_rmssd", time: hrvTime, rmssdMs: 42 });
+  historyCapture.handler!({ type: "hrv_rmssd", time: hrvTime, rmssdMs: 42 });
+  // Two samples on one UTC day: the latest is the day's value.
+  historyCapture.handler!({
+    type: "resting_heart_rate",
+    time: new Date(Date.UTC(2026, 2, 1, 12, 0, 0)).toISOString(),
+    bpm: 52,
+  });
+  historyCapture.handler!({
+    type: "resting_heart_rate",
+    time: new Date(Date.UTC(2026, 2, 1, 6, 0, 0)).toISOString(),
+    bpm: 55,
+  });
+  const workoutStart = new Date(Date.UTC(2026, 2, 1, 17, 0, 0)).toISOString();
+  const workoutEnd = new Date(Date.UTC(2026, 2, 1, 17, 30, 1)).toISOString();
+  historyCapture.handler!({
+    type: "workout",
+    startTime: workoutStart,
+    endTime: workoutEnd,
+    activity: "running",
+  });
   await new Promise((resolve) => setTimeout(resolve, 0));
 
   const pending = store.listPending(ticket, 10);
-  expect(pending).toHaveLength(3);
+  expect(pending).toHaveLength(6);
   const byType = new Map(pending.map((row) => [row.request.batch.recordType, row.request.batch]));
-  expect([...byType.keys()].sort()).toEqual(["heart_rate", "sleep_session", "steps"]);
+  expect([...byType.keys()].sort()).toEqual([
+    "heart_rate",
+    "hrv_rmssd",
+    "resting_heart_rate",
+    "sleep_session",
+    "steps",
+    "workout",
+  ]);
+  expect(byType.get("hrv_rmssd")!.upserts).toEqual([
+    {
+      type: "hrv_rmssd",
+      externalRecordId: `dd-garmin:${deviceId}:hrv:${hrvTime}`,
+      sourceApp: null,
+      startTime: hrvTime,
+      endTime: new Date(Date.parse(hrvTime) + 1000).toISOString(),
+      rmssdMs: 42,
+    },
+  ]);
+  expect(byType.get("resting_heart_rate")!.upserts).toEqual([
+    {
+      type: "resting_heart_rate",
+      externalRecordId: `dd-garmin:${deviceId}:rhr:2026-03-01`,
+      sourceApp: null,
+      startTime: "2026-03-01T00:00:00.000Z",
+      endTime: "2026-03-02T00:00:00.000Z",
+      bpm: 52,
+      lastModifiedAt: new Date(Date.UTC(2026, 2, 1, 12, 0, 0)).toISOString(),
+    },
+  ]);
+  expect(byType.get("workout")!.upserts).toEqual([
+    {
+      type: "workout",
+      externalRecordId: `dd-garmin:${deviceId}:workout:${workoutStart}`,
+      sourceApp: null,
+      startTime: workoutStart,
+      endTime: workoutEnd,
+      activity: "running",
+      title: null,
+    },
+  ]);
   for (const batch of byType.values())
     expect(batch).toMatchObject({
       mode: "backfill",

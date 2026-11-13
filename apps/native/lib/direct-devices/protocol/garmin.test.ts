@@ -6,9 +6,13 @@
  * 8976702fc3d00e6008c91fe994668cb4027f7bc2. AGPL-3.0-or-later.
  */
 
-import { expect, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 
 import {
+  decodeGarminHrv,
+  decodeGarminRestingHeartRate,
+  decodeGarminWorkout,
+  garminSportName,
   GARMIN_OUR_CAPABILITIES,
   buildGarminAuthNegotiationStatus,
   buildGarminConfiguration,
@@ -685,4 +689,93 @@ test("our capabilities are upstream's: all 129 but the 17 it removes", () => {
     expect([bit, set]).toEqual([bit, bit < 129 && !removed.has(bit) ? 1 : 0]);
   }
   expect(Array.from(buildGarminConfiguration().subarray(0, 1))).toEqual([17]);
+});
+
+describe("HRV, resting heart rate and workout decoders", () => {
+  const message = (
+    messageNumber: number,
+    timestamp: number | null,
+    fields: [number, number][],
+  ) => ({
+    messageNumber,
+    timestamp,
+    fields: new Map(fields),
+  });
+  const iso = (seconds: number) => new Date(seconds * 1000).toISOString();
+
+  test("HRV takes last night's average and carries the timestamp forward", () => {
+    expect(
+      decodeGarminHrv([
+        message(0, 1_700_000_000, []),
+        message(370, null, [
+          [0, 6400],
+          [1, 5325],
+          [2, 9000],
+        ]),
+        message(370, 1_700_086_400, [[0, 6400]]), // no last-night value
+        message(370, 1_700_172_800, [[1, 50]]), // rounds to 0: dropped
+      ]),
+    ).toEqual([{ type: "hrv_rmssd", time: iso(1_700_000_000), rmssdMs: 42 }]);
+    expect(decodeGarminHrv([message(370, null, [[1, 5325]])])).toEqual([]);
+  });
+
+  test("resting heart rate prefers the current-day field, then the 7-day one", () => {
+    expect(
+      decodeGarminRestingHeartRate([
+        message(211, 1_700_000_000, [
+          [0, 55],
+          [1, 52],
+        ]),
+        message(211, 1_700_000_060, [[0, 56]]),
+        message(211, 1_700_000_120, [[0, 300]]),
+        message(55, 1_700_000_180, [[0, 60]]),
+      ]),
+    ).toEqual([
+      { type: "resting_heart_rate", time: iso(1_700_000_000), bpm: 52 },
+      { type: "resting_heart_rate", time: iso(1_700_000_060), bpm: 56 },
+    ]);
+  });
+
+  test("a workout comes from the first session, with file_id time as the start fallback", () => {
+    const created = 1_000_000;
+    const toUnix = (garmin: number) => garmin + 631_065_600;
+    expect(
+      decodeGarminWorkout([
+        message(0, null, [[4, created]]),
+        message(18, null, [
+          [7, 600_000],
+          [5, 11],
+        ]),
+        message(18, null, [
+          [2, created + 900],
+          [7, 600_000],
+          [5, 2],
+        ]),
+      ]),
+    ).toEqual([
+      {
+        type: "workout",
+        startTime: iso(toUnix(created)),
+        endTime: iso(toUnix(created) + 600),
+        activity: "walking",
+      },
+    ]);
+    expect(decodeGarminWorkout([message(18, null, [[2, created]])])).toEqual([]);
+    expect(
+      decodeGarminWorkout([
+        message(18, null, [
+          [2, created],
+          [7, 0],
+        ]),
+      ]),
+    ).toEqual([]);
+    expect(decodeGarminWorkout([message(0, null, [[4, created]])])).toEqual([]);
+  });
+
+  test("sport names follow the FIT profile; unknown codes keep their number", () => {
+    expect(garminSportName(1)).toBe("running");
+    expect(garminSportName(5)).toBe("swimming");
+    expect(garminSportName(undefined)).toBe("generic");
+    expect(garminSportName(250)).toBe("sport_250");
+  });
 });

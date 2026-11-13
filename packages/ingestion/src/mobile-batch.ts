@@ -132,7 +132,10 @@ function isDirectDeviceRecordType(value: MobileHealthRecordType): value is Direc
     value === "heart_rate" ||
     value === "body_temperature" ||
     value === "blood_pressure" ||
-    value === "weight_measurement"
+    value === "weight_measurement" ||
+    value === "hrv_rmssd" ||
+    value === "resting_heart_rate" ||
+    value === "workout"
   );
 }
 

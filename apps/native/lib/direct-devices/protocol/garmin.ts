@@ -181,6 +181,8 @@ export const GARMIN_FILE_TYPE = {
   MONITOR_DAILY: { dataType: 128, subType: 28 },
   MONITOR: { dataType: 128, subType: 32 },
   SLEEP: { dataType: 128, subType: 49 },
+  ACTIVITY: { dataType: 128, subType: 4 },
+  HRV_STATUS: { dataType: 128, subType: 68 },
 } as const;
 
 /** Health FIT file types the v1 sync downloads. */
@@ -193,6 +195,9 @@ export const GARMIN_HEALTH_FILE_TYPES: readonly Readonly<{
   { ...GARMIN_FILE_TYPE.MONITOR_DAILY, name: "MONITOR_DAILY" },
   { ...GARMIN_FILE_TYPE.MONITOR, name: "MONITOR" },
   { ...GARMIN_FILE_TYPE.SLEEP, name: "SLEEP" },
+  // Upstream pulls both by default (`FileType`); workouts and nightly HRV.
+  { ...GARMIN_FILE_TYPE.ACTIVITY, name: "ACTIVITY" },
+  { ...GARMIN_FILE_TYPE.HRV_STATUS, name: "HRV_STATUS" },
 ];
 
 /** Directory record size in bytes (`FileTransferHandler.parseDirectoryEntries`). */
@@ -201,12 +206,14 @@ export const GARMIN_DIRECTORY_ENTRY_SIZE = 16;
 /** FIT message numbers this family understands. */
 export const GARMIN_FIT_MESSAGE = {
   FILE_ID: 0,
+  SESSION: 18,
   EVENT: 21,
   MONITORING: 55,
   MONITORING_HR_DATA: 211,
   SLEEP_DATA_RAW: 274,
   SLEEP_LEVEL: 275,
   SLEEP_ASSESSMENT: 346,
+  HRV_STATUS_SUMMARY: 370,
   NAP_EVENT: 412,
 } as const;
 
@@ -627,6 +634,14 @@ export function isGarminDirectoryType(entry: GarminDirectoryEntry): boolean {
 export function isGarminHealthFile(entry: GarminDirectoryEntry): boolean {
   return GARMIN_HEALTH_FILE_TYPES.some(
     (type) => type.dataType === entry.dataType && type.subType === entry.subType,
+  );
+}
+
+/** ACTIVITY files (workouts) are synced after the other health files. */
+export function isGarminActivityFile(entry: GarminDirectoryEntry): boolean {
+  return (
+    entry.dataType === GARMIN_FILE_TYPE.ACTIVITY.dataType &&
+    entry.subType === GARMIN_FILE_TYPE.ACTIVITY.subType
   );
 }
 
@@ -1347,7 +1362,32 @@ export type GarminSleepSession = Readonly<{
   stages?: readonly GarminSleepStage[];
 }>;
 
-export type GarminRecord = GarminStepsRecord | GarminHeartRateRecord | GarminSleepSession;
+/** Nightly HRV: `hrv_status_summary.last_night_average`, in ms. */
+export type GarminHrvRecord = Readonly<{ type: "hrv_rmssd"; time: string; rmssdMs: number }>;
+
+/** The watch's resting heart rate as of `time` (`monitoring_hr_data`). */
+export type GarminRestingHeartRateRecord = Readonly<{
+  type: "resting_heart_rate";
+  time: string;
+  bpm: number;
+}>;
+
+/** One workout from the first `session` of an ACTIVITY file. */
+export type GarminWorkoutRecord = Readonly<{
+  type: "workout";
+  startTime: string;
+  endTime: string;
+  /** Lowercased FIT `Sport` name, e.g. `running`. */
+  activity: string;
+}>;
+
+export type GarminRecord =
+  | GarminStepsRecord
+  | GarminHeartRateRecord
+  | GarminSleepSession
+  | GarminHrvRecord
+  | GarminRestingHeartRateRecord
+  | GarminWorkoutRecord;
 
 /** Converts one monitoring sample to the frozen exact-minute record shapes. */
 export function garminMonitoringToRecords(sample: GarminMonitoringSample): readonly GarminRecord[] {
@@ -1596,7 +1636,179 @@ export function garminFitRecordsFromMessages(
       naps: decodeGarminNaps(messages),
     }),
   );
+  records.push(...decodeGarminHrv(messages));
+  records.push(...decodeGarminRestingHeartRate(messages));
+  records.push(...decodeGarminWorkout(messages));
   return records;
+}
+
+// ---------------------------------------------------------------------------
+// HRV, resting heart rate and workouts (docs/research/notes/Garmin MLR
+// transport/garmin-fit-health-metrics.md). Upstream carries the last record
+// timestamp forward when a record has none; so do these decoders.
+// ---------------------------------------------------------------------------
+
+/**
+ * Nightly HRV from `hrv_status_summary` (370) field 1 `last_night_average`,
+ * UINT16 raw/128 ms, rounded as upstream stores it. Weekly average, the
+ * 5-minute high and the baselines are not nightly RMSSD values.
+ */
+export function decodeGarminHrv(messages: readonly GarminFitMessage[]): GarminHrvRecord[] {
+  const out: GarminHrvRecord[] = [];
+  let last: number | null = null;
+  for (const message of messages) {
+    if (message.timestamp !== null) last = message.timestamp;
+    if (message.messageNumber !== GARMIN_FIT_MESSAGE.HRV_STATUS_SUMMARY || last === null) continue;
+    const raw = message.fields.get(1);
+    if (raw === undefined) continue;
+    const rmssdMs = Math.round(raw / 128);
+    if (rmssdMs <= 0) continue;
+    out.push({ type: "hrv_rmssd", time: new Date(last * 1000).toISOString(), rmssdMs });
+  }
+  return out;
+}
+
+/**
+ * Resting heart rate from `monitoring_hr_data` (211): field 1
+ * `current_day_resting_heart_rate` (what the watch displays, upstream's
+ * choice), else field 0. UINT8 bpm; 0xFF is already dropped as invalid.
+ */
+export function decodeGarminRestingHeartRate(
+  messages: readonly GarminFitMessage[],
+): GarminRestingHeartRateRecord[] {
+  const out: GarminRestingHeartRateRecord[] = [];
+  let last: number | null = null;
+  for (const message of messages) {
+    if (message.timestamp !== null) last = message.timestamp;
+    if (message.messageNumber !== GARMIN_FIT_MESSAGE.MONITORING_HR_DATA || last === null) continue;
+    const bpm = message.fields.get(1) ?? message.fields.get(0);
+    if (bpm === undefined || bpm < 20 || bpm > 250) continue;
+    out.push({ type: "resting_heart_rate", time: new Date(last * 1000).toISOString(), bpm });
+  }
+  return out;
+}
+
+/** FIT profile `Sport` enum (fit_profile.json at the pinned commit), lowercased. */
+const GARMIN_SPORT_NAMES = new Map<number, string>([
+  [0, "generic"],
+  [1, "running"],
+  [2, "cycling"],
+  [3, "transition"],
+  [4, "fitness_equipment"],
+  [5, "swimming"],
+  [6, "basketball"],
+  [7, "soccer"],
+  [8, "tennis"],
+  [9, "american_football"],
+  [10, "training"],
+  [11, "walking"],
+  [12, "cross_country_skiing"],
+  [13, "alpine_skiing"],
+  [14, "snowboarding"],
+  [15, "rowing"],
+  [16, "mountaineering"],
+  [17, "hiking"],
+  [18, "multisport"],
+  [19, "paddling"],
+  [20, "flying"],
+  [21, "e_biking"],
+  [22, "motorcycling"],
+  [23, "boating"],
+  [24, "driving"],
+  [25, "golf"],
+  [26, "hang_gliding"],
+  [27, "horseback_riding"],
+  [28, "hunting"],
+  [29, "fishing"],
+  [30, "inline_skating"],
+  [31, "rock_climbing"],
+  [32, "sailing"],
+  [33, "ice_skating"],
+  [34, "sky_diving"],
+  [35, "snowshoeing"],
+  [36, "snowmobiling"],
+  [37, "stand_up_paddleboarding"],
+  [38, "surfing"],
+  [39, "wakeboarding"],
+  [40, "water_skiing"],
+  [41, "kayaking"],
+  [42, "rafting"],
+  [43, "windsurfing"],
+  [44, "kitesurfing"],
+  [45, "tactical"],
+  [46, "jumpmaster"],
+  [47, "boxing"],
+  [48, "floor_climbing"],
+  [49, "baseball"],
+  [50, "softball_fast_pitch"],
+  [51, "softball_slow_pitch"],
+  [52, "stopwatch"],
+  [53, "diving"],
+  [56, "shooting"],
+  [57, "auto_racing"],
+  [58, "winter_sport"],
+  [59, "grinding"],
+  [60, "health_monitoring"],
+  [61, "marine"],
+  [62, "hiit"],
+  [63, "video_gaming"],
+  [64, "racket"],
+  [65, "wheelchair_push_walk"],
+  [66, "wheelchair_push_run"],
+  [67, "meditation"],
+  [68, "para_sport"],
+  [69, "disc_golf"],
+  [70, "team_sport"],
+  [71, "cricket"],
+  [72, "rugby"],
+  [73, "hockey"],
+  [74, "lacrosse"],
+  [75, "volleyball"],
+  [76, "water_tubing"],
+  [77, "wakesurfing"],
+  [78, "water_sport"],
+  [79, "archery"],
+  [80, "mixed_martial_arts"],
+  [81, "motor_sports"],
+  [82, "snorkeling"],
+  [83, "dance"],
+  [84, "jump_rope"],
+  [85, "pool_apnea"],
+  [86, "mobility"],
+  [87, "geocaching"],
+  [88, "canoeing"],
+  [99, "trolling_motor"],
+]);
+
+/** The lowercased FIT sport name; unknown codes keep their number. */
+export function garminSportName(sport: number | undefined): string {
+  if (sport === undefined) return "generic";
+  return GARMIN_SPORT_NAMES.get(sport) ?? `sport_${sport}`;
+}
+
+/**
+ * One workout per ACTIVITY file, from the first `session` (18) only, as
+ * upstream: start = field 2 `start_time` (else `file_id.time_created`),
+ * end = start + field 7 `total_elapsed_time` (raw/1000 s), sport = field 5.
+ * A multi-sport file is one workout with the first leg's sport.
+ */
+export function decodeGarminWorkout(messages: readonly GarminFitMessage[]): GarminWorkoutRecord[] {
+  const session = messages.find((message) => message.messageNumber === GARMIN_FIT_MESSAGE.SESSION);
+  if (!session) return [];
+  const fileId = messages.find((message) => message.messageNumber === GARMIN_FIT_MESSAGE.FILE_ID);
+  const rawStart = session.fields.get(2) ?? fileId?.fields.get(4);
+  const elapsed = session.fields.get(7);
+  if (rawStart === undefined || elapsed === undefined || elapsed <= 0) return [];
+  const start = (rawStart + GARMIN_TIME_EPOCH) * 1000;
+  const end = start + elapsed;
+  return [
+    {
+      type: "workout",
+      startTime: new Date(start).toISOString(),
+      endTime: new Date(Math.ceil(end / 1000) * 1000).toISOString(),
+      activity: garminSportName(session.fields.get(5)),
+    },
+  ];
 }
 
 /** Sleep score from a SLEEP_ASSESSMENT (346) message, when present. */

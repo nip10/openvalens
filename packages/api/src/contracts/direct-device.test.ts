@@ -194,6 +194,66 @@ describe("direct device contract", () => {
     ).toBe(false);
   });
 
+  test("accepts HRV, resting heart rate and workout batches within their ranges", () => {
+    const window = { startTime: steps.startTime, endTime: steps.endTime };
+    const hrv = {
+      type: "hrv_rmssd",
+      externalRecordId: "hrv-1",
+      sourceApp: null,
+      ...window,
+      rmssdMs: 42,
+    };
+    const rhr = {
+      type: "resting_heart_rate",
+      externalRecordId: "rhr-1",
+      sourceApp: null,
+      ...window,
+      bpm: 52,
+    };
+    const workout = {
+      type: "workout",
+      externalRecordId: "wk-1",
+      sourceApp: null,
+      ...window,
+      activity: "running",
+      title: null,
+    };
+    const of = (recordType: string, record: object) => ({
+      ...batch,
+      recordType,
+      upserts: [record],
+    });
+    expect(directDeviceBatch.safeParse(of("hrv_rmssd", hrv)).success).toBe(true);
+    expect(directDeviceBatch.safeParse(of("resting_heart_rate", rhr)).success).toBe(true);
+    expect(directDeviceBatch.safeParse(of("workout", workout)).success).toBe(true);
+    expect(directDeviceBatch.safeParse(of("hrv_rmssd", { ...hrv, rmssdMs: 0 })).success).toBe(
+      false,
+    );
+    expect(directDeviceBatch.safeParse(of("hrv_rmssd", { ...hrv, rmssdMs: 501 })).success).toBe(
+      false,
+    );
+    expect(
+      directDeviceBatch.safeParse(of("resting_heart_rate", { ...rhr, bpm: 52.5 })).success,
+    ).toBe(false);
+    expect(directDeviceBatch.safeParse(of("resting_heart_rate", { ...rhr, bpm: 19 })).success).toBe(
+      false,
+    );
+    expect(directDeviceBatch.safeParse(of("workout", { ...workout, activity: "" })).success).toBe(
+      false,
+    );
+    expect(directDeviceBatch.safeParse(of("workout", hrv)).success).toBe(false);
+    expect(
+      directDeviceBatch.safeParse(
+        of("resting_heart_rate", { ...rhr, lastModifiedAt: "2026-10-02T20:00:00Z" }),
+      ).success,
+    ).toBe(true);
+    expect(
+      directDeviceBatch.safeParse(
+        of("hrv_rmssd", { ...hrv, lastModifiedAt: "2026-10-02T20:00:00Z" }),
+      ).success,
+    ).toBe(false);
+  });
+
   test("accepts blood-pressure batches and enforces ranges and diastolic < systolic", () => {
     const bloodPressure = {
       type: "blood_pressure",

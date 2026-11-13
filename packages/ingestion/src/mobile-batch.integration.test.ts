@@ -780,6 +780,103 @@ describe.skipIf(!url)("mobile ingest batch on disposable PostgreSQL", () => {
     );
   });
 
+  test("Garmin HRV and resting heart rate publish canonical samples; workouts publish events", async () => {
+    const GARMIN_DEVICE = "4b8e1d2c-7a3f-4e5b-9c6d-1f2a3b4c5d6e";
+    await registerDirectDevice(db, {
+      deviceId: GARMIN_DEVICE,
+      family: "garmin",
+      modelId: "garmin_fenix_7",
+      expectedContext: directContext,
+      authenticatedContext: directContext,
+      now,
+    });
+    const garminBatch = (
+      recordType: "hrv_rmssd" | "resting_heart_rate" | "workout",
+      upserts: unknown[],
+    ) => ({
+      schemaVersion: 1 as const,
+      deviceId: GARMIN_DEVICE,
+      deviceIdentity: { family: "garmin" as const, modelId: "garmin_fenix_7" },
+      provider: "direct_device" as const,
+      recordType,
+      mode: "backfill" as const,
+      clientTimezone: "UTC",
+      upserts,
+      deletions: [] as [],
+    });
+    const window = { startTime: "2026-10-02T06:00:00Z", endTime: "2026-10-02T06:00:01Z" };
+    for (const [recordType, record] of [
+      ["hrv_rmssd", { type: "hrv_rmssd", externalRecordId: "hrv-1", rmssdMs: 42 }],
+      ["resting_heart_rate", { type: "resting_heart_rate", externalRecordId: "rhr-1", bpm: 52 }],
+      [
+        "workout",
+        {
+          type: "workout",
+          externalRecordId: "wk-1",
+          startTime: "2026-10-01T17:00:00Z",
+          endTime: "2026-10-01T17:30:00Z",
+          activity: "running",
+          title: null,
+        },
+      ],
+    ] as const) {
+      const result = await ingestDirectDeviceBatch(db, {
+        expectedContext: directContext,
+        authenticatedContext: directContext,
+        batch: garminBatch(recordType, [{ ...window, sourceApp: null, ...record }]) as never,
+        traceId: `garmin-${recordType}`,
+        now,
+      });
+      expect(result.status).toBe("applied");
+    }
+    const samples = await db.select().from(metricSample);
+    expect(samples.map((sample) => [sample.externalSampleId, sample.numericValue]).sort()).toEqual(
+      [
+        [`dd:v1:${GARMIN_DEVICE}:hrv_rmssd:hrv-1`, 42],
+        [`dd:v1:${GARMIN_DEVICE}:resting_heart_rate:rhr-1`, 52],
+      ].sort(),
+    );
+    const definitions = await db.select().from(metricDefinition);
+    expect(definitions.find((definition) => definition.code === "hrv_rmssd")?.unit).toBe("ms");
+    const events = await db.select().from(healthEvent);
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ eventType: "workout", payloadJson: { activity: "running" } });
+
+    // A later sync revises the day's resting heart rate: the newer revision
+    // supersedes the earlier one; re-sending the older one does not win back.
+    const day = { startTime: "2026-10-02T00:00:00Z", endTime: "2026-10-03T00:00:00Z" };
+    for (const [bpm, lastModifiedAt, traceId] of [
+      [55, "2026-10-02T06:00:00Z", "rhr-day-1"],
+      [51, "2026-10-02T20:00:00Z", "rhr-day-2"],
+      [55, "2026-10-02T06:00:00Z", "rhr-day-3"],
+    ] as const) {
+      const result = await ingestDirectDeviceBatch(db, {
+        expectedContext: directContext,
+        authenticatedContext: directContext,
+        batch: garminBatch("resting_heart_rate", [
+          {
+            type: "resting_heart_rate",
+            externalRecordId: "rhr:2026-10-02",
+            sourceApp: null,
+            ...day,
+            bpm,
+            lastModifiedAt,
+          },
+        ]) as never,
+        traceId,
+        now,
+      });
+      expect(["applied", "duplicate"]).toContain(result.status);
+    }
+    const daySamples = (await db.select().from(metricSample)).filter(
+      (sample) =>
+        sample.externalSampleId === `dd:v1:${GARMIN_DEVICE}:resting_heart_rate:rhr:2026-10-02`,
+    );
+    expect(
+      daySamples.filter((sample) => sample.supersededAt === null).map((s) => s.numericValue),
+    ).toEqual([51]);
+  });
+
   test("BLE smart scale fans out weight and body composition and creates definitions on demand", async () => {
     const SCALE_DEVICE = "9f1c2a3e-9b2d-4c1e-8f3a-2d7e5b9c0a24";
     await registerDirectDevice(db, {

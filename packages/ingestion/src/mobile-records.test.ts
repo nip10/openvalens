@@ -125,6 +125,40 @@ describe("adaptMobileHealthRecords", () => {
     });
   });
 
+  test("HRV and resting heart rate emit single canonical samples", () => {
+    const [hrv, rhr] = adaptMobileHealthRecords([
+      {
+        ...base,
+        type: "hrv_rmssd",
+        startTime: "2026-10-01T00:00:00.000Z",
+        endTime: "2026-10-01T06:00:00.000Z",
+        rmssdMs: 41.5,
+      },
+      {
+        ...base,
+        externalRecordId: "hc-2",
+        type: "resting_heart_rate",
+        startTime: "2026-10-01T00:00:00.000Z",
+        endTime: "2026-10-02T00:00:00.000Z",
+        bpm: 51,
+      },
+    ]);
+    expect(hrv).toMatchObject({
+      kind: "metric_sample",
+      canonicalType: "hrv_rmssd",
+      sampledAt: "2026-10-01T00:00:00.000Z",
+      value: 41.5,
+      unit: "ms",
+    });
+    expect(rhr).toMatchObject({
+      kind: "metric_sample",
+      canonicalType: "resting_heart_rate",
+      value: 51,
+      unit: "bpm",
+      externalId: "hc-2",
+    });
+  });
+
   test("body temperature emits a single canonical sample in Celsius", () => {
     const intents = adaptMobileHealthRecords([
       {
