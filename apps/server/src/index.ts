@@ -48,6 +48,7 @@ import { registerServerMetaRoute } from "./server-meta-route";
 import { createDataExportWorker, cleanupExportArtifacts } from "./data-export-worker";
 import { openAuthorizedExportArchive } from "./data-export-download";
 import {
+  aiAppsService,
   auth,
   db,
   deploymentConfig,
@@ -113,6 +114,19 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.once(signal, () => {
     void dataExportWorker.stop().finally(() => process.exit(0));
   });
+}
+
+// Issue #439 — connected AI apps keep a light per-call usage record for 90
+// days. Purged at boot and every six hours; process-local and idempotent, so
+// several replicas purging at once is harmless.
+if (aiAppsService) {
+  const service = aiAppsService;
+  const purgeAiAppCalls = () =>
+    void service.purgeExpiredCalls().catch((error: unknown) => {
+      logger.warn("ai_apps.call_purge.failed", { error });
+    });
+  purgeAiAppCalls();
+  setInterval(purgeAiAppCalls, 6 * 60 * 60 * 1000).unref();
 }
 
 // Issue #9 — resolve the correlation id before anything else so the CORS

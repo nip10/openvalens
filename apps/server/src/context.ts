@@ -5,6 +5,7 @@ import type { Context as HonoContext } from "hono";
 import { buildAdminConfigInventory } from "./admin-config-inventory";
 import { ENV } from "./env.server";
 import {
+  aiAppsService,
   aiConfig,
   aiRateLimiter,
   aiUsageMeter,
@@ -131,6 +132,8 @@ export async function createContext({ context }: CreateContextOptions): Promise<
     push: pushProvider,
     // Issue #60 — cloud wearable connections, or `null` when no vendor is set.
     wearables: wearablesService,
+    // Issue #439 — connected AI apps, or `null` when `MCP_ENABLED` is off.
+    aiApps: aiAppsService,
     webOrigin: admissionOriginFrom(ENV.CORS_ORIGIN),
     insightUnsubscribeKey: insightUnsubscribeKey ?? undefined,
     // Hand the Hono context through so authz guards and cron auth can read

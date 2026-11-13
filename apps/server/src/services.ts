@@ -39,6 +39,7 @@ import {
   parseFoodLookupConfig,
 } from "@openvalens/nutrition/food-lookup";
 import { createPushProvider, describePushIntegration, parsePushConfig } from "@openvalens/push";
+import { createAiAppsService, describeMcpIntegration, parseMcpConfig } from "@openvalens/mcp";
 import {
   createObjectStorage,
   createStorageService,
@@ -60,6 +61,7 @@ import {
 } from "@openvalens/telegram";
 
 import { createAdmissionEmailDelivery, createSignUpEmailDelivery } from "./admission-email";
+import { createAiAppKeyCreatedEmail } from "./ai-app-email";
 import { ENV } from "./env.server";
 import { initErrorReporting } from "./error-reporting";
 import { createAnalyticsService } from "./services/analytics";
@@ -387,6 +389,32 @@ export const aiUsageConfig = parseAiUsageConfig(ENV);
 assertCloudAiUsageCap({ mode: deploymentConfig.mode, ai: aiConfig, usage: aiUsageConfig });
 export const aiUsageMeter = createPgAiUsageMeter({ db, config: aiUsageConfig });
 
+// Issue #439 — connected AI apps: the MCP server and REST tool API with
+// personal API keys. Off on self-host until `MCP_ENABLED=true`, on in Cloud
+// unless `MCP_ENABLED=false`. Separate from the Coach AI family above: it never
+// calls a model provider, and its consent (`mcp-v1`) is its own. With it off,
+// `aiAppsService` is `null`, no MCP or REST tool route is mounted and the grant
+// procedures answer `NOT_FOUND`.
+export const mcpConfig = parseMcpConfig({
+  MCP_ENABLED: ENV.MCP_ENABLED,
+  DEPLOYMENT_MODE: ENV.DEPLOYMENT_MODE,
+  MCP_RATE_LIMIT_PER_GRANT_PER_MINUTE: ENV.MCP_RATE_LIMIT_PER_GRANT_PER_MINUTE,
+  MCP_RATE_LIMIT_PER_MEMBER_PER_MINUTE: ENV.MCP_RATE_LIMIT_PER_MEMBER_PER_MINUTE,
+});
+
+export const aiAppsService = mcpConfig.enabled
+  ? createAiAppsService({
+      db,
+      logger: createStructuredLogger({ level: "info" }).child({ component: "ai-apps" }),
+      onKeyCreated: createAiAppKeyCreatedEmail({
+        db,
+        email,
+        locales: databaseMessageLocales(db),
+        webOrigin: ENV.CORS_ORIGIN,
+      }),
+    })
+  : null;
+
 // Issue #62 — server-side object storage instantiation. `STORAGE_PROVIDER`
 // selects local disk (default) or an S3-compatible bucket. When S3 is selected
 // without a bucket or credentials, storage is off: `storageService` is `null`,
@@ -544,6 +572,8 @@ export const integrations = Object.freeze({
   foodLookup: describeFoodLookupIntegration(foodLookupConfig),
   oidc: describeOidcIntegration(oidcConfig),
   push: describePushIntegration(pushConfig),
+  // Issue #439 — MCP server and REST tool API (`off` on self-host by default).
+  mcp: describeMcpIntegration(mcpConfig),
   // Issue #60 — one entry per cloud wearable vendor (`wearablesOura`, …).
   ...describeWearablesIntegrations(wearablesConfig),
 }) satisfies IntegrationStatuses;

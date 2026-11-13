@@ -393,6 +393,8 @@ describe("schema-validated security configuration (cold boot)", () => {
         foodLookup: { provider: null, state: "off" },
         oidc: { provider: null, state: "off" },
         push: { provider: null, state: "off" },
+        // Issue #439 — the MCP server is off on self-host until MCP_ENABLED=true.
+        mcp: { provider: null, state: "off" },
         // Issue #60 — cloud wearables stay off with no vendor env.
         wearablesOura: { provider: null, state: "off" },
         wearablesWhoop: { provider: null, state: "off" },
@@ -423,6 +425,7 @@ describe("schema-validated security configuration (cold boot)", () => {
         FOOD_LOOKUP_PROVIDER: "openfoodfacts",
         FOOD_LOOKUP_USER_AGENT: "OpenValens-Test/0.0 (ops@example.test)",
         PUSH_PROVIDER: "expo",
+        MCP_ENABLED: "true",
         // Issue #65 — an unreachable loopback IdP: the provider is skipped at
         // discovery time, never a boot failure.
         OIDC_PROVIDER_ID: "synthetic-idp",
@@ -438,6 +441,7 @@ describe("schema-validated security configuration (cold boot)", () => {
         foodLookup: { provider: "openfoodfacts", state: "configured" },
         oidc: { provider: "generic", state: "configured" },
         push: { provider: "expo", state: "configured" },
+        mcp: { provider: "openvalens", state: "configured" },
         wearablesOura: { provider: null, state: "off" },
         wearablesWhoop: { provider: null, state: "off" },
         wearablesPolar: { provider: null, state: "off" },

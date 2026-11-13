@@ -53,6 +53,7 @@ SUITES=(
   "AI_TOOLS_TEST_DATABASE_URL|ai_tools_test|packages/ai/src/tools/health-tools.integration.test.ts"
   "AI_REMAINING_TOOLS_TEST_DATABASE_URL|ai_remaining_tools_test|packages/ai/src/tools/remaining-tools.integration.test.ts"
   "AI_USAGE_TEST_DATABASE_URL|ai_usage_test|packages/ai/src/usage-store.integration.test.ts"
+  "AI_APPS_TEST_DATABASE_URL|ai_apps_test|packages/mcp/src/grants.integration.test.ts"
   "DATA_RIGHTS_TEST_DATABASE_URL|data_rights_test|packages/data-rights/src/export.integration.test.ts"
   "DATA_EXPORT_JOB_TEST_DATABASE_URL|data_export_job_test|packages/api/src/routers/data-export-jobs.integration.test.ts"
   "DATA_EXPORT_JOB_TEST_DATABASE_URL|data_export_job_test|apps/server/src/data-export-worker.integration.test.ts"

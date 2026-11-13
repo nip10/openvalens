@@ -31,6 +31,17 @@ export const AUDIT_EVENT_TYPES = [
   "REVIEW_SIGN_IN_FAILED",
   // `bun run demo:seed:review` filled the review account's workspace once.
   "REVIEW_DEMO_SEEDED",
+  // Connected AI apps (#439): a grant (personal key now, OAuth connection
+  // later) was created, revoked by the member, or found expired on its first
+  // call after expiry; the member gave or withdrew the AI-app consent (`mcp-v1`)
+  // that comes with it; the owner changed "Members can connect AI apps".
+  // Metadata holds the grant id, kind, scopes and consent version, never a key.
+  "AI_APP_GRANT_CREATED",
+  "AI_APP_GRANT_REVOKED",
+  "AI_APP_GRANT_EXPIRED",
+  "AI_APP_CONSENT_GIVEN",
+  "AI_APP_CONSENT_WITHDRAWN",
+  "AI_APP_WORKSPACE_SETTING_CHANGED",
 ] as const;
 
 export const auditEventTypeSchema = z.enum(AUDIT_EVENT_TYPES);

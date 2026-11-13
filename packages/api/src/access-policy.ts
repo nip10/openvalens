@@ -69,6 +69,17 @@ export const PROCEDURE_ACCESS: Readonly<Record<string, ProcedureAccessClass>> = 
   "ai.consent.grant": W,
   "ai.consent.revoke": ALWAYS,
 
+  // Connected AI apps (#439). Existing grants keep reading on an ended
+  // workspace (MCP and REST reads are never blocked); a new key is a write.
+  // Revoking and the owner's off switch remove access: never blocked.
+  "aiApps.status": R,
+  "aiApps.listGrants": R,
+  "aiApps.recentActivity": R,
+  "aiApps.createKey": W,
+  "aiApps.revokeGrant": ALWAYS,
+  "aiApps.workspaceSetting.get": R,
+  "aiApps.workspaceSetting.set": ALWAYS,
+
   "analytics.getPreference": R,
   // Opting out of analytics is consent withdrawal; capture is product telemetry, not a record.
   "analytics.setPreference": ALWAYS,

@@ -1262,6 +1262,10 @@ msgstr "A general reference from your recent weight, not a target. Enter a targe
 msgid "A goal (optional)"
 msgstr "A goal (optional)"
 
+#: packages/email/src/templates/ai-app-key-created.tsx
+msgid "A key that can read your records was just created."
+msgstr "A key that can read your records was just created."
+
 #: apps/native/components/goal-editor.tsx
 msgid "A measure you enter"
 msgstr "A measure you enter"
@@ -1270,6 +1274,10 @@ msgstr "A measure you enter"
 msgid "A measure you will enter"
 msgstr "A measure you will enter"
 
+#: packages/email/src/templates/ai-app-key-created.tsx
+msgid "A new personal API key was created for {appName}"
+msgstr "A new personal API key was created for {appName}"
+
 #: apps/web/src/utils/product-settings-form-state.ts
 msgid "A newer version is available. Reload the latest settings to continue."
 msgstr "A newer version is available. Reload the latest settings to continue."
@@ -1277,6 +1285,10 @@ msgstr "A newer version is available. Reload the latest settings to continue."
 #: apps/native/app/(drawer)/goals.tsx
 msgid "A non-scheduled day is not a miss."
 msgstr "A non-scheduled day is not a miss."
+
+#: packages/email/src/templates/ai-app-key-created.tsx
+msgid "A personal API key named \"{keyName}\" ({keyPrefix}…) was created on {createdAt} for the workspace {workspaceName}."
+msgstr "A personal API key named \"{keyName}\" ({keyPrefix}…) was created on {createdAt} for the workspace {workspaceName}."
 
 #: packages/api/src/presenters/food-draft.ts
 msgid "A photo can be misread. Check each item, fix or remove anything wrong, then find the matching food in your diary and confirm it there."
@@ -2057,6 +2069,10 @@ msgstr "Answered"
 #: apps/web/src/routes/_auth/-goal-editor.tsx
 msgid "Any days each week"
 msgstr "Any days each week"
+
+#: packages/email/src/templates/ai-app-key-created.tsx
+msgid "Anything this key reads goes to the AI app or script that uses it, under that app's own terms."
+msgstr "Anything this key reads goes to the AI app or script that uses it, under that app's own terms."
 
 #: apps/native/app/(drawer)/index.tsx
 msgid "API Disconnected"
@@ -9270,6 +9286,10 @@ msgstr "New food"
 msgid "New goal"
 msgstr "New goal"
 
+#: packages/email/src/templates/ai-app-key-created.tsx
+msgid "New personal API key"
+msgstr "New personal API key"
+
 #: apps/native/components/goal-editor.tsx
 msgid "New personal goal"
 msgstr "New personal goal"
@@ -10155,6 +10175,10 @@ msgstr "Not useful: {title}. Hides this kind of insight for 30 days."
 #: apps/web/src/components/language-section.tsx
 msgid "Not yet reviewed. Units, reference ranges, medication and consent text stay in English until a reviewer approves them."
 msgstr "Not yet reviewed. Units, reference ranges, medication and consent text stay in English until a reviewer approves them."
+
+#: packages/email/src/templates/ai-app-key-created.tsx
+msgid "Not you? Revoke the key now from Connected AI apps in your settings."
+msgstr "Not you? Revoke the key now from Connected AI apps in your settings."
 
 #: apps/native/components/active-workout.tsx
 msgid "Notes"
@@ -12370,6 +12394,10 @@ msgstr "Review recipe"
 #: apps/web/src/routes/_auth/food-draft.tsx
 msgid "Review the draft"
 msgstr "Review the draft"
+
+#: packages/email/src/templates/ai-app-key-created.tsx
+msgid "Review your keys"
+msgstr "Review your keys"
 
 #: apps/web/src/routes/_auth/nutrition.tsx
 msgid "Review: {reviewAmount} on {localDate} ({reviewSource})"
@@ -14662,6 +14690,14 @@ msgstr "The import failed. Nothing was saved."
 msgid "The in-app countdown works without permission. Background alerts depend on your phone settings and are best-effort."
 msgstr "The in-app countdown works without permission. Background alerts depend on your phone settings and are best-effort."
 
+#: packages/email/src/templates/ai-app-key-created.tsx
+msgid "The key does not expire. It works until you revoke it."
+msgstr "The key does not expire. It works until you revoke it."
+
+#: packages/email/src/templates/ai-app-key-created.tsx
+msgid "The key stops working on {expiresAt}."
+msgstr "The key stops working on {expiresAt}."
+
 #: packages/api/src/presenters/workout-progression.ts
 msgid "The last session did not include all prescribed sets, so the prescription stays the same."
 msgstr "The last session did not include all prescribed sets, so the prescription stays the same."
@@ -15104,6 +15140,10 @@ msgstr "This is an automated message from {organizationName}."
 #: packages/email/src/templates/magic-link.tsx
 msgid "This is an automated security message from {appName}."
 msgstr "This is an automated security message from {appName}."
+
+#: packages/email/src/templates/ai-app-key-created.tsx
+msgid "This is an automated security notice from {appName}."
+msgstr "This is an automated security notice from {appName}."
 
 #: packages/email/src/templates/invitation-revoked.tsx
 msgid "This is an automated update from {appName}."
