@@ -9,6 +9,7 @@ import {
   sleepStatusLabel,
   sleepStatusTone,
 } from "@openvalens/api/presenters/sleep";
+import { caffeineWindowsForNights, lastCaffeineText } from "@openvalens/api/presenters/drinks";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "heroui-native";
 import { CalendarDays, Hourglass, Moon, Target, TrendingUp } from "lucide-react-native";
@@ -35,6 +36,7 @@ import {
 import { TrendChart } from "@/components/chart";
 import { Container } from "@/components/container";
 import { ManualSleepSection } from "@/components/manual-sleep-section";
+import { lastCaffeineByNight } from "@/lib/nutrition/drinks";
 import { friendlyDate, pillTone } from "@/utils/friendly";
 import { orpc } from "@/utils/orpc";
 import { useThemeColor } from "@/utils/theme";
@@ -139,6 +141,20 @@ export default function SleepScreen() {
   const summary = useQuery(orpc.sleep.summary.queryOptions({ input: { days: TREND_WINDOW_DAYS } }));
 
   const series = useMemo(() => (summary.data ? sleepSeries(summary.data) : []), [summary.data]);
+  // #443: a plain fact per night, only while the caffeine total is turned on.
+  const caffeineWindows = useMemo(
+    () => caffeineWindowsForNights(summary.data?.days ?? []),
+    [summary.data],
+  );
+  const lastCaffeine = useQuery({
+    ...orpc.nutritionDrinks.lastCaffeine.queryOptions({ input: caffeineWindows }),
+    enabled: caffeineWindows.nights.length > 0,
+  });
+  const caffeineByNight = lastCaffeineByNight(lastCaffeine.data);
+  const caffeineLine = (date: string | undefined) => {
+    const at = date ? caffeineByNight?.get(date) : null;
+    return at ? lastCaffeineText(formatClockTime(at), i18n) : null;
+  };
 
   if (summary.isPending)
     return (
@@ -177,6 +193,7 @@ export default function SleepScreen() {
   const stages = lastNightStages(last);
   const maxAsleep = Math.max(60, ...series.map((p) => p.asleepMinutes), last?.targetMinutes ?? 0);
   const nights = [...summary.data.days].sort((a, b) => b.date.localeCompare(a.date));
+  const lastNightCaffeine = caffeineLine(last?.date);
 
   return (
     <Container
@@ -229,6 +246,14 @@ export default function SleepScreen() {
                   >
                     {formatClockTime(last.mainSleepStart)} – {formatClockTime(last.mainSleepEnd)}
                   </Text>
+                  {lastNightCaffeine ? (
+                    <Text
+                      className="font-sans text-sm text-ink-3"
+                      style={{ fontVariant: ["tabular-nums"] }}
+                    >
+                      {lastNightCaffeine}
+                    </Text>
+                  ) : null}
                 </View>
               </View>
               <View className="border-t border-rule pt-4">
@@ -312,6 +337,14 @@ export default function SleepScreen() {
                         value={formatSleepEfficiency(night.sleepEfficiencyPct)}
                       />
                     </View>
+                    {caffeineLine(night.date) ? (
+                      <Text
+                        className="font-sans text-sm text-ink-3"
+                        style={{ fontVariant: ["tabular-nums"] }}
+                      >
+                        {caffeineLine(night.date)}
+                      </Text>
+                    ) : null}
                   </Sheet>
                 ))}
               </View>

@@ -37,7 +37,7 @@ mock.module("@/utils/orpc", () => ({
       copyDay: async () => undefined,
     },
   },
-  orpc: { nutritionDiary: { key: () => ["diary"] } },
+  orpc: { nutritionDiary: { key: () => ["diary"] }, nutritionDrinks: { key: () => ["drinks"] } },
   queryClient: { invalidateQueries: async () => undefined, removeQueries: () => undefined },
 }));
 globalThis.setInterval = (() => 0) as typeof setInterval;

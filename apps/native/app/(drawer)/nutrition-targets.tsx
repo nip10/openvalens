@@ -5,6 +5,7 @@ import type {
   TargetSettingsWire,
 } from "@openvalens/api/contracts/nutrition-targets";
 import { CUSTOM_FOOD_COPY } from "@openvalens/api/presenters/custom-foods";
+import { DRINKS_COPY } from "@openvalens/api/presenters/drinks";
 import {
   DIARY_COPY,
   NUTRIENT_LABELS,
@@ -182,7 +183,12 @@ export default function NutritionTargetsScreen() {
     queryKey: [...overviewOptions.queryKey, { offlineScope: scope }],
     enabled: Boolean(scope),
   });
-  const refresh = () => queryClient.invalidateQueries({ queryKey: orpc.nutritionTargets.key() });
+  const refresh = () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: orpc.nutritionTargets.key() }),
+      // #443: the drink totals and the sleep screen's last caffeine follow these settings.
+      queryClient.invalidateQueries({ queryKey: orpc.nutritionDrinks.key() }),
+    ]);
   const data = overview.data;
   const [hideOverride, setHideOverride] = useState<{ scope: string; value: boolean } | null>(null);
   const cachedPreference = scope
@@ -538,6 +544,10 @@ function SettingsCard({
   const [micronutrientsEnabled, setMicronutrientsEnabled] = useState(
     settings.micronutrientsEnabled,
   );
+  const [caffeineTotalsEnabled, setCaffeineTotalsEnabled] = useState(
+    settings.caffeineTotalsEnabled,
+  );
+  const [alcoholTotalsEnabled, setAlcoholTotalsEnabled] = useState(settings.alcoholTotalsEnabled);
   const [referenceSource, setReferenceSource] = useState(settings.micronutrientReferenceSource);
   const [population, setPopulation] = useState(settings.micronutrientPopulation);
   // Only for the suggestion; the summary itself is on its own screen.
@@ -565,6 +575,8 @@ function SettingsCard({
     setVoiceDraftsEnabled(settings.voiceDraftsEnabled);
     setPhotoDraftsEnabled(settings.photoDraftsEnabled);
     setMicronutrientsEnabled(settings.micronutrientsEnabled);
+    setCaffeineTotalsEnabled(settings.caffeineTotalsEnabled);
+    setAlcoholTotalsEnabled(settings.alcoholTotalsEnabled);
     setReferenceSource(settings.micronutrientReferenceSource);
     setPopulation(settings.micronutrientPopulation);
     setHeight(settings.heightCm === null ? "" : String(settings.heightCm));
@@ -609,6 +621,8 @@ function SettingsCard({
       voiceDraftsEnabled,
       photoDraftsEnabled,
       micronutrientsEnabled,
+      caffeineTotalsEnabled,
+      alcoholTotalsEnabled,
       micronutrientReferenceSource: referenceSource,
       micronutrientPopulation: population,
       heightCm: parsedHeight.value,
@@ -884,6 +898,18 @@ function SettingsCard({
                 ) : null}
               </View>
             ) : null}
+            <ToggleRow
+              label={i18n._(DRINKS_COPY.caffeineSettingLabel)}
+              info={i18n._(DRINKS_COPY.caffeineSettingDescription)}
+              value={caffeineTotalsEnabled}
+              onValueChange={setCaffeineTotalsEnabled}
+            />
+            <ToggleRow
+              label={i18n._(DRINKS_COPY.alcoholSettingLabel)}
+              info={i18n._(DRINKS_COPY.alcoholSettingDescription)}
+              value={alcoholTotalsEnabled}
+              onValueChange={setAlcoholTotalsEnabled}
+            />
           </View>
         </Details>
 

@@ -194,6 +194,9 @@ mock.module("@/components/logging-streak-card", () => ({
 mock.module("@/components/nutrition-day-totals", () => ({
   NutritionDayTotals: host("NutritionDayTotals"),
 }));
+mock.module("@/components/nutrition-drinks-section", () => ({
+  NutritionDrinksSection: host("NutritionDrinksSection"),
+}));
 mock.module("@/components/plain-water-section", () => ({
   PlainWaterSection: host("PlainWaterSection"),
 }));

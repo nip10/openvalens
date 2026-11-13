@@ -52,6 +52,7 @@ export const DRINKS_COPY = Object.freeze({
   noDefinition: msg`Shown in grams only. Standard drinks need your region in your profile; OpenValens has a published definition for the United States, the United Kingdom and Portugal.`,
   source: msg`Source`,
   notAdvice: msg`A record of what you logged, not medical advice.`,
+  pendingSync: msg`Foods still waiting to sync are added to these totals once they sync.`,
 });
 
 const PRESET_BY_KEY = new Map(DRINK_PRESETS.map((entry) => [entry.key, entry]));

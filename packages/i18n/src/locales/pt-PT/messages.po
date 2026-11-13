@@ -6911,6 +6911,7 @@ msgid "Entry removed. {foodName}"
 msgstr "Registo removido. {foodName}"
 
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
+#: apps/native/components/nutrition-drinks-section.tsx
 msgid "Entry removed. {name}"
 msgstr "Registo removido. {name}"
 
@@ -7457,6 +7458,10 @@ msgstr "Alimento guardado."
 #: apps/web/src/components/recipe-draft-editor.tsx
 msgid "Food text"
 msgstr "Texto do alimento"
+
+#: packages/api/src/presenters/drinks.ts
+msgid "Foods still waiting to sync are added to these totals once they sync."
+msgstr "Os alimentos que ainda aguardam sincronização são somados a estes totais depois de sincronizados."
 
 #: packages/api/src/presenters/custom-foods.ts
 msgid "Foods you save here are private to you. They are not shared with other members or added to public food databases."
@@ -14560,6 +14565,7 @@ msgid "Saved {0}"
 msgstr "{0} guardado"
 
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
+#: apps/native/components/nutrition-drinks-section.tsx
 #: apps/web/src/routes/_auth/nutrition.tsx
 msgid "Saved {name} to {meal} on {localDate}"
 msgstr "{name} guardado em {meal} a {localDate}"
