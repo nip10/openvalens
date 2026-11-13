@@ -2,7 +2,12 @@ import { describe, expect, test } from "bun:test";
 
 import { NutritionError } from "./errors";
 import {
+  CORE_NUTRIENT_KEYS,
+  DRINK_NUTRIENT_KEYS,
+  NUTRIENT_COLUMNS,
   NUTRIENT_KEYS,
+  NUTRIENT_UNITS,
+  isCoreNutrient,
   computeNutrientFactor,
   emptyNutrients,
   normalizeBasis,
@@ -44,6 +49,20 @@ describe("nutrient values", () => {
     expect(values.addedSugarsG).toBeNull();
     expect(values.fiberG).toBeNull();
     expect(Object.keys(values).sort()).toEqual([...NUTRIENT_KEYS].sort());
+  });
+
+  test("caffeine and alcohol are nutrients, but never target nutrients (#443)", () => {
+    const values = normalizeNutrients({ caffeineMg: 0, alcoholG: 3.9 });
+    expect(values).toMatchObject({ caffeineMg: 0, alcoholG: 3.9, energyKcal: null });
+    expect(normalizeNutrients({}).caffeineMg).toBeNull();
+    expect(scaleNutrients(values, 2)).toMatchObject({ caffeineMg: 0, alcoholG: 7.8 });
+    expect(NUTRIENT_COLUMNS).toMatchObject({ caffeineMg: "caffeine_mg", alcoholG: "alcohol_g" });
+    expect(NUTRIENT_UNITS).toMatchObject({ caffeineMg: "mg", alcoholG: "g" });
+    expect([...NUTRIENT_KEYS]).toEqual([...CORE_NUTRIENT_KEYS, ...DRINK_NUTRIENT_KEYS]);
+    expect(CORE_NUTRIENT_KEYS).toHaveLength(12);
+    expect(isCoreNutrient("proteinG")).toBe(true);
+    expect(isCoreNutrient("caffeineMg")).toBe(false);
+    expect(isCoreNutrient("alcoholG")).toBe(false);
   });
 
   test("negative or non-finite values are rejected", () => {

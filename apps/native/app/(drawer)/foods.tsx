@@ -14,6 +14,7 @@ import {
 import { localDateIn, newClientMutationId } from "@openvalens/api/presenters/nutrition-diary";
 import { formatNutrientValue } from "@openvalens/api/presenters/nutrition-diary";
 import {
+  formatDrinkNutrientsLine,
   formatNutrientSummaryLine,
   HIDDEN_VALUE,
   resolveHideNumbers,
@@ -265,6 +266,11 @@ export default function FoodsScreen() {
                         <Prose>
                           {formatNutrientSummaryLine(food.nutrientsPerBasis, hideNumbers, i18n)}
                         </Prose>
+                        {hideNumbers ? null : (
+                          <Prose>
+                            {formatDrinkNutrientsLine(food.nutrientsPerBasis, hideNumbers, i18n)}
+                          </Prose>
+                        )}
                         <Prose className="text-ink-3">{i18n._(CUSTOM_FOOD_COPY.provenance)}</Prose>
                       </InfoTip>
                     </View>

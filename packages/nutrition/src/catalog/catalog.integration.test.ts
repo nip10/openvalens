@@ -192,6 +192,35 @@ describe.skipIf(!url)("food catalogs against disposable PostgreSQL", () => {
     expect((await catalog.getFood("fdc:900101"))?.nutrients.energyKcal).toBe(116);
   });
 
+  test("a newer adapter re-parses an imported artifact under the same release (#443)", async () => {
+    const before = await catalog.getFood("fdc:900202");
+    expect(before?.nutrients).toMatchObject({ caffeineMg: null, alcoholG: null });
+    // Simulate a release imported before #443 (adapter version 1).
+    await db.execute(
+      sql`update nutrition_catalog_release set adapter_version = 1 where source = 'fdc'`,
+    );
+    const items = fdcItems(116).map((item) =>
+      item.fdcId === 900202
+        ? {
+            ...item,
+            foodNutrients: [
+              ...(item.foodNutrients ?? []),
+              { nutrientNumber: "262", unitName: "MG", value: 12 },
+            ],
+          }
+        : item,
+    );
+    const first = (await catalog.listReleases()).find((release) => release.source === "fdc")!;
+    const reparsed = await catalog.importRelease(fdcRelease("2026-04", "a"), items);
+    expect(reparsed).toMatchObject({ imported: true, releaseId: first.id, recordCount: 2 });
+    const after = await catalog.getFood("fdc:900202");
+    expect(after?.nutrients).toMatchObject({ energyKcal: 410, caffeineMg: 12, alcoholG: null });
+    expect((await catalog.listReleases()).filter((r) => r.source === "fdc")).toHaveLength(1);
+    // The same adapter version again is a no-op.
+    const again = await catalog.importRelease(fdcRelease("2026-04", "a"), items);
+    expect(again).toMatchObject({ imported: false, releaseId: first.id });
+  });
+
   test("the database refuses to mix sources or mislabel licenses", async () => {
     const releases = await catalog.listReleases();
     const offReleaseId = releases.find((release) => release.source === "off")!.id;

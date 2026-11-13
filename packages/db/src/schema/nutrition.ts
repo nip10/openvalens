@@ -52,6 +52,10 @@ export const nutrientColumns = () => ({
   freeSugarsG: real("free_sugars_g"),
   sodiumMg: real("sodium_mg"),
   saltG: real("salt_g"),
+  /** #443: caffeine in mg. Not a target nutrient. */
+  caffeineMg: real("caffeine_mg"),
+  /** #443: alcohol (ethanol) in g; Open Food Facts % vol is converted with 0.789 g/ml. */
+  alcoholG: real("alcohol_g"),
 });
 
 export type NutrientColumnKey = keyof ReturnType<typeof nutrientColumns>;
@@ -83,12 +87,26 @@ export const micronutrientsNonNegative = (
     MICRONUTRIENT_COLUMN_KEYS.map((key) => sql`(${table[key]} is null or ${table[key]} >= 0)`),
     sql` and `,
   );
-const NUTRIENT_COLUMN_KEYS = Object.keys(nutrientColumns()) as NutrientColumnKey[];
+/** #443: the drink nutrients have their own check, so the core check keeps its definition. */
+const DRINK_NUTRIENT_COLUMN_KEYS = [
+  "caffeineMg",
+  "alcoholG",
+] as const satisfies NutrientColumnKey[];
+const NUTRIENT_COLUMN_KEYS = (Object.keys(nutrientColumns()) as NutrientColumnKey[]).filter(
+  (key) => !(DRINK_NUTRIENT_COLUMN_KEYS as readonly string[]).includes(key),
+);
 
-/** Every nutrient value is either absent (null) or a non-negative number. */
+/** Every core nutrient value is either absent (null) or a non-negative number. */
 export const nutrientsNonNegative = (table: Record<NutrientColumnKey, AnyPgColumn>): SQL =>
   sql.join(
     NUTRIENT_COLUMN_KEYS.map((key) => sql`(${table[key]} is null or ${table[key]} >= 0)`),
+    sql` and `,
+  );
+
+/** Every drink nutrient value (#443) is either absent (null) or a non-negative number. */
+export const drinkNutrientsNonNegative = (table: Record<NutrientColumnKey, AnyPgColumn>): SQL =>
+  sql.join(
+    DRINK_NUTRIENT_COLUMN_KEYS.map((key) => sql`(${table[key]} is null or ${table[key]} >= 0)`),
     sql` and `,
   );
 
@@ -178,6 +196,10 @@ export const nutritionFood = pgTable(
       "nutrition_food_nutrients_non_negative_check",
       nutrientsNonNegative(table),
     ),
+    nutritionFoodDrinkNutrientsCheck: check(
+      "nutrition_food_drink_nutrients_non_negative_check",
+      drinkNutrientsNonNegative(table),
+    ),
     nutritionFoodMicronutrientsCheck: check(
       "nutrition_food_micronutrients_non_negative_check",
       micronutrientsNonNegative(table),
@@ -249,6 +271,10 @@ export const nutritionFoodSnapshot = pgTable(
     nutritionFoodSnapshotNutrientsCheck: check(
       "nutrition_food_snapshot_nutrients_non_negative_check",
       nutrientsNonNegative(table),
+    ),
+    nutritionFoodSnapshotDrinkNutrientsCheck: check(
+      "nutrition_food_snapshot_drink_nutrients_non_negative_check",
+      drinkNutrientsNonNegative(table),
     ),
     nutritionFoodSnapshotMicronutrientsCheck: check(
       "nutrition_food_snapshot_micronutrients_non_negative_check",

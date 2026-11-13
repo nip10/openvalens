@@ -91,6 +91,8 @@ describe("nutritionCustomFoods router", () => {
       freeSugarsG: null,
       sodiumMg: null,
       saltG: null,
+      caffeineMg: 0,
+      alcoholG: null,
       calciumMg: null,
       ironMg: null,
       magnesiumMg: null,
@@ -112,6 +114,7 @@ describe("nutritionCustomFoods router", () => {
     });
     expect(wire.nutrientsPerBasis.proteinG).toBe(0);
     expect(wire.nutrientsPerBasis.fiberG).toBeNull();
+    expect(wire.nutrientsPerBasis).toMatchObject({ caffeineMg: 0, alcoholG: null });
     // Owner and replay ids never go back over the wire.
     expect(Object.keys(wire)).not.toContain("userId");
     expect(Object.keys(wire)).not.toContain("organizationId");

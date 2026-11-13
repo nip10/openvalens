@@ -54,5 +54,11 @@ export type CatalogReleaseManifest = {
  */
 export type CatalogRecordAdapter<R extends CatalogRecord = CatalogRecord> = {
   source: R["source"];
+  /**
+   * Version of the mapping (default 1). Bump it when `parse` maps more or
+   * different values, so re-importing an artifact that was already imported
+   * re-parses it instead of being a no-op (#443).
+   */
+  version?: number;
   parse(raw: unknown): R | null;
 };

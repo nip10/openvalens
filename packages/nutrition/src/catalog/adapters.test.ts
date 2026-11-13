@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import { parseFdcFood } from "./fdc";
 import { readJsonArrayItems, readJsonLines } from "./jsonl";
-import { parseOffProduct } from "./off";
+import { offAlcoholGrams, parseOffProduct } from "./off";
 
 // Synthetic fixtures shaped like the upstream formats; no real records.
 
@@ -293,5 +293,69 @@ describe("micronutrients (#78)", () => {
       potassiumMg: null,
       zincMg: null,
     });
+  });
+});
+
+describe("caffeine and alcohol (#443)", () => {
+  test("FDC maps caffeine from 262 (mg) and alcohol from 221 (g)", () => {
+    const record = parseFdcFood({
+      ...fdcBranded,
+      foodNutrients: [
+        ...fdcBranded.foodNutrients,
+        { nutrientNumber: "262", unitName: "MG", value: 40 },
+        { nutrientNumber: "221", unitName: "G", value: 3.9 },
+      ],
+    });
+    expect(record).toMatchObject({ nutrientBasisUnit: "ml", caffeineMg: 40, alcoholG: 3.9 });
+  });
+
+  test("FDC keeps a reported zero apart from unknown, and converts mass units", () => {
+    const zero = parseFdcFood({
+      ...fdcFoundation,
+      foodNutrients: [...fdcFoundation.foodNutrients, fdcNutrient("262", "MG", 0)],
+    });
+    expect(zero).toMatchObject({ caffeineMg: 0, alcoholG: null });
+    expect(parseFdcFood(fdcFoundation)).toMatchObject({ caffeineMg: null, alcoholG: null });
+    const grams = parseFdcFood({
+      ...fdcFoundation,
+      foodNutrients: [fdcNutrient("262", "G", 0.04), fdcNutrient("221", "MG", 500)],
+    });
+    expect(grams).toMatchObject({ caffeineMg: 40, alcoholG: 0.5 });
+  });
+
+  test("OFF stores caffeine in grams and it is converted to mg", () => {
+    const record = parseOffProduct({
+      code: "12345670",
+      last_modified_t: 1_780_000_000,
+      product_quantity_unit: "ml",
+      nutriments: { caffeine_100g: 0.032, caffeine_unit: "mg" },
+    });
+    expect(record?.caffeineMg).toBe(32);
+    expect(parseOffProduct(offProduct)?.caffeineMg).toBeNull();
+  });
+
+  test("OFF alcohol is % vol, converted to g per 100 ml with 0.789 g/ml", () => {
+    const beer = parseOffProduct({
+      code: "12345670",
+      last_modified_t: 1_780_000_000,
+      product_quantity_unit: "ml",
+      nutriments: { alcohol_100g: 5, alcohol_unit: "% vol" },
+    });
+    expect(beer).toMatchObject({ nutrientBasisUnit: "ml", alcoholG: 3.945 });
+    expect(offAlcoholGrams(12, "ml")).toBe(9.468);
+    expect(offAlcoholGrams(0, "ml")).toBe(0);
+    expect(offAlcoholGrams("40", "ml")).toBe(31.56);
+  });
+
+  test("OFF alcohol stays unknown per 100 g, above 100 % vol or when invalid", () => {
+    const perGram = parseOffProduct({
+      ...offProduct,
+      nutriments: { ...offProduct.nutriments, alcohol_100g: 5 },
+    });
+    expect(perGram).toMatchObject({ nutrientBasisUnit: "g", alcoholG: null });
+    expect(offAlcoholGrams(101, "ml")).toBeNull();
+    expect(offAlcoholGrams(-1, "ml")).toBeNull();
+    expect(offAlcoholGrams("strong", "ml")).toBeNull();
+    expect(offAlcoholGrams(undefined, "ml")).toBeNull();
   });
 });

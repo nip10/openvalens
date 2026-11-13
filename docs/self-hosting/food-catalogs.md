@@ -1,6 +1,6 @@
 # Food catalogs
 
-**Applies to:** OpenValens 1.1.0 · Last updated: 2026-10-24
+**Applies to:** OpenValens 1.1.0 · Last updated: 2026-11-13
 
 Food search and barcode lookup read two public catalogs from your own
 database: USDA FoodData Central (FDC) and Open Food Facts (OFF). **A new
@@ -80,6 +80,37 @@ Run the same command again:
 To free disk space, delete the files in `deploy/catalogs/`. The imported rows
 stay in the database. Keep the OFF dump if you rely on it to regenerate the
 OFF tables (see below).
+
+### Caffeine and alcohol (upgrade note)
+
+Since #443, catalog foods carry caffeine (mg) and alcohol (g). Foods imported
+before that upgrade show both as **unknown** until you run
+`deploy/setup.sh catalogs` again with the same `--source` values. The
+importer records which mapping version parsed each file, so re-running it
+over a file that was already imported parses it again under the same release
+(it is no longer a no-op the first time). After that, the same file is a
+no-op again. Logged entries keep the values they were saved with.
+
+Where the values come from:
+
+| Value         | FDC                              | Open Food Facts                                               |
+| ------------- | -------------------------------- | ------------------------------------------------------------- |
+| Caffeine (mg) | nutrient 262, Caffeine (mg)      | `caffeine_100g`, stored by OFF in grams, multiplied by 1,000  |
+| Alcohol (g)   | nutrient 221, Alcohol, ethyl (g) | `alcohol_100g`, which OFF stores as % vol, converted as below |
+
+OFF's alcohol value is the alcohol by volume: millilitres of ethanol in
+100 ml of the drink. It is converted with the density of ethanol,
+0.789 g/ml:
+
+```text
+alcohol (g per 100 ml) = % vol × 0.789
+```
+
+A 5 % vol beer has 3.945 g of alcohol per 100 ml. The result is per 100 ml,
+so it is kept only for products whose values are per 100 ml. For a product
+with values per 100 g the drink's own density would be needed, which is never
+guessed, so its alcohol stays unknown. Custom foods take both values as
+optional fields.
 
 ## Licences
 

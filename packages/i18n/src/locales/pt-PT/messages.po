@@ -694,12 +694,12 @@ msgid "{inviterName} invited you to join {organizationName}."
 msgstr "{inviterName} convidou-o para aderir a {organizationName}."
 
 #: packages/api/src/presenters/nutrition-diary.ts
-msgid "{key, select, energyKcal {Energy} energyKj {Energy} proteinG {Protein} carbohydrateG {Carbohydrate} fatG {Fat} saturatedFatG {Saturated fat} fiberG {Fibre} totalSugarsG {Total sugars} addedSugarsG {Added sugars} freeSugarsG {Free sugars} sodiumMg {Sodium} saltG {Salt} other {A value}} must be 0 or more, or left blank."
-msgstr "{key, select, energyKcal {Energia} energyKj {Energia} proteinG {Proteína} carbohydrateG {Hidratos de carbono} fatG {Lípidos} saturatedFatG {Ácidos gordos saturados} fiberG {Fibra} totalSugarsG {Açúcares totais} addedSugarsG {Açúcares adicionados} freeSugarsG {Açúcares livres} sodiumMg {Sódio} saltG {Sal} other {Um valor}}: indique 0 ou mais, ou deixe em branco."
+msgid "{key, select, energyKcal {Energy} energyKj {Energy} proteinG {Protein} carbohydrateG {Carbohydrate} fatG {Fat} saturatedFatG {Saturated fat} fiberG {Fibre} totalSugarsG {Total sugars} addedSugarsG {Added sugars} freeSugarsG {Free sugars} sodiumMg {Sodium} saltG {Salt} caffeineMg {Caffeine} alcoholG {Alcohol} other {A value}} must be 0 or more, or left blank."
+msgstr "{key, select, energyKcal {Energia} energyKj {Energia} proteinG {Proteína} carbohydrateG {Hidratos de carbono} fatG {Lípidos} saturatedFatG {Ácidos gordos saturados} fiberG {Fibra} totalSugarsG {Açúcares totais} addedSugarsG {Açúcares adicionados} freeSugarsG {Açúcares livres} sodiumMg {Sódio} saltG {Sal} caffeineMg {Cafeína} alcoholG {Álcool} other {Um valor}}: indique 0 ou mais, ou deixe em branco."
 
 #: packages/api/src/presenters/custom-foods.ts
-msgid "{key, select, energyKcal {Energy} energyKj {Energy} proteinG {Protein} carbohydrateG {Carbohydrate} fatG {Fat} saturatedFatG {Saturated fat} fiberG {Fibre} totalSugarsG {Total sugars} addedSugarsG {Added sugars} freeSugarsG {Free sugars} sodiumMg {Sodium} saltG {Salt} other {Value}} ({unit}, optional)"
-msgstr "{key, select, energyKcal {Energia} energyKj {Energia} proteinG {Proteína} carbohydrateG {Hidratos de carbono} fatG {Lípidos} saturatedFatG {Ácidos gordos saturados} fiberG {Fibra} totalSugarsG {Açúcares totais} addedSugarsG {Açúcares adicionados} freeSugarsG {Açúcares livres} sodiumMg {Sódio} saltG {Sal} other {Valor}} ({unit}, opcional)"
+msgid "{key, select, energyKcal {Energy} energyKj {Energy} proteinG {Protein} carbohydrateG {Carbohydrate} fatG {Fat} saturatedFatG {Saturated fat} fiberG {Fibre} totalSugarsG {Total sugars} addedSugarsG {Added sugars} freeSugarsG {Free sugars} sodiumMg {Sodium} saltG {Salt} caffeineMg {Caffeine} alcoholG {Alcohol} other {Value}} ({unit}, optional)"
+msgstr "{key, select, energyKcal {Energia} energyKj {Energia} proteinG {Proteína} carbohydrateG {Hidratos de carbono} fatG {Lípidos} saturatedFatG {Ácidos gordos saturados} fiberG {Fibra} totalSugarsG {Açúcares totais} addedSugarsG {Açúcares adicionados} freeSugarsG {Açúcares livres} sodiumMg {Sódio} saltG {Sal} caffeineMg {Cafeína} alcoholG {Álcool} other {Valor}} ({unit}, opcional)"
 
 #. placeholder {0}: row.totalEntries
 #: packages/api/src/presenters/micronutrients.ts
@@ -1941,6 +1941,10 @@ msgid "AI usage"
 msgstr "Utilização de IA"
 
 #: packages/api/src/presenters/nutrition-diary.ts
+msgid "Alcohol"
+msgstr "Álcool"
+
+#: packages/api/src/presenters/nutrition-diary.ts
 msgid "All {count, plural, one {# entry} other {# entries}}"
 msgstr "{count, plural, one {O # registo} other {Todos os # registos}}"
 
@@ -2737,6 +2741,10 @@ msgstr "H"
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 msgid "Cached diary data will be removed from this device. Saved entries stay on the server."
 msgstr "Os dados do diário guardados em cache serão removidos deste dispositivo. Os registos guardados mantêm-se no servidor."
+
+#: packages/api/src/presenters/nutrition-diary.ts
+msgid "Caffeine"
+msgstr "Cafeína"
 
 #: packages/api/src/presenters/micronutrients.ts
 msgid "Calcium"

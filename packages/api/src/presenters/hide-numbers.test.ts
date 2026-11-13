@@ -9,6 +9,7 @@ import {
   describeDisplayedTotal,
   describeTarget,
   displayTotalValue,
+  formatDrinkNutrientsLine,
   formatNutrientSummaryLine,
   formatProteinReference,
   formatTarget,
@@ -42,6 +43,8 @@ const values = {
   fiberG: 4,
   totalSugarsG: 3,
   sodiumMg: 250,
+  caffeineMg: 63,
+  alcoholG: 3.9,
 } as Record<NutrientKey, number>;
 const target: NutritionTargetWire = {
   id: 1,
@@ -57,6 +60,7 @@ const total: NutrientTotal = { known: 1234, reported: 3, missing: 1, coverage: "
 describe("hide-numbers mode (#88)", () => {
   test("food, target and day-total text carries no numbers", () => {
     expect(formatNutrientSummaryLine(values, true, englishI18n)).toBe(inEnglish(HIDDEN_VALUE));
+    expect(formatDrinkNutrientsLine(values, true, englishI18n)).toBe(inEnglish(HIDDEN_VALUE));
     expectNoNumbers(formatTarget(target, true, englishI18n));
     expectNoNumbers(describeTarget(target, true, englishI18n));
     expectNoNumbers(displayTotalValue("energyKcal", total, true, englishI18n));

@@ -345,6 +345,8 @@ export const nutritionDiaryRouter = {
             freeSugarsG: food.freeSugarsG,
             sodiumMg: food.sodiumMg,
             saltG: food.saltG,
+            caffeineMg: food.caffeineMg,
+            alcoholG: food.alcoholG,
           },
           lastLoggedAt: null,
           lastAmount: null,

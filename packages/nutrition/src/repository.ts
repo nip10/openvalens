@@ -14,8 +14,8 @@ import { NutritionError } from "./errors";
 import { assertLocalDay, isLocalDate, type MealSlot } from "./local-day";
 import {
   NUTRIENT_COLUMNS,
-  NUTRIENT_KEYS,
   computeNutrientFactor,
+  isCoreNutrient,
   normalizeBasis,
   normalizeNutrients,
   nutrientsOf,
@@ -162,7 +162,7 @@ export async function setGoalInTransaction(
   input: GoalInput,
   options: { invalidatePendingProposals?: boolean } = {},
 ): Promise<NutritionGoal> {
-  if (!NUTRIENT_KEYS.includes(input.nutrient))
+  if (!isCoreNutrient(input.nutrient))
     throw new NutritionError("INVALID_INPUT", "Unsupported nutrient");
   const minAmount = input.minAmount ?? null;
   const maxAmount = input.maxAmount ?? null;
@@ -747,7 +747,7 @@ export function createNutritionRepository(db: Database) {
       nutrientKey: NutrientKey,
       effectiveTo: string,
     ): Promise<boolean> {
-      if (!NUTRIENT_KEYS.includes(nutrientKey))
+      if (!isCoreNutrient(nutrientKey))
         throw new NutritionError("INVALID_INPUT", "Unsupported nutrient");
       if (!isLocalDate(effectiveTo))
         throw new NutritionError("INVALID_INPUT", "Effective date must be a YYYY-MM-DD date");

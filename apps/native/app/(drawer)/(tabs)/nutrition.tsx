@@ -54,6 +54,7 @@ import {
   describeTargetSource,
   formatTarget,
   resolveHideNumbers,
+  formatDrinkNutrientsLine,
   formatNutrientSummaryLine,
   type SummaryMode,
 } from "@openvalens/api/presenters/nutrition-targets";
@@ -1469,11 +1470,13 @@ function EntryCard({
           draftUnit,
         )
       : null;
-  const editorPreview = formatNutrientSummaryLine(
-    editorNutrients ?? emptyNutrients(),
-    hideNumbers,
-    i18n,
-  );
+  const editorPreview = [
+    formatNutrientSummaryLine(editorNutrients ?? emptyNutrients(), hideNumbers, i18n),
+    // #443: caffeine and alcohol as plain values; hide-numbers shows "Hidden" once.
+    hideNumbers ? null : formatDrinkNutrientsLine(editorNutrients ?? {}, hideNumbers, i18n),
+  ]
+    .filter(Boolean)
+    .join("\n");
   const openEditor = () => {
     liveGeneration.current += 1;
     setGeneration(liveGeneration.current);
@@ -2664,6 +2667,11 @@ export function AddFood({
                     <Text className="font-sans text-sm text-ink-2">
                       {formatNutrientSummaryLine(preview, hideNumbers, i18n)}
                     </Text>
+                    {hideNumbers ? null : (
+                      <Text className="font-sans text-sm text-ink-3">
+                        {formatDrinkNutrientsLine(preview, hideNumbers, i18n)}
+                      </Text>
+                    )}
                     {missingNote ? (
                       <Text className="font-sans text-sm text-ink-3">{missingNote}</Text>
                     ) : null}

@@ -32,6 +32,9 @@ const FDC_NUTRIENTS: Readonly<Partial<Record<NutrientKey, NutrientSpec>>> = {
   totalSugarsG: { numbers: ["269", "269.3"], unit: "g" },
   addedSugarsG: { numbers: ["539"], unit: "g" },
   sodiumMg: { numbers: ["307"], unit: "mg" },
+  // #443: 262 = Caffeine (mg), 221 = Alcohol, ethyl (g).
+  caffeineMg: { numbers: ["262"], unit: "mg" },
+  alcoholG: { numbers: ["221"], unit: "g" },
 };
 
 /**
@@ -143,5 +146,7 @@ export function parseFdcFood(raw: unknown): FdcFoodRecord | null {
 
 export const fdcAdapter: CatalogRecordAdapter<FdcFoodRecord> = {
   source: "fdc",
+  // 2: caffeine (262) and alcohol (221), #443.
+  version: 2,
   parse: parseFdcFood,
 };

@@ -48,7 +48,7 @@ export const CUSTOM_FOOD_COPY = Object.freeze({
   retry: msg`Retry`,
 });
 
-/** Every core nutrient, in label order; all optional. */
+/** Every nutrient, in label order, ending with caffeine and alcohol (#443); all optional. */
 export const CUSTOM_FOOD_NUTRIENTS: readonly NutrientKey[] = NUTRIENT_KEYS;
 
 /** Raw text fields of the custom food form. */
@@ -80,8 +80,9 @@ export const EMPTY_CUSTOM_FOOD_FIELDS: CustomFoodFields = Object.freeze({
 export function fieldsFromCustomFood(food: CustomFood): CustomFoodFields {
   const nutrients: Partial<Record<NutrientKey, string>> = {};
   for (const key of NUTRIENT_KEYS) {
+    // `undefined`: a food cached before caffeine and alcohol existed (#443).
     const value = food.nutrientsPerBasis[key];
-    if (value !== null) nutrients[key] = String(value);
+    if (value !== null && value !== undefined) nutrients[key] = String(value);
   }
   return {
     name: food.name,
@@ -159,7 +160,9 @@ export function describeBasis(basis: NutrientBasis, i18n: I18n): string {
 
 /** `"5 of 12 values entered"`: how much of the label the member filled in. */
 export function describeCoverage(food: Pick<CustomFood, "nutrientsPerBasis">): MessageDescriptor {
-  const entered = NUTRIENT_KEYS.filter((key) => food.nutrientsPerBasis[key] !== null).length;
+  const entered = NUTRIENT_KEYS.filter(
+    (key) => (food.nutrientsPerBasis[key] ?? null) !== null,
+  ).length;
   const total = NUTRIENT_KEYS.length;
   return msg`${entered} of ${total} values entered`;
 }
@@ -180,6 +183,8 @@ export function nutrientFieldLabel(key: NutrientKey): MessageDescriptor {
     freeSugarsG: "Free sugars",
     sodiumMg: "Sodium",
     saltG: "Salt",
+    caffeineMg: "Caffeine",
+    alcoholG: "Alcohol",
     other: "Value",
   })} (${unit}, optional)`;
 }

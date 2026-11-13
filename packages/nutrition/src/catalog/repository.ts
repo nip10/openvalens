@@ -568,7 +568,10 @@ export function createFoodCatalog(db: Database) {
     /**
      * Imports one upstream artifact atomically: records the release (artifact,
      * SHA-256, license, attribution) and upserts the parsed records into that
-     * source's mirror table only. Re-importing the same artifact is a no-op.
+     * source's mirror table only. Re-importing the same artifact is a no-op,
+     * unless the adapter's mapping version is newer than the one the release
+     * was imported with: then the artifact is parsed again under the same
+     * release, so existing rows gain the newly mapped values (#443).
      * Items the adapter rejects are counted, never logged.
      */
     async importRelease(
@@ -580,11 +583,12 @@ export function createFoodCatalog(db: Database) {
       const adapter = options.adapter ?? ADAPTERS[manifest.source];
       if (adapter.source !== manifest.source)
         throw new NutritionError("INVALID_INPUT", "Adapter source does not match the release");
+      const adapterVersion = adapter.version ?? 1;
       const batchSize = options.batchSize ?? BATCH_DEFAULT;
       const terms = CATALOG_SOURCE_TERMS[manifest.source];
 
       return db.transaction(async (tx) => {
-        const [release] = await tx
+        const [inserted] = await tx
           .insert(nutritionCatalogRelease)
           .values({
             source: manifest.source,
@@ -595,9 +599,11 @@ export function createFoodCatalog(db: Database) {
             sourceUrl: manifest.sourceUrl.trim(),
             license: terms.license,
             attribution: releaseAttribution(manifest),
+            adapterVersion,
           })
           .onConflictDoNothing()
           .returning();
+        let release = inserted;
         if (!release) {
           const [existing] = await tx
             .select()
@@ -609,14 +615,17 @@ export function createFoodCatalog(db: Database) {
                 eq(nutritionCatalogRelease.version, manifest.version.trim()),
                 eq(nutritionCatalogRelease.artifactSha256, manifest.artifactSha256),
               ),
-            );
+            )
+            .for("update");
           if (!existing) throw new Error("Release upsert did not return a row");
-          return {
-            releaseId: existing.id,
-            imported: false,
-            recordCount: existing.recordCount,
-            rejectedCount: existing.rejectedCount,
-          };
+          if (existing.adapterVersion >= adapterVersion)
+            return {
+              releaseId: existing.id,
+              imported: false,
+              recordCount: existing.recordCount,
+              rejectedCount: existing.rejectedCount,
+            };
+          release = existing;
         }
 
         let recordCount = 0;
@@ -648,7 +657,7 @@ export function createFoodCatalog(db: Database) {
 
         await tx
           .update(nutritionCatalogRelease)
-          .set({ recordCount, rejectedCount })
+          .set({ recordCount, rejectedCount, adapterVersion })
           .where(eq(nutritionCatalogRelease.id, release.id));
         return { releaseId: release.id, imported: true, recordCount, rejectedCount };
       });

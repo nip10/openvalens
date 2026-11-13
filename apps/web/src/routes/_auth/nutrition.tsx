@@ -27,6 +27,7 @@ import {
 } from "@openvalens/api/presenters/food-lookup";
 import {
   DIARY_COPY,
+  DRINK_NUTRIENTS,
   NUTRIENT_LABELS,
   SLOT_LABELS,
   UNIT_LABELS,
@@ -51,6 +52,7 @@ import {
   describeTargetSource,
   resolveHideNumbers,
   formatNutrientSummaryLine,
+  formatDrinkNutrientsLine,
 } from "@openvalens/api/presenters/nutrition-targets";
 import type { I18n, MessageDescriptor } from "@lingui/core";
 import { plural } from "@lingui/core/macro";
@@ -414,11 +416,12 @@ function NutritionPage() {
   );
 }
 
-/** Macros listed beside energy in each food's detail. */
+/** Macros listed beside energy in each food's detail, then caffeine and alcohol (#443). */
 const LEDGER_MACROS = [
   "proteinG",
   "carbohydrateG",
   "fatG",
+  ...DRINK_NUTRIENTS,
 ] as const satisfies readonly NutrientKey[];
 const SUMMARY_SKELETON = ["a", "b", "c", "d", "e"] as const;
 const SLOT_ICONS: Record<MealSlot, LucideIcon> = {
@@ -1315,6 +1318,11 @@ function AddFood({
             <p className="text-ink-2 tabular-nums">
               {formatNutrientSummaryLine(preview, hideNumbers, i18n)}
             </p>
+            {hideNumbers ? null : (
+              <p className="text-ink-3 tabular-nums">
+                {formatDrinkNutrientsLine(preview, hideNumbers, i18n)}
+              </p>
+            )}
             {missingNote ? <p className="text-ink-3">{missingNote}</p> : null}
             {mode !== "quick" && chosen?.attribution ? (
               <p className="text-ink-3">{chosen.attribution}</p>
