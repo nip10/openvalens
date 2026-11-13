@@ -382,6 +382,19 @@ export const PROCEDURE_ACCESS: Readonly<Record<string, ProcedureAccessClass>> = 
   "telegram.disconnect": ALWAYS,
   "telegram.issueConnectToken": W,
 
+  // Custom trackers (#441).
+  "trackers.list": R,
+  "trackers.get": R,
+  "trackers.entries": R,
+  "trackers.chart": R,
+  "trackers.create": W,
+  "trackers.update": W,
+  "trackers.setArchived": W,
+  "trackers.delete": W,
+  "trackers.log": W,
+  "trackers.updateEntry": W,
+  "trackers.deleteEntry": W,
+
   "timeline.list": R,
   "timeline.changesSinceReview": R,
   "timeline.listMetrics": R,

@@ -16,6 +16,7 @@
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import type { Action, Resource } from "@openvalens/auth/access/permissions";
+import type { TrackerIcon } from "@openvalens/trackers/model";
 
 import type { PersonModule } from "../wellness-profile-contract";
 import { MANUAL_ENTRY_FIELDS, type ManualEntryField } from "./manual-entry";
@@ -77,9 +78,22 @@ export type LogKindIconKey =
   | "droplet"
   | "dumbbell"
   | "pill"
-  | "target";
+  | "target"
+  // Custom tracker icons (#441).
+  | TrackerIcon;
 
-export type LogFieldType = "number" | "datetime" | "rating" | "choice";
+/**
+ * `yes_no`, `duration` (seconds; typed as "20 min", "1:30") and `text` (an
+ * optional note) are used by custom trackers (#441).
+ */
+export type LogFieldType =
+  | "number"
+  | "datetime"
+  | "rating"
+  | "choice"
+  | "yes_no"
+  | "duration"
+  | "text";
 
 /** Where a `choice` field's options come from (the member's own data). */
 export type LogChoiceSource = "lab_marker" | "private_measurement" | "supplement" | "goal";

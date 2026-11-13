@@ -1012,6 +1012,7 @@ describe("ai.chat health tools (Issue #124)", () => {
         "panelCompare",
         "supplements",
         "timelineSummary",
+        "trackers",
         "weightTrend",
       ].sort(),
     );

@@ -31,7 +31,12 @@ mock.module("@openvalens/auth/authz/guard", () => ({
   AuthzHttpError,
   requirePermission,
 }));
-const list = mock(async (_org: string, _filters: unknown) => ({ items: [], nextCursor: null }));
+const list = mock(
+  async (_org: string, _filters: unknown, _excluded?: unknown, _viewer?: unknown) => ({
+    items: [],
+    nextCursor: null,
+  }),
+);
 const changes = mock(async (_org: string, _options: unknown) => ({ items: [] }));
 const write = mock(async (_link: unknown) => ({ id: 1, createdAt: "2026-09-30T00:00:00Z" }));
 const listMetrics = mock(async (_org: string) => [
@@ -154,7 +159,7 @@ test("reads require records:read and use only active authz org", async () => {
   expect(requirePermission.mock.calls[0]?.[1]).toEqual({ resource: "records", action: "read" });
   expect(list.mock.calls[0]?.[0]).toBe("org-a");
   await timelineRouter.changesSinceReview.callable({ context: context() })({ limit: 5 });
-  expect(changes.mock.calls[0]).toEqual(["org-a", { limit: 5 }]);
+  expect(changes.mock.calls[0]).toEqual(["org-a", { limit: 5, viewer: null }]);
   expect(audit).not.toHaveBeenCalled();
 });
 test("domain cursors retain records:read authority and accept only migrated record kinds", async () => {
@@ -169,7 +174,7 @@ test("domain cursors retain records:read authority and accept only migrated reco
   ]) {
     const cursor = `2026-09-29T00:00:00.000Z|${table}:1`;
     await timelineRouter.list.callable({ context: context() })({ cursor, limit: 1 });
-    expect(list.mock.calls.at(-1)).toEqual(["org-a", { cursor, limit: 1 }]);
+    expect(list.mock.calls.at(-1)).toEqual(["org-a", { cursor, limit: 1 }, [], null]);
     expect(requirePermission.mock.calls.at(-1)?.[1]).toEqual({
       resource: "records",
       action: "read",

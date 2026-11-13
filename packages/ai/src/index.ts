@@ -17,6 +17,7 @@ export * from "./tools/panel-compare";
 export * from "./tools/sources";
 export * from "./tools/supplements";
 export * from "./tools/timeline-summary";
+export * from "./tools/trackers";
 export * from "./tools/weight-trend";
 export * from "./usage";
 export * from "./usage-store";

@@ -13,6 +13,7 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import {
   Activity,
+  ListChecks,
   CalendarDays,
   Footprints,
   FlaskConical,
@@ -55,6 +56,7 @@ const DOMAIN_ICON: Record<string, { icon: LucideIcon; tone: Tone }> = {
   sync: { icon: RefreshCw, tone: "signal" },
   imaging: { icon: ScanLine, tone: "water" },
   cardiac: { icon: Activity, tone: "heart" },
+  custom: { icon: ListChecks, tone: "signal" },
 };
 const OTHER_DOMAIN = { icon: Sparkles, tone: "signal" } as const;
 

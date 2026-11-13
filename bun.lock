@@ -46,6 +46,7 @@
         "@openvalens/i18n": "workspace:*",
         "@openvalens/observability": "workspace:*",
         "@openvalens/plans": "workspace:*",
+        "@openvalens/trackers": "workspace:*",
         "@openvalens/ui": "workspace:*",
         "@orpc/client": "catalog:",
         "@orpc/tanstack-query": "catalog:",
@@ -181,6 +182,7 @@
         "@openvalens/i18n": "workspace:*",
         "@openvalens/observability": "workspace:*",
         "@openvalens/plans": "workspace:*",
+        "@openvalens/trackers": "workspace:*",
         "@openvalens/ui": "workspace:*",
         "@orpc/client": "catalog:",
         "@orpc/server": "catalog:",
@@ -248,6 +250,7 @@
         "@openvalens/observability": "workspace:*",
         "@openvalens/plans": "workspace:*",
         "@openvalens/sleep": "workspace:*",
+        "@openvalens/trackers": "workspace:*",
         "@openvalens/vitals": "workspace:*",
         "ai": "catalog:",
         "drizzle-orm": "catalog:",
@@ -287,6 +290,7 @@
         "@openvalens/sleep": "workspace:*",
         "@openvalens/storage": "workspace:*",
         "@openvalens/telegram": "workspace:*",
+        "@openvalens/trackers": "workspace:*",
         "@openvalens/vitals": "workspace:*",
         "@openvalens/wearables": "workspace:*",
         "@orpc/client": "catalog:",
@@ -505,6 +509,7 @@
       "name": "@openvalens/health-record",
       "dependencies": {
         "@openvalens/db": "workspace:*",
+        "@openvalens/trackers": "workspace:*",
         "drizzle-orm": "catalog:",
       },
       "devDependencies": {
@@ -660,6 +665,18 @@
       "dependencies": {
         "@openvalens/db": "workspace:*",
         "drizzle-orm": "catalog:",
+      },
+      "devDependencies": {
+        "@openvalens/config": "workspace:*",
+        "typescript": "^6.0.3",
+      },
+    },
+    "packages/trackers": {
+      "name": "@openvalens/trackers",
+      "dependencies": {
+        "@openvalens/db": "workspace:*",
+        "drizzle-orm": "catalog:",
+        "zod": "catalog:",
       },
       "devDependencies": {
         "@openvalens/config": "workspace:*",
@@ -1292,6 +1309,8 @@
     "@openvalens/storage": ["@openvalens/storage@workspace:packages/storage"],
 
     "@openvalens/telegram": ["@openvalens/telegram@workspace:packages/integrations/telegram"],
+
+    "@openvalens/trackers": ["@openvalens/trackers@workspace:packages/trackers"],
 
     "@openvalens/ui": ["@openvalens/ui@workspace:packages/ui"],
 

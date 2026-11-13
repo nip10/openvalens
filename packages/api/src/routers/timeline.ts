@@ -1,5 +1,6 @@
 import { writeAuditLog } from "@openvalens/audit-security";
 import { AuthzHttpError, requirePermission } from "@openvalens/auth/authz/guard";
+import { requireTrustedIdentity } from "@openvalens/auth/authz/trusted-session";
 import {
   createHealthRecordRepository,
   decodeCursor,
@@ -99,6 +100,22 @@ async function requireTimelineAuthz(
   }
 }
 
+/**
+ * The member filter for custom trackers (#441): the session's own member, or
+ * none for an impersonated or untrusted session (no tracker entries then).
+ */
+function timelineViewer(context: {
+  session: unknown;
+  authz: { user: { id: string } };
+}): { userId: string } | null {
+  try {
+    const { userId } = requireTrustedIdentity(context.session);
+    return userId === context.authz.user.id ? { userId } : null;
+  } catch {
+    return null;
+  }
+}
+
 const metricDefinitionReadSchema = z.strictObject({
   id: z.number().int().positive(),
   code: z.string(),
@@ -167,6 +184,8 @@ export const timelineRouter = {
       createHealthRecordRepository(context.db).listTimeline(
         context.authz.activeOrganizationId,
         input,
+        [],
+        timelineViewer(context),
       ),
     ),
   changesSinceReview: permissionedProcedure({ resource: "records", action: "read" })
@@ -175,7 +194,7 @@ export const timelineRouter = {
     .handler(({ context, input }) =>
       createHealthRecordRepository(context.db).listChangesSinceReview(
         context.authz.activeOrganizationId,
-        input,
+        { ...input, viewer: timelineViewer(context) },
       ),
     ),
   listMetrics: permissionedProcedure({ resource: "records", action: "read" })

@@ -24,6 +24,7 @@
     "@openvalens/observability": "workspace:*",
     "@openvalens/plans": "workspace:*",
     "@openvalens/sleep": "workspace:*",
+    "@openvalens/trackers": "workspace:*",
     "@openvalens/vitals": "workspace:*",
     "ai": "catalog:",
     "drizzle-orm": "catalog:",

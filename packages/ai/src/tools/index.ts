@@ -9,6 +9,7 @@ import { createOutOfRangeTool } from "./out-of-range";
 import { createPanelCompareTool } from "./panel-compare";
 import { createSupplementsTool } from "./supplements";
 import { createTimelineSummaryTool } from "./timeline-summary";
+import { createTrackersTool } from "./trackers";
 import { createWeightTrendTool } from "./weight-trend";
 
 /**
@@ -37,7 +38,8 @@ export type AiHealthTools = ReturnType<typeof createAiHealthTools>;
 
 /**
  * The Coach's full tool set: the ten health tools plus the consent-gated
- * `nutritionContext` tool (Issue #86). Offered to the chat model as a whole;
+ * `nutritionContext` tool (Issue #86) and the member's own custom trackers
+ * that have their AI switch on (`trackers`, Issue #441). Offered to the chat model as a whole;
  * each tool re-checks its own permission and consent at execution, so no data
  * leaves the server without them.
  */
@@ -45,6 +47,7 @@ export function createAiCoachTools(context: AiHealthToolContext) {
   return {
     ...createAiHealthTools(context),
     nutritionContext: createNutritionContextTool(context),
+    trackers: createTrackersTool(context),
   };
 }
 

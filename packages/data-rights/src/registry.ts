@@ -85,6 +85,10 @@ export const DATA_RIGHTS_REGISTRY: Readonly<Record<string, TableEntry>> = Object
   cycle_preference: { kind: "user" },
   cycle_import: { kind: "user" },
   cycle_period: { kind: "user" },
+  // Custom trackers (#441): the owner's trackers and every entry in them,
+  // including entries a collaborator logged into a shared tracker.
+  custom_tracker: { kind: "user" },
+  custom_tracker_entry: { kind: "user" },
 
   // Clinical
   photo_cleanup_intent: {

@@ -12,6 +12,7 @@
     { "path": "../activity" },
     { "path": "../mcp" },
     { "path": "../billing" },
+    { "path": "../trackers" },
     { "path": "../vitals" },
     { "path": "../labs" },
     { "path": "../nutrition" },

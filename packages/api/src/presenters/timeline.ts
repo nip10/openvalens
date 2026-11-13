@@ -10,6 +10,7 @@ import type { WearableProviderId } from "@openvalens/wearables";
 
 import { MANUAL_ENTRY_FIELDS } from "./manual-entry";
 import { formatSleepDuration } from "./sleep";
+import { formatTrackerValue } from "./trackers";
 
 export type TimelineItemLike = {
   id: string;
@@ -42,6 +43,7 @@ const DOMAIN_LABELS: Record<string, MessageDescriptor> = {
   sync: msg`Sync`,
   imaging: msg`Imaging`,
   cardiac: msg`Cardiac`,
+  custom: msg`Trackers`,
 };
 
 export function domainLabel(domain: string): MessageDescriptor {
@@ -135,6 +137,25 @@ function metricCopy(item: TimelineItemLike): MetricCopy | undefined {
   return code ? METRIC_COPY[code] : undefined;
 }
 
+/** A custom tracker entry (#441), with what its value needs to read naturally. */
+function trackerEntry(item: TimelineItemLike) {
+  const canonical = item.canonical;
+  if (canonical?.table !== "custom_tracker_entry") return null;
+  const type = canonical.trackerType;
+  const value = canonical.value;
+  if (
+    typeof value !== "number" ||
+    (type !== "number" && type !== "scale" && type !== "yes_no" && type !== "duration")
+  )
+    return null;
+  return {
+    type,
+    value,
+    unit: text(canonical.unit),
+    decimals: typeof canonical.decimals === "number" ? canonical.decimals : 0,
+  } as const;
+}
+
 function eventType(item: TimelineItemLike): string | null {
   return item.kind === "event" ? text(item.canonical?.type) : null;
 }
@@ -155,6 +176,12 @@ export function timelineTitle(item: TimelineItemLike, i18n: I18n): string {
  * summary.
  */
 export function timelineSummary(item: TimelineItemLike, i18n: I18n): string {
+  const tracker = trackerEntry(item);
+  if (tracker) {
+    const value = formatTrackerValue(i18n, tracker, tracker.value);
+    const note = text(item.canonical?.note);
+    return note ? `${value} · ${note}` : value;
+  }
   if (item.kind === "metric" && item.canonical) {
     const value = item.canonical.value;
     if (typeof value === "number" && Number.isFinite(value)) {
