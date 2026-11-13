@@ -2,91 +2,120 @@ import "@/testing/varlock-test-setup";
 import { describe, expect, mock, test } from "bun:test";
 import { I18nProvider } from "@lingui/react";
 import { englishI18n } from "@openvalens/i18n/testing";
+import { firstLogKinds, phoneAppLink } from "@openvalens/api/presenters/onboarding";
 import { EMPTY_WELLNESS_PROFILE } from "@openvalens/api/wellness-profile-contract";
 import type { ReactNode } from "react";
 import { renderToStaticMarkup as renderMarkup } from "react-dom/server";
 
 mock.module("@tanstack/react-router", () => ({
   createFileRoute: () => (options: unknown) => options,
-  Link: ({ children, to, hash }: { children: ReactNode; to: string; hash?: string }) => (
-    <a href={hash ? `${to}#${hash}` : to}>{children}</a>
-  ),
+  Link: ({
+    children,
+    to,
+    hash,
+    params,
+  }: {
+    children: ReactNode;
+    to: string;
+    hash?: string;
+    params?: Record<string, string>;
+  }) => {
+    const path = Object.entries(params ?? {}).reduce(
+      (current, [key, value]) => current.replace(`$${key}`, value),
+      to,
+    );
+    return <a href={hash ? `${path}#${hash}` : path}>{children}</a>;
+  },
   useNavigate: () => () => {},
 }));
 
 const { FinishSetupCardView } = await import("./finish-setup-card");
-const { AgeBody, ModulesBody, StepFrame, StepRail, TodayPreview } =
+const { AgeBody, ConnectBody, ConsentBody, FirstLogCards, ModulesBody, StepFrame } =
   await import("./onboarding-steps");
 const { ServerChecklistView } = await import("./server-checklist");
+const { serverAddress } = await import("./setup-steps");
 
 function render(node: ReactNode): string {
   return renderMarkup(<I18nProvider i18n={englishI18n}>{node}</I18nProvider>);
 }
 const noop = () => {};
+const adult = { state: "recorded", value: "adult" } as const;
 
 describe("Finish setting up card", () => {
-  test("shows N of 8 with Continue to /welcome and Dismiss", () => {
+  test("lists every item, ticks the answered ones and links each to its own screen", () => {
     const html = render(
       <FinishSetupCardView
-        snapshot={{
-          ...EMPTY_WELLNESS_PROFILE,
-          setupStatus: "in_progress",
-          eligibility: { state: "recorded", value: "adult" },
-        }}
-        extras={{}}
+        snapshot={{ ...EMPTY_WELLNESS_PROFILE, setupStatus: "completed", eligibility: adult }}
+        facts={{ goalCount: 1, hasEntries: true }}
         dismissing={false}
         error={null}
         onDismiss={noop}
       />,
     );
-    expect(html).toContain("Finish setting up, 2 of 8");
-    expect(html).toContain('href="/welcome"');
+    expect(html).toContain("Finish setting up, 2 of 6");
+    for (const item of ["first_log", "connect", "modules", "basics", "goal", "privacy"]) {
+      expect(html).toContain(`href="/setup/${item}"`);
+    }
+    expect(html.match(/\(done\)/g)?.length).toBe(2);
     expect(html).toContain("Dismiss");
   });
 
-  test("hidden once completed or dismissed", () => {
-    for (const setupStatus of ["completed", "skipped"] as const) {
-      const html = render(
-        <FinishSetupCardView
-          snapshot={{ ...EMPTY_WELLNESS_PROFILE, setupStatus }}
-          extras={{}}
-          dismissing={false}
-          error={null}
-          onDismiss={noop}
-        />,
-      );
-      expect(html).toBe("");
-    }
+  test("hidden once dismissed, or once everything has an answer", () => {
+    const dismissed = render(
+      <FinishSetupCardView
+        snapshot={{ ...EMPTY_WELLNESS_PROFILE, setupStatus: "skipped" }}
+        facts={{}}
+        dismissing={false}
+        error={null}
+        onDismiss={noop}
+      />,
+    );
+    expect(dismissed).toBe("");
+    const finished = render(
+      <FinishSetupCardView
+        snapshot={{
+          ...EMPTY_WELLNESS_PROFILE,
+          setupStatus: "completed",
+          enabledModules: ["sleep"],
+          region: { state: "declined" },
+        }}
+        facts={{ goalCount: 1, hasEntries: true, connected: true, remindersOn: true }}
+        dismissing={false}
+        error={null}
+        onDismiss={noop}
+      />,
+    );
+    expect(finished).toBe("");
   });
 });
 
-describe("steps", () => {
-  test("the age step has no Skip; others have Skip and Back", () => {
-    const age = render(
+describe("first run screens", () => {
+  test("Step N of 3, with Skip only when the screen offers it", () => {
+    const required = render(
       <StepFrame
-        step="age"
         titleId="t"
-        title="Age"
+        title="Before you start"
+        progress={{ index: 1, total: 3, label: "Before you start" }}
         onContinue={noop}
+      />,
+    );
+    expect(required).toContain("Step 1 of 3: Before you start");
+    expect(required).not.toContain(">Skip<");
+    const optional = render(
+      <StepFrame
+        titleId="t"
+        title="Your first entry"
+        progress={{ index: 2, total: 3, label: "Your first entry" }}
         onSkip={noop}
         onBack={noop}
       />,
     );
-    expect(age).not.toContain(">Skip<");
-    expect(age).toContain(">Back<");
-    expect(age).toContain("Step 2 of 8: Age check");
-    const goal = render(
-      <StepFrame
-        step="goal"
-        titleId="t"
-        title="Goal"
-        onContinue={noop}
-        onSkip={noop}
-        onBack={noop}
-      />,
+    expect(optional).toContain(">Skip<");
+    expect(optional).toContain(">Back<");
+    // A card item's screen has no counter.
+    expect(render(<StepFrame titleId="t" title="A few basics" onContinue={noop} />)).not.toContain(
+      "Step ",
     );
-    expect(goal).toContain(">Skip<");
-    expect(goal).toContain(">Back<");
   });
 
   test("the age check uses the profile's question and shows the under-18 rule", () => {
@@ -98,17 +127,73 @@ describe("steps", () => {
     expect(html).toContain("adult-only personalisation stays off");
   });
 
-  test("the rail locks steps past the age check until it is answered", () => {
+  test("the consent shows its version and the privacy policy", () => {
     const html = render(
-      <StepRail
-        current="age"
-        done={() => false}
-        eligibility={EMPTY_WELLNESS_PROFILE.eligibility}
-        onJump={noop}
+      <ConsentBody
+        currentVersion="2026-11"
+        privacyUrl="https://example.org/privacy"
+        checked={false}
+        onCheckedChange={noop}
       />,
     );
-    expect(html).toContain('aria-current="step"');
-    expect(html.match(/disabled=""/g)?.length).toBe(6);
+    expect(html).toContain("Consent version: 2026-11");
+    expect(html).toContain('href="https://example.org/privacy"');
+    expect(html).toContain("I agree to this health data processing.");
+  });
+
+  test("first log: three cards, and Water says it turns water logging on", () => {
+    const kinds = firstLogKinds({ enabledModules: null });
+    const off = render(<FirstLogCards kinds={kinds} plainWaterEnabled={false} onPick={noop} />);
+    expect(off).toContain("Weight");
+    expect(off).toContain("Water");
+    expect(off).toContain("Last night&#x27;s sleep");
+    expect(off).toContain("This turns on water logging");
+    const on = render(<FirstLogCards kinds={kinds} plainWaterEnabled={true} onPick={noop} />);
+    expect(on).not.toContain("This turns on water logging");
+    expect(render(<FirstLogCards kinds={[]} plainWaterEnabled={null} onPick={noop} />)).toContain(
+      "can&#x27;t add entries",
+    );
+  });
+
+  test("connect: a QR code for the phone app and the operator's wearables", () => {
+    const html = render(
+      <ConnectBody
+        phoneLink={phoneAppLink("https://health.example.org")}
+        serverUrl="https://health.example.org"
+        providers={[
+          { provider: "oura", displayName: "Oura", status: "not_connected" },
+          { provider: "whoop", displayName: "WHOOP", status: "active" },
+        ]}
+        busyProvider={null}
+        onConnect={noop}
+      />,
+    );
+    expect(html).toContain('role="img"');
+    expect(html).toContain('<path d="M');
+    expect(html).toContain("https://health.example.org");
+    expect(html).toContain("play.google.com");
+    expect(html).toContain("Oura");
+    expect(html.match(/>Connect</g)?.length).toBe(1);
+  });
+
+  test("connect hides the wearables when the operator set none up", () => {
+    const html = render(
+      <ConnectBody
+        phoneLink="openvalens://server"
+        serverUrl="https://x"
+        providers={[]}
+        busyProvider={null}
+        onConnect={noop}
+      />,
+    );
+    expect(html).not.toContain("Wearable accounts");
+  });
+
+  test("the server address is absolute, without a trailing slash", () => {
+    expect(serverAddress("https://api.example.org/", "https://app.example.org")).toBe(
+      "https://api.example.org",
+    );
+    expect(serverAddress("/api", "https://app.example.org")).toBe("https://app.example.org/api");
   });
 
   test("module cards show the chosen ones pressed and explain the coach", () => {
@@ -122,13 +207,6 @@ describe("steps", () => {
     );
     expect(html.match(/aria-pressed="true"/g)?.length).toBe(2);
     expect(html).toContain("The coach also needs AI to be turned on for this server");
-  });
-
-  test("Your Today previews the chosen modules and the menu", () => {
-    const html = render(<TodayPreview modules={["sleep", "food"]} />);
-    expect(html).toContain("Food &amp; water");
-    expect(html).toContain("The menu will show: Dashboard, Sleep, Food &amp; water, Timeline");
-    expect(render(<TodayPreview modules={[]} />)).toContain("No modules picked.");
   });
 });
 

@@ -37,7 +37,8 @@ import { useProductSettings } from "@/utils/product-settings";
 
 export const Route = createFileRoute("/_auth/dashboard")({
   component: DashboardPage,
-  // Onboarding stage 2: the first sign-in lands on /welcome once.
+  // Onboarding (#444): a new account lands on /welcome once; someone who left
+  // before the age check and consent goes back there.
   beforeLoad: async ({ context }) => {
     if (await needsWelcomeRedirect(context.queryClient, context.session?.user?.id)) {
       throw redirect({ to: "/welcome" });
