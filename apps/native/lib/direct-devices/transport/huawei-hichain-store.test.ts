@@ -1,6 +1,10 @@
 import { expect, test } from "bun:test";
 
-import { createSecureHuaweiHiChainStore, type SecureKeyValue } from "./huawei-hichain-store";
+import {
+  createSecureHuaweiHiChainStore,
+  purgeSecureHuaweiHiChainStore,
+  type SecureKeyValue,
+} from "./huawei-hichain-store";
 
 function fakeSecure() {
   const items = new Map<string, string>();
@@ -20,6 +24,7 @@ test("the HiChain id and token persist under sanitized keystore keys", async () 
   expect([...items.keys()].sort()).toEqual([
     "huawei.hichain.AA_BB_CC_1.androidId",
     "huawei.hichain.AA_BB_CC_1.authToken",
+    "huawei.hichain.index",
   ]);
   // A new process reads them back.
   const reopened = createSecureHuaweiHiChainStore(() => secure);
@@ -40,4 +45,16 @@ test("malformed stored values read as absent", () => {
   const store = createSecureHuaweiHiChainStore(() => secure);
   expect(store.getAndroidId("d")).toBeNull();
   expect(store.getAuthToken("d")).toBeNull();
+});
+
+test("purging removes every watch's id and token, and the index", async () => {
+  const { items, secure } = fakeSecure();
+  const store = createSecureHuaweiHiChainStore(() => secure);
+  store.setAndroidId("watch-1", "000102030405060708090A0B0C0D0E0F");
+  store.setAuthToken("watch-1", Uint8Array.of(1));
+  store.setAuthToken("watch-2", Uint8Array.of(2));
+  items.set("unrelated.key", "kept");
+  expect(JSON.parse(items.get("huawei.hichain.index")!)).toEqual(["watch-1", "watch-2"]);
+  await purgeSecureHuaweiHiChainStore(() => secure);
+  expect([...items.keys()]).toEqual(["unrelated.key"]);
 });

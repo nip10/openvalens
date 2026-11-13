@@ -6,6 +6,7 @@ import { createSignOut } from "@/lib/sign-out-steps";
 import { queryClient } from "@/utils/orpc";
 import { beginDirectDeviceAuthorityTransition } from "@/lib/direct-devices/authority";
 import { getDirectDeviceStore } from "@/lib/direct-devices/persistence/sqlite";
+import { purgeSecureHuaweiHiChainStore } from "@/lib/direct-devices/transport/huawei-hichain-store";
 
 import type { PreserveServerLeaveOptions, ServerLeaveOptions } from "./server/server-leave-policy";
 
@@ -23,7 +24,11 @@ function preserveOptions(options?: ServerLeaveOptions): PreserveServerLeaveOptio
 /** The one sign-out used by every screen: push, health sync, offline data, session, cache. */
 export const signOutOfThisPhone = createSignOut({
   invalidateDirectDevices: beginDirectDeviceAuthorityTransition,
-  purgeDirectDevices: () => getDirectDeviceStore().purgeAll(),
+  purgeDirectDevices: () => {
+    getDirectDeviceStore().purgeAll();
+    // Watch pairing tokens identify this phone; they go with the account.
+    void purgeSecureHuaweiHiChainStore().catch(() => undefined);
+  },
   disablePush: disablePushOnThisPhone,
   resetHealthSync,
   prepareOffline: (options) => prepareOfflineSignOut(preserveOptions(options)),

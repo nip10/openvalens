@@ -17,12 +17,45 @@ export type SecureKeyValue = Readonly<{
 }>;
 
 /** SecureStore keys allow `[A-Za-z0-9._-]`. */
+const safeId = (deviceId: string) => deviceId.replace(/[^A-Za-z0-9._-]/g, "_");
 const keyFor = (deviceId: string, field: "androidId" | "authToken") =>
-  `huawei.hichain.${deviceId.replace(/[^A-Za-z0-9._-]/g, "_")}.${field}`;
+  `huawei.hichain.${safeId(deviceId)}.${field}`;
+/** The keystore cannot list keys, so the store keeps the ids it wrote, for purging. */
+const INDEX_KEY = "huawei.hichain.index";
+
+const loadSecureStore = (): SecureKeyValue =>
+  require("expo-secure-store") as typeof import("expo-secure-store");
+
+function readIndex(secure: SecureKeyValue): string[] {
+  try {
+    const parsed: unknown = JSON.parse(secure.getItem(INDEX_KEY) ?? "[]");
+    return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Deletes every HiChain id and token this phone holds (sign-out, server
+ * switch): they identify the phone to the user's watches.
+ */
+export async function purgeSecureHuaweiHiChainStore(
+  load: () => SecureKeyValue = loadSecureStore,
+): Promise<void> {
+  const secure = load();
+  const ids = readIndex(secure);
+  await Promise.all(
+    ids.flatMap((id) =>
+      [`huawei.hichain.${id}.androidId`, `huawei.hichain.${id}.authToken`].map((key) =>
+        secure.deleteItemAsync(key).catch(() => undefined),
+      ),
+    ),
+  );
+  await secure.deleteItemAsync(INDEX_KEY).catch(() => undefined);
+}
 
 export function createSecureHuaweiHiChainStore(
-  load: () => SecureKeyValue = () =>
-    require("expo-secure-store") as typeof import("expo-secure-store"),
+  load: () => SecureKeyValue = loadSecureStore,
 ): HuaweiHiChainStore {
   let store: SecureKeyValue | null = null;
   const secure = () => (store ??= load());
@@ -34,7 +67,14 @@ export function createSecureHuaweiHiChainStore(
     cache.set(key, value);
     return value;
   };
-  const write = (key: string, value: string) => {
+  const indexed = new Set<string>();
+  const write = (deviceId: string, key: string, value: string) => {
+    const id = safeId(deviceId);
+    if (!indexed.has(id)) {
+      const ids = readIndex(secure());
+      if (!ids.includes(id)) secure().setItem(INDEX_KEY, JSON.stringify([...ids, id]));
+      indexed.add(id);
+    }
     secure().setItem(key, value);
     cache.set(key, value);
   };
@@ -43,7 +83,8 @@ export function createSecureHuaweiHiChainStore(
       const value = read(keyFor(deviceId, "androidId"));
       return value && /^[0-9A-F]{32}$/.test(value) ? value : null;
     },
-    setAndroidId: (deviceId, androidId) => write(keyFor(deviceId, "androidId"), androidId),
+    setAndroidId: (deviceId, androidId) =>
+      write(deviceId, keyFor(deviceId, "androidId"), androidId),
     getAuthToken: (deviceId) => {
       const value = read(keyFor(deviceId, "authToken"));
       if (!value) return null;
@@ -53,7 +94,8 @@ export function createSecureHuaweiHiChainStore(
         return null;
       }
     },
-    setAuthToken: (deviceId, token) => write(keyFor(deviceId, "authToken"), huaweiHexUpper(token)),
+    setAuthToken: (deviceId, token) =>
+      write(deviceId, keyFor(deviceId, "authToken"), huaweiHexUpper(token)),
     clearAuthToken: (deviceId) => {
       const key = keyFor(deviceId, "authToken");
       cache.set(key, null);

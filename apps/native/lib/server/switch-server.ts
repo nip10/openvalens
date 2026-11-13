@@ -6,6 +6,7 @@ import { signOutOfThisPhone } from "@/lib/sign-out";
 import { queryClient } from "@/utils/orpc";
 import { beginDirectDeviceAuthorityTransition } from "@/lib/direct-devices/authority";
 import { getDirectDeviceStore } from "@/lib/direct-devices/persistence/sqlite";
+import { purgeSecureHuaweiHiChainStore } from "@/lib/direct-devices/transport/huawei-hichain-store";
 
 import { forgetServerUrl, saveServerUrl } from "./server-url";
 import {
@@ -47,6 +48,7 @@ export const switchServer = createSwitchServer({
     // Direct devices are registered against the old server, so their store
     // must not survive the switch even when pending data is preserved.
     getDirectDeviceStore().purgeAll();
+    void purgeSecureHuaweiHiChainStore().catch(() => undefined);
   },
   clearSession: clearStoredAuthSession,
   cancelPendingMagicLink,
