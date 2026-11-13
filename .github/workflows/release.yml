@@ -3,6 +3,10 @@ name: Release
 # Issue #306 — a release tag `vMAJOR.MINOR.PATCH` gets a draft GitHub Release.
 # The owner reviews the notes and publishes it (docs/releasing.md). Mobile
 # store builds for the same tag run in release-mobile.yml.
+# Issue #446 — the notes (docs/releases/vX.Y.Z.md) are required: they are also
+# the public changelog and the in-app "What's new" card, so a tag without them,
+# or without a `## Highlights` section, fails here instead of falling back to
+# generated notes.
 
 on:
   push:
@@ -49,6 +53,10 @@ jobs:
           bun-version: 1.4.2
       - name: package.json, app.json and the server version equal the tag
         run: bun scripts/release-version.ts --check "$TAG"
+      - name: The release notes exist and have Highlights and a release date
+        run: |
+          tag_date=$(TZ=UTC git for-each-ref "refs/tags/$TAG" --format='%(creatordate:format-local:%Y-%m-%d)')
+          bun scripts/release-notes.ts --check "$TAG" --tag-date "$tag_date"
       - name: Create the draft release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -57,15 +65,8 @@ jobs:
             echo "A release for $TAG already exists; leaving it as it is."
             exit 0
           fi
-          args=(--draft --verify-tag --title "OpenValens $TAG")
-          notes="docs/releases/$TAG.md"
-          if [ -f "$notes" ]; then
-            args+=(--notes-file "$notes")
-          else
-            echo "::warning::No $notes in the tag; using generated notes. Edit them before publishing."
-            args+=(--generate-notes)
-          fi
-          gh release create "$TAG" "${args[@]}"
+          gh release create "$TAG" --draft --verify-tag --title "OpenValens $TAG" \
+            --notes-file "docs/releases/$TAG.md"
           {
             echo "### Draft release created for $TAG"
             echo "Review the notes, then publish it: https://github.com/${GITHUB_REPOSITORY}/releases"

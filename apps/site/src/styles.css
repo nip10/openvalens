@@ -977,3 +977,23 @@ pre {
   color: var(--color-ink-3);
   font-size: 0.85rem;
 }
+
+/* Changelog (/changelog, generated from docs/releases) */
+
+.changelog .release {
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--color-rule);
+  margin-top: 2.5rem;
+}
+
+.changelog .release h2 {
+  margin: 1.5rem 0 0.25rem;
+}
+
+.changelog .release .meta {
+  margin-bottom: 1rem;
+}
+
+.changelog .release-link {
+  font-size: 0.95rem;
+}
