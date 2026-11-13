@@ -30,6 +30,11 @@ export type AiHealthToolContext = {
    * Coach itself.
    */
   accessGate?: () => Promise<AiToolAccessGateResult>;
+  /**
+   * True only when the Coach runs in the member's own, non-impersonated
+   * session. The pain tool (#442) needs it; absent means no pain data.
+   */
+  trustedSelf?: boolean;
   correlationId?: string;
   /** Test seam: replace the domain read ports. */
   sources?: AiHealthToolSources;

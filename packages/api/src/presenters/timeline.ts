@@ -9,6 +9,7 @@ import { msg } from "@lingui/core/macro";
 import type { WearableProviderId } from "@openvalens/wearables";
 
 import { MANUAL_ENTRY_FIELDS } from "./manual-entry";
+import { painEntrySummary, painRegionText } from "./pain";
 import { formatSleepDuration } from "./sleep";
 import { formatTrackerValue } from "./trackers";
 
@@ -44,6 +45,7 @@ const DOMAIN_LABELS: Record<string, MessageDescriptor> = {
   imaging: msg`Imaging`,
   cardiac: msg`Cardiac`,
   custom: msg`Trackers`,
+  pain: msg`Pain`,
 };
 
 export function domainLabel(domain: string): MessageDescriptor {
@@ -156,6 +158,16 @@ function trackerEntry(item: TimelineItemLike) {
   } as const;
 }
 
+/** A pain entry (#442): its region, rating, type and note. */
+function painEntry(item: TimelineItemLike) {
+  const canonical = item.canonical;
+  if (canonical?.table !== "pain_entry") return null;
+  const region = text(canonical.region);
+  const rating = canonical.rating;
+  if (!region || typeof rating !== "number") return null;
+  return { region, rating, type: text(canonical.type), note: text(canonical.note) };
+}
+
 function eventType(item: TimelineItemLike): string | null {
   return item.kind === "event" ? text(item.canonical?.type) : null;
 }
@@ -164,6 +176,11 @@ function eventType(item: TimelineItemLike): string | null {
 export function timelineTitle(item: TimelineItemLike, i18n: I18n): string {
   const copy = metricCopy(item);
   if (copy) return i18n._(copy.label);
+  const pain = painEntry(item);
+  if (pain) {
+    const region = painRegionText(pain.region, i18n);
+    return i18n._(msg`Pain: ${region}`);
+  }
   const type = eventType(item);
   if (type === "sleep_session") return i18n._(msg`Sleep`);
   if (type === "workout") return text(item.canonical?.title) ?? i18n._(msg`Workout`);
@@ -181,6 +198,11 @@ export function timelineSummary(item: TimelineItemLike, i18n: I18n): string {
     const value = formatTrackerValue(i18n, tracker, tracker.value);
     const note = text(item.canonical?.note);
     return note ? `${value} · ${note}` : value;
+  }
+  const pain = painEntry(item);
+  if (pain) {
+    const value = painEntrySummary(pain, i18n);
+    return pain.note ? `${value} · ${pain.note}` : value;
   }
   if (item.kind === "metric" && item.canonical) {
     const value = item.canonical.value;

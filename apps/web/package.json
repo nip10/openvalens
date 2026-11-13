@@ -22,6 +22,7 @@
     "@openvalens/api": "workspace:*",
     "@openvalens/i18n": "workspace:*",
     "@openvalens/observability": "workspace:*",
+    "@openvalens/pain": "workspace:*",
     "@openvalens/plans": "workspace:*",
     "@openvalens/trackers": "workspace:*",
     "@openvalens/ui": "workspace:*",

@@ -12,6 +12,8 @@ export const CANONICAL_TIMELINE_DOMAINS = [
   "cardiac",
   /** Custom trackers (#441): visible only to members who can see the tracker. */
   "custom",
+  /** Pain log (#442): visible only to the member who logged it. */
+  "pain",
   "unknown",
 ] as const;
 export type CanonicalTimelineDomain = (typeof CANONICAL_TIMELINE_DOMAINS)[number];

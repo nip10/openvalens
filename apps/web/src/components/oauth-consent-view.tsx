@@ -249,6 +249,10 @@ function ScopeRow(props: {
       title: t`Custom trackers`,
       detail: t`Trackers you made, except those with "Coach and connected AI apps can read this" off.`,
     },
+    "pain:read": {
+      title: t`Pain log`,
+      detail: t`Your pain ratings by body region, only while "Coach and connected AI apps can read my pain log" is on.`,
+    },
   };
   const label = labels[props.scope] ?? { title: props.scope, detail: "" };
   return (

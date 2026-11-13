@@ -1009,6 +1009,7 @@ describe("ai.chat health tools (Issue #124)", () => {
         "markerTrend",
         "nutritionContext",
         "outOfRange",
+        "pain",
         "panelCompare",
         "supplements",
         "timelineSummary",

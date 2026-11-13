@@ -17,6 +17,7 @@ import {
 } from "@openvalens/ai/tools/timeline-summary";
 import { executeWeightTrend, weightTrendInput } from "@openvalens/ai/tools/weight-trend";
 import type { Database } from "@openvalens/db";
+import { painRegionName } from "@openvalens/pain/model";
 import { aggregateValues, type TrackerAggregation } from "@openvalens/trackers/model";
 import type { StructuredLogger } from "@openvalens/observability";
 import { z } from "zod";
@@ -49,6 +50,8 @@ import type { McpDataSources, TrackerRow } from "./sources";
  *   private body measurements with `private_body:read`.
  * - Custom trackers with `trackers:read` (#441): only the member's own trackers
  *   whose AI switch is on; notes only with `notes:read`.
+ * - The pain log with `pain:read` (#442): only while the member's pain log and
+ *   its own AI switch are on; notes only with `notes:read`.
  * - `exercises.search`, for catalog ids.
  *
  * Results are the member's recorded values only, with no interpretation
@@ -555,6 +558,39 @@ const trackersEntries: McpToolDefinition = {
   },
 };
 
+// ─── Pain log (#442) ──────────────────────────────────────────
+
+const painEntriesTool: McpToolDefinition = {
+  name: "pain.entries",
+  title: "Pain log",
+  description: `${RECORDED}: the pain ratings the member recorded in a date range (at most 365 days, paginated, newest first), each with the body region, the rating from 0 to 10, the optional type and the time. These are self-recorded ratings, not a diagnosis: report them as recorded, with no causes, conditions or advice that changes with the rating. Empty unless the member turned on the pain log and let AI apps read it. Notes are included only when the key has the notes scope. Needs the pain scope.`,
+  scope: "pain:read",
+  input: rangeInput,
+  run: async (context, input) => {
+    const { range, query } = rangeFor(context, input as RangeInput);
+    const withNotes = hasScope(context.principal.scopes, "notes:read");
+    const rows = await context.sources.painEntries(context.principal, query, { withNotes });
+    const { items, nextCursor } = page(rows, range);
+    return {
+      rowCount: items.length,
+      result: {
+        ...rangeEnvelope(context, range),
+        entries: items.map((row) => ({
+          region: row.region,
+          regionName: painRegionName(row.region),
+          rating: row.rating,
+          outOf: 10,
+          type: row.type,
+          loggedAt: zonedIso(row.loggedAt, context.timeZone),
+          day: row.localDate,
+          ...(withNotes ? { note: row.note } : {}),
+        })),
+        nextCursor,
+      },
+    };
+  },
+};
+
 const exercisesSearch: McpToolDefinition = {
   name: "exercises.search",
   title: "Search exercises",
@@ -684,6 +720,7 @@ export const MCP_TOOLS: readonly McpToolDefinition[] = Object.freeze([
   trackersList,
   trackersDaily,
   trackersEntries,
+  painEntriesTool,
   exercisesSearch,
 ]);
 

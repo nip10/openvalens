@@ -74,6 +74,7 @@ describe.skipIf(!url)("MCP server and REST tools against disposable PostgreSQL",
   let baseKey = "";
   let fullKey = "";
   let trackersKey = "";
+  let painKey = "";
 
   async function key(scopes: string[], label: string): Promise<string> {
     const created = await service.createPersonalKey({
@@ -171,10 +172,11 @@ describe.skipIf(!url)("MCP server and REST tools against disposable PostgreSQL",
     );
     baseKey = await key([], "Base");
     fullKey = await key(
-      ["nutrition:read", "private_body:read", "notes:read", "trackers:read"],
+      ["nutrition:read", "private_body:read", "notes:read", "trackers:read", "pain:read"],
       "Full",
     );
     trackersKey = await key(["trackers:read"], "Trackers");
+    painKey = await key(["pain:read"], "Pain");
   });
 
   test("MCP tools/list holds only the tools the scopes allow, with the purpose statement", async () => {
@@ -344,6 +346,52 @@ describe.skipIf(!url)("MCP server and REST tools against disposable PostgreSQL",
     const withNotes = await (await rest("trackers.entries", RANGE, fullKey)).text();
     expect(withNotes).toContain("tracker-note-secret");
     expect(withNotes).not.toContain("ai-off-secret");
+  });
+
+  test("the pain log needs pain:read and its own AI switch, and notes need notes:read", async () => {
+    expect((await rest("pain.entries", RANGE, baseKey)).status).toBe(403);
+    const base = await mcp(baseKey, "tools/list");
+    expect(
+      (base.body.result.tools as Array<{ name: string }>).some(
+        (tool) => tool.name === "pain.entries",
+      ),
+    ).toBe(false);
+
+    // The seed keeps the pain log on with its AI switch off (the default).
+    await db.execute(
+      sql.raw(`insert into pain_entry (organization_id, user_id, region, rating, type, logged_at, local_date, note)
+        values ('${ORG}', '${USER}', 'joint.knee_left', 6, 'sharp', '2026-10-12T19:00:00Z', '2026-10-12', 'pain-note-secret'),
+          ('${ORG}', 'user-other-${WHO}', 'joint.knee_left', 9, null, '2026-10-12T19:00:00Z', '2026-10-12', 'other-pain-secret');
+        insert into pain_preference (user_id, enabled, ai_visible) values ('user-other-${WHO}', true, true);`),
+    );
+    const off = (await (await rest("pain.entries", RANGE, painKey)).json()) as any;
+    expect(off.result.entries).toEqual([]);
+
+    await db.execute(
+      sql.raw(`update pain_preference set ai_visible = true where user_id = '${USER}'`),
+    );
+    const on = (await (await rest("pain.entries", RANGE, painKey)).json()) as any;
+    expect(on.result.entries.map((entry: { rating: number }) => entry.rating)).toEqual([6, 4]);
+    expect(on.result.entries[0]).toMatchObject({
+      region: "joint.knee_left",
+      regionName: "Left knee",
+      rating: 6,
+      outOf: 10,
+      type: "sharp",
+      day: "2026-10-12",
+    });
+    const text = JSON.stringify(on);
+    for (const hidden of ["pain-note-secret", "other-pain-secret", "seeded mcp"])
+      expect(text).not.toContain(hidden);
+    expect(await (await rest("pain.entries", RANGE, fullKey)).text()).toContain("pain-note-secret");
+
+    // Turning the pain log off hides it even with the AI switch on.
+    await db.execute(
+      sql.raw(`update pain_preference set enabled = false where user_id = '${USER}'`),
+    );
+    expect(
+      ((await (await rest("pain.entries", RANGE, painKey)).json()) as any).result.entries,
+    ).toEqual([]);
   });
 
   test("calls are recorded without arguments or results", async () => {

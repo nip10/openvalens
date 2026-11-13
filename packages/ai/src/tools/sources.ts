@@ -30,6 +30,7 @@ import {
   type SupplementListItem,
   type SupplementSchedule,
 } from "@openvalens/plans";
+import { listAiPainEntries, type AiPainEntry } from "@openvalens/pain/service";
 import { getSleepSummary, type SleepWindowSummary } from "@openvalens/sleep";
 import {
   listAiReadableTrackers,
@@ -106,7 +107,18 @@ export type AiHealthToolSources = {
     scope: { organizationId: string; userId: string },
     range: { from: string; to: string },
   ) => Promise<AiTrackerWithDays[]>;
+  /**
+   * The member's own pain entries by local date (#442), newest first: none
+   * unless the pain log and its AI switch are both on. Never notes, never
+   * another member's entries.
+   */
+  listAiPain: (
+    scope: { organizationId: string; userId: string },
+    range: { from: string; to: string; limit: number },
+  ) => Promise<AiPainRow[]>;
 };
+
+export type AiPainRow = AiPainEntry;
 
 export type AiTrackerWithDays = AiTrackerRow & {
   /** Newest first. */
@@ -148,5 +160,6 @@ export function createDomainHealthToolSources(db: Database, userId: string): AiH
       const days = await listAiTrackerDays(db, scope, trackers, range);
       return trackers.map((tracker) => ({ ...tracker, days: days.get(tracker.id) ?? [] }));
     },
+    listAiPain: (scope, range) => listAiPainEntries(db, scope, range),
   };
 }

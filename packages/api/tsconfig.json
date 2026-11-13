@@ -13,6 +13,7 @@
     { "path": "../mcp" },
     { "path": "../billing" },
     { "path": "../trackers" },
+    { "path": "../pain" },
     { "path": "../vitals" },
     { "path": "../labs" },
     { "path": "../nutrition" },

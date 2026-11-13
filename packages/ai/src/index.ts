@@ -13,6 +13,7 @@ export * from "./tools/labs";
 export * from "./tools/marker-trend";
 export * from "./tools/nutrition-context";
 export * from "./tools/out-of-range";
+export * from "./tools/pain";
 export * from "./tools/panel-compare";
 export * from "./tools/sources";
 export * from "./tools/supplements";

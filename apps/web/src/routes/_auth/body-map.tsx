@@ -9,33 +9,48 @@ import {
   compositionLayer,
   dexaMeasurementTypes,
   formatSets,
+  painLayer,
+  painRegionLabel,
   trainingLayer,
   TRAINING_GROUP_LABELS,
   TRAINING_GROUPS,
   type BodyMapView,
   type LegendStep,
+  type PainSpot,
   type RegionFill,
 } from "@openvalens/api/presenters/body-map";
+import { PAIN_COPY } from "@openvalens/api/presenters/pain";
+import { browserTimeZone } from "@openvalens/api/presenters/tracker-draft";
+import type { PainMapWindow } from "@openvalens/pain/model";
 import { Button } from "@openvalens/ui/components/button";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Dumbbell, MousePointerClick, PersonStanding, ScanLine } from "lucide-react";
+import { CalendarRange, Dumbbell, MousePointerClick, PersonStanding, ScanLine } from "lucide-react";
 
 import { Details, ErrorState, Page, PageHeader, Section, ToneIcon } from "@/components/page";
 import { client } from "@/utils/orpc";
 import { ModuleHiddenNote } from "@/components/module-hidden-note";
+import {
+  PAIN_KEYS,
+  PainHistory,
+  PainLogForm,
+  PainNotice,
+  PainOff,
+  PainSettings,
+} from "@/components/pain/pain-panel";
 
 export const Route = createFileRoute("/_auth/body-map")({ component: BodyMapPage });
 
 /**
- * Body map (#94): measured DEXA values by region, or this week's logged sets
- * by muscle group. Two separate layers, never blended. Colours and values
- * come from the shared presenter, so mobile draws the same map.
+ * Body map (#94): measured DEXA values by region, this week's logged sets by
+ * muscle group, or the pain the member rated (#442). Separate layers, never
+ * blended. Colours and values come from the shared presenter, so mobile draws
+ * the same map. The pain-only joint spots appear on the pain layer only.
  */
 
-type Layer = "composition" | "training";
+type Layer = "composition" | "training" | "pain";
 
 /**
  * The male figure for everyone for now: the member's consented sex lives in
@@ -106,15 +121,22 @@ function Legend({ steps }: { steps: LegendStep[] }) {
 function BodyFigure({
   view,
   fills,
+  spots = [],
   selected,
   onSelect,
 }: {
   view: BodyMapView;
   fills: Record<string, RegionFill>;
+  /** Pain-only joint spots (#442), drawn above the regions. */
+  spots?: readonly PainSpot[];
   selected: string | null;
   onSelect: (id: string) => void;
 }) {
   const { t, i18n } = useLingui();
+  const shapes = [
+    ...ARTWORK.regions.filter((region) => region.view === view),
+    ...spots.filter((spot) => spot.view === view),
+  ];
   return (
     <svg
       viewBox={BODY_MAP_VIEWBOX}
@@ -126,39 +148,37 @@ function BodyFigure({
         <path d={ARTWORK.outline[view]} vectorEffect="non-scaling-stroke" />
         <path d={ARTWORK.base[view]} strokeOpacity={0.5} vectorEffect="non-scaling-stroke" />
       </g>
-      {ARTWORK.regions
-        .filter((region) => region.view === view)
-        .map((region) => {
-          const fill = fills[region.id]!;
-          const label = i18n._(region.label);
-          const value = fill.valueText ?? t`no value`;
-          const description = t`${label}: ${value}`;
-          return (
-            <path
-              key={region.id}
-              d={region.path}
-              fill={fill.colour}
-              stroke={selected === region.id ? "var(--ink)" : "var(--ink-3)"}
-              strokeWidth={selected === region.id ? 2 : 0.75}
-              strokeLinejoin="round"
-              vectorEffect="non-scaling-stroke"
-              tabIndex={0}
-              role="button"
-              aria-pressed={selected === region.id}
-              aria-label={description}
-              className="cursor-pointer outline-none focus-visible:stroke-signal focus-visible:stroke-[3]"
-              onClick={() => onSelect(region.id)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  onSelect(region.id);
-                }
-              }}
-            >
-              <title>{description}</title>
-            </path>
-          );
-        })}
+      {shapes.map((region) => {
+        const fill = fills[region.id]!;
+        const label = i18n._(region.label);
+        const value = fill.valueText ?? t`no value`;
+        const description = t`${label}: ${value}`;
+        return (
+          <path
+            key={`${region.view}:${region.id}`}
+            d={region.path}
+            fill={fill.colour}
+            stroke={selected === region.id ? "var(--ink)" : "var(--ink-3)"}
+            strokeWidth={selected === region.id ? 2 : 0.75}
+            strokeLinejoin="round"
+            vectorEffect="non-scaling-stroke"
+            tabIndex={0}
+            role="button"
+            aria-pressed={selected === region.id}
+            aria-label={description}
+            className="cursor-pointer outline-none focus-visible:stroke-signal focus-visible:stroke-[3]"
+            onClick={() => onSelect(region.id)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                onSelect(region.id);
+              }
+            }}
+          >
+            <title>{description}</title>
+          </path>
+        );
+      })}
     </svg>
   );
 }
@@ -170,8 +190,10 @@ export function BodyMapPage() {
   const [scanId, setScanId] = useState<number | null>(null);
   const [compareScanId, setCompareScanId] = useState<number | null>(null);
   const [measurementType, setMeasurementType] = useState<string | null>(null);
+  const [painDays, setPainDays] = useState<PainMapWindow>(7);
   const today = localToday();
   const { t, i18n } = useLingui();
+  const qc = useQueryClient();
   const typeLabel = (type: string) => {
     const known = DEXA_MEASUREMENT_LABELS[type];
     return known ? i18n._(known.label) : type;
@@ -200,6 +222,22 @@ export function BodyMapPage() {
     queryFn: () => client.bodyMap.training({ today }),
     enabled: layer === "training",
   });
+  const painPreference = useQuery({
+    queryKey: PAIN_KEYS.preference,
+    queryFn: () => client.pain.preference({}),
+    enabled: layer === "pain",
+  });
+  const painOn = painPreference.data?.enabled === true;
+  const painMap = useQuery({
+    queryKey: PAIN_KEYS.map(painDays),
+    queryFn: () => client.pain.map({ days: painDays, timeZone: browserTimeZone() }),
+    enabled: layer === "pain" && painOn,
+  });
+  const setPainPreference = useMutation({
+    mutationFn: (change: { enabled?: boolean; aiVisible?: boolean }) =>
+      client.pain.setPreference(change),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: PAIN_KEYS.all }),
+  });
 
   const types = composition.data ? dexaMeasurementTypes(composition.data.values) : [];
   const activeType =
@@ -216,19 +254,34 @@ export function BodyMapPage() {
         )
       : null;
   const trainingResult = training.data ? trainingLayer(training.data.exercises, i18n) : null;
+  const painResult =
+    painOn && painMap.data ? painLayer(painMap.data.regions, painDays, i18n) : null;
   const scanSource = composition.data?.scan.source ?? "";
   const scanDate = composition.data?.scan.date ?? "";
   const compareDate = composition.data?.compare?.scan.date ?? null;
   const trainingFrom = training.data?.from ?? "…";
   const trainingTo = training.data?.to ?? today;
-  const result = layer === "composition" ? compositionResult : trainingResult;
-  const selectedRegion = BODY_MAP_REGIONS.find((region) => region.id === selected) ?? null;
-  const selectedFill = selectedRegion && result ? result.fills[selectedRegion.id] : null;
+  const result =
+    layer === "composition"
+      ? compositionResult
+      : layer === "training"
+        ? trainingResult
+        : painResult;
+  const selectedLabel =
+    layer === "pain"
+      ? selected
+        ? painRegionLabel(selected)
+        : null
+      : (BODY_MAP_REGIONS.find((region) => region.id === selected)?.label ?? null);
+  const selectedFill =
+    selected && selectedLabel && result ? (result.fills[selected] ?? null) : null;
 
   const figurePending =
     layer === "composition"
       ? scans.isPending || (activeScanId !== null && composition.isPending)
-      : training.isPending;
+      : layer === "training"
+        ? training.isPending
+        : painPreference.isPending || (painOn && painMap.isPending);
 
   return (
     <Page>
@@ -248,6 +301,7 @@ export function BodyMapPage() {
               options={[
                 { value: "composition", label: t`Measured composition` },
                 { value: "training", label: t`Training this week` },
+                { value: "pain", label: t`Pain` },
               ]}
             />
             <Toggle
@@ -273,6 +327,7 @@ export function BodyMapPage() {
               <BodyFigure
                 view={view}
                 fills={result.fills}
+                spots={layer === "pain" ? ARTWORK.painSpots : []}
                 selected={selected}
                 onSelect={setSelected}
               />
@@ -387,6 +442,56 @@ export function BodyMapPage() {
                 ) : null}
               </div>
             </Section>
+          ) : layer === "pain" ? (
+            <>
+              <PainNotice />
+              {painPreference.isError ? (
+                <ErrorState
+                  title={<Trans>Could not check whether the pain log is on.</Trans>}
+                  action={
+                    <Button variant="outline" onClick={() => void painPreference.refetch()}>
+                      <Trans>Retry</Trans>
+                    </Button>
+                  }
+                />
+              ) : painPreference.data && !painOn ? (
+                <PainOff
+                  onTurnOn={() => setPainPreference.mutate({ enabled: true })}
+                  saving={setPainPreference.isPending}
+                  failed={setPainPreference.isError}
+                />
+              ) : painOn ? (
+                <Section
+                  icon={CalendarRange}
+                  tone="weight"
+                  title={
+                    painMap.data ? (
+                      <Trans>
+                        Highest rating from {painMap.data.from} to {painMap.data.to}
+                      </Trans>
+                    ) : (
+                      <Trans>Highest rating</Trans>
+                    )
+                  }
+                  info={i18n._(PAIN_COPY.layer)}
+                >
+                  <Toggle
+                    label={t`Days`}
+                    value={String(painDays) as "7" | "30"}
+                    onChange={(value) => setPainDays(Number(value) as PainMapWindow)}
+                    options={[
+                      { value: "7", label: t`Last 7 days` },
+                      { value: "30", label: t`Last 30 days` },
+                    ]}
+                  />
+                  {painMap.isError ? (
+                    <p role="alert" className="text-sm text-destructive">
+                      <Trans>Could not load your pain log.</Trans>
+                    </p>
+                  ) : null}
+                </Section>
+              ) : null}
+            </>
           ) : (
             <Section
               icon={Dumbbell}
@@ -414,13 +519,13 @@ export function BodyMapPage() {
                 className="sheet flex items-start gap-3 p-5 text-sm"
               >
                 <ToneIcon
-                  icon={selectedRegion && selectedFill ? PersonStanding : MousePointerClick}
+                  icon={selectedLabel && selectedFill ? PersonStanding : MousePointerClick}
                   tone="weight"
                 />
                 <div className="grid min-w-0 gap-0.5">
-                  {selectedRegion && selectedFill ? (
+                  {selectedLabel && selectedFill ? (
                     <>
-                      <p className="font-semibold text-ink-2">{i18n._(selectedRegion.label)}</p>
+                      <p className="font-semibold text-ink-2">{i18n._(selectedLabel)}</p>
                       <p className="num font-display text-[1.75rem] leading-tight font-medium text-ink">
                         {selectedFill.valueText ?? t`No value`}
                       </p>
@@ -441,6 +546,18 @@ export function BodyMapPage() {
                 </div>
               </div>
               <Legend steps={result.legend} />
+            </>
+          ) : null}
+
+          {layer === "pain" && painOn && painPreference.data ? (
+            <>
+              <PainLogForm key={selected ?? "none"} selected={selected} />
+              {selected ? <PainHistory region={selected} /> : null}
+              <PainSettings
+                preference={painPreference.data}
+                saving={setPainPreference.isPending}
+                onChange={(change) => setPainPreference.mutate(change)}
+              />
             </>
           ) : null}
         </div>

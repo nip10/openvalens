@@ -86,6 +86,7 @@ SUITES=(
   "PREFERENCES_TEST_DATABASE_URL|preferences_test|packages/api/src/preferences.integration.test.ts"
   "CYCLE_TEST_DATABASE_URL|cycle_test|packages/api/src/cycle.integration.test.ts"
   "TRACKERS_TEST_DATABASE_URL|trackers_test|packages/api/src/trackers.integration.test.ts"
+  "PAIN_TEST_DATABASE_URL|pain_test|packages/api/src/pain.integration.test.ts"
   "SCORE_TEST_DATABASE_URL|score_test|packages/api/src/score.integration.test.ts"
   "ACTIVITY_LOAD_TEST_DATABASE_URL|activity_load_test|packages/api/src/activity-load.integration.test.ts"
   "INSIGHTS_TEST_DATABASE_URL|insights_test|packages/api/src/insights.integration.test.ts"

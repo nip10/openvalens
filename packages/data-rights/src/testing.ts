@@ -155,6 +155,9 @@ export async function seedEveryModule(db: Database, who: string): Promise<void> 
     // Custom trackers (#441)
     `with tracker as (insert into custom_tracker (organization_id, user_id, name, icon, type, aggregation) values ('${org}', '${user}', 'Sauna', 'flame', 'duration', 'sum') returning id, organization_id, user_id)
        insert into custom_tracker_entry (tracker_id, organization_id, user_id, logged_by_user_id, value, logged_at, local_date, note) select id, organization_id, user_id, user_id, 1200, '2026-09-01T08:00:00Z', '2026-09-01', 'seeded ${who}' from tracker`,
+    // Pain log (#442)
+    `insert into pain_preference (user_id, enabled, ai_visible) values ('${user}', true, false)`,
+    `insert into pain_entry (organization_id, user_id, region, rating, type, logged_at, local_date, note) values ('${org}', '${user}', 'joint.knee_left', 4, 'ache', '2026-09-01T08:00:00Z', '2026-09-01', 'seeded ${who}')`,
     // Clinical
     `with panel as (insert into blood_panel (organization_id, date, created_at) values ('${org}', '2026-09-01', '2026-09-01') returning organization_id, id)
        insert into blood_marker (organization_id, panel_id, category, test_name, test_key) select organization_id, id, 'lipids', 'LDL', 'ldl' from panel`,

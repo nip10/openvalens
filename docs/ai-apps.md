@@ -28,8 +28,10 @@ call. The switch is separate from the Coach AI switch, and the AI-app consent
 
 Every key and every OAuth connection is a **grant** (`ai_app_grant`): one
 member's own records in one workspace they own, with `records:read` plus any of
-`nutrition:read`, `private_body:read`, `notes:read` and `trackers:read` (all off
-by default; a custom tracker with its own AI switch off stays invisible),
+`nutrition:read`, `private_body:read`, `notes:read`, `trackers:read` and
+`pain:read` (all off by default; a custom tracker with its own AI switch off
+stays invisible, and the pain log needs its own AI switch on, which is off by
+default),
 and the `mcp-v1` consent. Revoking a grant, expiry, leaving the workspace,
 losing ownership or the owner's switch stops the next call. Cycle data and
 progress photos are never reachable (lint rule, allowlisted sources in

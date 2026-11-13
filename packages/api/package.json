@@ -32,6 +32,7 @@
     "@openvalens/mcp": "workspace:*",
     "@openvalens/nutrition": "workspace:*",
     "@openvalens/observability": "workspace:*",
+    "@openvalens/pain": "workspace:*",
     "@openvalens/plans": "workspace:*",
     "@openvalens/push": "workspace:*",
     "@openvalens/sleep": "workspace:*",

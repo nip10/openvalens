@@ -181,3 +181,44 @@ export function normalizePath(source: string, transform: PathTransform): Normali
   if (open) out.push("Z");
   return { d: out.join(""), minX: X(minX), maxX: X(maxX) };
 }
+
+export type PathBounds = { minX: number; minY: number; maxX: number; maxY: number };
+
+/**
+ * The bounding box of normalized path data (absolute commands, as
+ * `normalizePath` writes them). Curve control points count too, so the box
+ * can be slightly larger than the drawn shape: good enough to place a spot.
+ */
+export function pathBounds(d: string): PathBounds | null {
+  const xs: number[] = [];
+  const ys: number[] = [];
+  for (const [, command, rest] of d.matchAll(/([A-Z])([^A-Z]*)/g)) {
+    const values = (rest ?? "").trim().split(/\s+/).filter(Boolean).map(Number);
+    if (command === "H") xs.push(...values);
+    else if (command === "V") ys.push(...values);
+    else if (command === "A") {
+      for (let i = 0; i + 6 < values.length; i += 7) {
+        xs.push(values[i + 5]!);
+        ys.push(values[i + 6]!);
+      }
+    } else {
+      for (let i = 0; i + 1 < values.length; i += 2) {
+        xs.push(values[i]!);
+        ys.push(values[i + 1]!);
+      }
+    }
+  }
+  if (!xs.length || !ys.length) return null;
+  return {
+    minX: Math.min(...xs),
+    minY: Math.min(...ys),
+    maxX: Math.max(...xs),
+    maxY: Math.max(...ys),
+  };
+}
+
+/** A circle as path data, so a spot draws and hit-tests like any region. */
+export function circlePath(cx: number, cy: number, r: number): string {
+  const f = (value: number) => round(value);
+  return `M${f(cx - r)} ${f(cy)}A${f(r)} ${f(r)} 0 1 0 ${f(cx + r)} ${f(cy)}A${f(r)} ${f(r)} 0 1 0 ${f(cx - r)} ${f(cy)}Z`;
+}

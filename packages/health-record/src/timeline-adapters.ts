@@ -73,8 +73,19 @@ export type CustomTrackerEntryTimelineRow = {
   trackerIcon: string;
   viewerOwnsTracker: boolean;
 };
+/** A pain entry (#442), already limited to the viewer's own entries. */
+export type PainEntryTimelineRow = {
+  id: string;
+  region: string;
+  rating: number;
+  type?: string | null;
+  loggedAt: string;
+  localDate: string;
+  note?: string | null;
+};
 export type DomainTimelineRows = {
   trackerEntries?: CustomTrackerEntryTimelineRow[];
+  painEntries?: PainEntryTimelineRow[];
   consultations?: ConsultationTimelineRow[];
   imagingStudies?: ImagingStudyTimelineRow[];
   cardiacExams?: CardiacExamTimelineRow[];
@@ -167,9 +178,38 @@ function customTrackerItem(row: CustomTrackerEntryTimelineRow): TimelineEvent {
   };
 }
 
+/** The apps show the region and rating in the member's language (`presenters/timeline`). */
+function painItem(row: PainEntryTimelineRow): TimelineEvent {
+  return {
+    kind: "event",
+    id: `pain_entry:${row.id}`,
+    at: toIso(row.loggedAt),
+    domain: "pain",
+    title: "Pain",
+    summary: `${row.rating} of 10`,
+    severity: "none",
+    confidence: "high",
+    reviewState: "unreviewed",
+    sourceRefs: [
+      { type: "source_record", label: `pain_entry:${row.id}`, id: row.id, provider: "manual" },
+    ],
+    provenanceRefs: [],
+    relatedRefs: [],
+    canonical: {
+      table: "pain_entry",
+      region: row.region,
+      rating: row.rating,
+      type: row.type ?? null,
+      localDate: row.localDate,
+      note: row.note ?? null,
+    },
+  };
+}
+
 export function buildDomainTimelineItems(rows: DomainTimelineRows): TimelineEvent[] {
   return [
     ...(rows.trackerEntries ?? []).map(customTrackerItem),
+    ...(rows.painEntries ?? []).map(painItem),
     ...(rows.consultations ?? []).map((row) =>
       item({
         id: `consultation:${row.id}`,

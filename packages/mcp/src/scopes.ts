@@ -5,10 +5,10 @@
  * (`ai_app_grant.scopes`) and of the public tool API: never rename one.
  *
  * - `records:read` is the base scope: what the Coach tools read.
- * - `nutrition:read`, `private_body:read`, `notes:read` and `trackers:read` are
- *   opt-in and off by default on every create screen.
- * - Reserved scopes are known names that cannot be granted yet (M2 writes and
- *   the planned pain logs). Creating a grant with one fails.
+ * - `nutrition:read`, `private_body:read`, `notes:read`, `trackers:read` and
+ *   `pain:read` are opt-in and off by default on every create screen.
+ * - Reserved scopes are known names that cannot be granted yet (M2 writes).
+ *   Creating a grant with one fails.
  *
  * Cycle data and progress photos have no scope at all: no grant can ever
  * reach them (see `./exclusions`).
@@ -23,6 +23,9 @@ export const OPT_IN_SCOPES = [
   // Custom trackers (#441). Each tracker's own AI switch overrides it: a
   // tracker with the switch off is invisible even with this scope.
   "trackers:read",
+  // Pain log (#442). The member's own pain AI switch (off by default) and the
+  // pain log's opt-in override it: either off means no pain data.
+  "pain:read",
 ] as const;
 
 /** Every scope a grant may hold today. */
@@ -32,10 +35,9 @@ export type GrantableScope = (typeof GRANTABLE_SCOPES)[number];
 
 /**
  * Names held back for later milestones so nothing else takes them: one write
- * scope per domain (M2, tracker writes among them) and the pain logs.
+ * scope per domain (M2, tracker and pain writes among them).
  */
 export const RESERVED_SCOPES = [
-  "pain:read",
   "water:write",
   "body:write",
   "vitals:write",

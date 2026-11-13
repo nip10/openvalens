@@ -45,6 +45,7 @@
         "@openvalens/health-record": "workspace:*",
         "@openvalens/i18n": "workspace:*",
         "@openvalens/observability": "workspace:*",
+        "@openvalens/pain": "workspace:*",
         "@openvalens/plans": "workspace:*",
         "@openvalens/trackers": "workspace:*",
         "@openvalens/ui": "workspace:*",
@@ -181,6 +182,7 @@
         "@openvalens/api": "workspace:*",
         "@openvalens/i18n": "workspace:*",
         "@openvalens/observability": "workspace:*",
+        "@openvalens/pain": "workspace:*",
         "@openvalens/plans": "workspace:*",
         "@openvalens/trackers": "workspace:*",
         "@openvalens/ui": "workspace:*",
@@ -249,6 +251,7 @@
         "@openvalens/labs": "workspace:*",
         "@openvalens/nutrition": "workspace:*",
         "@openvalens/observability": "workspace:*",
+        "@openvalens/pain": "workspace:*",
         "@openvalens/plans": "workspace:*",
         "@openvalens/sleep": "workspace:*",
         "@openvalens/trackers": "workspace:*",
@@ -286,6 +289,7 @@
         "@openvalens/mcp": "workspace:*",
         "@openvalens/nutrition": "workspace:*",
         "@openvalens/observability": "workspace:*",
+        "@openvalens/pain": "workspace:*",
         "@openvalens/plans": "workspace:*",
         "@openvalens/push": "workspace:*",
         "@openvalens/sleep": "workspace:*",
@@ -596,6 +600,7 @@
         "@openvalens/auth": "workspace:*",
         "@openvalens/db": "workspace:*",
         "@openvalens/observability": "workspace:*",
+        "@openvalens/pain": "workspace:*",
         "@openvalens/trackers": "workspace:*",
         "drizzle-orm": "catalog:",
         "zod": "catalog:",
@@ -626,6 +631,18 @@
         "@sentry/react": "11.7.0",
         "@sentry/react-native": "8.30.0",
         "varlock": "catalog:",
+        "zod": "catalog:",
+      },
+      "devDependencies": {
+        "@openvalens/config": "workspace:*",
+        "typescript": "^6.0.3",
+      },
+    },
+    "packages/pain": {
+      "name": "@openvalens/pain",
+      "dependencies": {
+        "@openvalens/db": "workspace:*",
+        "drizzle-orm": "catalog:",
         "zod": "catalog:",
       },
       "devDependencies": {
@@ -1302,6 +1319,8 @@
     "@openvalens/nutrition": ["@openvalens/nutrition@workspace:packages/nutrition"],
 
     "@openvalens/observability": ["@openvalens/observability@workspace:packages/observability"],
+
+    "@openvalens/pain": ["@openvalens/pain@workspace:packages/pain"],
 
     "@openvalens/plans": ["@openvalens/plans@workspace:packages/plans"],
 
