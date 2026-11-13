@@ -685,6 +685,10 @@ function friendlyError(code: string) {
     return "The saved device identity does not match this device. Select a compatible binding or create a new one.";
   if (code === "GARMIN_HISTORY_UNSUPPORTED")
     return "Garmin connection checks are available, but step history sync is not implemented.";
+  if (code === "GARMIN_ML_REQUIRED")
+    return "This Garmin watch uses an older Bluetooth protocol that sync does not support.";
+  if (code === "GARMIN_MLR_UNSUPPORTED")
+    return "This Garmin watch asked for its newer reliable link, which sync does not support yet.";
   if (code === "BANGLE_JS_HISTORY_UNSUPPORTED")
     return "This Bangle.js watch connected, but its history syncs on connection rather than through a step sync action.";
   if (code === "HUAMI_AUTH_FAILED")

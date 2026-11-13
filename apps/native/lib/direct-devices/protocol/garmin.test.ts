@@ -9,6 +9,12 @@
 import { expect, test } from "bun:test";
 
 import {
+  GARMIN_OUR_CAPABILITIES,
+  buildGarminAuthNegotiationStatus,
+  buildGarminConfiguration,
+  buildGarminDeviceInformationReply,
+  buildGarminStatusPayload,
+  parseGarminDeviceInformation,
   GARMIN_FILE_FLAG,
   GARMIN_FIT_MESSAGE,
   GARMIN_ML_REQUEST,
@@ -624,4 +630,59 @@ test("a corrupted FIT file is rejected by its CRC", () => {
   const badMagic = fitFile([]);
   badMagic[8] = 0;
   expect(() => garminFitRecords(badMagic)).toThrow("GARMIN_FIT_MAGIC");
+});
+
+test("handshake replies match upstream's layouts", () => {
+  expect(Array.from(buildGarminStatusPayload(5024, 0))).toEqual([0xa0, 0x13, 0]);
+  expect(
+    parseGarminDeviceInformation(Uint8Array.of(150, 0, 0xdb, 0x0c, 1, 2, 3, 4, 0xd0, 7, 0x77, 1)),
+  ).toEqual({
+    protocolVersion: 150,
+    productNumber: 3291,
+    softwareVersion: 2000,
+    maxPacketSize: 375,
+  });
+  // RESPONSE for 5024, ACK, protocol 150, product/unit/max packet -1, software 7791,
+  // "OpenValens", "OpenValens", "phone", then flag 1 for a 1xx watch protocol.
+  const name = [10, ...Array.from("OpenValens", (c) => c.charCodeAt(0))];
+  expect(Array.from(buildGarminDeviceInformationReply(150))).toEqual([
+    0xa0,
+    0x13,
+    0,
+    0x96,
+    0,
+    0xff,
+    0xff,
+    0xff,
+    0xff,
+    0xff,
+    0xff,
+    0x6f,
+    0x1e,
+    0xff,
+    0xff,
+    ...name,
+    ...name,
+    5,
+    ...Array.from("phone", (c) => c.charCodeAt(0)),
+    1,
+  ]);
+  expect(buildGarminDeviceInformationReply(250).at(-1)).toBe(0);
+  expect(Array.from(buildGarminAuthNegotiationStatus(Uint8Array.of(7, 0x81, 0x02, 0, 0)))).toEqual([
+    0xed, 0x13, 0, 0, 7, 0x81, 0, 0, 0,
+  ]);
+});
+
+test("our capabilities are upstream's: all 129 but the 17 it removes", () => {
+  // Upstream ordinals of LIVETRACK, LIVETRACK_AUTO_START, GPS_EPHEMERIS_DOWNLOAD and
+  // CAPABILITY_104–111, 114–119 in GarminCapability.java at the pinned commit.
+  const removed = new Set([
+    22, 23, 28, 104, 105, 106, 107, 108, 109, 110, 111, 114, 115, 116, 117, 118, 119,
+  ]);
+  expect(GARMIN_OUR_CAPABILITIES.length).toBe(17);
+  for (let bit = 0; bit < 17 * 8; bit += 1) {
+    const set = (GARMIN_OUR_CAPABILITIES[bit >> 3]! >> (bit & 7)) & 1;
+    expect([bit, set]).toEqual([bit, bit < 129 && !removed.has(bit) ? 1 : 0]);
+  }
+  expect(Array.from(buildGarminConfiguration().subarray(0, 1))).toEqual([17]);
 });

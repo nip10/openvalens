@@ -186,6 +186,34 @@ function statusPayload(
   return out;
 }
 
+/** protocol 150, product 3291, unit 1234, software 2000, max packet 375, three names, no MAC. */
+const DEVICE_INFORMATION = Uint8Array.of(
+  150,
+  0,
+  0xdb,
+  0x0c,
+  0xd2,
+  0x04,
+  0,
+  0,
+  0xd0,
+  0x07,
+  0x77,
+  0x01,
+  1,
+  0x46,
+  1,
+  0x46,
+  1,
+  0x46,
+);
+
+function typeOf(frame: GarminGfdiFrame): string {
+  if (frame.messageType !== GARMIN_MESSAGE.RESPONSE) return String(frame.messageType);
+  const original = frame.payload[0]! | (frame.payload[1]! << 8);
+  return `status:${original}:${frame.payload[2]}${frame.payload.length > 3 && original === GARMIN_MESSAGE.DEVICE_INFORMATION ? ":reply" : ""}`;
+}
+
 class FakeGarminServer implements GarminSessionLink {
   protocol: "v0" | "v1" | "v2" = "v2";
   readonly maxWriteBytes = 244;
@@ -195,6 +223,8 @@ class FakeGarminServer implements GarminSessionLink {
   readonly downloads: number[] = [];
   reliable = 0;
   chunkSize = 32;
+  /** Send DEVICE_INFORMATION after registration, and CONFIGURATION once it is answered. */
+  handshake = true;
   handle = 0;
   private listener: ((bytes: Uint8Array) => void) | null = null;
   private runningCrc = 0;
@@ -218,7 +248,7 @@ class FakeGarminServer implements GarminSessionLink {
     this.listener = null;
   }
 
-  private emit(frame: GarminGfdiFrame): void {
+  emit(frame: GarminGfdiFrame): void {
     const encoded = encodeGarminCobs(encodeGarminGfdiFrame(frame));
     const out = new Uint8Array(encoded.length + 1);
     out[0] = this.handle;
@@ -250,11 +280,27 @@ class FakeGarminServer implements GarminSessionLink {
       withReliable.set(response);
       withReliable[14] = this.reliable;
       this.listener?.(withReliable);
+      if (this.reliable === 0 && this.handshake) {
+        this.handle = 5;
+        this.emit({ messageType: GARMIN_MESSAGE.DEVICE_INFORMATION, payload: DEVICE_INFORMATION });
+      }
     }
   }
 
   async write(frame: GarminGfdiFrame): Promise<void> {
     this.gfdi.push(frame);
+    if (
+      this.handshake &&
+      frame.messageType === GARMIN_MESSAGE.RESPONSE &&
+      (frame.payload[0]! | (frame.payload[1]! << 8)) === GARMIN_MESSAGE.DEVICE_INFORMATION &&
+      frame.payload.length > 3
+    ) {
+      this.emit({
+        messageType: GARMIN_MESSAGE.CONFIGURATION,
+        payload: Uint8Array.of(2, 0x01, 0x80),
+      });
+      return;
+    }
     if (frame.messageType === GARMIN_MESSAGE.DOWNLOAD_REQUEST) {
       const fileIndex = frame.payload[0]! | (frame.payload[1]! << 8);
       this.downloads.push(fileIndex);
@@ -312,6 +358,8 @@ function fixture(
     watchdogMs?: number;
     syncState?: ReturnType<typeof createMemoryGarminSyncStateStore>;
     chunkSize?: number;
+    handshake?: boolean;
+    configurationWaitMs?: number;
   } = {},
 ) {
   const files =
@@ -332,6 +380,7 @@ function fixture(
   server.reliable = options.reliable ?? 0;
   server.protocol = options.protocol ?? "v2";
   server.chunkSize = options.chunkSize ?? 32;
+  server.handshake = options.handshake ?? true;
   const records: GarminRecord[] = [];
   const failures: string[] = [];
   const session = createGarminSession({
@@ -348,6 +397,7 @@ function fixture(
     onRecord: (record) => records.push(record),
     onFailure: (failure) => failures.push(failure),
     initDelayMs: 0,
+    configurationWaitMs: options.configurationWaitMs ?? 2_000,
     watchdogMs: options.watchdogMs ?? 500,
     keepOnDevice: options.keepOnDevice,
     syncState: options.syncState,
@@ -443,6 +493,8 @@ test("a missing download status trips the watchdog", async () => {
     modelId: "garmin_fenix_7",
     onRecord: () => undefined,
     initDelayMs: 0,
+    // This server never sends CONFIGURATION.
+    configurationWaitMs: 20,
     watchdogMs: 50,
     link: server,
   });
@@ -455,4 +507,102 @@ test("close() settles a pending session", async () => {
   f.session.start();
   await f.session.close();
   await expect(f.session.whenDone()).resolves.toBeUndefined();
+});
+
+test("the handshake answers DEVICE_INFORMATION and CONFIGURATION before asking for files", async () => {
+  const f = fixture();
+  f.session.start();
+  await f.session.whenDone();
+  const order = f.server.gfdi.map(typeOf);
+  expect(order.slice(0, 6)).toEqual([
+    "status:5024:0",
+    "status:5024:0:reply",
+    "status:5050:0",
+    "5050",
+    String(GARMIN_MESSAGE.SUPPORTED_FILE_TYPES_REQUEST),
+    String(GARMIN_MESSAGE.SYSTEM_EVENT),
+  ]);
+  const configuration = f.server.gfdi.find((frame) => frame.messageType === 5050)!;
+  expect(configuration.payload.length).toBe(18);
+  expect(configuration.payload[0]).toBe(17);
+});
+
+test("a watch that never sends CONFIGURATION still syncs after the wait", async () => {
+  const f = fixture({
+    handshake: false,
+    configurationWaitMs: 20,
+    syncState: createMemoryGarminSyncStateStore(),
+  });
+  f.session.start();
+  await f.session.whenDone();
+  expect(f.records.length).toBeGreaterThan(0);
+  expect(f.server.gfdi.map(typeOf)[0]).toBe(String(GARMIN_MESSAGE.SUPPORTED_FILE_TYPES_REQUEST));
+});
+
+test("auth, time and other watch messages get upstream's replies; unknown ones none", async () => {
+  const f = fixture({ handshake: false, configurationWaitMs: 50 });
+  f.session.start();
+  // Wait for registration, then play the watch's side.
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  f.server.handle = 5;
+  f.server.emit({
+    messageType: GARMIN_MESSAGE.AUTH_NEGOTIATION,
+    payload: Uint8Array.of(7, 0x81, 0x02, 0, 0),
+  });
+  f.server.emit({
+    messageType: GARMIN_MESSAGE.CURRENT_TIME_REQUEST,
+    payload: Uint8Array.of(1, 0, 0, 0),
+  });
+  f.server.emit({ messageType: GARMIN_MESSAGE.BATTERY_STATUS, payload: Uint8Array.of(0, 0, 80) });
+  f.server.emit({ messageType: 5099, payload: new Uint8Array(0) });
+  await f.session.whenDone();
+  const replies = f.server.gfdi.filter((frame) => frame.messageType === GARMIN_MESSAGE.RESPONSE);
+  expect(Array.from(replies[0]!.payload)).toEqual([0xed, 0x13, 0, 0, 7, 0x81, 0, 0, 0]);
+  expect(typeOf(replies[1]!)).toBe("status:5052:2");
+  expect(typeOf(replies[2]!)).toBe("status:5023:0");
+  expect(replies.some((frame) => typeOf(frame).startsWith("status:5099"))).toBe(false);
+});
+
+test("close() during the configuration wait settles at once", async () => {
+  const f = fixture({ handshake: false, configurationWaitMs: 60_000 });
+  f.session.start();
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  await f.session.close();
+  await expect(f.session.whenDone()).resolves.toBeUndefined();
+  expect(f.server.downloads).toEqual([]);
+});
+
+test("a compact (sequence-numbered) message gets the status for its full id", async () => {
+  const f = fixture({ handshake: false, configurationWaitMs: 50 });
+  f.session.start();
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  f.server.emit({
+    messageType: GARMIN_MESSAGE.WEATHER_REQUEST,
+    sequenceNumber: 3,
+    payload: new Uint8Array(0),
+  });
+  await f.session.whenDone();
+  const statuses = f.server.gfdi.filter((frame) => frame.messageType === GARMIN_MESSAGE.RESPONSE);
+  expect(typeOf(statuses[0]!)).toBe("status:5014:0");
+});
+
+test("failed reply writes neither reject nor hang the session", async () => {
+  const f = fixture({ configurationWaitMs: 20, syncState: createMemoryGarminSyncStateStore() });
+  const write = f.server.write.bind(f.server);
+  let rejected = 0;
+  f.server.write = async (frame: GarminGfdiFrame) => {
+    const original = frame.payload[0]! | (frame.payload[1]! << 8);
+    if (
+      frame.messageType === GARMIN_MESSAGE.RESPONSE &&
+      original === GARMIN_MESSAGE.DEVICE_INFORMATION
+    ) {
+      rejected += 1;
+      throw new Error("BLE_WRITE_FAILED");
+    }
+    return write(frame);
+  };
+  f.session.start();
+  await f.session.whenDone();
+  expect(rejected).toBe(1); // the chain stops after the failed ACK
+  expect(f.records.length).toBeGreaterThan(0);
 });

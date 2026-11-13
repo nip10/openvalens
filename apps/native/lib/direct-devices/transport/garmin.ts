@@ -41,10 +41,14 @@ import {
   GARMIN_REQUEST_TYPE,
   GARMIN_STATUS,
   GARMIN_SYSTEM_EVENT,
+  buildGarminAuthNegotiationStatus,
+  buildGarminConfiguration,
+  buildGarminDeviceInformationReply,
   buildGarminDownloadRequest,
   buildGarminMlCloseAll,
   buildGarminMlRegisterService,
   buildGarminSetFileFlags,
+  buildGarminStatusPayload,
   buildGarminSupportedFileTypesRequest,
   buildGarminSystemEvent,
   buildGarminTransferDataStatus,
@@ -54,6 +58,7 @@ import {
   isGarminDirectorySentinel,
   isGarminDirectoryType,
   isGarminHealthFile,
+  parseGarminDeviceInformation,
   parseGarminDirectory,
   parseGarminFileTransferData,
   parseGarminMlMessage,
@@ -69,6 +74,12 @@ import { NativeGarminLink, type GarminBleProfile } from "./garmin-link";
 export const GARMIN_WATCHDOG_MS = 30_000;
 /** Delay before the first write, so the GATT link is ready after connect. */
 export const GARMIN_INIT_DELAY_MS = 1_000;
+/**
+ * How long to wait after registration for the watch's `CONFIGURATION`, which
+ * upstream waits for before requesting file types and SYNC_READY. A watch that
+ * never sends it gets today's sequence after this delay.
+ */
+export const GARMIN_CONFIGURATION_WAIT_MS = 5_000;
 /** Safety bound on files per sync, so a broken directory cannot loop. */
 export const GARMIN_MAX_FILES_PER_SYNC = 256;
 
@@ -142,6 +153,7 @@ export type GarminSessionOptions = Readonly<{
   timers?: GarminTimers;
   watchdogMs?: number;
   initDelayMs?: number;
+  configurationWaitMs?: number;
   /** Leave downloaded files on the watch instead of archiving them. */
   keepOnDevice?: boolean;
   syncState?: GarminSyncStateStore;
@@ -188,6 +200,9 @@ export class GarminSession {
   private readonly timers: GarminTimers;
   private readonly watchdogMs: number;
   private readonly initDelayMs: number;
+  private readonly configurationWaitMs: number;
+  /** Resolved by the watch's `CONFIGURATION` (or by close). */
+  private readonly configured = deferred<void>();
   private readonly keepOnDevice: boolean;
   private readonly syncState: GarminSyncStateStore;
   private readonly maxFiles: number;
@@ -214,6 +229,7 @@ export class GarminSession {
     this.timers = options.timers ?? defaultTimers;
     this.watchdogMs = options.watchdogMs ?? GARMIN_WATCHDOG_MS;
     this.initDelayMs = options.initDelayMs ?? GARMIN_INIT_DELAY_MS;
+    this.configurationWaitMs = options.configurationWaitMs ?? GARMIN_CONFIGURATION_WAIT_MS;
     this.keepOnDevice = options.keepOnDevice ?? false;
     this.syncState = options.syncState ?? defaultGarminSyncStateStore;
     this.maxFiles = options.maxFiles ?? GARMIN_MAX_FILES_PER_SYNC;
@@ -284,6 +300,10 @@ export class GarminSession {
   private async initialize(): Promise<void> {
     if (this.link.protocol !== "v2") throw new Error("GARMIN_ML_REQUIRED");
     await this.registerMlHandle();
+    // `GarminSupport.completeInitialization` runs on the capabilities event,
+    // i.e. after DEVICE_INFORMATION and CONFIGURATION have been answered.
+    await this.waitForConfiguration();
+    if (this.closed) return;
     await this.writeFrame({
       messageType: GARMIN_MESSAGE.SUPPORTED_FILE_TYPES_REQUEST,
       payload: buildGarminSupportedFileTypesRequest(),
@@ -468,7 +488,9 @@ export class GarminSession {
     }
     if (frame.messageType === GARMIN_MESSAGE.FILE_TRANSFER_DATA) {
       this.handleTransferChunk(frame.payload);
+      return;
     }
+    this.answerWatch(frame);
   }
 
   private handleTransferChunk(payload: Uint8Array): void {
@@ -519,6 +541,101 @@ export class GarminSession {
     });
   }
 
+  private waitForConfiguration(): Promise<void> {
+    return new Promise<void>((resolve) => {
+      const timer = this.timers.setTimeout(resolve, this.configurationWaitMs);
+      void this.configured.promise.then(() => {
+        this.timers.clearTimeout(timer);
+        resolve();
+      });
+    });
+  }
+
+  /**
+   * Writes in order, as upstream sends status, reply, followup. Never rejects:
+   * a lost reply surfaces as the watch's own timeout, not as a session error.
+   */
+  private reply(frames: readonly GarminGfdiFrame[]): Promise<void> {
+    let chain = Promise.resolve();
+    for (const frame of frames) chain = chain.then(() => this.writeFrame(frame));
+    return chain.catch(() => undefined);
+  }
+
+  private status(originalMessageType: number, status: number): GarminGfdiFrame {
+    return {
+      messageType: GARMIN_MESSAGE.RESPONSE,
+      payload: buildGarminStatusPayload(originalMessageType, status),
+    };
+  }
+
+  /**
+   * `GarminSupport.onMessage` for the incoming messages this family answers;
+   * anything else gets no reply, as upstream sends none for unparsed types.
+   */
+  private answerWatch(frame: GarminGfdiFrame): void {
+    const type = frame.messageType;
+    switch (type) {
+      case GARMIN_MESSAGE.DEVICE_INFORMATION: {
+        let info: ReturnType<typeof parseGarminDeviceInformation>;
+        try {
+          info = parseGarminDeviceInformation(frame.payload);
+        } catch {
+          return;
+        }
+        void this.reply([
+          this.status(type, GARMIN_STATUS.ACK),
+          {
+            messageType: GARMIN_MESSAGE.RESPONSE,
+            payload: buildGarminDeviceInformationReply(info.protocolVersion),
+          },
+        ]);
+        return;
+      }
+      case GARMIN_MESSAGE.CONFIGURATION:
+        // Upstream initializes only after both are sent (`onMessage`, then the
+        // capabilities event).
+        void this.reply([
+          this.status(type, GARMIN_STATUS.ACK),
+          { messageType: GARMIN_MESSAGE.CONFIGURATION, payload: buildGarminConfiguration() },
+        ]).then(() => this.configured.resolve());
+        return;
+      case GARMIN_MESSAGE.AUTH_NEGOTIATION: {
+        let payload: Uint8Array;
+        try {
+          payload = buildGarminAuthNegotiationStatus(frame.payload);
+        } catch {
+          return;
+        }
+        void this.reply([{ messageType: GARMIN_MESSAGE.RESPONSE, payload }]);
+        return;
+      }
+      case GARMIN_MESSAGE.CURRENT_TIME_REQUEST:
+        // Upstream's reply when time sync is off: this family never sets the clock.
+        void this.reply([this.status(type, GARMIN_STATUS.UNSUPPORTED)]);
+        return;
+      // Parsed upstream with the default ACK status; we take no action. We
+      // advertise upstream's capabilities, so a watch may send the feature
+      // requests too, and gets the same ACK upstream sends.
+      case GARMIN_MESSAGE.BATTERY_STATUS:
+      case GARMIN_MESSAGE.SYNCHRONIZATION:
+      case GARMIN_MESSAGE.FILE_AVAILABLE:
+      case GARMIN_MESSAGE.CREATE_FILE:
+      case GARMIN_MESSAGE.WEATHER_REQUEST:
+      case GARMIN_MESSAGE.FIND_MY_PHONE_REQUEST:
+      case GARMIN_MESSAGE.FIND_MY_PHONE_CANCEL:
+      case GARMIN_MESSAGE.MUSIC_CONTROL:
+        void this.reply([this.status(type, GARMIN_STATUS.ACK)]);
+        return;
+      // FIT_DEFINITION/FIT_DATA, NOTIFICATION_CONTROL/SUBSCRIPTION, PROTOBUF_*
+      // and MUSIC_CONTROL_CAPABILITIES have their own status formats upstream
+      // and imply follow-up work we do not do; they stay unanswered rather
+      // than get a status that claims otherwise. Unparsed types: nothing, as
+      // upstream (`UnhandledMessage`).
+      default:
+        return;
+    }
+  }
+
   private waitForMl(requestType: number): Promise<ReturnType<typeof parseGarminMlMessage>> {
     const wait = deferred<ReturnType<typeof parseGarminMlMessage>>();
     this.mlWaiter = { requestType, done: wait };
@@ -546,6 +663,7 @@ export class GarminSession {
   }
 
   private failPending(error: Error): void {
+    this.configured.resolve();
     const status = this.statusWaiter;
     if (status) {
       this.statusWaiter = null;

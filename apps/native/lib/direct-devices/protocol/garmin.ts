@@ -66,11 +66,16 @@ export const GARMIN_MESSAGE = {
   FILE_AVAILABLE: 5009,
   FIT_DEFINITION: 5011,
   FIT_DATA: 5012,
+  WEATHER_REQUEST: 5014,
   BATTERY_STATUS: 5023,
   DEVICE_INFORMATION: 5024,
   SYSTEM_EVENT: 5030,
   SUPPORTED_FILE_TYPES_REQUEST: 5031,
   SYNCHRONIZATION: 5037,
+  FIND_MY_PHONE_REQUEST: 5039,
+  FIND_MY_PHONE_CANCEL: 5040,
+  MUSIC_CONTROL: 5041,
+  CONFIGURATION: 5050,
   CURRENT_TIME_REQUEST: 5052,
   AUTH_NEGOTIATION: 5101,
 } as const;
@@ -700,6 +705,120 @@ export function buildGarminTransferDataStatus(dataOffset: number): Uint8Array {
   out[2] = GARMIN_STATUS.ACK;
   out[3] = GARMIN_TRANSFER_STATUS.OK;
   writeUint32le(out, 4, dataOffset);
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// Handshake replies (`GarminSupport.onMessage`: every handled incoming message
+// gets its status, then its reply). Upstream sends nothing for message types
+// it does not parse (`UnhandledMessage`: `GenericStatusMessage` with
+// `sendOutgoing = false`).
+// ---------------------------------------------------------------------------
+
+/** A `RESPONSE` (5000) payload: original type and a `GARMIN_STATUS` code (`GenericStatusMessage`). */
+export function buildGarminStatusPayload(originalMessageType: number, status: number): Uint8Array {
+  const out = new Uint8Array(3);
+  writeUint16le(out, 0, originalMessageType);
+  out[2] = status & 0xff;
+  return out;
+}
+
+/** The fields of an incoming `DEVICE_INFORMATION` (5024) this family uses. */
+export type GarminDeviceInformation = Readonly<{
+  protocolVersion: number;
+  productNumber: number;
+  softwareVersion: number;
+  maxPacketSize: number;
+}>;
+
+/** Parses the fixed head of `DEVICE_INFORMATION` (`DeviceInformationMessage.parseIncoming`). */
+export function parseGarminDeviceInformation(payload: Uint8Array): GarminDeviceInformation {
+  if (payload.length < 12) throw new Error("GARMIN_DEVICE_INFORMATION_TRUNCATED");
+  return {
+    protocolVersion: uint16le(payload, 0),
+    productNumber: uint16le(payload, 2),
+    softwareVersion: uint16le(payload, 8),
+    maxPacketSize: uint16le(payload, 10),
+  };
+}
+
+/** Upstream's own values (`DeviceInformationMessage`: protocol 150, software 7791, the rest -1). */
+const OUR_PROTOCOL_VERSION = 150;
+const OUR_SOFTWARE_VERSION = 7791;
+/** ASCII-only names, written as GFDI strings (length byte, then the bytes). */
+const OUR_BLUETOOTH_NAME = "OpenValens";
+const OUR_MANUFACTURER = "OpenValens";
+const OUR_DEVICE = "phone";
+
+/**
+ * The `RESPONSE` payload that answers `DEVICE_INFORMATION`
+ * (`DeviceInformationMessage.generateOutgoing`): sent after the plain ACK.
+ */
+export function buildGarminDeviceInformationReply(incomingProtocolVersion: number): Uint8Array {
+  const names = [OUR_BLUETOOTH_NAME, OUR_MANUFACTURER, OUR_DEVICE];
+  const out = new Uint8Array(15 + names.reduce((sum, name) => sum + 1 + name.length, 0) + 1);
+  writeUint16le(out, 0, GARMIN_MESSAGE.DEVICE_INFORMATION);
+  out[2] = GARMIN_STATUS.ACK;
+  writeUint16le(out, 3, OUR_PROTOCOL_VERSION);
+  writeUint16le(out, 5, 0xffff); // product number -1
+  writeUint32le(out, 7, 0xffffffff); // unit number -1
+  writeUint16le(out, 11, OUR_SOFTWARE_VERSION);
+  writeUint16le(out, 13, 0xffff); // max packet size -1
+  let at = 15;
+  for (const name of names) {
+    out[at++] = name.length;
+    for (let index = 0; index < name.length; index += 1) out[at++] = name.charCodeAt(index);
+  }
+  out[at] = Math.floor(incomingProtocolVersion / 100) === 1 ? 1 : 0;
+  return out;
+}
+
+/**
+ * `GarminCapability.setToBinary(OUR_CAPABILITIES)`: all 129 capabilities but
+ * GPS_EPHEMERIS_DOWNLOAD, LIVETRACK, LIVETRACK_AUTO_START and 104–111,
+ * 114–119. Computed from the enum order at the pinned commit.
+ */
+export const GARMIN_OUR_CAPABILITIES = Uint8Array.of(
+  0xff,
+  0xff,
+  0x3f,
+  0xef,
+  0xff,
+  0xff,
+  0xff,
+  0xff,
+  0xff,
+  0xff,
+  0xff,
+  0xff,
+  0xff,
+  0x00,
+  0x03,
+  0xff,
+  0x01,
+);
+
+/** Our `CONFIGURATION` (5050) payload (`ConfigurationMessage.generateOutgoing`). */
+export function buildGarminConfiguration(): Uint8Array {
+  const out = new Uint8Array(1 + GARMIN_OUR_CAPABILITIES.length);
+  out[0] = GARMIN_OUR_CAPABILITIES.length;
+  out.set(GARMIN_OUR_CAPABILITIES, 1);
+  return out;
+}
+
+/**
+ * The status for an incoming `AUTH_NEGOTIATION` (`AuthNegotiationStatusMessage`):
+ * ACK, `GUESS_OK`, and the watch's unknown byte and low flag byte echoed back.
+ */
+export function buildGarminAuthNegotiationStatus(payload: Uint8Array): Uint8Array {
+  if (payload.length < 5) throw new Error("GARMIN_AUTH_TRUNCATED");
+  const out = new Uint8Array(9);
+  writeUint16le(out, 0, GARMIN_AUTH_NEGOTIATION_MESSAGE_TYPE);
+  out[2] = GARMIN_STATUS.ACK;
+  out[3] = GARMIN_AUTH_NEGOTIATION_GUESS_OK;
+  out[4] = payload[0]!;
+  // Upstream round-trips the flags through an 8-value enum: only the low byte survives.
+  out[5] = payload[1]!;
   return out;
 }
 
