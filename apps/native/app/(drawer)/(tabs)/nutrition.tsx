@@ -128,6 +128,7 @@ import { NutritionDayTotals } from "@/components/nutrition-day-totals";
 import { NutritionDatePicker } from "@/components/nutrition-date-picker";
 import { NutritionMealActions } from "@/components/nutrition-meal-actions";
 import { NutritionTemplatePanel } from "@/components/nutrition-template-panel";
+import { NutritionDrinksSection } from "@/components/nutrition-drinks-section";
 import { PlainWaterSection } from "@/components/plain-water-section";
 import { barcodeCacheKey, resolveBarcode } from "@/lib/nutrition/barcode";
 import {
@@ -891,6 +892,15 @@ export default function NutritionScreen() {
           />
 
           <LoggingStreakCard streak={streak.isSuccess ? streak.data : undefined} />
+
+          <NutritionDrinksSection
+            key={`drinks:${outbox.scope ?? "signed-out"}:${localDate}`}
+            localDate={localDate}
+            timeZone={timeZone}
+            hideNumbers={hideNumbers}
+            pending={pendingRows}
+            outbox={outbox}
+          />
 
           <PlainWaterSection
             key={`${outbox.scope ?? "signed-out"}:${localDate}:${timeZone}`}

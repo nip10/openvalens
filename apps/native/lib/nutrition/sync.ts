@@ -80,9 +80,11 @@ async function drainNow(): Promise<void> {
     });
     if (result.stopped === "network") online = false;
     if (result.sent > 0)
-      await queryClient.invalidateQueries({
-        queryKey: orpc.nutritionDiary.key(),
-      });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: orpc.nutritionDiary.key() }),
+        // #443: the caffeine and alcohol totals are read from the synced diary.
+        queryClient.invalidateQueries({ queryKey: orpc.nutritionDrinks.key() }),
+      ]);
   } finally {
     draining = false;
     emit();
@@ -301,6 +303,7 @@ export function useDiaryOutbox(): DiaryOutbox {
         clearDiaryOutbox(s);
         clearCachePrefix(s, DIARY_CACHE_PREFIX);
         queryClient.removeQueries({ queryKey: orpc.nutritionDiary.key() });
+        queryClient.removeQueries({ queryKey: orpc.nutritionDrinks.key() });
       });
     },
   };
