@@ -3,7 +3,7 @@ import { nutritionFood } from "@openvalens/db/schema/nutrition";
 import { and, asc, eq, isNull } from "drizzle-orm";
 
 import { NutritionError } from "./errors";
-import { NUTRIENT_KEYS } from "./nutrients";
+import { DRINK_NUTRIENT_KEYS, NUTRIENT_KEYS } from "./nutrients";
 import {
   customFoodValues,
   type CustomFood,
@@ -173,6 +173,11 @@ export function createCustomFoods(db: Database) {
       return db.transaction(async (tx) => {
         const [current] = await tx.select().from(nutritionFood).where(where).for("update");
         if (!current) throw new NutritionError("NOT_FOUND", "Custom food not found");
+        // #443: an app from before caffeine and alcohol existed omits them on
+        // edit; keep the stored values instead of clearing them. Current apps
+        // always send both keys (`null` clears).
+        for (const key of DRINK_NUTRIENT_KEYS)
+          if (input.food.nutrients?.[key] === undefined) values[key] = current[key];
         if (current.archivedAt !== null) return { outcome: "conflict", server: current };
         if (sameContent(current, values)) return { outcome: "unchanged", food: current };
         const expected = input.expectedRevision;

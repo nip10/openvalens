@@ -9,7 +9,8 @@ import {
   type MicronutrientValues,
 } from "./micronutrients";
 import {
-  NUTRIENT_KEYS,
+  CORE_NUTRIENT_KEYS,
+  DRINK_NUTRIENT_KEYS,
   normalizeBasis,
   normalizeNutrients,
   nutrientsOf,
@@ -161,18 +162,21 @@ const CONTENT_KEYS = [
   "servingSizeAmount",
   "servingSizeUnit",
   "servingLabel",
-  ...NUTRIENT_KEYS,
+  ...CORE_NUTRIENT_KEYS,
 ] as const satisfies readonly (keyof SnapshotContent)[];
 
 /**
  * SHA-256 over the content in a fixed key order. `null` and `0` hash
  * differently, so an unknown nutrient never dedupes into a zero one.
- * Micronutrients (#78) are appended only when at least one is known, so
- * content without them keeps the hash it had before they existed.
+ * Micronutrients (#78) and the drink nutrients (#443) are each appended only
+ * when at least one of them is known, so content without them keeps the hash
+ * it had before they existed.
  */
 export function snapshotContentHash(content: SnapshotContent): string {
   const micronutrients = micronutrientsOf(content);
   const entries: [string, unknown][] = CONTENT_KEYS.map((key) => [key, content[key]]);
+  if (DRINK_NUTRIENT_KEYS.some((key) => content[key] !== null && content[key] !== undefined))
+    for (const key of DRINK_NUTRIENT_KEYS) entries.push([key, content[key] ?? null]);
   if (hasAnyMicronutrient(micronutrients))
     for (const key of MICRONUTRIENT_KEYS) entries.push([key, micronutrients[key]]);
   const canonical = JSON.stringify(entries);

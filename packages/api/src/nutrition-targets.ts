@@ -11,6 +11,7 @@ import {
   loadLoggedDays,
   localDateFor,
   computeLoggingStreak,
+  CORE_NUTRIENT_KEYS,
   NUTRIENT_COLUMNS,
   NUTRITION_SAFETY_COPY,
   proteinReference,
@@ -18,7 +19,7 @@ import {
   updateNutritionTargetSettingsInTransaction,
   lockNutritionSafetyScope,
   setGoalInTransaction,
-  type NutrientKey,
+  type CoreNutrientKey,
   type NutritionGoal,
   type NutritionSafety,
   type NutritionScope,
@@ -53,11 +54,8 @@ const MAX_FUTURE_DAYS = 1;
 /** Days of weight history used for the latest trend value. */
 const WEIGHT_LOOKBACK_DAYS = 28;
 
-const COLUMN_TO_KEY = new Map<string, NutrientKey>(
-  (Object.entries(NUTRIENT_COLUMNS) as [NutrientKey, string][]).map(([key, column]) => [
-    column,
-    key,
-  ]),
+const COLUMN_TO_KEY = new Map<string, CoreNutrientKey>(
+  CORE_NUTRIENT_KEYS.map((key) => [NUTRIENT_COLUMNS[key], key]),
 );
 
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
@@ -218,7 +216,7 @@ export function createNutritionTargetsService(deps: { db: Database; now?: () => 
     async setTarget(
       scope: NutritionScope,
       input: {
-        nutrient: NutrientKey;
+        nutrient: CoreNutrientKey;
         minAmount?: number | null;
         maxAmount?: number | null;
         effectiveFrom: string;
@@ -246,7 +244,7 @@ export function createNutritionTargetsService(deps: { db: Database; now?: () => 
     /** Ends the member's active target for one nutrient from `effectiveTo` (exclusive). */
     async clearTarget(
       scope: NutritionScope,
-      input: { nutrient: NutrientKey; effectiveTo: string },
+      input: { nutrient: CoreNutrientKey; effectiveTo: string },
     ): Promise<boolean> {
       checkDate(input.effectiveTo);
       return repository.clearGoal(scope, input.nutrient, input.effectiveTo);

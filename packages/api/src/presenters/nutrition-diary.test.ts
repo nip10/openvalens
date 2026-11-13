@@ -4,9 +4,15 @@ import { englishI18n, inEnglish } from "@openvalens/i18n/testing";
 import { computeNutrientFactor } from "@openvalens/nutrition/nutrients";
 import { summarizeEntries } from "@openvalens/nutrition/totals";
 
-import { NUTRIENT_KEYS, type NutrientValues } from "../contracts/nutrition-diary";
+import {
+  CORE_NUTRIENT_KEYS,
+  NUTRIENT_KEYS,
+  type NutrientValues,
+} from "../contracts/nutrition-diary";
 import {
   ALL_NUTRIENTS,
+  DRINK_NUTRIENTS,
+  FOOD_DETAIL_NUTRIENTS,
   DIARY_COPY,
   NUTRIENT_LABELS,
   SLOT_LABELS,
@@ -143,7 +149,13 @@ describe("summarizeDay", () => {
   });
 
   test("lists every nutrient once, keeping salt/sodium and sugar types separate", () => {
-    expect([...ALL_NUTRIENTS].sort()).toEqual([...NUTRIENT_KEYS].sort());
+    expect([...ALL_NUTRIENTS].sort()).toEqual([...CORE_NUTRIENT_KEYS].sort());
+    // Caffeine and alcohol are per-food details, not part of the core totals (#443).
+    expect([...FOOD_DETAIL_NUTRIENTS].sort()).toEqual([...NUTRIENT_KEYS].sort());
+    expect(DRINK_NUTRIENTS.map((key) => inEnglish(NUTRIENT_LABELS[key].label))).toEqual([
+      "Caffeine",
+      "Alcohol",
+    ]);
     const labels = ALL_NUTRIENTS.map((key) => inEnglish(NUTRIENT_LABELS[key].label));
     for (const label of ["Sodium", "Salt", "Total sugars", "Added sugars", "Free sugars"])
       expect(labels).toContain(label);

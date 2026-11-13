@@ -1173,16 +1173,18 @@ describe("production AddFood component", () => {
       .find((button) => button.props.accessibilityLabel === "Edit Oats");
     await TestRenderer.act(async () => edit?.props.onPress());
     const { previewNutrients } = await import("@openvalens/api/presenters/nutrition-diary");
-    const { formatNutrientSummaryLine } =
+    const { formatDrinkNutrientsLine, formatNutrientSummaryLine } =
       await import("@openvalens/api/presenters/nutrition-targets");
     const { englishI18n } = await import("@openvalens/i18n/testing");
     const canonical = (amount: number, unit: "g" | "serving") => {
-      const values = previewNutrients(entry.food.basis, nutrientCopy, amount, unit);
-      return formatNutrientSummaryLine(
-        values ?? Object.fromEntries(NUTRIENT_KEYS.map((key) => [key, null])),
-        false,
-        englishI18n,
-      );
+      const values =
+        previewNutrients(entry.food.basis, nutrientCopy, amount, unit) ??
+        Object.fromEntries(NUTRIENT_KEYS.map((key) => [key, null]));
+      // #443: caffeine and alcohol follow on their own line.
+      return [
+        formatNutrientSummaryLine(values, false, englishI18n),
+        formatDrinkNutrientsLine(values, false, englishI18n),
+      ].join("\n");
     };
     await TestRenderer.act(async () => {
       (currentEditorProps().onAmount as (value: string) => void)("1");

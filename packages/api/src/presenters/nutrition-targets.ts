@@ -16,7 +16,14 @@ import { msg, select } from "@lingui/core/macro";
 import { parseDecimal } from "@openvalens/i18n/numbers";
 import { DECLARATION_LABELS, NUTRITION_SAFETY_COPY } from "@openvalens/nutrition/nutrition-safety";
 
-import type { NutrientKey, NutrientTotal, NutrientValues } from "../contracts/nutrition-diary";
+import {
+  DRINK_NUTRIENT_KEYS,
+  type CoreNutrientKey,
+  type DrinkNutrientKey,
+  type NutrientKey,
+  type NutrientTotal,
+  type NutrientValues,
+} from "../contracts/nutrition-diary";
 import type {
   Declaration,
   EnergyDirection,
@@ -36,7 +43,7 @@ import {
 export { DECLARATION_LABELS, NUTRITION_SAFETY_COPY };
 
 /** Nutrients a member can set a target for in the apps, in display order. */
-export const TARGET_NUTRIENTS: readonly NutrientKey[] = [
+export const TARGET_NUTRIENTS: readonly CoreNutrientKey[] = [
   "energyKcal",
   "proteinG",
   "carbohydrateG",
@@ -59,6 +66,25 @@ export function formatNutrientSummaryLine(
 ): string {
   if (hideNumbers) return i18n._(HIDDEN_VALUE);
   return SUMMARY_NUTRIENTS.map((key) => {
+    const label = i18n._(NUTRIENT_LABELS[key].label);
+    const value = formatNutrientValue(key, values[key] ?? null, i18n);
+    return i18n._(msg`${label} ${value}`);
+  }).join(", ");
+}
+
+/**
+ * A food's caffeine and alcohol on one line ("Caffeine 63 mg, Alcohol
+ * Unknown"), or {@link HIDDEN_VALUE} in hide-numbers mode (#443). Plain
+ * values only: no reference, limit or judgement. A value missing from an
+ * older cached food reads as unknown.
+ */
+export function formatDrinkNutrientsLine(
+  values: Partial<Pick<NutrientValues, DrinkNutrientKey>>,
+  hideNumbers: boolean,
+  i18n: I18n,
+): string {
+  if (hideNumbers) return i18n._(HIDDEN_VALUE);
+  return DRINK_NUTRIENT_KEYS.map((key) => {
     const label = i18n._(NUTRIENT_LABELS[key].label);
     const value = formatNutrientValue(key, values[key] ?? null, i18n);
     return i18n._(msg`${label} ${value}`);
@@ -273,13 +299,13 @@ export type TargetFormFields = { min: string; max: string; effectiveFrom: string
  * maximum. Returns a message for invalid input.
  */
 export function parseTargetForm(
-  nutrient: NutrientKey,
+  nutrient: CoreNutrientKey,
   fields: TargetFormFields,
 ):
   | {
       ok: true;
       input: {
-        nutrient: NutrientKey;
+        nutrient: CoreNutrientKey;
         minAmount: number | null;
         maxAmount: number | null;
         effectiveFrom: string;

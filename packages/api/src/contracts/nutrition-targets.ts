@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { NUTRIENT_KEYS } from "./nutrition-diary";
+import { CORE_NUTRIENT_KEYS } from "./nutrition-diary";
 import { MICRONUTRIENT_POPULATION_KEYS, MICRONUTRIENT_SOURCES } from "./nutrition-micronutrients";
 
 /**
@@ -67,7 +67,8 @@ export type TargetSource = (typeof TARGET_SOURCES)[number];
 export const MAX_TARGET_AMOUNT = 100_000;
 const amount = z.number().finite().nonnegative().max(MAX_TARGET_AMOUNT);
 
-export const nutrientKey = z.enum(NUTRIENT_KEYS);
+/** Targets exist for the core nutrients only; caffeine and alcohol never get one (#443). */
+export const nutrientKey = z.enum(CORE_NUTRIENT_KEYS);
 
 export const nutritionTarget = z.object({
   id: z.number().int(),

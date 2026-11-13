@@ -16,7 +16,8 @@ export type MealSlot = (typeof MEAL_SLOTS)[number];
 export const AMOUNT_UNITS = ["g", "ml", "serving"] as const;
 export type AmountUnit = (typeof AMOUNT_UNITS)[number];
 
-export const NUTRIENT_KEYS = [
+/** The core nutrients: the ones a member can set a target for. */
+export const CORE_NUTRIENT_KEYS = [
   "energyKcal",
   "energyKj",
   "proteinG",
@@ -30,7 +31,12 @@ export const NUTRIENT_KEYS = [
   "sodiumMg",
   "saltG",
 ] as const;
+/** #443: caffeine (mg) and alcohol (g). Never a target nutrient. */
+export const DRINK_NUTRIENT_KEYS = ["caffeineMg", "alcoholG"] as const;
+export const NUTRIENT_KEYS = [...CORE_NUTRIENT_KEYS, ...DRINK_NUTRIENT_KEYS] as const;
 export type NutrientKey = (typeof NUTRIENT_KEYS)[number];
+export type CoreNutrientKey = (typeof CORE_NUTRIENT_KEYS)[number];
+export type DrinkNutrientKey = (typeof DRINK_NUTRIENT_KEYS)[number];
 
 const localDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD");
 const timeZone = z.string().min(1).max(64);

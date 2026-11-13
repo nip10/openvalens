@@ -476,6 +476,54 @@ describe.skipIf(!url)("nutritionCustomFoods over HTTP against disposable Postgre
     expect(keep.body.outcome).toBe("applied");
   });
 
+  test("caffeine and alcohol are stored, logged, and kept when an older app edits (#443)", async () => {
+    const brew = {
+      name: "Synthetic cold brew",
+      nutrientBasisAmount: 100,
+      nutrientBasisUnit: "ml",
+      servingSizeAmount: 250,
+      servingSizeUnit: "ml",
+      nutrients: { energyKcal: 2, caffeineMg: 40, alcoholG: 0 },
+    };
+    const created = await create("food-drink-1", brew as never);
+    expect(created.status).toBe(200);
+    const id = created.body.food.id;
+    expect(created.body.food.nutrientsPerBasis).toMatchObject({
+      caffeineMg: 40,
+      alcoholG: 0,
+      fiberG: null,
+    });
+
+    // Logging copies them into the snapshot, scaled like every other nutrient.
+    const logged = await logCustom(id, "log-drink-1");
+    expect(logged.status).toBe(200);
+    expect(logged.body.entry.nutrients).toMatchObject({ caffeineMg: 200, alcoholG: 0 });
+
+    // An app from before #443 sends no drink keys: the stored values stay.
+    const older = await call<Outcome>("nutritionCustomFoods/update", {
+      foodId: id,
+      expectedRevision: 1,
+      food: { ...brew, name: "Synthetic cold brew (renamed)", nutrients: { energyKcal: 2 } },
+    });
+    expect(older.body.outcome).toBe("applied");
+    if (older.body.outcome !== "applied") throw new Error("expected applied");
+    expect(older.body.food.nutrientsPerBasis).toMatchObject({ caffeineMg: 40, alcoholG: 0 });
+
+    // A current app sends `null` explicitly to clear a value.
+    const cleared = await call<Outcome>("nutritionCustomFoods/update", {
+      foodId: id,
+      expectedRevision: 2,
+      food: { ...brew, nutrients: { energyKcal: 2, caffeineMg: null, alcoholG: null } },
+    });
+    expect(cleared.body.outcome).toBe("applied");
+    if (cleared.body.outcome !== "applied") throw new Error("expected applied");
+    expect(cleared.body.food.nutrientsPerBasis).toMatchObject({ caffeineMg: null, alcoholG: null });
+
+    // The entry logged earlier keeps the values it was saved with.
+    const entry = (await day()).find((row) => row.food.name === "Synthetic cold brew");
+    expect(entry?.nutrients).toMatchObject({ caffeineMg: 200, alcoholG: 0 });
+  });
+
   test("the diary quick-add save is retry-safe too", async () => {
     const quick = {
       name: "Synthetic hummus",

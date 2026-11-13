@@ -13,6 +13,7 @@ import { parseDecimal } from "@openvalens/i18n/numbers";
 import { summarizeNutrients } from "@openvalens/nutrition/totals";
 
 import {
+  DRINK_NUTRIENT_KEYS,
   NUTRIENT_KEYS,
   type AmountUnit,
   type DayStatus,
@@ -97,6 +98,8 @@ export const NUTRIENT_LABELS: Readonly<
   freeSugarsG: { label: msg`Free sugars`, unit: "g" },
   sodiumMg: { label: msg`Sodium`, unit: "mg" },
   saltG: { label: msg`Salt`, unit: "g" },
+  caffeineMg: { label: msg`Caffeine`, unit: "mg" },
+  alcoholG: { label: msg`Alcohol`, unit: "g" },
 });
 
 export type DaySummary = {
@@ -163,8 +166,13 @@ export function compactNutrientFigure(
 }
 
 /** `"412 kcal"` or `"Unknown"`. */
-export function formatNutrientValue(key: NutrientKey, value: number | null, i18n: I18n): string {
-  if (value === null) return i18n._(msg`Unknown`);
+export function formatNutrientValue(
+  key: NutrientKey,
+  value: number | null | undefined,
+  i18n: I18n,
+): string {
+  // `undefined`: a cached value from before the key existed (#443) is unknown too.
+  if (value === null || value === undefined) return i18n._(msg`Unknown`);
   const { unit } = NUTRIENT_LABELS[key];
   return `${round(value, unit, i18n.locale)} ${unit}`;
 }
@@ -237,9 +245,10 @@ export function describeNutrientTotal(key: NutrientKey, total: NutrientTotal, i1
 }
 
 /**
- * Every nutrient in display order, grouped so related values sit together
- * but stay separate: sodium is not salt, total sugars are not added or free
- * sugars, and kcal is not converted to kJ.
+ * Every core nutrient in display order, grouped so related values sit
+ * together but stay separate: sodium is not salt, total sugars are not added
+ * or free sugars, and kcal is not converted to kJ. The day totals list these;
+ * the drink nutrients are not part of them (#443).
  */
 export const ALL_NUTRIENTS: readonly NutrientKey[] = [
   "energyKcal",
@@ -255,6 +264,15 @@ export const ALL_NUTRIENTS: readonly NutrientKey[] = [
   "sodiumMg",
   "saltG",
 ];
+
+/**
+ * Caffeine and alcohol (#443), shown per food next to the core values as
+ * plain numbers, or "Unknown" when the source did not report them.
+ */
+export const DRINK_NUTRIENTS: readonly NutrientKey[] = DRINK_NUTRIENT_KEYS;
+
+/** Per-food detail rows: the core nutrients, then caffeine and alcohol. */
+export const FOOD_DETAIL_NUTRIENTS: readonly NutrientKey[] = [...ALL_NUTRIENTS, ...DRINK_NUTRIENTS];
 
 /** Where the day's logged foods came from, e.g. `"2 from USDA FoodData Central, 1 from Quick add"`. */
 export function formatSources(sources: NutrientSummary["sources"], i18n: I18n): string | null {
@@ -512,6 +530,8 @@ function nutrientValueError(key: NutrientKey): MessageDescriptor {
     freeSugarsG: "Free sugars",
     sodiumMg: "Sodium",
     saltG: "Salt",
+    caffeineMg: "Caffeine",
+    alcoholG: "Alcohol",
     other: "A value",
   })} must be 0 or more, or left blank.`;
 }

@@ -10,6 +10,7 @@ import {
   describeBasis,
   describeCoverage,
   fieldsFromCustomFood,
+  nutrientFieldLabel,
   parseCustomFood,
 } from "./custom-foods";
 
@@ -40,6 +41,8 @@ const food: CustomFood = {
     freeSugarsG: null,
     sodiumMg: null,
     saltG: null,
+    caffeineMg: null,
+    alcoholG: null,
   },
   revision: 2,
   archived: false,
@@ -76,6 +79,35 @@ describe("custom food form", () => {
       updateCustomFoodInput.safeParse({ foodId: 7, expectedRevision: 2, food: parsed.food })
         .success,
     ).toBe(true);
+  });
+
+  test("caffeine and alcohol are optional fields with a decimal comma (#443)", () => {
+    const base = {
+      ...EMPTY_CUSTOM_FOOD_FIELDS,
+      name: "Synthetic cold brew",
+      basisUnit: "ml" as const,
+    };
+    const parsed = parseCustomFood({ ...base, nutrients: { caffeineMg: "48,5", alcoholG: "0" } });
+    expect(parsed).toMatchObject({
+      ok: true,
+      food: { nutrients: { caffeineMg: 48.5, alcoholG: 0, energyKcal: null } },
+    });
+    // Blank stays unknown and is sent explicitly, so an edit can clear it.
+    expect(parseCustomFood(base)).toMatchObject({
+      ok: true,
+      food: { nutrients: { caffeineMg: null, alcoholG: null } },
+    });
+    expect(parseCustomFood({ ...base, nutrients: { alcoholG: "-1" } })).toMatchObject({
+      ok: false,
+    });
+    expect(inEnglish(nutrientFieldLabel("caffeineMg"))).toBe("Caffeine (mg, optional)");
+    expect(inEnglish(nutrientFieldLabel("alcoholG"))).toBe("Alcohol (g, optional)");
+    // A food cached by an app from before #443 lacks both keys: they read as unknown.
+    const { caffeineMg: _c, alcoholG: _a, ...older } = food.nutrientsPerBasis;
+    const cached = { ...food, nutrientsPerBasis: older } as unknown as CustomFood;
+    expect(fieldsFromCustomFood(cached).nutrients.caffeineMg).toBeUndefined();
+    expect(parseCustomFood(fieldsFromCustomFood(cached)).ok).toBe(true);
+    expect(inEnglish(describeCoverage(cached))).toBe("3 of 14 values entered");
   });
 
   test("blank optional fields are sent as null so an edit can clear them", () => {
@@ -125,7 +157,7 @@ describe("custom food form", () => {
     expect(
       describeBasis({ ...food.basis, servingSizeAmount: null, servingSizeUnit: null }, englishI18n),
     ).toBe("Values per 100 g (serving: 1 slice)");
-    expect(inEnglish(describeCoverage(food))).toBe("3 of 12 values entered");
+    expect(inEnglish(describeCoverage(food))).toBe("3 of 14 values entered");
   });
 
   test("copy is neutral and states privacy", () => {

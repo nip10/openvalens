@@ -15,6 +15,7 @@ import {
 import {
   basisChecks,
   basisColumns,
+  drinkNutrientsNonNegative,
   micronutrientColumns,
   micronutrientsNonNegative,
   nutrientColumns,
@@ -66,6 +67,13 @@ export const nutritionCatalogRelease = pgTable(
     attribution: text("attribution").notNull(),
     recordCount: integer("record_count").notNull().default(0),
     rejectedCount: integer("rejected_count").notNull().default(0),
+    /**
+     * #443: version of the adapter mapping the rows were last parsed with.
+     * Re-importing the same artifact with a newer adapter re-parses it (for
+     * example to fill caffeine and alcohol); with the same adapter it is a
+     * no-op. Releases imported before #443 have 1.
+     */
+    adapterVersion: integer("adapter_version").notNull().default(1),
     importedAt: timestamp("imported_at", { withTimezone: true, mode: "date" })
       .notNull()
       .defaultNow(),
@@ -152,6 +160,10 @@ export const nutritionCatalogFdcFood = pgTable(
       "nutrition_catalog_fdc_food_nutrients_non_negative_check",
       nutrientsNonNegative(table),
     ),
+    nutritionCatalogFdcFoodDrinkNutrientsCheck: check(
+      "nutrition_catalog_fdc_food_drink_nutrients_non_negative_check",
+      drinkNutrientsNonNegative(table),
+    ),
     nutritionCatalogFdcFoodMicronutrientsCheck: check(
       "nutrition_catalog_fdc_food_micronutrients_non_negative_check",
       micronutrientsNonNegative(table),
@@ -214,6 +226,10 @@ export const nutritionCatalogOffProduct = pgTable(
     nutritionCatalogOffProductNutrientsCheck: check(
       "nutrition_catalog_off_product_nutrients_non_negative_check",
       nutrientsNonNegative(table),
+    ),
+    nutritionCatalogOffProductDrinkNutrientsCheck: check(
+      "nutrition_catalog_off_product_drink_nutrients_non_negative_check",
+      drinkNutrientsNonNegative(table),
     ),
     nutritionCatalogOffProductMicronutrientsCheck: check(
       "nutrition_catalog_off_product_micronutrients_non_negative_check",

@@ -9,7 +9,7 @@ import { NutritionError } from "./errors";
  * into another (salt is not derived from sodium, energy kJ not from kcal, and
  * total sugars are independent of added/free sugars).
  */
-export const NUTRIENT_KEYS = [
+export const CORE_NUTRIENT_KEYS = [
   "energyKcal",
   "energyKj",
   "proteinG",
@@ -24,7 +24,24 @@ export const NUTRIENT_KEYS = [
   "saltG",
 ] as const;
 
+/**
+ * Drink nutrients (Issue #443): caffeine in mg and alcohol (ethanol) in g.
+ * They are stored, scaled and snapshotted like the core nutrients, but they
+ * are not target nutrients and the core diary views don't list them; their
+ * totals are opt-in and shown on their own.
+ */
+export const DRINK_NUTRIENT_KEYS = ["caffeineMg", "alcoholG"] as const;
+
+export const NUTRIENT_KEYS = [...CORE_NUTRIENT_KEYS, ...DRINK_NUTRIENT_KEYS] as const;
+
 export type NutrientKey = (typeof NUTRIENT_KEYS)[number];
+/** A nutrient a member can set a target for (#80): every key except the drink nutrients. */
+export type CoreNutrientKey = (typeof CORE_NUTRIENT_KEYS)[number];
+export type DrinkNutrientKey = (typeof DRINK_NUTRIENT_KEYS)[number];
+
+export function isCoreNutrient(key: string): key is CoreNutrientKey {
+  return (CORE_NUTRIENT_KEYS as readonly string[]).includes(key);
+}
 
 export type NutrientValues = Record<NutrientKey, number | null>;
 
@@ -42,6 +59,8 @@ export const NUTRIENT_COLUMNS: Readonly<Record<NutrientKey, string>> = Object.fr
   freeSugarsG: "free_sugars_g",
   sodiumMg: "sodium_mg",
   saltG: "salt_g",
+  caffeineMg: "caffeine_mg",
+  alcoholG: "alcohol_g",
 });
 
 export const NUTRIENT_UNITS: Readonly<Record<NutrientKey, "kcal" | "kJ" | "g" | "mg">> =
@@ -58,6 +77,8 @@ export const NUTRIENT_UNITS: Readonly<Record<NutrientKey, "kcal" | "kJ" | "g" | 
     freeSugarsG: "g",
     sodiumMg: "mg",
     saltG: "g",
+    caffeineMg: "mg",
+    alcoholG: "g",
   });
 
 /** Units a nutrient basis or a logged amount can use. */

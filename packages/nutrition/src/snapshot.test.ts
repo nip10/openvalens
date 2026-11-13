@@ -63,6 +63,33 @@ describe("snapshots", () => {
     expect(() => externalSnapshotContent({ ...fdc, micronutrients: { ironMg: -1 } })).toThrow();
   });
 
+  test("caffeine and alcohol keep unknown apart from zero, and old content keeps its hash (#443)", () => {
+    const plain = externalSnapshotContent(fdc);
+    expect(plain.caffeineMg).toBeNull();
+    expect(plain.alcoholG).toBeNull();
+    // Same pinned value as the micronutrient test: unknown drink values add nothing to the hash.
+    expect(snapshotContentHash(plain)).toBe(
+      "556f1eca46107fd87a25185a109663cff498ca5df99726c8549084918c5541fa",
+    );
+    const espresso = externalSnapshotContent({
+      ...fdc,
+      nutrients: { ...fdc.nutrients, caffeineMg: 63 },
+    });
+    const decaf = externalSnapshotContent({
+      ...fdc,
+      nutrients: { ...fdc.nutrients, caffeineMg: 0 },
+    });
+    const beer = externalSnapshotContent({
+      ...fdc,
+      nutrients: { ...fdc.nutrients, alcoholG: 3.9 },
+    });
+    expect(espresso.caffeineMg).toBe(63);
+    expect(decaf.caffeineMg).toBe(0);
+    const hashes = new Set([plain, espresso, decaf, beer].map(snapshotContentHash));
+    expect(hashes.size).toBe(4);
+    expect(() => externalSnapshotContent({ ...fdc, nutrients: { alcoholG: -1 } })).toThrow();
+  });
+
   test("custom food snapshots carry the food id and revision", () => {
     const content = customFoodSnapshotContent({
       id: 7,

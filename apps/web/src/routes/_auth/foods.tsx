@@ -1,5 +1,9 @@
 import type { CustomFood } from "@openvalens/api/contracts/nutrition-custom-foods";
-import { AMOUNT_UNITS, type AmountUnit } from "@openvalens/api/contracts/nutrition-diary";
+import {
+  AMOUNT_UNITS,
+  type AmountUnit,
+  type NutrientKey,
+} from "@openvalens/api/contracts/nutrition-diary";
 import {
   CUSTOM_FOOD_COPY,
   CUSTOM_FOOD_NUTRIENTS,
@@ -320,7 +324,15 @@ function FoodsPage() {
 }
 
 /** Per-basis figures on each food card (energy on the chip, macros behind the ⓘ). */
-const FOOD_TABLE_NUTRIENTS = ["energyKcal", "proteinG", "carbohydrateG", "fatG"] as const;
+/** Values in each food's detail; caffeine and alcohol (#443) are plain numbers or "Unknown". */
+const FOOD_TABLE_NUTRIENTS = [
+  "energyKcal",
+  "proteinG",
+  "carbohydrateG",
+  "fatG",
+  "caffeineMg",
+  "alcoholG",
+] as const satisfies readonly NutrientKey[];
 
 function FoodForm({
   food,

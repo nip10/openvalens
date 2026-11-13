@@ -15,6 +15,8 @@ const nutrients = (energyKcal: number | null, proteinG: number | null) => ({
   freeSugarsG: null,
   sodiumMg: null,
   saltG: null,
+  caffeineMg: null,
+  alcoholG: null,
 });
 
 describe("nutrition template presentation", () => {
