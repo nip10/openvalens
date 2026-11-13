@@ -34,6 +34,7 @@ import {
 } from "@/components/bloom";
 import { TrendChart } from "@/components/chart";
 import { Container } from "@/components/container";
+import { ManualSleepSection } from "@/components/manual-sleep-section";
 import { friendlyDate, pillTone } from "@/utils/friendly";
 import { orpc } from "@/utils/orpc";
 import { useThemeColor } from "@/utils/theme";
@@ -317,6 +318,8 @@ export default function SleepScreen() {
             </Details>
           </>
         )}
+
+        <ManualSleepSection />
       </Page>
     </Container>
   );

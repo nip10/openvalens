@@ -40,6 +40,7 @@ import {
   StatusPill,
   ToneIcon,
 } from "@/components/page";
+import { ManualSleepSection } from "@/components/manual-sleep-section";
 import { ProductSettingsStatus } from "@/components/product-settings-status";
 import { friendlyDate, pillTone } from "@/utils/friendly";
 import { orpc } from "@/utils/orpc";
@@ -320,6 +321,8 @@ function SleepPage() {
           </Details>
         </>
       )}
+
+      <ManualSleepSection settings={settings} />
     </Page>
   );
 }

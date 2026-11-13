@@ -114,3 +114,38 @@ export function vitalsSourceLabel(source: string | null, i18n: I18n): string {
   if (source?.includes("apple_health") || source?.includes("healthkit")) return "Apple Health";
   return i18n._(msg({ message: "Other", context: "data source" }));
 }
+
+// ─── Blood pressure (#440) ──────────────────────────────────────
+
+export type BloodPressureReadingLike = {
+  systolic: number;
+  diastolic: number;
+  pulse: number | null;
+  source: string | null;
+  manual: boolean;
+  possibleDuplicate: boolean;
+};
+
+/** "120/80 mmHg". */
+export function formatBloodPressure(
+  reading: Pick<BloodPressureReadingLike, "systolic" | "diastolic">,
+) {
+  return `${Math.round(reading.systolic)}/${Math.round(reading.diastolic)} mmHg`;
+}
+
+/** Where a reading came from: "Typed in" for the manual form, else the device source. */
+export function bloodPressureSourceLabel(
+  reading: Pick<BloodPressureReadingLike, "manual" | "source">,
+  i18n: I18n,
+): string {
+  if (reading.manual) return i18n._(msg({ message: "Typed in", context: "data source" }));
+  if (
+    reading.source &&
+    !reading.source.includes("health_connect") &&
+    !/apple|healthkit/.test(reading.source)
+  )
+    return i18n._(msg({ message: "Device", context: "data source" }));
+  return vitalsSourceLabel(reading.source, i18n);
+}
+
+export const BLOOD_PRESSURE_DUPLICATE_NOTE = msg`Possible duplicate: a device reading is within 10 minutes. Both are kept.`;

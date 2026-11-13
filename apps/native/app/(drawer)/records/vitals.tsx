@@ -34,6 +34,7 @@ import {
   TileRow,
   ToneChip,
 } from "@/components/bloom";
+import { BloodPressureSection } from "@/components/blood-pressure-section";
 import { TrendChart } from "@/components/chart";
 import { Container } from "@/components/container";
 import { SyncStatusBadge } from "@/components/sync-status-badge";
@@ -309,6 +310,8 @@ export default function VitalsScreen() {
             void queryClient.invalidateQueries({ queryKey: orpc.vitals.key() });
           }}
         />
+
+        <BloodPressureSection />
 
         {today ? (
           <Details summary={t`Recent samples`}>

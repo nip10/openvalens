@@ -371,6 +371,9 @@ export const PROCEDURE_ACCESS: Readonly<Record<string, ProcedureAccessClass>> = 
   "sleep.summary": R,
   "sleep.listDailySummaries": R,
   "sleep.recordFromHealthConnect": W,
+  "sleep.logManualSession": W,
+  "sleep.manualSessions": R,
+  "sleep.deleteManualSession": W,
 
   "storage.downloadUrl": R,
   "storage.delete": W,
@@ -389,6 +392,7 @@ export const PROCEDURE_ACCESS: Readonly<Record<string, ProcedureAccessClass>> = 
 
   "vitals.daily": R,
   "vitals.recentSamples": R,
+  "vitals.bloodPressureReadings": R,
 
   "wearables.list": R,
   "wearables.connect": W,

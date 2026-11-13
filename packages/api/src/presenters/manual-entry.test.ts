@@ -1,11 +1,80 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+  bloodPressureSamples,
   defaultObservedAt,
+  localDateTimeToIso,
   MANUAL_ENTRY_FIELDS,
   makeManualEntryHash,
+  parseBloodPressure,
   parseManualEntryValue,
 } from "./manual-entry";
+
+describe("blood pressure entry", () => {
+  test("parses systolic, diastolic and an optional pulse", () => {
+    expect(parseBloodPressure({ systolic: "120", diastolic: "80", pulse: "" })).toEqual({
+      ok: true,
+      reading: { systolic: 120, diastolic: 80, pulse: null },
+    });
+    expect(parseBloodPressure({ systolic: "118", diastolic: "76", pulse: " 62 " })).toEqual({
+      ok: true,
+      reading: { systolic: 118, diastolic: 76, pulse: 62 },
+    });
+  });
+
+  test("names each wrong part, and systolic must be above diastolic", () => {
+    expect(parseBloodPressure({ systolic: "", diastolic: "80", pulse: "" })).toEqual({
+      ok: false,
+      errors: ["systolic"],
+    });
+    expect(parseBloodPressure({ systolic: "120", diastolic: "500", pulse: "10" })).toEqual({
+      ok: false,
+      errors: ["diastolic", "pulse"],
+    });
+    expect(parseBloodPressure({ systolic: "80", diastolic: "70", pulse: "" })).toEqual({
+      ok: true,
+      reading: { systolic: 80, diastolic: 70, pulse: null },
+    });
+    expect(parseBloodPressure({ systolic: "90", diastolic: "120", pulse: "" })).toEqual({
+      ok: false,
+      errors: ["order"],
+    });
+  });
+
+  test("the number parser can be swapped (shared decimal parser, #448)", () => {
+    const comma = (field: { min: number; max: number }, raw: string) =>
+      parseManualEntryValue(field, raw.replace(",", "."));
+    expect(
+      parseBloodPressure({ systolic: "120,0", diastolic: "80", pulse: "" }, comma),
+    ).toMatchObject({ ok: true, reading: { systolic: 120 } });
+  });
+
+  test("writes the device metric codes at one time, pulse as heart rate", () => {
+    const samples = bloodPressureSamples(
+      { systolic: 120, diastolic: 80, pulse: 62 },
+      "2026-11-12T08:15",
+    );
+    expect(samples.map((sample) => [sample.metricCode, sample.valueNumeric])).toEqual([
+      ["blood_pressure_systolic", 120],
+      ["blood_pressure_diastolic", 80],
+      ["heart_rate", 62],
+    ]);
+    expect(new Set(samples.map((sample) => sample.observedAt)).size).toBe(1);
+    expect(samples[0]?.observedAt).toBe(localDateTimeToIso("2026-11-12T08:15") ?? "");
+    expect(new Set(samples.map((sample) => sample.dedupeHash)).size).toBe(3);
+    expect(
+      bloodPressureSamples({ systolic: 120, diastolic: 80, pulse: null }, "2026-11-12T08:15"),
+    ).toHaveLength(2);
+  });
+
+  test("localDateTimeToIso reads the device zone and rejects junk", () => {
+    const iso = localDateTimeToIso("2026-11-12T08:15");
+    expect(iso).not.toBeNull();
+    expect(new Date(iso ?? "").getHours()).toBe(8);
+    expect(localDateTimeToIso("2026-02-30T08:15")).toBeNull();
+    expect(localDateTimeToIso("yesterday")).toBeNull();
+  });
+});
 
 describe("manual-entry presenter", () => {
   test("parseManualEntryValue: enforces min/max and finite numbers", () => {

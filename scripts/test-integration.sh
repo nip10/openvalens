@@ -32,6 +32,7 @@ SUITES=(
   "DIRECT_STEPS_TEST_DATABASE_URL|direct_steps_test|packages/ingestion/src/direct-steps-fallback.integration.test.ts"
   "ACTIVITY_TEST_DATABASE_URL|activity_test|packages/activity/src/queries.integration.test.ts"
   "VITALS_TEST_DATABASE_URL|vitals_test|packages/vitals/src/queries.integration.test.ts"
+  "SLEEP_MANUAL_TEST_DATABASE_URL|sleep_manual_test|packages/sleep/src/manual-sessions.integration.test.ts"
   "NUTRITION_TEST_DATABASE_URL|nutrition_test|packages/nutrition/src/repository.integration.test.ts"
   "NUTRITION_DIARY_TEST_DATABASE_URL|nutrition_diary_test|packages/api/src/routers/nutrition-diary.integration.test.ts"
   "NUTRITION_TEMPLATES_TEST_DATABASE_URL|nutrition_templates_test|packages/api/src/routers/nutrition-templates.integration.test.ts"

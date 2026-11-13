@@ -37,6 +37,12 @@ export type SleepSessionInput = {
   sourceApp?: string | null;
   sourceDevice?: string | null;
   stageIntervals?: SleepStageInterval[];
+  /**
+   * Typed in by the member (#440). A manual session that overlaps a device
+   * session never counts: the device night wins and the manual one is a
+   * possible duplicate (`manualSleepDuplicateIds`).
+   */
+  manual?: boolean;
 };
 
 export type SleepDailySummary = {
