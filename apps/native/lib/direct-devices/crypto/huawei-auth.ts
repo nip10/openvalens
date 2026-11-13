@@ -224,7 +224,8 @@ export function createHuaweiSecretKey(
   return crypto.sha256(finalMixed).slice(0, 16);
 }
 
-function digestSecret(authVersion: number): Uint8Array {
+/** `HuaweiCrypto.getDigestSecret`: the constant key for `authVersion`. */
+export function huaweiDigestSecret(authVersion: number): Uint8Array {
   if (authVersion === 1 || authVersion === 4) return HUAWEI_DIGEST_SECRET_V1;
   if (authVersion === 2) return HUAWEI_DIGEST_SECRET_V2;
   return HUAWEI_DIGEST_SECRET_V3;
@@ -240,7 +241,7 @@ export function computeHuaweiDigest(
   authVersion: number,
   crypto: HuaweiCryptoProvider,
 ): Uint8Array {
-  const secret = digestSecret(authVersion);
+  const secret = huaweiDigestSecret(authVersion);
   const messageToDigest = concatHuaweiBytes(secret, message);
   const step1 = crypto.hmacSha256(messageToDigest, nonce);
   return concatHuaweiBytes(crypto.hmacSha256(step1, nonce), step1);
@@ -269,4 +270,30 @@ export async function loadHuaweiCrypto(): Promise<HuaweiCryptoProvider> {
       return new Uint8Array(hmac.digest());
     },
   };
+}
+
+/**
+ * RFC 5869 HKDF-SHA256 on the provider's HMAC (upstream `CryptoUtils.hkdfSha256`):
+ * `PRK = HMAC(salt, ikm)`, `T(i) = HMAC(PRK, T(i-1) ‖ info ‖ i)`.
+ */
+export function hkdfSha256(
+  crypto: HuaweiCryptoProvider,
+  ikm: Uint8Array,
+  salt: Uint8Array,
+  info: Uint8Array,
+  length: number,
+): Uint8Array {
+  if (!Number.isInteger(length) || length < 1 || length > 255 * 32)
+    throw new Error("HUAWEI_HKDF_LENGTH");
+  const prk = crypto.hmacSha256(salt, ikm);
+  const out = new Uint8Array(length);
+  let previous = new Uint8Array(0);
+  for (let block = 1, offset = 0; offset < length; block += 1) {
+    previous = Uint8Array.from(
+      crypto.hmacSha256(prk, concatHuaweiBytes(previous, info, Uint8Array.of(block))),
+    );
+    out.set(previous.subarray(0, Math.min(previous.length, length - offset)), offset);
+    offset += previous.length;
+  }
+  return out;
 }

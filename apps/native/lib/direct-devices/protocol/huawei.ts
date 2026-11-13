@@ -470,12 +470,23 @@ export class HuaweiPacketReassembler {
  * AES provider. `encryptGcm` returns ciphertext || 16-byte tag, matching Java's
  * `Cipher.doFinal` for AES/GCM/NoPadding.
  */
+/**
+ * AES with the key size taken from the key (16 bytes: AES-128, 32: AES-256;
+ * HiChain's packet key is 32). GCM appends/strips a 16-byte tag and takes
+ * optional additional authenticated data (HiChain's exchange uses it).
+ */
 export type HuaweiAesProvider = Readonly<{
   encryptCbc(key: Uint8Array, data: Uint8Array, iv: Uint8Array): Uint8Array;
   decryptCbc(key: Uint8Array, data: Uint8Array, iv: Uint8Array): Uint8Array;
-  encryptGcm(key: Uint8Array, data: Uint8Array, iv: Uint8Array): Uint8Array;
-  decryptGcm(key: Uint8Array, data: Uint8Array, iv: Uint8Array): Uint8Array;
+  encryptGcm(key: Uint8Array, data: Uint8Array, iv: Uint8Array, aad?: Uint8Array): Uint8Array;
+  decryptGcm(key: Uint8Array, data: Uint8Array, iv: Uint8Array, aad?: Uint8Array): Uint8Array;
 }>;
+
+/** `aes-128-…` or `aes-256-…` for a 16- or 32-byte key. */
+export function huaweiAesAlgorithm(key: Uint8Array, mode: "cbc" | "gcm"): string {
+  if (key.length !== 16 && key.length !== 32) throw new Error("HUAWEI_AES_KEY_LENGTH");
+  return `aes-${key.length * 8}-${mode}`;
+}
 
 export const HUAWEI_ENCRYPTION_COUNTER_MAX = 0xffffffff;
 
@@ -511,7 +522,7 @@ export function encryptHuaweiPayload(
   iv: Uint8Array,
   aes: HuaweiAesProvider,
 ): Uint8Array {
-  if (key.length !== 16) throw new Error("HUAWEI_AES_KEY_LENGTH");
+  if (key.length !== 16 && key.length !== 32) throw new Error("HUAWEI_AES_KEY_LENGTH");
   if (iv.length !== 16) throw new Error("HUAWEI_AES_IV_LENGTH");
   return useGcm ? aes.encryptGcm(key, data, iv) : aes.encryptCbc(key, data, iv);
 }
@@ -523,7 +534,7 @@ export function decryptHuaweiPayload(
   iv: Uint8Array,
   aes: HuaweiAesProvider,
 ): Uint8Array {
-  if (key.length !== 16) throw new Error("HUAWEI_AES_KEY_LENGTH");
+  if (key.length !== 16 && key.length !== 32) throw new Error("HUAWEI_AES_KEY_LENGTH");
   if (iv.length !== 16) throw new Error("HUAWEI_AES_IV_LENGTH");
   return useGcm ? aes.decryptGcm(key, data, iv) : aes.decryptCbc(key, data, iv);
 }
@@ -585,6 +596,7 @@ export async function loadHuaweiAesProvider(): Promise<HuaweiAesProvider> {
       iv: Uint8Array,
     ): {
       setAutoPadding?(value: boolean): void;
+      setAAD?(aad: Uint8Array): void;
       update(data: Uint8Array): Uint8Array;
       final(): Uint8Array;
       getAuthTag?(): Uint8Array;
@@ -596,28 +608,37 @@ export async function loadHuaweiAesProvider(): Promise<HuaweiAesProvider> {
     ): {
       setAutoPadding?(value: boolean): void;
       setAuthTag?(tag: Uint8Array): void;
+      setAAD?(aad: Uint8Array): void;
       update(data: Uint8Array): Uint8Array;
       final(): Uint8Array;
     };
   };
   return {
     encryptCbc(key, data, iv) {
-      const cipher = native.createCipheriv("aes-128-cbc", key, iv);
+      const cipher = native.createCipheriv(huaweiAesAlgorithm(key, "cbc"), key, iv);
       return concatHuaweiBytes(cipher.update(data), cipher.final());
     },
     decryptCbc(key, data, iv) {
-      const decipher = native.createDecipheriv("aes-128-cbc", key, iv);
+      const decipher = native.createDecipheriv(huaweiAesAlgorithm(key, "cbc"), key, iv);
       return concatHuaweiBytes(decipher.update(data), decipher.final());
     },
-    encryptGcm(key, data, iv) {
-      const cipher = native.createCipheriv("aes-128-gcm", key, iv);
+    encryptGcm(key, data, iv, aad) {
+      const cipher = native.createCipheriv(huaweiAesAlgorithm(key, "gcm"), key, iv);
+      if (aad) {
+        if (!cipher.setAAD) throw new Error("HUAWEI_GCM_AAD_UNAVAILABLE");
+        cipher.setAAD(aad);
+      }
       const body = concatHuaweiBytes(cipher.update(data), cipher.final());
       const tag = cipher.getAuthTag?.() ?? new Uint8Array(16);
       return concatHuaweiBytes(body, tag);
     },
-    decryptGcm(key, data, iv) {
+    decryptGcm(key, data, iv, aad) {
       if (data.length < 16) throw new Error("HUAWEI_GCM_TRUNCATED");
-      const decipher = native.createDecipheriv("aes-128-gcm", key, iv);
+      const decipher = native.createDecipheriv(huaweiAesAlgorithm(key, "gcm"), key, iv);
+      if (aad) {
+        if (!decipher.setAAD) throw new Error("HUAWEI_GCM_AAD_UNAVAILABLE");
+        decipher.setAAD(aad);
+      }
       decipher.setAuthTag?.(data.subarray(data.length - 16));
       return concatHuaweiBytes(
         decipher.update(data.subarray(0, data.length - 16)),
