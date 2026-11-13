@@ -17,6 +17,7 @@ import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import type { Action, Resource } from "@openvalens/auth/access/permissions";
 import type { TrackerIcon } from "@openvalens/trackers/model";
+import { isRole, ROLE_PERMISSION_PRESETS } from "@openvalens/auth/access/roles";
 
 import type { PersonModule } from "../wellness-profile-contract";
 import { MANUAL_ENTRY_FIELDS, type ManualEntryField } from "./manual-entry";
@@ -396,6 +397,19 @@ export type LogKindContext = {
    */
   can?: (permission: LogKindPermission) => boolean;
 };
+
+/**
+ * A `can` check from the member's workspace role (`sharing.me`), for
+ * `LogKindContext.can`. An unknown role gives `undefined` (show every kind the
+ * features allow); the server still checks the permission on save.
+ */
+export function logKindPermissionCheck(
+  role: string | null | undefined,
+): LogKindContext["can"] | undefined {
+  if (!isRole(role)) return undefined;
+  const matrix = ROLE_PERMISSION_PRESETS[role];
+  return (permission) => matrix[permission.resource][permission.action];
+}
 
 export function isLogKindAvailable(kind: LogKind, context: LogKindContext): boolean {
   const { module, preference } = kind.gate;

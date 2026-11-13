@@ -45,6 +45,7 @@ import { plansRouter } from "./plans";
 import { plainWaterRouter } from "./plain-water";
 import { preventiveCareRouter } from "./preventive-care";
 import { profileRouter } from "./profile";
+import { quickLogRouter } from "./quick-log";
 import { privateBodyRouter } from "./private-body";
 import { scoreRouter } from "./score";
 import { sharingRouter } from "./sharing";
@@ -111,6 +112,7 @@ type AppRouterShape = {
   preventiveCare: typeof preventiveCareRouter;
   profile: typeof profileRouter;
   privateBody: typeof privateBodyRouter;
+  quickLog: typeof quickLogRouter;
   score: typeof scoreRouter;
   sharing: typeof sharingRouter;
   signIn: typeof signInRouter;
@@ -173,6 +175,7 @@ export const appRouter: AppRouterShape = {
   preventiveCare: preventiveCareRouter,
   profile: profileRouter,
   privateBody: privateBodyRouter,
+  quickLog: quickLogRouter,
   score: scoreRouter,
   sharing: sharingRouter,
   signIn: signInRouter,

@@ -342,6 +342,10 @@ export const PROCEDURE_ACCESS: Readonly<Record<string, ProcedureAccessClass>> = 
   "profile.get": R,
   "profile.update": W,
 
+  // Quick log (#440): the palette and log picker read recents and due supplements.
+  "quickLog.recents": R,
+  "quickLog.supplementsDue": R,
+
   "privateBody.preference": R,
   "privateBody.setPreference": W,
   "privateBody.list": R,
