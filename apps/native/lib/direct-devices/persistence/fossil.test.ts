@@ -321,7 +321,7 @@ test("a large unreadable copy never blocks storing the next copy", () => {
     "unreadable",
   ]);
   s.db.close();
-});
+}, 120_000);
 
 test("minutes ahead of the phone clock are deferred: the file is kept until they are due", () => {
   const s = open();

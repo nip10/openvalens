@@ -6,7 +6,10 @@ import type {
   HelioLink,
   HelioProtocolLimits,
   HelioStepsPage,
+  ZeppSleepPage,
 } from "./types";
+import { ZEPP_SLEEP_SESSION_TYPE, parseZeppSleepSessions } from "./zepp-sleep";
+import { crc32 } from "./chunked";
 import {
   decodeDeviceDate,
   deviceDateToUtcMinute,
@@ -32,7 +35,6 @@ function parseMeta(payload: Uint8Array): { length: number; first: string; offset
   if (payload.length < 15 || payload[0] !== 0x10 || payload[1] !== 1 || payload[2] !== 1)
     throw new Error("HISTORY_METADATA_ERROR");
   const length = readU32le(payload, 3);
-  if (length % 8 !== 0) throw new Error("UNSUPPORTED_ACTIVITY_FORMAT");
   const date = decodeDeviceDate(payload.slice(7, 15));
   return { length, first: deviceDateToUtcMinute(date), offset: date.offsetQuarterHours };
 }
@@ -130,6 +132,8 @@ export async function runHelioStepsHistory(
         (p) => p[0] === 0x10 && p[1] === 1,
       );
       const meta = parseMeta(metaPayload);
+      // Activity samples are 8 bytes each on every Zepp OS model.
+      if (meta.length % 8 !== 0) throw new Error("UNSUPPORTED_ACTIVITY_FORMAT");
       if (meta.length > limits.maxMessageBytes) throw new Error("HISTORY_SIZE_LIMIT");
       if (meta.length === 0) {
         await control.keep();
@@ -206,7 +210,27 @@ export async function runHelioStepsHistory(
         break;
       }
     }
-    return Object.freeze({ pages, minutes, complete });
+    // Sleep sessions run after activity in the same authenticated session.
+    // Activity pages are already committed, so a sleep failure is reported
+    // next to them rather than thrown (unless the session was cancelled).
+    let sleep: HelioHistoryResult["sleep"];
+    if (options.sleep) {
+      try {
+        sleep = await runSleepRounds(link, control, options.sleep, signal, limits, now);
+      } catch (error) {
+        if (signal.aborted) throw error;
+        sleep = Object.freeze({
+          pages: 0,
+          sessions: 0,
+          complete: false,
+          errorCode:
+            error instanceof Error && /^[A-Z0-9_]{1,64}$/.test(error.message)
+              ? error.message
+              : "ZEPP_SLEEP_FETCH_FAILED",
+        });
+      }
+    }
+    return Object.freeze({ pages, minutes, complete, ...(sleep ? { sleep } : {}) });
   } catch (error) {
     if (timedOut) throw new Error("HISTORY_TIMEOUT");
     throw error;
@@ -216,6 +240,124 @@ export async function runHelioStepsHistory(
     unsubscribe?.();
     if (channel) await channel.close();
   }
+}
+
+/**
+ * Fetch type 0x48 rounds (FetchSleepSessionOperation): same request /
+ * metadata / data / completion exchange as activity. Unlike activity, upstream
+ * enforces the completion CRC here. Only the keep ACK (03 09) is ever sent.
+ */
+async function runSleepRounds(
+  link: HelioLink,
+  control: ActivityControl,
+  sleep: NonNullable<HelioHistoryOptions["sleep"]>,
+  signal: AbortSignal,
+  limits: HelioProtocolLimits,
+  now: number,
+): Promise<NonNullable<HelioHistoryResult["sleep"]>> {
+  let cursor = sleep.since;
+  let pages = 0;
+  let sessions = 0;
+  let complete = false;
+  for (let round = 0; round < limits.maxPages; round += 1) {
+    checkAbort(signal);
+    let raw = new Uint8Array(0);
+    let expectedCounter = 0;
+    let failure: Error | undefined;
+    const unsubscribe = link.subscribe(
+      "activity_data",
+      (incoming) => {
+        if (failure) return;
+        if (incoming.length < 2 || incoming[0] !== expectedCounter) {
+          failure = new Error("HISTORY_BAD_COUNTER");
+          return;
+        }
+        expectedCounter = (expectedCounter + 1) & 0xff;
+        const part = incoming.subarray(1);
+        if (raw.length + part.length > limits.maxMessageBytes) {
+          failure = new Error("HISTORY_SIZE_LIMIT");
+          return;
+        }
+        const next = new Uint8Array(raw.length + part.length);
+        next.set(raw);
+        next.set(part, raw.length);
+        raw = next;
+      },
+      () => {
+        failure = new Error("HISTORY_TRANSPORT_ERROR");
+      },
+    );
+    try {
+      const meta = parseMeta(
+        await control.request(
+          historyStart(cursor, ZEPP_SLEEP_SESSION_TYPE),
+          (p) => p[0] === 0x10 && p[1] === 1,
+        ),
+      );
+      if (meta.length > limits.maxMessageBytes) throw new Error("HISTORY_SIZE_LIMIT");
+      if (meta.length === 0) {
+        await control.keep();
+        complete = true;
+        break;
+      }
+      const completion = await control.request(
+        Uint8Array.of(2),
+        (p) => p[0] === 0x10 && p[1] === 2,
+      );
+      let page: ZeppSleepPage | null = null;
+      try {
+        checkAbort(signal);
+        if (failure) throw failure;
+        if (raw.length !== meta.length) throw new Error("HISTORY_LENGTH_MISMATCH");
+        if (
+          (completion.length !== 3 && completion.length !== 7) ||
+          completion[0] !== 0x10 ||
+          completion[1] !== 2 ||
+          completion[2] !== 1 ||
+          (completion.length === 7 && readU32le(completion, 3) !== crc32(raw))
+        )
+          throw integrityError();
+        const parsed = parseZeppSleepSessions(raw);
+        if (parsed.lastReportTime === null) {
+          await control.keep();
+          complete = true;
+          break;
+        }
+        // Upstream: since = last record time + 1 minute.
+        const nextMinute = (Math.floor(parsed.lastReportTime / 60) + 1) * 60_000;
+        // Upstream stops the rounds (needsAnotherFetch) rather than failing.
+        if (nextMinute <= Date.parse(cursor.nextMinuteUtc)) {
+          await control.keep();
+          complete = true;
+          break;
+        }
+        page = Object.freeze({
+          sessions: parsed.sessions,
+          nextCursor: Object.freeze({
+            version: 1,
+            nextMinuteUtc: new Date(nextMinute).toISOString(),
+            offsetQuarterHours: meta.offset,
+          }),
+        });
+        await sleep.onPage(page);
+        checkAbort(signal);
+      } catch (error) {
+        if (!signal.aborted) await control.keep().catch(() => undefined);
+        throw error;
+      }
+      await control.keep();
+      cursor = page.nextCursor;
+      pages += 1;
+      sessions += page.sessions.length;
+      if (Date.parse(cursor.nextMinuteUtc) >= Math.floor(now / 60_000) * 60_000) {
+        complete = true;
+        break;
+      }
+    } finally {
+      unsubscribe();
+    }
+  }
+  return Object.freeze({ pages, sessions, complete, errorCode: null });
 }
 
 type ActivityControl = {

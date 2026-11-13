@@ -39,7 +39,14 @@ import type { PebblePacket, PebblePeer } from "../pebble-types";
 import type { FossilPeer } from "../transport/fossil-hr";
 import { FOSSIL_HR_MODELS } from "../models/fossil-hr";
 import { crc32 as fossilCrc32 } from "../protocol/fossil-hr";
-import { pageRequests, pebbleOutcomeNotice } from "./controller";
+import {
+  assignZeppSleepIds,
+  checkpointString,
+  pageRequests,
+  parseCheckpoint,
+  pebbleOutcomeNotice,
+  zeppSleepRequests,
+} from "./controller";
 import { directDeviceBatch } from "@openvalens/api/contracts/direct-device";
 import {
   createHelioSyncControllerWithDependencies,
@@ -3145,4 +3152,287 @@ test("Zepp OS pages publish per-minute heart rate next to steps; other families 
     "UTC",
   );
   expect(xiaomi.map((request) => request.batch.recordType)).toEqual(["steps"]);
+});
+
+test("the checkpoint stays v1 until a sleep cursor exists, and v1 keeps parsing", () => {
+  const activity = {
+    version: 1 as const,
+    nextMinuteUtc: "2026-02-01T00:00:00.000Z",
+    offsetQuarterHours: 4,
+  };
+  const sleep = {
+    version: 1 as const,
+    nextMinuteUtc: "2026-01-31T08:01:00.000Z",
+    offsetQuarterHours: 4,
+  };
+  expect(checkpointString(activity, null)).toBe(JSON.stringify(activity));
+  expect(parseCheckpoint(JSON.stringify(activity))).toEqual({ activity, sleep: null, nights: [] });
+  const nights = [[100, 200, 100]] as const;
+  const v2 = checkpointString(activity, sleep, nights);
+  expect(JSON.parse(v2)).toEqual({ version: 2, activity, sleep, nights: [[100, 200, 100]] });
+  expect(parseCheckpoint(v2)).toEqual({ activity, sleep, nights: [[100, 200, 100]] });
+  expect(parseCheckpoint("not json")).toEqual({ activity: null, sleep: null, nights: [] });
+  expect(parseCheckpoint(null)).toEqual({ activity: null, sleep: null, nights: [] });
+  // Eight remembered sessions keep the checkpoint under its 1024-character cap.
+  const full = Array.from(
+    { length: 8 },
+    (_, index) =>
+      [
+        1_793_900_000 + index * 86_400,
+        1_793_930_000 + index * 86_400,
+        1_793_900_000 + index * 86_400,
+      ] as const,
+  );
+  expect(checkpointString(activity, sleep, full).length).toBeLessThan(1024);
+});
+
+test("a re-reported night reuses its record id; a separate nap gets its own", () => {
+  const night = {
+    reportTime: 0,
+    midnight: 0,
+    startTime: "2026-11-05T23:00:00.000Z",
+    endTime: "2026-11-06T07:00:00.000Z",
+    stages: [],
+  };
+  const first = assignZeppSleepIds([night], []);
+  const revised = assignZeppSleepIds(
+    [{ ...night, startTime: "2026-11-05T22:40:00.000Z", endTime: "2026-11-06T07:10:00.000Z" }],
+    first.memory,
+  );
+  expect(revised.ids).toEqual(first.ids);
+  const nap = assignZeppSleepIds(
+    [{ ...night, startTime: "2026-11-06T13:00:00.000Z", endTime: "2026-11-06T13:40:00.000Z" }],
+    revised.memory,
+  );
+  expect(nap.ids[0]).not.toBe(first.ids[0]);
+  expect(nap.memory).toHaveLength(2);
+});
+
+test("Zepp OS sleep envelopes are schema-valid and keyed by the assigned id", () => {
+  const requests = zeppSleepRequests(
+    deviceId,
+    { family: "zepp_os", modelId: "amazfit_gtr_4" } as DirectDeviceIdentity,
+    { userId: context.userId, organizationId: context.organizationId },
+    [
+      {
+        reportTime: 1_793_952_000,
+        midnight: 1_793_923_200,
+        startTime: "2026-11-05T23:00:00.000Z",
+        endTime: "2026-11-06T01:00:00.000Z",
+        stages: [
+          {
+            stage: "light",
+            startTime: "2026-11-05T23:00:00.000Z",
+            endTime: "2026-11-06T00:00:00.000Z",
+          },
+          {
+            stage: "deep",
+            startTime: "2026-11-06T00:00:00.000Z",
+            endTime: "2026-11-06T01:00:00.000Z",
+          },
+        ],
+      },
+    ],
+    [1_793_919_600],
+  );
+  expect(requests).toHaveLength(1);
+  expect(directDeviceBatch.safeParse(requests[0]!.batch).success).toBe(true);
+  expect(requests[0]!.batch.upserts[0]!.externalRecordId).toBe(
+    `dd-zepp:${deviceId}:sleep:1793919600`,
+  );
+  expect(
+    zeppSleepRequests(
+      deviceId,
+      { family: "zepp_os", modelId: "amazfit_gtr_4" } as DirectDeviceIdentity,
+      { userId: context.userId, organizationId: context.organizationId },
+      [],
+      [],
+    ),
+  ).toEqual([]);
+});
+
+async function zeppController(modelId: string, fetchSteps: HelioSetupController["fetchSteps"]) {
+  const { db, store } = sqlite();
+  const zeppBinding: DirectDeviceBindingSummary = {
+    ...binding,
+    family: "zepp_os",
+    modelId,
+    displayName: "Amazfit",
+  };
+  const received: IngestDirectDeviceBatchInput[] = [];
+  const ready = await readyController({
+    store,
+    setup: setup(fetchSteps, modelId as never, { family: "zepp_os", stepsHistory: true }),
+    localIdentity: { family: "zepp_os", modelId } as DirectDeviceIdentity,
+    makeClient: () => ({
+      directDevice: {
+        listDirectDevices: async () => ({ devices: [zeppBinding] }),
+        registerDirectDevice: async () => ({ providerConnectionId: 41 }),
+        ingestDirectDeviceBatch: async (input: unknown) => {
+          received.push(input as IngestDirectDeviceBatchInput);
+          return APPLIED;
+        },
+      },
+    }),
+  });
+  await ready.controller.connect("native-1");
+  return { db, store, received, ...ready };
+}
+
+test("a Zepp OS sync commits activity and sleep pages under a v2 checkpoint", async () => {
+  const sleepCursor = {
+    version: 1 as const,
+    nextMinuteUtc: "2026-02-01T08:01:00.000Z",
+    offsetQuarterHours: 0,
+  };
+  let sleepRequested = false;
+  const { db, store, received, controller, ticket } = await zeppController(
+    "amazfit_gtr_4",
+    async (options) => {
+      await options.onPage({
+        minutes: [
+          {
+            externalRecordId: "minute:2026-01-31T00:00:00.000Z",
+            startTime: "2026-01-31T00:00:00.000Z",
+            endTime: "2026-01-31T00:01:00.000Z",
+            count: 5,
+            heartRate: 66,
+          },
+        ],
+        nextCursor: {
+          version: 1,
+          nextMinuteUtc: "2026-01-31T00:01:00.000Z",
+          offsetQuarterHours: 0,
+        },
+      });
+      sleepRequested = options.sleep !== undefined;
+      await options.sleep?.onPage({
+        sessions: [
+          {
+            reportTime: Date.parse("2026-02-01T08:00:00Z") / 1000,
+            midnight: Date.parse("2026-02-01T00:00:00Z") / 1000,
+            startTime: "2026-01-31T23:00:00.000Z",
+            endTime: "2026-02-01T07:00:00.000Z",
+            stages: [
+              {
+                stage: "light",
+                startTime: "2026-01-31T23:00:00.000Z",
+                endTime: "2026-02-01T07:00:00.000Z",
+              },
+            ],
+          },
+        ],
+        nextCursor: sleepCursor,
+      });
+      return {
+        pages: 1,
+        minutes: 1,
+        complete: true,
+        sleep: { pages: 1, sessions: 1, complete: true, errorCode: null },
+      };
+    },
+  );
+  await controller.syncSteps("00112233445566778899aabbccddeeff");
+  expect(sleepRequested).toBe(true);
+  expect(controller.getSnapshot().errorCode).toBeNull();
+  expect(received.map((input) => input.batch.recordType)).toEqual([
+    "steps",
+    "heart_rate",
+    "sleep_session",
+  ]);
+  const checkpoint = JSON.parse(store.getBinding(ticket, deviceId)!.captureCheckpoint!);
+  expect(checkpoint).toEqual({
+    version: 2,
+    activity: { version: 1, nextMinuteUtc: "2026-01-31T00:01:00.000Z", offsetQuarterHours: 0 },
+    sleep: sleepCursor,
+    nights: [
+      [
+        Date.parse("2026-01-31T23:00:00.000Z") / 1000,
+        Date.parse("2026-02-01T07:00:00.000Z") / 1000,
+        Date.parse("2026-01-31T23:00:00.000Z") / 1000,
+      ],
+    ],
+  });
+  await controller.dispose();
+  db.close();
+});
+
+test("a no-sleep-score Zepp OS model never requests sleep, and a sleep failure is only a notice", async () => {
+  let sleepRequested = false;
+  const noScore = await zeppController("amazfit_gtr_3", async (options) => {
+    sleepRequested = options.sleep !== undefined;
+    return { pages: 0, minutes: 0, complete: true };
+  });
+  await noScore.controller.syncSteps("00112233445566778899aabbccddeeff");
+  expect(sleepRequested).toBe(false);
+  await noScore.controller.dispose();
+  noScore.db.close();
+
+  const failing = await zeppController("amazfit_gtr_4", async () => ({
+    pages: 0,
+    minutes: 0,
+    complete: true,
+    sleep: { pages: 0, sessions: 0, complete: false, errorCode: "HISTORY_INTEGRITY_ERROR" },
+  }));
+  await failing.controller.syncSteps("00112233445566778899aabbccddeeff");
+  expect(failing.controller.getSnapshot().errorCode).toBe("ZEPP_SLEEP_SYNC_FAILED");
+  expect(failing.controller.getSnapshot().phase).not.toBe("error");
+  await failing.controller.dispose();
+  failing.db.close();
+});
+
+test("sleep id rules hold what upserts cannot express without duplicating a night", () => {
+  const at = (iso: string) => iso;
+  const session = (start: string, end: string) => ({
+    reportTime: 0,
+    midnight: 0,
+    startTime: at(start),
+    endTime: at(end),
+    stages: [],
+  });
+  // Two published sessions, then a revision merging both: held (no delete exists).
+  const published = assignZeppSleepIds(
+    [
+      session("2026-11-05T23:00:00.000Z", "2026-11-06T01:00:00.000Z"),
+      session("2026-11-06T02:00:00.000Z", "2026-11-06T06:00:00.000Z"),
+    ],
+    [],
+  );
+  const merged = assignZeppSleepIds(
+    [session("2026-11-05T23:00:00.000Z", "2026-11-06T06:00:00.000Z")],
+    published.memory,
+  );
+  expect(merged.ids).toEqual([null]);
+  expect(merged.held).toBe(1);
+  expect(merged.memory).toEqual(published.memory);
+  // With a full memory, a session ending before the oldest remembered one may revise
+  // a forgotten night: held.
+  const day = 86_400;
+  const base = Date.parse("2026-11-01T23:00:00.000Z") / 1000;
+  const full = Array.from(
+    { length: 8 },
+    (_, index) => [base + index * day, base + index * day + 8 * 3600, base + index * day] as const,
+  );
+  const forgotten = assignZeppSleepIds(
+    [session("2026-10-20T23:00:00.000Z", "2026-10-21T07:00:00.000Z")],
+    full,
+  );
+  expect(forgotten.ids).toEqual([null]);
+  // A fresh id never reuses one already remembered, even when starts coincide.
+  const moved = [[base + 600, base + 3600, base] as const];
+  const fresh = assignZeppSleepIds(
+    [session(new Date((base - 3600) * 1000).toISOString(), new Date(base * 1000).toISOString())],
+    moved,
+  );
+  expect(fresh.ids[0]).not.toBe(base);
+  // Held sessions are not published.
+  expect(
+    zeppSleepRequests(
+      deviceId,
+      { family: "zepp_os", modelId: "amazfit_gtr_4" } as DirectDeviceIdentity,
+      { userId: context.userId, organizationId: context.organizationId },
+      [session("2026-11-05T23:00:00.000Z", "2026-11-06T06:00:00.000Z")],
+      [null],
+    ),
+  ).toEqual([]);
 });

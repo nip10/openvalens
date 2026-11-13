@@ -23,7 +23,8 @@ import { projectPebbleCapture } from "./pebble-capture";
 import { projectFossilFiles } from "./fossil-capture";
 import { parseFossilActivityFile, parseFossilAuthKey } from "../protocol/fossil-hr";
 import type { PebbleIdentity, PebbleSessionOutcome } from "../pebble-types";
-import type { HelioCursor, HelioStepsPage } from "../protocol/types";
+import type { HelioCursor, HelioStepsPage, ZeppSleepPage } from "../protocol/types";
+import { zeppOsSupportsSleepSessions } from "../models/zepp-os";
 import type { BleGattSample } from "../protocol/ble-gatt";
 import {
   weightMeasurementExternalRecordId,
@@ -134,9 +135,161 @@ function cursorString(cursor: HelioCursor): string {
   return JSON.stringify(cursor);
 }
 
+function validCursor(value: unknown): HelioCursor | null {
+  const cursor = value as HelioCursor | null;
+  return cursor &&
+    cursor.version === 1 &&
+    Number.isInteger(cursor.offsetQuarterHours) &&
+    Number.isFinite(Date.parse(cursor.nextMinuteUtc))
+    ? cursor
+    : null;
+}
+
+/**
+ * The binding checkpoint: a v1 activity cursor, or (once Zepp OS sleep has
+ * synced) a v2 `{ activity, sleep }` pair. v1 keeps parsing, so existing
+ * bindings continue from where they were.
+ */
+/**
+ * Recently published Zepp OS sleep sessions: `[startSec, endSec, idSec]`. A
+ * re-report that overlaps one reuses its id (`idSec`), so the server upsert
+ * replaces it instead of adding a second night. Kept small: the checkpoint is
+ * capped at 1024 characters.
+ */
+export type ZeppSleepMemory = readonly (readonly [number, number, number])[];
+const SLEEP_MEMORY_SIZE = 8;
+
+export function parseCheckpoint(value: string | null): {
+  activity: HelioCursor | null;
+  sleep: HelioCursor | null;
+  nights: ZeppSleepMemory;
+} {
+  if (!value) return { activity: null, sleep: null, nights: [] };
+  try {
+    const parsed = JSON.parse(value) as {
+      version?: number;
+      activity?: unknown;
+      sleep?: unknown;
+      nights?: unknown;
+    };
+    if (parsed.version === 2) {
+      const nights = Array.isArray(parsed.nights)
+        ? (parsed.nights as unknown[]).filter(
+            (entry): entry is [number, number, number] =>
+              Array.isArray(entry) &&
+              entry.length === 3 &&
+              entry.every((part) => Number.isSafeInteger(part)) &&
+              (entry[1] as number) > (entry[0] as number),
+          )
+        : [];
+      return {
+        activity: validCursor(parsed.activity),
+        sleep: validCursor(parsed.sleep),
+        nights,
+      };
+    }
+  } catch {
+    return { activity: null, sleep: null, nights: [] };
+  }
+  return { activity: parseCursor(value), sleep: null, nights: [] };
+}
+
+/** v1 while there is no sleep cursor (unchanged format for every other family). */
+export function checkpointString(
+  activity: HelioCursor,
+  sleep: HelioCursor | null,
+  nights: ZeppSleepMemory = [],
+): string {
+  return sleep ? JSON.stringify({ version: 2, activity, sleep, nights }) : cursorString(activity);
+}
+
+/**
+ * Gives each session a stable record id, or `null` to hold it. A session that
+ * overlaps exactly one remembered session is a revision and reuses its id. A
+ * session overlapping several (a merge) is held, because the direct-device
+ * contract cannot delete the other records, so publishing it would count
+ * those minutes twice. A session that ends before the oldest remembered one
+ * while the memory is full may revise a forgotten night, so it is held too.
+ * Otherwise it gets a fresh id from its own start, never one already in use.
+ */
+export function assignZeppSleepIds(
+  sessions: ZeppSleepPage["sessions"],
+  memory: ZeppSleepMemory,
+): { ids: (number | null)[]; memory: ZeppSleepMemory; held: number } {
+  const entries = memory.map((entry) => [...entry] as [number, number, number]);
+  const memoryFull = entries.length >= SLEEP_MEMORY_SIZE;
+  const oldestEnd = entries.length ? Math.min(...entries.map((entry) => entry[1])) : null;
+  let held = 0;
+  const ids = sessions.map((session) => {
+    const start = Math.floor(Date.parse(session.startTime) / 1000);
+    const end = Math.floor(Date.parse(session.endTime) / 1000);
+    const overlapping = entries.filter((entry) => entry[0] < end && start < entry[1]);
+    if (overlapping.length > 1) {
+      held += 1;
+      return null;
+    }
+    if (overlapping.length === 1) {
+      const kept = overlapping[0]!;
+      kept[0] = start;
+      kept[1] = end;
+      return kept[2];
+    }
+    if (memoryFull && oldestEnd !== null && end <= oldestEnd) {
+      held += 1;
+      return null;
+    }
+    let id = start;
+    while (entries.some((entry) => entry[2] === id)) id += 1;
+    entries.push([start, end, id]);
+    return id;
+  });
+  entries.sort((left, right) => left[1] - right[1]);
+  return { ids, memory: entries.slice(-SLEEP_MEMORY_SIZE), held };
+}
+
 function pageCaptureId(deviceId: string, before: HelioCursor, after: HelioCursor): string {
   // The source cursor coordinate, not phone time/page number, identifies a logical page.
   return `dd-v2:${deviceId}:${before.nextMinuteUtc}:${before.offsetQuarterHours}:${after.nextMinuteUtc}:${after.offsetQuarterHours}`;
+}
+
+/** Zepp OS sleep sessions → sleep_session envelopes, one id per night (re-reports upsert it). */
+export function zeppSleepRequests(
+  deviceId: string,
+  deviceIdentity: DirectDeviceIdentity,
+  expectedContext: { userId: string; organizationId: string },
+  allSessions: ZeppSleepPage["sessions"],
+  allIds: readonly (number | null)[],
+): IngestDirectDeviceBatchInput[] {
+  const requests: IngestDirectDeviceBatchInput[] = [];
+  // Held sessions (null id) are not published.
+  const sessions = allSessions.filter((_, index) => allIds[index] !== null);
+  const ids = allIds.filter((id): id is number => id !== null);
+  // ≤ 50 sessions per envelope keeps each request well under the size limit.
+  for (let offset = 0; offset < sessions.length; offset += 50)
+    requests.push({
+      expectedContext,
+      batch: {
+        schemaVersion: 1,
+        deviceId,
+        deviceIdentity,
+        provider: "direct_device",
+        recordType: "sleep_session",
+        mode: "backfill",
+        upserts: sessions.slice(offset, offset + 50).map((session, index) => ({
+          type: "sleep_session" as const,
+          externalRecordId: `dd-zepp:${deviceId}:sleep:${ids[offset + index]}`,
+          sourceApp: null,
+          startTime: session.startTime,
+          endTime: session.endTime,
+          ...(session.stages.length
+            ? { stages: session.stages.map((stage) => ({ ...stage })) }
+            : {}),
+        })),
+        deletions: [],
+        clientTimezone: "UTC",
+      },
+    } as IngestDirectDeviceBatchInput);
+  return requests;
 }
 
 /** Exported for tests: page minutes → steps (and Zepp OS heart-rate) envelopes. */
@@ -1200,11 +1353,27 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
         // Protocol historyStart only accepts exact UTC-minute cursors; floor the default.
         const defaultStart =
           Math.floor(((deps.now ?? Date.now)() - 24 * 60 * 60 * 1000) / 60000) * 60000;
-        const since = parseCursor(binding.captureCheckpoint) ?? {
+        const stored = parseCheckpoint(binding.captureCheckpoint);
+        const since = stored.activity ?? {
           version: 1 as const,
           nextMinuteUtc: new Date(defaultStart).toISOString(),
           offsetQuarterHours: 0,
         };
+        // Zepp OS sleep sessions keep their own cursor; a first sync looks back
+        // a week, since a night is reported after waking.
+        const syncsSleep =
+          syncIdentity.family === "zepp_os" && zeppOsSupportsSleepSessions(syncIdentity.modelId);
+        let sleepCursor: HelioCursor | null = stored.sleep;
+        let sleepMemory: ZeppSleepMemory = stored.nights;
+        const sleepSince: HelioCursor = stored.sleep ?? {
+          version: 1,
+          nextMinuteUtc: new Date(
+            Math.floor(((deps.now ?? Date.now)() - 7 * 24 * 60 * 60 * 1000) / 60000) * 60000,
+          ).toISOString(),
+          offsetQuarterHours: 0,
+        };
+        let activityCursor: HelioCursor = since;
+        let historyNotice: string | null = null;
         // Each committed page advances the CAS checkpoint and the next page's source cursor.
         let checkpoint = binding.captureCheckpoint;
         let cursorSince = since;
@@ -1355,15 +1524,62 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
                 deviceIdentity: syncIdentity,
                 captureId,
                 expectedPreviousCheckpoint: checkpoint,
-                nextCheckpoint: cursorString(page.nextCursor),
+                nextCheckpoint: checkpointString(page.nextCursor, sleepCursor, sleepMemory),
                 envelopes,
               });
-              checkpoint = cursorString(page.nextCursor);
+              checkpoint = checkpointString(page.nextCursor, sleepCursor, sleepMemory);
               cursorSince = page.nextCursor;
+              activityCursor = page.nextCursor;
               captured += page.minutes.length;
             },
+            ...(syncsSleep
+              ? {
+                  sleep: {
+                    since: sleepSince,
+                    async onPage(page: ZeppSleepPage) {
+                      if (
+                        !current(token) ||
+                        !isAuthorityTicketCurrent(ticket) ||
+                        abort.signal.aborted
+                      )
+                        throw new Error("STALE_DIRECT_DEVICE_AUTHORITY");
+                      const before = sleepCursor ?? sleepSince;
+                      const assigned = assignZeppSleepIds(page.sessions, sleepMemory);
+                      const next = checkpointString(
+                        activityCursor,
+                        page.nextCursor,
+                        assigned.memory,
+                      );
+                      const envelopes = zeppSleepRequests(
+                        syncDeviceId,
+                        syncIdentity,
+                        { userId: context.userId, organizationId: context.organizationId },
+                        page.sessions,
+                        assigned.ids,
+                      );
+                      // A page whose records had no stages commits nothing
+                      // and leaves the durable cursor (the next sync re-reads
+                      // those records, harmlessly).
+                      if (!envelopes.length) return;
+                      deps.store.commitCapture(ticket, {
+                        deviceId: syncDeviceId,
+                        deviceIdentity: syncIdentity,
+                        captureId: `dd-sleep:${syncDeviceId}:${before.nextMinuteUtc}:${page.nextCursor.nextMinuteUtc}`,
+                        expectedPreviousCheckpoint: checkpoint,
+                        nextCheckpoint: next,
+                        envelopes,
+                      });
+                      checkpoint = next;
+                      sleepCursor = page.nextCursor;
+                      sleepMemory = assigned.memory;
+                    },
+                  },
+                }
+              : {}),
           }));
         if (!current(token) || !isAuthorityTicketCurrent(ticket)) return;
+        // Steps are committed; a failed sleep fetch is a notice, not an error.
+        if ("sleep" in result && result.sleep?.errorCode) historyNotice = "ZEPP_SLEEP_SYNC_FAILED";
         // Legacy Huami history arrives through the buffered history sink during
         // the transfer; commit it before draining the outbox.
         queueHistoryFlush();
@@ -1401,6 +1617,7 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
         });
         if (summary.applied > 0) await deps.onApplied?.();
         await controller.refreshBindings();
+        if (historyNotice && current(token)) publish({ errorCode: historyNotice });
         // refreshBindings resets phase/errorCode; the Pebble result outlives it.
         if (inboxResult && current(token) && (inboxResult.hardFailure || inboxNotice))
           publish({

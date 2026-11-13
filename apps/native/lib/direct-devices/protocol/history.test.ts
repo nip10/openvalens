@@ -288,3 +288,150 @@ describe("Helio history paging", () => {
     expect(f.calls.filter((c) => c[0] === 3)).toEqual([[3, 9]]);
   });
 });
+
+describe("Zepp OS sleep rounds", () => {
+  const MIDNIGHT = Date.UTC(2026, 10, 5) / 1000;
+  function sleepRecord(reportTime: number) {
+    const bytes = new Uint8Array(594);
+    const view = new DataView(bytes.buffer);
+    view.setUint32(0, reportTime, true);
+    view.setUint32(4, MIDNIGHT, true);
+    bytes[0x54] = 1;
+    view.setUint16(0x56, 1380, true);
+    view.setUint16(0x58, 1439, true);
+    bytes[0x5a] = 5;
+    return bytes;
+  }
+  function sleepFixture(records: Uint8Array, completionCrc: "ok" | "bad" | "none" = "ok") {
+    let listener: ((bytes: Uint8Array) => void) | undefined;
+    const calls: number[][] = [];
+    let sleepServed = false;
+    let pendingType = 0;
+    const link: HelioLink = {
+      maxWriteBytes: 20,
+      subscribe: (_characteristic, cb) => {
+        listener = cb;
+        return () => {
+          listener = undefined;
+        };
+      },
+      write: async () => {},
+    };
+    const crc = (data: Uint8Array) => {
+      let value = 0xffffffff;
+      for (const byte of data) {
+        value ^= byte;
+        for (let bit = 0; bit < 8; bit += 1)
+          value = value & 1 ? (value >>> 1) ^ 0xedb88320 : value >>> 1;
+      }
+      return (value ^ 0xffffffff) >>> 0;
+    };
+    const channel = {
+      services: new Map([[0x004b, false]]),
+      close: async () => {},
+      request: async (_endpoint: number, payload: Uint8Array) => {
+        calls.push([...payload]);
+        if (payload[0] === 1) {
+          pendingType = payload[1]!;
+          const length = pendingType === 0x48 && !sleepServed ? records.length : 0;
+          const response = new Uint8Array(15);
+          response.set([0x10, 1, 1]);
+          new DataView(response.buffer).setUint32(3, length, true);
+          response.set(Uint8Array.of(0xea, 0x07, 11, 5, 12, 0, 0, 0), 7);
+          return response;
+        }
+        if (payload.length === 1 && payload[0] === 2) {
+          sleepServed = true;
+          let counter = 0;
+          for (let i = 0; i < records.length; i += 200) {
+            listener?.(Uint8Array.of(counter, ...records.slice(i, i + 200)));
+            counter = (counter + 1) & 255;
+          }
+          if (completionCrc === "none") return Uint8Array.of(0x10, 2, 1);
+          const value = completionCrc === "ok" ? crc(records) : crc(records) ^ 1;
+          return Uint8Array.of(
+            0x10,
+            2,
+            1,
+            value & 255,
+            (value >>> 8) & 255,
+            (value >>> 16) & 255,
+            value >>> 24,
+          );
+        }
+        return Uint8Array.of(0x10, 3, 1);
+      },
+    };
+    return { link, channel, calls };
+  }
+  const sleepSince = {
+    version: 1 as const,
+    nextMinuteUtc: "2026-11-01T00:00:00.000Z",
+    offsetQuarterHours: 0,
+  };
+
+  test("sleep sessions are fetched after activity with their own cursor, keep-ACK only", async () => {
+    const report = MIDNIGHT + 8 * 3600 + 30;
+    const f = sleepFixture(sleepRecord(report));
+    const pages: {
+      sessions: readonly { midnight: number }[];
+      nextCursor: { nextMinuteUtc: string };
+    }[] = [];
+    const result = await runHelioStepsHistory(
+      f.link,
+      {
+        ...options(async () => {}),
+        sleep: { since: sleepSince, onPage: async (page) => void pages.push(page) },
+      },
+      {
+        openChannel: async () => f.channel as never,
+        now: () => Date.parse("2026-11-05T13:00:00Z"),
+      },
+    );
+    expect(pages).toHaveLength(1);
+    expect(pages[0]!.sessions.map((session) => session.midnight)).toEqual([MIDNIGHT]);
+    // since = last report time + 1 minute (upstream ARFO).
+    expect(pages[0]!.nextCursor.nextMinuteUtc).toBe(
+      new Date((Math.floor(report / 60) + 1) * 60_000).toISOString(),
+    );
+    expect(result.sleep).toMatchObject({ pages: 1, sessions: 1, errorCode: null });
+    expect(f.calls.filter((c) => c[0] === 1).map((c) => c[1])).toEqual([0x01, 0x48, 0x48]);
+    expect(f.calls.filter((c) => c[0] === 3).every((c) => c[1] === 9)).toBe(true);
+  });
+
+  test("a sleep CRC mismatch keeps the data on the watch and is reported, not thrown", async () => {
+    const f = sleepFixture(sleepRecord(MIDNIGHT + 8 * 3600), "bad");
+    let committed = 0;
+    const result = await runHelioStepsHistory(
+      f.link,
+      {
+        ...options(async () => {}),
+        sleep: { since: sleepSince, onPage: async () => void committed++ },
+      },
+      {
+        openChannel: async () => f.channel as never,
+        now: () => Date.parse("2026-11-05T13:00:00Z"),
+      },
+    );
+    expect(committed).toBe(0);
+    expect(result.sleep).toMatchObject({ errorCode: "HISTORY_INTEGRITY_ERROR" });
+    expect(f.calls.filter((c) => c[0] === 3)).toEqual([
+      [3, 9],
+      [3, 9],
+    ]);
+  });
+
+  test("no sleep option means no sleep fetch (other families and no-score models)", async () => {
+    const f = sleepFixture(sleepRecord(MIDNIGHT));
+    const result = await runHelioStepsHistory(
+      f.link,
+      options(async () => {}),
+      {
+        openChannel: async () => f.channel as never,
+        now: () => Date.parse("2026-11-05T13:00:00Z"),
+      },
+    );
+    expect(result.sleep).toBeUndefined();
+    expect(f.calls.some((c) => c[0] === 1 && c[1] === 0x48)).toBe(false);
+  });
+});

@@ -531,3 +531,31 @@ export function matchDeviceName(name: string): ZeppOsModel | null {
   }
   return null;
 }
+
+/**
+ * Models without the 0x48 sleep-session fetch (`supportsSleepScore() = false`
+ * in their upstream coordinators; mostly Zepp OS 1.x/2.x). Their sleep would
+ * come only from kind-120 activity minutes, which is not implemented yet.
+ */
+const NO_SLEEP_SESSIONS: ReadonlySet<ZeppOsModelId> = new Set<ZeppOsModelId>([
+  "amazfit_band_7",
+  "xiaomi_mi_band_7",
+  "amazfit_gtr_3",
+  "amazfit_gtr_3_pro",
+  "amazfit_gts_3",
+  "amazfit_gts_4_mini",
+  "amazfit_gtr_mini",
+  "amazfit_bip_5",
+  "amazfit_trex_2",
+  "amazfit_bip_5_unity",
+]);
+
+/** True when the model reports sleep sessions through fetch type 0x48. */
+export function zeppOsSupportsSleepSessions(id: string): boolean {
+  return (
+    MODEL_BY_ID_FOR_SLEEP.has(id as ZeppOsModelId) && !NO_SLEEP_SESSIONS.has(id as ZeppOsModelId)
+  );
+}
+const MODEL_BY_ID_FOR_SLEEP: ReadonlySet<ZeppOsModelId> = new Set(
+  ZEPP_OS_MODELS.map((model) => model.id),
+);

@@ -110,6 +110,7 @@ export function directDeviceFamilySupportsRecordType(
     );
   if (recordType === "sleep_session")
     return (
+      family === "zepp_os" ||
       family === "colmi_ring" ||
       family === "gloryfit" ||
       family === "fitpro" ||
@@ -158,11 +159,31 @@ export function assertDirectDeviceIdentity(
   return confirmed;
 }
 
+/** Zepp OS coordinators with `supportsSleepScore() = false` upstream (no 0x48 sleep sessions). */
+const ZEPP_OS_NO_SLEEP_SESSIONS: ReadonlySet<string> = new Set([
+  "amazfit_band_7",
+  "xiaomi_mi_band_7",
+  "amazfit_gtr_3",
+  "amazfit_gtr_3_pro",
+  "amazfit_gts_3",
+  "amazfit_gts_4_mini",
+  "amazfit_gtr_mini",
+  "amazfit_bip_5",
+  "amazfit_trex_2",
+  "amazfit_bip_5_unity",
+]);
+
 /** Apply implemented per-model capabilities where family-level support is too broad. */
 function directDeviceModelSupportsRecordType(
   identity: DirectDeviceIdentity,
   recordType: DirectDeviceRecordType,
 ): boolean {
+  if (identity.family === "zepp_os")
+    // Zepp OS models without the 0x48 sleep-session fetch publish no sleep.
+    return (
+      directDeviceFamilySupportsRecordType(identity.family, recordType) &&
+      !(recordType === "sleep_session" && ZEPP_OS_NO_SLEEP_SESSIONS.has(identity.modelId))
+    );
   if (identity.family !== "pebble")
     return directDeviceFamilySupportsRecordType(identity.family, recordType);
 

@@ -15,11 +15,19 @@ export type HelioStepsPage = Readonly<{
   minutes: readonly HelioStepMinute[];
   nextCursor: HelioCursor;
 }>;
+/** One committed batch of Zepp OS sleep sessions (fetch type 0x48). */
+export type ZeppSleepPage = Readonly<{
+  sessions: readonly import("./zepp-sleep").ZeppSleepSession[];
+  nextCursor: HelioCursor;
+}>;
+
 export type HelioHistoryOptions = {
   authKey: Uint8Array;
   since: HelioCursor;
   signal: AbortSignal;
   onPage(page: HelioStepsPage): Promise<void>;
+  /** Zepp OS: also fetch sleep sessions after activity, from their own cursor. */
+  sleep?: Readonly<{ since: HelioCursor; onPage(page: ZeppSleepPage): Promise<void> }>;
   onPhase(phase: "authenticating" | "discovering_services" | "fetching"): void;
 };
 export type HelioHistoryResult = Readonly<{
@@ -28,6 +36,13 @@ export type HelioHistoryResult = Readonly<{
   complete: boolean;
   /** Xiaomi only: whether the emitted records are minute- or day-granular. */
   granularity?: "minute" | "daily" | "none";
+  /** Zepp OS sleep fetch, when requested. A failure here never undoes activity pages. */
+  sleep?: Readonly<{
+    pages: number;
+    sessions: number;
+    complete: boolean;
+    errorCode: string | null;
+  }>;
 }>;
 
 export interface HelioLink {

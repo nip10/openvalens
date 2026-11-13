@@ -126,8 +126,16 @@ describe("direct-device identity guard", () => {
     expect(
       assertDirectDeviceIdentity(ring, ringAssertion, { recordType: "sleep_session" }),
     ).toEqual(ringAssertion);
+    // The Helio Strap reports 0x48 sleep sessions; a no-sleep-score Zepp OS model does not.
+    expect(
+      assertDirectDeviceIdentity(
+        confirmed,
+        { family: "zepp_os", modelId: "amazfit_helio_strap" },
+        { recordType: "sleep_session" },
+      ),
+    ).toEqual({ family: "zepp_os", modelId: "amazfit_helio_strap" });
     for (const other of [
-      confirmed,
+      { directDeviceFamily: "zepp_os", directDeviceModelId: "amazfit_gtr_3" },
       { directDeviceFamily: "xiaomi", directDeviceModelId: "xiaomi_mi_band_10" },
       { directDeviceFamily: "ble_gatt", directDeviceModelId: "polar_h10" },
       { directDeviceFamily: "ble_scale", directDeviceModelId: "xiaomi_smart_scale_2" },
@@ -412,8 +420,8 @@ test("fossil_hr publishes per-minute steps and heart rate, and nothing else", ()
     expect(directDeviceFamilySupportsRecordType("fossil_hr", recordType), recordType).toBe(false);
 });
 
-test("zepp_os publishes steps and per-minute heart rate", () => {
+test("zepp_os publishes steps, per-minute heart rate and sleep sessions", () => {
   expect(directDeviceFamilySupportsRecordType("zepp_os", "steps")).toBe(true);
   expect(directDeviceFamilySupportsRecordType("zepp_os", "heart_rate")).toBe(true);
-  expect(directDeviceFamilySupportsRecordType("zepp_os", "sleep_session")).toBe(false);
+  expect(directDeviceFamilySupportsRecordType("zepp_os", "sleep_session")).toBe(true);
 });

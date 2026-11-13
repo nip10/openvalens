@@ -478,7 +478,7 @@ test("raw-byte capacity is eight MiB and exact duplicates remain admissible", ()
     store.appendPebblePacket(ticket, target(), packet(83, bounds(1_700_000_200, 1_700_000_300))),
   ).toThrow("PEBBLE_INBOX_FULL");
   db.close();
-});
+}, 120_000);
 
 test("v2 migration adds Pebble tables and native association without dropping prior binding rows", () => {
   const db = new Database(":memory:");

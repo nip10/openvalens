@@ -88,7 +88,8 @@ export function deviceDateToUtcMinute(value: DeviceDate): string {
     new Date(local - value.offsetQuarterHours * 15 * 60_000).toISOString().slice(0, 16) + ":00.000Z"
   );
 }
-export function historyStart(cursor: HelioCursor): Uint8Array {
+/** `01 <type> yy yy MM dd hh mm ss tz`: type 0x01 is activity, 0x48 sleep sessions. */
+export function historyStart(cursor: HelioCursor, type = 0x01): Uint8Array {
   const d = new Date(cursor.nextMinuteUtc);
   if (
     cursor.version !== 1 ||
@@ -106,7 +107,7 @@ export function historyStart(cursor: HelioCursor): Uint8Array {
   const local = new Date(d.getTime() + cursor.offsetQuarterHours * 15 * 60_000);
   const out = new Uint8Array(10);
   out[0] = 1;
-  out[1] = 1;
+  out[1] = type;
   out[2] = local.getUTCFullYear() & 255;
   out[3] = local.getUTCFullYear() >>> 8;
   out[4] = local.getUTCMonth() + 1;
