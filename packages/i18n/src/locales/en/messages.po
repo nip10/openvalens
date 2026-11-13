@@ -3826,6 +3826,10 @@ msgstr "Confirm sending this photo to the provider first."
 msgid "Confirm sending this text to the provider first."
 msgstr "Confirm sending this text to the provider first."
 
+#: apps/native/components/direct-device-settings.tsx
+msgid "Confirm the pairing on your watch now. You have 30 seconds."
+msgstr "Confirm the pairing on your watch now. You have 30 seconds."
+
 #: packages/api/src/presenters/wellness-profile.ts
 msgid "Confirm you are 18 or older before adding age or sex."
 msgstr "Confirm you are 18 or older before adding age or sex."
@@ -7946,8 +7950,8 @@ msgid "How you'll add data"
 msgstr "How you'll add data"
 
 #: apps/native/components/direct-device-settings.tsx
-msgid "Huawei/Honor history (exact-minute steps, heart rate and sleep) downloads when you tap “Sync steps”. Records are saved in batches and sent only when you tap “Retry upload”."
-msgstr "Huawei/Honor history (exact-minute steps, heart rate and sleep) downloads when you tap “Sync steps”. Records are saved in batches and sent only when you tap “Retry upload”."
+msgid "Huawei/Honor history (exact-minute steps, heart rate and sleep) downloads when you tap “Sync steps”. Newer watches ask you to confirm pairing on the watch the first time: tap Confirm there within 30 seconds. Records are saved in batches and sent only when you tap “Retry upload”."
+msgstr "Huawei/Honor history (exact-minute steps, heart rate and sleep) downloads when you tap “Sync steps”. Newer watches ask you to confirm pairing on the watch the first time: tap Confirm there within 30 seconds. Records are saved in batches and sent only when you tap “Retry upload”."
 
 #: packages/api/src/presenters/food-logger-capture.ts
 msgid "I agree to send this photo now"
@@ -15658,8 +15662,8 @@ msgid "Syncing…"
 msgstr "Syncing…"
 
 #: apps/native/components/direct-device-settings.tsx
-msgid "Syncs over Bluetooth Classic on Android once paired; most of these watches also need Huawei's HiChain pairing, which is not implemented yet. Connection checks only on iPhone. Not hardware-verified."
-msgstr "Syncs over Bluetooth Classic on Android once paired; most of these watches also need Huawei's HiChain pairing, which is not implemented yet. Connection checks only on iPhone. Not hardware-verified."
+msgid "Syncs over Bluetooth Classic on Android; the first sync asks you to confirm pairing on the watch. Honor Watch 5, 5 Pro and 6 are not supported yet. Connection checks only on iPhone. Not hardware-verified."
+msgstr "Syncs over Bluetooth Classic on Android; the first sync asks you to confirm pairing on the watch. Honor Watch 5, 5 Pro and 6 are not supported yet. Connection checks only on iPhone. Not hardware-verified."
 
 #: apps/web/src/components/mode-toggle.tsx
 msgid "System"

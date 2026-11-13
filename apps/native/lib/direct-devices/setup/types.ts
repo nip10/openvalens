@@ -110,6 +110,8 @@ export type HelioSetupSnapshot = Readonly<{
     historySync: boolean;
   }>;
   errorCode: string | null;
+  /** Set while a sync waits for the user to confirm pairing on the watch (Huawei HiChain). */
+  pairingPrompt?: "confirm_on_watch" | null;
   crypto: Readonly<{
     status: "not_checked" | "running" | "passed" | "unavailable" | "failed";
     code: string | null;

@@ -1299,6 +1299,7 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
               ? "connected"
               : snapshot.phase,
       errorCode: state.errorCode,
+      pairingPrompt: state.pairingPrompt ?? null,
       canSync: connected && state.capabilities.stepsHistory && compatible && !snapshot.isBusy,
     });
   };

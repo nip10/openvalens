@@ -16,6 +16,7 @@ import type { HuaweiRecord } from "../protocol/huawei";
 import {
   createHuaweiSession,
   HuaweiUnsupportedAuthError,
+  type HuaweiHiChainStore,
   type HuaweiSession,
   type HuaweiSessionOptions,
 } from "./huawei";
@@ -76,6 +77,9 @@ export type HuaweiBrSyncOptions = Readonly<{
   bond: PebbleBondAdapter;
   onRecord: (record: HuaweiRecord) => void;
   signal: AbortSignal;
+  /** Durable HiChain id and token (most BR watches authenticate with HiChain). */
+  hichainStore?: HuaweiHiChainStore;
+  onAuthPrompt?: (prompt: "confirm_on_watch") => void;
   createSession?: (options: HuaweiSessionOptions) => HuaweiSession;
   bondTimeoutMs?: number;
   connectTimeoutMs?: number;
@@ -134,6 +138,8 @@ export async function runHuaweiBrSync(options: HuaweiBrSyncOptions): Promise<voi
     deviceId: options.deviceId,
     macAddress: address,
     onRecord: options.onRecord,
+    hichainStore: options.hichainStore,
+    onAuthPrompt: options.onAuthPrompt,
   });
   const onAbort = () => void session.close();
   signal.addEventListener("abort", onAbort, { once: true });

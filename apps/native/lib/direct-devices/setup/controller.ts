@@ -68,6 +68,8 @@ import { HUAMI_SERVICE_UUID, matchHuamiLegacyDevice } from "../models/huami-lega
 import { createHuaweiSession } from "../transport/huawei";
 import type { HuaweiSession } from "../transport/huawei";
 import { runHuaweiBrSync } from "../transport/huawei-rfcomm";
+import { createSecureHuaweiHiChainStore } from "../transport/huawei-hichain-store";
+import type { HuaweiHiChainStore } from "../transport/huawei";
 import type { BtClassicAdapter } from "../../../modules/bt-classic";
 import { createNativeXiaomiHistoryTransport } from "../transport/xiaomi-session";
 import { runXiaomiStepsHistory } from "../protocol/xiaomi-history";
@@ -124,6 +126,8 @@ type Deps = {
   pebbleBondAdapter?: () => PebbleBondAdapter;
   /** Android Bluetooth Classic adapter; production loads `bt-classic` lazily. */
   btClassicAdapter?: () => BtClassicAdapter;
+  /** Durable HiChain id/token store; production uses the OS keystore. */
+  huaweiHiChainStore?: () => HuaweiHiChainStore;
   /** Pairing/handshake/identity budget for the Pebble prepare step. */
   pebblePrepareTimeoutMs?: number;
   /** Test seam for the Fossil Hybrid HR session. */
@@ -149,6 +153,7 @@ const initial: HelioSetupSnapshot = Object.freeze({
   connectedFamily: null,
   capabilities: Object.freeze({ stepsHistory: false, liveCapture: false, historySync: false }),
   errorCode: null,
+  pairingPrompt: null,
   crypto: Object.freeze({ status: "not_checked", code: null }),
 });
 const FEE0 = "0000fee0-0000-1000-8000-00805f9b34fb";
@@ -231,6 +236,9 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
   let connectedHuaweiSession: HuaweiSession | null = null;
   /** A Bluetooth Classic Huawei/Honor watch: history runs over RFCOMM in `fetchSteps`. */
   let connectedHuaweiBr: { model: HuaweiModel; bleAddress: string; deviceId: string } | null = null;
+  let hichainStore: HuaweiHiChainStore | null = null;
+  const huaweiHiChainStore = (): HuaweiHiChainStore =>
+    (hichainStore ??= (deps.huaweiHiChainStore ?? createSecureHuaweiHiChainStore)());
   /** Android with the `bt-classic` module present; false on iOS and older builds. */
   const btClassicSupported = (): boolean => {
     try {
@@ -1275,6 +1283,8 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
               profile: huaweiProfile,
               macAddress: discovered.id,
               onRecord: deps.onHistorySample,
+              hichainStore: huaweiHiChainStore(),
+              onAuthPrompt: (prompt) => publish({ pairingPrompt: prompt }),
             });
           }
           publish({
@@ -1596,6 +1606,8 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
                       bond: (deps.pebbleBondAdapter ?? loadPebbleBondAdapter)(),
                       onRecord: deps.onHistorySample!,
                       signal: linked.signal,
+                      hichainStore: huaweiHiChainStore(),
+                      onAuthPrompt: (prompt) => publish({ pairingPrompt: prompt }),
                     });
                     return {
                       pages: 0,
@@ -1668,6 +1680,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
         return await work;
       } finally {
         options.signal.removeEventListener("abort", forwardAbort);
+        if (snapshot.pairingPrompt) publish({ pairingPrompt: null });
         if (historyCompletion === work) historyCompletion = null;
         if (historyAbort === abortController) historyAbort = null;
       }

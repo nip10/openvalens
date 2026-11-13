@@ -43,6 +43,8 @@ export type HelioSyncSnapshot = Readonly<{
   connectionGeneration: number;
   capabilities: Readonly<{ stepsHistory: boolean; liveCapture: boolean; historySync: boolean }>;
   bluetooth: HelioSetupSnapshot["bluetooth"];
+  /** Mirrors the setup snapshot: the watch is waiting for the user to confirm pairing. */
+  pairingPrompt?: "confirm_on_watch" | null;
   errorCode: string | null;
   capturedMinutes: number;
   pendingEnvelopes: number;

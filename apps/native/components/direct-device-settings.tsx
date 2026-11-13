@@ -315,7 +315,7 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
     zepp_os_shared: t`Shared Zepp OS transport (per-minute steps, heart rate and sleep; older models' sleep is estimated from activity minutes); not validated for this model. Not hardware-verified.`,
     xiaomi_shared: t`Shared Xiaomi protobuf transport; not device-validated for this model. Not hardware-verified.`,
     huawei_history_sync: t`History sync on connection for exact-minute steps, heart rate and sleep (BLE models only); not hardware-verified.`,
-    huawei_connection_only: t`Syncs over Bluetooth Classic on Android once paired; most of these watches also need Huawei's HiChain pairing, which is not implemented yet. Connection checks only on iPhone. Not hardware-verified.`,
+    huawei_connection_only: t`Syncs over Bluetooth Classic on Android; the first sync asks you to confirm pairing on the watch. Honor Watch 5, 5 Pro and 6 are not supported yet. Connection checks only on iPhone. Not hardware-verified.`,
     garmin_history_sync: t`FIT file sync on connection for exact-minute steps, heart rate and sleep; not hardware-verified.`,
     garmin_connection_only: t`Connection checks only; this model carries no health-monitoring FIT files. Not hardware-verified.`,
     ble_gatt_live_capture: t`Live capture while connected; not hardware-verified. No history backfill. Samples are sent only when you tap “Retry upload”.`,
@@ -570,7 +570,7 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
             canSyncSelected ? (
             <>
               <Text className="font-sans text-sm text-ink-3">
-                {t`Huawei/Honor history (exact-minute steps, heart rate and sleep) downloads when you tap “Sync steps”. Records are saved in batches and sent only when you tap “Retry upload”.`}
+                {t`Huawei/Honor history (exact-minute steps, heart rate and sleep) downloads when you tap “Sync steps”. Newer watches ask you to confirm pairing on the watch the first time: tap Confirm there within 30 seconds. Records are saved in batches and sent only when you tap “Retry upload”.`}
               </Text>
               <View className="flex-row flex-wrap gap-2">
                 <Button onPress={handoffWithoutKey} isDisabled={busy || !canSyncSelected}>
@@ -650,6 +650,11 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
             {t`Published minute records: ${policy.publishedRecords} · Shadowed minute records (stored, not added to totals): ${policy.shadowedRecords}. Step publication follows UTC-day coverage: phone and cloud steps take priority for the whole day, including partial days. Of multiple direct devices, the earliest registered binding is used on uncovered days.`}
           </Text>
         ) : null}
+        {snapshot.pairingPrompt === "confirm_on_watch" ? (
+          <Text accessibilityLiveRegion="assertive" className="font-sans text-sm text-ink">
+            {t`Confirm the pairing on your watch now. You have 30 seconds.`}
+          </Text>
+        ) : null}
         {snapshot.errorCode ? (
           <Text className="font-sans text-sm text-destructive">
             {friendlyError(snapshot.errorCode)}
@@ -683,7 +688,19 @@ function friendlyError(code: string) {
   if (code === "HUAWEI_DEVICE_STATUS_UNSUPPORTED")
     return "The watch reported a state this app cannot handle yet (it may need setting up in the Huawei Health app first).";
   if (code === "HUAWEI_AUTH_UNSUPPORTED")
-    return "This Huawei/Honor device negotiated an authentication mode that needs on-device confirmation or a PIN code, which is not implemented.";
+    return "This Huawei/Honor device needs a pairing mode that is not supported yet (Honor Watch 5, 5 Pro and 6, or an older PIN-based mode).";
+  if (code === "HUAWEI_HICHAIN_CONFIRM_TIMEOUT")
+    return "The watch did not confirm pairing in time. Unlock it, keep it near the phone, sync again and tap Confirm on the watch.";
+  if (code === "HUAWEI_HICHAIN_REJECTED" || code === "HUAWEI_HICHAIN_TOKEN_MISMATCH")
+    return "The watch rejected pairing. If it is paired with the Huawei Health app or another phone, unpair it there first, then sync again.";
+  if (code === "HUAWEI_HICHAIN_REBIND_REQUIRED")
+    return "The watch no longer recognises this phone. Sync again to pair: you will confirm on the watch.";
+  if (
+    code === "HUAWEI_AUTH_NEGOTIATION_FAILED" ||
+    code === "HUAWEI_HICHAIN_PIN_FAILED" ||
+    code === "HUAWEI_HICHAIN_PROTOCOL"
+  )
+    return "Pairing with the watch failed. Restart the watch, then sync again.";
   if (code === "HUAWEI_MAC_UNAVAILABLE")
     return "Huawei authentication needs the device MAC address, which this platform does not expose. Sync is only available on Android.";
   if (code === "HUAWEI_AUTH_FAILED")

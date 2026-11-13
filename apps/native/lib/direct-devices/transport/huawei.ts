@@ -108,6 +108,31 @@ import {
 } from "../protocol/huawei";
 import { loadHuaweiCrypto, type HuaweiCryptoProvider } from "../crypto/huawei-auth";
 import type { HuaweiLink } from "./huawei-link";
+import {
+  buildHuaweiHiChainJson,
+  buildHuaweiHiChainRequest,
+  buildHuaweiPincodeRequest,
+  classifyHuaweiAuthType,
+  decryptHuaweiPinCode,
+  HUAWEI_HICHAIN_COMMAND,
+  HUAWEI_HICHAIN_CONFIRM_TIMEOUT_MS,
+  HUAWEI_HICHAIN_GROUP_ID,
+  HUAWEI_PINCODE_COMMAND,
+  huaweiEqualBytes,
+  huaweiHexUpper,
+  huaweiHiChainDecryptAuthToken,
+  huaweiHiChainEncryptChallenge,
+  huaweiHiChainEncryptResult,
+  huaweiHiChainPacketKey,
+  huaweiHiChainPeerToken,
+  huaweiHiChainPinKey,
+  huaweiHiChainPsk,
+  huaweiHiChainReturnCodeMac,
+  huaweiHiChainSelfToken,
+  huaweiHiChainSessionKey,
+  parseHuaweiHiChainResponse,
+  type HuaweiHiChainOperation,
+} from "../protocol/huawei-hichain";
 
 /** Local watchdog for each request; upstream has no explicit timeout. */
 export const HUAWEI_SESSION_WATCHDOG_MS = 30_000;
@@ -132,6 +157,9 @@ export type HuaweiFailure =
 /** Typed refusals for the auth modes this build does not implement. */
 export type HuaweiUnsupportedAuthReason = "hichain" | "hichain_lite_pincode" | "honor_pake";
 
+/** Op-2 step 1 waits longer than upstream's 5 s: Bluetooth Classic adds latency. */
+export const HUAWEI_HICHAIN_AUTH_STEP_MS = 10_000;
+
 export class HuaweiUnsupportedAuthError extends Error {
   readonly code = "HUAWEI_AUTH_UNSUPPORTED";
   constructor(readonly reason: HuaweiUnsupportedAuthReason) {
@@ -139,6 +167,35 @@ export class HuaweiUnsupportedAuthError extends Error {
     this.name = "HuaweiUnsupportedAuthError";
   }
 }
+
+/**
+ * HiChain identity per watch: our persisted id (the watch's group entry is
+ * keyed by it, so it survives re-binds) and the bind's auth token. Kept apart
+ * from the normal-mode secret key: upstream sharing one slot breaks auth.
+ */
+export type HuaweiHiChainStore = Readonly<{
+  getAndroidId(deviceId: string): string | null;
+  setAndroidId(deviceId: string, androidId: string): void;
+  getAuthToken(deviceId: string): Uint8Array | null;
+  setAuthToken(deviceId: string, token: Uint8Array): void;
+  /** Forget the bind (the token); the id stays. */
+  clearAuthToken(deviceId: string): void;
+}>;
+
+export function createMemoryHuaweiHiChainStore(): HuaweiHiChainStore {
+  const ids = new Map<string, string>();
+  const tokens = new Map<string, Uint8Array>();
+  return {
+    getAndroidId: (deviceId) => ids.get(deviceId) ?? null,
+    setAndroidId: (deviceId, androidId) => void ids.set(deviceId, androidId),
+    getAuthToken: (deviceId) => tokens.get(deviceId) ?? null,
+    setAuthToken: (deviceId, token) => void tokens.set(deviceId, Uint8Array.from(token)),
+    clearAuthToken: (deviceId) => void tokens.delete(deviceId),
+  };
+}
+
+/** Process-wide fallback; production passes a durable store. */
+export const defaultHuaweiHiChainStore: HuaweiHiChainStore = createMemoryHuaweiHiChainStore();
 
 /** Last-sync cursor storage. Not durable; see the module header. */
 export type HuaweiSyncStateStore = Readonly<{
@@ -229,6 +286,10 @@ export type HuaweiSessionOptions = Readonly<{
   transport?: "ble" | "br";
   /** Upstream `isTransactionCrypted()`; eight BR models send in the clear. */
   transactionsCrypted?: boolean;
+  /** HiChain id and bind token; defaults to a process-wide memory store. */
+  hichainStore?: HuaweiHiChainStore;
+  /** Called right before the bind that asks the user to confirm on the watch. */
+  onAuthPrompt?: (prompt: "confirm_on_watch") => void;
   /** Stable device id used as the cursor and secret-key key. */
   deviceId: string;
   /** Real device MAC (used for `createSecretKey`). */
@@ -290,6 +351,10 @@ export class HuaweiSession {
   private readonly abort = new AbortController();
   private readonly transport: "ble" | "br";
   private readonly transactionsCrypted: boolean;
+  private readonly hichainStore: HuaweiHiChainStore;
+  private authPath: "normal" | "lite" | "hichain" = "normal";
+  /** HiChain3 (support type 4): fully random IVs instead of the counter. */
+  private randomIv = false;
   private readonly done: Promise<void>;
   private resolveDone!: () => void;
   private rejectDone!: (error: unknown) => void;
@@ -317,6 +382,7 @@ export class HuaweiSession {
     this.now = options.now ?? (() => new Date());
     this.transport = options.transport ?? "ble";
     this.transactionsCrypted = options.transactionsCrypted ?? true;
+    this.hichainStore = options.hichainStore ?? defaultHuaweiHiChainStore;
     if (!options.link && !(options.device && options.profile))
       throw new Error("HUAWEI_LINK_REQUIRED");
     // The BLE delay lets GATT settle after connect; an RFCOMM socket is ready.
@@ -373,7 +439,8 @@ export class HuaweiSession {
       await this.negotiate();
       if (this.closed) return this.settleResolve();
       this.stage = "auth";
-      await this.authenticate();
+      if (this.authPath === "hichain") await this.hichain();
+      else await this.authenticate();
       if (this.closed) return this.settleResolve();
       this.stage = "steps";
       await this.sync();
@@ -432,35 +499,232 @@ export class HuaweiSession {
 
     if (
       this.deviceSupportType === 0x01 ||
+      this.deviceSupportType === 0x02 ||
       this.deviceSupportType === 0x03 ||
       this.deviceSupportType === 0x04
     ) {
-      throw new HuaweiUnsupportedAuthError("hichain");
-    }
-    if (this.deviceSupportType === 0x02) {
-      this.authMode = 0x02;
+      // `initializeDeviceDealHiChain`: the negotiated authType, not the
+      // support type, picks HiChain vs HiChainLite.
+      const authMode = this.deviceSupportType === 0x04 ? 0x04 : 0x02;
+      // `ParamsProvider.getIv`: any type-4 watch uses fully random IVs.
+      this.randomIv = this.deviceSupportType === 0x04;
       const negotiation = parseHuaweiSecurityNegotiationResponse(
         await this.request(
           HUAWEI_DEVICE_CONFIG_SERVICE,
           HUAWEI_SECURITY_NEGOTIATION_COMMAND,
           buildHuaweiSecurityNegotiationRequest({
-            authMode: 0x02,
-            deviceUuid: asciiBytes(this.hexString(16)),
+            authMode,
+            deviceUuid: asciiBytes(this.androidId()),
             phoneModel: "OpenValens",
             encryptMethod: this.encryptMethod,
           }),
           { encrypted: false },
         ),
       );
-      const isHiChain3 =
-        (negotiation.authType ^ 0x01) === 0x04 || (negotiation.authType ^ 0x02) === 0x04;
-      if (negotiation.authType === 0x0186a0 || isHiChain3) {
-        throw new HuaweiUnsupportedAuthError("hichain");
+      const kind = classifyHuaweiAuthType(negotiation.authType);
+      if (kind === "hichain" || kind === "hichain3") {
+        this.authPath = "hichain";
+        return;
       }
-      if (this.authVersion !== 0x02) {
-        throw new HuaweiUnsupportedAuthError("hichain_lite_pincode");
+      if (kind === "hichain_lite") {
+        if (this.authVersion !== 0x02) throw new HuaweiUnsupportedAuthError("hichain_lite_pincode");
+        // Upstream keeps the negotiated mode: 4 for a type-4 watch, else 2.
+        this.authMode = authMode;
+        this.authPath = "lite";
+        return;
       }
+      throw new Error("HUAWEI_AUTH_NEGOTIATION_FAILED");
     }
+  }
+
+  /** Our persisted HiChain id: 16 random bytes as uppercase hex, made once per watch. */
+  private androidId(): string {
+    const stored = this.hichainStore.getAndroidId(this.options.deviceId);
+    if (stored) return stored;
+    const created = huaweiHexUpper(this.randomBytes(16));
+    this.hichainStore.setAndroidId(this.options.deviceId, created);
+    return created;
+  }
+
+  // -------------------------------------------------------------------------
+  // HiChain (spec huawei-hichain-auth.md §3, §7.3)
+  // -------------------------------------------------------------------------
+
+  /**
+   * Bind once with the watch's PIN (the user confirms on the watch), then
+   * authenticate with the stored token on every connection; the result is the
+   * 32-byte packet key. A stored token the watch rejects is forgotten and
+   * reported, so a background sync never pops a pairing prompt unannounced.
+   */
+  private async hichain(): Promise<void> {
+    const deviceId = this.options.deviceId;
+    let token = this.hichainStore.getAuthToken(deviceId);
+    const fresh = token === null;
+    if (!token) {
+      const pin = decryptHuaweiPinCode({
+        tlv: await this.request(
+          HUAWEI_DEVICE_CONFIG_SERVICE,
+          HUAWEI_PINCODE_COMMAND,
+          buildHuaweiPincodeRequest(),
+          { encrypted: false },
+        ),
+        authVersion: this.authVersion,
+        encryptMethod: this.encryptMethod,
+        aes: this.aes!,
+      });
+      this.options.onAuthPrompt?.("confirm_on_watch");
+      const bound = await this.hichainOperation(1, huaweiHiChainPinKey(this.crypto!, pin));
+      if (!bound.authToken) throw new Error("HUAWEI_HICHAIN_PROTOCOL");
+      token = bound.authToken;
+      this.hichainStore.setAuthToken(deviceId, token);
+    }
+    let packetKey: Uint8Array | undefined;
+    try {
+      packetKey = (await this.hichainOperation(2, token)).packetKey;
+    } catch (error) {
+      const code = error instanceof Error ? error.message : "";
+      if (
+        !fresh &&
+        (code === "HUAWEI_HICHAIN_TOKEN_MISMATCH" || code === "HUAWEI_HICHAIN_REJECTED")
+      ) {
+        this.hichainStore.clearAuthToken(deviceId);
+        throw new Error("HUAWEI_HICHAIN_REBIND_REQUIRED", { cause: error });
+      }
+      throw error;
+    }
+    if (!packetKey) throw new Error("HUAWEI_HICHAIN_PROTOCOL");
+    this.secretKey = packetKey;
+    this.encryptionCounter = 0;
+  }
+
+  /** One ISO operation: 1 binds (returns the auth token), 2 authenticates (the packet key). */
+  private async hichainOperation(
+    operation: HuaweiHiChainOperation,
+    key: Uint8Array,
+  ): Promise<{ authToken?: Uint8Array; packetKey?: Uint8Array }> {
+    const crypto = this.crypto!;
+    const aes = this.aes!;
+    const androidId = this.androidId();
+    const authIdSelf = asciiBytes(androidId);
+    const requestId = BigInt(this.now().getTime());
+    const seed = this.randomBytes(32);
+    const randSelf = this.randomBytes(16);
+    const send = async (
+      messageId: number,
+      fields: ReadonlyArray<readonly [string, string | number]>,
+      options: { isDeviceLevel?: boolean; watchdogMs?: number } = {},
+    ) =>
+      parseHuaweiHiChainResponse(
+        await this.request(
+          HUAWEI_DEVICE_CONFIG_SERVICE,
+          HUAWEI_HICHAIN_COMMAND,
+          buildHuaweiHiChainRequest({
+            operation,
+            requestId,
+            json: buildHuaweiHiChainJson({
+              operation,
+              messageId,
+              requestId,
+              androidId,
+              fields,
+              isDeviceLevel: options.isDeviceLevel,
+            }),
+          }),
+          { encrypted: false, watchdogMs: options.watchdogMs },
+        ),
+      );
+
+    // Step 1: the bind's step 1 is where the watch waits for the user.
+    let first: Awaited<ReturnType<typeof send>>;
+    try {
+      first = await send(
+        1,
+        [
+          ["isoSalt", huaweiHexUpper(randSelf)],
+          ["peerAuthId", huaweiHexUpper(authIdSelf)],
+          ["operationCode", operation],
+          ["seed", huaweiHexUpper(seed)],
+          ["peerUserType", 0],
+          ...(operation === 2
+            ? ([
+                ["pkgName", "com.huawei.devicegroupmanage"],
+                ["serviceType", HUAWEI_HICHAIN_GROUP_ID],
+                ["keyLength", 32],
+              ] as const)
+            : []),
+        ],
+        {
+          isDeviceLevel: operation === 2 ? false : undefined,
+          watchdogMs:
+            operation === 1
+              ? HUAWEI_HICHAIN_CONFIRM_TIMEOUT_MS
+              : Math.max(this.statusWatchdogMs, HUAWEI_HICHAIN_AUTH_STEP_MS),
+        },
+      );
+    } catch (error) {
+      if (operation === 1 && error instanceof Error && error.message === "HUAWEI_REQUEST_TIMEOUT")
+        throw new Error("HUAWEI_HICHAIN_CONFIRM_TIMEOUT", { cause: error });
+      throw error;
+    }
+    if (first.step !== 1) throw new Error("HUAWEI_HICHAIN_PROTOCOL");
+    const ids = {
+      randSelf,
+      randPeer: first.randPeer,
+      authIdSelf,
+      authIdPeer: first.authIdPeer,
+    };
+    const psk = huaweiHiChainPsk(crypto, key, seed);
+    if (!huaweiEqualBytes(first.token, huaweiHiChainPeerToken(crypto, psk, ids)))
+      throw new Error("HUAWEI_HICHAIN_TOKEN_MISMATCH");
+
+    // Step 2: our token; the watch proves the PSK with its return-code MAC.
+    const second = await send(
+      2,
+      [
+        ["peerAuthId", huaweiHexUpper(authIdSelf)],
+        ["token", huaweiHexUpper(huaweiHiChainSelfToken(crypto, psk, ids))],
+      ],
+      { isDeviceLevel: operation === 2 ? false : undefined },
+    );
+    if (second.step !== 2) throw new Error("HUAWEI_HICHAIN_PROTOCOL");
+    if (!huaweiEqualBytes(second.returnCodeMac, huaweiHiChainReturnCodeMac(crypto, psk)))
+      throw new Error("HUAWEI_HICHAIN_TOKEN_MISMATCH");
+
+    const sessionKey = huaweiHiChainSessionKey(crypto, psk, ids.randSelf, ids.randPeer);
+    let authToken: Uint8Array | undefined;
+    if (operation === 1) {
+      // Step 3 (bind only): the watch returns the token under our challenge.
+      const nonce = this.randomBytes(12);
+      const challenge = this.randomBytes(16);
+      const third = await send(3, [
+        ["nonce", huaweiHexUpper(nonce)],
+        [
+          "encData",
+          huaweiHexUpper(huaweiHiChainEncryptChallenge(aes, sessionKey, nonce, challenge)),
+        ],
+      ]);
+      if (third.step !== 3) throw new Error("HUAWEI_HICHAIN_PROTOCOL");
+      authToken = huaweiHiChainDecryptAuthToken(
+        aes,
+        sessionKey,
+        third.nonce,
+        third.encAuthToken,
+        challenge,
+      );
+    }
+
+    // Step 4 (op 2 sends it as message 3 | 0x10); the reply is not verified upstream.
+    const nonce = this.randomBytes(12);
+    const fourth = await send(operation === 1 ? 4 : 3, [
+      ["nonce", huaweiHexUpper(nonce)],
+      ["encResult", huaweiHexUpper(huaweiHiChainEncryptResult(aes, sessionKey, nonce))],
+      ["operationCode", operation],
+    ]);
+    if (fourth.step !== 4) throw new Error("HUAWEI_HICHAIN_PROTOCOL");
+    if (operation === 1) return { authToken };
+    return {
+      packetKey: huaweiHiChainPacketKey(crypto, sessionKey, ids.randSelf, ids.randPeer),
+    };
   }
 
   private async authenticate(): Promise<void> {
@@ -515,7 +779,7 @@ export class HuaweiSession {
     }
     // Upstream `initializeDeviceNormalMode` chains bond params and bond only
     // for BLE; on BR normal-mode auth finishes here. HiChainLite always bonds.
-    if (this.transport === "br" && this.authMode !== 0x02) return;
+    if (this.transport === "br" && this.authPath === "normal") return;
 
     const bondParams = parseHuaweiBondParamsResponse(
       await this.request(
@@ -529,15 +793,12 @@ export class HuaweiSession {
       ),
     );
     this.encryptionCounter = bondParams.encryptionCounter;
-    if (this.authMode !== 0x02 && bondParams.status === 1) return;
+    if (this.authPath !== "lite" && bondParams.status === 1) return;
 
-    const { iv, counter } = createHuaweiInitializationVector(
-      this.encryptionCounter,
-      this.randomBytes(12),
-    );
-    this.encryptionCounter = counter;
+    // `ParamsProvider.getIv`: the counter IV, or a random one for type 4.
+    const iv = this.nextIv();
     let bondingKey: Uint8Array;
-    if (this.authMode === 0x02) {
+    if (this.authPath === "lite") {
       bondingKey = firstKey;
     } else {
       // createSecretKey needs the real device MAC. iOS exposes an opaque
@@ -683,6 +944,8 @@ export class HuaweiSession {
   }
 
   private nextIv(): Uint8Array {
+    // HiChain3 (support type 4): a fully random IV, no counter.
+    if (this.randomIv) return this.randomBytes(16);
     const { iv, counter } = createHuaweiInitializationVector(
       this.encryptionCounter,
       this.randomBytes(12),

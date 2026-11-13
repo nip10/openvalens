@@ -6,10 +6,24 @@
  */
 
 import type { HuaweiLink } from "./huawei-link";
+import { nodeHuaweiAes, nodeHuaweiCrypto } from "../crypto/huawei-node-crypto.test-helpers";
 import { expect, test } from "bun:test";
 import type { BleError, Characteristic } from "react-native-ble-plx";
 
-import type { HuaweiCryptoProvider } from "../crypto/huawei-auth";
+import {
+  concatHuaweiBytes,
+  huaweiDigestSecret,
+  type HuaweiCryptoProvider,
+} from "../crypto/huawei-auth";
+import {
+  huaweiHexUpper,
+  huaweiHiChainPacketKey,
+  huaweiHiChainPinKey,
+  huaweiHiChainPsk,
+  huaweiHiChainReturnCodeMac,
+  huaweiHiChainSessionKey,
+  huaweiUnhex,
+} from "../protocol/huawei-hichain";
 import {
   HUAWEI_AUTH_COMMAND,
   HUAWEI_BOND_COMMAND,
@@ -43,6 +57,7 @@ import {
 import {
   HuaweiUnsupportedAuthError,
   createHuaweiSession,
+  createMemoryHuaweiHiChainStore,
   createMemoryHuaweiSyncStateStore,
   type HuaweiSessionOptions,
 } from "./huawei";
@@ -55,41 +70,8 @@ const SERVER_NONCE = Uint8Array.from([
 ]);
 const BASE = 1769934600; // 2026-02-01T08:30:00Z
 
-function nodeCrypto(): HuaweiCryptoProvider {
-  const native = require("node:crypto") as typeof import("node:crypto");
-  return {
-    randomBytes: (size) => Uint8Array.from(native.randomBytes(size)),
-    sha256: (data) => Uint8Array.from(native.createHash("sha256").update(data).digest()),
-    hmacSha256: (key, data) =>
-      Uint8Array.from(native.createHmac("sha256", key).update(data).digest()),
-  };
-}
-
-function nodeAes(): HuaweiAesProvider {
-  const native = require("node:crypto") as typeof import("node:crypto");
-  return {
-    encryptCbc(key, data, iv) {
-      const cipher = native.createCipheriv("aes-128-cbc", key, iv);
-      return Uint8Array.from(Buffer.concat([cipher.update(data), cipher.final()]));
-    },
-    decryptCbc(key, data, iv) {
-      const decipher = native.createDecipheriv("aes-128-cbc", key, iv);
-      return Uint8Array.from(Buffer.concat([decipher.update(data), decipher.final()]));
-    },
-    encryptGcm(key, data, iv) {
-      const cipher = native.createCipheriv("aes-128-gcm", key, iv);
-      const body = Buffer.concat([cipher.update(data), cipher.final()]);
-      return Uint8Array.from(Buffer.concat([body, cipher.getAuthTag()]));
-    },
-    decryptGcm(key, data, iv) {
-      const decipher = native.createDecipheriv("aes-128-gcm", key, iv);
-      decipher.setAuthTag(data.subarray(data.length - 16));
-      return Uint8Array.from(
-        Buffer.concat([decipher.update(data.subarray(0, data.length - 16)), decipher.final()]),
-      );
-    },
-  };
-}
+const nodeCrypto = nodeHuaweiCrypto;
+const nodeAes = nodeHuaweiAes;
 
 const hex = (bytes: Uint8Array): string =>
   Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
@@ -106,6 +88,8 @@ type FakeOptions = Readonly<{
   aes: HuaweiAesProvider;
   /** Overrides the link-params response TLV. */
   linkParams?: HuaweiTlv;
+  /** The transaction key; HiChain switches it to the packet key mid-session. */
+  key?: () => Uint8Array;
   respond: (packet: HuaweiParsedPacket, encrypted: boolean) => ResponseSpec | null;
 }>;
 
@@ -122,7 +106,7 @@ function fakeDevice(options: FakeOptions) {
     const body = encrypt
       ? wrapEncryptedHuaweiTlv(
           encodeHuaweiTlv(tlv),
-          KEY,
+          options.key?.() ?? KEY,
           Uint8Array.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 0, 0, 0, 9),
           false,
           options.aes,
@@ -162,7 +146,9 @@ function fakeDevice(options: FakeOptions) {
       const encrypted = parsed.tlv.some((field) => field.tag === 0x7c);
       encryptedRequests.push(encrypted);
       const tlv = encrypted
-        ? decodeHuaweiTlv(unwrapEncryptedHuaweiTlv(parsed.tlv, KEY, false, options.aes))
+        ? decodeHuaweiTlv(
+            unwrapEncryptedHuaweiTlv(parsed.tlv, options.key?.() ?? KEY, false, options.aes),
+          )
         : parsed.tlv;
       const packet = { ...parsed, tlv };
       if (
@@ -385,19 +371,232 @@ test("the session authenticates and runs the full sync chain", async () => {
   await session.close();
 });
 
-test("a HiChain device is refused with a typed error", async () => {
+// ---------------------------------------------------------------------------
+// HiChain: a synthesized watch running the other side of the ISO exchange
+// ---------------------------------------------------------------------------
+
+const HICHAIN_LINK_PARAMS: HuaweiTlv = [
+  { tag: 0x01, value: Uint8Array.of(0x02) },
+  { tag: 0x02, value: Uint8Array.of(0x00, 0xf4) },
+  { tag: 0x05, value: Uint8Array.of(0x00, 0x03, ...SERVER_NONCE) },
+  { tag: 0x07, value: Uint8Array.of(0x01) },
+  { tag: 0x0c, value: Uint8Array.of(0x00) },
+];
+
+/** The watch side: a PIN, its own auth id, and the token it hands out on a bind. */
+function hichainWatch(options: { silentConfirm?: boolean } = {}) {
   const crypto = nodeCrypto();
-  const linkParams: HuaweiTlv = [
-    { tag: 0x01, value: Uint8Array.of(0x02) },
-    { tag: 0x02, value: Uint8Array.of(0x00, 0xf4) },
-    { tag: 0x05, value: Uint8Array.of(0x00, 0x03, ...SERVER_NONCE) },
-    { tag: 0x07, value: Uint8Array.of(0x01) },
-  ];
-  const fake = fakeDevice({ crypto, aes: nodeAes(), linkParams, respond: () => null });
-  const session = createHuaweiSession(sessionOptions(fake.device));
+  const aes = nodeAes();
+  const pin = new TextEncoder().encode("13572468");
+  const watchId = new TextEncoder().encode("WATCH-AUTH-ID-0001");
+  const issuedToken = crypto.randomBytes(32);
+  const prompts: string[] = [];
+  const commands: number[] = [];
+  let packetKey: Uint8Array | null = null;
+  let state: {
+    psk: Uint8Array;
+    randSelf: Uint8Array;
+    randPeer: Uint8Array;
+    phoneId: Uint8Array;
+    sessionKey?: Uint8Array;
+  } | null = null;
+  const reply = (tlv: HuaweiTlv): ResponseSpec => ({
+    serviceId: HUAWEI_DEVICE_CONFIG_SERVICE,
+    commandId: 0x28,
+    tlv,
+    encrypt: false,
+  });
+  const json = (payload: Record<string, unknown>) =>
+    reply([
+      { tag: 0x04, value: Uint8Array.of(0) },
+      { tag: 0x01, value: new TextEncoder().encode(JSON.stringify({ payload })) },
+    ]);
+  const respond = (packet: HuaweiParsedPacket): ResponseSpec | null => {
+    if (packet.serviceId !== HUAWEI_DEVICE_CONFIG_SERVICE) return syncResponder(packet);
+    commands.push(packet.commandId);
+    if (packet.commandId === HUAWEI_DEVICE_STATUS_COMMAND)
+      return {
+        serviceId: HUAWEI_DEVICE_CONFIG_SERVICE,
+        commandId: HUAWEI_DEVICE_STATUS_COMMAND,
+        tlv: [{ tag: 0x01, value: Uint8Array.of(0x01) }],
+        encrypt: false,
+      };
+    if (packet.commandId === HUAWEI_SECURITY_NEGOTIATION_COMMAND)
+      return {
+        serviceId: HUAWEI_DEVICE_CONFIG_SERVICE,
+        commandId: HUAWEI_SECURITY_NEGOTIATION_COMMAND,
+        tlv: [{ tag: 0x01, value: Uint8Array.of(0x01) }],
+        encrypt: false,
+      };
+    if (packet.commandId === 0x2c) {
+      const iv = crypto.randomBytes(16);
+      return {
+        serviceId: HUAWEI_DEVICE_CONFIG_SERVICE,
+        commandId: 0x2c,
+        tlv: [
+          { tag: 0x01, value: aes.encryptCbc(huaweiDigestSecret(3), pin, iv) },
+          { tag: 0x02, value: iv },
+        ],
+        encrypt: false,
+      };
+    }
+    if (packet.commandId !== 0x28) return null;
+    const request = JSON.parse(
+      new TextDecoder().decode(packet.tlv.find((field) => field.tag === 0x01)!.value),
+    ) as { message: number; payload: Record<string, string | number> };
+    const op = packet.tlv.find((field) => field.tag === 0x02)!.value[0]!;
+    const step = request.message & 0x0f;
+    const payload = request.payload;
+    if (step === 1) {
+      // The bind's step 1 is held until the user taps Confirm.
+      if (op === 1 && options.silentConfirm) return null;
+      if (op === 1) prompts.push("confirmed");
+      const key = op === 1 ? huaweiHiChainPinKey(crypto, pin) : issuedToken;
+      const randSelf = huaweiUnhex(payload.isoSalt as string);
+      const phoneId = huaweiUnhex(payload.peerAuthId as string);
+      const randPeer = crypto.randomBytes(16);
+      const psk = huaweiHiChainPsk(crypto, key, huaweiUnhex(payload.seed as string));
+      state = { psk, randSelf, randPeer, phoneId };
+      // The watch's token is the phone's "peer token" with roles mirrored.
+      const token = crypto.hmacSha256(psk, concatHuaweiBytes(randPeer, randSelf, phoneId, watchId));
+      return json({
+        isoSalt: huaweiHexUpper(randPeer),
+        peerAuthId: huaweiHexUpper(watchId),
+        peerUserType: 0,
+        token: huaweiHexUpper(token),
+      });
+    }
+    const current = state!;
+    if (step === 2) {
+      const expected = crypto.hmacSha256(
+        current.psk,
+        concatHuaweiBytes(current.randSelf, current.randPeer, watchId, current.phoneId),
+      );
+      if (huaweiHexUpper(expected) !== payload.token) return json({ errorCode: 7 });
+      current.sessionKey = huaweiHiChainSessionKey(
+        crypto,
+        current.psk,
+        current.randSelf,
+        current.randPeer,
+      );
+      return json({
+        returnCodeMac: huaweiHexUpper(huaweiHiChainReturnCodeMac(crypto, current.psk)),
+      });
+    }
+    if (step === 3 && op === 1) {
+      const challenge = aes.decryptGcm(
+        current.sessionKey!,
+        huaweiUnhex(payload.encData as string),
+        huaweiUnhex(payload.nonce as string),
+        new TextEncoder().encode("hichain_iso_exchange"),
+      );
+      const nonce = crypto.randomBytes(12);
+      return json({
+        nonce: huaweiHexUpper(nonce),
+        encAuthToken: huaweiHexUpper(
+          aes.encryptGcm(current.sessionKey!, issuedToken, nonce, challenge),
+        ),
+      });
+    }
+    // Final step: verify the result MAC, then switch to the packet key after op 2.
+    aes.decryptGcm(
+      current.sessionKey!,
+      huaweiUnhex(payload.encResult as string),
+      huaweiUnhex(payload.nonce as string),
+      new TextEncoder().encode("hichain_iso_result"),
+    );
+    if (op === 2)
+      packetKey = huaweiHiChainPacketKey(
+        crypto,
+        current.sessionKey!,
+        current.randSelf,
+        current.randPeer,
+      );
+    return reply([{ tag: 0x04, value: Uint8Array.of(1) }]);
+  };
+  const fake = fakeDevice({
+    crypto,
+    aes,
+    linkParams: HICHAIN_LINK_PARAMS,
+    key: () => packetKey ?? KEY,
+    respond,
+  });
+  return { fake, prompts, commands, issuedToken, packetKey: () => packetKey };
+}
+
+test("a HiChain watch binds once with its PIN, then syncs over the AES-256 packet key", async () => {
+  const watch = hichainWatch();
+  const store = createMemoryHuaweiHiChainStore();
+  const asked: string[] = [];
+  const records: Array<{ type: string }> = [];
+  const session = createHuaweiSession(
+    sessionOptions(watch.fake.device, {
+      hichainStore: store,
+      onAuthPrompt: (prompt) => asked.push(prompt),
+      onRecord: (record) => records.push(record),
+    }),
+  );
   session.start();
-  await expect(session.whenDone()).rejects.toBeInstanceOf(HuaweiUnsupportedAuthError);
+  await session.whenDone();
+  expect(asked).toEqual(["confirm_on_watch"]);
+  expect(watch.prompts).toEqual(["confirmed"]);
+  expect(watch.commands.filter((command) => command === 0x2c)).toHaveLength(1);
+  expect(huaweiHexUpper(store.getAuthToken("device-1")!)).toBe(huaweiHexUpper(watch.issuedToken));
+  expect(watch.packetKey()?.length).toBe(32);
+  // The sync ran encrypted with the packet key (the fake decrypts with it).
+  expect(records.map((record) => record.type)).toEqual(["steps", "heart_rate", "sleep_session"]);
+  expect(watch.fake.encryptedRequests.filter(Boolean).length).toBeGreaterThanOrEqual(5);
   await session.close();
+
+  // Reconnect: the stored token authenticates; no PIN, no prompt.
+  const reconnect = hichainWatchWithToken(watch.issuedToken);
+  const second = createHuaweiSession(
+    sessionOptions(reconnect.fake.device, {
+      hichainStore: store,
+      onAuthPrompt: (prompt) => asked.push(prompt),
+    }),
+  );
+  second.start();
+  await second.whenDone();
+  expect(asked).toEqual(["confirm_on_watch"]);
+  expect(reconnect.commands).not.toContain(0x2c);
+  await second.close();
+});
+
+/** A watch that already issued `token` to this phone. */
+function hichainWatchWithToken(token: Uint8Array) {
+  const watch = hichainWatch();
+  watch.issuedToken.set(token);
+  return watch;
+}
+
+test("a stale HiChain token asks for a re-pair and is forgotten", async () => {
+  const store = createMemoryHuaweiHiChainStore();
+  store.setAndroidId("device-1", "000102030405060708090A0B0C0D0E0F");
+  store.setAuthToken("device-1", new Uint8Array(32).fill(7));
+  const watch = hichainWatch();
+  const session = createHuaweiSession(sessionOptions(watch.fake.device, { hichainStore: store }));
+  session.start();
+  await expect(session.whenDone()).rejects.toThrow("HUAWEI_HICHAIN_REBIND_REQUIRED");
+  expect(store.getAuthToken("device-1")).toBeNull();
+  // The id survives: the watch's group entry is keyed by it.
+  expect(store.getAndroidId("device-1")).toBe("000102030405060708090A0B0C0D0E0F");
+});
+
+test("a bind the user never confirms times out with a typed error", async () => {
+  const watch = hichainWatch({ silentConfirm: true });
+  const session = createHuaweiSession(
+    sessionOptions(watch.fake.device, {
+      hichainStore: createMemoryHuaweiHiChainStore(),
+      // The 30 s confirm window, shortened for the test.
+      timers: {
+        setTimeout: (callback, ms) => setTimeout(callback, ms >= 30_000 ? 20 : ms),
+        clearTimeout: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>),
+      },
+    }),
+  );
+  session.start();
+  await expect(session.whenDone()).rejects.toThrow("HUAWEI_HICHAIN_CONFIRM_TIMEOUT");
 });
 
 test("a HiChainLite device without authVersion 2 is refused (PIN code path)", async () => {
@@ -572,4 +771,45 @@ test("models whose transactions are not crypted send every request in the clear"
   await session.whenDone();
   expect(fake.encryptedRequests.length).toBeGreaterThan(5);
   expect(fake.encryptedRequests.every((encrypted) => !encrypted)).toBe(true);
+});
+
+test("a type-4 watch negotiating HiChainLite keeps auth mode 4 and takes the Lite auth path", async () => {
+  const crypto = nodeCrypto();
+  const seen: { command: number; tlv: HuaweiTlv }[] = [];
+  const fake = fakeDevice({
+    crypto,
+    aes: nodeAes(),
+    linkParams: [
+      { tag: 0x01, value: Uint8Array.of(0x02) },
+      { tag: 0x02, value: Uint8Array.of(0x00, 0xf4) },
+      { tag: 0x05, value: Uint8Array.of(0x00, 0x02, ...SERVER_NONCE) },
+      { tag: 0x07, value: Uint8Array.of(0x04) },
+    ],
+    respond: (packet) => {
+      if (packet.serviceId === HUAWEI_DEVICE_CONFIG_SERVICE)
+        seen.push({ command: packet.commandId, tlv: packet.tlv });
+      return packet.commandId === HUAWEI_SECURITY_NEGOTIATION_COMMAND
+        ? {
+            serviceId: HUAWEI_DEVICE_CONFIG_SERVICE,
+            commandId: HUAWEI_SECURITY_NEGOTIATION_COMMAND,
+            // No tag 0x01: authType 1 (HiChainLite).
+            tlv: [{ tag: 0x02, value: Uint8Array.of(0x01) }],
+            encrypt: false,
+          }
+        : null;
+    },
+  });
+  const session = createHuaweiSession(
+    sessionOptions(fake.device, { hichainStore: createMemoryHuaweiHiChainStore() }),
+  );
+  session.start();
+  await expect(session.whenDone()).rejects.toThrow();
+  const negotiation = seen.find((entry) => entry.command === HUAWEI_SECURITY_NEGOTIATION_COMMAND)!;
+  expect(Array.from(negotiation.tlv.find((field) => field.tag === 0x01)!.value)).toEqual([0x04]);
+  expect(negotiation.tlv.some((field) => field.tag === 0x06)).toBe(true);
+  expect(negotiation.tlv.some((field) => field.tag === 0x07)).toBe(true);
+  // The Lite auth request follows; HiChain (PIN 0x2C, exchange 0x28) never starts.
+  expect(seen.map((entry) => entry.command)).toContain(HUAWEI_AUTH_COMMAND);
+  expect(seen.some((entry) => entry.command === 0x2c || entry.command === 0x28)).toBe(false);
+  await session.close();
 });
