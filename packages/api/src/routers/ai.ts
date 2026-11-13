@@ -192,6 +192,15 @@ async function resolveOrgAuthz(honoContext: unknown): Promise<OrgAuthContext> {
   }
 }
 
+/** The session is the member themselves, not impersonated (#442). */
+function isTrustedSelf(session: unknown, userId: string): boolean {
+  try {
+    return requireTrustedIdentity(session).userId === userId;
+  } catch {
+    return false;
+  }
+}
+
 /** Owner of the active workspace, signed in as themselves (not impersonated). */
 function canManageWorkspaceAi(authz: OrgAuthContext, session: unknown): boolean {
   const identity = resolveSessionIdentity(session);
@@ -293,6 +302,8 @@ export const aiRouter = {
             db: context.db,
             organizationId,
             userId,
+            // The pain log (#442) is read only in the member's own session.
+            trustedSelf: isTrustedSelf(context.session, userId),
             canReadRecords: createRecordsReadCheck(context.honoContext),
             correlationId,
             logger,

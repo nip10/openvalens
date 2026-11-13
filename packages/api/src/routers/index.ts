@@ -52,6 +52,7 @@ import { scoreRouter } from "./score";
 import { sharingRouter } from "./sharing";
 import { signInRouter } from "./sign-in";
 import { signUpRouter } from "./sign-up";
+import { painRouter } from "./pain";
 import { sleepRouter } from "./sleep";
 import { supplementIntakeRouter } from "./supplement-intake";
 import { storageRouter } from "./storage";
@@ -119,6 +120,7 @@ type AppRouterShape = {
   sharing: typeof sharingRouter;
   signIn: typeof signInRouter;
   signUp: typeof signUpRouter;
+  pain: typeof painRouter;
   sleep: typeof sleepRouter;
   supplementIntake: typeof supplementIntakeRouter;
   storage: typeof storageRouter;
@@ -183,6 +185,7 @@ export const appRouter: AppRouterShape = {
   sharing: sharingRouter,
   signIn: signInRouter,
   signUp: signUpRouter,
+  pain: painRouter,
   sleep: sleepRouter,
   supplementIntake: supplementIntakeRouter,
   storage: storageRouter,

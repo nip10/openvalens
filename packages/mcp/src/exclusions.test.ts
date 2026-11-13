@@ -35,6 +35,7 @@ const ALLOWED_SCHEMA_MODULES = new Set([
   "@openvalens/db/schema/health-record",
   "@openvalens/db/schema/insights",
   "@openvalens/db/schema/oauth",
+  "@openvalens/db/schema/pain",
   "@openvalens/db/schema/plans",
   "@openvalens/db/schema/product-settings",
   "@openvalens/db/schema/trackers",

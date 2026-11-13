@@ -1,12 +1,14 @@
 import { describe, expect, test } from "bun:test";
 
 import { englishI18n, inEnglish } from "@openvalens/i18n/testing";
+import { PAIN_JOINT_REGIONS, PAIN_MAP_REGIONS, PAIN_REGION_IDS } from "@openvalens/pain/model";
 
-import { fitViewBox, normalizePath } from "./body-map-geometry";
+import { fitViewBox, normalizePath, pathBounds } from "./body-map-geometry";
 
 import {
   BODY_MAP_DIVERGING,
   BODY_MAP_NEUTRAL,
+  BODY_MAP_PAIN,
   BODY_MAP_REGIONS,
   BODY_MAP_SEQUENTIAL,
   BODY_MAP_VIEWBOX,
@@ -14,6 +16,10 @@ import {
   compositionLayer,
   dexaMeasurementTypes,
   normalizeDexaRegion,
+  PAIN_JOINT_LABELS,
+  painLayer,
+  painRegionLabel,
+  painStep,
   trainingLayer,
 } from "./body-map";
 
@@ -199,5 +205,135 @@ describe("trainingLayer", () => {
     expect(result.fills["back.shoulder_right"]).toMatchObject({ valueText: "2 sets" });
     expect(result.fills["front.thigh_left"]!.colour).toBe(BODY_MAP_NEUTRAL);
     expect(result.fills["front.head"]!.colour).toBe(BODY_MAP_NEUTRAL);
+  });
+
+  test("is deterministic, so web and native draw the same colours and values", () => {
+    const result = trainingLayer(
+      [
+        { sets: 12, muscles: [{ name: "Quadriceps", role: "primary" }] },
+        { sets: 6, muscles: [{ name: "Glutes", role: "secondary" }] },
+      ],
+      englishI18n,
+    );
+    expect(
+      Object.fromEntries(
+        Object.entries(result.fills)
+          .filter(([, fill]) => fill.valueText)
+          .map(([id, fill]) => [id, `${fill.colour} ${fill.valueText}`]),
+      ),
+    ).toMatchSnapshot();
+  });
+});
+
+describe("pain layer (#442)", () => {
+  const jointIds = Object.keys(PAIN_JOINT_REGIONS);
+
+  test("the pain model's regions are the map's regions and labels plus the joint spots", () => {
+    expect(Object.keys(PAIN_MAP_REGIONS)).toEqual(BODY_MAP_REGIONS.map((region) => region.id));
+    for (const region of BODY_MAP_REGIONS)
+      expect<string>(PAIN_MAP_REGIONS[region.id as keyof typeof PAIN_MAP_REGIONS]).toBe(
+        inEnglish(region.label),
+      );
+    for (const [id, name] of Object.entries(PAIN_JOINT_REGIONS))
+      expect(inEnglish(PAIN_JOINT_LABELS[id as keyof typeof PAIN_JOINT_LABELS])).toBe(name);
+    for (const id of PAIN_REGION_IDS) expect(painRegionLabel(id)).not.toBeNull();
+    expect(painRegionLabel("joint.tail")).toBeNull();
+  });
+
+  test("joint spots are only on the pain layer: never map regions, never composition or training fills", () => {
+    const ids = new Set(BODY_MAP_REGIONS.map((region) => region.id));
+    for (const id of jointIds) expect(ids.has(id)).toBe(false);
+    const composition = compositionLayer({ measurementType: "fat_pct", values: scan }, englishI18n);
+    const training = trainingLayer([], englishI18n);
+    expect(Object.keys(composition.fills).sort()).toEqual([...ids].sort());
+    expect(Object.keys(training.fills).sort()).toEqual([...ids].sort());
+  });
+
+  test("every joint spot is drawn on both figures, inside the view box and on the member's side", () => {
+    for (const figure of ["male", "female"] as const) {
+      const spots = bodyMapArtwork(figure).painSpots;
+      const front: string[] = spots.filter((spot) => spot.view === "front").map((spot) => spot.id);
+      const back: string[] = spots.filter((spot) => spot.view === "back").map((spot) => spot.id);
+      // The jaw only from the front; everything else from both sides.
+      expect(front.sort()).toEqual([...jointIds].sort());
+      expect(back.sort()).toEqual(jointIds.filter((id) => !id.startsWith("joint.jaw")).sort());
+      for (const spot of spots) {
+        expect(spot.path).toMatch(/^M[\d .A-Z-]+Z$/);
+        const box = pathBounds(spot.path)!;
+        expect(box.minX).toBeGreaterThanOrEqual(0);
+        expect(box.maxX).toBeLessThanOrEqual(200);
+        expect(box.minY).toBeGreaterThanOrEqual(0);
+        expect(box.maxY).toBeLessThanOrEqual(400);
+      }
+      const centre = (id: string, view: "front" | "back") => {
+        const box = pathBounds(spots.find((spot) => spot.id === id && spot.view === view)!.path)!;
+        return { x: (box.minX + box.maxX) / 2, y: (box.minY + box.maxY) / 2 };
+      };
+      // Front: the member's left is on the viewer's right. Back: on the left.
+      expect(centre("joint.knee_left", "front").x).toBeGreaterThan(100);
+      expect(centre("joint.knee_left", "back").x).toBeLessThan(100);
+      expect(centre("joint.jaw_left", "front").x).toBeGreaterThan(100);
+      // Top to bottom: jaw, elbow, hip, knee, ankle.
+      const order = ["joint.jaw_left", "joint.elbow_left", "joint.hip_left", "joint.knee_left"];
+      const ys = order.map((id) => centre(id, "front").y);
+      expect([...ys].sort((a, b) => a - b)).toEqual(ys);
+      expect(centre("joint.ankle_foot_left", "front").y).toBeGreaterThan(ys.at(-1)!);
+    }
+  });
+
+  test("colours the highest rating on a 5-step scale with no red, and grey without a rating", () => {
+    const { fills, legend } = painLayer(
+      [
+        { region: "joint.knee_left", highest: 4, entryCount: 2 },
+        { region: "front.thigh_left", highest: 10, entryCount: 1 },
+        { region: "back.calf_right", highest: 0, entryCount: 1 },
+      ],
+      7,
+      englishI18n,
+    );
+    expect(fills["joint.knee_left"]).toEqual({
+      colour: BODY_MAP_PAIN[2]!,
+      valueText: "Highest 4 of 10",
+      sourceText: "2 ratings in the last 7 days",
+    });
+    expect(fills["front.thigh_left"]!.colour).toBe(BODY_MAP_PAIN[4]!);
+    expect(fills["back.calf_right"]!.colour).toBe(BODY_MAP_PAIN[0]!);
+    expect(fills["joint.knee_right"]).toEqual({
+      colour: BODY_MAP_NEUTRAL,
+      valueText: null,
+      sourceText: null,
+    });
+    expect(Object.keys(fills)).toHaveLength(BODY_MAP_REGIONS.length + jointIds.length);
+    expect(legend.map((step) => step.label)).toEqual([
+      "0 to 1",
+      "2 to 3",
+      "4 to 5",
+      "6 to 7",
+      "8 to 10",
+      "No rating",
+    ]);
+    expect(Array.from({ length: 11 }, (_, rating) => painStep(rating))).toEqual([
+      0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 4,
+    ]);
+    // No alarm red: every step is a cool hue (blue), not 330-30 degrees.
+    for (const colour of BODY_MAP_PAIN) {
+      const [r, g, b] = [1, 3, 5].map((index) =>
+        Number.parseInt(colour.slice(index, index + 2), 16),
+      );
+      expect(b!).toBeGreaterThan(r!);
+      expect(g!).toBeGreaterThanOrEqual(r!);
+    }
+  });
+
+  test("the wording is the same for every rating, number aside", () => {
+    const text = (rating: number) =>
+      JSON.stringify(
+        painLayer([{ region: "joint.neck", highest: rating, entryCount: 1 }], 7, englishI18n).fills[
+          "joint.neck"
+        ],
+      )
+        .replace(/#[0-9a-f]{6}/g, "#")
+        .replace(/\d+/g, "N");
+    for (let rating = 1; rating <= 10; rating++) expect(text(rating)).toBe(text(0));
   });
 });

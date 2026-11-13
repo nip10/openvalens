@@ -1,6 +1,7 @@
 import type { Database } from "@openvalens/db";
 import { consultation, imagingStudy, cardiacExam } from "@openvalens/db/schema/clinical";
 import { insight } from "@openvalens/db/schema/coach";
+import { painEntry, painPreference } from "@openvalens/db/schema/pain";
 import { scheduledEvent, weeklyReview } from "@openvalens/db/schema/plans";
 import { dailyReminder } from "@openvalens/db/schema/integrations";
 import { customTracker, customTrackerEntry } from "@openvalens/db/schema/trackers";
@@ -21,6 +22,8 @@ export type DomainTimelineReadOptions = {
    * The member viewing the timeline (#441). Custom tracker entries are read
    * only for a viewer: their own trackers, and other members' trackers while
    * shared. Without a viewer (Coach, background jobs) there are none.
+   * Pain entries (#442) are read only for their owner, while the pain log
+   * is on.
    */
   viewerUserId?: string | null;
   fromIso?: string;
@@ -40,6 +43,7 @@ export function createDomainTimelineReader(db: Database): DomainTimelineReader {
         scheduledEvents,
         dailyReminders,
         trackerEntries,
+        painEntries,
       ] = await Promise.all([
         db
           .select({
@@ -163,6 +167,32 @@ export function createDomainTimelineReader(db: Database): DomainTimelineReader {
                 ),
               )
           : Promise.resolve([]),
+        viewerUserId
+          ? db
+              .select({
+                id: painEntry.id,
+                region: painEntry.region,
+                rating: painEntry.rating,
+                type: painEntry.type,
+                loggedAt: painEntry.loggedAt,
+                localDate: painEntry.localDate,
+                note: painEntry.note,
+              })
+              .from(painEntry)
+              .innerJoin(
+                painPreference,
+                and(eq(painPreference.userId, painEntry.userId), eq(painPreference.enabled, true)),
+              )
+              .where(
+                and(
+                  eq(painEntry.organizationId, organizationId),
+                  // Only the owner's own entries, never another member's.
+                  eq(painEntry.userId, viewerUserId),
+                  ...(options.fromIso ? [gte(painEntry.loggedAt, new Date(options.fromIso))] : []),
+                  ...(options.toIso ? [lte(painEntry.loggedAt, new Date(options.toIso))] : []),
+                ),
+              )
+          : Promise.resolve([]),
       ]);
       return {
         consultations,
@@ -176,6 +206,10 @@ export function createDomainTimelineReader(db: Database): DomainTimelineReader {
           ...row,
           loggedAt: loggedAt.toISOString(),
           viewerOwnsTracker: trackerOwnerId === viewerUserId,
+        })),
+        painEntries: painEntries.map(({ loggedAt, ...row }) => ({
+          ...row,
+          loggedAt: loggedAt.toISOString(),
         })),
       };
     },

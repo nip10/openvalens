@@ -404,6 +404,14 @@ export const PROCEDURE_ACCESS: Readonly<Record<string, ProcedureAccessClass>> = 
   "trackers.updateEntry": W,
   "trackers.deleteEntry": W,
 
+  // Pain log (#442).
+  "pain.preference": R,
+  "pain.setPreference": W,
+  "pain.log": W,
+  "pain.delete": W,
+  "pain.map": R,
+  "pain.history": R,
+
   "timeline.list": R,
   "timeline.changesSinceReview": R,
   "timeline.listMetrics": R,

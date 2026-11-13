@@ -14,6 +14,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import {
   Activity,
   ListChecks,
+  PersonStanding,
   CalendarDays,
   Footprints,
   FlaskConical,
@@ -57,6 +58,7 @@ const DOMAIN_ICON: Record<string, { icon: LucideIcon; tone: Tone }> = {
   imaging: { icon: ScanLine, tone: "water" },
   cardiac: { icon: Activity, tone: "heart" },
   custom: { icon: ListChecks, tone: "signal" },
+  pain: { icon: PersonStanding, tone: "weight" },
 };
 const OTHER_DOMAIN = { icon: Sparkles, tone: "signal" } as const;
 

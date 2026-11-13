@@ -30,3 +30,12 @@ exports[`compositionLayer is deterministic, so web and native draw the same colo
   "front.shoulder_right": "#cee1f1 22.0%",
 }
 `;
+
+exports[`trainingLayer is deterministic, so web and native draw the same colours and values 1`] = `
+{
+  "back.glutes_left": "#cee1f1 3 sets",
+  "back.glutes_right": "#cee1f1 3 sets",
+  "front.thigh_left": "#295f8a 12 sets",
+  "front.thigh_right": "#295f8a 12 sets",
+}
+`;

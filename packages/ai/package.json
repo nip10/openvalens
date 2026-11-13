@@ -22,6 +22,7 @@
     "@openvalens/labs": "workspace:*",
     "@openvalens/nutrition": "workspace:*",
     "@openvalens/observability": "workspace:*",
+    "@openvalens/pain": "workspace:*",
     "@openvalens/plans": "workspace:*",
     "@openvalens/sleep": "workspace:*",
     "@openvalens/trackers": "workspace:*",

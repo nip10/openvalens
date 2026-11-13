@@ -575,6 +575,10 @@ msgstr "{count, plural, one {# matching timestamped record} other {# matching ti
 msgid "{count, plural, one {# more change held back so only the clearest are shown.} other {# more changes held back so only the clearest are shown.}}"
 msgstr "{count, plural, one {# more change held back so only the clearest are shown.} other {# more changes held back so only the clearest are shown.}}"
 
+#: packages/api/src/presenters/body-map.ts
+msgid "{count, plural, one {# rating} other {# ratings}} in the last {days} days"
+msgstr "{count, plural, one {# rating} other {# ratings}} in the last {days} days"
+
 #: apps/web/src/components/quick-log/quick-log-palette.tsx
 msgid "{count, plural, one {Copied # item} other {Copied # items}}"
 msgstr "{count, plural, one {Copied # item} other {Copied # items}}"
@@ -1050,6 +1054,10 @@ msgstr "{rated} of {0, plural, one {# session} other {# sessions}} rated."
 msgid "{ratedWithDuration, plural, one {From # rated session.} other {From # rated sessions.}}"
 msgstr "{ratedWithDuration, plural, one {From # rated session.} other {From # rated sessions.}}"
 
+#: packages/api/src/presenters/pain.ts
+msgid "{rating} of {max}"
+msgstr "{rating} of {max}"
+
 #: packages/api/src/presenters/trackers.ts
 msgid "{rating} of 5"
 msgstr "{rating} of 5"
@@ -1143,6 +1151,30 @@ msgstr "{title}: {text}"
 msgid "{title}: {toggle}"
 msgstr "{title}: {toggle}"
 
+#: packages/api/src/presenters/pain.ts
+msgid "{type}, {minutes} min, 2 days before"
+msgstr "{type}, {minutes} min, 2 days before"
+
+#: packages/api/src/presenters/pain.ts
+msgid "{type}, {minutes} min, the day before"
+msgstr "{type}, {minutes} min, the day before"
+
+#: packages/api/src/presenters/pain.ts
+msgid "{type}, {minutes} min, the same day"
+msgstr "{type}, {minutes} min, the same day"
+
+#: packages/api/src/presenters/pain.ts
+msgid "{type}, 2 days before"
+msgstr "{type}, 2 days before"
+
+#: packages/api/src/presenters/pain.ts
+msgid "{type}, the day before"
+msgstr "{type}, the day before"
+
+#: packages/api/src/presenters/pain.ts
+msgid "{type}, the same day"
+msgstr "{type}, the same day"
+
 #. safety
 #: packages/api/src/presenters/micronutrients.ts
 msgid "{type}: {amount} {unit} a day"
@@ -1227,6 +1259,10 @@ msgstr "<0>Source-listed muscles:</0> {listedNames}"
 msgid "0 min"
 msgstr "0 min"
 
+#: packages/api/src/presenters/body-map.ts
+msgid "0 to 1"
+msgstr "0 to 1"
+
 #: packages/api/src/presenters/activity-load.ts
 msgid "0: Rest"
 msgstr "0: Rest"
@@ -1281,6 +1317,10 @@ msgstr "16 or more"
 msgid "18-member multidisciplinary expert panel using the RAND/UCLA Appropriateness Method. A recommended range, not a measured distribution."
 msgstr "18-member multidisciplinary expert panel using the RAND/UCLA Appropriateness Method. A recommended range, not a measured distribution."
 
+#: packages/api/src/presenters/body-map.ts
+msgid "2 to 3"
+msgstr "2 to 3"
+
 #: packages/api/src/presenters/activity-load.ts
 msgid "2: Easy"
 msgstr "2: Easy"
@@ -1324,6 +1364,10 @@ msgid "365 days"
 msgstr "365 days"
 
 #: packages/api/src/presenters/body-map.ts
+msgid "4 to 5"
+msgstr "4 to 5"
+
+#: packages/api/src/presenters/body-map.ts
 msgid "4 to under 8"
 msgstr "4 to under 8"
 
@@ -1334,6 +1378,10 @@ msgstr "4: Somewhat hard"
 #: packages/api/src/presenters/activity-load.ts
 msgid "5: Hard"
 msgstr "5: Hard"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "6 to 7"
+msgstr "6 to 7"
 
 #: apps/native/app/(drawer)/(tabs)/body.tsx
 #: apps/native/app/(drawer)/(tabs)/index.tsx
@@ -1355,6 +1403,10 @@ msgstr "7-day avg"
 #: packages/api/src/presenters/activity-load.ts
 msgid "7: Very hard"
 msgstr "7: Very hard"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "8 to 10"
+msgstr "8 to 10"
 
 #: packages/api/src/presenters/body-map.ts
 msgid "8 to under 12"
@@ -1648,6 +1700,11 @@ msgstr "Account setup failed"
 msgid "Accounts are shown by their opaque id only. Usage counts tokens and estimated cost, never what anyone wrote. See docs/ai-providers.md, section Monthly usage cap."
 msgstr "Accounts are shown by their opaque id only. Usage counts tokens and estimated cost, never what anyone wrote. See docs/ai-providers.md, section Monthly usage cap."
 
+#: packages/api/src/presenters/pain.ts
+msgctxt "pain type"
+msgid "Ache"
+msgstr "Ache"
+
 #: packages/api/src/presenters/workouts.ts
 msgid "Achieved"
 msgstr "Achieved"
@@ -1801,6 +1858,10 @@ msgstr "Add a note"
 #: apps/web/src/components/progress-photos.tsx
 msgid "Add a photo (JPEG or PNG, up to 10 MB)"
 msgstr "Add a photo (JPEG or PNG, up to 10 MB)"
+
+#: apps/web/src/components/pain/pain-panel.tsx
+msgid "Add a region"
+msgstr "Add a region"
 
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Add a session"
@@ -2999,6 +3060,11 @@ msgstr "Build a reusable plan. Progression suggestions are optional and never ch
 msgid "Building your usual"
 msgstr "Building your usual"
 
+#: packages/api/src/presenters/pain.ts
+msgctxt "pain type"
+msgid "Burning"
+msgstr "Burning"
+
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/web/src/components/activity-load-panel.tsx
 msgid "By day"
@@ -3515,6 +3581,10 @@ msgstr "Choose a recipe to review"
 msgid "Choose a recipe to review."
 msgstr "Choose a recipe to review."
 
+#: apps/web/src/components/pain/pain-panel.tsx
+msgid "Choose a region"
+msgstr "Choose a region"
+
 #. placeholder {0}: addExercise.name
 #: apps/native/components/workout-routines.tsx
 msgid "Choose a routine to add {0} to, or make a new one."
@@ -3782,6 +3852,10 @@ msgstr "Coach"
 #: packages/api/src/presenters/modules.ts
 msgid "Coach (AI)"
 msgstr "Coach (AI)"
+
+#: packages/api/src/presenters/pain.ts
+msgid "Coach and connected AI apps can read my pain log"
+msgstr "Coach and connected AI apps can read my pain log"
 
 #: apps/native/components/trackers/tracker-editor.tsx
 #: apps/web/src/components/trackers/tracker-editor.tsx
@@ -4372,6 +4446,10 @@ msgstr "Could not check this setting. Measurements stay unavailable until it can
 msgid "Could not check this setting. Try again"
 msgstr "Could not check this setting. Try again"
 
+#: apps/web/src/routes/_auth/body-map.tsx
+msgid "Could not check whether the pain log is on."
+msgstr "Could not check whether the pain log is on."
+
 #: apps/native/components/complete-export-card.tsx
 #: apps/web/src/components/complete-export-card.tsx
 msgid "Could not check your export status."
@@ -4511,6 +4589,10 @@ msgstr "Could not delete this period. Try again."
 #: apps/web/src/components/progress-photos.tsx
 msgid "Could not delete this photo. Try again."
 msgstr "Could not delete this photo. Try again."
+
+#: apps/web/src/components/pain/pain-panel.tsx
+msgid "Could not delete this rating. Try again."
+msgstr "Could not delete this rating. Try again."
 
 #: apps/native/components/workout-session-detail.tsx
 msgid "Could not delete workout"
@@ -4808,6 +4890,10 @@ msgstr "Could not load this conversation."
 msgid "Could not load this goal."
 msgstr "Could not load this goal."
 
+#: apps/web/src/components/pain/pain-panel.tsx
+msgid "Could not load this region's history."
+msgstr "Could not load this region's history."
+
 #: apps/native/app/(drawer)/body-map.tsx
 #: apps/web/src/routes/_auth/body-map.tsx
 msgid "Could not load this scan."
@@ -4882,6 +4968,10 @@ msgstr "Could not load your modules. Nothing has changed."
 #: apps/web/src/components/onboarding/setup-steps.tsx
 msgid "Could not load your notification settings."
 msgstr "Could not load your notification settings."
+
+#: apps/web/src/routes/_auth/body-map.tsx
+msgid "Could not load your pain log."
+msgstr "Could not load your pain log."
 
 #: apps/native/app/(drawer)/cycle.tsx
 #: apps/web/src/routes/_auth/cycle.tsx
@@ -5118,6 +5208,7 @@ msgstr "Could not save. Check the dates and try again."
 msgid "Could not save. Check the fields and try again."
 msgstr "Could not save. Check the fields and try again."
 
+#: apps/web/src/components/pain/pain-panel.tsx
 #: apps/web/src/routes/_auth/private-measurements.tsx
 msgid "Could not save. Check your connection and try again."
 msgstr "Could not save. Check your connection and try again."
@@ -5304,6 +5395,7 @@ msgid "Could not update this goal. Try again."
 msgstr "Could not update this goal. Try again."
 
 #: apps/native/app/(drawer)/private-measurements.tsx
+#: apps/web/src/components/pain/pain-panel.tsx
 #: apps/web/src/routes/_auth/private-measurements.tsx
 msgid "Could not update this setting. Try again."
 msgstr "Could not update this setting. Try again."
@@ -5670,6 +5762,10 @@ msgstr "Day totals"
 msgid "Day, YYYY-MM-DD"
 msgstr "Day, YYYY-MM-DD"
 
+#: apps/web/src/routes/_auth/body-map.tsx
+msgid "Days"
+msgstr "Days"
+
 #: apps/web/src/routes/_auth/-goal-editor.tsx
 msgid "Days (Monday–Sunday)"
 msgstr "Days (Monday–Sunday)"
@@ -5749,6 +5845,7 @@ msgstr "Degraded"
 #: apps/native/components/progress-photos.tsx
 #: apps/native/components/workout-routines.tsx
 #: apps/native/components/workout-session-detail.tsx
+#: apps/web/src/components/pain/pain-panel.tsx
 #: apps/web/src/components/workout-routines.tsx
 #: apps/web/src/routes/_auth/cycle.tsx
 #: apps/web/src/routes/_auth/private-measurements.tsx
@@ -5894,6 +5991,10 @@ msgstr "Delete this photo? This cannot be undone."
 #: apps/web/src/routes/_auth/private-measurements.tsx
 msgid "Delete this private measurement? This cannot be undone."
 msgstr "Delete this private measurement? This cannot be undone."
+
+#: apps/web/src/components/pain/pain-panel.tsx
+msgid "Delete this rating? This cannot be undone."
+msgstr "Delete this rating? This cannot be undone."
 
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Delete this workout?"
@@ -7967,6 +8068,20 @@ msgstr "Higher by more than {strong}"
 msgid "Higher protein options appear when you turn on the active reference."
 msgstr "Higher protein options appear when you turn on the active reference."
 
+#: packages/api/src/presenters/body-map.ts
+msgid "Highest {highest} of {max}"
+msgstr "Highest {highest} of {max}"
+
+#: apps/web/src/routes/_auth/body-map.tsx
+msgid "Highest rating"
+msgstr "Highest rating"
+
+#. placeholder {0}: painMap.data.from
+#. placeholder {1}: painMap.data.to
+#: apps/web/src/routes/_auth/body-map.tsx
+msgid "Highest rating from {0} to {1}"
+msgstr "Highest rating from {0} to {1}"
+
 #: apps/web/src/components/admin-ai-usage.tsx
 msgid "Highest usage this month"
 msgstr "Highest usage this month"
@@ -8029,6 +8144,10 @@ msgstr "History sync on connection for steps and heart rate, plus live heart rat
 #: apps/native/components/direct-device-settings.tsx
 msgid "History sync on connection for steps, heart rate and sleep; not hardware-verified."
 msgstr "History sync on connection for steps, heart rate and sleep; not hardware-verified."
+
+#: apps/web/src/components/pain/pain-panel.tsx
+msgid "History: {name}"
+msgstr "History: {name}"
 
 #: packages/api/src/presenters/coach-settings.ts
 msgid "Hold current weight and habits."
@@ -8739,6 +8858,10 @@ msgstr "kcal"
 msgid "kcal a day"
 msgstr "kcal a day"
 
+#: packages/api/src/presenters/pain.ts
+msgid "Keep a pain log"
+msgstr "Keep a pain log"
+
 #: apps/native/components/sign-in-methods.tsx
 #: apps/web/src/components/sign-in-methods-section.tsx
 msgid "Keep at least one way to sign in: this server cannot send email links."
@@ -8882,6 +9005,14 @@ msgstr "Language code"
 #: apps/native/app/(drawer)/records/vitals.tsx
 msgid "Last {windowDays} days"
 msgstr "Last {windowDays} days"
+
+#: apps/web/src/routes/_auth/body-map.tsx
+msgid "Last 30 days"
+msgstr "Last 30 days"
+
+#: apps/web/src/routes/_auth/body-map.tsx
+msgid "Last 7 days"
+msgstr "Last 7 days"
 
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "Last 7 days: {recent}."
@@ -9039,6 +9170,10 @@ msgid "Left abdomen (front)"
 msgstr "Left abdomen (front)"
 
 #: packages/api/src/presenters/body-map.ts
+msgid "Left ankle and foot"
+msgstr "Left ankle and foot"
+
+#: packages/api/src/presenters/body-map.ts
 msgid "Left back of thigh (back)"
 msgstr "Left back of thigh (back)"
 
@@ -9051,6 +9186,10 @@ msgid "Left chest (front)"
 msgstr "Left chest (front)"
 
 #: packages/api/src/presenters/body-map.ts
+msgid "Left elbow"
+msgstr "Left elbow"
+
+#: packages/api/src/presenters/body-map.ts
 msgid "Left forearm (back)"
 msgstr "Left forearm (back)"
 
@@ -9061,6 +9200,18 @@ msgstr "Left forearm (front)"
 #: packages/api/src/presenters/body-map.ts
 msgid "Left glute (back)"
 msgstr "Left glute (back)"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Left hip"
+msgstr "Left hip"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Left jaw"
+msgstr "Left jaw"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Left knee"
+msgstr "Left knee"
 
 #: packages/api/src/presenters/body-map.ts
 msgid "Left lower back (back)"
@@ -9097,6 +9248,10 @@ msgstr "Left upper arm (front)"
 #: packages/api/src/presenters/body-map.ts
 msgid "Left upper back (back)"
 msgstr "Left upper back (back)"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Left wrist and hand"
+msgstr "Left wrist and hand"
 
 #: apps/native/components/direct-device-settings.tsx
 msgid "Legacy Huami history (exact-minute steps, heart rate and sleep) downloads when you enter the device key and tap “Sync steps”. Records are saved in batches and sent only when you tap “Retry upload”."
@@ -9357,6 +9512,7 @@ msgstr "Loading your workspace…"
 #: apps/native/components/plain-water-section.tsx
 #: apps/native/components/workout-history.tsx
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
+#: apps/web/src/components/pain/pain-panel.tsx
 #: apps/web/src/routes/_auth/cycle.tsx
 #: apps/web/src/routes/_auth/micronutrients.tsx
 #: apps/web/src/routes/_auth/records/timeline.tsx
@@ -9460,6 +9616,10 @@ msgstr "Log or correct intake"
 #: apps/web/src/components/quick-log/quick-log-palette.tsx
 msgid "Log or go to"
 msgstr "Log or go to"
+
+#: apps/web/src/components/pain/pain-panel.tsx
+msgid "Log pain"
+msgstr "Log pain"
 
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/native/components/training-home.tsx
@@ -10326,6 +10486,7 @@ msgstr "Nearby device"
 
 #: apps/native/app/(drawer)/private-measurements.tsx
 #: apps/web/src/routes/_auth/private-measurements.tsx
+#: packages/api/src/presenters/body-map.ts
 msgid "Neck"
 msgstr "Neck"
 
@@ -10904,6 +11065,14 @@ msgstr "No quantity"
 msgid "No rated sessions this week, so there is nothing to compare."
 msgstr "No rated sessions this week, so there is nothing to compare."
 
+#: packages/api/src/presenters/body-map.ts
+msgid "No rating"
+msgstr "No rating"
+
+#: packages/api/src/presenters/pain.ts
+msgid "No ratings for this region yet."
+msgstr "No ratings for this region yet."
+
 #: apps/web/src/routes/_auth/dashboard.tsx
 #: packages/api/src/presenters/cockpit.ts
 msgid "No reading yet"
@@ -11037,6 +11206,10 @@ msgstr "No targets set. Logging works the same without them."
 #: apps/web/src/routes/_auth/trackers.index.tsx
 msgid "No trackers yet"
 msgstr "No trackers yet"
+
+#: apps/web/src/components/pain/pain-panel.tsx
+msgid "No type"
+msgstr "No type"
 
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "No usual value yet (needs {minimum} days with data in the last {window})."
@@ -11376,6 +11549,7 @@ msgid "Note"
 msgstr "Note"
 
 #: apps/native/components/trackers/tracker-log-form.tsx
+#: apps/web/src/components/pain/pain-panel.tsx
 #: apps/web/src/components/trackers/tracker-log-form.tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 msgid "Note (optional)"
@@ -11631,6 +11805,10 @@ msgstr "Off by default. Adds up the alcohol in grams in the foods and drinks you
 #: packages/api/src/presenters/drinks.ts
 msgid "Off by default. Adds up the caffeine in the foods and drinks you log and shows how many of them reported it. Foods that don't report caffeine count as unknown, never as zero. Also shows the time of your last caffeine on the sleep page. Turn it off at any time."
 msgstr "Off by default. Adds up the caffeine in the foods and drinks you log and shows how many of them reported it. Foods that don't report caffeine count as unknown, never as zero. Also shows the time of your last caffeine on the sleep page. Turn it off at any time."
+
+#: packages/api/src/presenters/pain.ts
+msgid "Off by default. Connected AI apps also need the pain log permission."
+msgstr "Off by default. Connected AI apps also need the pain log permission."
 
 #. safety
 #: packages/api/src/presenters/food-draft.ts
@@ -12136,6 +12314,24 @@ msgstr "P"
 #: apps/native/app/+not-found.tsx
 msgid "Page Not Found"
 msgstr "Page Not Found"
+
+#: apps/web/src/routes/_auth/body-map.tsx
+#: packages/api/src/presenters/timeline.ts
+msgid "Pain"
+msgstr "Pain"
+
+#: apps/web/src/components/oauth-consent-view.tsx
+#: packages/api/src/presenters/ai-apps.ts
+msgid "Pain log"
+msgstr "Pain log"
+
+#: apps/web/src/components/pain/pain-panel.tsx
+msgid "Pain log settings"
+msgstr "Pain log settings"
+
+#: packages/api/src/presenters/timeline.ts
+msgid "Pain: {region}"
+msgstr "Pain: {region}"
 
 #: apps/native/components/recipe-draft-editor.tsx
 #: apps/web/src/components/recipe-draft-editor.tsx
@@ -13030,6 +13226,10 @@ msgstr "Rate your energy yourself, from 1 to 5."
 msgid "Rate your mood yourself, from 1 to 5."
 msgstr "Rate your mood yourself, from 1 to 5."
 
+#: packages/api/src/presenters/pain.ts
+msgid "Rating from 0 to 10"
+msgstr "Rating from 0 to 10"
+
 #: apps/native/components/recipe-draft-editor.tsx
 #: apps/web/src/components/recipe-draft-editor.tsx
 msgid "Raw"
@@ -13425,6 +13625,10 @@ msgstr "Remove {0}"
 msgid "Remove {0}?"
 msgstr "Remove {0}?"
 
+#: apps/web/src/components/pain/pain-panel.tsx
+msgid "Remove {name}"
+msgstr "Remove {name}"
+
 #: apps/native/utils/sharing-confirm.ts
 #: apps/web/src/components/sharing-confirm-dialog.tsx
 msgid "Remove {name}?"
@@ -13719,6 +13923,7 @@ msgstr "Retired version"
 #: apps/web/src/components/my-invitations-view.tsx
 #: apps/web/src/components/onboarding/setup-steps.tsx
 #: apps/web/src/components/onboarding/welcome-flow.tsx
+#: apps/web/src/components/pain/pain-panel.tsx
 #: apps/web/src/components/product-settings-form.tsx
 #: apps/web/src/components/profile-summary-card.tsx
 #: apps/web/src/components/reference-comparisons-card.tsx
@@ -13919,6 +14124,10 @@ msgid "Right abdomen (front)"
 msgstr "Right abdomen (front)"
 
 #: packages/api/src/presenters/body-map.ts
+msgid "Right ankle and foot"
+msgstr "Right ankle and foot"
+
+#: packages/api/src/presenters/body-map.ts
 msgid "Right back of thigh (back)"
 msgstr "Right back of thigh (back)"
 
@@ -13931,6 +14140,10 @@ msgid "Right chest (front)"
 msgstr "Right chest (front)"
 
 #: packages/api/src/presenters/body-map.ts
+msgid "Right elbow"
+msgstr "Right elbow"
+
+#: packages/api/src/presenters/body-map.ts
 msgid "Right forearm (back)"
 msgstr "Right forearm (back)"
 
@@ -13941,6 +14154,18 @@ msgstr "Right forearm (front)"
 #: packages/api/src/presenters/body-map.ts
 msgid "Right glute (back)"
 msgstr "Right glute (back)"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Right hip"
+msgstr "Right hip"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Right jaw"
+msgstr "Right jaw"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Right knee"
+msgstr "Right knee"
 
 #: packages/api/src/presenters/body-map.ts
 msgid "Right lower back (back)"
@@ -13977,6 +14202,10 @@ msgstr "Right upper arm (front)"
 #: packages/api/src/presenters/body-map.ts
 msgid "Right upper back (back)"
 msgstr "Right upper back (back)"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Right wrist and hand"
+msgstr "Right wrist and hand"
 
 #: apps/native/components/direct-device-settings.tsx
 msgid "Ring history (steps, heart rate and sleep) syncs automatically while connected. Records are saved in batches and sent only when you tap “Retry upload”."
@@ -14134,6 +14363,7 @@ msgstr "Sauna"
 #: apps/web/src/components/blood-pressure-section.tsx
 #: apps/web/src/components/manual-sleep-section.tsx
 #: apps/web/src/components/onboarding/setup-steps.tsx
+#: apps/web/src/components/pain/pain-panel.tsx
 #: apps/web/src/components/product-settings-form.tsx
 #: apps/web/src/components/quick-log/quick-form.tsx
 #: apps/web/src/components/wellness-profile-editor.tsx
@@ -14356,6 +14586,10 @@ msgstr "Saved entries are kept but not shown while it's off. Turn it on to see o
 msgid "Saved foods"
 msgstr "Saved foods"
 
+#: apps/web/src/components/pain/pain-panel.tsx
+msgid "Saved for {count} regions."
+msgstr "Saved for {count} regions."
+
 #: packages/api/src/presenters/nutrition-templates.ts
 msgid "Saved item archived."
 msgstr "Saved item archived."
@@ -14390,6 +14624,7 @@ msgstr "Saved to your Goals under Workouts, where you can add a target and date 
 msgid "Saved: {what}"
 msgstr "Saved: {what}"
 
+#: apps/web/src/components/pain/pain-panel.tsx
 #: apps/web/src/utils/product-settings-form-state.ts
 msgid "Saved."
 msgstr "Saved."
@@ -14429,6 +14664,7 @@ msgstr "Saving photo…"
 #: apps/web/src/components/health-data-consent-prompt.tsx
 #: apps/web/src/components/manual-sleep-section.tsx
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
+#: apps/web/src/components/pain/pain-panel.tsx
 #: apps/web/src/components/product-settings-form.tsx
 #: apps/web/src/components/quick-log/quick-form.tsx
 #: apps/web/src/components/trackers/tracker-log-form.tsx
@@ -14612,6 +14848,10 @@ msgstr "See what needs attention, then browse longer-term progress below."
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 msgid "Select"
 msgstr "Select"
+
+#: apps/web/src/components/pain/pain-panel.tsx
+msgid "Select a region on the map, or add one from the list."
+msgstr "Select a region on the map, or add one from the list."
 
 #: apps/web/src/routes/_auth/body-map.tsx
 msgid "Select a region to see its value."
@@ -15017,6 +15257,11 @@ msgstr "Sharing is off unless you explicitly opt in."
 #: apps/web/src/components/analytics-consent-section.tsx
 msgid "Sharing is on."
 msgstr "Sharing is on."
+
+#: packages/api/src/presenters/pain.ts
+msgctxt "pain type"
+msgid "Sharp"
+msgstr "Sharp"
 
 #: packages/api/src/presenters/insights.ts
 msgid "Short descriptions of what changed in your own records, compared with your own usual. They are calculated by fixed rules, not by AI."
@@ -15735,6 +15980,11 @@ msgstr "Steps: none recorded in the last 7 days."
 msgid "Steps: the published step tables used hip-worn monitors, and wrist or phone counts are not comparable with them. See active minutes against the WHO range instead."
 msgstr "Steps: the published step tables used hip-worn monitors, and wrist or phone counts are not comparable with them. See active minutes against the WHO range instead."
 
+#: packages/api/src/presenters/pain.ts
+msgctxt "pain type"
+msgid "Stiffness"
+msgstr "Stiffness"
+
 #: packages/api/src/presenters/insights.ts
 msgid "Still learning your usual"
 msgstr "Still learning your usual"
@@ -16411,6 +16661,10 @@ msgstr "The file was downloaded, but sharing is unavailable on this device."
 msgid "The food source could not be reached. Try the lookup again later, or enter the food from its label."
 msgstr "The food source could not be reached. Try the lookup again later, or enter the food from its label."
 
+#: packages/api/src/presenters/pain.ts
+msgid "The highest rating you logged in each region. Regions with no rating stay grey. The joint spots appear only on this layer."
+msgstr "The highest rating you logged in each region. Regions with no rating stay grey. The joint spots appear only on this layer."
+
 #: apps/native/components/recipe-draft-editor.tsx
 #: apps/web/src/components/recipe-draft-editor.tsx
 msgid "The import failed. Nothing was saved."
@@ -16511,6 +16765,10 @@ msgstr "The page could not be loaded. Check the address or paste the ingredients
 #: apps/native/app/+not-found.tsx
 msgid "The page you're looking for doesn't exist."
 msgstr "The page you're looking for doesn't exist."
+
+#: packages/api/src/presenters/pain.ts
+msgid "The pain log is off"
+msgstr "The pain log is off"
 
 #: packages/api/src/presenters/recipe-draft.ts
 msgid "The pasted ingredients exceed supported limits."
@@ -16894,6 +17152,11 @@ msgstr "This invitation was sent to a different email address. Sign in with the 
 msgid "This is a recommended range, not a description of what most people do."
 msgstr "This is a recommended range, not a description of what most people do."
 
+#. safety
+#: packages/api/src/presenters/pain.ts
+msgid "This is a record, not a diagnosis. Talk to a healthcare professional about pain that is severe, sudden or not getting better."
+msgstr "This is a record, not a diagnosis. Talk to a healthcare professional about pain that is severe, sudden or not getting better."
+
 #: packages/api/src/presenters/food-lookup.ts
 msgid "This is a store or weighed-item code, so it does not identify a product. Enter the food from its label instead."
 msgstr "This is a store or weighed-item code, so it does not identify a product. Enter the food from its label instead."
@@ -17117,6 +17380,11 @@ msgstr "This workout could not be opened. Please try again."
 msgid "This workspace's OpenValens Cloud access has ended. Its records are still here, and you can export them."
 msgstr "This workspace's OpenValens Cloud access has ended. Its records are still here, and you can export them."
 
+#: packages/api/src/presenters/pain.ts
+msgctxt "pain type"
+msgid "Throbbing"
+msgstr "Throbbing"
+
 #: apps/web/src/components/trackers/tracker-log-form.tsx
 #: apps/web/src/routes/_auth/records/vitals.tsx
 #: packages/api/src/presenters/log-kinds.ts
@@ -17158,6 +17426,11 @@ msgstr "Timeline"
 msgctxt "diary view"
 msgid "Timeline"
 msgstr "Timeline"
+
+#: packages/api/src/presenters/pain.ts
+msgctxt "pain type"
+msgid "Tingling"
+msgstr "Tingling"
 
 #: apps/native/components/recipe-draft-editor.tsx
 #: apps/web/src/components/recipe-draft-editor.tsx
@@ -17440,6 +17713,10 @@ msgstr "Try delete again"
 msgid "Try lookup again"
 msgstr "Try lookup again"
 
+#: packages/api/src/presenters/pain.ts
+msgid "Turn it on to record where it hurts, a rating from 0 to 10, and what it feels like. Only you can see it. It is off by default."
+msgstr "Turn it on to record where it hurts, a rating from 0 to 10, and what it feels like. Only you can see it. It is off by default."
+
 #: apps/native/components/insights-section.tsx
 #: apps/web/src/components/insights-section.tsx
 msgid "Turn observations off"
@@ -17519,6 +17796,10 @@ msgstr "Turn on push from the mobile app to register this phone."
 msgid "Turn on recipe import in your nutrition settings first."
 msgstr "Turn on recipe import in your nutrition settings first."
 
+#: packages/api/src/presenters/pain.ts
+msgid "Turn on the pain log"
+msgstr "Turn on the pain log"
+
 #: apps/native/app/(drawer)/insight-settings.tsx
 #: apps/web/src/components/insight-notifications-section.tsx
 msgid "Turn on the weekly email"
@@ -17535,6 +17816,10 @@ msgstr "Turn on to let AI features process your data."
 #: apps/web/src/routes/_auth/private-measurements.tsx
 msgid "Turn this on to record weight or circumference measurements and progress photos for your own reference. It is off by default."
 msgstr "Turn this on to record weight or circumference measurements and progress photos for your own reference. It is off by default."
+
+#: packages/api/src/presenters/pain.ts
+msgid "Turning it off hides your pain log everywhere. Nothing is deleted."
+msgstr "Turning it off hides your pain log everywhere. Nothing is deleted."
 
 #: apps/native/app/(drawer)/cycle.tsx
 #: apps/web/src/routes/_auth/cycle.tsx
@@ -17563,6 +17848,10 @@ msgstr "Two separate views of your own records: measured DEXA values by region, 
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Type"
 msgstr "Type"
+
+#: apps/web/src/components/pain/pain-panel.tsx
+msgid "Type (optional)"
+msgstr "Type (optional)"
 
 #. safety
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
@@ -18488,12 +18777,17 @@ msgid "Whatever this key reads goes to the app you give it to, under that app's 
 msgstr "Whatever this key reads goes to the app you give it to, under that app's own terms and privacy policy. OpenValens cannot control what the app does with it."
 
 #: apps/web/src/components/ai-apps-view.tsx
+#: apps/web/src/components/pain/pain-panel.tsx
 msgid "When"
 msgstr "When"
 
 #: apps/web/src/routes/_auth/goals.index.tsx
 msgid "When taken"
 msgstr "When taken"
+
+#: apps/web/src/components/pain/pain-panel.tsx
+msgid "Where"
+msgstr "Where"
 
 #: apps/native/components/server-choice.tsx
 msgid "Where is your account?"
@@ -18586,6 +18880,10 @@ msgstr "Workout type"
 #: packages/api/src/presenters/clinical-export.ts
 msgid "Workouts"
 msgstr "Workouts"
+
+#: apps/web/src/components/pain/pain-panel.tsx
+msgid "Workouts logged near this rating"
+msgstr "Workouts logged near this rating"
 
 #: packages/api/src/presenters/macro-presets.ts
 msgid "Works out protein, carbohydrate and fat targets from your energy target and recent weight. Nothing changes until you save them."
@@ -19147,6 +19445,11 @@ msgstr "Your OpenValens Cloud trial has ended"
 msgid "Your own trend comes first. If you turn a comparison on, your usual value is shown next to a published guideline range, or a broad band for adults of your age group and sex, with its source named."
 msgstr "Your own trend comes first. If you turn a comparison on, your usual value is shown next to a published guideline range, or a broad band for adults of your age group and sex, with its source named."
 
+#: apps/web/src/components/oauth-consent-view.tsx
+#: packages/api/src/presenters/ai-apps.ts
+msgid "Your pain ratings by body region, only while \"Coach and connected AI apps can read my pain log\" is on."
+msgstr "Your pain ratings by body region, only while \"Coach and connected AI apps can read my pain log\" is on."
+
 #: apps/web/src/routes/_auth/goals.index.tsx
 msgid "Your personal goals, separate from workout plans. Missing records stay unknown—not zero."
 msgstr "Your personal goals, separate from workout plans. Missing records stay unknown—not zero."
@@ -19185,6 +19488,10 @@ msgstr "Your profile was changed somewhere else. We've loaded the latest version
 #: packages/api/src/presenters/trackers.ts
 msgid "Your rating"
 msgstr "Your rating"
+
+#: packages/api/src/presenters/pain.ts
+msgid "Your ratings for this region, newest first, with the workouts you logged that day or the two days before."
+msgstr "Your ratings for this region, newest first, with the workouts you logged that day or the two days before."
 
 #: apps/native/components/get-started-card.tsx
 msgid "Your readings then arrive by themselves."

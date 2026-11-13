@@ -71,6 +71,10 @@ const SCOPES: Record<string, { title: MessageDescriptor; detail: MessageDescript
     title: msg`Custom trackers`,
     detail: msg`Trackers you made, except those with "Coach and connected AI apps can read this" off.`,
   },
+  "pain:read": {
+    title: msg`Pain log`,
+    detail: msg`Your pain ratings by body region, only while "Coach and connected AI apps can read my pain log" is on.`,
+  },
 };
 
 /** A scope's short name, or `null` for a scope this app does not know yet. */

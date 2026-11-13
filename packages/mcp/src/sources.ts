@@ -3,6 +3,7 @@ import { privateBodyMeasurement, dailyWeight } from "@openvalens/db/schema/body"
 import { bloodMarker, bloodPanel } from "@openvalens/db/schema/clinical";
 import { healthEvent, metricDefinition, metricSample } from "@openvalens/db/schema/health-record";
 import { insightPreference } from "@openvalens/db/schema/insights";
+import { painEntry, painPreference } from "@openvalens/db/schema/pain";
 import { workout, workoutExercise } from "@openvalens/db/schema/plans";
 import { productSettings } from "@openvalens/db/schema/product-settings";
 import { customTracker, customTrackerEntry } from "@openvalens/db/schema/trackers";
@@ -41,6 +42,10 @@ export const MCP_SOURCE_TABLES = [
   // and only trackers whose "Coach and connected AI apps" switch is on.
   "custom_tracker",
   "custom_tracker_entry", // `note` only with `notes:read`
+  // Pain log (#442): only with `pain:read`, only the member's own, and only
+  // while the pain log and its AI switch are both on.
+  "pain_entry", // `note` only with `notes:read`
+  "pain_preference", // the opt-in and the AI switch only
   // Member display preferences
   "insight_preference", // time zone only
   "product_settings", // units only
@@ -136,6 +141,16 @@ export type TrackerEntryRow = {
   loggedByMember: boolean;
 };
 
+export type PainEntryRow = {
+  region: string;
+  rating: number;
+  type: string | null;
+  loggedAt: Date;
+  localDate: string;
+  /** Read only when the grant has `notes:read`; null otherwise. */
+  note: string | null;
+};
+
 export type McpDataSources = {
   preferences: (scope: GrantScope) => Promise<{ timeZone: string | null; units: Units }>;
   sleepSessions: (
@@ -163,6 +178,16 @@ export type McpDataSources = {
     range: DayRange,
     options: { trackerIds: readonly string[]; withNotes: boolean },
   ) => Promise<TrackerEntryRow[]>;
+  /**
+   * The member's own pain entries by local day, newest first (#442): none
+   * unless the pain log and its AI switch are on. `withNotes` is the grant's
+   * `notes:read`; without it the note column is never selected.
+   */
+  painEntries: (
+    scope: GrantScope,
+    range: DayRange,
+    options: { withNotes: boolean },
+  ) => Promise<PainEntryRow[]>;
   searchExercises: ExerciseSearchPort;
 };
 
@@ -419,6 +444,32 @@ export function createMcpDataSources(
         )
         .orderBy(desc(customTrackerEntry.loggedAt), desc(customTrackerEntry.id));
       return range.limit > 0 ? query.limit(range.limit).offset(range.offset) : query;
+    },
+
+    async painEntries(scope, range, options) {
+      return db
+        .select({
+          region: painEntry.region,
+          rating: painEntry.rating,
+          type: painEntry.type,
+          loggedAt: painEntry.loggedAt,
+          localDate: painEntry.localDate,
+          note: options.withNotes ? painEntry.note : sql<null>`null`,
+        })
+        .from(painEntry)
+        .innerJoin(painPreference, eq(painPreference.userId, painEntry.userId))
+        .where(
+          and(
+            eq(painEntry.organizationId, scope.organizationId),
+            eq(painEntry.userId, scope.userId),
+            eq(painPreference.enabled, true),
+            eq(painPreference.aiVisible, true),
+            between(painEntry.localDate, range.from, range.to),
+          ),
+        )
+        .orderBy(desc(painEntry.loggedAt), desc(painEntry.id))
+        .limit(range.limit)
+        .offset(range.offset);
     },
 
     searchExercises,

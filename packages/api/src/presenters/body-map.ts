@@ -3,12 +3,14 @@
  * (`react-native-svg`). Both renderers draw the regions and colours returned
  * here, so the same scan gives the same colours and values on both.
  *
- * Two separate layers, never blended:
+ * Three separate layers, never blended:
  * - Composition: each map region takes its value from the most specific DEXA
  *   region the scan actually reported. A map region with no reported source
  *   stays neutral; nothing is interpolated or inferred from weight.
  * - Training: working sets in the last 7 days per muscle (primary = 1,
  *   secondary = 0.5), from catalog-linked exercises only.
+ * - Pain (#442): the highest rating the member logged per region in the last
+ *   7 or 30 days, plus pain-only joint spots drawn only on this layer.
  *
  * The figure is MIT-licensed artwork from react-native-body-highlighter
  * (`./body-map-paths`, see its README), moved into a 200 × 400 view box per
@@ -19,9 +21,18 @@
  * legend and value text through the `i18n` they are given (#67).
  */
 import type { I18n, MessageDescriptor } from "@lingui/core";
-import { msg } from "@lingui/core/macro";
+import { msg, plural } from "@lingui/core/macro";
 
-import { fitViewBox, normalizePath, type PathTransform } from "./body-map-geometry";
+import { PAIN_RATING_MAX, type PainJointRegion } from "@openvalens/pain/model";
+
+import {
+  circlePath,
+  fitViewBox,
+  normalizePath,
+  pathBounds,
+  type PathBounds,
+  type PathTransform,
+} from "./body-map-geometry";
 import { bodyBack } from "./body-map-paths/body-back";
 import { bodyFemaleBack } from "./body-map-paths/body-female-back";
 import { bodyFemaleFront } from "./body-map-paths/body-female-front";
@@ -334,6 +345,119 @@ function regionsFor(view: BodyMapView, shapes: Shape[], art: ViewArtwork) {
   return { regions, base: draw(base, null), outline: art.outline };
 }
 
+// ─── Pain-only joint spots (#442) ─────────────────────────────
+
+export type PainSpot = {
+  /** Shared by both views, so a knee rated from the front shows from the back too. */
+  id: PainJointRegion;
+  view: BodyMapView;
+  label: MessageDescriptor;
+  path: string;
+};
+
+export const PAIN_JOINT_LABELS: Readonly<Record<PainJointRegion, MessageDescriptor>> =
+  Object.freeze({
+    "joint.neck": msg`Neck`,
+    "joint.jaw_left": msg`Left jaw`,
+    "joint.jaw_right": msg`Right jaw`,
+    "joint.elbow_left": msg`Left elbow`,
+    "joint.elbow_right": msg`Right elbow`,
+    "joint.wrist_hand_left": msg`Left wrist and hand`,
+    "joint.wrist_hand_right": msg`Right wrist and hand`,
+    "joint.hip_left": msg`Left hip`,
+    "joint.hip_right": msg`Right hip`,
+    "joint.knee_left": msg`Left knee`,
+    "joint.knee_right": msg`Right knee`,
+    "joint.ankle_foot_left": msg`Left ankle and foot`,
+    "joint.ankle_foot_right": msg`Right ankle and foot`,
+  });
+
+const SPOT_RADIUS = 5.5;
+
+/**
+ * Places the joint spots on one view of the artwork, from where the
+ * neighbouring parts are drawn: the knee on the knee part (or the bottom of
+ * the back of the thigh), the elbow between the upper arm and the forearm,
+ * and so on. Joints the view cannot show (the jaw from the back) are left out.
+ */
+function jointSpots(view: BodyMapView, art: ViewArtwork): PainSpot[] {
+  const box = (slugs: readonly Slug[], viewerSide: "left" | "right" | null): PathBounds | null => {
+    const paths = slugs.flatMap((slug) => {
+      const part = art.parts.get(slug);
+      if (!part) return [];
+      if (viewerSide === "left") return part.viewerLeft;
+      if (viewerSide === "right") return part.viewerRight;
+      return [...part.viewerLeft, ...part.viewerRight];
+    });
+    return paths.length ? pathBounds(paths.join("")) : null;
+  };
+  const centre = (b: PathBounds) => ({ x: (b.minX + b.maxX) / 2, y: (b.minY + b.maxY) / 2 });
+  const spots: PainSpot[] = [];
+  const add = (id: PainJointRegion, point: { x: number; y: number } | null) => {
+    if (!point) return;
+    spots.push({
+      id,
+      view,
+      label: PAIN_JOINT_LABELS[id],
+      path: circlePath(point.x, point.y, SPOT_RADIUS),
+    });
+  };
+
+  const neck = box(["neck"], null);
+  add("joint.neck", neck ? centre(neck) : null);
+
+  for (const side of ["left", "right"] as const) {
+    // Front view: the member's left is on the viewer's right. Back view: the reverse.
+    const viewerSide = view === "front" ? (side === "left" ? "right" : "left") : side;
+    const outward = viewerSide === "left" ? -1 : 1;
+
+    if (view === "front") {
+      const head = box(["head"], null);
+      if (head) {
+        const width = head.maxX - head.minX;
+        add(`joint.jaw_${side}`, {
+          x: (head.minX + head.maxX) / 2 + outward * width * 0.25,
+          y: head.maxY - (head.maxY - head.minY) * 0.28,
+        });
+      }
+    }
+
+    const upperArm = box([view === "front" ? "biceps" : "triceps"], viewerSide);
+    const forearm = box(["forearm"], viewerSide);
+    if (upperArm && forearm)
+      add(`joint.elbow_${side}`, {
+        x: centre(upperArm).x * 0.6 + centre(forearm).x * 0.4,
+        y: (upperArm.maxY + forearm.minY) / 2,
+      });
+
+    const hand = box(["hands"], viewerSide);
+    if (hand)
+      add(`joint.wrist_hand_${side}`, {
+        x: centre(hand).x,
+        y: hand.minY + (hand.maxY - hand.minY) * 0.35,
+      });
+
+    const hip = box([view === "front" ? "quadriceps" : "gluteal"], viewerSide);
+    if (hip) {
+      const inset = (hip.maxX - hip.minX) * (view === "front" ? 0.2 : 0.12);
+      add(`joint.hip_${side}`, {
+        x: outward < 0 ? hip.minX + inset : hip.maxX - inset,
+        y: view === "front" ? hip.minY + 6 : hip.minY + (hip.maxY - hip.minY) * 0.25,
+      });
+    }
+
+    const knee = box(["knees"], viewerSide);
+    const thighBack = box(["hamstring"], viewerSide);
+    if (knee) add(`joint.knee_${side}`, centre(knee));
+    else if (thighBack)
+      add(`joint.knee_${side}`, { x: centre(thighBack).x, y: thighBack.maxY - 4 });
+
+    const ankle = box(["ankles", "feet"], viewerSide);
+    if (ankle) add(`joint.ankle_foot_${side}`, centre(ankle));
+  }
+  return spots;
+}
+
 export type BodyMapArtwork = {
   /** Same ids, labels, sources and groups as `BODY_MAP_REGIONS`; paths for this figure. */
   regions: readonly BodyMapRegion[];
@@ -341,6 +465,8 @@ export type BodyMapArtwork = {
   base: Readonly<Record<BodyMapView, string>>;
   /** Silhouette outline per view, drawn under everything else. */
   outline: Readonly<Record<BodyMapView, string>>;
+  /** Pain-only joint spots (#442), drawn above the regions on the pain layer only. */
+  painSpots: readonly PainSpot[];
 };
 
 const ARTWORK_SOURCES: Record<
@@ -364,12 +490,15 @@ export function bodyMapArtwork(figure: BodyMapFigure): BodyMapArtwork {
   const cached = artworkCache.get(figure);
   if (cached) return cached;
   const sources = ARTWORK_SOURCES[figure];
-  const front = regionsFor("front", FRONT, viewArtwork(sources.front.parts, sources.front));
-  const back = regionsFor("back", BACK, viewArtwork(sources.back.parts, sources.back));
+  const frontArt = viewArtwork(sources.front.parts, sources.front);
+  const backArt = viewArtwork(sources.back.parts, sources.back);
+  const front = regionsFor("front", FRONT, frontArt);
+  const back = regionsFor("back", BACK, backArt);
   const artwork: BodyMapArtwork = Object.freeze({
     regions: Object.freeze([...front.regions, ...back.regions]),
     base: Object.freeze({ front: front.base, back: back.base }),
     outline: Object.freeze({ front: front.outline, back: back.outline }),
+    painSpots: Object.freeze([...jointSpots("front", frontArt), ...jointSpots("back", backArt)]),
   });
   artworkCache.set(figure, artwork);
   return artwork;
@@ -694,6 +823,71 @@ export function trainingLayer(
 
 export function formatSets(sets: number): string {
   return Number.isInteger(sets) ? String(sets) : sets.toFixed(1);
+}
+
+// ─── Pain layer (#442) ───────────────────────────────────────
+
+/**
+ * Pain ratings use the same ink-blue ramp as the other layers: darker means a
+ * higher number the member gave, with no alarm red and no good/bad reading.
+ */
+export const BODY_MAP_PAIN = BODY_MAP_SEQUENTIAL;
+
+/** 0-1, 2-3, 4-5, 6-7 and 8-10 share a step. */
+export function painStep(rating: number): number {
+  return Math.min(4, Math.max(0, Math.floor(rating / 2)));
+}
+
+/** Every region a pain entry can name: the map regions and the joint spots. */
+export function painRegionLabel(id: string): MessageDescriptor | null {
+  if (Object.hasOwn(PAIN_JOINT_LABELS, id)) return PAIN_JOINT_LABELS[id as PainJointRegion];
+  return BODY_MAP_REGIONS.find((region) => region.id === id)?.label ?? null;
+}
+
+export type PainMapRegionInput = { region: string; highest: number; entryCount: number };
+
+/**
+ * Colours each region and joint spot by the highest rating the member logged
+ * there in the window. Regions with no rating are grey. The text is the
+ * number only, the same for every value: nothing changes wording with the
+ * rating.
+ */
+export function painLayer(
+  regions: readonly PainMapRegionInput[],
+  days: number,
+  i18n: I18n,
+): { fills: Record<string, RegionFill>; legend: LegendStep[] } {
+  const byRegion = new Map(regions.map((row) => [row.region, row]));
+  const fills: Record<string, RegionFill> = {};
+  const max = PAIN_RATING_MAX;
+  for (const id of [
+    ...BODY_MAP_REGIONS.map((region) => region.id),
+    ...Object.keys(PAIN_JOINT_LABELS),
+  ]) {
+    const row = byRegion.get(id);
+    if (!row) {
+      fills[id] = { colour: BODY_MAP_NEUTRAL, valueText: null, sourceText: null };
+      continue;
+    }
+    const highest = row.highest;
+    const count = row.entryCount;
+    fills[id] = {
+      colour: BODY_MAP_PAIN[painStep(highest)]!,
+      valueText: i18n._(msg`Highest ${highest} of ${max}`),
+      sourceText: i18n._(
+        msg`${plural(count, { one: "# rating", other: "# ratings" })} in the last ${days} days`,
+      ),
+    };
+  }
+  const legend: LegendStep[] = [
+    { colour: BODY_MAP_PAIN[0]!, label: i18n._(msg`0 to 1`) },
+    { colour: BODY_MAP_PAIN[1]!, label: i18n._(msg`2 to 3`) },
+    { colour: BODY_MAP_PAIN[2]!, label: i18n._(msg`4 to 5`) },
+    { colour: BODY_MAP_PAIN[3]!, label: i18n._(msg`6 to 7`) },
+    { colour: BODY_MAP_PAIN[4]!, label: i18n._(msg`8 to 10`) },
+    { colour: BODY_MAP_NEUTRAL, label: i18n._(msg`No rating`) },
+  ];
+  return { fills, legend };
 }
 
 export const BODY_MAP_COPY = Object.freeze({
