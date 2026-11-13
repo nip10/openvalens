@@ -2278,6 +2278,17 @@ test("Garmin FIT history is committed as steps, sleep, heart rate, HRV, resting 
       time: new Date(Date.UTC(2026, 2, 1, 8, index, 0)).toISOString(),
       bpm: 60 + index,
     });
+  // A repeated reading and one an hour later: two hourly records, no duplicate.
+  historyCapture.handler!({
+    type: "heart_rate",
+    time: new Date(Date.UTC(2026, 2, 1, 8, 1, 0)).toISOString(),
+    bpm: 61,
+  });
+  historyCapture.handler!({
+    type: "heart_rate",
+    time: new Date(Date.UTC(2026, 2, 1, 9, 30, 0)).toISOString(),
+    bpm: 70,
+  });
   const hrvTime = new Date(Date.UTC(2026, 2, 2, 6, 0, 0)).toISOString();
   // The same summary read from two files publishes once.
   historyCapture.handler!({ type: "hrv_rmssd", time: hrvTime, rmssdMs: 42 });
@@ -2415,12 +2426,20 @@ test("Garmin FIT history is committed as steps, sleep, heart rate, HRV, resting 
     `dd-garmin:${deviceId}:sleep:`,
   );
 
-  const heartRate = byType.get("heart_rate")!.upserts;
-  expect(heartRate).toHaveLength(1);
-  if (heartRate[0]!.type === "heart_rate") {
-    expect(heartRate[0]!.samples).toHaveLength(3);
-    expect(heartRate[0]!.externalRecordId).toStartWith(`dd-garmin:${deviceId}:hr:`);
-  }
+  const heartRate = byType.get("heart_rate")!.upserts as {
+    externalRecordId: string;
+    startTime: string;
+    endTime: string;
+    samples: unknown[];
+  }[];
+  expect(heartRate.map((record) => [record.externalRecordId, record.samples.length])).toEqual([
+    [`dd-garmin:${deviceId}:hr:2026-03-01T08`, 3],
+    [`dd-garmin:${deviceId}:hr:2026-03-01T09`, 1],
+  ]);
+  expect(heartRate[0]).toMatchObject({
+    startTime: "2026-03-01T08:00:00.000Z",
+    endTime: "2026-03-01T09:00:00.000Z",
+  });
 
   await controller.dispose();
   db.close();

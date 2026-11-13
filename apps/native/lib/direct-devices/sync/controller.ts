@@ -824,24 +824,34 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
         })),
       });
     if (heartRate.length) {
-      const sorted = [...heartRate].sort(
-        (left, right) => Date.parse(left.time) - Date.parse(right.time),
-      );
-      const times = sorted.map((sample) => Date.parse(sample.time));
-      const startTime = new Date(Math.min(...times)).toISOString();
-      const endTime = new Date(Math.max(...times) + 1000).toISOString();
+      // One record per UTC hour, keyed by the hour: a re-read reading lands
+      // under the same record id and dedupes, and no record can exceed the
+      // contract's 5000 readings however long the backlog.
+      const byHour = new Map<string, typeof heartRate>();
+      for (const sample of heartRate) {
+        const hour = new Date(sample.time).toISOString().slice(0, 13);
+        const bucket = byHour.get(hour) ?? [];
+        bucket.push(sample);
+        byHour.set(hour, bucket);
+      }
       groups.push({
         recordType: "heart_rate",
-        upserts: [
-          {
-            type: "heart_rate",
-            externalRecordId: `dd-${prefix}:${deviceId}:hr:${startTime}`,
-            sourceApp: null,
-            startTime,
-            endTime,
-            samples: sorted.map((sample) => ({ time: sample.time, bpm: sample.bpm })),
-          },
-        ],
+        upserts: [...byHour]
+          .sort(([left], [right]) => (left < right ? -1 : 1))
+          .map(([hour, bucket]) => {
+            const startTime = `${hour}:00:00.000Z`;
+            const samples = [
+              ...new Map(bucket.map((sample) => [sample.time, sample])).values(),
+            ].sort((left, right) => Date.parse(left.time) - Date.parse(right.time));
+            return {
+              type: "heart_rate",
+              externalRecordId: `dd-${prefix}:${deviceId}:hr:${hour}`,
+              sourceApp: null,
+              startTime,
+              endTime: new Date(Date.parse(startTime) + 3_600_000).toISOString(),
+              samples: samples.map((sample) => ({ time: sample.time, bpm: sample.bpm })),
+            };
+          }),
       });
     }
     // Garmin only. Ids come from the watch's own timestamps, so a re-read
