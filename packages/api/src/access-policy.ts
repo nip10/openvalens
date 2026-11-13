@@ -169,6 +169,11 @@ export const PROCEDURE_ACCESS: Readonly<Record<string, ProcedureAccessClass>> = 
 
   "nutritionMicronutrients.summary": R,
 
+  // #443 drinks: presets and opt-in totals are reads; a preset is logged via nutritionDiary.logEntry.
+  "nutritionDrinks.presets": R,
+  "nutritionDrinks.summary": R,
+  "nutritionDrinks.lastCaffeine": R,
+
   // #89 data rights: always.
   "dataRights.deletionPreview": ALWAYS,
   "dataRights.deleteEverything": ALWAYS,

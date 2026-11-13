@@ -99,6 +99,10 @@ export const targetSettings = z.object({
   voiceDraftsEnabled: z.boolean(),
   photoDraftsEnabled: z.boolean(),
   micronutrientsEnabled: z.boolean(),
+  /** #443: the day's caffeine total, opt-in. */
+  caffeineTotalsEnabled: z.boolean(),
+  /** #443: the day's alcohol total, opt-in. */
+  alcoholTotalsEnabled: z.boolean(),
   micronutrientReferenceSource: z.enum(MICRONUTRIENT_SOURCES).nullable(),
   micronutrientPopulation: z.enum(MICRONUTRIENT_POPULATION_KEYS).nullable(),
   heightCm: z.number().nullable(),
@@ -195,6 +199,8 @@ export const updateSettingsInput = z.strictObject({
   voiceDraftsEnabled: z.boolean().optional(),
   photoDraftsEnabled: z.boolean().optional(),
   micronutrientsEnabled: z.boolean().optional(),
+  caffeineTotalsEnabled: z.boolean().optional(),
+  alcoholTotalsEnabled: z.boolean().optional(),
   /** Set only from the member's explicit choice; `null` clears it. */
   micronutrientReferenceSource: z.enum(MICRONUTRIENT_SOURCES).nullable().optional(),
   micronutrientPopulation: z.enum(MICRONUTRIENT_POPULATION_KEYS).nullable().optional(),

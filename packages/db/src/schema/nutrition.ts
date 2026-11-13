@@ -365,7 +365,7 @@ export const nutritionMealEntry = pgTable(
     timeZone: text("time_zone"),
     nutrientFactor: doublePrecision("nutrient_factor").notNull(),
     method: text("method")
-      .$type<"manual" | "search" | "barcode" | "quick_add" | "copied">()
+      .$type<"manual" | "search" | "barcode" | "quick_add" | "copied" | "preset">()
       .notNull(),
     consumedAt: timestamp("consumed_at", { withTimezone: true, mode: "date" }),
     clientMutationId: text("client_mutation_id"),
@@ -411,7 +411,7 @@ export const nutritionMealEntry = pgTable(
     ),
     nutritionMealEntryMethodCheck: check(
       "nutrition_meal_entry_method_check",
-      sql`${table.method} in ('manual', 'search', 'barcode', 'quick_add', 'copied')`,
+      sql`${table.method} in ('manual', 'search', 'barcode', 'quick_add', 'copied', 'preset')`,
     ),
     nutritionMealEntryRevisionCheck: check(
       "nutrition_meal_entry_revision_check",
@@ -921,6 +921,10 @@ export const nutritionTargetSettings = pgTable(
     photoDraftsEnabled: boolean("photo_drafts_enabled").notNull().default(false),
     /** Opt-in to the micronutrient summary (Issue #78). */
     micronutrientsEnabled: boolean("micronutrients_enabled").notNull().default(false),
+    /** Opt-in to the day's caffeine total (Issue #443). */
+    caffeineTotalsEnabled: boolean("caffeine_totals_enabled").notNull().default(false),
+    /** Opt-in to the day's alcohol total in grams and standard drinks (Issue #443). */
+    alcoholTotalsEnabled: boolean("alcohol_totals_enabled").notNull().default(false),
     /** Accepted reference source (`efsa` | `nasem`); never set without the member choosing it. */
     micronutrientReferenceSource: text("micronutrient_reference_source"),
     /** Accepted population group id within that source. */

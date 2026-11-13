@@ -539,6 +539,14 @@ msgstr "{blockerNames} também tem outro proprietário. Remova-o ou transfira o 
 msgid "{count, plural, one {{name} access was revoked. # record is hidden until you choose whether to keep it or delete it.} other {{name} access was revoked. # records are hidden until you choose whether to keep them or delete them.}}"
 msgstr "{count, plural, one {O acesso a {name} foi revogado. # registo está oculto até escolher se o quer manter ou eliminar.} other {O acesso a {name} foi revogado. # registos estão ocultos até escolher se os quer manter ou eliminar.}}"
 
+#: packages/api/src/presenters/drinks.ts
+msgid "{count, plural, one {{value} standard drink} other {{value} standard drinks}}"
+msgstr "{count, plural, one {{value} bebida padrão} other {{value} bebidas padrão}}"
+
+#: packages/api/src/presenters/drinks.ts
+msgid "{count, plural, one {{value} UK unit} other {{value} UK units}}"
+msgstr "{count, plural, one {{value} unidade do Reino Unido} other {{value} unidades do Reino Unido}}"
+
 #: packages/api/src/presenters/workouts.ts
 msgid "{count, plural, one {# exercise} other {# exercises}}"
 msgstr "{count, plural, one {# exercício} other {# exercícios}}"
@@ -753,6 +761,11 @@ msgstr "{key, select, energyKcal {Energia} energyKj {Energia} proteinG {Proteín
 msgid "{key, select, energyKcal {Energy} energyKj {Energy} proteinG {Protein} carbohydrateG {Carbohydrate} fatG {Fat} saturatedFatG {Saturated fat} fiberG {Fibre} totalSugarsG {Total sugars} addedSugarsG {Added sugars} freeSugarsG {Free sugars} sodiumMg {Sodium} saltG {Salt} caffeineMg {Caffeine} alcoholG {Alcohol} other {Value}} ({unit}, optional)"
 msgstr "{key, select, energyKcal {Energia} energyKj {Energia} proteinG {Proteína} carbohydrateG {Hidratos de carbono} fatG {Lípidos} saturatedFatG {Ácidos gordos saturados} fiberG {Fibra} totalSugarsG {Açúcares totais} addedSugarsG {Açúcares adicionados} freeSugarsG {Açúcares livres} sodiumMg {Sódio} saltG {Sal} caffeineMg {Cafeína} alcoholG {Álcool} other {Valor}} ({unit}, opcional)"
 
+#. placeholder {0}: total.totalEntries
+#: packages/api/src/presenters/drinks.ts
+msgid "{known} of {0, plural, one {# food} other {# foods}} reported a value"
+msgstr "{known} de {0, plural, one {# alimento} other {# alimentos}} indicaram um valor"
+
 #. placeholder {0}: row.totalEntries
 #: packages/api/src/presenters/micronutrients.ts
 msgid "{known} of {0, plural, one {# food} other {# foods}} reported this"
@@ -966,6 +979,10 @@ msgstr "{needs_attention, plural, one {# requer atenção} other {# requerem ate
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "{nutrient, select, energyKcal {Energy} energyKj {Energy} proteinG {Protein} carbohydrateG {Carbohydrate} fatG {Fat} saturatedFatG {Saturated fat} fiberG {Fibre} totalSugarsG {Total sugars} addedSugarsG {Added sugars} freeSugarsG {Free sugars} sodiumMg {Sodium} saltG {Salt} other {Nutrient}} targets must be 0 or more, or left blank."
 msgstr "Os objetivos de {nutrient, select, energyKcal {energia} energyKj {energia} proteinG {proteína} carbohydrateG {hidratos de carbono} fatG {lípidos} saturatedFatG {ácidos gordos saturados} fiberG {fibra} totalSugarsG {açúcares totais} addedSugarsG {açúcares adicionados} freeSugarsG {açúcares livres} sodiumMg {sódio} saltG {sal} other {nutrientes}} devem ser 0 ou mais, ou ficar em branco."
+
+#: packages/api/src/presenters/drinks.ts
+msgid "{org} reference for adults: {amount} mg a day"
+msgstr "Referência da {org} para adultos: {amount} mg por dia"
 
 #: apps/native/components/change-server.tsx
 msgid "{pending, plural, one {# change has not reached} other {# changes have not reached}} {host} yet. Changing server signs you out and deletes them from this phone."
@@ -1219,9 +1236,17 @@ msgstr "1 = {low}, 5 = {high}. A sua própria avaliação."
 msgid "1 = very gentle, 5 = very forceful. Currently {assertiveness} of 5."
 msgstr "1 = muito suave, 5 = muito enérgico. Atualmente {assertiveness} de 5."
 
+#: packages/api/src/presenters/drinks.ts
+msgid "1 standard drink = {grams} g of pure alcohol ({org}, {document})"
+msgstr "1 bebida padrão = {grams} g de álcool puro ({org}, {document})"
+
 #: packages/api/src/presenters/trackers.ts
 msgid "1 to 5"
 msgstr "1 a 5"
+
+#: packages/api/src/presenters/drinks.ts
+msgid "1 UK unit = {grams} g of pure alcohol ({org}, {document})"
+msgstr "1 unidade do Reino Unido = {grams} g de álcool puro ({org}, {document})"
 
 #: packages/api/src/presenters/ai-apps.ts
 msgid "1 year"
@@ -1352,6 +1377,10 @@ msgstr "Chegou uma data que definiu no OpenValens. Abra a aplicação para a ver
 msgid "A dependent change is already syncing."
 msgstr "Uma alteração dependente já está a ser sincronizada."
 
+#: packages/api/src/presenters/drinks.ts
+msgid "A drink is saved at once as a food in the current meal, with its values from USDA FoodData Central. You can change the amount afterwards. Plain water has its own subtotal."
+msgstr "Uma bebida fica logo guardada como alimento na refeição atual, com os valores da USDA FoodData Central. Pode alterar a quantidade depois. A água simples tem o seu próprio subtotal."
+
 #: apps/native/components/onboarding/steps.tsx
 #: apps/native/lib/onboarding/steps.ts
 #: apps/web/src/components/onboarding/setup-steps.tsx
@@ -1454,6 +1483,10 @@ msgstr "É preciso um peso recente para calcular a proteína."
 #: packages/api/src/presenters/recipe-draft.ts
 msgid "A Recipe entry contains unsupported or oversized ingredient data."
 msgstr "Uma entrada de receita contém dados de ingredientes não suportados ou demasiado grandes."
+
+#: packages/api/src/presenters/drinks.ts
+msgid "A record of what you logged, not medical advice."
+msgstr "Um registo do que registou, não um aconselhamento médico."
 
 #: packages/api/src/presenters/plain-water.ts
 msgid "A reference you set yourself. Optional."
@@ -2093,6 +2126,7 @@ msgstr "Utilização de IA"
 msgid "AI, reminders and usage analytics. All off until you turn them on."
 msgstr "IA, lembretes e análise de utilização. Tudo desligado até os ligar."
 
+#: packages/api/src/presenters/drinks.ts
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Alcohol"
 msgstr "Álcool"
@@ -2460,6 +2494,14 @@ msgstr "pelo menos {0} g"
 msgid "At least {0}{suffix}"
 msgstr "Pelo menos {0}{suffix}"
 
+#: packages/api/src/presenters/drinks.ts
+msgid "at least {amount}"
+msgstr "pelo menos {amount}"
+
+#: packages/api/src/presenters/drinks.ts
+msgid "at least {text}"
+msgstr "pelo menos {text}"
+
 #: packages/api/src/presenters/nutrition-targets.ts
 msgctxt "inside a sentence"
 msgid "at least {value} {unit}"
@@ -2737,6 +2779,10 @@ msgstr "Com base na sua estimativa de gasto ({kcal} kcal por dia) e no seu objet
 msgid "Bedtime"
 msgstr "Hora de deitar"
 
+#: packages/api/src/presenters/drinks.ts
+msgid "Beer"
+msgstr "Cerveja"
+
 #: apps/web/src/components/admin-backup-status.tsx
 msgid "before an upgrade"
 msgstr "antes de uma atualização"
@@ -2964,9 +3010,14 @@ msgstr "H"
 msgid "Cached diary data will be removed from this device. Saved entries stay on the server."
 msgstr "Os dados do diário guardados em cache serão removidos deste dispositivo. Os registos guardados mantêm-se no servidor."
 
+#: packages/api/src/presenters/drinks.ts
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Caffeine"
 msgstr "Cafeína"
+
+#: packages/api/src/presenters/drinks.ts
+msgid "Caffeine and alcohol totals are hidden while numbers are hidden."
+msgstr "Os totais de cafeína e de álcool estão ocultos enquanto os números estão ocultos."
 
 #: packages/api/src/presenters/micronutrients.ts
 msgid "Calcium"
@@ -3733,6 +3784,10 @@ msgstr "O coach está a pensar…"
 #: apps/native/app/(drawer)/(tabs)/_layout.tsx
 msgid "Cockpit"
 msgstr "Painel"
+
+#: packages/api/src/presenters/drinks.ts
+msgid "Cola"
+msgstr "Cola"
 
 #: packages/api/src/presenters/trackers.ts
 msgid "Cold exposure"
@@ -4959,6 +5014,10 @@ msgstr "Não foi possível guardar a rotina"
 #: apps/native/app/check-in.tsx
 msgid "Could not save the check-in. Try again."
 msgstr "Não foi possível guardar o balanço. Tente novamente."
+
+#: packages/api/src/presenters/drinks.ts
+msgid "Could not save the drink. Nothing was changed."
+msgstr "Não foi possível guardar a bebida. Nada foi alterado."
 
 #: apps/web/src/components/workout-routines.tsx
 msgid "Could not save the routine. Your finished workout is unchanged."
@@ -6219,6 +6278,14 @@ msgstr "Arraste para mover, ou use as ações para subir ou descer."
 msgid "Drag to reorder. Tap an exercise to go to it."
 msgstr "Arraste para reordenar. Toque num exercício para ir até ele."
 
+#: packages/api/src/presenters/drinks.ts
+msgid "Drink shortcuts need the USDA FoodData Central catalog on this server. Your server operator can import it; until then, search for the drink or add it by hand."
+msgstr "Os atalhos de bebidas precisam do catálogo USDA FoodData Central neste servidor. O operador do servidor pode importá-lo; até lá, pesquise a bebida ou adicione-a à mão."
+
+#: packages/api/src/presenters/drinks.ts
+msgid "Drinks"
+msgstr "Bebidas"
+
 #: apps/web/src/components/quick-log/palette-sections.ts
 msgid "Due now"
 msgstr "Para tomar agora"
@@ -6502,6 +6569,10 @@ msgstr "Terminado · histórico preservado"
 msgid "Energy"
 msgstr "Energia"
 
+#: packages/api/src/presenters/drinks.ts
+msgid "Energy drink"
+msgstr "Bebida energética"
+
 #: packages/api/src/presenters/energy-estimate.ts
 msgid "Energy estimate"
 msgstr "Estimativa de energia"
@@ -6769,6 +6840,10 @@ msgstr "Apagar todos os dados do ciclo?"
 #: apps/web/src/routes/_auth/cycle.tsx
 msgid "Erasing…"
 msgstr "A apagar…"
+
+#: packages/api/src/presenters/drinks.ts
+msgid "Espresso"
+msgstr "Café expresso"
 
 #: packages/api/src/presenters/cycle.ts
 msgid "Estimate"
@@ -7486,6 +7561,10 @@ msgstr "Obtenha a aplicação para telemóvel"
 #: apps/web/src/components/trackers/tracker-editor.tsx
 msgid "Give the tracker a name, up to 40 characters."
 msgstr "Dê um nome ao acompanhamento, até 40 caracteres."
+
+#: packages/api/src/presenters/drinks.ts
+msgid "Glass of wine"
+msgstr "Copo de vinho"
 
 #: apps/native/components/direct-device-settings.tsx
 msgid "GloryFit history (steps, heart rate and sleep) syncs automatically while connected. Records are saved in batches and sent only when you tap “Retry upload”."
@@ -8797,6 +8876,14 @@ msgstr "Últimos 90 dias"
 #: apps/web/src/components/admin-backup-status.tsx
 msgid "Last backup"
 msgstr "Última cópia de segurança"
+
+#: apps/web/src/routes/_auth/records/sleep.tsx
+msgid "Last caffeine"
+msgstr "Última cafeína"
+
+#: packages/api/src/presenters/drinks.ts
+msgid "Last caffeine {time}"
+msgstr "Última cafeína às {time}"
 
 #: packages/api/src/presenters/preventive-care.ts
 msgid "Last done"
@@ -10128,6 +10215,10 @@ msgstr "O histórico Moyoung (frequência cardíaca e sono) sincroniza automatic
 msgid "ms"
 msgstr "ms"
 
+#: packages/api/src/presenters/drinks.ts
+msgid "Mug of filter coffee"
+msgstr "Caneca de café de filtro"
+
 #: apps/web/src/components/exercise-library.tsx
 msgid "Muscle"
 msgstr "Músculo"
@@ -11059,6 +11150,10 @@ msgstr "Ainda não há pesagens suficientes para uma tendência."
 msgid "Not every food reported this, so the amount is at least this much."
 msgstr "Nem todos os alimentos indicaram este valor, por isso a quantidade é pelo menos esta."
 
+#: packages/api/src/presenters/drinks.ts
+msgid "Not every food reported this, so the total is at least this much."
+msgstr "Nem todos os alimentos indicaram este valor, por isso o total é pelo menos este."
+
 #: apps/native/app/+not-found.tsx
 msgid "Not Found"
 msgstr "Não encontrado"
@@ -11283,6 +11378,7 @@ msgid "nothing logged"
 msgstr "nada registado"
 
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
+#: packages/api/src/presenters/drinks.ts
 #: packages/api/src/presenters/micronutrients.ts
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Nothing logged"
@@ -11486,6 +11582,14 @@ msgstr "Desligado"
 #: packages/api/src/presenters/preventive-care.ts
 msgid "Off by default. A separate list that rates popular longevity practices and tests against published trials and guidelines. It never sets reminders."
 msgstr "Desligada por predefinição. Uma lista separada que avalia práticas e testes populares de longevidade face a ensaios e diretrizes publicados. Nunca define lembretes."
+
+#: packages/api/src/presenters/drinks.ts
+msgid "Off by default. Adds up the alcohol in grams in the foods and drinks you log and, where your region has a published definition, in standard drinks. Foods that don't report alcohol count as unknown, never as zero. Turn it off at any time."
+msgstr "Desligado por predefinição. Soma o álcool, em gramas, dos alimentos e bebidas que regista e, quando a sua região tem uma definição publicada, em bebidas padrão. Os alimentos que não indicam álcool contam como desconhecidos, nunca como zero. Pode desligá-lo a qualquer momento."
+
+#: packages/api/src/presenters/drinks.ts
+msgid "Off by default. Adds up the caffeine in the foods and drinks you log and shows how many of them reported it. Foods that don't report caffeine count as unknown, never as zero. Also shows the time of your last caffeine on the sleep page. Turn it off at any time."
+msgstr "Desligado por predefinição. Soma a cafeína dos alimentos e bebidas que regista e mostra quantos a indicaram. Os alimentos que não indicam cafeína contam como desconhecidos, nunca como zero. Mostra também a hora da sua última cafeína na página do sono. Pode desligá-lo a qualquer momento."
 
 #. safety
 #: packages/api/src/presenters/food-draft.ts
@@ -14872,9 +14976,17 @@ msgstr "A partilha está ligada."
 msgid "Short descriptions of what changed in your own records, compared with your own usual. They are calculated by fixed rules, not by AI."
 msgstr "Descrições curtas do que mudou nos seus próprios registos, em comparação com o seu habitual. São calculadas por regras fixas, não por IA."
 
+#: packages/api/src/presenters/drinks.ts
+msgid "Shot of spirits"
+msgstr "Shot de bebida destilada"
+
 #: packages/api/src/presenters/body-map.ts
 msgid "Shoulders"
 msgstr "Ombros"
+
+#: packages/api/src/presenters/drinks.ts
+msgid "Show a caffeine total"
+msgstr "Mostrar um total de cafeína"
 
 #: packages/api/src/presenters/logging-streak.ts
 msgid "Show a logging streak"
@@ -14887,6 +14999,10 @@ msgstr "Mostrar um resumo de micronutrientes"
 #: apps/native/components/active-workout.tsx
 msgid "Show all exercises in this workout"
 msgstr "Mostrar todos os exercícios deste treino"
+
+#: packages/api/src/presenters/drinks.ts
+msgid "Show an alcohol total"
+msgstr "Mostrar um total de álcool"
 
 #: packages/api/src/presenters/custom-foods.ts
 msgid "Show archived foods"
@@ -14934,6 +15050,10 @@ msgstr "A mostrar orientações para: {region}. Altere a sua região no seu perf
 #: packages/api/src/presenters/activity-load.ts
 msgid "Shown for context only. Steps and strength volume are never converted into points."
 msgstr "Mostrado apenas para contexto. Os passos e o volume de força nunca são convertidos em pontos."
+
+#: packages/api/src/presenters/drinks.ts
+msgid "Shown in grams only. Standard drinks need your region in your profile; OpenValens has a published definition for the United States, the United Kingdom and Portugal."
+msgstr "Mostrado apenas em gramas. As bebidas padrão precisam da sua região no perfil; o OpenValens tem uma definição publicada para os Estados Unidos, o Reino Unido e Portugal."
 
 #: packages/api/src/presenters/activity-load.ts
 msgid "Shown once at least {minimum} of the previous {considered} weeks have rated sessions (found {windows})."
@@ -15310,6 +15430,7 @@ msgstr "Algo pelo qual está grato, com uma nota."
 #: apps/web/src/routes/_auth/body.tsx
 #: apps/web/src/routes/_auth/nutrition-targets.tsx
 #: apps/web/src/routes/_auth/records/vitals.tsx
+#: packages/api/src/presenters/drinks.ts
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "Source"
 msgstr "Fonte"
@@ -16042,6 +16163,10 @@ msgstr "Objetivos e sugestões"
 msgid "Targets are yours to set, change or clear. They are shown next to what you logged, not compared with it."
 msgstr "Os objetivos são seus para definir, alterar ou limpar. São mostrados ao lado do que registou, sem comparação."
 
+#: packages/api/src/presenters/drinks.ts
+msgid "Tea"
+msgstr "Chá"
+
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Template"
@@ -16158,6 +16283,14 @@ msgstr "O período da média tem de ser de pelo menos um dia."
 #: apps/web/src/components/admin-backup-status.tsx
 msgid "The backup status could not be read."
 msgstr "Não foi possível ler o estado das cópias de segurança."
+
+#: packages/api/src/presenters/drinks.ts
+msgid "The caffeine reference is for adults only, so it is not shown."
+msgstr "A referência de cafeína é apenas para adultos, por isso não é mostrada."
+
+#: packages/api/src/presenters/drinks.ts
+msgid "The caffeine reference is not shown because of an answer in your nutrition settings."
+msgstr "A referência de cafeína não é mostrada devido a uma resposta nas suas definições de nutrição."
 
 #: packages/api/src/presenters/food-lookup.ts
 msgid "The camera could not start. Type the barcode digits instead."
@@ -17544,6 +17677,7 @@ msgstr "desconhecido"
 #: apps/web/src/components/recipe-draft-editor.tsx
 #: apps/web/src/routes/_auth/goals.$goalId.tsx
 #: apps/web/src/routes/_auth/micronutrients.tsx
+#: packages/api/src/presenters/drinks.ts
 #: packages/api/src/presenters/nutrition-diary.ts
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Unknown"

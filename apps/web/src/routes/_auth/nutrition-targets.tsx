@@ -34,6 +34,7 @@ import {
   MICRONUTRIENT_COPY,
   MICRONUTRIENT_POPULATIONS,
 } from "@openvalens/api/presenters/micronutrients";
+import { DRINKS_COPY } from "@openvalens/api/presenters/drinks";
 import type { NutrientKey } from "@openvalens/api/contracts/nutrition-diary";
 import type { I18n, MessageDescriptor } from "@lingui/core";
 import { Trans, useLingui } from "@lingui/react/macro";
@@ -134,7 +135,12 @@ function NutritionTargetsPage() {
     enabled: Boolean(scope),
   });
   const [hideOverride, setHideOverride] = useState<{ scope: string; value: boolean } | null>(null);
-  const refresh = () => queryClient.invalidateQueries({ queryKey: orpc.nutritionTargets.key() });
+  const refresh = () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: orpc.nutritionTargets.key() }),
+      // #443: the drink totals and the sleep view's last caffeine follow these settings.
+      queryClient.invalidateQueries({ queryKey: orpc.nutritionDrinks.key() }),
+    ]);
 
   const data = overview.data;
   const hideNumbers = resolveScopedHideNumbers(
@@ -487,6 +493,10 @@ function SettingsCard({
   const [micronutrientsEnabled, setMicronutrientsEnabled] = useState(
     settings.micronutrientsEnabled,
   );
+  const [caffeineTotalsEnabled, setCaffeineTotalsEnabled] = useState(
+    settings.caffeineTotalsEnabled,
+  );
+  const [alcoholTotalsEnabled, setAlcoholTotalsEnabled] = useState(settings.alcoholTotalsEnabled);
   const [referenceSource, setReferenceSource] = useState(settings.micronutrientReferenceSource);
   const [population, setPopulation] = useState(settings.micronutrientPopulation);
   // Only for the suggestion; the summary itself is on its own page.
@@ -512,6 +522,8 @@ function SettingsCard({
     setVoiceDraftsEnabled(settings.voiceDraftsEnabled);
     setPhotoDraftsEnabled(settings.photoDraftsEnabled);
     setMicronutrientsEnabled(settings.micronutrientsEnabled);
+    setCaffeineTotalsEnabled(settings.caffeineTotalsEnabled);
+    setAlcoholTotalsEnabled(settings.alcoholTotalsEnabled);
     setReferenceSource(settings.micronutrientReferenceSource);
     setPopulation(settings.micronutrientPopulation);
     setHeight(settings.heightCm === null ? "" : String(settings.heightCm));
@@ -553,6 +565,8 @@ function SettingsCard({
       voiceDraftsEnabled,
       photoDraftsEnabled,
       micronutrientsEnabled,
+      caffeineTotalsEnabled,
+      alcoholTotalsEnabled,
       micronutrientReferenceSource: referenceSource,
       micronutrientPopulation: population,
       heightCm: parsedHeight.value,
@@ -745,6 +759,18 @@ function SettingsCard({
                 ) : null}
               </fieldset>
             ) : null}
+            <ToggleRow
+              checked={caffeineTotalsEnabled}
+              onChange={setCaffeineTotalsEnabled}
+              label={i18n._(DRINKS_COPY.caffeineSettingLabel)}
+              info={i18n._(DRINKS_COPY.caffeineSettingDescription)}
+            />
+            <ToggleRow
+              checked={alcoholTotalsEnabled}
+              onChange={setAlcoholTotalsEnabled}
+              label={i18n._(DRINKS_COPY.alcoholSettingLabel)}
+              info={i18n._(DRINKS_COPY.alcoholSettingDescription)}
+            />
           </div>
         </Details>
 

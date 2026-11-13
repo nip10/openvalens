@@ -118,7 +118,8 @@ export const logEntryInput = z.strictObject({
   food: foodRef,
   amount: positive,
   unit: z.enum(AMOUNT_UNITS),
-  method: z.enum(["manual", "search", "barcode", "quick_add"]),
+  /** `preset`: a drink preset (#443), a known catalog food saved at once. */
+  method: z.enum(["manual", "search", "barcode", "quick_add", "preset"]),
   consumedAt: consumedAt.optional(),
 });
 export type LogEntryInput = z.infer<typeof logEntryInput>;

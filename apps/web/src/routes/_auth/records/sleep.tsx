@@ -7,6 +7,7 @@ import {
   sleepStatusLabel,
   sleepStatusTone,
 } from "@openvalens/api/presenters/sleep";
+import { caffeineWindowsForNights, lastCaffeineText } from "@openvalens/api/presenters/drinks";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Button } from "@openvalens/ui/components/button";
 import {
@@ -70,6 +71,12 @@ const STAGE_COLOUR: Record<string, string> = {
 
 function SleepPage() {
   const summary = useQuery(orpc.sleep.summary.queryOptions({ input: { days: 30 } }));
+  // #443: a plain fact per night, only while the caffeine total is turned on.
+  const caffeineWindows = caffeineWindowsForNights(summary.data?.days ?? []);
+  const lastCaffeine = useQuery({
+    ...orpc.nutritionDrinks.lastCaffeine.queryOptions({ input: caffeineWindows }),
+    enabled: caffeineWindows.nights.length > 0,
+  });
   const settingsQuery = useProductSettings();
   const settings = settingsQuery.data;
   const { t, i18n } = useLingui();
@@ -114,6 +121,15 @@ function SleepPage() {
   const nights = [...summary.data.days].sort((a, b) => b.date.localeCompare(a.date));
 
   const stageTotal = stages.reduce((sum, entry) => sum + entry.minutes, 0);
+  const caffeineByNight =
+    lastCaffeine.data?.status === "ready"
+      ? new Map(lastCaffeine.data.nights.map((night) => [night.key, night.lastCaffeineAt]))
+      : null;
+  const caffeineLine = (date: string) => {
+    const at = caffeineByNight?.get(date);
+    return at ? lastCaffeineText(formatClockTime(at, settings), i18n) : null;
+  };
+  const lastNightCaffeine = caffeineLine(last?.date ?? "");
 
   return (
     <Page>
@@ -153,6 +169,7 @@ function SleepPage() {
                 <span className="num">
                   {`${formatClockTime(last.mainSleepStart, settings)} – ${formatClockTime(last.mainSleepEnd, settings)}`}
                 </span>
+                {lastNightCaffeine ? <span className="num">{lastNightCaffeine}</span> : null}
               </div>
             </div>
             {stageTotal > 0 ? (
@@ -295,6 +312,11 @@ function SleepPage() {
                     <TableHead>
                       <Trans>Status</Trans>
                     </TableHead>
+                    {caffeineByNight ? (
+                      <TableHead>
+                        <Trans>Last caffeine</Trans>
+                      </TableHead>
+                    ) : null}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -313,6 +335,11 @@ function SleepPage() {
                       <TableCell>
                         <StatusText status={night.status} />
                       </TableCell>
+                      {caffeineByNight ? (
+                        <TableCell className="num text-ink-3">
+                          {formatClockTime(caffeineByNight.get(night.date), settings)}
+                        </TableCell>
+                      ) : null}
                     </TableRow>
                   ))}
                 </TableBody>

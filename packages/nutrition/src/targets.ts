@@ -61,6 +61,10 @@ export type NutritionTargetSettings = {
   photoDraftsEnabled: boolean;
   /** Opt-in to the micronutrient summary (Issue #78). */
   micronutrientsEnabled: boolean;
+  /** Opt-in to the day's caffeine total (Issue #443). */
+  caffeineTotalsEnabled: boolean;
+  /** Opt-in to the day's alcohol total (Issue #443). */
+  alcoholTotalsEnabled: boolean;
   /** Reference source the member accepted; `null` until they choose one. */
   micronutrientReferenceSource: MicronutrientReferenceSource | null;
   /** Population group the member accepted within that source. */
@@ -84,6 +88,8 @@ export const DEFAULT_TARGET_SETTINGS: Readonly<NutritionTargetSettings> = Object
   voiceDraftsEnabled: false,
   photoDraftsEnabled: false,
   micronutrientsEnabled: false,
+  caffeineTotalsEnabled: false,
+  alcoholTotalsEnabled: false,
   micronutrientReferenceSource: null,
   micronutrientPopulation: null,
   heightCm: null,
@@ -129,6 +135,8 @@ function toSettings(row: typeof nutritionTargetSettings.$inferSelect): Nutrition
     voiceDraftsEnabled: row.voiceDraftsEnabled,
     photoDraftsEnabled: row.photoDraftsEnabled,
     micronutrientsEnabled: row.micronutrientsEnabled,
+    caffeineTotalsEnabled: row.caffeineTotalsEnabled,
+    alcoholTotalsEnabled: row.alcoholTotalsEnabled,
     micronutrientReferenceSource: MICRONUTRIENT_REFERENCE_SOURCES.includes(
       row.micronutrientReferenceSource as MicronutrientReferenceSource,
     )
@@ -199,6 +207,8 @@ export async function updateNutritionTargetSettingsInTransaction(
     voiceDraftsEnabled: next.voiceDraftsEnabled,
     photoDraftsEnabled: next.photoDraftsEnabled,
     micronutrientsEnabled: next.micronutrientsEnabled,
+    caffeineTotalsEnabled: next.caffeineTotalsEnabled,
+    alcoholTotalsEnabled: next.alcoholTotalsEnabled,
     micronutrientReferenceSource: next.micronutrientReferenceSource,
     micronutrientPopulation: next.micronutrientPopulation,
     heightCm: next.heightCm,
