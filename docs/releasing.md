@@ -60,6 +60,16 @@ Optionally add a translation in `docs/releases/vX.Y.Z.pt-PT.md` with only the
 Highlights (heading `## Highlights` or `## Destaques`); members using pt-PT see
 it in the app. A translation is never required.
 
+**In the app**, the Highlights of the root `package.json` version are compiled
+into the server build (`virtual:openvalens/release-notes`, filled by
+`scripts/release-notes.ts` through the tsdown plugin and, for `bun run` and
+tests, a Bun preload). Each server shows the notes of the version it runs,
+as plain text: a "What's new in X.Y" card on Today (web) and the Cockpit
+(mobile), once per version per member, until they dismiss it or turn it off
+in Settings. The state is two columns of the member's `user_preference` row.
+A version without notes shows no card; a test fails when the notes for the
+root `package.json` version are missing.
+
 **The release date** is the first line of the notes,
 `<!-- released: YYYY-MM-DD -->` (UTC; GitHub does not render the comment). The
 site is built without the repository history, so the date cannot come from the

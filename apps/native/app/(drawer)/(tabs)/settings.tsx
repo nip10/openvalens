@@ -68,6 +68,7 @@ import { AiSection } from "@/components/ai-section";
 import { ServerSection } from "@/components/change-server";
 import { SelectField } from "@/components/select-field";
 import { SignInMethodsSection } from "@/components/sign-in-methods";
+import { WhatsNewSettings } from "@/components/whats-new-settings";
 import { useAppTheme } from "@/contexts/app-theme-context";
 import { appBuildInfo } from "@/lib/app-version";
 import { authClient } from "@/lib/auth-client";
@@ -190,6 +191,8 @@ export default function SettingsScreen() {
             </Sheet>
           </Section>
         )}
+
+        {session?.user && <WhatsNewSettings />}
 
         {session?.user && <HealthSyncSettings />}
 

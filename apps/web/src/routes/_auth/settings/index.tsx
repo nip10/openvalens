@@ -55,6 +55,7 @@ import { InsightNotificationsSection } from "@/components/insight-notifications-
 import { LanguageSection } from "@/components/language-section";
 import { HealthDataConsentStatus } from "@/components/health-data-consent-status";
 import { SignInMethodsSection } from "@/components/sign-in-methods-section";
+import { WhatsNewSection } from "@/components/whats-new-section";
 import { ErrorState, InfoTip, Page, PageHeader, Section } from "@/components/page";
 import { ProfileSummarySection } from "@/components/profile-summary-card";
 import { SettingsGroup, SettingsIcon } from "@/components/settings-rows";
@@ -87,6 +88,7 @@ function SettingsPage() {
     { id: "profile", label: t`Profile` },
     { id: "modules", label: t`Modules` },
     { id: "notifications", label: i18n._(INSIGHT_DELIVERY_COPY.settingsTitle) },
+    { id: "whats-new", label: t`What's new` },
     { id: "integrations", label: t`Integrations` },
     ...(showAnalytics ? [{ id: "analytics", label: t`Usage analytics` }] : []),
     { id: "coach", label: t`Coach` },
@@ -135,6 +137,9 @@ function SettingsPage() {
           </div>
           <div id="notifications" className="scroll-mt-10">
             <InsightNotificationsSection />
+          </div>
+          <div id="whats-new" className="scroll-mt-10">
+            <WhatsNewSection />
           </div>
           <div id="integrations" className="scroll-mt-10">
             <IntegrationsSection />

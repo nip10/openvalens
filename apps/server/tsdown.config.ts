@@ -1,6 +1,9 @@
 import { defineConfig } from "tsdown";
 
 import { transformLinguiMacros } from "../../scripts/lingui/macro-transform.ts";
+import { RELEASE_NOTES_MODULE, releaseNotesModuleSource } from "../../scripts/release-notes.ts";
+
+const RESOLVED_RELEASE_NOTES = `\0${RELEASE_NOTES_MODULE}`;
 
 export default defineConfig({
   entry: {
@@ -14,6 +17,17 @@ export default defineConfig({
     alwaysBundle: [/@openvalens\/.*/],
   },
   plugins: [
+    {
+      // The Highlights of this version (docs/releases/vX.Y.Z.md), compiled
+      // into the bundle for the in-app "What's new" card (#446).
+      name: "openvalens-release-notes",
+      resolveId(id) {
+        return id === RELEASE_NOTES_MODULE ? RESOLVED_RELEASE_NOTES : null;
+      },
+      load(id) {
+        return id === RESOLVED_RELEASE_NOTES ? releaseNotesModuleSource() : null;
+      },
+    },
     {
       // Server-sent text is translated (#231): compile Lingui macros in the
       // bundle. Messages are kept as a fallback beside their ids.

@@ -46,6 +46,7 @@ import { InsightsSection } from "@/components/insights-section";
 import { useModules } from "@/lib/modules/use-modules";
 import { ListRow } from "@/components/list-row";
 import { FinishSetupCard } from "@/components/finish-setup-card";
+import { WhatsNewCard } from "@/components/whats-new-card";
 import { GetStartedCard } from "@/components/get-started-card";
 import { CloudAccessNotice } from "@/components/cloud-access-notice";
 import { authClient } from "@/lib/auth-client";
@@ -296,6 +297,8 @@ export default function CockpitScreen() {
         />
 
         <FinishSetupCard />
+
+        <WhatsNewCard />
 
         <GetStartedCard
           hasWeight={weight.isSuccess ? weight.data.length > 0 : weight.isError ? false : null}

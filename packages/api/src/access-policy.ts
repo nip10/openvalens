@@ -391,6 +391,11 @@ export const PROCEDURE_ACCESS: Readonly<Record<string, ProcedureAccessClass>> = 
   "wearables.disconnect": ALWAYS,
   "wearables.resolveQuarantine": W,
   "wearables.syncNow": W,
+
+  // The "What's new" card (#446): a display preference, like the language.
+  "whatsNew.get": R,
+  "whatsNew.dismiss": ALWAYS,
+  "whatsNew.setEnabled": ALWAYS,
 });
 
 /** The class of a procedure path; anything unlisted is `write` (default deny). */

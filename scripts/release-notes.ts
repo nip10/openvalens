@@ -15,9 +15,12 @@
  * Usage: bun scripts/release-notes.ts --check vX.Y.Z [--tag-date YYYY-MM-DD]
  */
 import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
-export const RELEASES_DIR = join(import.meta.dir, "..", "docs", "releases");
+// Not `import.meta.dir`: tsdown loads its config, and this module, in Node.
+const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
+export const RELEASES_DIR = join(REPO_ROOT, "docs", "releases");
 export const REPOSITORY_URL = "https://github.com/nip10/openvalens";
 
 /** A Highlights block. Text is Markdown inline syntax (bold, code, links). */
@@ -253,6 +256,63 @@ export function highlightsToHtml(notes: ReleaseNotes): string {
         : `<ul>\n${block.items.map((item) => `  <li>${inlineToHtml(item, notes.tag)}</li>`).join("\n")}\n</ul>`,
     )
     .join("\n");
+}
+
+/**
+ * The import the server uses for its own version's Highlights (the in-app
+ * "What's new" card). It is filled at build time: by the tsdown plugin in
+ * `apps/server/tsdown.config.ts` for the server bundle, and by the Bun preload
+ * `scripts/test/release-notes-module.ts` for `bun run` and tests. The shape is
+ * `BundledReleaseNotes | null` (declared for TypeScript in
+ * `packages/api/src/release-notes-module.d.ts`).
+ */
+export const RELEASE_NOTES_MODULE = "virtual:openvalens/release-notes";
+
+/** Highlights as plain text, for the apps. */
+export type BundledHighlightBlock =
+  | { kind: "list"; items: string[] }
+  | { kind: "paragraph"; text: string };
+
+export type BundledReleaseNotes = {
+  version: string;
+  date: string;
+  /** English always; `pt-PT` when `vX.Y.Z.pt-PT.md` exists, else null. */
+  highlights: { en: BundledHighlightBlock[]; "pt-PT": BundledHighlightBlock[] | null };
+};
+
+function plainBlocks(notes: ReleaseNotes): BundledHighlightBlock[] {
+  return notes.highlights.map((block) =>
+    block.kind === "paragraph"
+      ? { kind: "paragraph", text: inlineToText(block.text) }
+      : { kind: "list", items: block.items.map(inlineToText) },
+  );
+}
+
+/** The release version of this checkout: the root `package.json` `version`. */
+export function currentReleaseVersion(): string {
+  const path = join(REPO_ROOT, "package.json");
+  return (JSON.parse(readFileSync(path, "utf8")) as { version: string }).version;
+}
+
+/** The notes the server bundles for `version`, or null when that tag has no notes yet. */
+export function bundledReleaseNotes(
+  version = currentReleaseVersion(),
+  dir = RELEASES_DIR,
+): BundledReleaseNotes | null {
+  const tag = `v${version}`;
+  const en = readReleaseNotes(tag, "en", dir);
+  if (!en) return null;
+  const pt = readReleaseNotes(tag, "pt-PT", dir);
+  return {
+    version,
+    date: en.date,
+    highlights: { en: plainBlocks(en), "pt-PT": pt ? plainBlocks(pt) : null },
+  };
+}
+
+/** The JavaScript source of {@link RELEASE_NOTES_MODULE}. */
+export function releaseNotesModuleSource(notes = bundledReleaseNotes()): string {
+  return `export default ${JSON.stringify(notes)};\n`;
 }
 
 if (import.meta.main) {
