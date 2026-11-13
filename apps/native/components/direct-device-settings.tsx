@@ -315,7 +315,7 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
     zepp_os_shared: t`Shared Zepp OS transport (per-minute steps, heart rate and sleep; older models' sleep is estimated from activity minutes); not validated for this model. Not hardware-verified.`,
     xiaomi_shared: t`Shared Xiaomi protobuf transport; not device-validated for this model. Not hardware-verified.`,
     huawei_history_sync: t`History sync on connection for exact-minute steps, heart rate and sleep (BLE models only); not hardware-verified.`,
-    huawei_connection_only: t`Connection checks only; this model syncs over Bluetooth Classic upstream, which this BLE-only stack does not implement. Not hardware-verified.`,
+    huawei_connection_only: t`Syncs over Bluetooth Classic on Android once paired; most of these watches also need Huawei's HiChain pairing, which is not implemented yet. Connection checks only on iPhone. Not hardware-verified.`,
     garmin_history_sync: t`FIT file sync on connection for exact-minute steps, heart rate and sleep; not hardware-verified.`,
     garmin_connection_only: t`Connection checks only; this model carries no health-monitoring FIT files. Not hardware-verified.`,
     ble_gatt_live_capture: t`Live capture while connected; not hardware-verified. No history backfill. Samples are sent only when you tap “Retry upload”.`,
@@ -580,7 +580,7 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
             </>
           ) : connectedFamily === "huawei" ? (
             <Text className="font-sans text-sm text-ink-3">
-              {t`This Huawei/Honor model syncs over Bluetooth Classic upstream; this BLE-only stack supports connection checks only.`}
+              {t`This Huawei/Honor model syncs over Bluetooth Classic, which works on Android only; here it supports connection checks only.`}
             </Text>
           ) : connectedFamily === "fossil_hr" && canSyncSelected ? (
             <>
@@ -671,8 +671,17 @@ function friendlyError(code: string) {
     return "The device key or captured data was not accepted. Check the key and try again.";
   if (code === "MINUTE_CONFLICT")
     return "This device reported different steps for a minute already stored. No duplicate was added.";
-  if (code === "HUAWEI_HISTORY_UNSUPPORTED")
-    return "This Huawei/Honor model syncs over Bluetooth Classic upstream, which this BLE-only stack does not implement.";
+  if (code === "HUAWEI_HISTORY_UNSUPPORTED" || code === "HUAWEI_BR_UNSUPPORTED")
+    return "This Huawei/Honor model syncs over Bluetooth Classic, which works on Android only.";
+  if (code === "HUAWEI_BR_PAIRING_FAILED")
+    return "Pairing with the watch did not finish. Accept the pairing prompt on the phone and the watch, then sync again.";
+  if (code === "HUAWEI_BR_PERMISSION" || code === "BT_CLASSIC_PERMISSION")
+    return "Allow Nearby devices (Bluetooth) access for this app, then sync again.";
+  if (code === "BT_CLASSIC_DISABLED") return "Turn on Bluetooth and try again.";
+  if (code === "BT_CLASSIC_CONNECT_FAILED" || code === "BT_CLASSIC_CONNECT_TIMEOUT")
+    return "Could not open the watch's Bluetooth Classic connection. Keep it close to the phone, close the Huawei Health app if it is connected, then sync again.";
+  if (code === "HUAWEI_DEVICE_STATUS_UNSUPPORTED")
+    return "The watch reported a state this app cannot handle yet (it may need setting up in the Huawei Health app first).";
   if (code === "HUAWEI_AUTH_UNSUPPORTED")
     return "This Huawei/Honor device negotiated an authentication mode that needs on-device confirmation or a PIN code, which is not implemented.";
   if (code === "HUAWEI_MAC_UNAVAILABLE")

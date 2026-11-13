@@ -181,6 +181,7 @@ function fixture(
       options: HelioHistoryOptions,
     ) => XiaomiHistoryTransport;
     onHistorySample?: (sample: import("./types").DirectDeviceHistorySample) => void;
+    btClassicAdapter?: () => import("../../../modules/bt-classic").BtClassicAdapter;
     createFossilSession?: NonNullable<
       NonNullable<Parameters<typeof createHelioSetupController>[0]>["createFossilSession"]
     >;
@@ -290,6 +291,16 @@ function fixture(
     cryptoTest: options.cryptoTest,
     xiaomiHistoryTransport: options.xiaomiHistoryTransport,
     onHistorySample: options.onHistorySample,
+    btClassicAdapter:
+      options.btClassicAdapter ??
+      (() => ({
+        isSupported: () => false,
+        listBonded: async () => [],
+        discover: async () => undefined,
+        openRfcomm: async () => {
+          throw new Error("BT_CLASSIC_UNSUPPORTED");
+        },
+      })),
     createPebbleSession: options.createPebbleSession,
     createFossilSession: options.createFossilSession,
     fossilCrypto: async () => {
@@ -1320,6 +1331,75 @@ test("discovers a Huawei model over the Honor service", async () => {
     connectedFamily: "huawei",
   });
   await f.controller.dispose();
+});
+
+test("a Bluetooth Classic Huawei watch syncs over RFCOMM only where the module is supported", async () => {
+  const huaweiServices = {
+    services: async () => [{ uuid: "0000fe86-0000-1000-8000-00805f9b34fb" }],
+    characteristics: async (service: string) =>
+      service === "0000fe86-0000-1000-8000-00805f9b34fb"
+        ? [
+            { uuid: "0000fe01-0000-1000-8000-00805f9b34fb" },
+            { uuid: "0000fe02-0000-1000-8000-00805f9b34fb" },
+          ]
+        : [],
+  };
+  const fetchOptions = {
+    authKey: new Uint8Array(16),
+    since: { version: 1 as const, nextMinuteUtc: new Date(0).toISOString(), offsetQuarterHours: 0 },
+    signal: new AbortController().signal,
+    onPhase: () => undefined,
+    async onPage() {},
+  };
+
+  // iOS / no module: connection checks only, as before.
+  const ios = fixture({
+    deviceName: "HUAWEI WATCH GT 3-ABC",
+    ...huaweiServices,
+    onHistorySample: () => undefined,
+  });
+  await ios.controller.startScan();
+  ios.emit();
+  await ios.controller.connect("local-id");
+  expect(ios.controller.getSnapshot()).toMatchObject({
+    connectedModelId: "huawei_watch_gt_3",
+    capabilities: { stepsHistory: false, historySync: false },
+  });
+  await expect(ios.controller.fetchSteps(fetchOptions)).rejects.toThrow(
+    "HUAWEI_HISTORY_UNSUPPORTED",
+  );
+  await ios.controller.dispose();
+
+  // Android with the module: history is offered and runs over RFCOMM.
+  const opened: unknown[] = [];
+  const android = fixture({
+    deviceName: "HUAWEI WATCH GT 3-ABC",
+    ...huaweiServices,
+    onHistorySample: () => undefined,
+    btClassicAdapter: () => ({
+      isSupported: () => true,
+      listBonded: async () => [],
+      discover: async () => undefined,
+      openRfcomm: async (args) => {
+        opened.push(args);
+        throw new Error("BT_CLASSIC_CONNECT_TIMEOUT");
+      },
+    }),
+  });
+  await android.controller.startScan();
+  android.emit();
+  await android.controller.connect("local-id");
+  expect(android.controller.getSnapshot()).toMatchObject({
+    connectedModelId: "huawei_watch_gt_3",
+    capabilities: { stepsHistory: true, historySync: true },
+  });
+  await expect(android.controller.fetchSteps(fetchOptions)).rejects.toThrow(
+    "BT_CLASSIC_CONNECT_TIMEOUT",
+  );
+  expect(opened).toEqual([
+    expect.objectContaining({ uuid: "82ff3820-8411-400c-b85a-55bdb32cf060", secure: true }),
+  ]);
+  await android.controller.dispose();
 });
 
 test("a Huawei model without a Huawei service is rejected", async () => {

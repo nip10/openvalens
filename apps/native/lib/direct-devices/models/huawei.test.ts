@@ -8,7 +8,13 @@
 
 import { expect, test } from "bun:test";
 
-import { getHuaweiModel, HUAWEI_MODELS, matchHuaweiDeviceName } from "./huawei";
+import {
+  getHuaweiModel,
+  HONOR_BR_SDP_UUID,
+  HUAWEI_BR_SDP_UUID,
+  HUAWEI_MODELS,
+  matchHuaweiDeviceName,
+} from "./huawei";
 
 test("the registry contains the 66 health-relevant Huawei/Honor wearables", () => {
   expect(HUAWEI_MODELS).toHaveLength(66);
@@ -150,4 +156,38 @@ test("every sync model is a BLE coordinator source file", () => {
     const file = model.sourceFile.split("devices/huawei/")[1]!;
     expect(model.sync, model.id).toBe(bleSources.has(file));
   }
+});
+
+test("Bluetooth Classic facts follow the upstream coordinators (spec §4)", () => {
+  const br = HUAWEI_MODELS.filter((model) => model.transport === "br");
+  expect(br).toHaveLength(41);
+  expect(HUAWEI_MODELS.filter((model) => model.transport === "ble")).toHaveLength(25);
+  expect(HUAWEI_MODELS.every((model) => (model.transport === "ble") === model.sync)).toBe(true);
+  expect(
+    HUAWEI_MODELS.every((model) => (model.sdpUuid === null) === (model.transport === "ble")),
+  ).toBe(true);
+  // Honor-branded models on HuaweiBRCoordinator keep the Huawei UUID.
+  expect(getHuaweiModel("honor_magicwatch_2")?.sdpUuid).toBe(HUAWEI_BR_SDP_UUID);
+  expect(getHuaweiModel("honor_watch_4")?.sdpUuid).toBe(HONOR_BR_SDP_UUID);
+  expect(br.filter((model) => model.sdpUuid === HONOR_BR_SDP_UUID)).toHaveLength(5);
+  expect(
+    HUAWEI_MODELS.filter((model) => !model.transactionsCrypted)
+      .map((model) => model.id)
+      .sort(),
+  ).toEqual([
+    "honor_magicwatch_2",
+    "honor_watch_4",
+    "honor_watch_4_pro",
+    "honor_watch_5",
+    "honor_watch_5_pro",
+    "honor_watch_6",
+    "honor_watch_gs_3",
+    "honor_watch_gs_pro",
+    "huawei_talk_band_b6",
+  ]);
+  expect(
+    HUAWEI_MODELS.filter((model) => model.honorPake)
+      .map((model) => model.id)
+      .sort(),
+  ).toEqual(["honor_watch_5", "honor_watch_5_pro", "honor_watch_6"]);
 });

@@ -372,6 +372,48 @@ export function decodeHuaweiPacket(bytes: Uint8Array, verifyCrc = true): HuaweiP
   };
 }
 
+/**
+ * Splits a byte stream into whole frames (upstream `HuaweiPacket.parse` +
+ * `ResponseManager.handleData`): RFCOMM delivers arbitrary chunks, BLE one
+ * frame per notification, so both go through here. Every frame, sliced or
+ * not, is `0x5A | u16 length | … | CRC16` and `3 + length + 2` bytes long
+ * (at most 65,540). Garbage before a frame is skipped up to the next 0x5A
+ * and counted in `discardedBytes`; frames already found are never lost.
+ */
+export class HuaweiStreamDeframer {
+  private buffer = new Uint8Array(0);
+  /** Bytes skipped while looking for a frame start; the session reports growth. */
+  discardedBytes = 0;
+
+  /** Appends `bytes` and returns every complete frame now available. */
+  push(bytes: Uint8Array): Uint8Array[] {
+    const joined = new Uint8Array(this.buffer.length + bytes.length);
+    joined.set(this.buffer);
+    joined.set(bytes, this.buffer.length);
+    this.buffer = joined;
+    const frames: Uint8Array[] = [];
+    while (this.buffer.length > 0) {
+      if (this.buffer[0] !== HUAWEI_MAGIC) {
+        const next = this.buffer.indexOf(HUAWEI_MAGIC, 1);
+        const skip = next < 0 ? this.buffer.length : next;
+        this.discardedBytes += skip;
+        this.buffer = this.buffer.slice(skip);
+        continue;
+      }
+      if (this.buffer.length < 3) break;
+      const total = 3 + uint16be(this.buffer, 1) + 2;
+      if (this.buffer.length < total) break;
+      frames.push(this.buffer.slice(0, total));
+      this.buffer = this.buffer.slice(total);
+    }
+    return frames;
+  }
+
+  reset(): void {
+    this.buffer = new Uint8Array(0);
+  }
+}
+
 export type HuaweiParsedPacket = Readonly<{
   serviceId: number;
   commandId: number;

@@ -5,6 +5,7 @@
  * 8976702fc3d00e6008c91fe994668cb4027f7bc2. AGPL-3.0-or-later.
  */
 
+import type { HuaweiLink } from "./huawei-link";
 import { expect, test } from "bun:test";
 import type { BleError, Characteristic } from "react-native-ble-plx";
 
@@ -470,4 +471,105 @@ test("the encrypted request payload is a valid TLV after decryption", async () =
   expect(sawEncryptedStepRequest).toBe(true);
   expect(hex(KEY)).toBe("000102030405060708090a0b0c0d0e0f");
   await session.close();
+});
+
+// ---------------------------------------------------------------------------
+// Bluetooth Classic (RFCOMM): the same fake watch behind a byte-stream link
+// ---------------------------------------------------------------------------
+
+/** Wraps the fake as a stream link that delivers every frame in `chunk`-byte pieces. */
+function rfcommLink(device: ReturnType<typeof fakeDevice>["device"], chunk: number): HuaweiLink {
+  return {
+    maxWriteBytes: Number.POSITIVE_INFINITY,
+    subscribe(onBytes) {
+      const subscription = device.monitorCharacteristicForService(
+        HUAWEI_SERVICE_UUID,
+        "0000fe02-0000-1000-8000-00805f9b34fb",
+        (_error, value) => {
+          const bytes = Uint8Array.from(Buffer.from(value!.value!, "base64"));
+          for (let at = 0; at < bytes.length; at += chunk) onBytes(bytes.subarray(at, at + chunk));
+        },
+      );
+      return () => subscription.remove();
+    },
+    async write(bytes) {
+      await device.writeCharacteristicWithResponseForService(
+        HUAWEI_SERVICE_UUID,
+        HUAWEI_WRITE_UUID,
+        Buffer.from(bytes).toString("base64"),
+      );
+    },
+    async close() {},
+  };
+}
+
+function brOptions(
+  fake: ReturnType<typeof fakeDevice>,
+  extra: Partial<HuaweiSessionOptions> = {},
+): HuaweiSessionOptions {
+  const { device: _device, profile: _profile, ...rest } = sessionOptions(fake.device);
+  return { ...rest, link: rfcommLink(fake.device, 3), transport: "br", ...extra };
+}
+
+test("over Bluetooth Classic the session reframes the stream and skips the normal-mode bond", async () => {
+  const crypto = nodeCrypto();
+  const auth = authResponder(crypto);
+  const commands: number[] = [];
+  const fake = fakeDevice({
+    crypto,
+    aes: nodeAes(),
+    respond: (packet) => {
+      if (packet.serviceId === HUAWEI_DEVICE_CONFIG_SERVICE) commands.push(packet.commandId);
+      return auth(packet) ?? syncResponder(packet);
+    },
+  });
+  const records: Array<{ type: string }> = [];
+  const session = createHuaweiSession(
+    brOptions(fake, { onRecord: (record) => records.push(record) }),
+  );
+  session.start();
+  await session.whenDone();
+  expect(records.map((record) => record.type)).toEqual(["steps", "heart_rate", "sleep_session"]);
+  expect(commands).toContain(HUAWEI_DEVICE_STATUS_COMMAND);
+  expect(commands).toContain(HUAWEI_AUTH_COMMAND);
+  expect(commands).not.toContain(HUAWEI_BOND_PARAMS_COMMAND);
+  expect(commands).not.toContain(HUAWEI_BOND_COMMAND);
+  await session.close();
+});
+
+test("over Bluetooth Classic an unsupported device status fails typed instead of stalling", async () => {
+  const crypto = nodeCrypto();
+  const auth = authResponder(crypto);
+  const fake = fakeDevice({
+    crypto,
+    aes: nodeAes(),
+    respond: (packet) =>
+      packet.serviceId === HUAWEI_DEVICE_CONFIG_SERVICE &&
+      packet.commandId === HUAWEI_DEVICE_STATUS_COMMAND
+        ? {
+            serviceId: HUAWEI_DEVICE_CONFIG_SERVICE,
+            commandId: HUAWEI_DEVICE_STATUS_COMMAND,
+            tlv: [{ tag: 0x01, value: Uint8Array.of(0x05) }],
+            encrypt: false,
+          }
+        : auth(packet),
+  });
+  const session = createHuaweiSession(brOptions(fake));
+  session.start();
+  await expect(session.whenDone()).rejects.toThrow("HUAWEI_DEVICE_STATUS_UNSUPPORTED");
+});
+
+test("models whose transactions are not crypted send every request in the clear", async () => {
+  const crypto = nodeCrypto();
+  const auth = authResponder(crypto);
+  const fake = fakeDevice({
+    crypto,
+    aes: nodeAes(),
+    respond: (packet) => auth(packet) ?? syncResponder(packet),
+  });
+  const session = createHuaweiSession(brOptions(fake, { transactionsCrypted: false }));
+  session.start();
+  await session.whenDone();
+  expect(fake.encryptedRequests.length).toBeGreaterThan(5);
+  expect(fake.encryptedRequests.every((encrypted) => !encrypted)).toBe(true);
 });

@@ -30,6 +30,7 @@ import {
   createHuaweiDeviceSecretKey,
   createHuaweiInitializationVector,
   decodeHuaweiPacket,
+  HuaweiStreamDeframer,
   decodeHuaweiTlv,
   decryptHuaweiResponse,
   encodeHuaweiPacket,
@@ -708,4 +709,45 @@ test("sleep sessions shorter than five minutes are dropped and long gaps split",
 
 test("the default slice size is the upstream 0xF4", () => {
   expect(HUAWEI_DEFAULT_SLICE_SIZE).toBe(0xf4);
+});
+
+test("the stream deframer reassembles split and concatenated frames, sliced or not", () => {
+  const whole = encodeHuaweiPacket({ serviceId: 1, commandId: 2, tlv: Uint8Array.of(3, 1, 4) });
+  const sliced = encodeHuaweiPacket({
+    serviceId: 1,
+    commandId: 2,
+    tlv: Uint8Array.from({ length: 40 }, (_, index) => index),
+    sliceSize: 20,
+  });
+  expect(sliced.length).toBeGreaterThan(1);
+  const frames = [...whole, ...sliced];
+  const stream = new Uint8Array(frames.reduce((sum, frame) => sum + frame.length, 0));
+  let offset = 0;
+  for (const frame of frames) {
+    stream.set(frame, offset);
+    offset += frame.length;
+  }
+  // Every split point: the frames come out whole and in order.
+  for (const step of [1, 2, 3, 7, stream.length]) {
+    const deframer = new HuaweiStreamDeframer();
+    const out: Uint8Array[] = [];
+    for (let at = 0; at < stream.length; at += step)
+      out.push(...deframer.push(stream.subarray(at, at + step)));
+    expect(out.map((frame) => Array.from(frame))).toEqual(frames.map((frame) => Array.from(frame)));
+    for (const frame of out) expect(() => decodeHuaweiPacket(frame)).not.toThrow();
+  }
+});
+
+test("the stream deframer skips garbage to the next frame start without losing frames", () => {
+  const [frame] = encodeHuaweiPacket({ serviceId: 1, commandId: 2, tlv: Uint8Array.of(3, 1, 4) });
+  const deframer = new HuaweiStreamDeframer();
+  // A whole frame, then garbage, then a frame split across two chunks.
+  const chunk = new Uint8Array([...frame!, 0x00, 0x01, 0x02, ...frame!.subarray(0, 4)]);
+  expect(deframer.push(chunk).map((out) => Array.from(out))).toEqual([Array.from(frame!)]);
+  expect(deframer.discardedBytes).toBe(3);
+  expect(deframer.push(frame!.subarray(4)).map((out) => Array.from(out))).toEqual([
+    Array.from(frame!),
+  ]);
+  expect(deframer.push(Uint8Array.of(0x11, 0x22))).toEqual([]);
+  expect(deframer.discardedBytes).toBe(5);
 });

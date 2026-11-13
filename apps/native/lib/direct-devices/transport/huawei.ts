@@ -65,6 +65,7 @@ import {
   HUAWEI_STEP_DATA_COMMAND,
   HUAWEI_STEP_DATA_COUNT_COMMAND,
   HuaweiPacketReassembler,
+  HuaweiStreamDeframer,
   buildHuaweiAuthRequest,
   buildHuaweiBondParamsRequest,
   buildHuaweiBondRequest,
@@ -106,6 +107,7 @@ import {
   type HuaweiTlv,
 } from "../protocol/huawei";
 import { loadHuaweiCrypto, type HuaweiCryptoProvider } from "../crypto/huawei-auth";
+import type { HuaweiLink } from "./huawei-link";
 
 /** Local watchdog for each request; upstream has no explicit timeout. */
 export const HUAWEI_SESSION_WATCHDOG_MS = 30_000;
@@ -215,10 +217,20 @@ function equalBytes(left: Uint8Array, right: Uint8Array): boolean {
 }
 
 export type HuaweiSessionOptions = Readonly<{
-  device: MonitorDevice & Partial<WriteDevice>;
+  /** BLE: the connected device and its GATT profile. */
+  device?: MonitorDevice & Partial<WriteDevice>;
+  profile?: HuaweiBleProfile;
+  /**
+   * A byte link (Bluetooth Classic RFCOMM); replaces `device`/`profile`.
+   * Bytes may arrive in any chunking; the session reframes them.
+   */
+  link?: HuaweiLink;
+  /** "br" applies upstream's Bluetooth Classic differences (spec §3.4). */
+  transport?: "ble" | "br";
+  /** Upstream `isTransactionCrypted()`; eight BR models send in the clear. */
+  transactionsCrypted?: boolean;
   /** Stable device id used as the cursor and secret-key key. */
   deviceId: string;
-  profile: HuaweiBleProfile;
   /** Real device MAC (used for `createSecretKey`). */
   macAddress: string;
   /** Random local MAC sent in bond params; defaults to the real MAC. */
@@ -274,6 +286,10 @@ export class HuaweiSession {
   private readonly syncState: HuaweiSyncStateStore;
   private readonly secretKeyStore: HuaweiSecretKeyStore;
   private readonly reassembler = new HuaweiPacketReassembler();
+  private readonly deframer = new HuaweiStreamDeframer();
+  private readonly abort = new AbortController();
+  private readonly transport: "ble" | "br";
+  private readonly transactionsCrypted: boolean;
   private readonly done: Promise<void>;
   private resolveDone!: () => void;
   private rejectDone!: (error: unknown) => void;
@@ -299,7 +315,13 @@ export class HuaweiSession {
   constructor(private readonly options: HuaweiSessionOptions) {
     this.timers = options.timers ?? defaultTimers;
     this.now = options.now ?? (() => new Date());
-    this.initDelayMs = options.initDelayMs ?? HUAWEI_SESSION_INIT_DELAY_MS;
+    this.transport = options.transport ?? "ble";
+    this.transactionsCrypted = options.transactionsCrypted ?? true;
+    if (!options.link && !(options.device && options.profile))
+      throw new Error("HUAWEI_LINK_REQUIRED");
+    // The BLE delay lets GATT settle after connect; an RFCOMM socket is ready.
+    this.initDelayMs =
+      options.initDelayMs ?? (this.transport === "br" ? 0 : HUAWEI_SESSION_INIT_DELAY_MS);
     this.watchdogMs = options.watchdogMs ?? HUAWEI_SESSION_WATCHDOG_MS;
     this.statusWatchdogMs = options.statusWatchdogMs ?? HUAWEI_SESSION_STATUS_WATCHDOG_MS;
     this.lookbackMs = options.lookbackMs ?? HUAWEI_SESSION_LOOKBACK_MS;
@@ -328,6 +350,7 @@ export class HuaweiSession {
   async close(): Promise<void> {
     if (this.closed) return;
     this.closed = true;
+    this.abort.abort();
     this.failPending(new Error("HUAWEI_CLOSED"));
     for (const subscription of this.subscriptions) subscription.remove();
     this.subscriptions.clear();
@@ -378,17 +401,33 @@ export class HuaweiSession {
     this.encryptMethod = linkParams.encryptMethod;
     this.useGcm = huaweiUsesGcm(this.encryptMethod, this.deviceSupportType);
 
-    // Best effort: some models (AW70) omit the status response.
-    try {
-      const statusTlv = await this.request(
-        HUAWEI_DEVICE_CONFIG_SERVICE,
-        HUAWEI_DEVICE_STATUS_COMMAND,
-        buildHuaweiDeviceStatusRequest(true),
-        { encrypted: false, watchdogMs: this.statusWatchdogMs },
+    if (this.transport === "br") {
+      // Upstream acts on the status over BR: only -1, 0 and 1 continue to
+      // auth; anything else goes to an unimplemented path, so fail typed
+      // instead of stalling.
+      const status = parseHuaweiDeviceStatusResponse(
+        await this.request(
+          HUAWEI_DEVICE_CONFIG_SERVICE,
+          HUAWEI_DEVICE_STATUS_COMMAND,
+          buildHuaweiDeviceStatusRequest(true),
+          { encrypted: false, watchdogMs: this.statusWatchdogMs },
+        ),
       );
-      parseHuaweiDeviceStatusResponse(statusTlv);
-    } catch {
-      // Ignored; upstream skips this probe for BLE devices.
+      if (status !== -1 && status !== 0 && status !== 1)
+        throw new Error("HUAWEI_DEVICE_STATUS_UNSUPPORTED");
+    } else {
+      // Best effort: some models (AW70) omit the status response.
+      try {
+        const statusTlv = await this.request(
+          HUAWEI_DEVICE_CONFIG_SERVICE,
+          HUAWEI_DEVICE_STATUS_COMMAND,
+          buildHuaweiDeviceStatusRequest(true),
+          { encrypted: false, watchdogMs: this.statusWatchdogMs },
+        );
+        parseHuaweiDeviceStatusResponse(statusTlv);
+      } catch {
+        // Ignored; upstream skips this probe for BLE devices.
+      }
     }
 
     if (
@@ -474,6 +513,9 @@ export class HuaweiSession {
     if (!authResponse || !equalBytes(authResponse, expected)) {
       throw new Error("HUAWEI_AUTH_FAILED");
     }
+    // Upstream `initializeDeviceNormalMode` chains bond params and bond only
+    // for BLE; on BR normal-mode auth finishes here. HiChainLite always bonds.
+    if (this.transport === "br" && this.authMode !== 0x02) return;
 
     const bondParams = parseHuaweiBondParamsResponse(
       await this.request(
@@ -619,7 +661,7 @@ export class HuaweiSession {
     tlv: Uint8Array,
     options: Readonly<{ encrypted?: boolean; watchdogMs?: number }> = {},
   ): Promise<HuaweiTlv> {
-    const encrypted = options.encrypted ?? true;
+    const encrypted = (options.encrypted ?? true) && this.transactionsCrypted;
     const payload =
       encrypted && this.secretKey
         ? wrapEncryptedHuaweiTlv(tlv, this.secretKey, this.nextIv(), this.useGcm, this.aes!)
@@ -668,12 +710,14 @@ export class HuaweiSession {
   }
 
   private async write(frame: Uint8Array): Promise<void> {
-    const write = this.options.device.writeCharacteristicWithResponseForService;
+    if (this.options.link) return this.options.link.write(frame, this.abort.signal);
+    const device = this.options.device!;
+    const write = device.writeCharacteristicWithResponseForService;
     if (!write) throw new Error("HUAWEI_WRITE_UNAVAILABLE");
     await write.call(
-      this.options.device,
-      this.options.profile.serviceUuid,
-      this.options.profile.writeUuid,
+      device,
+      this.options.profile!.serviceUuid,
+      this.options.profile!.writeUuid,
       encodeBase64(frame),
     );
   }
@@ -710,10 +754,34 @@ export class HuaweiSession {
 
   private monitor(): void {
     if (this.closed) return;
+    const link = this.options.link;
+    if (link) {
+      try {
+        const unsubscribe = link.subscribe(
+          (bytes) => {
+            if (this.closed) return;
+            try {
+              this.handle(bytes);
+            } catch {
+              this.options.onFailure?.(this.stage);
+            }
+          },
+          () => {
+            if (this.closed) return;
+            this.options.onFailure?.(this.stage);
+            this.failPending(new Error("HUAWEI_LINK_CLOSED"));
+          },
+        );
+        this.subscriptions.add({ remove: unsubscribe } as Subscription);
+      } catch {
+        this.options.onFailure?.(this.stage);
+      }
+      return;
+    }
     try {
-      const subscription = this.options.device.monitorCharacteristicForService(
-        this.options.profile.serviceUuid,
-        this.options.profile.readUuid,
+      const subscription = this.options.device!.monitorCharacteristicForService(
+        this.options.profile!.serviceUuid,
+        this.options.profile!.readUuid,
         (error, value: Characteristic | null) => {
           if (this.closed) return;
           if (error || !value?.value) {
@@ -733,7 +801,22 @@ export class HuaweiSession {
     }
   }
 
+  /** Reframes a chunk (RFCOMM is a stream; a BLE notification is one frame). */
   private handle(bytes: Uint8Array): void {
+    const discarded = this.deframer.discardedBytes;
+    const frames = this.deframer.push(bytes);
+    if (this.deframer.discardedBytes !== discarded) this.options.onFailure?.(this.stage);
+    for (const frame of frames) {
+      try {
+        this.handleFrame(frame);
+      } catch {
+        // One bad frame (CRC, decryption) must not drop the frames after it.
+        this.options.onFailure?.(this.stage);
+      }
+    }
+  }
+
+  private handleFrame(bytes: Uint8Array): void {
     const parsed = this.reassembler.accept(decodeHuaweiPacket(bytes));
     if (!parsed) return;
     const packet = decryptHuaweiResponse(parsed, {

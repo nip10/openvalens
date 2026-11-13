@@ -3683,10 +3683,6 @@ msgstr "Connection checks only; the Casio protocol has no recorded-data path for
 msgid "Connection checks only; this model carries no health-monitoring FIT files. Not hardware-verified."
 msgstr "Connection checks only; this model carries no health-monitoring FIT files. Not hardware-verified."
 
-#: apps/native/components/direct-device-settings.tsx
-msgid "Connection checks only; this model syncs over Bluetooth Classic upstream, which this BLE-only stack does not implement. Not hardware-verified."
-msgstr "Connection checks only; this model syncs over Bluetooth Classic upstream, which this BLE-only stack does not implement. Not hardware-verified."
-
 #: apps/web/src/components/admission-form.tsx
 msgid "Connection lost. Check your network and try again."
 msgstr "Connection lost. Check your network and try again."
@@ -14727,6 +14723,10 @@ msgstr "Syncing ({pending})"
 msgid "Syncing…"
 msgstr "Syncing…"
 
+#: apps/native/components/direct-device-settings.tsx
+msgid "Syncs over Bluetooth Classic on Android once paired; most of these watches also need Huawei's HiChain pairing, which is not implemented yet. Connection checks only on iPhone. Not hardware-verified."
+msgstr "Syncs over Bluetooth Classic on Android once paired; most of these watches also need Huawei's HiChain pairing, which is not implemented yet. Connection checks only on iPhone. Not hardware-verified."
+
 #: apps/web/src/components/mode-toggle.tsx
 msgid "System"
 msgstr "System"
@@ -15454,8 +15454,8 @@ msgid "This goal was replaced."
 msgstr "This goal was replaced."
 
 #: apps/native/components/direct-device-settings.tsx
-msgid "This Huawei/Honor model syncs over Bluetooth Classic upstream; this BLE-only stack supports connection checks only."
-msgstr "This Huawei/Honor model syncs over Bluetooth Classic upstream; this BLE-only stack supports connection checks only."
+msgid "This Huawei/Honor model syncs over Bluetooth Classic, which works on Android only; here it supports connection checks only."
+msgstr "This Huawei/Honor model syncs over Bluetooth Classic, which works on Android only; here it supports connection checks only."
 
 #: apps/web/src/routes/setup.tsx
 msgid "This instance has already been set up. If you have an account, sign in below."

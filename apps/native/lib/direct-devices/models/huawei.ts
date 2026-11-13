@@ -127,7 +127,51 @@ export type HuaweiModel = Readonly<{
    * `a563d757-…` set.
    */
   newHonorProtocol: boolean;
+  /** "ble" for `HuaweiLECoordinator` models, "br" (Bluetooth Classic RFCOMM) otherwise. */
+  transport: "ble" | "br";
+  /**
+   * BR only: the RFCOMM service UUID. Follows the base class, so Honor
+   * MagicWatch 2, Watch GS 3 and GS Pro use the Huawei UUID (spec §4).
+   */
+  sdpUuid: string | null;
+  /** Upstream `isTransactionCrypted()`; false for eight BR models. */
+  transactionsCrypted: boolean;
+  /** True when upstream `supportsHiChainPake()`: Honor PAKE/STS, not implemented. */
+  honorPake: boolean;
 }>;
+
+/** `HuaweiBRSupport` / `HonorBRSupport` RFCOMM service UUIDs. */
+export const HUAWEI_BR_SDP_UUID = "82ff3820-8411-400c-b85a-55bdb32cf060";
+export const HONOR_BR_SDP_UUID = "c9770a18-4c3d-453a-8aaf-d7ec7bbd2785";
+
+/** BR coordinators extending `HonorBRCoordinator` (the Honor SDP UUID). */
+const HONOR_BR_MODEL_IDS: ReadonlySet<string> = new Set([
+  "honor_watch_4",
+  "honor_watch_4_pro",
+  "honor_watch_5",
+  "honor_watch_5_pro",
+  "honor_watch_6",
+]);
+
+/** BR coordinators whose `isTransactionCrypted()` returns false. */
+const UNCRYPTED_MODEL_IDS: ReadonlySet<string> = new Set([
+  "honor_magicwatch_2",
+  "honor_watch_gs_3",
+  "honor_watch_gs_pro",
+  "honor_watch_4",
+  "honor_watch_4_pro",
+  "honor_watch_5",
+  "honor_watch_5_pro",
+  "honor_watch_6",
+  "huawei_talk_band_b6",
+]);
+
+/** Coordinators that override `supportsHiChainPake()`. */
+const HONOR_PAKE_MODEL_IDS: ReadonlySet<string> = new Set([
+  "honor_watch_5",
+  "honor_watch_5_pro",
+  "honor_watch_6",
+]);
 
 const HUAWEI_ROOT = "app/src/main/java/nodomain/freeyourgadget/gadgetbridge/devices/huawei";
 
@@ -172,7 +216,10 @@ const NEW_HONOR_PROTOCOL_MODEL_IDS: ReadonlySet<HuaweiModelId> = new Set<HuaweiM
   "honor_band_10",
 ]);
 
-type HuaweiModelSpec = Omit<HuaweiModel, "sync" | "newHonorProtocol">;
+type HuaweiModelSpec = Omit<
+  HuaweiModel,
+  "sync" | "newHonorProtocol" | "transport" | "sdpUuid" | "transactionsCrypted" | "honorPake"
+>;
 
 /** The 66 health-relevant Huawei/Honor wearables, in catalog order. */
 const MODEL_SPECS: readonly HuaweiModelSpec[] = [
@@ -843,6 +890,14 @@ export const HUAWEI_MODELS: readonly HuaweiModel[] = MODEL_SPECS.map((spec) => (
   ...spec,
   sync: BLE_SYNC_MODEL_IDS.has(spec.id),
   newHonorProtocol: NEW_HONOR_PROTOCOL_MODEL_IDS.has(spec.id),
+  transport: BLE_SYNC_MODEL_IDS.has(spec.id) ? ("ble" as const) : ("br" as const),
+  sdpUuid: BLE_SYNC_MODEL_IDS.has(spec.id)
+    ? null
+    : HONOR_BR_MODEL_IDS.has(spec.id)
+      ? HONOR_BR_SDP_UUID
+      : HUAWEI_BR_SDP_UUID,
+  transactionsCrypted: !UNCRYPTED_MODEL_IDS.has(spec.id),
+  honorPake: HONOR_PAKE_MODEL_IDS.has(spec.id),
 }));
 
 /** Record kinds the BLE sync path can emit. No new record types. */

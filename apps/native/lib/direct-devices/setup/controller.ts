@@ -11,7 +11,7 @@ import { NativeHelioLink } from "../transport/helio-link";
 import { runHelioStepsHistory } from "../protocol/history";
 import { matchDeviceName } from "../models/zepp-os";
 import { matchXiaomiDeviceName } from "../models/xiaomi";
-import { matchHuaweiDeviceName } from "../models/huawei";
+import { matchHuaweiDeviceName, type HuaweiModel } from "../models/huawei";
 import { matchGarminDeviceName } from "../models/garmin";
 import { matchBleGattDevice, normalizeServiceUuid } from "../models/ble-gatt";
 import { matchBangleJsDevice } from "../models/bangle-js";
@@ -67,6 +67,8 @@ import type { HuamiLegacyProfile, HuamiLegacySession } from "../transport/huami-
 import { HUAMI_SERVICE_UUID, matchHuamiLegacyDevice } from "../models/huami-legacy";
 import { createHuaweiSession } from "../transport/huawei";
 import type { HuaweiSession } from "../transport/huawei";
+import { runHuaweiBrSync } from "../transport/huawei-rfcomm";
+import type { BtClassicAdapter } from "../../../modules/bt-classic";
 import { createNativeXiaomiHistoryTransport } from "../transport/xiaomi-session";
 import { runXiaomiStepsHistory } from "../protocol/xiaomi-history";
 import type { XiaomiHistoryTransport } from "../protocol/xiaomi-history";
@@ -120,6 +122,8 @@ type Deps = {
   createPebbleSession?: typeof createDurablePebbleSession;
   /** Android bond adapter; production loads the local `pebble-bond` module lazily. */
   pebbleBondAdapter?: () => PebbleBondAdapter;
+  /** Android Bluetooth Classic adapter; production loads `bt-classic` lazily. */
+  btClassicAdapter?: () => BtClassicAdapter;
   /** Pairing/handshake/identity budget for the Pebble prepare step. */
   pebblePrepareTimeoutMs?: number;
   /** Test seam for the Fossil Hybrid HR session. */
@@ -225,6 +229,16 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
   let fossilPrepareAbort: AbortController | null = null;
   let connectedHuamiLegacySession: HuamiLegacySession | null = null;
   let connectedHuaweiSession: HuaweiSession | null = null;
+  /** A Bluetooth Classic Huawei/Honor watch: history runs over RFCOMM in `fetchSteps`. */
+  let connectedHuaweiBr: { model: HuaweiModel; bleAddress: string; deviceId: string } | null = null;
+  /** Android with the `bt-classic` module present; false on iOS and older builds. */
+  const btClassicSupported = (): boolean => {
+    try {
+      return (deps.btClassicAdapter ?? loadBtClassicAdapter)().isSupported();
+    } catch {
+      return false;
+    }
+  };
   let connectedCasioSession: CasioSession | null = null;
   let connecting: Device | null = null;
   let connectionAttempt: object | null = null;
@@ -1080,6 +1094,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
             connectedHuamiLegacySession = null;
             void connectedHuaweiSession?.close();
             connectedHuaweiSession = null;
+            connectedHuaweiBr = null;
             void connectedCasioSession?.close();
             connectedCasioSession = null;
             void connectedPebbleSession?.close();
@@ -1239,6 +1254,16 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
             connectedFossilSession = fossilSession;
             connectedFossilPeer = fossilPeer;
           }
+          const huaweiBrSync =
+            huaweiProfile !== null &&
+            huaweiModel?.transport === "br" &&
+            deps.onHistorySample !== undefined &&
+            btClassicSupported();
+          if (huaweiBrSync && huaweiModel) {
+            void connectedHuaweiSession?.close();
+            connectedHuaweiSession = null;
+            connectedHuaweiBr = { model: huaweiModel, bleAddress: discovered.id, deviceId };
+          }
           if (huaweiProfile && huaweiModel?.sync && deps.onHistorySample) {
             void connectedHuaweiSession?.close();
             // Huawei auth is automatic (MAC-derived key), but the transfer is
@@ -1270,7 +1295,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
                 (family === "casio" && casioProfile?.source !== null) ||
                 (family === "pebble" && pebblePeer !== null) ||
                 (family === "fossil_hr" && fossilPeer !== null) ||
-                (family === "huawei" && huaweiModel?.sync === true) ||
+                (family === "huawei" && (huaweiModel?.sync === true || huaweiBrSync)) ||
                 (family === "garmin" && garminModel?.sync === true),
               liveCapture: family === "ble_gatt" || family === "ble_scale",
               historySync:
@@ -1282,7 +1307,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
                 family === "huami_legacy" ||
                 (family === "casio" && casioProfile?.source !== null) ||
                 (family === "pebble" && pebblePeer !== null) ||
-                (family === "huawei" && huaweiModel?.sync === true) ||
+                (family === "huawei" && (huaweiModel?.sync === true || huaweiBrSync)) ||
                 (family === "garmin" && garminModel?.sync === true),
             }),
             bluetooth: "powered_on",
@@ -1365,6 +1390,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
       connectedHuamiLegacySession = null;
       void connectedHuaweiSession?.close();
       connectedHuaweiSession = null;
+      connectedHuaweiBr = null;
       void connectedCasioSession?.close();
       connectedCasioSession = null;
       pebblePrepareAbort?.abort();
@@ -1476,7 +1502,8 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
       // milestone.
       if (connectedFamily === "huawei") {
         if (!connectedHuaweiProfile) throw new Error("HUAWEI_SERVICE_MISSING");
-        if (!connectedHuaweiSession) throw new Error("HUAWEI_HISTORY_UNSUPPORTED");
+        if (!connectedHuaweiSession && !connectedHuaweiBr)
+          throw new Error("HUAWEI_HISTORY_UNSUPPORTED");
       }
       // Garmin FIT files sync on connection; the sync action awaits the
       // session so its records are committed inside the authority window.
@@ -1559,6 +1586,24 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
               })()
             : connectedFamily === "huawei"
               ? (async () => {
+                  const br = connectedHuaweiBr;
+                  if (br) {
+                    await runHuaweiBrSync({
+                      model: br.model,
+                      bleAddress: br.bleAddress,
+                      deviceId: br.deviceId,
+                      btClassic: (deps.btClassicAdapter ?? loadBtClassicAdapter)(),
+                      bond: (deps.pebbleBondAdapter ?? loadPebbleBondAdapter)(),
+                      onRecord: deps.onHistorySample!,
+                      signal: linked.signal,
+                    });
+                    return {
+                      pages: 0,
+                      minutes: 0,
+                      complete: !linked.signal.aborted,
+                      granularity: "minute" as const,
+                    };
+                  }
                   const session = connectedHuaweiSession;
                   if (!session) throw new Error("HUAWEI_HISTORY_UNSUPPORTED");
                   const onAbort = () => void session.close();
@@ -1679,6 +1724,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
       connectedHuamiLegacySession = null;
       void connectedHuaweiSession?.close();
       connectedHuaweiSession = null;
+      connectedHuaweiBr = null;
       void connectedCasioSession?.close();
       connectedCasioSession = null;
       pebblePrepareAbort?.abort();
@@ -1804,6 +1850,11 @@ function bluetoothErrorCode(state: State): string {
 }
 function errorCode(error: unknown): string {
   return error instanceof Error ? error.message : "";
+}
+function loadBtClassicAdapter(): BtClassicAdapter {
+  // Lazy: the local Expo module is only required for a Bluetooth Classic watch.
+  return (require("../../../modules/bt-classic") as typeof import("../../../modules/bt-classic"))
+    .btClassicAdapter;
 }
 function loadPebbleBondAdapter(): PebbleBondAdapter {
   // Lazy: the local Expo module is only required on a real Pebble connect.
