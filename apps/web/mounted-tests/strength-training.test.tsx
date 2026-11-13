@@ -16,7 +16,11 @@ if (mountedMode) {
     useProductSettings: () => ({ data: { locale: "en-US", units: displayUnits } }),
   }));
   mock.module("@tanstack/react-router", () => ({
-    createFileRoute: () => (options: { component: React.ComponentType }) => ({ options }),
+    createFileRoute: () => (options: { component: React.ComponentType }) => ({
+      options,
+      useSearch: () => ({}),
+      useNavigate: () => async () => {},
+    }),
     Link: (props: { children: React.ReactNode }) =>
       React.createElement("a", { href: "/exercise-library" }, props.children),
   }));
