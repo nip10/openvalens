@@ -6,9 +6,12 @@ import { candidateFromChoice, defaultFoodPortion } from "@openvalens/api/present
 import {
   availableLogKinds,
   findLogKind,
+  LOG_KINDS,
   logKindPermissionCheck,
   type LogKind,
 } from "@openvalens/api/presenters/log-kinds";
+import { parseOneLiner, type OneLinerSupplement } from "@openvalens/api/presenters/one-liner";
+import { trackerLogKinds } from "@openvalens/api/presenters/trackers";
 import {
   deviceTimeZone,
   localDateIn,
@@ -20,6 +23,7 @@ import {
   buildQuickLogWrite,
   hasQuickForm,
   quickFormDefaults,
+  quickLogWriteValue,
   recentEntryTitle,
   recentEntryValue,
   repeatRecentEntry,
@@ -50,6 +54,7 @@ import { client, orpc } from "@/utils/orpc";
 import { useProductSettings } from "@/utils/product-settings";
 import { enqueueMetricSample } from "@/utils/sync-engine";
 
+import { buildOneLinerSection, paletteFilter, paletteItemValue } from "./one-liner-section";
 import { buildPaletteSections, type PaletteNavGroup } from "./palette-sections";
 import { performQuickLogWrite } from "./perform-write";
 import { QuickForm, type SupplementOption } from "./quick-form";
@@ -60,7 +65,7 @@ export const UNDO_TOAST_MS = 6_000;
 const COPY = {
   title: msg`Log or go to`,
   description: msg`Log something in a tap, repeat a recent entry or open a screen.`,
-  placeholder: msg`Log something or go to a screen…`,
+  placeholder: msg`Log “500 ml water” or go to a screen…`,
   empty: msg`Nothing matches.`,
   saved: msg`Saved: {what}`,
   savedOffline: msg`Saved on this device: {what}. It syncs when you are back online.`,
@@ -92,8 +97,10 @@ type View = { type: "list" } | { type: "form"; kind: LogKind; preset?: Record<st
 /**
  * The quick log command palette (#440): due supplements with one-tap "Taken",
  * recent entries to repeat, food favourites / recents / copy yesterday, every
- * kind the member can log (a quick form, or the full screen for drafts), and
- * the app's screens. Turned-off features never appear.
+ * kind the member can log (a quick form, or the full screen for drafts),
+ * custom trackers (#441), and the app's screens. Turned-off features never
+ * appear. Typed one-liners (#440d) show a preview of what was understood at
+ * the top ("Water · 500 ml · now"); Enter logs it.
  */
 export function QuickLogPalette({
   open,
@@ -108,10 +115,14 @@ export function QuickLogPalette({
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [view, setView] = useState<View>({ type: "list" });
+  const [search, setSearch] = useState("");
+  const [selected, setSelected] = useState("");
   const timeZone = useMemo(() => deviceTimeZone(), []);
 
   useEffect(() => {
-    if (!open) setView({ type: "list" });
+    if (open) return;
+    setView({ type: "list" });
+    setSearch("");
   }, [open]);
 
   // What the member can log: modules, preferences and role.
@@ -125,17 +136,25 @@ export function QuickLogPalette({
     ...orpc.privateBody.preference.queryOptions({ input: {} }),
     enabled: open && isEnabled("body"),
   });
+  // Custom trackers (#441) join the same list as `tracker:<id>` kinds.
+  const trackers = useQuery({
+    ...orpc.trackers.list.queryOptions({ input: { timeZone } }),
+    enabled: open,
+  });
   const kinds = useMemo(
     () =>
-      availableLogKinds({
-        enabledModules,
-        preferences: {
-          plain_water: water.data?.enabled === true,
-          private_body: privateBody.data?.enabled === true,
+      availableLogKinds(
+        {
+          enabledModules,
+          preferences: {
+            plain_water: water.data?.enabled === true,
+            private_body: privateBody.data?.enabled === true,
+          },
+          can: logKindPermissionCheck(me.data?.role),
         },
-        can: logKindPermissionCheck(me.data?.role),
-      }),
-    [enabledModules, water.data?.enabled, privateBody.data?.enabled, me.data?.role],
+        [...LOG_KINDS, ...trackerLogKinds(trackers.data ?? [])] as LogKind[],
+      ),
+    [enabledModules, water.data?.enabled, privateBody.data?.enabled, me.data?.role, trackers.data],
   );
   const has = (id: string) => kinds.some((kind) => kind.id === id);
   const canRecords = kinds.some((kind) => kind.permission.resource === "records");
@@ -163,6 +182,11 @@ export function QuickLogPalette({
     ...orpc.plans.listSupplements.queryOptions({ input: {} }),
     enabled: open && has("supplement_intake"),
   });
+  // Food drafts (#73) take typed food when the member turned them on.
+  const nutritionTargets = useQuery({
+    ...orpc.nutritionTargets.get.queryOptions({ input: { localDate: today } }),
+    enabled: open && has("food"),
+  });
   const products = useProductSettings();
   const weightUnit = products.data?.units === "imperial" ? "lb" : "kg";
 
@@ -177,6 +201,7 @@ export function QuickLogPalette({
       orpc.supplementIntake.key(),
       orpc.nutritionDiary.key(),
       orpc.goals.key(),
+      orpc.trackers.key(),
       orpc.quickLog.key(),
     ])
       void queryClient.invalidateQueries({ queryKey: key });
@@ -360,6 +385,55 @@ export function QuickLogPalette({
     ? supplements.data.map((item) => ({ id: item.id, name: item.name, dose: item.dose }))
     : null;
 
+  // What the member typed, read as a one-liner (#440d).
+  const oneLinerSupplements: OneLinerSupplement[] = supplementOptions ?? [];
+  const oneLiner = parseOneLiner(search, {
+    kinds,
+    trackers: trackers.data ?? [],
+    supplements: oneLinerSupplements,
+    locale: i18n.locale,
+    weightUnit,
+    kindCounts: recents.data?.kindCounts,
+    foodDrafts: nutritionTargets.data?.settings.voiceDraftsEnabled === true,
+  });
+  const typed = buildOneLinerSection(
+    oneLiner,
+    i18n,
+    {
+      timeZone,
+      newId: newClientMutationId,
+      locale: i18n.locale,
+      weightUnit,
+      supplements: oneLinerSupplements,
+    },
+    {
+      logEntry: (entry, preview) => {
+        if (preview.write) {
+          void save(preview.write, `${preview.title} · ${preview.value}`, entry.kind);
+          return;
+        }
+        setView({ type: "form", kind: entry.kind, preset: entry.values });
+      },
+      openWorkout: (text) => {
+        onOpenChange(false);
+        void navigate({ to: "/workouts", search: { log: text } });
+      },
+      openFood: (text, drafts) => {
+        onOpenChange(false);
+        void (drafts
+          ? navigate({ to: "/food-draft", search: { text } })
+          : navigate({ to: "/nutrition", search: { food: text } }));
+      },
+    },
+  );
+  const rows = typed ? [typed, ...sections] : sections;
+  // Enter takes the preview: keep it selected as the text changes.
+  const typedTop = typed?.items[0];
+  const typedValue = typedTop && (typedTop.score ?? 0) >= 1 ? paletteItemValue(typedTop) : null;
+  useEffect(() => {
+    if (typedValue) setSelected(typedValue);
+  }, [typedValue]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -385,19 +459,27 @@ export function QuickLogPalette({
             onSave={save}
           />
         ) : (
-          <Command loop label={i18n._(COPY.title)}>
+          <Command
+            loop
+            label={i18n._(COPY.title)}
+            filter={paletteFilter}
+            value={selected}
+            onValueChange={setSelected}
+          >
             <CommandInput
               placeholder={i18n._(COPY.placeholder)}
               aria-label={i18n._(COPY.placeholder)}
+              value={search}
+              onValueChange={setSearch}
             />
             <CommandList>
               <CommandEmpty>{i18n._(COPY.empty)}</CommandEmpty>
-              {sections.map((section) => (
+              {rows.map((section) => (
                 <CommandGroup key={section.id} heading={section.heading}>
                   {section.items.map((item) => (
                     <CommandItem
                       key={item.id}
-                      value={`${item.id} ${item.label}`}
+                      value={paletteItemValue(item)}
                       keywords={[
                         item.label,
                         ...(item.detail ? [item.detail] : []),
@@ -484,7 +566,11 @@ function QuickFormView({
           setShowErrors(true);
           return;
         }
-        void onSave(parsed.write, i18n._(kind.label), kind);
+        void onSave(
+          parsed.write,
+          `${i18n._(kind.label)} · ${quickLogWriteValue(parsed.write, kind, i18n, { weightUnit })}`,
+          kind,
+        );
       }}
     />
   );

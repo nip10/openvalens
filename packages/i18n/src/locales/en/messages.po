@@ -652,6 +652,11 @@ msgstr "{done} of {total} setup steps done"
 msgid "{doneSets, plural, one {# set done} other {# sets done}}"
 msgstr "{doneSets, plural, one {# set done} other {# sets done}}"
 
+#. Sleep length, then bedtime and wake time.
+#: packages/api/src/presenters/quick-log.ts
+msgid "{duration}, {from}–{to}"
+msgstr "{duration}, {from}–{to}"
+
 #: packages/api/src/presenters/custom-foods.ts
 msgid "{entered} of {total} values entered"
 msgstr "{entered} of {total} values entered"
@@ -1279,6 +1284,10 @@ msgstr "18-member multidisciplinary expert panel using the RAND/UCLA Appropriate
 #: packages/api/src/presenters/activity-load.ts
 msgid "2: Easy"
 msgstr "2: Easy"
+
+#: apps/web/src/components/quick-log/quick-form.tsx
+msgid "20 min"
+msgstr "20 min"
 
 #: apps/native/components/trackers/tracker-value-input.tsx
 #: apps/web/src/components/trackers/tracker-value-input.tsx
@@ -3326,6 +3335,10 @@ msgstr "Check the highlighted values."
 #: packages/api/src/presenters/food-lookup.ts
 msgid "Check the product, source and amount. Nothing is saved until you press Save."
 msgstr "Check the product, source and amount. Nothing is saved until you press Save."
+
+#: packages/api/src/presenters/one-liner.ts
+msgid "check the value"
+msgstr "check the value"
 
 #: apps/native/components/active-workout.tsx
 msgid "Check the workout details and try again."
@@ -6602,6 +6615,7 @@ msgid "Enter a bedtime and a wake time."
 msgstr "Enter a bedtime and a wake time."
 
 #: apps/native/components/trackers/tracker-log-form.tsx
+#: apps/web/src/components/quick-log/quick-form.tsx
 #: apps/web/src/components/trackers/tracker-log-form.tsx
 msgid "Enter a duration such as 20 min, 1:30 or 45 s."
 msgstr "Enter a duration such as 20 min, 1:30 or 45 s."
@@ -6739,6 +6753,11 @@ msgstr "Enter the start date as YYYY-MM-DD."
 #: apps/web/src/components/admission-form.tsx
 msgid "Enter the token again to continue enrollment as <0>{0}</0>."
 msgstr "Enter the token again to continue enrollment as <0>{0}</0>."
+
+#: apps/web/src/components/quick-log/one-liner-section.ts
+msgctxt "palette hint"
+msgid "Enter to log"
+msgstr "Enter to log"
 
 #: packages/api/src/presenters/food-lookup.ts
 msgid "Enter values from the label. Leave anything you do not know blank; it is shown as unknown, not zero."
@@ -7474,6 +7493,10 @@ msgstr "From wger, {licenseText}"
 #: apps/web/src/components/exercise-library.tsx
 msgid "From wger, {licenseText}, {author}"
 msgstr "From wger, {licenseText}, {author}"
+
+#: apps/web/src/components/quick-log/one-liner-section.ts
+msgid "From what you typed"
+msgstr "From what you typed"
 
 #: apps/native/app/(drawer)/body-map.tsx
 #: apps/native/components/muscle-guide.tsx
@@ -9364,9 +9387,17 @@ msgctxt "action"
 msgid "Log"
 msgstr "Log"
 
+#: apps/web/src/components/quick-log/quick-log-palette.tsx
+msgid "Log “500 ml water” or go to a screen…"
+msgstr "Log “500 ml water” or go to a screen…"
+
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 msgid "Log {name} ({amount})"
 msgstr "Log {name} ({amount})"
+
+#: packages/api/src/presenters/one-liner.ts
+msgid "Log {number} as…"
+msgstr "Log {number} as…"
 
 #: apps/native/components/get-started-card.tsx
 msgid "Log a meal"
@@ -9389,6 +9420,10 @@ msgstr "Log a weight"
 #: apps/native/app/(drawer)/(tabs)/index.tsx
 msgid "Log a weight to see it here"
 msgstr "Log a weight to see it here"
+
+#: packages/api/src/presenters/one-liner.ts
+msgid "Log a workout: “{text}”"
+msgstr "Log a workout: “{text}”"
 
 #: apps/native/app/(drawer)/goals.tsx
 #: apps/web/src/routes/_auth/goals.index.tsx
@@ -9442,10 +9477,6 @@ msgstr "Log session"
 #: apps/web/src/components/quick-log/quick-log-palette.tsx
 msgid "Log something in a tap, repeat a recent entry or open a screen."
 msgstr "Log something in a tap, repeat a recent entry or open a screen."
-
-#: apps/web/src/components/quick-log/quick-log-palette.tsx
-msgid "Log something or go to a screen…"
-msgstr "Log something or go to a screen…"
 
 #: apps/web/src/routes/_auth/supplements.tsx
 msgid "Log supplement intake"
@@ -9620,6 +9651,10 @@ msgstr "Make a draft"
 #: packages/api/src/presenters/food-logger-capture.ts
 msgid "Make a draft from this photo"
 msgstr "Make a draft from this photo"
+
+#: packages/api/src/presenters/one-liner.ts
+msgid "Make a food draft: “{text}”"
+msgstr "Make a food draft: “{text}”"
 
 #: packages/api/src/presenters/food-draft.ts
 msgid "Make food drafts from a meal photo"
@@ -10480,6 +10515,7 @@ msgid "Nights, stages, rest"
 msgstr "Nights, stages, rest"
 
 #: apps/native/components/trackers/tracker-value-input.tsx
+#: apps/web/src/components/quick-log/quick-form.tsx
 #: apps/web/src/components/trackers/tracker-value-input.tsx
 #: packages/api/src/presenters/trackers.ts
 msgid "No"
@@ -11452,6 +11488,11 @@ msgstr "Notifications are on for this phone."
 msgid "Notifications arrive on phones where you allow them in the mobile app."
 msgstr "Notifications arrive on phones where you allow them in the mobile app."
 
+#: packages/api/src/presenters/one-liner.ts
+msgctxt "time of an entry"
+msgid "now"
+msgstr "now"
+
 #: packages/api/src/presenters/plain-water.ts
 msgid "Now"
 msgstr "Now"
@@ -11794,6 +11835,7 @@ msgstr "Only you can see these photos. Workspace owners and other members cannot
 
 #: apps/native/app/(drawer)/exports.tsx
 #: apps/native/app/(drawer)/trackers.tsx
+#: apps/web/src/components/quick-log/one-liner-section.ts
 #: apps/web/src/components/quick-log/palette-sections.ts
 #: apps/web/src/components/quick-log/quick-log-palette.tsx
 #: packages/api/src/presenters/workouts.ts
@@ -14506,6 +14548,10 @@ msgstr "Search exercises"
 msgid "Search foods"
 msgstr "Search foods"
 
+#: packages/api/src/presenters/one-liner.ts
+msgid "Search foods for “{text}”"
+msgstr "Search foods for “{text}”"
+
 #. placeholder {0}: i18n._(SLOT_LABELS[searchSlot])
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 msgid "Search foods, adds to {0}"
@@ -15762,6 +15808,10 @@ msgstr "Subscription ended"
 #: apps/web/src/components/billing-plan-view.tsx
 msgid "Subscriptions are temporarily unavailable. Please try again later."
 msgstr "Subscriptions are temporarily unavailable. Please try again later."
+
+#: apps/web/src/components/quick-log/quick-form.tsx
+msgid "Such as 20 min, 1:30 or 45 s."
+msgstr "Such as 20 min, 1:30 or 45 s."
 
 #: packages/api/src/nutrition-observations.ts
 msgid "Sufficient matching timestamped records from completed diary days were available."
@@ -17184,6 +17234,10 @@ msgstr "Today ({0})"
 msgid "Today so far"
 msgstr "Today so far"
 
+#: packages/api/src/presenters/one-liner.ts
+msgid "today, {time}"
+msgstr "today, {time}"
+
 #: apps/native/app/(drawer)/goals.tsx
 msgid "Today's goal met"
 msgstr "Today's goal met"
@@ -18561,6 +18615,7 @@ msgid "Y-axis: avg bpm"
 msgstr "Y-axis: avg bpm"
 
 #: apps/native/components/trackers/tracker-value-input.tsx
+#: apps/web/src/components/quick-log/quick-form.tsx
 #: apps/web/src/components/trackers/tracker-value-input.tsx
 #: packages/api/src/presenters/trackers.ts
 msgid "Yes"
@@ -18593,6 +18648,10 @@ msgstr "Yes, I'm 18 or older"
 #: apps/web/src/utils/friendly.ts
 msgid "Yesterday"
 msgstr "Yesterday"
+
+#: packages/api/src/presenters/one-liner.ts
+msgid "yesterday, {time}"
+msgstr "yesterday, {time}"
 
 #: apps/native/app/(drawer)/coach/[conversationId].tsx
 #: apps/web/src/routes/_auth/coach/$conversationId.tsx

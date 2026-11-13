@@ -22,6 +22,8 @@ export type PaletteItem = {
   icon: LucideIcon;
   tone?: Tone;
   keywords?: string[];
+  /** A fixed cmdk score: the row shows whatever is typed (one-liners, #440d). */
+  score?: number;
   onSelect: () => void;
 };
 

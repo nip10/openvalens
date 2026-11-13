@@ -2,10 +2,12 @@ import { describe, expect, test } from "bun:test";
 import { englishI18n } from "@openvalens/i18n/testing";
 
 import { findLogKind, LOG_KINDS } from "./log-kinds";
+import { trackerLogKind, type TrackerForLogKind } from "./trackers";
 import {
   buildQuickLogWrite,
   hasQuickForm,
   quickFormDefaults,
+  quickLogWriteValue,
   recentEntryTitle,
   recentEntryValue,
   repeatRecentEntry,
@@ -119,6 +121,77 @@ describe("quick forms", () => {
 
   test("only kinds with a member delete offer an undo", () => {
     expect([...UNDOABLE_KIND_IDS].sort()).toEqual(["food", "sleep", "supplement_intake", "water"]);
+  });
+});
+
+describe("custom trackers (#441)", () => {
+  const tracker = (overrides: Partial<TrackerForLogKind>) =>
+    trackerLogKind({
+      id: "00000000-0000-4000-8000-000000000001",
+      name: "Sauna",
+      icon: "flame",
+      type: "duration",
+      unit: null,
+      decimals: 0,
+      canLog: true,
+      archivedAt: null,
+      ...overrides,
+    });
+
+  test("every tracker kind has a quick form", () => {
+    expect(hasQuickForm(tracker({}))).toBe(true);
+    expect(hasQuickForm(tracker({ type: "yes_no" }))).toBe(true);
+  });
+
+  test("durations, yes/no, ratings and numbers become a trackers.log write with the note", () => {
+    const sauna = tracker({});
+    const write = buildQuickLogWrite(
+      sauna,
+      { ...quickFormDefaults(sauna, now), value: "20 min", note: "  after the run " },
+      context,
+    );
+    expect(write).toEqual({
+      ok: true,
+      write: {
+        type: "tracker",
+        input: {
+          trackerId: "00000000-0000-4000-8000-000000000001",
+          value: 1200,
+          loggedAt: new Date(2026, 10, 13, 9, 30).toISOString(),
+          timeZone: "Europe/Lisbon",
+          note: "after the run",
+        },
+      },
+    });
+    expect(write.ok && quickLogWriteValue(write.write, sauna, englishI18n)).toBe("20 min");
+
+    const flossed = tracker({ type: "yes_no" });
+    const yes = buildQuickLogWrite(flossed, { value: "yes" }, context);
+    expect(yes.ok && yes.write.type === "tracker" && yes.write.input.value).toBe(1);
+    expect(yes.ok && quickLogWriteValue(yes.write, flossed, englishI18n)).toBe("Yes");
+    expect(buildQuickLogWrite(flossed, { value: "" }, context)).toEqual({
+      ok: false,
+      errors: ["value"],
+    });
+
+    const mood = tracker({ type: "scale" });
+    expect(buildQuickLogWrite(mood, { value: "6" }, context)).toEqual({
+      ok: false,
+      errors: ["value"],
+    });
+
+    const pages = tracker({ type: "number", unit: "pages", decimals: 1 });
+    const read = buildQuickLogWrite(pages, { value: "12,5" }, { ...context, locale: "pt-PT" });
+    expect(read.ok && read.write.type === "tracker" && read.write.input.value).toBe(12.5);
+    expect(read.ok && quickLogWriteValue(read.write, pages, englishI18n)).toBe("12.5 pages");
+  });
+
+  test("a note over the limit names the field", () => {
+    const sauna = tracker({});
+    expect(buildQuickLogWrite(sauna, { value: "20", note: "x".repeat(501) }, context)).toEqual({
+      ok: false,
+      errors: ["note"],
+    });
   });
 });
 

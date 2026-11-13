@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { I18nProvider } from "@lingui/react";
 import { findLogKind } from "@openvalens/api/presenters/log-kinds";
 import { quickFormDefaults } from "@openvalens/api/presenters/quick-log";
+import { trackerLogKind, type TrackerForLogKind } from "@openvalens/api/presenters/trackers";
 import { englishI18n } from "@openvalens/i18n/testing";
 import {
   Command,
@@ -82,6 +83,56 @@ describe("QuickForm", () => {
     );
     expect(html).toContain('aria-pressed="true"');
     expect(html).toContain("Good");
+  });
+
+  const tracker = (type: TrackerForLogKind["type"]) =>
+    trackerLogKind({
+      id: "00000000-0000-4000-8000-000000000001",
+      name: "Sauna",
+      icon: "flame",
+      type,
+      unit: null,
+      decimals: 0,
+      canLog: true,
+      archivedAt: null,
+    });
+  const renderTracker = (type: TrackerForLogKind["type"], values = {}, errors: string[] = []) => {
+    const kind = tracker(type);
+    return render(
+      <QuickForm
+        kind={kind}
+        values={{ ...quickFormDefaults(kind), ...values }}
+        errors={errors}
+        showErrors={errors.length > 0}
+        supplements={null}
+        pending={false}
+        failed={false}
+        onChange={noop}
+        onSubmit={noop}
+        onBack={noop}
+      />,
+    );
+  };
+
+  test("a tracker's duration is typed, with an example and a note field", () => {
+    const html = renderTracker("duration", {}, ["value"]);
+    expect(html).toContain("<h2");
+    expect(html).toContain("Sauna");
+    expect(html).toContain("Such as 20 min, 1:30 or 45 s.");
+    expect(html).toContain("Enter a duration such as 20 min, 1:30 or 45 s.");
+    expect(html).toContain("<textarea");
+    expect(html).toContain('maxLength="500"');
+    expect(html).toContain('type="datetime-local"');
+  });
+
+  test("a tracker's yes/no and 1–5 rating are toggle buttons", () => {
+    const yesNo = renderTracker("yes_no", { value: "yes" });
+    expect(yesNo).toContain(">Yes</button>");
+    expect(yesNo).toContain(">No</button>");
+    expect(yesNo).toContain('aria-pressed="true"');
+    const rating = renderTracker("scale", { value: "3" });
+    expect(rating).toContain(">5</button>");
+    expect(rating).not.toContain("(optional)</span></legend>");
   });
 });
 

@@ -2,12 +2,32 @@ import { describe, expect, test } from "bun:test";
 
 import {
   buildRecentLogEntries,
+  countRecentKinds,
   recentEntryKey,
   supplementsDueNow,
   type DueScheduleRow,
 } from "./quick-log";
 
 const at = (iso: string) => new Date(iso);
+
+describe("countRecentKinds", () => {
+  test("counts every scanned entry by kind, blood pressure once per reading", () => {
+    const time = at("2026-11-13T08:00:00Z");
+    expect(
+      countRecentKinds({
+        metrics: [
+          { code: "weight", at: at("2026-11-13T07:00:00Z"), value: 82.4, unit: "kg" },
+          { code: "weight", at: at("2026-11-12T07:00:00Z"), value: 82.4, unit: "kg" },
+          { code: "blood_pressure_systolic", at: time, value: 120, unit: "mmHg" },
+          { code: "blood_pressure_diastolic", at: time, value: 80, unit: "mmHg" },
+          { code: "heart_rate", at: time, value: 62, unit: "bpm" },
+        ],
+        water: [{ at: at("2026-11-13T09:00:00Z"), quantityMl: 500 }],
+        intakes: [],
+      }),
+    ).toEqual({ weight: 2, blood_pressure: 1, water: 1 });
+  });
+});
 
 describe("buildRecentLogEntries", () => {
   test("merges sources newest first and keeps distinct values only", () => {

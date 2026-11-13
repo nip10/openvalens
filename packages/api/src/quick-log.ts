@@ -71,6 +71,12 @@ export function recentEntryKey(entry: RecentLogEntry): string {
   }
 }
 
+export type RecentSources = {
+  metrics: readonly RecentMetricRow[];
+  water: readonly RecentWaterRow[];
+  intakes: readonly RecentIntakeRow[];
+};
+
 /**
  * Pure: merges the three sources into the last `limit` distinct entries,
  * newest first. Systolic and diastolic rows at the same time become one blood
@@ -78,13 +84,34 @@ export function recentEntryKey(entry: RecentLogEntry): string {
  * pulse is not offered again as a heart rate).
  */
 export function buildRecentLogEntries(
-  sources: {
-    metrics: readonly RecentMetricRow[];
-    water: readonly RecentWaterRow[];
-    intakes: readonly RecentIntakeRow[];
-  },
+  sources: RecentSources,
   limit = DEFAULT_RECENTS_LIMIT,
 ): RecentLogEntry[] {
+  const seen = new Set<string>();
+  const distinct: RecentLogEntry[] = [];
+  for (const entry of mergeRecentEntries(sources)) {
+    const key = recentEntryKey(entry);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    distinct.push(entry);
+    if (distinct.length >= limit) break;
+  }
+  return distinct;
+}
+
+/**
+ * Pure: how many of the scanned entries each kind has, so a bare number typed
+ * in the palette (#440d) offers the kinds the member logs most first.
+ */
+export function countRecentKinds(sources: RecentSources): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const entry of mergeRecentEntries(sources))
+    counts[entry.kind] = (counts[entry.kind] ?? 0) + 1;
+  return counts;
+}
+
+/** Every entry from the sources, newest first, blood pressure paired. */
+function mergeRecentEntries(sources: RecentSources): RecentLogEntry[] {
   const pressure = new Map<
     number,
     { at: Date; systolic?: number; diastolic?: number; pulse?: number }
@@ -140,16 +167,7 @@ export function buildRecentLogEntries(
     });
 
   entries.sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
-  const seen = new Set<string>();
-  const distinct: RecentLogEntry[] = [];
-  for (const entry of entries) {
-    const key = recentEntryKey(entry);
-    if (seen.has(key)) continue;
-    seen.add(key);
-    distinct.push(entry);
-    if (distinct.length >= limit) break;
-  }
-  return distinct;
+  return entries;
 }
 
 type Owner = { organizationId: string; userId: string };
