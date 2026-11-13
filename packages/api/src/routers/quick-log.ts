@@ -10,6 +10,7 @@ import {
 import { permissionedProcedure, validateInput } from "../index";
 import {
   buildRecentLogEntries,
+  countRecentKinds,
   DEFAULT_RECENTS_LIMIT,
   loadRecentIntakeRows,
   loadRecentMetricRows,
@@ -51,11 +52,10 @@ export const quickLogRouter = {
         canReadSupplements ? loadRecentIntakeRows(context.db, owner) : Promise.resolve([]),
       ]);
       const water = settings.hideNumbers ? [] : await loadRecentWaterRows(context.db, owner);
+      const sources = { metrics, water, intakes };
       return {
-        entries: buildRecentLogEntries(
-          { metrics, water, intakes },
-          input?.limit ?? DEFAULT_RECENTS_LIMIT,
-        ),
+        entries: buildRecentLogEntries(sources, input?.limit ?? DEFAULT_RECENTS_LIMIT),
+        kindCounts: countRecentKinds(sources),
       };
     }),
 

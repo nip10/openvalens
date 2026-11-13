@@ -275,6 +275,36 @@ export function trackerLogKind(tracker: TrackerForLogKind): LogKind<TrackerLogKi
   };
 }
 
+/**
+ * The display shape a `tracker:<id>` kind was built from, read back from its
+ * value field, so the quick form and one-liners parse and format its value.
+ * Null for any other kind.
+ */
+export function trackerShapeOfLogKind(
+  kind: Pick<LogKind, "id" | "fields">,
+): TrackerDisplayShape | null {
+  if (trackerIdFromLogKind(kind.id) === null) return null;
+  const field = kind.fields.find((item) => item.id === "value");
+  switch (field?.type) {
+    case "number": {
+      const decimals = field.step ? Math.round(-Math.log10(field.step)) : 0;
+      return {
+        type: "number",
+        unit: field.unit?.code ?? null,
+        decimals: Math.max(0, Math.min(TRACKER_LIMITS.maxDecimals, decimals)),
+      };
+    }
+    case "rating":
+      return { type: "scale", unit: null, decimals: 0 };
+    case "yes_no":
+      return { type: "yes_no", unit: null, decimals: 0 };
+    case "duration":
+      return { type: "duration", unit: null, decimals: 0 };
+    default:
+      return null;
+  }
+}
+
 /** The log kinds of the trackers the member can log now (active, and theirs or shared). */
 export function trackerLogKinds(
   trackers: readonly TrackerForLogKind[],

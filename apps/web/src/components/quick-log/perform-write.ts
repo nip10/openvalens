@@ -9,6 +9,7 @@ export type QuickLogApi = {
   sleep: Pick<AppRouterClient["sleep"], "logManualSession" | "deleteManualSession">;
   plainWater: Pick<AppRouterClient["plainWater"], "add" | "delete">;
   supplementIntake: Pick<AppRouterClient["supplementIntake"], "create" | "delete">;
+  trackers: Pick<AppRouterClient["trackers"], "log" | "deleteEntry">;
 };
 
 export type QuickLogResult = {
@@ -78,6 +79,15 @@ export async function performQuickLogWrite(
             version: saved.version,
             clientMutationId: newClientMutationId(),
           });
+        },
+      };
+    }
+    case "tracker": {
+      const saved = await api.trackers.log(write.input);
+      return {
+        queued: false,
+        undo: async () => {
+          await api.trackers.deleteEntry({ id: saved.id });
         },
       };
     }

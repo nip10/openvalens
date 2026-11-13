@@ -5,18 +5,20 @@
  * parser (#448).
  *
  * Which kinds get a quick form here: the single metrics, blood pressure,
- * sleep, water and supplement taken. Goal check-ins and private measurements
+ * sleep, water, supplement taken and custom trackers (#441). Goal check-ins
+ * and private measurements
  * open their own screen (each goal and each measurement has its own rules
  * there), as do the draft kinds (food, lab result, workout).
  *
  * Undo: only kinds whose domain lets the member delete their own entry offer
- * it (sleep, water, supplement taken, food). Metric samples (weight, blood
+ * it (sleep, water, supplement taken, food, trackers). Metric samples (weight, blood
  * pressure, heart rate, steps, …) have no member delete, so they save without
  * an undo and stay editable on their screen.
  */
 import type { I18n, MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { parseDecimal } from "@openvalens/i18n/numbers";
+import { TRACKER_LIMITS } from "@openvalens/trackers/model";
 
 import type { RecentLogEntry } from "../contracts/quick-log";
 import { findLogKind, type BuiltInLogKindId, type LogKind } from "./log-kinds";
@@ -32,6 +34,13 @@ import {
 import { defaultManualSleepWindow, parseManualSleepForm } from "./manual-sleep";
 import type { MetricSamplePayload } from "./offline";
 import { KG_TO_LB } from "./product-formatting";
+import {
+  formatTrackerDuration,
+  formatTrackerValue,
+  parseTrackerInput,
+  trackerIdFromLogKind,
+  trackerShapeOfLogKind,
+} from "./trackers";
 
 /** Kinds the quick form handles; every other kind opens `paths.web` / `paths.native`. */
 export const QUICK_FORM_KIND_IDS = [
@@ -48,8 +57,13 @@ export const QUICK_FORM_KIND_IDS = [
 ] as const satisfies readonly BuiltInLogKindId[];
 export type QuickFormKindId = (typeof QUICK_FORM_KIND_IDS)[number];
 
-export function hasQuickForm(kind: Pick<LogKind, "id" | "save">): kind is LogKind<QuickFormKindId> {
-  return kind.save === "at_once" && (QUICK_FORM_KIND_IDS as readonly string[]).includes(kind.id);
+/** Built-in quick-form kinds, and every custom tracker kind (`tracker:<id>`, #441). */
+export function hasQuickForm(kind: Pick<LogKind, "id" | "save">): boolean {
+  if (kind.save !== "at_once") return false;
+  return (
+    (QUICK_FORM_KIND_IDS as readonly string[]).includes(kind.id) ||
+    trackerIdFromLogKind(kind.id) !== null
+  );
 }
 
 /** Kinds whose saved entry the member can delete again, so an undo is offered. */
@@ -99,6 +113,17 @@ export type QuickLogWrite =
         timeZone: string;
         dose: string;
         clientMutationId: string;
+      };
+    }
+  | {
+      type: "tracker";
+      /** `trackers.log` input; undo goes through `trackers.deleteEntry`. */
+      input: {
+        trackerId: string;
+        value: number;
+        loggedAt: string;
+        timeZone: string;
+        note?: string;
       };
     };
 
@@ -166,6 +191,31 @@ export function buildQuickLogWrite(
   const observedLocal = values.observedAt?.trim() || defaultObservedAt(now);
   const observedAt = localDateTimeToIso(observedLocal);
   const timeErrors = kind.fields.some((field) => field.id === "observedAt") && !observedAt;
+
+  const trackerId = trackerIdFromLogKind(kind.id);
+  if (trackerId !== null) {
+    const shape = trackerShapeOfLogKind(kind);
+    const value = shape ? parseTrackerInput(shape, values.value ?? "", context.locale) : null;
+    const note = values.note?.trim() ?? "";
+    const errors: string[] = [];
+    if (value === null) errors.push("value");
+    if (timeErrors) errors.push("observedAt");
+    if (note.length > TRACKER_LIMITS.noteLength) errors.push("note");
+    if (errors.length > 0 || value === null || !observedAt) return { ok: false, errors };
+    return {
+      ok: true,
+      write: {
+        type: "tracker",
+        input: {
+          trackerId,
+          value,
+          loggedAt: observedAt,
+          timeZone: context.timeZone,
+          ...(note ? { note } : {}),
+        },
+      },
+    };
+  }
 
   if (isSingleMetric(kind.id)) {
     const field = MANUAL_ENTRY_FIELDS[kind.id];
@@ -375,6 +425,10 @@ export const QUICK_LOG_COPY = Object.freeze({
   }),
   withPulse: msg({ message: "{reading}, pulse {pulse} bpm", comment: "Keep bpm as is." }),
   water: msg({ message: "{amount} ml", comment: "Keep ml as is." }),
+  sleep: msg({
+    message: "{duration}, {from}–{to}",
+    comment: "Sleep length, then bedtime and wake time.",
+  }),
 });
 
 const formatNumber = (i18n: I18n, value: number, digits = 1) =>
@@ -418,4 +472,77 @@ export function recentEntryTitle(entry: RecentLogEntry, i18n: I18n): string {
   if (entry.kind === "supplement_intake") return entry.supplementName;
   const kind = findLogKind(entry.kind);
   return kind ? i18n._(kind.label) : entry.kind;
+}
+
+const formatClock = (i18n: I18n, iso: string) =>
+  new Intl.DateTimeFormat(i18n.locale || "en", { hour: "2-digit", minute: "2-digit" }).format(
+    new Date(iso),
+  );
+
+/**
+ * The value a write saves, as the member reads it: "82,6 kg", "120/80 mmHg",
+ * "500 ml", "7 h 30 min, 23:30–07:00", "200 mg", "20 min". Weight shows in the
+ * member's preferred unit, whatever unit they typed.
+ */
+export function quickLogWriteValue(
+  write: QuickLogWrite,
+  kind: Pick<LogKind, "id" | "fields">,
+  i18n: I18n,
+  preferred: { weightUnit?: "kg" | "lb" } = {},
+): string {
+  switch (write.type) {
+    case "metric": {
+      if (write.kind === "blood_pressure") {
+        const value = (code: string) =>
+          write.samples.find((sample) => sample.metricCode === code)?.valueNumeric ?? null;
+        const reading = i18n._({
+          ...QUICK_LOG_COPY.bloodPressure,
+          values: {
+            systolic: formatNumber(i18n, value("blood_pressure_systolic") ?? 0, 0),
+            diastolic: formatNumber(i18n, value("blood_pressure_diastolic") ?? 0, 0),
+          },
+        });
+        const pulse = value("heart_rate");
+        return pulse === null
+          ? reading
+          : i18n._({
+              ...QUICK_LOG_COPY.withPulse,
+              values: { reading, pulse: formatNumber(i18n, pulse, 0) },
+            });
+      }
+      const sample = write.samples[0];
+      if (sample?.valueNumeric === undefined) return "";
+      if (write.kind === "weight" && preferred.weightUnit === "lb")
+        return `${formatNumber(i18n, sample.valueNumeric * KG_TO_LB)} lb`;
+      const symbol = UNIT_SYMBOL[write.kind];
+      const digits = write.kind === "weight" ? 1 : 0;
+      return `${formatNumber(i18n, sample.valueNumeric, digits)}${symbol ? ` ${i18n._(symbol)}` : ""}`;
+    }
+    case "water":
+      return i18n._({
+        ...QUICK_LOG_COPY.water,
+        values: {
+          amount: formatNumber(i18n, write.input.quantity * (ML_PER[write.input.unit] ?? 1), 0),
+        },
+      });
+    case "sleep": {
+      const minutes = Math.round(
+        (Date.parse(write.input.endAt) - Date.parse(write.input.startAt)) / 60_000,
+      );
+      return i18n._({
+        ...QUICK_LOG_COPY.sleep,
+        values: {
+          duration: formatTrackerDuration(i18n, minutes * 60),
+          from: formatClock(i18n, write.input.startAt),
+          to: formatClock(i18n, write.input.endAt),
+        },
+      });
+    }
+    case "supplement":
+      return write.input.dose;
+    case "tracker": {
+      const shape = trackerShapeOfLogKind(kind);
+      return shape ? formatTrackerValue(i18n, shape, write.input.value) : String(write.input.value);
+    }
+  }
 }

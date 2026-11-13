@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Command as CommandPrimitive } from "cmdk";
+import { Command as CommandPrimitive, defaultFilter as commandFilter } from "cmdk";
 import { SearchIcon } from "lucide-react";
 
 import { cn } from "@openvalens/ui/lib/utils";
@@ -171,4 +171,5 @@ export {
   CommandList,
   CommandSeparator,
   CommandShortcut,
+  commandFilter,
 };

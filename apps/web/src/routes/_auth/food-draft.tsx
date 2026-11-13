@@ -31,7 +31,14 @@ import { client } from "@/utils/orpc";
 import { ModuleHiddenNote } from "@/components/module-hidden-note";
 import { parseDecimal } from "@openvalens/i18n/numbers";
 
-export const Route = createFileRoute("/_auth/food-draft")({ component: FoodDraftPage });
+export const Route = createFileRoute("/_auth/food-draft")({
+  component: FoodDraftPage,
+  /** `text` fills the description, e.g. from a palette one-liner (#440d). Nothing is sent until the member asks. */
+  validateSearch: (search: Record<string, unknown>): { text?: string } =>
+    typeof search.text === "string" && search.text.trim()
+      ? { text: search.text.trim().slice(0, 2_000) }
+      : {},
+});
 
 type Flag = FoodDraftCandidateWire["flags"][number];
 
@@ -55,7 +62,8 @@ const PHOTO_TOO_LARGE = msg`This photo is larger than 10 MB. Choose a smaller JP
 const PHOTO_WRONG_TYPE = msg`Use a JPEG or PNG photo up to 10 MB.`;
 
 function FoodDraftPage() {
-  const [transcript, setTranscript] = useState("");
+  const { text: typedText } = Route.useSearch();
+  const [transcript, setTranscript] = useState(typedText ?? "");
   const [useAi, setUseAi] = useState(false);
   const [aiAgreed, setAiAgreed] = useState(false);
   const [candidates, setCandidates] = useState<FoodDraftCandidateWire[] | null>(null);

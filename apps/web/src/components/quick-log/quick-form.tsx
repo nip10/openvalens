@@ -10,6 +10,8 @@ import { unitKey, type QuickFormValues } from "@openvalens/api/presenters/quick-
 import { Button } from "@openvalens/ui/components/button";
 import { Input } from "@openvalens/ui/components/input";
 import { Label } from "@openvalens/ui/components/label";
+import { Textarea } from "@openvalens/ui/components/textarea";
+import { TRACKER_LIMITS } from "@openvalens/trackers/model";
 import { ArrowLeft } from "lucide-react";
 import { useEffect, useRef } from "react";
 
@@ -22,13 +24,17 @@ const SELECT =
 
 export type SupplementOption = { id: number; name: string; dose: string | null };
 
+const range = (from: number, to: number) =>
+  Array.from({ length: Math.max(0, to - from + 1) }, (_, index) => from + index);
+
 const unitLabel = (code: string) =>
   code in WATER_UNIT_LABELS ? WATER_UNIT_LABELS[code as WaterUnit] : code;
 
 /**
  * A log kind's quick form, built from its `fields` (#440): numbers with their
- * unit (and the other units the member may type), times, a 1–5 rating and the
- * member's own supplements. Enter saves.
+ * unit (and the other units the member may type), times, a 1–5 rating, the
+ * member's own supplements and, for custom trackers (#441), yes/no, a typed
+ * duration and an optional note. Enter saves.
  */
 export function QuickForm({
   kind,
@@ -56,7 +62,7 @@ export function QuickForm({
   const { t, i18n } = useLingui();
   const firstField = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    firstField.current?.querySelector<HTMLElement>("input, select")?.focus();
+    firstField.current?.querySelector<HTMLElement>("input, select, textarea, button")?.focus();
   }, []);
   const id = (field: string) => `quick-log-${kind.id}-${field}`;
   const invalid = (field: string) => showErrors && errors.includes(field);
@@ -124,30 +130,82 @@ export function QuickForm({
           />
         </div>
       );
-    if (field.type === "rating")
+    if (field.type === "rating") {
+      // Sleep quality has its own words; a tracker's 1–5 self-rating shows the numbers.
+      const options =
+        kind.id === "sleep"
+          ? SLEEP_QUALITY_VALUES.map((value) => ({
+              value: String(value),
+              text: i18n._(SLEEP_QUALITY_LABELS[value]!),
+            }))
+          : range(field.min ?? 1, field.max ?? 5).map((value) => ({
+              value: String(value),
+              text: String(value),
+            }));
       return (
-        <fieldset key={field.id} className="grid gap-2">
-          <legend className="pb-2 text-sm font-medium">
-            {label} <span className="font-normal text-ink-3">({t`optional`})</span>
-          </legend>
-          <div className="flex flex-wrap gap-2">
-            {SLEEP_QUALITY_VALUES.map((value) => {
-              const selected = values[field.id] === String(value);
-              return (
-                <Button
-                  key={value}
-                  type="button"
-                  size="sm"
-                  variant={selected ? "secondary" : "outline"}
-                  aria-pressed={selected}
-                  onClick={() => onChange(field.id, selected ? "" : String(value))}
-                >
-                  {i18n._(SLEEP_QUALITY_LABELS[value]!)}
-                </Button>
-              );
-            })}
-          </div>
-        </fieldset>
+        <ToggleGroup
+          key={field.id}
+          label={label}
+          optional={!field.required}
+          options={options}
+          value={values[field.id] ?? ""}
+          onChange={(value) => onChange(field.id, value)}
+        />
+      );
+    }
+    if (field.type === "yes_no")
+      return (
+        <ToggleGroup
+          key={field.id}
+          label={label}
+          optional={false}
+          options={[
+            { value: "yes", text: t`Yes` },
+            { value: "no", text: t`No` },
+          ]}
+          value={values[field.id] ?? ""}
+          onChange={(value) => onChange(field.id, value)}
+        />
+      );
+    if (field.type === "duration")
+      return (
+        <div key={field.id} className="grid gap-2">
+          <Label htmlFor={id(field.id)} className="text-sm font-medium">
+            {label}
+          </Label>
+          <Input
+            id={id(field.id)}
+            autoComplete="off"
+            className="num"
+            value={values[field.id] ?? ""}
+            onChange={(event) => onChange(field.id, event.target.value)}
+            placeholder={t`20 min`}
+            aria-describedby={id(`${field.id}-hint`)}
+            aria-invalid={invalid(field.id) || undefined}
+          />
+          <p id={id(`${field.id}-hint`)} className="text-xs text-ink-3">
+            <Trans>Such as 20 min, 1:30 or 45 s.</Trans>
+          </p>
+        </div>
+      );
+    if (field.type === "text")
+      return (
+        <div key={field.id} className="grid gap-2 sm:col-span-2">
+          <Label htmlFor={id(field.id)} className="text-sm font-medium">
+            {label}
+            {!field.required ? (
+              <span className="font-normal text-ink-3"> ({t`optional`})</span>
+            ) : null}
+          </Label>
+          <Textarea
+            id={id(field.id)}
+            rows={2}
+            maxLength={TRACKER_LIMITS.noteLength}
+            value={values[field.id] ?? ""}
+            onChange={(event) => onChange(field.id, event.target.value)}
+            aria-invalid={invalid(field.id) || undefined}
+          />
+        </div>
       );
     // `choice`: the quick form offers the member's own supplements.
     return (
@@ -189,9 +247,12 @@ export function QuickForm({
       ? kind.id === "sleep"
         ? i18n._(MANUAL_SLEEP_ERROR_MESSAGES.order)
         : t`Systolic must be higher than diastolic.`
-      : errors.length > 0
-        ? t`Check the highlighted values.`
-        : null;
+      : errors.includes("value") &&
+          kind.fields.some((field) => field.id === "value" && field.type === "duration")
+        ? t`Enter a duration such as 20 min, 1:30 or 45 s.`
+        : errors.length > 0
+          ? t`Check the highlighted values.`
+          : null;
 
   return (
     <form
@@ -228,5 +289,47 @@ export function QuickForm({
         </Button>
       </div>
     </form>
+  );
+}
+
+/** A labelled row of toggle buttons; pressing the chosen one again clears it. */
+function ToggleGroup({
+  label,
+  optional,
+  options,
+  value,
+  onChange,
+}: {
+  label: string;
+  optional: boolean;
+  options: readonly { value: string; text: string }[];
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const { t } = useLingui();
+  return (
+    <fieldset className="grid gap-2">
+      <legend className="pb-2 text-sm font-medium">
+        {label}
+        {optional ? <span className="font-normal text-ink-3"> ({t`optional`})</span> : null}
+      </legend>
+      <div className="flex flex-wrap gap-2">
+        {options.map((option) => {
+          const selected = value === option.value;
+          return (
+            <Button
+              key={option.value}
+              type="button"
+              size="sm"
+              variant={selected ? "secondary" : "outline"}
+              aria-pressed={selected}
+              onClick={() => onChange(selected ? "" : option.value)}
+            >
+              {option.text}
+            </Button>
+          );
+        })}
+      </div>
+    </fieldset>
   );
 }

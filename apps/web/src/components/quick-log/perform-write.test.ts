@@ -17,6 +17,10 @@ function fakeApi(overrides: Partial<Record<string, unknown>> = {}) {
       create: mock(async () => ({ id: 2, version: 1, created: true })),
       delete: mock(async () => ({})),
     },
+    trackers: {
+      log: mock(async () => ({ id: "entry-1", value: 1200 })),
+      deleteEntry: mock(async () => ({ deleted: true })),
+    },
     ...overrides,
   };
   return api as unknown as QuickLogApi & typeof api;
@@ -42,6 +46,21 @@ describe("performQuickLogWrite", () => {
     expect(api.plainWater.delete).toHaveBeenCalledWith(
       expect.objectContaining({ id: 8, expectedRevision: 1 }),
     );
+  });
+
+  test("a tracker entry saves through trackers.log and its undo deletes it", async () => {
+    const api = fakeApi();
+    const input = {
+      trackerId: "00000000-0000-4000-8000-000000000001",
+      value: 1200,
+      loggedAt: "2026-11-13T09:00:00.000Z",
+      timeZone: "Europe/Lisbon",
+    };
+    const result = await performQuickLogWrite({ type: "tracker", input }, api, mock());
+    expect(api.trackers.log).toHaveBeenCalledWith(input);
+    expect(result.queued).toBe(false);
+    await result.undo!();
+    expect(api.trackers.deleteEntry).toHaveBeenCalledWith({ id: "entry-1" });
   });
 
   test("a replayed supplement intake offers no undo", async () => {

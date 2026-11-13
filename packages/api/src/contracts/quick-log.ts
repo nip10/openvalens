@@ -50,7 +50,14 @@ export type RecentLogEntry = z.infer<typeof recentLogEntry>;
 export const quickLogRecentsInput = z
   .strictObject({ limit: z.number().int().min(1).max(10).optional() })
   .optional();
-export const quickLogRecentsOutput = z.object({ entries: z.array(recentLogEntry) });
+export const quickLogRecentsOutput = z.object({
+  entries: z.array(recentLogEntry),
+  /**
+   * How many recent typed-in entries each kind has (same window and sources),
+   * so a bare number typed in the palette offers the most-logged kinds first.
+   */
+  kindCounts: z.record(z.string(), z.number().int().nonnegative()),
+});
 export type QuickLogRecents = z.infer<typeof quickLogRecentsOutput>;
 
 export const supplementsDueInput = z.strictObject({ timeZone: z.string().min(1).max(100) });

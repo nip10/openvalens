@@ -79,6 +79,14 @@ import { Dialog, DialogContent, DialogTitle } from "@openvalens/ui/components/di
 
 export const Route = createFileRoute("/_auth/workouts")({
   component: WorkoutsPage,
+  /**
+   * `log` opens "Add a session" with the text as its notes, e.g. "ran 5 km" from
+   * a palette one-liner (#440d). Workouts are not parsed; nothing is saved from it.
+   */
+  validateSearch: (search: Record<string, unknown>): { log?: string } =>
+    typeof search.log === "string" && search.log.trim()
+      ? { log: search.log.trim().slice(0, 500) }
+      : {},
 });
 
 function todayIso(): string {
@@ -201,6 +209,30 @@ function WorkoutsPage() {
   const visibleEditing = privateStateCurrent ? editing : null;
   const visibleSelected = privateStateCurrent ? selected : null;
   const visibleDeleting = privateStateCurrent ? deleting : null;
+  const startNewSession = (notes: string | null) => {
+    pendingCreate.current = null;
+    pendingUpdate.current = null;
+    pendingDelete.current = null;
+    setMutationId(globalThis.crypto?.randomUUID?.() ?? "");
+    setSelected(null);
+    setEditing({
+      date: todayIso(),
+      type: "weights",
+      duration: null,
+      notes,
+      intensity: null,
+      effortRating: null,
+      exercises: [],
+    } as WorkoutEditorValue);
+  };
+  // A one-liner from the palette ("ran 5 km", #440d) opens a new session with it as the notes.
+  const { log: typedSession } = Route.useSearch();
+  const navigate = Route.useNavigate();
+  useEffect(() => {
+    if (!typedSession || !scope || !privateStateCurrent) return;
+    startNewSession(typedSession);
+    void navigate({ search: {}, replace: true });
+  }, [typedSession, scope, privateStateCurrent]);
   const detail = useQuery({
     ...orpc.plans.workouts.getWorkout.queryOptions({
       input: { id: selected! },
@@ -579,24 +611,7 @@ function WorkoutsPage() {
 
         <Section sheet icon={Plus} tone="steps" title={<Trans>Add a session</Trans>}>
           {!visibleEditing && (
-            <Button
-              onClick={() => {
-                pendingCreate.current = null;
-                pendingUpdate.current = null;
-                pendingDelete.current = null;
-                setMutationId(globalThis.crypto?.randomUUID?.() ?? "");
-                setSelected(null);
-                setEditing({
-                  date: todayIso(),
-                  type: "weights",
-                  duration: null,
-                  notes: null,
-                  intensity: null,
-                  effortRating: null,
-                  exercises: [],
-                } as WorkoutEditorValue);
-              }}
-            >
+            <Button onClick={() => startNewSession(null)}>
               <Trans>Log session</Trans>
             </Button>
           )}
