@@ -40,6 +40,9 @@ import {
 } from "@openvalens/nutrition/food-lookup";
 import { createPushProvider, describePushIntegration, parsePushConfig } from "@openvalens/push";
 import { createAiAppsService, describeMcpIntegration, parseMcpConfig } from "@openvalens/mcp";
+import { createAiAppsHttp } from "@openvalens/mcp/http";
+import { createMcpDataSources } from "@openvalens/mcp/sources";
+import { createExerciseCatalogService } from "@openvalens/api/services/exercise-catalog";
 import {
   createObjectStorage,
   createStorageService,
@@ -411,6 +414,42 @@ export const aiAppsService = mcpConfig.enabled
         email,
         locales: databaseMessageLocales(db),
         webOrigin: ENV.CORS_ORIGIN,
+      }),
+    })
+  : null;
+
+/**
+ * Issue #439 — the MCP server and REST tool API over {@link aiAppsService}, or
+ * `null` when `MCP_ENABLED` is off (then no route is mounted). The tools read
+ * only the allowlisted sources in `@openvalens/mcp/sources`; the exercise
+ * catalog search is the app's own, injected here.
+ */
+export const aiAppsHttp = aiAppsService
+  ? createAiAppsHttp({
+      db,
+      service: aiAppsService,
+      config: mcpConfig,
+      version: "1.0.0",
+      logger: createStructuredLogger({ level: "info" }).child({ component: "ai-apps" }),
+      sources: createMcpDataSources(db, async (input) => {
+        const rows = await createExerciseCatalogService(db).search({
+          organizationId: input.organizationId,
+          language: "en",
+          limit: input.limit,
+          ...(input.query ? { query: input.query } : {}),
+          ...(input.afterId ? { afterId: input.afterId } : {}),
+        });
+        return rows.map((row) => ({
+          id: row.id,
+          name: row.name,
+          category: row.category,
+          source: row.source,
+          muscles: row.muscles.map((muscle) => ({ name: muscle.name, role: muscle.role })),
+          equipment: row.equipment.map((item) => ({ name: item.name })),
+          license: row.license,
+          author: row.author,
+          attribution: row.attribution,
+        }));
       }),
     })
   : null;

@@ -22,6 +22,14 @@ export type AiHealthToolContext = {
    * throws) when the permission is missing; called on every tool execution.
    */
   canReadRecords: () => Promise<boolean>;
+  /**
+   * Replaces the Coach consent gates (workspace + member AI consent, #13/#123,
+   * and the nutrition-context consent, #86) for a caller that carries its own
+   * consent: a connected AI app's grant (#439), which is separate from Coach
+   * consent in both directions. Called on every execution; absent for the
+   * Coach itself.
+   */
+  accessGate?: () => Promise<AiToolAccessGateResult>;
   correlationId?: string;
   /** Test seam: replace the domain read ports. */
   sources?: AiHealthToolSources;
@@ -38,6 +46,21 @@ export type AiHealthToolContext = {
 export const AI_HEALTH_TOOL_SCOPE: AiConsentScope = "insights";
 
 export type AiToolUnavailableReason = "permission_denied" | "consent_required";
+
+export type AiToolAccessGateResult =
+  | { allowed: true; includeNutritionNumbers: boolean }
+  | { allowed: false; reason: AiToolUnavailableReason };
+
+/** Runs a caller-supplied {@link AiHealthToolContext.accessGate}; fails closed. */
+export async function runAccessGate(
+  gate: () => Promise<AiToolAccessGateResult>,
+): Promise<AiToolAccessGateResult> {
+  try {
+    return await gate();
+  } catch {
+    return { allowed: false, reason: "consent_required" };
+  }
+}
 
 export type ResolvedToolAccess =
   | { allowed: true; sources: AiHealthToolSources; now: Date; logger: StructuredLogger }
@@ -69,6 +92,25 @@ export async function resolveToolAccess(
       reason: "permission_denied",
     });
     return { allowed: false, reason: "permission_denied", now, logger };
+  }
+
+  if (context.accessGate) {
+    const gate = await runAccessGate(context.accessGate);
+    if (!gate.allowed) {
+      logger.warn("ai.tool.blocked", {
+        correlationId: context.correlationId,
+        organizationId: context.organizationId,
+        tool: toolName,
+        reason: gate.reason,
+      });
+      return { allowed: false, reason: gate.reason, now, logger };
+    }
+    return {
+      allowed: true,
+      sources: context.sources ?? createDomainHealthToolSources(context.db, context.userId),
+      now,
+      logger,
+    };
   }
 
   try {

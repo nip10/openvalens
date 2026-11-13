@@ -11,7 +11,7 @@ import { tool } from "ai";
 import { z } from "zod";
 
 import { AiConsentError, requireAiConsent } from "../consent";
-import { logToolExecuted, type AiHealthToolContext } from "./access";
+import { logToolExecuted, runAccessGate, type AiHealthToolContext } from "./access";
 import { datePart, daysBefore, unavailableReason } from "./format";
 import { createDomainHealthToolSources, type AiHealthToolSources } from "./sources";
 
@@ -121,6 +121,27 @@ export async function resolveNutritionToolAccess(
       reason: "permission_denied",
     });
     return { allowed: false, reason: "permission_denied", now, logger };
+  }
+
+  // A connected AI app (#439) carries its own consent instead of the Coach's.
+  if (context.accessGate) {
+    const gate = await runAccessGate(context.accessGate);
+    if (!gate.allowed) {
+      logger.warn("ai.tool.blocked", {
+        correlationId: context.correlationId,
+        organizationId: context.organizationId,
+        tool: toolName,
+        reason: gate.reason,
+      });
+      return { allowed: false, reason: gate.reason, now, logger };
+    }
+    return {
+      allowed: true,
+      includeNumbers: gate.includeNutritionNumbers,
+      sources: context.sources ?? createDomainHealthToolSources(context.db, context.userId),
+      now,
+      logger,
+    };
   }
 
   // Org + per-user AI consent (#13/#123); a revoked grant fails here.

@@ -16,7 +16,7 @@ readiness probe (Issue #57).
 | `foodLookup` | Open Food Facts live barcode lookup (#69)                                 | `off` — local catalogs only     | `FOOD_LOOKUP_PROVIDER=openfoodfacts` + `FOOD_LOOKUP_USER_AGENT` | Implemented |
 | `storage`    | Local disk, S3-compatible (S3, R2, MinIO, B2)                             | Local disk, private             | `STORAGE_PROVIDER=s3` + `STORAGE_S3_*`                          | Implemented |
 | `push`       | Expo push service (forwards to APNs/FCM, #92)                             | `off` — push shown unavailable  | `PUSH_PROVIDER=expo`                                            | Implemented |
-| `mcp`        | Built-in MCP server and REST tool API for AI apps (#439)                  | `off` on self-host, on in Cloud | `MCP_ENABLED=true`                                              | In progress |
+| `mcp`        | Built-in MCP server and REST tool API for AI apps (#439)                  | `off` on self-host, on in Cloud | `MCP_ENABLED=true`                                              | Implemented |
 | `oidc`       | One generic OIDC provider (local accounts stay)                           | `off` — local accounts only     | `OIDC_*` env (Issue #65)                                        | Implemented |
 | `wearables`  | Phone-first ingestion; Oura, Whoop, Polar, Withings, Google Health        | Phone-first, no vendor          | Per-vendor env (Issue #60)                                      | Implemented |
 | Errors       | Sentry (server, web, JS-only mobile), PHI-scrubbed (#54)                  | `off` — nothing is sent         | `SENTRY_DSN` (+ `VITE_SENTRY_DSN`, `EXPO_PUBLIC_SENTRY_DSN`)    | Implemented |
