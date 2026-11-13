@@ -10,9 +10,11 @@ let queryOptions:
   | undefined;
 // Bun keeps module mocks for the rest of the process, so a partial mock must
 // keep the real exports (`orpc`, `queryClient`, ...) for later test files.
+// `@/env` first: loading the real `orpc` reads the server URL from it, and the
+// root test run has no web env unless an earlier file happened to set one up.
+mock.module("@/env", () => ({ ENV: { VITE_SERVER_URL: "https://health.example/" } }));
 const actualOrpc = await import("@/utils/orpc");
 mock.module("@/utils/orpc", () => ({ ...actualOrpc, client: { dataRights: {} } }));
-mock.module("@/env", () => ({ ENV: { VITE_SERVER_URL: "https://health.example/" } }));
 mock.module("@tanstack/react-router", () => ({
   Link: ({ to, children }: { to: string; children: ReactNode }) => <a href={to}>{children}</a>,
 }));
