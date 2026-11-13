@@ -32,8 +32,10 @@ tags: [settings]
 - tapOn:
     id: "tab-cockpit"
 - takeScreenshot: 10-cockpit-pt-PT
-- tapOn:
-    id: "tab-settings"
+- runFlow:
+    file: ../subflows/drawer-go.yaml
+    env:
+      ID: drawer-settings
 - runFlow:
     file: ../subflows/pick-option.yaml
     env:

@@ -104,7 +104,7 @@ export function HealthDataConsentPrompt() {
             <Button.Label>{t`Export records`}</Button.Label>
           </Button>
         </Link>
-        <Link href="/(drawer)/(tabs)/settings" asChild>
+        <Link href="/settings" asChild>
           <Button variant="secondary">
             <Button.Label>{t`Settings and account deletion`}</Button.Label>
           </Button>

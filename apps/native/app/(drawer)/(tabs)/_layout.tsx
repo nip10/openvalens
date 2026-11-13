@@ -1,13 +1,14 @@
 import { useLingui } from "@lingui/react/macro";
-import { Tabs } from "expo-router";
+import { Tabs, useRouter } from "expo-router";
 import {
   Dumbbell,
   History,
   LayoutDashboard,
+  Plus,
   Scale,
-  Settings,
   UtensilsCrossed,
 } from "lucide-react-native";
+import { View } from "react-native";
 
 import { BODY_FONT_MEDIUM, DISPLAY_FONT } from "@/components/fonts";
 import { useThemeColor } from "@/utils/theme";
@@ -15,6 +16,7 @@ import { useModuleEnabled } from "@/lib/modules/use-modules";
 
 export default function TabLayout() {
   const { t } = useLingui();
+  const router = useRouter();
   const themeColorForeground = useThemeColor("foreground");
   const themeColorBackground = useThemeColor("background");
   const themeColorPrimary = useThemeColor("primary");
@@ -22,6 +24,7 @@ export default function TabLayout() {
   const themeColorSheet = useThemeColor("sheet");
   const themeColorRule = useThemeColor("rule");
   const themeColorFood = useThemeColor("food");
+  const themeColorPrimaryForeground = useThemeColor("primary-foreground");
   // Onboarding stage 1: the Body tab follows the body module.
   const bodyEnabled = useModuleEnabled("body");
   const activityEnabled = useModuleEnabled("activity");
@@ -79,6 +82,29 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="log"
+        options={{
+          tabBarButtonTestID: "tab-log",
+          title: t`Log`,
+          tabBarAccessibilityLabel: t`Log something`,
+          tabBarIcon: ({ size }) => (
+            <View
+              className="items-center justify-center rounded-full"
+              style={{ width: size + 14, height: size + 14, backgroundColor: themeColorPrimary }}
+            >
+              <Plus size={size} color={themeColorPrimaryForeground} strokeWidth={2.5} />
+            </View>
+          ),
+        }}
+        listeners={{
+          // The "+" opens the log picker over the current tab instead of switching to it.
+          tabPress: (event) => {
+            event.preventDefault();
+            router.push("/quick-log");
+          },
+        }}
+      />
+      <Tabs.Screen
         name="nutrition"
         options={{
           tabBarButtonTestID: "tab-nutrition",
@@ -95,14 +121,6 @@ export default function TabLayout() {
           title: t`Body`,
           href: bodyEnabled ? undefined : null,
           tabBarIcon: ({ color, size }) => <Scale size={size - 2} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="settings"
-        options={{
-          tabBarButtonTestID: "tab-settings",
-          title: t`Settings`,
-          tabBarIcon: ({ color, size }) => <Settings size={size - 2} color={color} />,
         }}
       />
     </Tabs>

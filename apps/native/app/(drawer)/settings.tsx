@@ -729,7 +729,7 @@ function AdministrationRow({
     enabled: !!userId,
   });
 
-  // The settings tab can stay mounted; refresh admin access on focus so a
+  // The settings screen can stay mounted; refresh admin access on focus so a
   // revoked role removes the link promptly.
   useFocusEffect(
     useCallback(() => {
