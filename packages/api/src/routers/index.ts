@@ -57,6 +57,7 @@ import { telegramRouter } from "./telegram";
 import { timelineRouter } from "./timeline";
 import { vitalsRouter } from "./vitals";
 import { wearablesRouter } from "./wearables";
+import { whatsNewRouter } from "./whats-new";
 
 /**
  * Spelled out so declaration emit references each router by name; the inferred literal type
@@ -120,6 +121,7 @@ type AppRouterShape = {
   timeline: typeof timelineRouter;
   vitals: typeof vitalsRouter;
   wearables: typeof wearablesRouter;
+  whatsNew: typeof whatsNewRouter;
 };
 
 export const appRouter: AppRouterShape = {
@@ -180,6 +182,7 @@ export const appRouter: AppRouterShape = {
   timeline: timelineRouter,
   vitals: vitalsRouter,
   wearables: wearablesRouter,
+  whatsNew: whatsNewRouter,
 };
 
 export type AppRouter = typeof appRouter;

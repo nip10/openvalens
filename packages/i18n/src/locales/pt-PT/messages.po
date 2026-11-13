@@ -1315,6 +1315,14 @@ msgstr "Uma referência definida por si. Opcional."
 msgid "A session can have at most 100 exercises."
 msgstr "Uma sessão pode ter, no máximo, 100 exercícios."
 
+#: apps/native/components/whats-new-settings.tsx
+msgid "A short card on the Cockpit with the highlights of the new version."
+msgstr "Um cartão breve no Painel com os destaques da nova versão."
+
+#: apps/web/src/components/whats-new-section.tsx
+msgid "A short card on Today with the highlights of the new version."
+msgstr "Um cartão breve em Hoje com os destaques da nova versão."
+
 #: apps/native/components/onboarding/steps.tsx
 msgid "A wearable account"
 msgstr "Uma conta de wearable"
@@ -4000,6 +4008,11 @@ msgstr "Não foi possível desligar este dispositivo."
 msgid "Could not disconnect. Sign in again and retry."
 msgstr "Não foi possível desligar. Inicie sessão novamente e tente outra vez."
 
+#: apps/native/components/whats-new-card.tsx
+#: apps/web/src/components/whats-new-card-view.tsx
+msgid "Could not dismiss it. Try again."
+msgstr "Não foi possível dispensar. Tente novamente."
+
 #: apps/native/components/complete-export-card.tsx
 msgid "Could not download the export. Check your connection and try again."
 msgstr "Não foi possível descarregar a exportação. Verifique a ligação e tente novamente."
@@ -4493,6 +4506,11 @@ msgstr "Não foi possível guardar a sua escolha."
 #: apps/web/src/components/insights-section.tsx
 msgid "Could not save your feedback."
 msgstr "Não foi possível guardar o seu comentário."
+
+#: apps/native/components/whats-new-settings.tsx
+#: apps/web/src/components/whats-new-section.tsx
+msgid "Could not save your setting. Try again."
+msgstr "Não foi possível guardar a definição. Tente novamente."
 
 #: apps/native/app/(drawer)/(tabs)/body.tsx
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
@@ -5421,7 +5439,9 @@ msgstr "Desligado"
 msgid "Disconnecting…"
 msgstr "A desligar…"
 
+#: apps/native/components/whats-new-card.tsx
 #: apps/web/src/components/onboarding/finish-setup-card.tsx
+#: apps/web/src/components/whats-new-card-view.tsx
 #: packages/api/src/presenters/energy-estimate.ts
 #: packages/api/src/presenters/insights.ts
 #: packages/api/src/presenters/nutrition-targets.ts
@@ -6671,6 +6691,11 @@ msgstr "Frente"
 #: apps/web/src/components/muscle-guide.tsx
 msgid "front view muscle illustration"
 msgstr "ilustração muscular, vista de frente"
+
+#: apps/native/components/whats-new-card.tsx
+#: apps/web/src/components/whats-new-card-view.tsx
+msgid "Full changelog"
+msgstr "Registo completo de alterações"
 
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
@@ -13492,6 +13517,11 @@ msgstr "Mostrar o tema no ecrã de bloqueio (por exemplo, “sono”)"
 msgid "Show token"
 msgstr "Mostrar token"
 
+#: apps/native/components/whats-new-settings.tsx
+#: apps/web/src/components/whats-new-section.tsx
+msgid "Show what's new after an update"
+msgstr "Mostrar as novidades depois de uma atualização"
+
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 #: apps/web/src/routes/_auth/nutrition.tsx
 msgid "Showing {date}"
@@ -16528,6 +16558,17 @@ msgstr "O que as autoridades de saúde pública da sua região publicam para pes
 #: packages/api/src/presenters/insights.ts
 msgid "What to include"
 msgstr "O que incluir"
+
+#: apps/native/components/whats-new-settings.tsx
+#: apps/web/src/components/whats-new-section.tsx
+#: apps/web/src/routes/_auth/settings/index.tsx
+msgid "What's new"
+msgstr "Novidades"
+
+#: apps/native/components/whats-new-card.tsx
+#: apps/web/src/components/whats-new-card-view.tsx
+msgid "What's new in {shortVersion}"
+msgstr "Novidades da versão {shortVersion}"
 
 #: apps/web/src/routes/_auth/goals.index.tsx
 msgid "When taken"

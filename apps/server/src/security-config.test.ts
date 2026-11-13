@@ -27,9 +27,18 @@ const SERVICES_URL = pathToFileURL(join(SRC_DIR, "services.ts")).href;
 const SERVER_SCHEMA_PATH = join(SRC_DIR, "..", ".env.schema");
 
 const RESULT_MARKER = "SECURITY_CONFIG_RESULT ";
-// Server code uses Lingui macros (#231); the fixture has no bunfig, so load the
-// same preload apps/server/bunfig.toml uses.
+// Server code uses Lingui macros (#231) and the bundled release notes (#446);
+// the fixture has no bunfig, so load the same preloads apps/server/bunfig.toml uses.
 const LINGUI_PRELOAD = join(SRC_DIR, "..", "..", "..", "scripts", "test", "lingui-macro.ts");
+const RELEASE_NOTES_PRELOAD = join(
+  SRC_DIR,
+  "..",
+  "..",
+  "..",
+  "scripts",
+  "test",
+  "release-notes-module.ts",
+);
 
 const CHILD_SCRIPT = `
 const app = (await import(${JSON.stringify(INDEX_URL)})).default;
@@ -116,20 +125,24 @@ async function runColdChild(extraEnv: Record<string, string>): Promise<ColdRun> 
   const childPath = join(fixtureDir, "child.ts");
   await writeFile(childPath, CHILD_SCRIPT);
 
-  const child = spawn(process.execPath, ["run", "--preload", LINGUI_PRELOAD, childPath], {
-    cwd: fixtureDir,
-    env: {
-      PATH: `${binDir}:/usr/bin:/bin`,
-      HOME: homeDir,
-      XDG_CONFIG_HOME: xdgDir,
-      _VARLOCK_FORCE_FILE_ENCRYPTION_FALLBACK: "1",
-      VARLOCK_TELEMETRY_DISABLED: "1",
-      DO_NOT_TRACK: "1",
-      ...BASE_ENV,
-      ...extraEnv,
+  const child = spawn(
+    process.execPath,
+    ["run", "--preload", LINGUI_PRELOAD, "--preload", RELEASE_NOTES_PRELOAD, childPath],
+    {
+      cwd: fixtureDir,
+      env: {
+        PATH: `${binDir}:/usr/bin:/bin`,
+        HOME: homeDir,
+        XDG_CONFIG_HOME: xdgDir,
+        _VARLOCK_FORCE_FILE_ENCRYPTION_FALLBACK: "1",
+        VARLOCK_TELEMETRY_DISABLED: "1",
+        DO_NOT_TRACK: "1",
+        ...BASE_ENV,
+        ...extraEnv,
+      },
+      stdio: ["ignore", "pipe", "pipe"],
     },
-    stdio: ["ignore", "pipe", "pipe"],
-  });
+  );
 
   let stdout = "";
   let stderr = "";

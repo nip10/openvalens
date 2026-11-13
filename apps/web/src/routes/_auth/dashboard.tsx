@@ -27,6 +27,7 @@ import { InsightsSection } from "@/components/insights-section";
 import { ErrorState, Figure, Page, PageHeader, Section, StatTile } from "@/components/page";
 import { ProductSettingsStatus } from "@/components/product-settings-status";
 import { FinishSetupCard } from "@/components/onboarding/finish-setup-card";
+import { WhatsNewCard } from "@/components/whats-new-card";
 import { authClient } from "@/lib/auth-client";
 import { orpc } from "@/utils/orpc";
 import { friendlyDate, pillTone } from "@/utils/friendly";
@@ -110,6 +111,8 @@ function DashboardPage() {
       <ProductSettingsStatus />
 
       <FinishSetupCard />
+
+      <WhatsNewCard />
 
       {isPending ? (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

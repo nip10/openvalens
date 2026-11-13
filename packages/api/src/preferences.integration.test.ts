@@ -8,6 +8,7 @@ import { RPCHandler } from "@orpc/server/fetch";
 import type { Context } from "./context";
 import { readLocaleForEmail, readUserLocale, serverI18n } from "./locale";
 import { appRouter } from "./routers/index";
+import { SERVER_VERSION } from "./server-meta";
 
 /**
  * `preferences.*` over HTTP against a disposable PostgreSQL (Issue #231): the
@@ -118,7 +119,9 @@ describe.skipIf(!url)("preferences over RPC and PostgreSQL", () => {
       "x-test-user": user,
       ...extra,
     });
-    const request = new Request(`http://test.local/rpc/preferences/${path}`, {
+    // `get` is `preferences/get`; `whatsNew/get` names another router.
+    const route = path.includes("/") ? path : `preferences/${path}`;
+    const request = new Request(`http://test.local/rpc/${route}`, {
       method: "POST",
       headers,
       body: JSON.stringify({ json: input }),
@@ -195,5 +198,68 @@ describe.skipIf(!url)("preferences over RPC and PostgreSQL", () => {
     ).toBe(403);
     expect((await call("get", {}, "nobody")).status).toBe(401);
     expect(await readUserLocale(db, "user-a")).toBe("en");
+  });
+
+  // Issue #446 — the "What's new" card, stored on the same row.
+  test("shows this version's card once per member until dismissed, and can be turned off", async () => {
+    const first = await call("whatsNew/get", {});
+    expect(first).toMatchObject({
+      status: 200,
+      body: { enabled: true, card: { version: SERVER_VERSION, locale: "en" } },
+    });
+    const card = (first.body as { card: { highlights: unknown[]; shortVersion: string } }).card;
+    expect(card.highlights.length).toBeGreaterThan(0);
+    expect(SERVER_VERSION.startsWith(`${card.shortVersion}.`)).toBe(true);
+
+    expect(await call("whatsNew/dismiss", { version: SERVER_VERSION })).toMatchObject({
+      status: 200,
+    });
+    expect(await call("whatsNew/get", {})).toMatchObject({ body: { enabled: true, card: null } });
+    // A row created for the card keeps the default language.
+    expect(await readUserLocale(db, "user-a")).toBe("en");
+    // Another member still sees it.
+    expect(await call("whatsNew/get", {}, "user-b")).toMatchObject({
+      body: { card: { version: SERVER_VERSION } },
+    });
+    // An older dismissal does not hide this version's card.
+    await db.execute(
+      sql`update user_preference set whats_new_dismissed_version = '0.0.1' where user_id = 'user-a'`,
+    );
+    expect(await call("whatsNew/get", {})).toMatchObject({
+      body: { card: { version: SERVER_VERSION } },
+    });
+
+    expect(await call("whatsNew/setEnabled", { enabled: false }, "user-b")).toMatchObject({
+      status: 200,
+      body: { enabled: false },
+    });
+    expect(await call("whatsNew/get", {}, "user-b")).toMatchObject({
+      body: { enabled: false, card: null },
+    });
+    await call("whatsNew/setEnabled", { enabled: true }, "user-b");
+    expect(await call("whatsNew/get", {}, "user-b")).toMatchObject({
+      body: { enabled: true, card: { version: SERVER_VERSION } },
+    });
+  });
+
+  test("keeps the saved language when the card state changes", async () => {
+    await call("setLocale", { locale: "pt-PT" });
+    await call("whatsNew/dismiss", { version: SERVER_VERSION });
+    expect(await readUserLocale(db, "user-a")).toBe("pt-PT");
+  });
+
+  test("the card refuses bad input, impersonation and signed-out callers", async () => {
+    expect((await call("whatsNew/dismiss", { version: "1.2" })).status).toBe(400);
+    expect((await call("whatsNew/setEnabled", { enabled: false, userId: "user-b" })).status).toBe(
+      400,
+    );
+    expect(
+      (
+        await call("whatsNew/dismiss", { version: SERVER_VERSION }, "user-a", {
+          "x-test-impersonated": "admin",
+        })
+      ).status,
+    ).toBe(403);
+    expect((await call("whatsNew/get", {}, "nobody")).status).toBe(401);
   });
 });

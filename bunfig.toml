@@ -1,6 +1,7 @@
 env = false
-# Lingui macros in server code run with `bun run` from the root (#231).
-preload = ["./scripts/test/lingui-macro.ts"]
+# Lingui macros in server code run with `bun run` from the root (#231), and the
+# release notes the server bundles (#446).
+preload = ["./scripts/test/lingui-macro.ts", "./scripts/test/release-notes-module.ts"]
 
 [test]
-preload = ["./scripts/test/lingui-macro.ts"]
+preload = ["./scripts/test/lingui-macro.ts", "./scripts/test/release-notes-module.ts"]
