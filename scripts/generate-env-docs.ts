@@ -21,6 +21,7 @@ import {
   ParsedEnvSpecFunctionArgs,
   ParsedEnvSpecFunctionCall,
   ParsedEnvSpecKeyValuePair,
+  ParsedEnvSpecObjectLiteral,
   ParsedEnvSpecStaticValue,
   parseEnvSpecDotEnvFile,
 } from "@env-spec/parser";
@@ -124,6 +125,35 @@ function decoratorBoolean(decorator: ParsedEnvSpecDecorator, schema: string, key
     return value.value;
   }
   return fail("unsupported boolean annotation", { schema, key });
+}
+
+/**
+ * `@sensitive` as a boolean, or Varlock's options form
+ * `@sensitive={preventLeaks=false}` (still sensitive: redacted, never shown
+ * here, but allowed in responses). `{enabled=false}` turns it off.
+ */
+function sensitiveAnnotation(
+  decorator: ParsedEnvSpecDecorator,
+  schema: string,
+  key: string,
+): boolean {
+  const value = decorator.value;
+  if (!(value instanceof ParsedEnvSpecObjectLiteral))
+    return decoratorBoolean(decorator, schema, key);
+  let enabled = true;
+  for (const option of value.values) {
+    const optionValue = option instanceof ParsedEnvSpecKeyValuePair ? option.value : undefined;
+    if (
+      !(option instanceof ParsedEnvSpecKeyValuePair) ||
+      !["enabled", "preventLeaks"].includes(option.key) ||
+      !(optionValue instanceof ParsedEnvSpecStaticValue) ||
+      typeof optionValue.value !== "boolean"
+    ) {
+      return fail("unsupported @sensitive option", { schema, key });
+    }
+    if (option.key === "enabled") enabled = optionValue.value;
+  }
+  return enabled;
 }
 
 function renderTypeArg(node: unknown, schema: string, key: string): string {
@@ -255,7 +285,7 @@ function resolveItem(
   if (decorators.public) {
     sensitive = !decoratorBoolean(decorators.public, schema, item.key);
   } else if (decorators.sensitive) {
-    sensitive = decoratorBoolean(decorators.sensitive, schema, item.key);
+    sensitive = sensitiveAnnotation(decorators.sensitive, schema, item.key);
   }
 
   let required = defaults.required;

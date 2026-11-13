@@ -66,6 +66,52 @@ export function parseMcpConfig(env: McpEnv): McpConfig {
   };
 }
 
+/** Streamable HTTP MCP endpoint; also the OAuth resource path (RFC 8707). */
+export const MCP_ENDPOINT_PATH = "/api/mcp";
+/** RFC 9728 protected resource metadata, root form. */
+export const PROTECTED_RESOURCE_METADATA_PATH = "/.well-known/oauth-protected-resource";
+/** Web pages of the OAuth flow (Issue #439, M1b). */
+export const OAUTH_LOGIN_PAGE_PATH = "/oauth/login";
+export const OAUTH_CONSENT_PAGE_PATH = "/oauth/consent";
+
+export type McpOAuthEndpoints = {
+  /** Canonical resource every access token is bound to: `<server>/api/mcp`. */
+  resource: string;
+  /** RFC 9728 path-inserted metadata URL for the resource. */
+  resourceMetadataUrl: string;
+  loginPage: string;
+  consentPage: string;
+};
+
+/**
+ * OAuth endpoints for connected AI apps, derived from the server URL
+ * (`BETTER_AUTH_URL`) and the web origin (`CORS_ORIGIN`). `null` when the
+ * server URL is plain HTTP on a non-loopback host: OAuth needs HTTPS (web
+ * connectors call from the vendor's cloud), so such a server offers personal
+ * keys only.
+ */
+export function mcpOAuthEndpointsFor(input: {
+  serverUrl: string;
+  webOrigin: string;
+}): McpOAuthEndpoints | null {
+  let server: URL;
+  let web: URL;
+  try {
+    server = new URL(input.serverUrl);
+    web = new URL(input.webOrigin);
+  } catch {
+    return null;
+  }
+  const loopback = ["localhost", "127.0.0.1", "[::1]"].includes(server.hostname);
+  if (server.protocol !== "https:" && !(server.protocol === "http:" && loopback)) return null;
+  return {
+    resource: `${server.origin}${MCP_ENDPOINT_PATH}`,
+    resourceMetadataUrl: `${server.origin}${PROTECTED_RESOURCE_METADATA_PATH}${MCP_ENDPOINT_PATH}`,
+    loginPage: `${web.origin}${OAUTH_LOGIN_PAGE_PATH}`,
+    consentPage: `${web.origin}${OAUTH_CONSENT_PAGE_PATH}`,
+  };
+}
+
 export function describeMcpIntegration(
   config: McpConfig,
 ): IntegrationStatus<typeof MCP_PROVIDER_ID> {

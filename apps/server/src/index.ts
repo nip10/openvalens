@@ -6,6 +6,7 @@ import { CSP_REPORT_PATH, createCspReportHandler, resolveCspMode } from "./secur
 import { pingDatabase } from "@openvalens/api/routers/health";
 import { appRouter } from "@openvalens/api/routers/index";
 import { ensureActiveOrganization, personalWorkspaceSlug } from "@openvalens/auth/authz/auth-org";
+import { createMcpOAuthMetadata } from "@openvalens/auth/mcp-oauth";
 import { InMemoryRateLimiter } from "@openvalens/ai/rate-limit";
 import { cspViolationEvent } from "@openvalens/db/schema/security";
 import {
@@ -57,6 +58,7 @@ import {
   deploymentInfo,
   getBillingService,
   getExerciseCatalogAssetService,
+  mcpOAuthConsent,
   signInOptions,
   storageService,
   telegramClient,
@@ -129,6 +131,14 @@ if (aiAppsService) {
     });
   purgeAiAppCalls();
   setInterval(purgeAiAppCalls, 6 * 60 * 60 * 1000).unref();
+  // Issue #439 (M1b) — dynamically registered OAuth clients that never
+  // completed a grant are deleted once 24 hours old; checked hourly.
+  const purgeOAuthClients = () =>
+    void service.purgeAbandonedOAuthClients().catch((error: unknown) => {
+      logger.warn("ai_apps.oauth_client_purge.failed", { error });
+    });
+  purgeOAuthClients();
+  setInterval(purgeOAuthClients, 60 * 60 * 1000).unref();
 }
 
 // Issue #9 — resolve the correlation id before anything else so the CORS
@@ -369,10 +379,13 @@ scheduleExerciseCatalogBootstrap({
 registerServerMetaRoute(app, { signInOptions, profile: () => deploymentInfo });
 
 // Issue #439 — MCP server (`/api/mcp`) and REST tool API (`/api/v1/tools`),
-// mounted only when `MCP_ENABLED` is on. Bearer personal keys only.
+// mounted only when `MCP_ENABLED` is on. Bearer personal keys, plus (M1b)
+// OAuth access tokens on `/api/mcp` and the RFC 9728 / RFC 8414 well-known
+// documents when OAuth is on.
 registerAiAppsRoutes(app, {
   http: aiAppsHttp,
   allowedOriginHosts: aiAppsAllowedOriginHosts([ENV.CORS_ORIGIN, ENV.BETTER_AUTH_URL]),
+  oauth: mcpOAuthConsent ? createMcpOAuthMetadata(auth) : null,
 });
 
 // Issue #308 — GET liveness with a database ping, for uptime monitors.

@@ -34,6 +34,7 @@ const ALLOWED_SCHEMA_MODULES = new Set([
   "@openvalens/db/schema/clinical",
   "@openvalens/db/schema/health-record",
   "@openvalens/db/schema/insights",
+  "@openvalens/db/schema/oauth",
   "@openvalens/db/schema/plans",
   "@openvalens/db/schema/product-settings",
 ]);
@@ -107,6 +108,11 @@ describe("connected AI apps never reach cycle data or photos", () => {
       "ai_app_grant",
       "ai_app_key",
       "ai_app_call",
+      // OAuth token lookup, revoke and client cleanup (M1b): no member data.
+      "oauth_access_token",
+      "oauth_refresh_token",
+      "oauth_consent",
+      "oauth_client",
       "member",
       "organization",
       "user",

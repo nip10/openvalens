@@ -1,9 +1,20 @@
 import { writeAuditLog, type AuditEventType } from "@openvalens/audit-security";
+import {
+  hashOAuthToken,
+  isOAuthAccessTokenFormat,
+  MCP_OAUTH_ACCESS_TOKEN_PREFIX,
+} from "@openvalens/auth/mcp-oauth/tokens";
 import type { Database } from "@openvalens/db";
 import { aiAppCall, aiAppGrant, aiAppKey } from "@openvalens/db/schema/ai-apps";
 import { member, organization, user } from "@openvalens/db/schema/auth";
+import {
+  oauthAccessToken,
+  oauthClient,
+  oauthConsent,
+  oauthRefreshToken,
+} from "@openvalens/db/schema/oauth";
 import { createStructuredLogger, type StructuredLogger } from "@openvalens/observability";
-import { and, desc, eq, gt, isNull, lt, or, sql } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, isNull, lt, or, sql } from "drizzle-orm";
 
 import {
   bearerToken,
@@ -35,6 +46,14 @@ import { parseAiAppsSetting, readAiAppsSetting, writeAiAppsSetting } from "./set
  * can connect AI apps" off stops the very next call. Bearer authentication
  * never consults a session cookie, so an admin or impersonated browser session
  * can never act through this path.
+ *
+ * OAuth connections (M1b) are grants of kind `oauth`. Better Auth issues their
+ * opaque tokens; each consent, access token and refresh token carries the
+ * grant id in `reference_id`. A bearer `ovat_…` token is looked up by digest,
+ * must be unrevoked, unexpired, issued to the grant's client and bound to this
+ * MCP resource (RFC 8707), and then passes the very same grant checks as a
+ * personal key. Its effective scopes are the grant's scopes the token also
+ * carries.
  */
 
 export const AI_APP_CONSENT_VERSION = "mcp-v1";
@@ -110,7 +129,15 @@ export type AiAppAuthFailure =
   | "revoked"
   | "expired"
   | "not_owner"
-  | "workspace_disabled";
+  | "workspace_disabled"
+  /** An OAuth token issued for another resource (RFC 8707), or used off `/api/mcp`. */
+  | "wrong_audience";
+
+/** Clients that never complete a grant are deleted after this long. */
+export const ABANDONED_OAUTH_CLIENT_HOURS = 24;
+
+/** Most characters of a client's self-declared name kept as the grant label. */
+const MAX_LABEL_LENGTH = 80;
 
 export type AiAppAuthResult =
   | { ok: true; principal: AiAppGrantPrincipal }
@@ -145,6 +172,38 @@ export type CreatedPersonalKey = {
   grant: AiAppGrantSummary;
 };
 
+/** What the "new connection" security email needs. */
+export type AiAppOAuthConnectedEvent = {
+  grantId: string;
+  userId: string;
+  organizationId: string;
+  /** The client's self-declared (unverified) name. */
+  label: string;
+  /** Host of a CIMD client id, or `null` for a dynamically registered client. */
+  clientIdHost: string | null;
+  scopes: readonly string[];
+  createdAt: Date;
+};
+
+export type ConnectOAuthClientInput = {
+  userId: string;
+  organizationId: string;
+  clientId: string;
+  /** The client's self-declared name; stored as the grant label. */
+  clientName: string | null;
+  clientIdHost: string | null;
+  scopes: readonly string[];
+  /** Must equal {@link AI_APP_CONSENT_VERSION}. */
+  consentVersion: string;
+  /**
+   * Completes the OAuth authorization for the grant (Better Auth's consent
+   * step) and returns the client's redirect URL. A failure rolls the grant
+   * back and is rethrown.
+   */
+  authorize: (grant: { grantId: string; scopes: readonly string[] }) => Promise<string>;
+  correlationId?: string;
+};
+
 export type AiAppsServiceOptions = {
   db: Database;
   now?: () => Date;
@@ -154,6 +213,13 @@ export type AiAppsServiceOptions = {
    * failure is logged and the key is still returned.
    */
   onKeyCreated?: (event: AiAppKeyCreatedEvent) => Promise<void>;
+  /** Sends the "an app was connected" security email. Same rules as `onKeyCreated`. */
+  onOAuthConnected?: (event: AiAppOAuthConnectedEvent) => Promise<void>;
+  /**
+   * OAuth access tokens are accepted only when set: the canonical MCP resource
+   * URL every token must be bound to.
+   */
+  oauth?: { resource: string } | null;
 };
 
 export type AiAppsService = ReturnType<typeof createAiAppsService>;
@@ -416,6 +482,7 @@ export function createAiAppsService(options: AiAppsServiceOptions) {
       )
       .returning({ id: aiAppGrant.id, kind: aiAppGrant.kind });
     const row = updated[0];
+    if (row?.kind === "oauth") await dropOAuthTokens([row.id]);
     if (!row) {
       const existing = await db
         .select({ id: aiAppGrant.id })
@@ -454,28 +521,26 @@ export function createAiAppsService(options: AiAppsServiceOptions) {
     return { revoked: true, found: true };
   }
 
-  /**
-   * Resolves an `Authorization: Bearer ov_…` header to its grant, re-checking
-   * everything that can stop a grant. Only the `Bearer` scheme is read; cookies
-   * are never consulted.
-   */
-  async function authenticate(
-    authorizationHeader: string | null | undefined,
-    context: { correlationId?: string } = {},
-  ): Promise<AiAppAuthResult> {
-    const token = bearerToken(authorizationHeader);
-    if (!token) return { ok: false, reason: "missing" };
-    if (!isPersonalKeyFormat(token)) return { ok: false, reason: "invalid" };
+  /** Deletes every OAuth token and consent of these grants (revoke, replay). */
+  async function dropOAuthTokens(grantIds: string[]): Promise<void> {
+    if (grantIds.length === 0) return;
+    await db.transaction(async (tx) => {
+      await tx.delete(oauthAccessToken).where(inArray(oauthAccessToken.referenceId, grantIds));
+      await tx.delete(oauthRefreshToken).where(inArray(oauthRefreshToken.referenceId, grantIds));
+      await tx.delete(oauthConsent).where(inArray(oauthConsent.referenceId, grantIds));
+    });
+  }
 
-    const rows = await db
+  /** The grant with everything that can stop it, joined in one read. */
+  function grantWithStanding() {
+    return db
       .select({
         grant: aiAppGrant,
         role: member.role,
         banned: user.banned,
         metadata: organization.metadata,
       })
-      .from(aiAppKey)
-      .innerJoin(aiAppGrant, eq(aiAppGrant.id, aiAppKey.grantId))
+      .from(aiAppGrant)
       .innerJoin(user, eq(user.id, aiAppGrant.userId))
       .innerJoin(organization, eq(organization.id, aiAppGrant.organizationId))
       .leftJoin(
@@ -484,9 +549,90 @@ export function createAiAppsService(options: AiAppsServiceOptions) {
           eq(member.organizationId, aiAppGrant.organizationId),
           eq(member.userId, aiAppGrant.userId),
         ),
-      )
-      .where(eq(aiAppKey.keyHash, hashPersonalKey(token)))
+      );
+  }
+
+  /**
+   * Resolves an `ovat_…` OAuth access token to its grant id and the scopes the
+   * token itself carries, or a refusal. The token must be unrevoked,
+   * unexpired, bound to this MCP resource and point at an `oauth` grant of the
+   * same client and member.
+   */
+  async function resolveOAuthToken(
+    token: string,
+  ): Promise<
+    { ok: true; grantId: string; scopes: string[] } | { ok: false; reason: AiAppAuthFailure }
+  > {
+    if (!options.oauth) return { ok: false, reason: "invalid" };
+    const digest = hashOAuthToken(token.slice(MCP_OAUTH_ACCESS_TOKEN_PREFIX.length));
+    const rows = await db
+      .select({
+        token: oauthAccessToken,
+        grantKind: aiAppGrant.kind,
+        grantClientId: aiAppGrant.oauthClientId,
+        grantUserId: aiAppGrant.userId,
+      })
+      .from(oauthAccessToken)
+      .leftJoin(aiAppGrant, sql`${aiAppGrant.id}::text = ${oauthAccessToken.referenceId}`)
+      .where(eq(oauthAccessToken.token, digest))
       .limit(1);
+    const row = rows[0];
+    if (!row) return { ok: false, reason: "invalid" };
+    const issued = row.token;
+    if (issued.revoked) return { ok: false, reason: "revoked" };
+    if (!issued.expiresAt || issued.expiresAt.getTime() <= now().getTime()) {
+      return { ok: false, reason: "expired" };
+    }
+    // RFC 8707: only tokens issued for exactly this resource. No passthrough.
+    if (!(issued.resources ?? []).includes(options.oauth.resource)) {
+      return { ok: false, reason: "wrong_audience" };
+    }
+    if (
+      !issued.referenceId ||
+      row.grantKind !== "oauth" ||
+      row.grantClientId !== issued.clientId ||
+      row.grantUserId !== issued.userId
+    ) {
+      return { ok: false, reason: "invalid" };
+    }
+    return { ok: true, grantId: issued.referenceId, scopes: [...issued.scopes] };
+  }
+
+  /**
+   * Resolves an `Authorization: Bearer …` header (a personal `ov_…` key, or an
+   * `ovat_…` OAuth access token when `allowOAuth`) to its grant, re-checking
+   * everything that can stop a grant. Only the `Bearer` scheme is read; cookies
+   * are never consulted. OAuth tokens are bound to `/api/mcp`, so the REST
+   * tool API passes `allowOAuth: false` and they are refused there.
+   */
+  async function authenticate(
+    authorizationHeader: string | null | undefined,
+    context: { correlationId?: string; allowOAuth?: boolean } = {},
+  ): Promise<AiAppAuthResult> {
+    const token = bearerToken(authorizationHeader);
+    if (!token) return { ok: false, reason: "missing" };
+
+    let rows: Array<{
+      grant: typeof aiAppGrant.$inferSelect;
+      role: string | null;
+      banned: boolean | null;
+      metadata: unknown;
+    }>;
+    let tokenScopes: string[] | null = null;
+    if (isPersonalKeyFormat(token)) {
+      rows = await grantWithStanding()
+        .innerJoin(aiAppKey, eq(aiAppKey.grantId, aiAppGrant.id))
+        .where(eq(aiAppKey.keyHash, hashPersonalKey(token)))
+        .limit(1);
+    } else if (isOAuthAccessTokenFormat(token)) {
+      if (context.allowOAuth === false) return { ok: false, reason: "wrong_audience" };
+      const resolved = await resolveOAuthToken(token);
+      if (!resolved.ok) return resolved;
+      tokenScopes = resolved.scopes;
+      rows = await grantWithStanding().where(eq(aiAppGrant.id, resolved.grantId)).limit(1);
+    } else {
+      return { ok: false, reason: "invalid" };
+    }
     const row = rows[0];
     if (!row || row.banned === true) return { ok: false, reason: "invalid" };
 
@@ -532,7 +678,9 @@ export function createAiAppsService(options: AiAppsServiceOptions) {
         kind: grant.kind as AiAppGrantKind,
         userId: grant.userId,
         organizationId: grant.organizationId,
-        scopes: [...grant.scopes],
+        scopes: tokenScopes
+          ? grant.scopes.filter((scope) => tokenScopes.includes(scope))
+          : [...grant.scopes],
         label: grant.label,
       },
     };
@@ -635,8 +783,274 @@ export function createAiAppsService(options: AiAppsServiceOptions) {
     return change.after;
   }
 
+  /**
+   * Approves an OAuth connection: creates the member's `oauth` grant for this
+   * client in this workspace (or, when one is already active, sets its scopes
+   * to the newly approved ones, which is how a client steps up after a 403
+   * `insufficient_scope`), then runs `authorize` to finish the OAuth consent
+   * with the grant as its reference. If `authorize` fails, a new grant is
+   * deleted and an existing one gets its previous scopes back.
+   *
+   * The same rules as a personal key apply: the current AI-app consent, only
+   * grantable scopes, the member must own the workspace and the owner must
+   * allow AI apps. A new connection is audited and sends the security email.
+   */
+  async function connectOAuthClient(
+    input: ConnectOAuthClientInput,
+  ): Promise<{ redirectUrl: string; grant: AiAppGrantSummary; created: boolean }> {
+    if (input.consentVersion !== AI_APP_CONSENT_VERSION) {
+      throw new AiAppGrantError(
+        "CONSENT_REQUIRED",
+        "Agree to the current AI-app consent to connect an app.",
+        { consentVersion: AI_APP_CONSENT_VERSION },
+      );
+    }
+    const scopes = normalizeScopes(input.scopes);
+    if (!scopes.ok) {
+      throw new AiAppGrantError("INVALID_SCOPE", "One or more scopes cannot be granted.", {
+        invalid: scopes.invalid,
+      });
+    }
+    const eligibility = await canCreate(input);
+    if (!eligibility.allowed) {
+      throw eligibility.reason === "WORKSPACE_DISABLED"
+        ? new AiAppGrantError(
+            "WORKSPACE_DISABLED",
+            "The workspace owner has turned off connecting AI apps.",
+          )
+        : new AiAppGrantError("NOT_OWNER", "Only the workspace owner can connect AI apps for now.");
+    }
+
+    const at = now();
+    const label = (input.clientName?.trim() || input.clientIdHost || "AI app").slice(
+      0,
+      MAX_LABEL_LENGTH,
+    );
+    const [existing] = await db
+      .select()
+      .from(aiAppGrant)
+      .where(
+        and(
+          eq(aiAppGrant.userId, input.userId),
+          eq(aiAppGrant.organizationId, input.organizationId),
+          eq(aiAppGrant.kind, "oauth"),
+          eq(aiAppGrant.oauthClientId, input.clientId),
+          isNull(aiAppGrant.revokedAt),
+        ),
+      )
+      .orderBy(desc(aiAppGrant.createdAt))
+      .limit(1);
+
+    let row: typeof aiAppGrant.$inferSelect;
+    if (existing) {
+      const [updated] = await db
+        .update(aiAppGrant)
+        .set({ scopes: scopes.scopes, consentedAt: at, label })
+        .where(eq(aiAppGrant.id, existing.id))
+        .returning();
+      if (!updated) throw new Error("ai_app_grant update returned no row");
+      row = updated;
+    } else {
+      const [inserted] = await db
+        .insert(aiAppGrant)
+        .values({
+          organizationId: input.organizationId,
+          userId: input.userId,
+          kind: "oauth",
+          label,
+          scopes: scopes.scopes,
+          consentVersion: AI_APP_CONSENT_VERSION,
+          consentedAt: at,
+          oauthClientId: input.clientId,
+          expiresAt: null,
+          createdAt: at,
+        })
+        .returning();
+      if (!inserted) throw new Error("ai_app_grant insert returned no row");
+      row = inserted;
+    }
+
+    let redirectUrl: string;
+    try {
+      redirectUrl = await input.authorize({ grantId: row.id, scopes: row.scopes });
+    } catch (error) {
+      if (existing) {
+        await db
+          .update(aiAppGrant)
+          .set({
+            scopes: existing.scopes,
+            consentedAt: existing.consentedAt,
+            label: existing.label,
+          })
+          .where(eq(aiAppGrant.id, existing.id));
+      } else {
+        await dropOAuthTokens([row.id]);
+        await db.delete(aiAppGrant).where(eq(aiAppGrant.id, row.id));
+      }
+      throw error;
+    }
+
+    await audit({
+      eventType: "AI_APP_CONSENT_GIVEN",
+      organizationId: input.organizationId,
+      userId: input.userId,
+      grantId: row.id,
+      correlationId: input.correlationId,
+      metadata: { consentVersion: AI_APP_CONSENT_VERSION, kind: "oauth", scopes: scopes.scopes },
+    });
+    if (!existing) {
+      await audit({
+        eventType: "AI_APP_GRANT_CREATED",
+        organizationId: input.organizationId,
+        userId: input.userId,
+        grantId: row.id,
+        correlationId: input.correlationId,
+        metadata: {
+          kind: "oauth",
+          clientIdHost: input.clientIdHost,
+          scopes: scopes.scopes,
+          consentVersion: AI_APP_CONSENT_VERSION,
+        },
+      });
+      if (options.onOAuthConnected) {
+        try {
+          await options.onOAuthConnected({
+            grantId: row.id,
+            userId: input.userId,
+            organizationId: input.organizationId,
+            label,
+            clientIdHost: input.clientIdHost,
+            scopes: scopes.scopes,
+            createdAt: at,
+          });
+        } catch (error) {
+          logger.warn("ai_apps.connection_email.failed", {
+            correlationId: input.correlationId,
+            organizationId: input.organizationId,
+            grantId: row.id,
+            error,
+          });
+        }
+      }
+    }
+    logger.info(existing ? "ai_apps.grant.reconsented" : "ai_apps.grant.created", {
+      correlationId: input.correlationId,
+      organizationId: input.organizationId,
+      grantId: row.id,
+      kind: "oauth",
+      scopeCount: scopes.scopes.length,
+    });
+    return { redirectUrl, grant: summary(row, null), created: !existing };
+  }
+
+  /**
+   * A rotated refresh token was presented again: revokes every active OAuth
+   * grant of that member for that client (Better Auth tears down the whole
+   * token family of the pair) and drops their tokens. Returns how many.
+   */
+  async function revokeOAuthAfterReplay(input: {
+    clientId: string;
+    userId: string;
+    correlationId?: string;
+  }): Promise<number> {
+    const revoked = await db
+      .update(aiAppGrant)
+      .set({ revokedAt: now(), revokedReason: "revoked" })
+      .where(
+        and(
+          eq(aiAppGrant.kind, "oauth"),
+          eq(aiAppGrant.oauthClientId, input.clientId),
+          eq(aiAppGrant.userId, input.userId),
+          isNull(aiAppGrant.revokedAt),
+        ),
+      )
+      .returning({ id: aiAppGrant.id, organizationId: aiAppGrant.organizationId });
+    await dropOAuthTokens(revoked.map((grant) => grant.id));
+    for (const grant of revoked) {
+      await audit({
+        eventType: "AI_APP_GRANT_REVOKED",
+        organizationId: grant.organizationId,
+        userId: input.userId,
+        grantId: grant.id,
+        correlationId: input.correlationId,
+        metadata: { kind: "oauth", reason: "refresh_token_replay" },
+      });
+      logger.warn("ai_apps.grant.revoked_after_replay", {
+        correlationId: input.correlationId,
+        organizationId: grant.organizationId,
+        grantId: grant.id,
+      });
+    }
+    return revoked.length;
+  }
+
+  /**
+   * Deletes dynamically registered clients older than 24 hours that never
+   * completed a grant (their tokens, consents and resource links go with
+   * them). Clients from a metadata document are kept: they are re-fetched,
+   * not registered. Returns how many were deleted.
+   */
+  async function purgeAbandonedOAuthClients(): Promise<number> {
+    const cutoff = new Date(now().getTime() - ABANDONED_OAUTH_CLIENT_HOURS * 3_600_000);
+    const deleted = await db
+      .delete(oauthClient)
+      .where(
+        and(
+          isNull(oauthClient.clientDiscoveryId),
+          or(isNull(oauthClient.createdAt), lt(oauthClient.createdAt, cutoff)),
+          sql`not exists (select 1 from ${aiAppGrant} where ${aiAppGrant.oauthClientId} = ${oauthClient.clientId})`,
+        ),
+      )
+      .returning({ id: oauthClient.id });
+    return deleted.length;
+  }
+
+  /**
+   * The workspaces this member could connect an app to, for the consent
+   * screen's picker: every membership, with whether a grant may be created
+   * there now (the member owns it and the owner allows AI apps).
+   */
+  async function listConnectableWorkspaces(userId: string): Promise<
+    Array<{
+      organizationId: string;
+      name: string;
+      allowed: boolean;
+      reason: "NOT_OWNER" | "WORKSPACE_DISABLED" | null;
+    }>
+  > {
+    const rows = await db
+      .select({
+        organizationId: organization.id,
+        name: organization.name,
+        role: member.role,
+        metadata: organization.metadata,
+      })
+      .from(member)
+      .innerJoin(organization, eq(organization.id, member.organizationId))
+      .where(eq(member.userId, userId))
+      .orderBy(organization.name, organization.id);
+    return rows.map((row) => {
+      const reason =
+        row.role !== "owner"
+          ? ("NOT_OWNER" as const)
+          : !parseAiAppsSetting(row.metadata).membersCanConnect
+            ? ("WORKSPACE_DISABLED" as const)
+            : null;
+      return {
+        organizationId: row.organizationId,
+        name: row.name,
+        allowed: reason === null,
+        reason,
+      };
+    });
+  }
+
   return Object.freeze({
     canCreate,
+    listConnectableWorkspaces,
+    connectOAuthClient,
+    revokeOAuthAfterReplay,
+    purgeAbandonedOAuthClients,
     createPersonalKey,
     listGrants,
     revokeGrant,

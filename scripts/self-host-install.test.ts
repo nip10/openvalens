@@ -298,6 +298,15 @@ describe("deploy/Caddyfile", () => {
     for (const prefix of ["/api/*", "/rpc/*", "/api-reference/*", SERVER_META_PATH]) {
       expect(matcher).toContain(prefix);
     }
+    // #439 (M1b) — OAuth metadata for AI apps lives at the domain root.
+    for (const path of [
+      "/.well-known/oauth-protected-resource",
+      "/.well-known/oauth-protected-resource/*",
+      "/.well-known/oauth-authorization-server",
+      "/.well-known/oauth-authorization-server/*",
+    ]) {
+      expect(matcher.split(" ")).toContain(path);
+    }
     expect(CSP_REPORT_PATH.startsWith("/api/")).toBe(true);
     expect(caddyfile).toContain("reverse_proxy server:3000");
     expect(caddyfile).toContain("reverse_proxy web:80");

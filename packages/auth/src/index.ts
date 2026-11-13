@@ -1,7 +1,8 @@
 import { drizzleAdapter } from "@better-auth/drizzle-adapter/relations-v2";
 import { expo } from "@better-auth/expo";
 import { sql, type Database } from "@openvalens/db";
-import * as schema from "@openvalens/db/schema/auth";
+import * as authSchema from "@openvalens/db/schema/auth";
+import * as oauthSchema from "@openvalens/db/schema/oauth";
 import type { EmailService } from "@openvalens/email";
 import {
   databaseMessageLocales,
@@ -25,6 +26,7 @@ import {
   type WorkspaceInvitationEmails,
 } from "./invitation-email";
 import { sendAuthMagicLink } from "./magic-link";
+import { createMcpOAuthPlugins, type McpOAuthOptions } from "./mcp-oauth/plugin";
 import type { OidcProviderConfig } from "./oidc/config";
 import { createGenericOidcPlugin } from "./providers/generic-oidc";
 import { publicSignUpPlugin, type PublicSignUpPluginOptions } from "./public-sign-up-plugin";
@@ -132,6 +134,13 @@ export type CreateAuthOptions = {
    * Better Auth's default (on in production).
    */
   rateLimitEnabled?: boolean;
+  /**
+   * Issue #439 (M1b) — OAuth 2.1 for connected AI apps (`@better-auth/mcp` +
+   * `@better-auth/cimd`). Omitted or `null` (the MCP server is off, or the
+   * server has no HTTPS URL) mounts no OAuth endpoint and serves no OAuth
+   * metadata.
+   */
+  mcpOAuth?: McpOAuthOptions | null;
 };
 
 /**
@@ -216,7 +225,7 @@ export function createAuth(env: AuthConfig, database: Database, options: CreateA
   return betterAuth({
     database: drizzleAdapter(database, {
       provider: "pg",
-      schema,
+      schema: { ...authSchema, ...oauthSchema },
     }),
     trustedOrigins: [
       env.CORS_ORIGIN,
@@ -540,6 +549,9 @@ export function createAuth(env: AuthConfig, database: Database, options: CreateA
             }),
           ]
         : []),
+      // Issue #439 (M1b) — OAuth 2.1 authorization server for AI apps, only
+      // while the MCP server is on.
+      ...(options.mcpOAuth ? createMcpOAuthPlugins(options.mcpOAuth) : []),
       // App store review sign-in: one existing account, a fixed code, a
       // normal session. Refuses everything unless both settings are set.
       reviewSignInPlugin({ config: options.reviewSignIn ?? null, database }),

@@ -79,6 +79,11 @@ export const PROCEDURE_ACCESS: Readonly<Record<string, ProcedureAccessClass>> = 
   "aiApps.revokeGrant": ALWAYS,
   "aiApps.workspaceSetting.get": R,
   "aiApps.workspaceSetting.set": ALWAYS,
+  // OAuth consent screen (M1b): approving a connection creates a grant, like a
+  // new key; denying it changes nothing.
+  "aiApps.oauth.describe": R,
+  "aiApps.oauth.approve": W,
+  "aiApps.oauth.deny": ALWAYS,
 
   "analytics.getPreference": R,
   // Opting out of analytics is consent withdrawal; capture is product telemetry, not a record.

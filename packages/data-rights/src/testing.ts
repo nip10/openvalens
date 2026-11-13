@@ -119,6 +119,13 @@ export async function seedEveryModule(db: Database, who: string): Promise<void> 
     `with grant_row as (insert into ai_app_grant (organization_id, user_id, kind, label, scopes, consent_version, consented_at) values ('${org}', '${user}', 'personal_key', 'Seeded key ${who}', '{records:read}', 'mcp-v1', now()) returning id),
           key_row as (insert into ai_app_key (grant_id, user_id, key_hash, display_prefix) select id, '${user}', 'seed-key-hash-${who}', 'ov_seed00' from grant_row)
        insert into ai_app_call (grant_id, user_id, tool, transport, status, row_count) select id, '${user}', 'labs', 'mcp', 'ok', 3 from grant_row`,
+    // OAuth connection (#439, M1b): a client the member registered, an
+    // `oauth` grant and the consent and token pair pointing at it.
+    `insert into oauth_client (id, client_id, client_secret, user_id, name, redirect_uris, created_at) values ('oc-${who}', 'oauth-client-${who}', 'seed-client-secret-${who}', '${user}', 'Seeded app ${who}', '{https://app.example.test/callback}', now())`,
+    `with grant_row as (insert into ai_app_grant (organization_id, user_id, kind, label, scopes, consent_version, consented_at, oauth_client_id) values ('${org}', '${user}', 'oauth', 'Seeded app ${who}', '{records:read}', 'mcp-v1', now(), 'oauth-client-${who}') returning id),
+          consent_row as (insert into oauth_consent (id, client_id, user_id, reference_id, scopes, created_at, updated_at) select 'ocs-${who}', 'oauth-client-${who}', '${user}', id::text, '{records:read,offline_access}', now(), now() from grant_row),
+          refresh_row as (insert into oauth_refresh_token (id, token, client_id, user_id, reference_id, resources, scopes, expires_at, created_at, rotation_replay_response) select 'ort-${who}', 'seed-refresh-hash-${who}', 'oauth-client-${who}', '${user}', id::text, '{https://server.example.test/api/mcp}', '{records:read,offline_access}', now() + interval '90 days', now(), 'seed-replay-response-${who}' from grant_row returning id)
+       insert into oauth_access_token (id, token, client_id, user_id, reference_id, refresh_id, resources, scopes, expires_at, created_at) select 'oat-${who}', 'seed-access-hash-${who}', 'oauth-client-${who}', '${user}', g.id::text, r.id, '{https://server.example.test/api/mcp}', '{records:read,offline_access}', now() + interval '1 hour', now() from grant_row g, refresh_row r`,
     `insert into wellness_profile (user_id, revision) values ('${user}', 1)`,
     // Weight and Health Connect
     `insert into weight_event (organization_id, user_id, date, measured_at, source, weight_kg, created_at) values ('${org}', '${user}', '2026-10-01', '2026-10-01T07:00', 'manual', 72, '2026-10-01')`,

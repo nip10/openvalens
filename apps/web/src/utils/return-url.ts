@@ -3,6 +3,7 @@
  *
  * Only same-web-origin paths are allowed. The whitelist is intentionally small:
  * - /setup and /join for admission resume flows
+ * - /oauth/login to resume an AI app's authorization (Issue #439)
  * - /accept-invitation/<opaqueId> for workspace invitation sign-ins
  *
  * Rejects external URLs, protocol-relative URLs, backslashes, query/hash
@@ -10,7 +11,9 @@
  * admission token/proof is never placed in the URL.
  */
 
-const ALLOWED_PUBLIC_PATHS = ["/setup", "/join"] as const;
+// `/oauth/login` resumes an AI app's authorization after sign-in (#439, M1b);
+// its parameters wait in local storage, never in this URL.
+const ALLOWED_PUBLIC_PATHS = ["/setup", "/join", "/oauth/login"] as const;
 
 // Reject ASCII control characters (0x00–0x1f) and backslashes without a
 // control-character regex literal (avoids the no-control-regex lint rule while
