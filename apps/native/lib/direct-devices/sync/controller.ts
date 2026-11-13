@@ -863,7 +863,7 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
           startTime: sample.startTime,
           endTime: sample.endTime,
           activity: sample.activity,
-          title: null,
+          title: sample.title,
         })),
       });
     return groups;

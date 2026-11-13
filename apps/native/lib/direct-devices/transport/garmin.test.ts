@@ -140,18 +140,41 @@ const MONITORING_FIT = fitFile([
   data(2, RESTING_HR_FIELDS, [0x50000 + 120, 55, 52]),
 ]);
 
+const STRING = 0x07;
+/** A fixed-size FIT string field: UTF-8, NUL-padded. */
+function fitString(text: string, size: number): Uint8Array {
+  const out = new Uint8Array(size);
+  out.set(new TextEncoder().encode(text).subarray(0, size));
+  return out;
+}
+// The string field is last, so its bytes follow `data()`'s numeric ones.
 const SESSION_FIELDS: readonly Field[] = [
   [253, 4, UINT32],
   [2, 4, UINT32],
   [7, 4, UINT32],
   [5, 1, ENUM],
 ];
+const SESSION_DEFINITION: readonly Field[] = [...SESSION_FIELDS, [110, 16, STRING]];
+const NAME_FIELD: readonly Field[] = [[8, 16, STRING]];
+const SPORT_NAME_FIELD: readonly Field[] = [[3, 16, STRING]];
 const WORKOUT_START = 0x70000;
 // Two sessions (a brick): only the first becomes the workout, as upstream.
+// The activity name is empty, so the title falls back to the first session's
+// sport profile name, ahead of the sport message's name.
 const ACTIVITY_FIT = fitFile([
-  definition(0, GARMIN_FIT_MESSAGE.SESSION, SESSION_FIELDS),
-  data(0, SESSION_FIELDS, [WORKOUT_START + 1800, WORKOUT_START, 1_800_500, 1]),
-  data(0, SESSION_FIELDS, [WORKOUT_START + 3600, WORKOUT_START + 1800, 1_800_000, 2]),
+  definition(1, GARMIN_FIT_MESSAGE.ACTIVITY, NAME_FIELD),
+  Uint8Array.of(1, ...fitString("", 16)),
+  definition(0, GARMIN_FIT_MESSAGE.SESSION, SESSION_DEFINITION),
+  concat([
+    data(0, SESSION_FIELDS, [WORKOUT_START + 1800, WORKOUT_START, 1_800_500, 1]),
+    fitString("Trail Run ñ", 16),
+  ]),
+  concat([
+    data(0, SESSION_FIELDS, [WORKOUT_START + 3600, WORKOUT_START + 1800, 1_800_000, 2]),
+    fitString("Ride", 16),
+  ]),
+  definition(2, GARMIN_FIT_MESSAGE.SPORT, SPORT_NAME_FIELD),
+  Uint8Array.of(2, ...fitString("Running", 16)),
 ]);
 
 const HRV_FIELDS: readonly Field[] = [
@@ -492,6 +515,7 @@ test("a full sync downloads health FIT files, emits records and archives them", 
       // 1 800 500 ms elapsed, rounded up to the second.
       endTime: epoch(WORKOUT_START + 1801),
       activity: "running",
+      title: "Trail Run ñ",
     },
   ]);
   expect(f.records.filter((record) => record.type === "hrv_rmssd")).toEqual([

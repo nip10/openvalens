@@ -206,8 +206,11 @@ export const GARMIN_DIRECTORY_ENTRY_SIZE = 16;
 /** FIT message numbers this family understands. */
 export const GARMIN_FIT_MESSAGE = {
   FILE_ID: 0,
+  SPORT: 12,
   SESSION: 18,
   EVENT: 21,
+  WORKOUT: 26,
+  ACTIVITY: 34,
   MONITORING: 55,
   MONITORING_HR_DATA: 211,
   SLEEP_DATA_RAW: 274,
@@ -908,6 +911,8 @@ export type GarminFitMessage = Readonly<{
   /** Resolved timestamp in unix seconds, when the record carried one. */
   timestamp: number | null;
   fields: ReadonlyMap<number, number>;
+  /** STRING fields, decoded as upstream: UTF-8 up to the first NUL; empty ones omitted. */
+  strings?: ReadonlyMap<number, string>;
 }>;
 
 /** Base type identifiers (`fit/baseTypes/BaseType.java`). */
@@ -1105,8 +1110,18 @@ export function parseGarminFitFile(bytes: Uint8Array): GarminFitMessage[] {
     const definitionForType = definitions.get(localType);
     if (!definitionForType) throw new Error("GARMIN_FIT_DEFINITION_MISSING");
     const values = new Map<number, number>();
+    let strings: Map<number, string> | undefined;
     for (const field of definitionForType.fields) {
       if (offset + field.size > dataEnd) throw new Error("GARMIN_FIT_TRUNCATED");
+      if (field.baseType === FIT_BASE_TYPE.STRING) {
+        // `RecordData.decode`: the bytes up to the first NUL, as UTF-8.
+        const raw = bytes.subarray(offset, offset + field.size);
+        const zero = raw.indexOf(0);
+        const text = new TextDecoder().decode(zero < 0 ? raw : raw.subarray(0, zero));
+        if (text) (strings ??= new Map()).set(field.number, text);
+        offset += field.size;
+        continue;
+      }
       const value = readFitNumber(bytes, offset, field.baseType, definitionForType.bigEndian);
       if (value !== null) values.set(field.number, value);
       offset += field.size;
@@ -1128,6 +1143,7 @@ export function parseGarminFitFile(bytes: Uint8Array): GarminFitMessage[] {
       messageNumber: definitionForType.messageNumber,
       timestamp,
       fields: values,
+      ...(strings ? { strings } : {}),
     });
   }
 
@@ -1379,6 +1395,8 @@ export type GarminWorkoutRecord = Readonly<{
   endTime: string;
   /** Lowercased FIT `Sport` name, e.g. `running`. */
   activity: string;
+  /** The watch's name for the workout, when it has one. */
+  title: string | null;
 }>;
 
 export type GarminRecord =
@@ -1780,6 +1798,17 @@ const GARMIN_SPORT_NAMES = new Map<number, string>([
   [99, "trolling_motor"],
 ]);
 
+/**
+ * Cuts to at most `max` UTF-16 code units (the upload contract's measure),
+ * never splitting a surrogate pair.
+ */
+function truncateUtf16(text: string, max: number): string {
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max);
+  const last = cut.charCodeAt(cut.length - 1);
+  return last >= 0xd800 && last <= 0xdbff ? cut.slice(0, -1) : cut;
+}
+
 /** The lowercased FIT sport name; unknown codes keep their number. */
 export function garminSportName(sport: number | undefined): string {
   if (sport === undefined) return "generic";
@@ -1801,12 +1830,23 @@ export function decodeGarminWorkout(messages: readonly GarminFitMessage[]): Garm
   if (rawStart === undefined || elapsed === undefined || elapsed <= 0) return [];
   const start = (rawStart + GARMIN_TIME_EPOCH) * 1000;
   const end = start + elapsed;
+  // `GarminWorkoutParser`: activity name, then workout name, then the
+  // session's sport profile name, then the sport's name (first of each).
+  const first = (messageNumber: number, field: number) =>
+    messages.find((message) => message.messageNumber === messageNumber)?.strings?.get(field);
+  const title =
+    first(GARMIN_FIT_MESSAGE.ACTIVITY, 8) ||
+    first(GARMIN_FIT_MESSAGE.WORKOUT, 8) ||
+    session.strings?.get(110) ||
+    first(GARMIN_FIT_MESSAGE.SPORT, 3) ||
+    null;
   return [
     {
       type: "workout",
       startTime: new Date(start).toISOString(),
       endTime: new Date(Math.ceil(end / 1000) * 1000).toISOString(),
       activity: garminSportName(session.fields.get(5)),
+      title: title ? truncateUtf16(title, 200) : null,
     },
   ];
 }

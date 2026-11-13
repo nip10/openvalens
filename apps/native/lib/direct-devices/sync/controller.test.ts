@@ -2298,6 +2298,7 @@ test("Garmin FIT history is committed as steps, sleep, heart rate, HRV, resting 
     startTime: workoutStart,
     endTime: workoutEnd,
     activity: "running",
+    title: "Trail Run",
   });
   await new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -2341,7 +2342,7 @@ test("Garmin FIT history is committed as steps, sleep, heart rate, HRV, resting 
       startTime: workoutStart,
       endTime: workoutEnd,
       activity: "running",
-      title: null,
+      title: "Trail Run",
     },
   ]);
   for (const batch of byType.values())

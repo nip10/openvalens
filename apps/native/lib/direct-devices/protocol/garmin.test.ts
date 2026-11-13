@@ -758,6 +758,7 @@ describe("HRV, resting heart rate and workout decoders", () => {
         startTime: iso(toUnix(created)),
         endTime: iso(toUnix(created) + 600),
         activity: "walking",
+        title: null,
       },
     ]);
     expect(decodeGarminWorkout([message(18, null, [[2, created]])])).toEqual([]);
@@ -770,6 +771,40 @@ describe("HRV, resting heart rate and workout decoders", () => {
       ]),
     ).toEqual([]);
     expect(decodeGarminWorkout([message(0, null, [[4, created]])])).toEqual([]);
+  });
+
+  test("workout titles follow upstream's order and fit the upload limit", () => {
+    const named = (messageNumber: number, field: number, text: string) => ({
+      ...message(messageNumber, null, []),
+      strings: new Map([[field, text]]),
+    });
+    const session = {
+      ...message(18, null, [
+        [2, 1_000_000],
+        [7, 60_000],
+        [5, 1],
+      ]),
+      strings: new Map([[110, "Profile"]]),
+    };
+    const titleOf = (messages: Parameters<typeof decodeGarminWorkout>[0]) =>
+      decodeGarminWorkout(messages)[0]!.title;
+    expect(
+      titleOf([named(12, 3, "Sport"), session, named(26, 8, "Tempo"), named(34, 8, "Run")]),
+    ).toBe("Run");
+    expect(titleOf([named(12, 3, "Sport"), session, named(26, 8, "Tempo")])).toBe("Tempo");
+    expect(titleOf([named(12, 3, "Sport"), session])).toBe("Profile");
+    expect(
+      titleOf([
+        named(12, 3, "Sport"),
+        message(18, null, [
+          [2, 1_000_000],
+          [7, 60_000],
+        ]),
+      ]),
+    ).toBe("Sport");
+    // 199 ASCII + one astral character would be 201 code units: the pair is dropped whole.
+    const long = `${"a".repeat(199)}😀tail`;
+    expect(titleOf([{ ...session, strings: new Map([[110, long]]) }])).toBe("a".repeat(199));
   });
 
   test("sport names follow the FIT profile; unknown codes keep their number", () => {
