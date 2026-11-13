@@ -1,14 +1,13 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Button } from "@openvalens/ui/components/button";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
+import { Link, useLocation } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 
 import { client } from "@/utils/orpc";
 import { authClient } from "@/lib/auth-client";
 import { needsHealthConsent } from "@/utils/health-consent";
-
-const STATUS_KEY = ["healthConsent", "status"] as const;
+import { healthConsentStatusQueryOptions } from "@/utils/onboarding-data";
 
 const linkClass = "font-medium text-ink underline decoration-signal underline-offset-2";
 
@@ -17,14 +16,12 @@ export function HealthDataConsentPrompt() {
   const queryClient = useQueryClient();
   const session = authClient.useSession();
   const userId = session.data?.user?.id ?? null;
-  const statusKey = [...STATUS_KEY, userId] as const;
+  const statusOptions = healthConsentStatusQueryOptions(userId);
+  const statusKey = statusOptions.queryKey;
   const [checked, setChecked] = useState(false);
-  const status = useQuery({
-    queryKey: statusKey,
-    queryFn: () => client.healthConsent.status({}),
-    enabled: !!userId && !session.isPending,
-    staleTime: 60_000,
-  });
+  // The first run (#444) asks for the consent on its first screen.
+  const onFirstRun = useLocation().pathname === "/welcome";
+  const status = useQuery({ ...statusOptions, enabled: !!userId && !session.isPending });
   const accept = useMutation({
     mutationFn: (version: string) =>
       client.healthConsent.accept({ acceptedHealthDataConsent: true, version }),
@@ -39,6 +36,7 @@ export function HealthDataConsentPrompt() {
   });
   useEffect(() => setChecked(false), [status.data?.currentVersion]);
 
+  if (onFirstRun) return null;
   if (status.isError) {
     return (
       <section

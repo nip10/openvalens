@@ -1,4 +1,5 @@
 import { Trans, useLingui } from "@lingui/react/macro";
+import type { LogKind } from "@openvalens/api/presenters/log-kinds";
 import {
   MODULE_DESCRIPTIONS,
   MODULE_ICONS,
@@ -8,96 +9,57 @@ import {
   PERSON_MODULES,
   type PersonModule,
 } from "@openvalens/api/presenters/modules";
+import {
+  FIRST_LOG_CARD_COPY,
+  FIRST_LOG_WATER_NOTE,
+  PHONE_APP_STORES,
+  turnsOnWater,
+  type FirstLogKindId,
+  type SetupItem,
+} from "@openvalens/api/presenters/onboarding";
 import { WELLNESS_CHOICE_LABELS } from "@openvalens/api/presenters/wellness-profile";
+import {
+  wearableStatusLabel,
+  type WearableConnectionStatus,
+  type WearableProviderId,
+} from "@openvalens/api/presenters/wearables";
 import {
   WELLNESS_ELIGIBILITY,
   WELLNESS_FIELD_COPY,
   WELLNESS_FOCUS_AREAS,
-  WELLNESS_INPUT_METHODS,
   type EligibilityAnswer,
   type FocusAnswer,
-  type InputMethodAnswer,
   type WellnessFocusArea,
 } from "@openvalens/api/wellness-profile-contract";
 import { Button } from "@openvalens/ui/components/button";
 import { cn } from "@openvalens/ui/lib/utils";
 import { Link } from "@tanstack/react-router";
-import { Check, Info, Smartphone, Sprout, Target, Watch } from "lucide-react";
-import type { ReactNode } from "react";
+import { Check, ChevronRight, Info, Smartphone, Target, Watch } from "lucide-react";
+import { useId, useMemo, type ReactNode } from "react";
+import { encode } from "uqr";
 
 import { MODULE_ICON_COMPONENTS } from "@/components/module-icons";
 import { InfoTip, Meter, ToneIcon } from "@/components/page";
+import { LOG_KIND_ICONS, LOG_KIND_TONES } from "@/components/quick-log/log-kind-icons";
 import { answerValue, RadioGroup } from "@/components/wellness-profile-editor";
-import {
-  canOpenStep,
-  isStepRequired,
-  ONBOARDING_STEP_TITLES,
-  ONBOARDING_STEPS,
-  type OnboardingStep,
-} from "@/utils/onboarding";
 
 /**
- * Onboarding stage 2 — presentational pieces of the web flow. Free of data
- * hooks so tests render them on their own; `welcome-flow.tsx` wires them.
+ * Onboarding (#444) — presentational pieces of the first run and the "Finish
+ * setting up" screens. Free of data hooks so tests render them on their own;
+ * `welcome-flow.tsx` and `setup-steps.tsx` wire them.
  */
 
 const LINK =
   "font-medium text-ink underline decoration-signal underline-offset-[0.15em] hover:decoration-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
 
-/** The step list on the left: done steps ticked, the current one marked. */
-export function StepRail({
-  current,
-  done,
-  eligibility,
-  onJump,
-}: {
-  current: OnboardingStep;
-  done: (step: OnboardingStep) => boolean;
-  eligibility: EligibilityAnswer;
-  onJump: (step: OnboardingStep) => void;
-}) {
-  const { t, i18n } = useLingui();
-  return (
-    <nav aria-label={t`Setup steps`}>
-      <ol className="grid gap-1">
-        {ONBOARDING_STEPS.map((step, index) => {
-          const isCurrent = step === current;
-          const isDone = !isCurrent && done(step);
-          const allowed = canOpenStep(step, { eligibility });
-          return (
-            <li key={step}>
-              <button
-                type="button"
-                aria-current={isCurrent ? "step" : undefined}
-                disabled={!allowed}
-                onClick={() => onJump(step)}
-                className="flex min-h-10 w-full items-center gap-3 rounded-2xl px-3 py-2 text-left text-[0.9375rem] text-ink-2 transition-colors duration-[var(--dur-short)] hover:bg-paper-2 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-55 aria-[current=step]:bg-sidebar-accent aria-[current=step]:font-semibold aria-[current=step]:text-ink"
-              >
-                <span
-                  className={cn(
-                    "num grid size-7 shrink-0 place-items-center rounded-full text-sm",
-                    isDone ? "bg-success/12 text-success" : "bg-paper-2 text-ink-3",
-                    isCurrent && "bg-primary text-primary-foreground",
-                  )}
-                  aria-hidden="true"
-                >
-                  {isDone ? <Check className="size-4" /> : index + 1}
-                </span>
-                {i18n._(ONBOARDING_STEP_TITLES[step])}
-                {isDone ? <span className="sr-only">{t`(done)`}</span> : null}
-              </button>
-            </li>
-          );
-        })}
-      </ol>
-    </nav>
-  );
-}
-
-/** The frame of one step: progress, "Step N of 8", the content and the buttons. */
+/**
+ * The frame of one screen: "Step N of 3" in the first run (no counter on a
+ * "Finish setting up" screen), the content and the buttons. Skip shows only
+ * when `onSkip` is given, so a required screen simply leaves it out.
+ */
 export function StepFrame({
-  step,
   titleId,
+  progress,
   title,
   description,
   children,
@@ -106,42 +68,44 @@ export function StepFrame({
   busy = false,
   onContinue,
   onSkip,
+  skipLabel,
   onBack,
   error,
 }: {
-  step: OnboardingStep;
   titleId: string;
+  progress?: { index: number; total: number; label: string };
   title: ReactNode;
   description?: ReactNode;
   children?: ReactNode;
   continueLabel?: ReactNode;
   continueDisabled?: boolean;
   busy?: boolean;
-  onContinue: () => void;
+  onContinue?: () => void;
   onSkip?: () => void;
+  skipLabel?: ReactNode;
   onBack?: () => void;
   error?: ReactNode;
 }) {
-  const { t, i18n } = useLingui();
-  const index = ONBOARDING_STEPS.indexOf(step);
-  const total = ONBOARDING_STEPS.length;
+  const { t } = useLingui();
   return (
     <section
       aria-labelledby={titleId}
       className="sheet grid min-w-0 content-start gap-6 p-6 md:p-8"
     >
-      <div className="grid gap-2">
-        <Meter
-          value={index / (total - 1)}
-          tone="signal"
-          label={t`Setup progress: step ${index + 1} of ${total}`}
-        />
-        <p className="text-sm text-ink-3">
-          <Trans>
-            Step {index + 1} of {total}: {i18n._(ONBOARDING_STEP_TITLES[step])}
-          </Trans>
-        </p>
-      </div>
+      {progress ? (
+        <div className="grid gap-2">
+          <Meter
+            value={progress.index / progress.total}
+            tone="signal"
+            label={t`Setup progress: step ${progress.index} of ${progress.total}`}
+          />
+          <p className="text-sm text-ink-3">
+            <Trans>
+              Step {progress.index} of {progress.total}: {progress.label}
+            </Trans>
+          </p>
+        </div>
+      ) : null}
       <div className="grid gap-1.5">
         <h1 id={titleId} className="text-[1.75rem] leading-tight tracking-[-0.02em] text-ink">
           {title}
@@ -154,36 +118,26 @@ export function StepFrame({
           {error}
         </p>
       ) : null}
-      <div className="flex flex-wrap items-center gap-2">
-        <Button onClick={onContinue} disabled={continueDisabled || busy}>
-          {busy ? t`Saving…` : (continueLabel ?? t`Continue`)}
-        </Button>
-        {onSkip && !isStepRequired(step) ? (
-          <Button variant="ghost" onClick={onSkip} disabled={busy}>
-            <Trans>Skip</Trans>
-          </Button>
-        ) : null}
-        {onBack ? (
-          <Button variant="ghost" onClick={onBack} disabled={busy}>
-            <Trans>Back</Trans>
-          </Button>
-        ) : null}
-      </div>
+      {onContinue || onSkip || onBack ? (
+        <div className="flex flex-wrap items-center gap-2">
+          {onContinue ? (
+            <Button onClick={onContinue} disabled={continueDisabled || busy}>
+              {busy ? t`Saving…` : (continueLabel ?? t`Continue`)}
+            </Button>
+          ) : null}
+          {onSkip ? (
+            <Button variant="ghost" onClick={onSkip} disabled={busy}>
+              {skipLabel ?? <Trans>Skip</Trans>}
+            </Button>
+          ) : null}
+          {onBack ? (
+            <Button variant="ghost" onClick={onBack} disabled={busy}>
+              <Trans>Back</Trans>
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
     </section>
-  );
-}
-
-export function WelcomeBody() {
-  return (
-    <div className="flex items-center gap-3">
-      <ToneIcon icon={Sprout} tone="signal" size="lg" />
-      <p className="max-w-[55ch] text-ink-2">
-        <Trans>
-          A few quick questions so the app shows what matters to you. It takes about 2 minutes, and
-          you can change everything later.
-        </Trans>
-      </p>
-    </div>
   );
 }
 
@@ -370,71 +324,6 @@ export function ModulesBody({
   );
 }
 
-/** How data arrives: the existing input-method answer, plus where syncing happens. */
-export function DataBody({
-  value,
-  onChange,
-}: {
-  value: InputMethodAnswer;
-  onChange: (answer: InputMethodAnswer) => void;
-}) {
-  const { i18n } = useLingui();
-  const copy = WELLNESS_FIELD_COPY.inputMethod;
-  return (
-    <div className="grid gap-4">
-      <fieldset className="grid min-w-0 gap-2">
-        <legend className="mb-2 flex items-center gap-1.5 font-display font-medium text-ink">
-          {copy.question}
-          <InfoTip>
-            <p>{copy.purpose}</p>
-            <p>{copy.limits}</p>
-          </InfoTip>
-        </legend>
-        <RadioGroup
-          name="onboarding-input-method"
-          value={answerValue(value)}
-          options={[
-            ...WELLNESS_INPUT_METHODS.map((option) => ({
-              value: option,
-              label: i18n._(WELLNESS_CHOICE_LABELS.inputMethod[option]),
-            })),
-            { value: "declined", label: i18n._(WELLNESS_CHOICE_LABELS.notSureYet) },
-          ]}
-          onChange={(next) =>
-            onChange(
-              next === "declined"
-                ? { state: "declined" }
-                : { state: "recorded", value: next as (typeof WELLNESS_INPUT_METHODS)[number] },
-            )
-          }
-        />
-      </fieldset>
-      <ul className="grid gap-3 sm:grid-cols-2">
-        <li className="flex items-start gap-3 rounded-2xl bg-paper-2 p-4 text-sm text-ink-2">
-          <ToneIcon icon={Smartphone} tone="water" size="sm" />
-          <span>
-            <Trans>
-              The phone app does the syncing from Apple Health or Health Connect, only for the
-              modules you picked. Sign in there with this account.
-            </Trans>
-          </span>
-        </li>
-        <li className="flex items-start gap-3 rounded-2xl bg-paper-2 p-4 text-sm text-ink-2">
-          <ToneIcon icon={Watch} tone="sleep" size="sm" />
-          <span className="grid gap-1">
-            <span>
-              <Trans>Wearable accounts such as Oura or WHOOP connect in Settings › Devices.</Trans>
-            </span>
-            <Link to="/settings/devices" className={LINK}>
-              <Trans>Open Settings › Devices</Trans>
-            </Link>
-          </span>
-        </li>
-      </ul>
-    </div>
-  );
-}
-
 /** Examples from the approved proposal; the person can also write their own. */
 export const GOAL_EXAMPLES = [
   "Sleep 7 to 9 hours most nights",
@@ -503,46 +392,271 @@ export function GoalBody({
   );
 }
 
-/** Your Today: the tiles the dashboard will show for the chosen modules. */
-export function TodayPreview({ modules }: { modules: readonly PersonModule[] }) {
-  const { t, i18n } = useLingui();
-  const chosen = PERSON_MODULES.filter((module) => modules.includes(module));
-  const menu = [
-    t`Dashboard`,
-    ...chosen.map((module) => i18n._(MODULE_LABELS[module])),
-    t`Timeline`,
-    t`Sharing`,
-    t`Settings`,
-  ].join(", ");
+/**
+ * The health-data consent on the first screen: the same text, version and
+ * checkbox as the consent banner, which stays hidden on the first run.
+ */
+export function ConsentBody({
+  currentVersion,
+  privacyUrl,
+  checked,
+  onCheckedChange,
+}: {
+  currentVersion: string;
+  privacyUrl: string | null;
+  checked: boolean;
+  onCheckedChange: (checked: boolean) => void;
+}) {
+  const id = useId();
   return (
-    <div className="grid gap-4">
-      {chosen.length === 0 ? (
-        <Note>
-          <Trans>
-            No modules picked. Your dashboard shows your timeline, and you can add modules any time
-            in Settings › Modules.
-          </Trans>
-        </Note>
-      ) : (
-        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" aria-label={t`Your Today`}>
-          {chosen.map((module) => (
-            <li key={module} className="grid gap-2 rounded-2xl border border-rule bg-card p-4">
-              <span className="flex items-center justify-between gap-2">
-                <span className="font-semibold text-ink-2">{i18n._(MODULE_LABELS[module])}</span>
-                <ToneIcon
-                  icon={MODULE_ICON_COMPONENTS[MODULE_ICONS[module]]}
-                  tone={MODULE_TONES[module]}
-                  size="sm"
-                />
-              </span>
-              <span className="text-sm text-ink-3">{i18n._(MODULE_DESCRIPTIONS[module])}</span>
-            </li>
-          ))}
-        </ul>
-      )}
-      <p className="text-sm text-ink-3">
-        <Trans>The menu will show: {menu}.</Trans>
+    <section className="grid gap-3 rounded-3xl border border-signal/30 bg-signal-soft/40 p-4 sm:p-5">
+      <h2 className="font-display text-lg font-semibold text-ink">
+        <Trans>Health data consent</Trans>
+      </h2>
+      <p className="text-sm text-ink-2">
+        <Trans>
+          I consent to OpenValens processing my health data to provide the service. This includes
+          any birth year and sex I add to my profile, used to place me in a broad age band and to
+          choose age- and sex-specific guidance and reference ranges.
+        </Trans>{" "}
+        {privacyUrl ? (
+          <a className={LINK} href={privacyUrl} target="_blank" rel="noreferrer">
+            <Trans>Read the privacy policy</Trans>
+          </a>
+        ) : null}
       </p>
+      <p className="text-xs text-ink-3">
+        <Trans>Consent version: {currentVersion}</Trans>
+      </p>
+      <label htmlFor={id} className="flex items-start gap-2 text-sm text-ink-2">
+        <input
+          id={id}
+          type="checkbox"
+          className="mt-0.5 size-4 accent-primary"
+          checked={checked}
+          onChange={(event) => onCheckedChange(event.target.checked)}
+        />
+        <span>
+          <Trans>I agree to this health data processing.</Trans>
+        </span>
+      </label>
+    </section>
+  );
+}
+
+/**
+ * Screen 2: Weight, Water and Last night's sleep as three large cards. The
+ * Water card says when choosing it turns water logging on.
+ */
+export function FirstLogCards({
+  kinds,
+  plainWaterEnabled,
+  disabled = false,
+  onPick,
+}: {
+  kinds: readonly LogKind<FirstLogKindId>[];
+  plainWaterEnabled: boolean | null;
+  disabled?: boolean;
+  onPick: (kind: LogKind<FirstLogKindId>) => void;
+}) {
+  const { t, i18n } = useLingui();
+  if (kinds.length === 0) {
+    return (
+      <Note>
+        <Trans>
+          Your role in this workspace can't add entries. You can still look around and connect your
+          data.
+        </Trans>
+      </Note>
+    );
+  }
+  return (
+    <ul className="grid gap-3 sm:grid-cols-3" aria-label={t`What to log`}>
+      {kinds.map((kind) => (
+        <li key={kind.id} className="min-w-0">
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => onPick(kind)}
+            className="grid min-h-36 w-full content-start gap-3 rounded-3xl border border-rule-2 bg-card p-5 text-left transition-colors duration-[var(--dur-short)] hover:bg-paper-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-55"
+          >
+            <ToneIcon icon={LOG_KIND_ICONS[kind.icon]} tone={LOG_KIND_TONES[kind.icon]} size="lg" />
+            <span className="font-display text-lg font-medium text-ink">
+              {i18n._(FIRST_LOG_CARD_COPY[kind.id])}
+            </span>
+            {turnsOnWater(kind.id, plainWaterEnabled) ? (
+              <span className="text-sm text-ink-3">{i18n._(FIRST_LOG_WATER_NOTE)}</span>
+            ) : null}
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** A QR code drawn as SVG squares (dark on light in both themes, so phones read it). */
+export function QrCode({ value, label }: { value: string; label: string }) {
+  const matrix = useMemo(() => encode(value, { ecc: "M", border: 2 }), [value]);
+  const path = useMemo(() => {
+    let d = "";
+    matrix.data.forEach((row, y) =>
+      row.forEach((dark, x) => {
+        if (dark) d += `M${x} ${y}h1v1h-1z`;
+      }),
+    );
+    return d;
+  }, [matrix]);
+  return (
+    <svg
+      role="img"
+      aria-label={label}
+      viewBox={`0 0 ${matrix.size} ${matrix.size}`}
+      shapeRendering="crispEdges"
+      className="size-40 shrink-0 rounded-2xl bg-white"
+    >
+      <path d={path} fill="#000" />
+    </svg>
+  );
+}
+
+export type ConnectProvider = {
+  provider: WearableProviderId;
+  displayName: string;
+  status: WearableConnectionStatus;
+};
+
+/**
+ * Screen 3 on the web: get the phone app (a QR code with this server's
+ * address), and the wearable accounts the operator has set up.
+ */
+export function ConnectBody({
+  phoneLink,
+  serverUrl,
+  providers,
+  busyProvider,
+  onConnect,
+}: {
+  phoneLink: string;
+  serverUrl: string;
+  /** `null` while loading; empty when the operator set none up. */
+  providers: readonly ConnectProvider[] | null;
+  busyProvider: WearableProviderId | null;
+  onConnect: (provider: WearableProviderId) => void;
+}) {
+  const { t, i18n } = useLingui();
+  return (
+    <div className="grid gap-6">
+      <section className="grid gap-4 rounded-3xl border border-rule bg-card p-5 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center sm:gap-6">
+        <QrCode value={phoneLink} label={t`QR code that opens the phone app on this server`} />
+        <div className="grid min-w-0 gap-2">
+          <h2 className="flex items-center gap-2 font-display text-lg font-medium text-ink">
+            <Smartphone className="size-5 text-ink-3" aria-hidden="true" />
+            <Trans>Get the phone app</Trans>
+          </h2>
+          <p className="max-w-[55ch] text-sm text-ink-2">
+            <Trans>
+              The phone app brings in weight, steps, heart rate, sleep and workouts from Apple
+              Health or Health Connect, and connects watches and rings. Install it, then scan this
+              code with your phone's camera to open it on this server.
+            </Trans>
+          </p>
+          <p className="text-sm text-ink-3">
+            <Trans>
+              Server address: <span className="font-medium break-all text-ink">{serverUrl}</span>
+            </Trans>
+          </p>
+          <ul className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+            {PHONE_APP_STORES.map((store) => (
+              <li key={store.id}>
+                <a className={LINK} href={store.url} target="_blank" rel="noreferrer">
+                  {store.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+      {providers === null || providers.length > 0 ? (
+        <section className="grid gap-3">
+          <h2 className="flex items-center gap-2 font-display text-lg font-medium text-ink">
+            <Watch className="size-5 text-ink-3" aria-hidden="true" />
+            <Trans>Wearable accounts</Trans>
+          </h2>
+          {providers === null ? (
+            <p className="text-sm text-ink-3">
+              <Trans>Loading…</Trans>
+            </p>
+          ) : (
+            <ul className="grid gap-2 sm:grid-cols-2" aria-label={t`Wearable accounts`}>
+              {providers.map((row) => (
+                <li
+                  key={row.provider}
+                  className="flex min-h-16 items-center gap-3 rounded-2xl border border-rule-2 bg-card px-4 py-3"
+                >
+                  <span className="grid min-w-0 flex-1 gap-0.5">
+                    <span className="font-medium text-ink">{row.displayName}</span>
+                    <span className="text-sm text-ink-3">
+                      {i18n._(wearableStatusLabel(row.status))}
+                    </span>
+                  </span>
+                  {row.status === "active" ? (
+                    <Check className="size-5 text-success" aria-hidden="true" />
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={busyProvider !== null}
+                      onClick={() => onConnect(row.provider)}
+                    >
+                      {busyProvider === row.provider ? t`Opening…` : t`Connect`}
+                    </Button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      ) : null}
     </div>
+  );
+}
+
+/** One "Finish setting up" item: done ones ticked; each opens its own screen. */
+export function SetupItemLink({
+  item,
+  title,
+  description,
+  done,
+}: {
+  item: SetupItem;
+  title: ReactNode;
+  description: ReactNode;
+  done: boolean;
+}) {
+  const { t } = useLingui();
+  return (
+    <Link
+      to="/setup/$item"
+      params={{ item }}
+      className="flex min-h-14 items-center gap-3 rounded-2xl px-3 py-2 no-underline transition-colors duration-[var(--dur-short)] hover:bg-paper-2 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+    >
+      <span
+        className={cn(
+          "grid size-7 shrink-0 place-items-center rounded-full border",
+          done ? "border-success/40 bg-success/12 text-success" : "border-rule-2",
+        )}
+        aria-hidden="true"
+      >
+        {done ? <Check className="size-4" /> : null}
+      </span>
+      <span className="grid min-w-0 flex-1 gap-0.5">
+        <span className={cn("font-medium", done ? "text-ink-3" : "text-ink")}>
+          {title}
+          {done ? <span className="sr-only"> {t`(done)`}</span> : null}
+        </span>
+        <span className="text-sm text-ink-3">{description}</span>
+      </span>
+      <ChevronRight className="size-4 shrink-0 text-ink-3" aria-hidden="true" />
+    </Link>
   );
 }

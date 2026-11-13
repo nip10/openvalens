@@ -54,6 +54,7 @@ import { AiWorkspaceConsentSection } from "@/components/ai-workspace-consent-sec
 import { AnalyticsConsentSection } from "@/components/analytics-consent-section";
 import { InsightNotificationsSection } from "@/components/insight-notifications-section";
 import { LanguageSection } from "@/components/language-section";
+import { SetupCardSetting } from "@/components/onboarding/finish-setup-card";
 import { HealthDataConsentStatus } from "@/components/health-data-consent-status";
 import { SignInMethodsSection } from "@/components/sign-in-methods-section";
 import { WhatsNewSection } from "@/components/whats-new-section";
@@ -133,8 +134,9 @@ function SettingsPage() {
           <div id="language" className="scroll-mt-10">
             <LanguageSection />
           </div>
-          <div id="profile" className="scroll-mt-10">
+          <div id="profile" className="grid scroll-mt-10 gap-4">
             <ProfileSummarySection />
+            <SetupCardSetting />
           </div>
           <div id="modules" className="scroll-mt-10">
             <ModulesSection />
