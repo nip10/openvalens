@@ -5324,6 +5324,7 @@ msgid "Custom"
 msgstr "Personalizado"
 
 #: apps/web/src/components/oauth-consent-view.tsx
+#: packages/api/src/presenters/ai-apps.ts
 msgid "Custom trackers"
 msgstr "Acompanhamentos personalizados"
 
@@ -16950,6 +16951,7 @@ msgid "Trackers are private unless you share one with this workspace. Each has i
 msgstr "Os acompanhamentos são privados, a menos que partilhe um com este espaço de trabalho. Cada um tem o seu próprio interruptor para o Coach e as apps de IA ligadas. As notas nunca são partilhadas com o Coach."
 
 #: apps/web/src/components/oauth-consent-view.tsx
+#: packages/api/src/presenters/ai-apps.ts
 msgid "Trackers you made, except those with \"Coach and connected AI apps can read this\" off."
 msgstr "Os acompanhamentos que criou, exceto os que têm desligado \"O Coach e as apps de IA ligadas podem ler isto\"."
 

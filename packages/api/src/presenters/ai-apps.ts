@@ -67,6 +67,10 @@ const SCOPES: Record<string, { title: MessageDescriptor; detail: MessageDescript
     title: msg`Notes`,
     detail: msg`Free-text notes on your workouts, labs and other entries.`,
   },
+  "trackers:read": {
+    title: msg`Custom trackers`,
+    detail: msg`Trackers you made, except those with "Coach and connected AI apps can read this" off.`,
+  },
 };
 
 /** A scope's short name, or `null` for a scope this app does not know yet. */
