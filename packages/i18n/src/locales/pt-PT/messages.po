@@ -505,6 +505,11 @@ msgstr "{amount, plural, one {{value} porção} other {{value} porções}}"
 msgid "{amount} kg over {days} days, from {weighIns} weigh-ins"
 msgstr "{amount} kg em {days} dias, a partir de {weighIns} pesagens"
 
+#. Keep ml as is.
+#: packages/api/src/presenters/quick-log.ts
+msgid "{amount} ml"
+msgstr "{amount} ml"
+
 #: apps/web/src/components/billing-plan-view.tsx
 msgid "{amount} per month"
 msgstr "{amount} por mês"
@@ -561,6 +566,10 @@ msgstr "{count, plural, one {# registo com data e hora correspondente} other {# 
 #: packages/api/src/presenters/insights.ts
 msgid "{count, plural, one {# more change held back so only the clearest are shown.} other {# more changes held back so only the clearest are shown.}}"
 msgstr "{count, plural, one {Mais # alteração foi retida para que só as mais claras sejam mostradas.} other {Mais # alterações foram retidas para que só as mais claras sejam mostradas.}}"
+
+#: apps/web/src/components/quick-log/quick-log-palette.tsx
+msgid "{count, plural, one {Copied # item} other {Copied # items}}"
+msgstr "{count, plural, one {# item copiado} other {# itens copiados}}"
 
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "{count} from {label}"
@@ -1023,6 +1032,11 @@ msgstr "{ratedWithDuration, plural, one {Com base em # sessão avaliada.} other 
 msgid "{rating} of 5"
 msgstr "{rating} de 5"
 
+#. Keep bpm as is.
+#: packages/api/src/presenters/quick-log.ts
+msgid "{reading}, pulse {pulse} bpm"
+msgstr "{reading}, pulsação {pulse} bpm"
+
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "{reported} of {count, plural, one {# entry} other {# entries}}"
 msgstr "{reported} de {count, plural, one {# registo} other {# registos}}"
@@ -1073,6 +1087,11 @@ msgstr "{steps} passos por dia"
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 msgid "{syncing, plural, one {# syncing} other {# syncing}}"
 msgstr "{syncing, plural, one {# a sincronizar} other {# a sincronizar}}"
+
+#. Blood pressure reading; keep the unit symbol as is.
+#: packages/api/src/presenters/quick-log.ts
+msgid "{systolic}/{diastolic} mmHg"
+msgstr "{systolic}/{diastolic} mmHg"
 
 #. A value outside the known list, shown as recorded. Keep the placeholder as is.
 #. Text the member entered, shown as written. Keep the placeholder as is.
@@ -2549,6 +2568,7 @@ msgstr "Acordado"
 #: apps/native/components/onboarding/flow.tsx
 #: apps/web/src/components/muscle-guide.tsx
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
+#: apps/web/src/components/quick-log/quick-form.tsx
 #: apps/web/src/routes/_auth/body-map.tsx
 msgid "Back"
 msgstr "Costas"
@@ -3236,6 +3256,10 @@ msgstr "Verifique o email e o token e tente novamente."
 msgid "Check the highlighted fields."
 msgstr "Verifique os campos assinalados."
 
+#: apps/web/src/components/quick-log/quick-form.tsx
+msgid "Check the highlighted values."
+msgstr "Verifique os valores assinalados."
+
 #: packages/api/src/presenters/food-lookup.ts
 msgid "Check the product, source and amount. Nothing is saved until you press Save."
 msgstr "Verifique o produto, a fonte e a quantidade. Nada é guardado até premir Guardar."
@@ -3428,6 +3452,7 @@ msgstr "Escolha um servidor e inicie sessão para pedir uma exportação."
 msgid "Choose a start date."
 msgstr "Escolha uma data de início."
 
+#: apps/web/src/components/quick-log/quick-form.tsx
 #: apps/web/src/routes/_auth/-goal-editor.tsx
 msgid "Choose a supplement"
 msgstr "Escolha um suplemento"
@@ -4184,6 +4209,14 @@ msgstr "Copiar para uma data"
 msgid "Copy to selected date"
 msgstr "Copiar para a data selecionada"
 
+#: apps/web/src/components/quick-log/palette-sections.ts
+msgid "Copy yesterday's {meal}"
+msgstr "Copiar {meal} de ontem"
+
+#: apps/web/src/components/quick-log/palette-sections.ts
+msgid "Copy yesterday's food"
+msgstr "Copiar a alimentação de ontem"
+
 #. placeholder {0}: selected.size
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 msgid "Copying {0, plural, one {# item} other {# items}} to {localDate}"
@@ -4861,6 +4894,10 @@ msgstr "Não foi possível ler as alterações guardadas neste dispositivo. Os r
 msgid "Could not read your health data. Check permissions."
 msgstr "Não foi possível ler os seus dados de saúde. Verifique as permissões."
 
+#: apps/web/src/components/quick-log/quick-log-palette.tsx
+msgid "Could not remove it. Open the screen to change it."
+msgstr "Não foi possível remover. Abra o ecrã para alterar."
+
 #: apps/native/components/workout-session.tsx
 msgid "Could not reopen"
 msgstr "Não foi possível reabrir"
@@ -5015,6 +5052,8 @@ msgstr "Não foi possível guardar. Tente novamente com a mesma dose."
 #: apps/native/app/(drawer)/goals/[goalId].tsx
 #: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/native/components/trackers/tracker-log-form.tsx
+#: apps/web/src/components/quick-log/quick-form.tsx
+#: apps/web/src/components/quick-log/quick-log-palette.tsx
 #: apps/web/src/components/trackers/tracker-log-form.tsx
 #: apps/web/src/routes/_auth/goals.index.tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
@@ -6155,6 +6194,10 @@ msgstr "Arraste para mover, ou use as ações para subir ou descer."
 msgid "Drag to reorder. Tap an exercise to go to it."
 msgstr "Arraste para reordenar. Toque num exercício para ir até ele."
 
+#: apps/web/src/components/quick-log/palette-sections.ts
+msgid "Due now"
+msgstr "Para tomar agora"
+
 #: apps/native/components/workout-routines.tsx
 msgid "Duplicate"
 msgstr "Duplicar"
@@ -7024,6 +7067,10 @@ msgstr "Massa gorda"
 msgid "Favorite"
 msgstr "Favorito"
 
+#: apps/web/src/components/quick-log/palette-sections.ts
+msgid "Favourite"
+msgstr "Favorito"
+
 #: apps/web/src/routes/_auth/nutrition.tsx
 msgid "Favourite <0>{foodName}</0>"
 msgstr "Marcar como favorito <0>{foodName}</0>"
@@ -7137,6 +7184,7 @@ msgstr "Fluxo (opcional)"
 
 #: apps/native/app/(drawer)/(tabs)/_layout.tsx
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
+#: apps/web/src/components/quick-log/palette-sections.ts
 #: apps/web/src/routes/_auth/food-draft.tsx
 #: packages/api/src/presenters/log-kinds.ts
 msgid "Food"
@@ -7417,6 +7465,14 @@ msgstr "Descer"
 #: apps/native/app/+not-found.tsx
 msgid "Go Home"
 msgstr "Ir para o início"
+
+#: apps/web/src/components/quick-log/palette-sections.ts
+msgid "Go to"
+msgstr "Ir para"
+
+#: apps/web/src/components/quick-log/palette-sections.ts
+msgid "Go to {screen}"
+msgstr "Ir para {screen}"
 
 #: apps/web/src/components/accept-invitation-view.tsx
 #: apps/web/src/components/admission-form.tsx
@@ -9121,6 +9177,10 @@ msgstr "A carregar treinos…"
 msgid "Loading your entries…"
 msgstr "A carregar os seus registos…"
 
+#: apps/web/src/components/quick-log/quick-form.tsx
+msgid "Loading your supplements…"
+msgstr "A carregar os seus suplementos…"
+
 #: apps/web/src/components/exercise-library.tsx
 #: apps/web/src/components/recipe-draft-editor.tsx
 msgid "Loading your workspace…"
@@ -9156,9 +9216,15 @@ msgstr "A localização e outros detalhes da fotografia são removidos antes do 
 
 #: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/native/components/trackers/tracker-log-form.tsx
+#: apps/web/src/components/quick-log/palette-sections.ts
 #: apps/web/src/components/trackers/tracker-log-form.tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 #: packages/api/src/presenters/nutrition-templates.ts
+msgid "Log"
+msgstr "Registar"
+
+#: apps/web/src/components/quick-log/palette-sections.ts
+msgctxt "action"
 msgid "Log"
 msgstr "Registar"
 
@@ -9220,6 +9286,10 @@ msgstr "Registar as refeições na maioria dos dias"
 msgid "Log or correct intake"
 msgstr "Registar ou corrigir toma"
 
+#: apps/web/src/components/quick-log/quick-log-palette.tsx
+msgid "Log or go to"
+msgstr "Registar ou ir para"
+
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/native/components/training-home.tsx
 msgid "Log past session"
@@ -9232,6 +9302,14 @@ msgstr "Registar refeição guardada"
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Log session"
 msgstr "Registar sessão"
+
+#: apps/web/src/components/quick-log/quick-log-palette.tsx
+msgid "Log something in a tap, repeat a recent entry or open a screen."
+msgstr "Registe algo com um toque, repita um registo recente ou abra um ecrã."
+
+#: apps/web/src/components/quick-log/quick-log-palette.tsx
+msgid "Log something or go to a screen…"
+msgstr "Registe algo ou vá para um ecrã…"
 
 #: apps/web/src/routes/_auth/supplements.tsx
 msgid "Log supplement intake"
@@ -9252,6 +9330,11 @@ msgstr "Registar hoje"
 #: apps/web/src/routes/_auth/goals.index.tsx
 msgid "Log water"
 msgstr "Registar água"
+
+#. Opens the quick log palette.
+#: apps/web/src/components/header.tsx
+msgid "Log…"
+msgstr "Registar…"
 
 #: packages/api/src/presenters/nutrition-targets.ts
 msgctxt "day summary reading"
@@ -9923,6 +10006,10 @@ msgstr "Mais definições de notificações"
 #: apps/web/src/routes/_auth/nutrition-targets.tsx
 msgid "More options"
 msgstr "Mais opções"
+
+#: apps/web/src/components/quick-log/palette-sections.ts
+msgid "More things to track…"
+msgstr "Mais coisas para acompanhar…"
 
 #. safety
 #: packages/api/src/presenters/supplements.ts
@@ -10753,6 +10840,10 @@ msgstr "Não foi encontrada nenhuma receita estruturada nessa página. O rascunh
 msgid "No supplements logged. Add one to get reminders."
 msgstr "Nenhum suplemento registado. Adicione um para receber lembretes."
 
+#: apps/web/src/components/quick-log/quick-form.tsx
+msgid "No supplements yet. Add one on Supplements."
+msgstr "Ainda não tem suplementos. Adicione um em Suplementos."
+
 #: packages/api/src/presenters/recipe-draft.ts
 msgid "No supported Recipe entry was found."
 msgstr "Não foi encontrada nenhuma entrada de receita suportada."
@@ -11170,6 +11261,10 @@ msgstr "Nada registado hoje"
 msgid "Nothing logged. Days without a marker are treated as unknown, not as zero."
 msgstr "Nada registado. Os dias sem marcador são tratados como desconhecidos, não como zero."
 
+#: apps/web/src/components/quick-log/quick-log-palette.tsx
+msgid "Nothing matches."
+msgstr "Nada corresponde."
+
 #: packages/api/src/presenters/score.ts
 msgid "Nothing recorded for today or yesterday."
 msgstr "Nada registado hoje nem ontem."
@@ -11546,6 +11641,8 @@ msgstr "Só você pode ver estas fotografias. Os proprietários do espaço de tr
 
 #: apps/native/app/(drawer)/exports.tsx
 #: apps/native/app/(drawer)/trackers.tsx
+#: apps/web/src/components/quick-log/palette-sections.ts
+#: apps/web/src/components/quick-log/quick-log-palette.tsx
 #: packages/api/src/presenters/workouts.ts
 msgid "Open"
 msgstr "Em aberto"
@@ -11676,6 +11773,10 @@ msgstr "O OpenValens mostra informação pública destas autoridades. Estas não
 #: packages/api/src/presenters/sleep.ts
 msgid "Optimal"
 msgstr "Ótimo"
+
+#: apps/web/src/components/quick-log/quick-form.tsx
+msgid "optional"
+msgstr "opcional"
 
 #: apps/native/components/blood-pressure-section.tsx
 #: apps/native/components/routine-editor.tsx
@@ -12808,6 +12909,10 @@ msgstr "Pronto"
 msgid "Rebuilding your usual after a new source"
 msgstr "A restabelecer o seu habitual após uma nova fonte"
 
+#: apps/web/src/components/quick-log/palette-sections.ts
+msgid "Recent"
+msgstr "Recentes"
+
 #: packages/api/src/presenters/score.ts
 msgid "Recent {recent} vs usual {usual} (median of {days, plural, one {# day} other {# days}}), {relative}."
 msgstr "Recente {recent} vs habitual {usual} (mediana de {days, plural, one {# dia} other {# dias}}), {relative}."
@@ -13167,6 +13272,10 @@ msgstr "Remover a noite de {day}"
 msgid "Removed from favourites"
 msgstr "Removido dos favoritos"
 
+#: apps/web/src/components/quick-log/quick-log-palette.tsx
+msgid "Removed: {what}"
+msgstr "Removido: {what}"
+
 #: apps/web/src/components/billing-plan-view.tsx
 msgid "Renews on {periodEnd}."
 msgstr "Renova a {periodEnd}."
@@ -13174,6 +13283,10 @@ msgstr "Renova a {periodEnd}."
 #: apps/native/components/draggable-row.tsx
 msgid "Reorder {label}"
 msgstr "Reordenar {label}"
+
+#: apps/web/src/components/quick-log/palette-sections.ts
+msgid "Repeat"
+msgstr "Repetir"
 
 #: apps/web/src/routes/_auth/-goal-editor.tsx
 msgid "Repeat on a schedule"
@@ -13816,6 +13929,7 @@ msgstr "Sauna"
 #: apps/web/src/components/blood-pressure-section.tsx
 #: apps/web/src/components/manual-sleep-section.tsx
 #: apps/web/src/components/product-settings-form.tsx
+#: apps/web/src/components/quick-log/quick-form.tsx
 #: apps/web/src/components/wellness-profile-editor.tsx
 #: apps/web/src/routes/_auth/body.tsx
 #: apps/web/src/routes/_auth/nutrition.tsx
@@ -14048,6 +14162,10 @@ msgstr "Refeição guardada adicionada ao seu diário."
 msgid "Saved meals and recipes"
 msgstr "Refeições e receitas guardadas"
 
+#: apps/web/src/components/quick-log/quick-log-palette.tsx
+msgid "Saved on this device: {what}. It syncs when you are back online."
+msgstr "Guardado neste dispositivo: {what}. Sincroniza quando voltar a estar online."
+
 #: packages/api/src/presenters/plain-water.ts
 msgid "Saved on this device. It will sync when you're online."
 msgstr "Guardado neste dispositivo. Será sincronizado quando tiver ligação."
@@ -14059,6 +14177,10 @@ msgstr "Guardado em Objetivos, no menu, em Hábitos. Pode alterá-lo aí."
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
 msgid "Saved to your Goals under Workouts, where you can add a target and date later."
 msgstr "Guardado nos seus Objetivos, em Treinos, onde pode adicionar uma meta e uma data mais tarde."
+
+#: apps/web/src/components/quick-log/quick-log-palette.tsx
+msgid "Saved: {what}"
+msgstr "Guardado: {what}"
 
 #: apps/web/src/utils/product-settings-form-state.ts
 msgid "Saved."
@@ -14100,6 +14222,7 @@ msgstr "A guardar fotografia…"
 #: apps/web/src/components/manual-sleep-section.tsx
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
 #: apps/web/src/components/product-settings-form.tsx
+#: apps/web/src/components/quick-log/quick-form.tsx
 #: apps/web/src/components/trackers/tracker-log-form.tsx
 #: apps/web/src/components/wellness-profile-editor.tsx
 #: apps/web/src/components/workout-routines.tsx
@@ -15693,6 +15816,7 @@ msgstr "Sistólica {systolicMin}–{systolicMax}, diastólica {diastolicMin}–{
 
 #: apps/native/components/blood-pressure-section.tsx
 #: apps/web/src/components/blood-pressure-section.tsx
+#: apps/web/src/components/quick-log/quick-form.tsx
 msgid "Systolic must be higher than diastolic."
 msgstr "A sistólica tem de ser superior à diastólica."
 
@@ -15708,6 +15832,11 @@ msgstr "Cuidados: {cautions}"
 #: packages/api/src/presenters/food-logger-capture.ts
 msgid "Take photo"
 msgstr "Tirar fotografia"
+
+#: apps/web/src/components/quick-log/palette-sections.ts
+msgctxt "supplement"
+msgid "Taken"
+msgstr "Tomado"
 
 #: apps/web/src/components/onboarding/server-checklist.tsx
 msgid "Taken and verified with deploy/setup.sh on the server."
@@ -17218,6 +17347,7 @@ msgstr "Menos de 4 séries"
 
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/native/components/trackers/tracker-log-form.tsx
+#: apps/web/src/components/quick-log/quick-log-palette.tsx
 #: apps/web/src/components/trackers/tracker-log-form.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
 #: packages/api/src/presenters/nutrition-diary.ts
@@ -17286,6 +17416,10 @@ msgstr "Unidade (texto)"
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Unit choices are unavailable for this saved entry. Its existing unit will be kept."
 msgstr "As opções de unidade não estão disponíveis para esta entrada guardada. A unidade atual será mantida."
+
+#: apps/web/src/components/quick-log/quick-form.tsx
+msgid "Unit for {label}"
+msgstr "Unidade de {label}"
 
 #: packages/api/src/presenters/food-draft.ts
 msgid "Unit not stated"

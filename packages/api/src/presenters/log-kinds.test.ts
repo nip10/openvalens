@@ -10,6 +10,7 @@ import {
   findLogKind,
   isLogKindAvailable,
   LOG_KINDS,
+  logKindPermissionCheck,
   type LogKind,
   type LogKindContext,
 } from "./log-kinds";
@@ -141,5 +142,16 @@ describe("availableLogKinds", () => {
     const kinds = [...LOG_KINDS, tracker];
     expect(ids(availableLogKinds(everything, kinds))).toContain("tracker:mood");
     expect(isLogKindAvailable(tracker, { ...everything, enabledModules: ["food"] })).toBe(false);
+  });
+});
+
+describe("logKindPermissionCheck", () => {
+  test("a viewer can log nothing; a collaborator everything; an unknown role is not checked", () => {
+    const context = { enabledModules: null, preferences: { plain_water: true } };
+    expect(availableLogKinds({ ...context, can: logKindPermissionCheck("viewer") })).toEqual([]);
+    expect(
+      availableLogKinds({ ...context, can: logKindPermissionCheck("collaborator") }).length,
+    ).toBe(availableLogKinds(context).length);
+    expect(logKindPermissionCheck("someone")).toBeUndefined();
   });
 });

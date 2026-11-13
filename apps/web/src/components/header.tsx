@@ -26,6 +26,7 @@ import {
   Moon,
   PersonStanding,
   Pill,
+  Plus,
   Scale,
   Settings,
   ShieldCheck,
@@ -33,7 +34,7 @@ import {
   Users,
   UtensilsCrossed,
 } from "lucide-react";
-import { type ReactNode, type RefObject, useEffect, useRef, useState } from "react";
+import { type ReactNode, type RefObject, useCallback, useEffect, useRef, useState } from "react";
 
 import { Button } from "@openvalens/ui/components/button";
 import {
@@ -50,6 +51,7 @@ import { adminAccessQueryOptions } from "@/utils/admin-settings";
 import { filterNavByModules, useEnabledModules } from "@/utils/modules";
 
 import { ModeToggle } from "./mode-toggle";
+import { QuickLogPalette, useQuickLogHotkey } from "./quick-log/quick-log-palette";
 import UserMenu from "./user-menu";
 
 type NavLink = { to: string; label: MessageDescriptor; icon: LucideIcon };
@@ -152,6 +154,31 @@ function Wordmark() {
   );
 }
 
+/**
+ * Opens the quick log palette (#440). The shortcut is shown to sighted
+ * keyboard users; screen readers get it from `aria-keyshortcuts`.
+ */
+function LogButton({ onOpen, className }: { onOpen: () => void; className?: string }) {
+  const { _ } = useLingui();
+  const mac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      className={className}
+      onClick={onOpen}
+      aria-keyshortcuts={mac ? "Meta+K" : "Control+K"}
+      aria-haspopup="dialog"
+    >
+      <Plus className="size-4" aria-hidden="true" />
+      {_(msg({ message: "Log…", comment: "Opens the quick log palette." }))}
+      <kbd className="ml-auto hidden font-body text-xs text-ink-3 sm:inline" aria-hidden="true">
+        {mac ? "⌘K" : "Ctrl K"}
+      </kbd>
+    </Button>
+  );
+}
+
 function NavGroups({
   groups,
   label,
@@ -200,6 +227,9 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const mobileNavRef = useRef<HTMLElement>(null);
   const location = useLocation();
   const { _ } = useLingui();
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const openPalette = useCallback(() => setPaletteOpen(true), []);
+  const togglePalette = useCallback(() => setPaletteOpen((open) => !open), []);
 
   useEffect(() => {
     setMobileOpen(false);
@@ -216,6 +246,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
   // The first-run flow gets a focused frame: no sidebar to wander off into.
   const focused = location.pathname === "/welcome";
+  useQuickLogHotkey(togglePalette, signedIn && !focused);
 
   if (!signedIn || focused) {
     return (
@@ -244,6 +275,9 @@ export default function AppShell({ children }: { children: ReactNode }) {
         <aside className="sticky top-0 flex h-svh flex-col">
           <div className="flex h-16 shrink-0 items-center px-5">
             <Wordmark />
+          </div>
+          <div className="px-3 pb-1">
+            <LogButton onOpen={openPalette} className="w-full justify-start" />
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto px-2 pt-2 pb-6">
             <NavGroups groups={groups} label={_(msg`Main navigation`)} />
@@ -306,12 +340,16 @@ export default function AppShell({ children }: { children: ReactNode }) {
             </Sheet>
             <Wordmark />
           </div>
-          <UserMenu />
+          <div className="flex items-center gap-2">
+            <LogButton onOpen={openPalette} />
+            <UserMenu />
+          </div>
         </header>
         <div id="content" className="min-w-0">
           {children}
         </div>
       </div>
+      <QuickLogPalette open={paletteOpen} onOpenChange={setPaletteOpen} navGroups={groups} />
     </div>
   );
 }

@@ -47,6 +47,7 @@ SUITES=(
   "WATER_ROUTER_TEST_DATABASE_URL|water_router_test|packages/api/src/routers/plain-water.integration.test.ts"
   "GOALS_TEST_DATABASE_URL|goals_test|packages/api/src/routers/goals.integration.test.ts"
   "SUPPLEMENT_INTAKE_TEST_DATABASE_URL|supplement_intake_test|packages/plans/src/supplement-intake.integration.test.ts"
+  "QUICK_LOG_TEST_DATABASE_URL|quick_log_test|packages/api/src/quick-log.integration.test.ts"
   "NUTRITION_COACH_TEST_DATABASE_URL|nutrition_coach_test|packages/api/src/routers/nutrition-coach.integration.test.ts"
   "AI_CHAT_TEST_DATABASE_URL|ai_chat_test|packages/api/src/routers/ai.integration.test.ts"
   "LABS_TEST_DATABASE_URL|labs_test|packages/labs/src/queries.integration.test.ts"
