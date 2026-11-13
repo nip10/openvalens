@@ -12,12 +12,14 @@ import { join } from "node:path";
 
 import { ALLOWED_PHRASES, BANNED_TERMS } from "./wording-rules";
 
+import { readAllReleaseNotes } from "../../../scripts/release-notes";
 import {
   auditCss,
   auditMarkup,
   auditSite,
   buildSite,
   CLOUD_SIGNUP_URL,
+  formatReleaseDate,
   SITE_CSP,
   SITE_CSP_HEADER,
   type Finding,
@@ -35,8 +37,8 @@ afterAll(async () => {
 });
 
 /** Visible text of a built page: tags, comments and entities flattened. */
-async function pageText(dir = outDir): Promise<string> {
-  const html = await readFile(join(dir, "index.html"), "utf8");
+async function pageText(dir = outDir, page = "index.html"): Promise<string> {
+  const html = await readFile(join(dir, page), "utf8");
   return html
     .replace(/<!--[\s\S]*?-->/g, " ")
     .replace(/<[^>]+>/g, " ")
@@ -226,7 +228,7 @@ describe("legal and support pages", () => {
       join(import.meta.dir, "..", "deploy", "default.conf.template"),
       "utf8",
     );
-    expect(conf).toContain("location ~ ^/(privacy|subprocessors|support|terms)/?$");
+    expect(conf).toContain("location ~ ^/(changelog|privacy|subprocessors|support|terms)/?$");
     for (const page of PAGES) {
       const html = await readFile(join(outDir, `${page}.html`), "utf8");
       expect(html).toContain(`<link rel="canonical" href="https://openvalens.com/${page}" />`);
@@ -346,5 +348,91 @@ describe("nginx serves what the build outputs", () => {
       .map((entry) => `/${entry.name}${entry.isDirectory() ? "/" : ""}`)
       .filter((path) => !staticFiles.test(path));
     expect(unserved).toEqual([]);
+  });
+});
+
+describe("changelog (#446)", () => {
+  const releases = readAllReleaseNotes();
+  const tags = releases.map((notes) => notes.tag);
+
+  test("docs/releases has every tag from v0.9.0, newest first", () => {
+    expect(tags.at(-1)).toBe("v0.9.0");
+    expect(tags).toContain("v1.1.0");
+    for (const notes of releases) expect(notes.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  test("/changelog lists each release's Highlights, date and self-hosting link, newest first", async () => {
+    const html = await readFile(join(outDir, "changelog.html"), "utf8");
+    expect(html).not.toContain("__CHANGELOG_ENTRIES__");
+    expect(html).toContain('<link rel="canonical" href="https://openvalens.com/changelog" />');
+    expect(html).toMatch(/<link\s+rel="alternate"\s+type="application\/atom\+xml"/);
+    const order = [...html.matchAll(/<section class="release" id="(v[\d.]+)"/g)].map((m) => m[1]);
+    expect(order).toEqual(tags);
+    for (const notes of releases) {
+      const section = html.slice(html.indexOf(`id="${notes.tag}"`)).split("</section>")[0]!;
+      expect(section).toContain(`<h2 id="${notes.tag}-title">Version ${notes.version}</h2>`);
+      expect(section).toContain(
+        `<time datetime="${notes.date}">${formatReleaseDate(notes.date)}</time>`,
+      );
+      expect(section).toContain(
+        `<a href="https://github.com/nip10/openvalens/releases/tag/${notes.tag}">Self-hosting notes for ${notes.tag}</a>`,
+      );
+      expect(section).toContain("<li>");
+      // Only the Highlights: the upgrade notes stay on the GitHub Release.
+      expect(section).not.toContain("Migrations:");
+    }
+  });
+
+  test("the changelog uses none of the banned terms", async () => {
+    let scanned = await pageText(outDir, "changelog.html");
+    for (const phrase of ALLOWED_PHRASES) scanned = scanned.replace(phrase, " ");
+    const hits = BANNED_TERMS.filter((term) => term.test(scanned)).map(String);
+    expect(hits).toEqual([]);
+  });
+
+  test("/changelog.xml is an Atom feed of the same releases, with no build time in it", async () => {
+    const xml = await readFile(join(outDir, "changelog.xml"), "utf8");
+    expect(xml).toStartWith(
+      '<?xml version="1.0" encoding="utf-8"?>\n<feed xmlns="http://www.w3.org/2005/Atom">',
+    );
+    expect(xml).toContain(
+      '<link rel="self" type="application/atom+xml" href="https://openvalens.com/changelog.xml"/>',
+    );
+    expect(xml).toContain(`<updated>${releases[0]!.date}T00:00:00Z</updated>`);
+    const ids = [...xml.matchAll(/<id>https:\/\/openvalens\.com\/changelog#(v[\d.]+)<\/id>/g)].map(
+      (m) => m[1],
+    );
+    expect(ids).toEqual(tags);
+    // Entry content is escaped HTML; no raw markup inside <content>.
+    for (const content of xml.matchAll(/<content type="html">([\s\S]*?)<\/content>/g)) {
+      expect(content[1]).not.toMatch(/<[a-z]/);
+    }
+    const again = await mkdtemp(join(tmpdir(), "openvalens-site-"));
+    try {
+      await buildSite(again);
+      expect(await readFile(join(again, "changelog.xml"), "utf8")).toBe(xml);
+    } finally {
+      await rm(again, { recursive: true, force: true });
+    }
+  });
+
+  test("nginx serves the feed as Atom", async () => {
+    const conf = await readFile(
+      join(import.meta.dir, "..", "deploy", "default.conf.template"),
+      "utf8",
+    );
+    const feed = /location = \/changelog\.xml \{([\s\S]*?)\n    \}/.exec(conf)?.[1];
+    expect(feed).toContain("default_type application/atom+xml;");
+    expect(feed).toContain("include /etc/nginx/site-security-headers.conf;");
+  });
+
+  test("the home page links to the changelog", async () => {
+    expect(await readFile(join(outDir, "index.html"), "utf8")).toContain('href="/changelog"');
+  });
+
+  test("the site image copies the release notes the build reads", async () => {
+    const dockerfile = await readFile(join(import.meta.dir, "..", "Dockerfile"), "utf8");
+    expect(dockerfile).toContain("COPY docs/releases ./docs/releases");
+    expect(dockerfile).toContain("COPY scripts/release-notes.ts ./scripts/release-notes.ts");
   });
 });

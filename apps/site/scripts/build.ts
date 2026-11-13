@@ -13,7 +13,16 @@
 import { cp, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, extname, join, normalize, relative, resolve } from "node:path";
 
+import {
+  githubReleaseUrl,
+  highlightsToHtml,
+  readAllReleaseNotes,
+  RELEASES_DIR,
+  type ReleaseNotes,
+} from "../../../scripts/release-notes";
+
 export const SITE_SRC = join(import.meta.dir, "..", "src");
+export const SITE_URL = "https://openvalens.com";
 
 /**
  * Same-origin only; nothing executable. `frame-ancestors` is ignored in a
@@ -34,6 +43,92 @@ const CSP_PLACEHOLDER = "__SITE_CSP__";
 /** Fills `__CLOUD_SIGNUP_URL__` in the pages. */
 export const CLOUD_SIGNUP_URL = "https://app.openvalens.com/signup";
 const SIGNUP_PLACEHOLDER = "__CLOUD_SIGNUP_URL__";
+
+/** Fills `__CHANGELOG_ENTRIES__` in `changelog.html` (Issue #446). */
+const CHANGELOG_PLACEHOLDER = "__CHANGELOG_ENTRIES__";
+
+const MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
+/** `2026-11-05` → `5 November 2026`, without the build machine's locale. */
+export function formatReleaseDate(date: string): string {
+  const [year, month, day] = date.split("-").map(Number);
+  return `${day} ${MONTHS[month! - 1]} ${year}`;
+}
+
+function escapeXml(text: string): string {
+  return text
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
+function selfHostingLink(notes: ReleaseNotes): string {
+  return `<p class="release-link"><a href="${githubReleaseUrl(notes.tag)}">Self-hosting notes for ${notes.tag}</a></p>`;
+}
+
+/** One `<section>` per release, newest first: its Highlights and a link to its GitHub Release. */
+export function renderChangelogEntries(releases: ReleaseNotes[]): string {
+  return releases
+    .map((notes) =>
+      [
+        `<section class="release" id="${notes.tag}" aria-labelledby="${notes.tag}-title">`,
+        `<h2 id="${notes.tag}-title">Version ${notes.version}</h2>`,
+        `<p class="meta">Released <time datetime="${notes.date}">${formatReleaseDate(notes.date)}</time></p>`,
+        highlightsToHtml(notes),
+        selfHostingLink(notes),
+        "</section>",
+      ].join("\n"),
+    )
+    .join("\n");
+}
+
+/** The Atom feed of the same entries (`/changelog.xml`). Deterministic: no build time in it. */
+export function renderChangelogFeed(releases: ReleaseNotes[]): string {
+  const updated = `${releases[0]?.date ?? "2026-10-31"}T00:00:00Z`;
+  const entries = releases.map((notes) => {
+    const url = `${SITE_URL}/changelog#${notes.tag}`;
+    const content = `${highlightsToHtml(notes)}\n${selfHostingLink(notes)}`;
+    return [
+      "  <entry>",
+      `    <title>OpenValens ${notes.version}</title>`,
+      `    <id>${url}</id>`,
+      `    <link rel="alternate" type="text/html" href="${url}"/>`,
+      `    <published>${notes.date}T00:00:00Z</published>`,
+      `    <updated>${notes.date}T00:00:00Z</updated>`,
+      `    <content type="html">${escapeXml(content)}</content>`,
+      "  </entry>",
+    ].join("\n");
+  });
+  return [
+    '<?xml version="1.0" encoding="utf-8"?>',
+    '<feed xmlns="http://www.w3.org/2005/Atom">',
+    "  <title>OpenValens changelog</title>",
+    "  <subtitle>What changed in each release of OpenValens.</subtitle>",
+    `  <id>${SITE_URL}/changelog</id>`,
+    `  <link rel="alternate" type="text/html" href="${SITE_URL}/changelog"/>`,
+    `  <link rel="self" type="application/atom+xml" href="${SITE_URL}/changelog.xml"/>`,
+    `  <updated>${updated}</updated>`,
+    "  <author><name>The OpenValens contributors</name></author>",
+    `  <icon>${SITE_URL}/favicon.svg</icon>`,
+    ...entries,
+    "</feed>",
+    "",
+  ].join("\n");
+}
 
 /** `_headers` (Netlify / Cloudflare Pages format); reverse proxies can mirror it. */
 export function renderHeaders(): string {
@@ -209,10 +304,15 @@ export async function auditSite(dir: string): Promise<Finding[]> {
 }
 
 /**
- * Copies `src/` to `outDir`, fills in the CSP and the sign-up URL, and writes
- * `_headers`.
+ * Copies `src/` to `outDir`, fills in the CSP, the sign-up URL and the
+ * changelog (from `docs/releases`), and writes `changelog.xml` and `_headers`.
  */
-export async function buildSite(outDir: string, srcDir = SITE_SRC): Promise<void> {
+export async function buildSite(
+  outDir: string,
+  srcDir = SITE_SRC,
+  releasesDir = RELEASES_DIR,
+): Promise<void> {
+  const releases = readAllReleaseNotes(releasesDir);
   await rm(outDir, { recursive: true, force: true });
   await mkdir(outDir, { recursive: true });
   await cp(srcDir, outDir, { recursive: true });
@@ -223,9 +323,13 @@ export async function buildSite(outDir: string, srcDir = SITE_SRC): Promise<void
     if (!html.includes(CSP_PLACEHOLDER)) throw new Error(`${file}: missing ${CSP_PLACEHOLDER}`);
     await writeFile(
       path,
-      html.replaceAll(CSP_PLACEHOLDER, SITE_CSP).replaceAll(SIGNUP_PLACEHOLDER, CLOUD_SIGNUP_URL),
+      html
+        .replaceAll(CSP_PLACEHOLDER, SITE_CSP)
+        .replaceAll(SIGNUP_PLACEHOLDER, CLOUD_SIGNUP_URL)
+        .replaceAll(CHANGELOG_PLACEHOLDER, renderChangelogEntries(releases)),
     );
   }
+  await writeFile(join(outDir, "changelog.xml"), renderChangelogFeed(releases));
   await writeFile(join(outDir, "_headers"), renderHeaders());
 }
 

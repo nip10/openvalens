@@ -5,6 +5,9 @@
 FROM oven/bun:1.4.2 AS builder
 WORKDIR /app
 COPY apps/site ./apps/site
+# The changelog (/changelog, /changelog.xml) is built from the release notes (#446).
+COPY docs/releases ./docs/releases
+COPY scripts/release-notes.ts ./scripts/release-notes.ts
 RUN cd apps/site && bun scripts/build.ts dist \
   && awk '/^  [A-Za-z-]+: /{ line=$0; sub(/^  /, "", line); i=index(line, ": "); name=substr(line, 1, i-1); v=substr(line, i+2); gsub(/"/, "\\\"", v); printf "add_header %s \"%s\" always;\n", name, v }' dist/_headers > /app/security-headers.conf \
   && rm dist/_headers

@@ -1,6 +1,6 @@
 # Releasing
 
-Last updated: 2026-10-31
+Last updated: 2026-11-12
 
 How a version of OpenValens is cut: the version bump, the tag, the GitHub
 Release with its notes and self-host upgrade notes, and the store builds of
@@ -50,6 +50,27 @@ that everything agrees.
 In the same pull request, write the notes in `docs/releases/vX.Y.Z.md` (template
 below). Merge when CI is green.
 
+The notes are required (Issue #446). Their `## Highlights` section is what
+people see: the public [changelog](https://openvalens.com/changelog) and its
+Atom feed (`/changelog.xml`), built from `docs/releases` by the site build
+(`apps/site/scripts/build.ts`), and the in-app "What's new" card. Write the
+Highlights for members, in plain words, within the site's wording rules
+(`apps/site/scripts/wording-rules.ts`; the site test checks the changelog page).
+Optionally add a translation in `docs/releases/vX.Y.Z.pt-PT.md` with only the
+Highlights (heading `## Highlights` or `## Destaques`); members using pt-PT see
+it in the app. A translation is never required.
+
+**The release date** is the first line of the notes,
+`<!-- released: YYYY-MM-DD -->` (UTC; GitHub does not render the comment). The
+site is built without the repository history, so the date cannot come from the
+tag: write the day you plan to tag. The release workflow warns when it differs
+from the tag's date; fix it with a pull request to `main`, and the next site
+deploy shows the corrected date. `bun scripts/release-notes.ts --check vX.Y.Z`
+checks the notes the way the workflow does.
+
+The changelog lists every notes file on `main`, so push the tag right after
+the pull request merges.
+
 ### 2. Tag
 
 ```bash
@@ -61,10 +82,10 @@ git push origin vX.Y.Z
 
 Pushing the tag starts two workflows:
 
-| Workflow                                                        | Does                                                                                                                                                      |
-| --------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`release.yml`](../.github/workflows/release.yml)               | Checks the versions equal the tag, then creates a **draft** GitHub Release with `docs/releases/vX.Y.Z.md` as its notes (generated notes if it is missing) |
-| [`release-mobile.yml`](../.github/workflows/release-mobile.yml) | Runs the checks at the tag, then starts `eas build --profile production --platform all`, with `--auto-submit` when submit is configured                   |
+| Workflow                                                        | Does                                                                                                                                                                                                             |
+| --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`release.yml`](../.github/workflows/release.yml)               | Checks the versions equal the tag and that `docs/releases/vX.Y.Z.md` exists with a release date and a `## Highlights` section (it **fails** otherwise), then creates a **draft** GitHub Release with those notes |
+| [`release-mobile.yml`](../.github/workflows/release-mobile.yml) | Runs the checks at the tag, then starts `eas build --profile production --platform all`, with `--auto-submit` when submit is configured                                                                          |
 
 Both can be re-run for an existing tag from the Actions tab (**Run
 workflow**, with the tag). The mobile one also takes a platform and whether to
@@ -103,9 +124,14 @@ bunx eas-cli submit --profile production --platform android --latest
 `docs/releases/vX.Y.Z.md`:
 
 ```markdown
+<!-- released: YYYY-MM-DD -->
+
 ## Highlights
 
 - <what people will notice, in plain words>
+
+OpenValens is a personal record-keeping and general-wellness app. It is not a
+medical device and does not give medical advice.
 
 ## Self-hosting: upgrade notes
 
@@ -174,7 +200,7 @@ git push origin v0.9.0
 ```
 
 The tag does not need the store setup. `release.yml` creates the draft
-GitHub Release either way. Without `EXPO_TOKEN`, `release-mobile.yml` writes
+GitHub Release either way, as long as the notes are complete. Without `EXPO_TOKEN`, `release-mobile.yml` writes
 "Mobile release skipped" and what is missing, and ends green. Once the setup
 below is done, start the store builds for the existing tag from the Actions
 tab: **Release mobile** → **Run workflow** → tag `v0.9.0`. Use platform

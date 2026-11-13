@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- The build replaces this placeholder with SITE_CSP (scripts/build.ts). -->
+    <meta http-equiv="Content-Security-Policy" content="__SITE_CSP__" />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="description" content="What changed in each release of OpenValens." />
+    <title>Changelog · OpenValens</title>
+    <link rel="canonical" href="https://openvalens.com/changelog" />
+    <link
+      rel="alternate"
+      type="application/atom+xml"
+      title="OpenValens changelog"
+      href="/changelog.xml"
+    />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <a class="skip" href="#top">Skip to content</a>
+    <header class="wrap site-header">
+      <a class="brand" href="/"
+        ><img src="/favicon.svg" alt="" width="32" height="32" /><span>OpenValens</span></a
+      >
+      <nav aria-label="Site">
+        <a href="/">Home</a>
+        <a href="/changelog" aria-current="page">Changelog</a>
+        <a href="/support">Support</a>
+        <a href="https://github.com/nip10/openvalens">Source</a>
+      </nav>
+    </header>
+    <main id="top" class="wrap legal">
+      <article class="prose changelog">
+        <p class="eyebrow">Releases</p>
+        <h1>Changelog</h1>
+        <p>
+          What changed in each release, newest first. If you run your own server, each release links
+          to its self-hosting notes: how to upgrade, migrations and settings. Follow along with the
+          <a href="/changelog.xml">Atom feed</a>.
+        </p>
+        <p class="note">
+          OpenValens is a personal record-keeping and general-wellness app. It is not a medical
+          device.
+        </p>
+        <!-- The build replaces this placeholder with one section per release (scripts/build.ts). -->
+        __CHANGELOG_ENTRIES__
+      </article>
+    </main>
+    <footer class="wrap site-footer">
+      <ul class="footer-links">
+        <li><a href="/support">Support</a></li>
+        <li><a href="/terms">Terms</a></li>
+        <li><a href="/privacy">Privacy policy</a></li>
+        <li><a href="/subprocessors">Subprocessors</a></li>
+        <li>© 2026 The OpenValens contributors</li>
+      </ul>
+    </footer>
+  </body>
+</html>
