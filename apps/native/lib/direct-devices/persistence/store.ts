@@ -141,6 +141,20 @@ export interface DirectDeviceStore {
   ): void;
   markRegistered(ticket: AuthorityTicket, deviceId: string, providerConnectionId: number): void;
   commitCapture(ticket: AuthorityTicket, input: CaptureInput): void;
+  /**
+   * Compare-and-swap of the binding checkpoint alone, for progress with
+   * nothing to upload (e.g. a Zepp OS night still open). Same identity and
+   * authority checks as commitCapture.
+   */
+  advanceCheckpoint(
+    ticket: AuthorityTicket,
+    input: {
+      deviceId: string;
+      deviceIdentity: DirectDeviceIdentity;
+      expectedPreviousCheckpoint: string | null;
+      nextCheckpoint: string;
+    },
+  ): void;
   attachPebblePeripheral(
     ticket: AuthorityTicket,
     deviceId: string,
@@ -676,6 +690,43 @@ export function createSqliteDirectDeviceStore(
           checkpointJson,
           requests,
         );
+        const updated = db.runSync(
+          `UPDATE direct_device_binding SET capture_checkpoint = ?
+           WHERE scope = ? AND device_id = ? AND capture_checkpoint IS ?`,
+          input.nextCheckpoint,
+          scope,
+          input.deviceId,
+          input.expectedPreviousCheckpoint,
+        );
+        if (updated.changes !== 1)
+          throw new DirectDeviceConflictError("DIRECT_DEVICE_CHECKPOINT_CONFLICT");
+      });
+    },
+
+    advanceCheckpoint(ticket, input) {
+      validateDeviceId(input.deviceId);
+      if (!input.nextCheckpoint || input.nextCheckpoint.length > 1024)
+        throw new DirectDeviceAdmissionError("DIRECT_DEVICE_CAPTURE_METADATA_INVALID");
+      const identity = directDeviceIdentity.parse(input.deviceIdentity);
+      // Pebble and Fossil progress lives in their own inbox tables.
+      if (identity.family === "pebble" || identity.family === "fossil_hr")
+        throw new DirectDeviceConflictError("DIRECT_DEVICE_IDENTITY_MISMATCH");
+      const scope = requireTicketScope(ticket);
+      db.withTransactionSync(() => {
+        assertAuthorityTicket(ticket);
+        const binding = db.getFirstSync<{
+          provider_connection_id: number | null;
+          family: string | null;
+          model_id: string | null;
+        }>(
+          "SELECT provider_connection_id, family, model_id FROM direct_device_binding WHERE scope = ? AND device_id = ?",
+          scope,
+          input.deviceId,
+        );
+        if (!binding || binding.provider_connection_id === null)
+          throw new DirectDeviceConflictError("DIRECT_DEVICE_BINDING_REQUIRED");
+        if (binding.family !== identity.family || binding.model_id !== identity.modelId)
+          throw new DirectDeviceConflictError("DIRECT_DEVICE_IDENTITY_MISMATCH");
         const updated = db.runSync(
           `UPDATE direct_device_binding SET capture_checkpoint = ?
            WHERE scope = ? AND device_id = ? AND capture_checkpoint IS ?`,

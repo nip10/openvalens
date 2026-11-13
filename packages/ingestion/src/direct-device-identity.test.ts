@@ -126,7 +126,7 @@ describe("direct-device identity guard", () => {
     expect(
       assertDirectDeviceIdentity(ring, ringAssertion, { recordType: "sleep_session" }),
     ).toEqual(ringAssertion);
-    // The Helio Strap reports 0x48 sleep sessions; a no-sleep-score Zepp OS model does not.
+    // Every Zepp OS model publishes sleep: 0x48 sessions, or segmented activity minutes.
     expect(
       assertDirectDeviceIdentity(
         confirmed,
@@ -135,7 +135,6 @@ describe("direct-device identity guard", () => {
       ),
     ).toEqual({ family: "zepp_os", modelId: "amazfit_helio_strap" });
     for (const other of [
-      { directDeviceFamily: "zepp_os", directDeviceModelId: "amazfit_gtr_3" },
       { directDeviceFamily: "xiaomi", directDeviceModelId: "xiaomi_mi_band_10" },
       { directDeviceFamily: "ble_gatt", directDeviceModelId: "polar_h10" },
       { directDeviceFamily: "ble_scale", directDeviceModelId: "xiaomi_smart_scale_2" },

@@ -435,3 +435,74 @@ describe("Zepp OS sleep rounds", () => {
     expect(f.calls.some((c) => c[0] === 1 && c[1] === 0x48)).toBe(false);
   });
 });
+
+describe("Zepp OS sleep fallback", () => {
+  // 2026-11-05T12:00Z metadata start; kind 120 = sleep.
+  function minute(kind: number, steps: number, deep = 0, rem = 0) {
+    return [kind, 0, steps, 0, 0, 0, deep, rem];
+  }
+  test("minutes are segmented over the whole fetch, steps publish only from the cursor, an open night is reported", async () => {
+    // 10 sleep minutes (12:00–12:09), a stepping minute closes it, then 6 sleep minutes still open.
+    const raw = Uint8Array.from([
+      ...Array.from({ length: 10 }, () => minute(120, 0, 50)).flat(),
+      ...minute(1, 30),
+      ...Array.from({ length: 6 }, () => minute(120, 0)).flat(),
+    ]);
+    const f = fixtureLink(raw);
+    const results: {
+      sessions: readonly { startTime: string; endTime: string }[];
+      openStart: string | null;
+    }[] = [];
+    const pages: number[] = [];
+    await runHelioStepsHistory(
+      f.link,
+      {
+        ...options(async (page) => void pages.push(page.minutes.length)),
+        since: { version: 1, nextMinuteUtc: "2026-11-05T12:05:00.000Z", offsetQuarterHours: 0 },
+        sleepFallback: {
+          pendingStart: "2026-11-05T12:00:00.000Z",
+          onResult: async (result) => void results.push(result),
+        },
+      },
+      {
+        openChannel: async () => f.channel as never,
+        now: () => Date.parse("2026-11-05T13:00:00Z"),
+      },
+    );
+    // Re-read from the pending start (12:00) although the cursor is 12:05 ...
+    expect(f.calls.find((c) => c[0] === 1)!.slice(6, 8)).toEqual([12, 0]);
+    // ... but only minutes from 12:05 are published as steps.
+    expect(pages).toEqual([12]);
+    expect(results).toHaveLength(1);
+    expect(results[0]!.sessions.map((session) => [session.startTime, session.endTime])).toEqual([
+      ["2026-11-05T12:00:00.000Z", "2026-11-05T12:10:00.000Z"],
+    ]);
+    expect(results[0]!.openStart).toBe("2026-11-05T12:11:00.000Z");
+    expect(f.calls.filter((c) => c[0] === 3).every((c) => c[1] === 9)).toBe(true);
+  });
+  test("a sync cut short by the minute budget keeps the night open at its real start", async () => {
+    // 30 sleep minutes from 12:00, but only 10 minutes fit the budget.
+    const raw = Uint8Array.from(Array.from({ length: 30 }, () => minute(120, 0)).flat());
+    const f = fixtureLink(raw);
+    const results: { sessions: readonly unknown[]; openStart: string | null }[] = [];
+    await runHelioStepsHistory(
+      f.link,
+      {
+        ...options(async () => {}),
+        since: { version: 1, nextMinuteUtc: "2026-11-05T12:00:00.000Z", offsetQuarterHours: 0 },
+        sleepFallback: {
+          pendingStart: null,
+          onResult: async (result) => void results.push(result),
+        },
+      },
+      {
+        openChannel: async () => f.channel as never,
+        now: () => Date.parse("2026-11-05T13:00:00Z"),
+        limits: { maxMinutes: 10 },
+      },
+    );
+    // Minutes past the committed cursor (12:10) are not segmented: nothing is
+    // published, and the next sync re-reads the night from 12:00.
+    expect(results).toEqual([{ sessions: [], openStart: "2026-11-05T12:00:00.000Z" }]);
+  });
+});

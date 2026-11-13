@@ -23,7 +23,12 @@ import { projectPebbleCapture } from "./pebble-capture";
 import { projectFossilFiles } from "./fossil-capture";
 import { parseFossilActivityFile, parseFossilAuthKey } from "../protocol/fossil-hr";
 import type { PebbleIdentity, PebbleSessionOutcome } from "../pebble-types";
-import type { HelioCursor, HelioStepsPage, ZeppSleepPage } from "../protocol/types";
+import type {
+  HelioCursor,
+  HelioStepsPage,
+  ZeppSleepFallbackResult,
+  ZeppSleepPage,
+} from "../protocol/types";
 import { zeppOsSupportsSleepSessions } from "../models/zepp-os";
 import type { BleGattSample } from "../protocol/ble-gatt";
 import {
@@ -163,8 +168,10 @@ export function parseCheckpoint(value: string | null): {
   activity: HelioCursor | null;
   sleep: HelioCursor | null;
   nights: ZeppSleepMemory;
+  /** Zepp OS sleep fallback: start of a night still open at the last sync. */
+  pending: string | null;
 } {
-  if (!value) return { activity: null, sleep: null, nights: [] };
+  if (!value) return { activity: null, sleep: null, nights: [], pending: null };
   try {
     const parsed = JSON.parse(value) as {
       version?: number;
@@ -182,16 +189,22 @@ export function parseCheckpoint(value: string | null): {
               (entry[1] as number) > (entry[0] as number),
           )
         : [];
+      const rawPending = (parsed as { pending?: unknown }).pending;
+      const pending =
+        typeof rawPending === "string" && Number.isFinite(Date.parse(rawPending))
+          ? rawPending
+          : null;
       return {
         activity: validCursor(parsed.activity),
         sleep: validCursor(parsed.sleep),
         nights,
+        pending,
       };
     }
   } catch {
-    return { activity: null, sleep: null, nights: [] };
+    return { activity: null, sleep: null, nights: [], pending: null };
   }
-  return { activity: parseCursor(value), sleep: null, nights: [] };
+  return { activity: parseCursor(value), sleep: null, nights: [], pending: null };
 }
 
 /** v1 while there is no sleep cursor (unchanged format for every other family). */
@@ -199,8 +212,11 @@ export function checkpointString(
   activity: HelioCursor,
   sleep: HelioCursor | null,
   nights: ZeppSleepMemory = [],
+  pending: string | null = null,
 ): string {
-  return sleep ? JSON.stringify({ version: 2, activity, sleep, nights }) : cursorString(activity);
+  return sleep || pending
+    ? JSON.stringify({ version: 2, activity, sleep, nights, ...(pending ? { pending } : {}) })
+    : cursorString(activity);
 }
 
 /**
@@ -1365,6 +1381,9 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
           syncIdentity.family === "zepp_os" && zeppOsSupportsSleepSessions(syncIdentity.modelId);
         let sleepCursor: HelioCursor | null = stored.sleep;
         let sleepMemory: ZeppSleepMemory = stored.nights;
+        let sleepPending: string | null = stored.pending;
+        const syncsSleepFallback =
+          syncIdentity.family === "zepp_os" && !zeppOsSupportsSleepSessions(syncIdentity.modelId);
         const sleepSince: HelioCursor = stored.sleep ?? {
           version: 1,
           nextMinuteUtc: new Date(
@@ -1524,10 +1543,20 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
                 deviceIdentity: syncIdentity,
                 captureId,
                 expectedPreviousCheckpoint: checkpoint,
-                nextCheckpoint: checkpointString(page.nextCursor, sleepCursor, sleepMemory),
+                nextCheckpoint: checkpointString(
+                  page.nextCursor,
+                  sleepCursor,
+                  sleepMemory,
+                  sleepPending,
+                ),
                 envelopes,
               });
-              checkpoint = checkpointString(page.nextCursor, sleepCursor, sleepMemory);
+              checkpoint = checkpointString(
+                page.nextCursor,
+                sleepCursor,
+                sleepMemory,
+                sleepPending,
+              );
               cursorSince = page.nextCursor;
               activityCursor = page.nextCursor;
               captured += page.minutes.length;
@@ -1549,6 +1578,7 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
                         activityCursor,
                         page.nextCursor,
                         assigned.memory,
+                        sleepPending,
                       );
                       const envelopes = zeppSleepRequests(
                         syncDeviceId,
@@ -1572,6 +1602,60 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
                       checkpoint = next;
                       sleepCursor = page.nextCursor;
                       sleepMemory = assigned.memory;
+                    },
+                  },
+                }
+              : {}),
+            ...(syncsSleepFallback
+              ? {
+                  sleepFallback: {
+                    pendingStart: stored.pending,
+                    async onResult(result: ZeppSleepFallbackResult) {
+                      if (
+                        !current(token) ||
+                        !isAuthorityTicketCurrent(ticket) ||
+                        abort.signal.aborted
+                      )
+                        throw new Error("STALE_DIRECT_DEVICE_AUTHORITY");
+                      const next = checkpointString(
+                        activityCursor,
+                        sleepCursor,
+                        sleepMemory,
+                        result.openStart,
+                      );
+                      // Segmented sessions are deterministic: the same minutes
+                      // always give the same start, so the start is the id.
+                      const envelopes = zeppSleepRequests(
+                        syncDeviceId,
+                        syncIdentity,
+                        { userId: context.userId, organizationId: context.organizationId },
+                        result.sessions.map((session) => ({
+                          ...session,
+                          reportTime: 0,
+                          midnight: 0,
+                        })),
+                        result.sessions.map((session) =>
+                          Math.floor(Date.parse(session.startTime) / 1000),
+                        ),
+                      );
+                      if (envelopes.length)
+                        deps.store.commitCapture(ticket, {
+                          deviceId: syncDeviceId,
+                          deviceIdentity: syncIdentity,
+                          captureId: `dd-sleep-fb:${syncDeviceId}:${activityCursor.nextMinuteUtc}:${result.sessions[0]!.startTime}:${result.sessions.at(-1)!.endTime}`,
+                          expectedPreviousCheckpoint: checkpoint,
+                          nextCheckpoint: next,
+                          envelopes,
+                        });
+                      else if (next !== checkpoint)
+                        deps.store.advanceCheckpoint(ticket, {
+                          deviceId: syncDeviceId,
+                          deviceIdentity: syncIdentity,
+                          expectedPreviousCheckpoint: checkpoint,
+                          nextCheckpoint: next,
+                        });
+                      checkpoint = next;
+                      sleepPending = result.openStart;
                     },
                   },
                 }

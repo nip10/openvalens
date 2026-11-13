@@ -15,6 +15,11 @@ export type HelioStepsPage = Readonly<{
   minutes: readonly HelioStepMinute[];
   nextCursor: HelioCursor;
 }>;
+export type ZeppSleepFallbackResult = Readonly<{
+  sessions: readonly import("./zepp-sleep-fallback").ZeppFallbackSession[];
+  openStart: string | null;
+}>;
+
 /** One committed batch of Zepp OS sleep sessions (fetch type 0x48). */
 export type ZeppSleepPage = Readonly<{
   sessions: readonly import("./zepp-sleep").ZeppSleepSession[];
@@ -28,6 +33,17 @@ export type HelioHistoryOptions = {
   onPage(page: HelioStepsPage): Promise<void>;
   /** Zepp OS: also fetch sleep sessions after activity, from their own cursor. */
   sleep?: Readonly<{ since: HelioCursor; onPage(page: ZeppSleepPage): Promise<void> }>;
+  /**
+   * Zepp OS models without sleep sessions: segment sleep from activity
+   * minutes. Fetching starts at `pendingStart` (a night still open last time)
+   * when it is earlier than `since`; steps are still published only from
+   * `since`. `onResult` receives the closed sessions and the start of a night
+   * still open at the end of the data.
+   */
+  sleepFallback?: Readonly<{
+    pendingStart: string | null;
+    onResult(result: ZeppSleepFallbackResult): Promise<void>;
+  }>;
   onPhase(phase: "authenticating" | "discovering_services" | "fetching"): void;
 };
 export type HelioHistoryResult = Readonly<{

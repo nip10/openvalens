@@ -3166,13 +3166,28 @@ test("the checkpoint stays v1 until a sleep cursor exists, and v1 keeps parsing"
     offsetQuarterHours: 4,
   };
   expect(checkpointString(activity, null)).toBe(JSON.stringify(activity));
-  expect(parseCheckpoint(JSON.stringify(activity))).toEqual({ activity, sleep: null, nights: [] });
+  expect(parseCheckpoint(JSON.stringify(activity))).toEqual({
+    activity,
+    sleep: null,
+    nights: [],
+    pending: null,
+  });
   const nights = [[100, 200, 100]] as const;
   const v2 = checkpointString(activity, sleep, nights);
   expect(JSON.parse(v2)).toEqual({ version: 2, activity, sleep, nights: [[100, 200, 100]] });
-  expect(parseCheckpoint(v2)).toEqual({ activity, sleep, nights: [[100, 200, 100]] });
-  expect(parseCheckpoint("not json")).toEqual({ activity: null, sleep: null, nights: [] });
-  expect(parseCheckpoint(null)).toEqual({ activity: null, sleep: null, nights: [] });
+  expect(parseCheckpoint(v2)).toEqual({
+    activity,
+    sleep,
+    nights: [[100, 200, 100]],
+    pending: null,
+  });
+  expect(parseCheckpoint("not json")).toEqual({
+    activity: null,
+    sleep: null,
+    nights: [],
+    pending: null,
+  });
+  expect(parseCheckpoint(null)).toEqual({ activity: null, sleep: null, nights: [], pending: null });
   // Eight remembered sessions keep the checkpoint under its 1024-character cap.
   const full = Array.from(
     { length: 8 },
@@ -3435,4 +3450,61 @@ test("sleep id rules hold what upserts cannot express without duplicating a nigh
       [null],
     ),
   ).toEqual([]);
+});
+
+test("the sleep fallback keeps an open night in the checkpoint and later publishes it by its start", async () => {
+  const fallbackCalls: (string | null)[] = [];
+  let phase = 0;
+  const { db, store, received, controller, ticket } = await zeppController(
+    "amazfit_gtr_3",
+    async (options) => {
+      fallbackCalls.push(options.sleepFallback?.pendingStart ?? null);
+      if (phase === 0)
+        // Mid-night sync: nothing closed yet, a night open since 23:00.
+        await options.sleepFallback!.onResult({
+          sessions: [],
+          openStart: "2026-01-31T23:00:00.000Z",
+        });
+      else
+        await options.sleepFallback!.onResult({
+          sessions: [
+            {
+              startTime: "2026-01-31T23:00:00.000Z",
+              endTime: "2026-02-01T07:00:00.000Z",
+              stages: [
+                {
+                  stage: "light",
+                  startTime: "2026-01-31T23:00:00.000Z",
+                  endTime: "2026-02-01T07:00:00.000Z",
+                },
+              ],
+            },
+          ],
+          openStart: null,
+        });
+      return {
+        pages: 0,
+        minutes: 0,
+        complete: true,
+        sleep: { pages: 0, sessions: 0, complete: true, errorCode: null },
+      };
+    },
+  );
+  await controller.syncSteps("00112233445566778899aabbccddeeff");
+  expect(JSON.parse(store.getBinding(ticket, deviceId)!.captureCheckpoint!)).toMatchObject({
+    version: 2,
+    pending: "2026-01-31T23:00:00.000Z",
+  });
+  expect(received).toEqual([]);
+  phase = 1;
+  await controller.syncSteps("00112233445566778899aabbccddeeff");
+  // The second sync re-reads from the open night.
+  expect(fallbackCalls).toEqual([null, "2026-01-31T23:00:00.000Z"]);
+  expect(received.map((input) => input.batch.recordType)).toEqual(["sleep_session"]);
+  expect(received[0]!.batch.upserts[0]!.externalRecordId).toBe(
+    `dd-zepp:${deviceId}:sleep:${Date.parse("2026-01-31T23:00:00.000Z") / 1000}`,
+  );
+  expect(parseCheckpoint(store.getBinding(ticket, deviceId)!.captureCheckpoint).pending).toBeNull();
+  await controller.dispose();
+  db.close();
 });

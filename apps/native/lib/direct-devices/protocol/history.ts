@@ -9,6 +9,11 @@ import type {
   ZeppSleepPage,
 } from "./types";
 import { ZEPP_SLEEP_SESSION_TYPE, parseZeppSleepSessions } from "./zepp-sleep";
+import {
+  segmentZeppSleep,
+  zeppFallbackStage,
+  type ZeppFallbackMinute,
+} from "./zepp-sleep-fallback";
 import { crc32 } from "./chunked";
 import {
   decodeDeviceDate,
@@ -89,127 +94,217 @@ export async function runHelioStepsHistory(
       pages = 0,
       minutes = 0,
       complete = false;
-    while (pages < limits.maxPages && minutes < limits.maxMinutes) {
-      checkAbort(signal);
-      if ((deps.now ?? Date.now)() - started > limits.maxDurationMs)
-        throw new Error("HISTORY_TIMEOUT");
-      let raw = new Uint8Array(0),
-        expectedCounter = 0,
-        packetBytes = 0,
-        failure: Error | undefined;
-      unsubscribe?.();
-      unsubscribe = link.subscribe(
-        "activity_data",
-        (incoming) => {
-          if (failure) return;
-          if (incoming.length < 2) {
-            failure = new Error("HISTORY_TRUNCATED_PACKET");
-            return;
-          }
-          const counter = incoming[0]!;
-          if (counter !== expectedCounter) {
-            failure = new Error("HISTORY_BAD_COUNTER");
-            return;
-          }
-          expectedCounter = (expectedCounter + 1) & 0xff;
-          const part = incoming.subarray(1);
-          packetBytes += part.length;
-          if (packetBytes > limits.maxMessageBytes) {
-            failure = new Error("HISTORY_SIZE_LIMIT");
-            return;
-          }
-          const next = new Uint8Array(raw.length + part.length);
-          next.set(raw);
-          next.set(part, raw.length);
-          raw = next;
-        },
-        () => {
-          failure = new Error("HISTORY_TRANSPORT_ERROR");
-        },
-      );
-      const metaPayload = await control.request(
-        historyStart(cursor),
-        (p) => p[0] === 0x10 && p[1] === 1,
-      );
-      const meta = parseMeta(metaPayload);
-      // Activity samples are 8 bytes each on every Zepp OS model.
-      if (meta.length % 8 !== 0) throw new Error("UNSUPPORTED_ACTIVITY_FORMAT");
-      if (meta.length > limits.maxMessageBytes) throw new Error("HISTORY_SIZE_LIMIT");
-      if (meta.length === 0) {
-        await control.keep();
-        complete = true;
-        break;
-      }
-      const completion = await control.request(
-        Uint8Array.of(2),
-        (p) => p[0] === 0x10 && p[1] === 2,
-      );
-      // Every failure after the data arrived still tells the watch to keep
-      // it (upstream does so on a bad counter or failed processing), unless
-      // the session itself was cancelled.
-      let truncated = false;
+    // Sleep fallback: re-read from a night left open last time, so it is
+    // segmented whole; only minutes from `cursor` on are published as steps.
+    const fallback = options.sleepFallback;
+    const fallbackMinutes = new Map<number, ZeppFallbackMinute>();
+    let fetchFrom: HelioCursor = cursor;
+    if (
+      fallback?.pendingStart &&
+      Date.parse(fallback.pendingStart) < Date.parse(cursor.nextMinuteUtc) &&
+      Date.parse(cursor.nextMinuteUtc) - Date.parse(fallback.pendingStart) <= MAX_PENDING_MS
+    )
+      fetchFrom = { ...cursor, nextMinuteUtc: fallback.pendingStart };
+    /**
+     * Segments the classified minutes before the committed activity cursor
+     * (minutes past it may belong to a transfer cut short, and would be read
+     * again), with gaps filled by empty minutes as upstream's sample provider
+     * does. Returns an error code instead of throwing.
+     */
+    const runFallback = async (): Promise<string | null> => {
+      if (!fallback) return null;
       try {
+        const limit = Date.parse(cursor.nextMinuteUtc) / 1000;
+        const known = [...fallbackMinutes.values()]
+          .filter((minute) => minute.time < limit)
+          .sort((left, right) => left.time - right.time);
+        const sorted: ZeppFallbackMinute[] = [];
+        for (const minute of known) {
+          const previous = sorted.at(-1);
+          if (previous)
+            for (let time = previous.time + 60; time < minute.time; time += 60)
+              sorted.push({ time, steps: 0, sleep: null });
+          sorted.push(minute);
+        }
+        let { sessions, openStart } = segmentZeppSleep(sorted);
+        // A session open far too long (e.g. the watch off the wrist all day
+        // flagged as sleep) is closed rather than re-read forever.
+        const last = sorted.at(-1);
+        if (openStart !== null && last && (last.time - openStart) * 1000 > MAX_PENDING_MS) {
+          ({ sessions, openStart } = segmentZeppSleep([
+            ...sorted,
+            { time: last.time + 60, steps: 1, sleep: null },
+          ]));
+        }
+        await fallback.onResult({
+          sessions,
+          openStart: openStart === null ? null : new Date(openStart * 1000).toISOString(),
+        });
+        return null;
+      } catch (error) {
+        if (signal.aborted) throw error;
+        return error instanceof Error && /^[A-Z0-9_]{1,64}$/.test(error.message)
+          ? error.message
+          : "ZEPP_SLEEP_FETCH_FAILED";
+      }
+    };
+    try {
+      while (pages < limits.maxPages && minutes < limits.maxMinutes) {
         checkAbort(signal);
-        if (failure) throw failure;
-        if (raw.length !== meta.length || raw.length % 8 !== 0)
-          throw new Error("HISTORY_LENGTH_MISMATCH");
-        if (
-          (completion.length !== 3 && completion.length !== 7) ||
-          completion[0] !== 0x10 ||
-          completion[1] !== 2 ||
-          completion[2] !== 1
-        )
-          throw integrityError();
-        // Upstream deliberately skips the activity checksum
-        // (FetchActivityOperation:135-140); enforcing it would stall a watch
-        // whose CRC differs forever. Counter, length and sample-size checks stay.
-        const records = makeStepMinutes(raw, meta.first, undefined, now).filter(
-          (r) => Date.parse(r.startTime) >= Date.parse(cursor.nextMinuteUtc),
+        if ((deps.now ?? Date.now)() - started > limits.maxDurationMs)
+          throw new Error("HISTORY_TIMEOUT");
+        let raw = new Uint8Array(0),
+          expectedCounter = 0,
+          packetBytes = 0,
+          failure: Error | undefined;
+        unsubscribe?.();
+        unsubscribe = link.subscribe(
+          "activity_data",
+          (incoming) => {
+            if (failure) return;
+            if (incoming.length < 2) {
+              failure = new Error("HISTORY_TRUNCATED_PACKET");
+              return;
+            }
+            const counter = incoming[0]!;
+            if (counter !== expectedCounter) {
+              failure = new Error("HISTORY_BAD_COUNTER");
+              return;
+            }
+            expectedCounter = (expectedCounter + 1) & 0xff;
+            const part = incoming.subarray(1);
+            packetBytes += part.length;
+            if (packetBytes > limits.maxMessageBytes) {
+              failure = new Error("HISTORY_SIZE_LIMIT");
+              return;
+            }
+            const next = new Uint8Array(raw.length + part.length);
+            next.set(raw);
+            next.set(part, raw.length);
+            raw = next;
+          },
+          () => {
+            failure = new Error("HISTORY_TRANSPORT_ERROR");
+          },
         );
-        if (records.length === 0) {
+        const metaPayload = await control.request(
+          historyStart(fetchFrom),
+          (p) => p[0] === 0x10 && p[1] === 1,
+        );
+        const meta = parseMeta(metaPayload);
+        // Activity samples are 8 bytes each on every Zepp OS model.
+        if (meta.length % 8 !== 0) throw new Error("UNSUPPORTED_ACTIVITY_FORMAT");
+        if (meta.length > limits.maxMessageBytes) throw new Error("HISTORY_SIZE_LIMIT");
+        if (meta.length === 0) {
           await control.keep();
-          complete = Date.parse(meta.first) >= Math.floor(now / 60_000) * 60_000;
+          complete = true;
           break;
         }
-        // One watch transfer can be days long. Commit it in bounded pages so
-        // a single capture never exceeds the outbox byte limit, and stop at
-        // the minute and page budgets after committing what fits (the next
-        // sync resumes from the advanced cursor instead of retrying forever).
-        const budget = Math.min(records.length, limits.maxMinutes - minutes);
-        for (let offset = 0; offset < budget; offset += PAGE_MINUTES) {
-          if (pages >= limits.maxPages) {
-            truncated = true;
+        const completion = await control.request(
+          Uint8Array.of(2),
+          (p) => p[0] === 0x10 && p[1] === 2,
+        );
+        // Every failure after the data arrived still tells the watch to keep
+        // it (upstream does so on a bad counter or failed processing), unless
+        // the session itself was cancelled.
+        let truncated = false;
+        try {
+          checkAbort(signal);
+          if (failure) throw failure;
+          if (raw.length !== meta.length || raw.length % 8 !== 0)
+            throw new Error("HISTORY_LENGTH_MISMATCH");
+          if (
+            (completion.length !== 3 && completion.length !== 7) ||
+            completion[0] !== 0x10 ||
+            completion[1] !== 2 ||
+            completion[2] !== 1
+          )
+            throw integrityError();
+          // Upstream deliberately skips the activity checksum
+          // (FetchActivityOperation:135-140); enforcing it would stall a watch
+          // whose CRC differs forever. Counter, length and sample-size checks stay.
+          const all = makeStepMinutes(raw, meta.first, undefined, now);
+          if (fallback) {
+            const first = Date.parse(meta.first) / 1000;
+            for (let index = 0; index * 8 < raw.length; index += 1) {
+              const time = first + index * 60;
+              // The in-progress minute is never classified (nor published).
+              if (time * 1000 >= now - (now % 60_000)) continue;
+              fallbackMinutes.set(time, {
+                time,
+                steps: raw[index * 8 + 2]!,
+                sleep: zeppFallbackStage(raw[index * 8]!, raw[index * 8 + 6]!, raw[index * 8 + 7]!),
+              });
+            }
+          }
+          const records = all.filter(
+            (r) => Date.parse(r.startTime) >= Date.parse(cursor.nextMinuteUtc),
+          );
+          if (records.length === 0) {
+            // A transfer that only re-read minutes before the activity cursor
+            // (for the sleep fallback) moves the fetch on and continues.
+            const transferEnd = Date.parse(meta.first) + (raw.length / 8) * 60_000;
+            if (
+              fallback &&
+              raw.length > 0 &&
+              transferEnd > Date.parse(fetchFrom.nextMinuteUtc) &&
+              transferEnd <= Date.parse(cursor.nextMinuteUtc)
+            ) {
+              await control.keep();
+              fetchFrom = { ...fetchFrom, nextMinuteUtc: new Date(transferEnd).toISOString() };
+              continue;
+            }
+            await control.keep();
+            complete = Date.parse(meta.first) >= Math.floor(now / 60_000) * 60_000;
             break;
           }
-          const chunk = records.slice(offset, Math.min(offset + PAGE_MINUTES, budget));
-          const last = chunk[chunk.length - 1]!;
-          const nextCursor: HelioCursor = Object.freeze({
-            version: 1,
-            nextMinuteUtc: last.endTime,
-            offsetQuarterHours: meta.offset,
-          });
-          if (Date.parse(nextCursor.nextMinuteUtc) <= Date.parse(cursor.nextMinuteUtc))
-            throw new Error("HISTORY_NONADVANCING_CURSOR");
-          const page: HelioStepsPage = Object.freeze({ minutes: chunk, nextCursor });
-          checkAbort(signal);
-          await options.onPage(page);
-          checkAbort(signal);
-          cursor = nextCursor;
-          pages += 1;
-          minutes += chunk.length;
+          // One watch transfer can be days long. Commit it in bounded pages so
+          // a single capture never exceeds the outbox byte limit, and stop at
+          // the minute and page budgets after committing what fits (the next
+          // sync resumes from the advanced cursor instead of retrying forever).
+          const budget = Math.min(records.length, limits.maxMinutes - minutes);
+          for (let offset = 0; offset < budget; offset += PAGE_MINUTES) {
+            if (pages >= limits.maxPages) {
+              truncated = true;
+              break;
+            }
+            const chunk = records.slice(offset, Math.min(offset + PAGE_MINUTES, budget));
+            const last = chunk[chunk.length - 1]!;
+            const nextCursor: HelioCursor = Object.freeze({
+              version: 1,
+              nextMinuteUtc: last.endTime,
+              offsetQuarterHours: meta.offset,
+            });
+            if (Date.parse(nextCursor.nextMinuteUtc) <= Date.parse(cursor.nextMinuteUtc))
+              throw new Error("HISTORY_NONADVANCING_CURSOR");
+            const page: HelioStepsPage = Object.freeze({ minutes: chunk, nextCursor });
+            checkAbort(signal);
+            await options.onPage(page);
+            checkAbort(signal);
+            cursor = nextCursor;
+            pages += 1;
+            minutes += chunk.length;
+          }
+          if (budget < records.length) truncated = true;
+        } catch (error) {
+          if (!signal.aborted) await control.keep().catch(() => undefined);
+          throw error;
         }
-        if (budget < records.length) truncated = true;
-      } catch (error) {
-        if (!signal.aborted) await control.keep().catch(() => undefined);
-        throw error;
+        await control.keep();
+        fetchFrom = cursor;
+        if (truncated) break;
+        if (Date.parse(cursor.nextMinuteUtc) >= Math.floor(now / 60_000) * 60_000) {
+          complete = true;
+          break;
+        }
       }
-      await control.keep();
-      if (truncated) break;
-      if (Date.parse(cursor.nextMinuteUtc) >= Math.floor(now / 60_000) * 60_000) {
-        complete = true;
-        break;
-      }
+    } catch (error) {
+      // Activity failed partway: still segment what was committed, so the
+      // open-night marker keeps up with the advanced cursor.
+      if (fallback && !signal.aborted) await runFallback().catch(() => undefined);
+      throw error;
     }
+    const fallbackError = fallback ? await runFallback() : null;
     // Sleep sessions run after activity in the same authenticated session.
     // Activity pages are already committed, so a sleep failure is reported
     // next to them rather than thrown (unless the session was cancelled).
@@ -230,6 +325,13 @@ export async function runHelioStepsHistory(
         });
       }
     }
+    if (fallback)
+      sleep = Object.freeze({
+        pages: 0,
+        sessions: 0,
+        complete: fallbackError === null,
+        errorCode: fallbackError,
+      });
     return Object.freeze({ pages, minutes, complete, ...(sleep ? { sleep } : {}) });
   } catch (error) {
     if (timedOut) throw new Error("HISTORY_TIMEOUT");
@@ -367,6 +469,8 @@ type ActivityControl = {
 };
 
 const CONTROL_TIMEOUT_MS = 30_000;
+/** A night left open is re-read for at most this long. */
+const MAX_PENDING_MS = 16 * 60 * 60 * 1000;
 /** Minutes per committed page: steps + heart rate stay well under 4 MB. */
 export const PAGE_MINUTES = 4_000;
 
