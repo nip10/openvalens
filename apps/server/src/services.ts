@@ -45,6 +45,7 @@ import {
   createAiAppsService,
   describeMcpIntegration,
   GRANTABLE_SCOPES,
+  MCP_ENDPOINT_PATH,
   mcpOAuthEndpointsFor,
   parseMcpConfig,
 } from "@openvalens/mcp";
@@ -346,6 +347,19 @@ export const mcpOAuthEndpoints = (() => {
     });
   }
   return endpoints;
+})();
+
+/**
+ * Issue #439 — the MCP endpoint members paste into their AI app, shown in
+ * Settings → Connected AI apps; `null` while the MCP server is off.
+ */
+export const aiAppsMcpUrl = (() => {
+  if (!mcpConfig.enabled) return null;
+  try {
+    return `${new URL(ENV.BETTER_AUTH_URL).origin}${MCP_ENDPOINT_PATH}`;
+  } catch {
+    return null;
+  }
 })();
 
 export const aiAppsService = mcpConfig.enabled

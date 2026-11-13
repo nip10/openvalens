@@ -90,6 +90,12 @@ export default function SettingsScreen() {
   const { t } = useLingui();
   const displayName = session?.user ? (session.user.name ?? session.user.email) : null;
   const confirmSignOut = useConfirmedSignOut(signOutOfThisPhone);
+  // Issue #439 — Connected AI apps shows only while the server has it on.
+  const aiApps = useQuery({
+    ...orpc.aiApps.status.queryOptions({ input: {} }),
+    enabled: Boolean(session?.user),
+  });
+  const showAiApps = aiApps.data?.enabled === true;
 
   return (
     <Container scrollRef={settingsScroll}>
@@ -236,8 +242,18 @@ export default function SettingsScreen() {
                 title="Telegram"
                 subtitle={t`Daily reminders`}
                 onPress={() => router.push("/settings/telegram")}
+                showDivider={showAiApps}
                 trailing={<RowChevron />}
               />
+              {showAiApps ? (
+                <ListRow
+                  icon={<Icon icon={Bot} size={18} color="ink-2" />}
+                  title={t`Connected AI apps`}
+                  subtitle={t`View and revoke apps that read your records`}
+                  onPress={() => router.push("/settings/ai-apps")}
+                  trailing={<RowChevron />}
+                />
+              ) : null}
             </Sheet>
           </Section>
         )}

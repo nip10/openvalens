@@ -170,6 +170,7 @@ const HEADER_TITLES: Readonly<Record<string, MessageDescriptor>> = {
   "/settings/devices": msg`Devices`,
   "/settings/modules": msg`Modules`,
   "/settings/telegram": msg`Daily reminders`,
+  "/settings/ai-apps": msg`Connected AI apps`,
   "/scores": msg`Scores`,
   "/invitations": msg`Invitations`,
   "/preventive-care": msg`Preventive care`,
@@ -566,6 +567,13 @@ function DrawerLayout() {
         />
         <Drawer.Screen
           name="settings/modules"
+          options={{
+            headerTitle,
+            drawerItemStyle: { display: "none" },
+          }}
+        />
+        <Drawer.Screen
+          name="settings/ai-apps"
           options={{
             headerTitle,
             drawerItemStyle: { display: "none" },

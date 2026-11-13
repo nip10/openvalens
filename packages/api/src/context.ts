@@ -289,6 +289,11 @@ export type Context = {
    * `aiApps.oauth.*` procedures answer `NOT_FOUND` without it.
    */
   aiAppsOAuth?: McpOAuthConsent | null;
+  /**
+   * Issue #439 — the public MCP endpoint (`<BETTER_AUTH_URL>/api/mcp`) shown
+   * in the settings page's client commands, or `null`/absent while off.
+   */
+  aiAppsMcpUrl?: string | null;
   /** Issue #53 — optional server-only analytics adapter; absent is fail-closed. */
   analytics?: AnalyticsService;
   /**

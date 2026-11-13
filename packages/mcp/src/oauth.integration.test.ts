@@ -401,6 +401,8 @@ describe.skipIf(!url)("OAuth 2.1 for AI apps against disposable PostgreSQL", () 
     });
     expect(request.offeredScopes.sort()).toEqual([...GRANTABLE_SCOPES].sort());
     expect(result.created).toBe(true);
+    // The settings list shows the host the app's client id lives on.
+    expect(result.grant.clientIdHost).toBe("app.example.com");
     expect(connected.at(-1)).toMatchObject({
       label: "Example Assistant",
       clientIdHost: "app.example.com",
@@ -596,6 +598,7 @@ describe.skipIf(!url)("OAuth 2.1 for AI apps against disposable PostgreSQL", () 
     });
     expect(usedConnection.request.registration).toBe("dcr");
     expect(usedConnection.request.clientIdHost).toBeNull();
+    expect(usedConnection.result.grant.clientIdHost).toBeNull();
 
     const old = new Date(Date.now() - 25 * 3_600_000);
     for (const clientId of [abandoned, used]) {
