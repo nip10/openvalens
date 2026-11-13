@@ -59,6 +59,70 @@
       "rules": {
         "no-restricted-imports": "off"
       }
+    },
+    {
+      "files": ["packages/mcp/src/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": [
+                  "@ai-sdk/*",
+                  "!@ai-sdk/provider",
+                  "!@ai-sdk/provider-utils",
+                  "@anthropic-ai/*",
+                  "openai",
+                  "openai/*",
+                  "ollama",
+                  "@aws-sdk/*",
+                  "@smithy/*",
+                  "minio",
+                  "@google-cloud/*",
+                  "googleapis",
+                  "resend",
+                  "nodemailer",
+                  "@sentry/*",
+                  "posthog-js",
+                  "posthog-node",
+                  "posthog-react-native",
+                  "openid-client",
+                  "grammy",
+                  "telegraf",
+                  "node-telegram-bot-api",
+                  "stripe/*"
+                ],
+                "message": "Vendor SDKs may only be imported inside an integration adapter module (packages/*/src/providers/*). See docs/integrations.md (Issue #57)."
+              },
+              {
+                "group": [
+                  "*cycle*",
+                  "*photo*",
+                  "@openvalens/storage",
+                  "@openvalens/storage/*",
+                  "@openvalens/db/schema/storage",
+                  "@openvalens/clinical-export",
+                  "@openvalens/clinical-export/*",
+                  "@openvalens/api",
+                  "@openvalens/api/*"
+                ],
+                "message": "Connected AI apps never reach cycle data, progress photos, stored objects or the clinical export (Issue #439). Read only the allowlisted sources in packages/mcp/src/sources.ts."
+              }
+            ],
+            "paths": [
+              {
+                "name": "stripe",
+                "message": "Vendor SDKs may only be imported inside an integration adapter module (packages/*/src/providers/*). See docs/integrations.md (Issue #57)."
+              },
+              {
+                "name": "@openvalens/body",
+                "message": "The body package root re-exports its cycle modules; import an allowlisted subpath instead (Issue #439)."
+              }
+            ]
+          }
+        ]
+      }
     }
   ],
   "env": {

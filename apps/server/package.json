@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@lingui/core": "6.9.1",
+    "@modelcontextprotocol/hono": "2.0.2",
     "@openvalens/ai": "workspace:*",
     "@openvalens/api": "workspace:*",
     "@openvalens/auth": "workspace:*",

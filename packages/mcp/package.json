@@ -11,6 +11,8 @@
     "check-types": "tsc -b"
   },
   "dependencies": {
+    "@modelcontextprotocol/server": "2.4.0",
+    "@openvalens/ai": "workspace:*",
     "@openvalens/audit-security": "workspace:*",
     "@openvalens/db": "workspace:*",
     "@openvalens/observability": "workspace:*",
@@ -19,6 +21,7 @@
   },
   "devDependencies": {
     "@openvalens/config": "workspace:*",
+    "@openvalens/data-rights": "workspace:*",
     "typescript": "^6.0.3"
   }
 }

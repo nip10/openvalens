@@ -43,11 +43,13 @@ import { createContext } from "./context";
 import { reportError } from "./error-reporting";
 import { ENV } from "./env.server";
 import { SCALAR_CONFIG, SCALAR_SCRIPT_URL } from "./api-reference";
+import { aiAppsAllowedOriginHosts, registerAiAppsRoutes } from "./ai-apps-routes";
 import { registerHealthRoute } from "./health-route";
 import { registerServerMetaRoute } from "./server-meta-route";
 import { createDataExportWorker, cleanupExportArtifacts } from "./data-export-worker";
 import { openAuthorizedExportArchive } from "./data-export-download";
 import {
+  aiAppsHttp,
   aiAppsService,
   auth,
   db,
@@ -365,6 +367,13 @@ scheduleExerciseCatalogBootstrap({
 // Issue #295 — public server check the mobile app reads before connecting.
 // Issue #294 — mode and sign-up come from the validated `DEPLOYMENT_MODE`.
 registerServerMetaRoute(app, { signInOptions, profile: () => deploymentInfo });
+
+// Issue #439 — MCP server (`/api/mcp`) and REST tool API (`/api/v1/tools`),
+// mounted only when `MCP_ENABLED` is on. Bearer personal keys only.
+registerAiAppsRoutes(app, {
+  http: aiAppsHttp,
+  allowedOriginHosts: aiAppsAllowedOriginHosts([ENV.CORS_ORIGIN, ENV.BETTER_AUTH_URL]),
+});
 
 // Issue #308 — GET liveness with a database ping, for uptime monitors.
 registerHealthRoute(app, { pingDatabase: () => pingDatabase(db) });
