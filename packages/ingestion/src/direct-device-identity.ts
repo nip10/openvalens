@@ -61,7 +61,9 @@ export type DirectDeviceRecordType =
   | "weight_measurement"
   | "hrv_rmssd"
   | "resting_heart_rate"
-  | "workout";
+  | "workout"
+  | "oxygen_saturation"
+  | "respiratory_rate";
 
 export class DirectDeviceIdentityError extends Error {
   constructor(
@@ -124,7 +126,13 @@ export function directDeviceFamilySupportsRecordType(
       family === "pebble"
     );
   if (recordType === "weight_measurement") return family === "ble_scale";
-  if (recordType === "hrv_rmssd" || recordType === "resting_heart_rate" || recordType === "workout")
+  if (
+    recordType === "hrv_rmssd" ||
+    recordType === "resting_heart_rate" ||
+    recordType === "workout" ||
+    recordType === "oxygen_saturation" ||
+    recordType === "respiratory_rate"
+  )
     return family === "garmin";
   if (recordType === "heart_rate")
     return (

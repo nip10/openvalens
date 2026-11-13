@@ -113,6 +113,14 @@ const METRIC_COPY: Record<string, MetricCopy> = {
     unit: msg({ message: "ms", comment: "Unit symbol; keep as is." }),
   },
   provider_score: { label: msg`Device score` },
+  oxygen_saturation: {
+    label: msg`Blood oxygen`,
+    unit: msg({ message: "%", comment: "Unit symbol; keep as is." }),
+  },
+  respiratory_rate: {
+    label: msg`Respiration`,
+    unit: msg({ message: "breaths/min", comment: "Unit for respiratory rate." }),
+  },
 };
 
 /** Units the taxonomy stores that read badly on their own. */

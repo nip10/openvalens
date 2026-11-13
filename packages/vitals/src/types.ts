@@ -6,7 +6,8 @@
  * average / max / min — samples are typically taken at intervals (a watch or
  * phone sample at a moment in time). Resting heart rate is averaged per day.
  * `hrv_rmssd` (overnight HRV, usually from a cloud wearable) is averaged per
- * day in milliseconds.
+ * day in milliseconds. `oxygen_saturation` (SpO₂, %) keeps the day's average
+ * and lowest reading; `respiratory_rate` (breaths/min) is averaged per day.
  */
 export type DailyVitalsSummary = {
   date: string;
@@ -22,6 +23,15 @@ export type DailyVitalsSummary = {
   };
   hrv: {
     avgMs: number | null;
+    sampleCount: number;
+  };
+  oxygenSaturation: {
+    avgPercent: number | null;
+    minPercent: number | null;
+    sampleCount: number;
+  };
+  respiratoryRate: {
+    avgBreathsPerMinute: number | null;
     sampleCount: number;
   };
 };

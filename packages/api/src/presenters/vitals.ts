@@ -23,6 +23,17 @@ export type DailyVitalsLike = {
     avgMs: number | null;
     sampleCount: number;
   };
+  /** SpO₂, %. Optional for the same reason. */
+  oxygenSaturation?: {
+    avgPercent: number | null;
+    minPercent: number | null;
+    sampleCount: number;
+  };
+  /** Breaths per minute. Optional for the same reason. */
+  respiratoryRate?: {
+    avgBreathsPerMinute: number | null;
+    sampleCount: number;
+  };
 };
 
 export type VitalsSampleLike = {
@@ -38,6 +49,10 @@ export type VitalsSummary = {
   latestSample: VitalsSampleLike | null;
   /** Most recent day with an HRV value, or null (phone-only setups usually have none). */
   latestHrv: { date: string; avgMs: number } | null;
+  /** Most recent day with SpO₂ readings (average and lowest), or null. */
+  latestOxygenSaturation: { date: string; avgPercent: number; minPercent: number | null } | null;
+  /** Most recent day with respiration readings, or null. */
+  latestRespiratoryRate: { date: string; avgBreathsPerMinute: number } | null;
 };
 
 /** Rounded mean across the days that actually have samples; null otherwise. */
@@ -60,7 +75,32 @@ export function summarizeVitals(
     sevenDayAverageBpm,
     latestSample: samples[0] ?? null,
     latestHrv: latestHrv(days),
+    latestOxygenSaturation: latestDay(days, (day) => {
+      const avgPercent = day.oxygenSaturation?.avgPercent;
+      return avgPercent === null || avgPercent === undefined
+        ? null
+        : { avgPercent, minPercent: day.oxygenSaturation?.minPercent ?? null };
+    }),
+    latestRespiratoryRate: latestDay(days, (day) => {
+      const avgBreathsPerMinute = day.respiratoryRate?.avgBreathsPerMinute;
+      return avgBreathsPerMinute === null || avgBreathsPerMinute === undefined
+        ? null
+        : { avgBreathsPerMinute };
+    }),
   };
+}
+
+/** The most recent day for which `pick` returns a value, tagged with its date. */
+function latestDay<T extends object>(
+  days: readonly DailyVitalsLike[],
+  pick: (day: DailyVitalsLike) => T | null,
+): ({ date: string } & T) | null {
+  for (let index = days.length - 1; index >= 0; index -= 1) {
+    const day = days[index];
+    const value = day ? pick(day) : null;
+    if (day && value) return { date: day.date, ...value };
+  }
+  return null;
 }
 
 function latestHrv(days: readonly DailyVitalsLike[]): { date: string; avgMs: number } | null {
@@ -70,6 +110,19 @@ function latestHrv(days: readonly DailyVitalsLike[]): { date: string; avgMs: num
     if (day && avgMs !== null && avgMs !== undefined) return { date: day.date, avgMs };
   }
   return null;
+}
+
+/** "96%" / "—". */
+export function formatPercent(value: number | null | undefined): string {
+  if (value === null || value === undefined) return "—";
+  return `${Math.round(value)}%`;
+}
+
+/** "14.5/min" ("14,5/min" in pt-PT) / "—": one decimal, as wearables report it. */
+export function formatBreathsPerMinute(value: number | null | undefined, locale?: string): string {
+  if (value === null || value === undefined) return "—";
+  const number = new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(value);
+  return `${number}/min`;
 }
 
 /** "45 ms" / "—". */

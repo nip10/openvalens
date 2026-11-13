@@ -247,12 +247,20 @@ describe("direct-device identity guard", () => {
       "hrv_rmssd",
       "resting_heart_rate",
       "workout",
+      "oxygen_saturation",
+      "respiratory_rate",
     ] as const)
       expect(assertDirectDeviceIdentity(garmin, assertion, { recordType })).toEqual(assertion);
     // Garmin has no interval buckets, scale or GATT sensor metrics.
     // HRV, resting heart rate and workouts are Garmin-only.
     for (const family of ["zepp_os", "pebble", "huawei", "fossil_hr", "ble_gatt"] as const)
-      for (const recordType of ["hrv_rmssd", "resting_heart_rate", "workout"] as const)
+      for (const recordType of [
+        "hrv_rmssd",
+        "resting_heart_rate",
+        "workout",
+        "oxygen_saturation",
+        "respiratory_rate",
+      ] as const)
         expect(directDeviceFamilySupportsRecordType(family, recordType)).toBe(false);
     for (const recordType of [
       "steps_interval",

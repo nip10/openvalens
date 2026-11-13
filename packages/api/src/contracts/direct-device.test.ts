@@ -194,6 +194,52 @@ describe("direct device contract", () => {
     ).toBe(false);
   });
 
+  test("accepts SpO₂ and respiration readings within range and inside their interval", () => {
+    const interval = { startTime: "2026-10-02T00:00:00Z", endTime: "2026-10-02T06:00:00Z" };
+    const spo2 = {
+      type: "oxygen_saturation",
+      externalRecordId: "spo2-1",
+      sourceApp: null,
+      ...interval,
+      samples: [{ time: "2026-10-02T01:00:00Z", percent: 95 }],
+    };
+    const resp = {
+      type: "respiratory_rate",
+      externalRecordId: "resp-1",
+      sourceApp: null,
+      ...interval,
+      samples: [{ time: "2026-10-02T01:00:00Z", breathsPerMinute: 14.25 }],
+    };
+    const of = (recordType: string, record: object) => ({
+      ...batch,
+      recordType,
+      upserts: [record],
+    });
+    expect(directDeviceBatch.safeParse(of("oxygen_saturation", spo2)).success).toBe(true);
+    expect(directDeviceBatch.safeParse(of("respiratory_rate", resp)).success).toBe(true);
+    for (const percent of [49, 101, 95.5])
+      expect(
+        directDeviceBatch.safeParse(
+          of("oxygen_saturation", { ...spo2, samples: [{ ...spo2.samples[0], percent }] }),
+        ).success,
+      ).toBe(false);
+    for (const breathsPerMinute of [0, 81])
+      expect(
+        directDeviceBatch.safeParse(
+          of("respiratory_rate", { ...resp, samples: [{ ...resp.samples[0], breathsPerMinute }] }),
+        ).success,
+      ).toBe(false);
+    // A reading outside the record's interval is refused, as for heart rate.
+    expect(
+      directDeviceBatch.safeParse(
+        of("oxygen_saturation", {
+          ...spo2,
+          samples: [{ time: "2026-10-02T07:00:00Z", percent: 95 }],
+        }),
+      ).success,
+    ).toBe(false);
+  });
+
   test("accepts HRV, resting heart rate and workout batches within their ranges", () => {
     const window = { startTime: steps.startTime, endTime: steps.endTime };
     const hrv = {

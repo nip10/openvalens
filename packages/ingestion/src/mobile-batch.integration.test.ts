@@ -791,7 +791,12 @@ describe.skipIf(!url)("mobile ingest batch on disposable PostgreSQL", () => {
       now,
     });
     const garminBatch = (
-      recordType: "hrv_rmssd" | "resting_heart_rate" | "workout",
+      recordType:
+        | "hrv_rmssd"
+        | "resting_heart_rate"
+        | "workout"
+        | "oxygen_saturation"
+        | "respiratory_rate",
       upserts: unknown[],
     ) => ({
       schemaVersion: 1 as const,
@@ -841,6 +846,81 @@ describe.skipIf(!url)("mobile ingest batch on disposable PostgreSQL", () => {
     const events = await db.select().from(healthEvent);
     expect(events).toHaveLength(1);
     expect(events[0]).toMatchObject({ eventType: "workout", payloadJson: { activity: "running" } });
+
+    // SpO₂ and respiration: one canonical sample per reading.
+    for (const [recordType, samples] of [
+      [
+        "oxygen_saturation",
+        [
+          { time: "2026-10-02T01:00:00Z", percent: 96 },
+          { time: "2026-10-02T01:01:00Z", percent: 92 },
+        ],
+      ],
+      ["respiratory_rate", [{ time: "2026-10-02T01:00:00Z", breathsPerMinute: 14.5 }]],
+    ] as const) {
+      const result = await ingestDirectDeviceBatch(db, {
+        expectedContext: directContext,
+        authenticatedContext: directContext,
+        batch: garminBatch(recordType, [
+          {
+            type: recordType,
+            externalRecordId: `${recordType}-1`,
+            sourceApp: null,
+            startTime: "2026-10-02T01:00:00Z",
+            endTime: "2026-10-02T01:02:00Z",
+            samples,
+          },
+        ]) as never,
+        traceId: `garmin-${recordType}`,
+        now,
+      });
+      expect(result.status).toBe("applied");
+    }
+    const byCode = new Map(
+      (await db.select().from(metricDefinition)).map((definition) => [definition.id, definition]),
+    );
+    const readings = (await db.select().from(metricSample))
+      .map((sample) => [byCode.get(sample.metricDefinitionId)?.code, sample.numericValue])
+      .filter(([code]) => code === "oxygen_saturation" || code === "respiratory_rate");
+    expect(readings.sort()).toEqual(
+      [
+        ["oxygen_saturation", 96],
+        ["oxygen_saturation", 92],
+        ["respiratory_rate", 14.5],
+      ].sort(),
+    );
+    expect(byCode.size).toBeGreaterThan(0);
+    expect(
+      [...byCode.values()].find((definition) => definition.code === "respiratory_rate")?.unit,
+    ).toBe("breaths/min");
+
+    // The same hour record in a later batch: the repeated reading dedupes,
+    // the new one is added.
+    const again = await ingestDirectDeviceBatch(db, {
+      expectedContext: directContext,
+      authenticatedContext: directContext,
+      batch: garminBatch("oxygen_saturation", [
+        {
+          type: "oxygen_saturation",
+          externalRecordId: "oxygen_saturation-1",
+          sourceApp: null,
+          startTime: "2026-10-02T01:00:00Z",
+          endTime: "2026-10-02T01:02:00Z",
+          samples: [
+            { time: "2026-10-02T01:01:00Z", percent: 92 },
+            { time: "2026-10-02T01:01:30Z", percent: 94 },
+          ],
+        },
+      ]) as never,
+      traceId: "garmin-spo2-again",
+      now,
+    });
+    expect(again.status).toBe("applied");
+    const spo2Values = (await db.select().from(metricSample))
+      .filter((sample) => byCode.get(sample.metricDefinitionId)?.code === "oxygen_saturation")
+      .map((sample) => sample.numericValue)
+      .sort();
+    expect(spo2Values).toEqual([92, 94, 96]);
 
     // A later sync revises the day's resting heart rate: the newer revision
     // supersedes the earlier one; re-sending the older one does not win back.

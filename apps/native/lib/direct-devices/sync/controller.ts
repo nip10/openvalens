@@ -17,7 +17,12 @@ import {
 } from "../authority";
 import type { HelioSetupController } from "../setup/types";
 import type { DirectDeviceIdentity } from "@openvalens/api/contracts/direct-device";
-import type { DirectDeviceStore } from "../persistence/store";
+import {
+  MAX_CAPTURE_BYTES,
+  MAX_CAPTURE_ENVELOPES,
+  MAX_REQUEST_BYTES,
+  type DirectDeviceStore,
+} from "../persistence/store";
 import { drainDirectDeviceOutbox } from "../upload";
 import { projectPebbleCapture } from "./pebble-capture";
 import { projectFossilFiles } from "./fossil-capture";
@@ -91,6 +96,57 @@ const emptySnapshot: HelioSyncSnapshot = Object.freeze({
   canSync: false,
 });
 
+/** Headroom under the store's byte limits for the envelope around the upserts. */
+const HISTORY_REQUEST_BYTES = MAX_REQUEST_BYTES - 50_000;
+const HISTORY_CAPTURE_BYTES = MAX_CAPTURE_BYTES - 100_000;
+const HISTORY_UPSERTS_PER_BATCH = 1000;
+
+const jsonBytes = (value: unknown) => new TextEncoder().encode(JSON.stringify(value)).length;
+
+/** Splits upserts into batches within the contract's count and the store's request size. */
+export function splitHistoryUpserts(upserts: readonly unknown[]): unknown[][] {
+  const batches: unknown[][] = [];
+  let current: unknown[] = [];
+  let bytes = 0;
+  for (const upsert of upserts) {
+    const size = jsonBytes(upsert) + 1;
+    if (
+      current.length > 0 &&
+      (current.length >= HISTORY_UPSERTS_PER_BATCH || bytes + size > HISTORY_REQUEST_BYTES)
+    ) {
+      batches.push(current);
+      current = [];
+      bytes = 0;
+    }
+    current.push(upsert);
+    bytes += size;
+  }
+  if (current.length) batches.push(current);
+  return batches;
+}
+
+/** Packs envelopes into captures within the store's envelope count and byte limits. */
+export function packHistoryEnvelopes<T>(envelopes: readonly T[]): T[][] {
+  const captures: T[][] = [];
+  let current: T[] = [];
+  let bytes = 0;
+  for (const envelope of envelopes) {
+    const size = jsonBytes(envelope);
+    if (
+      current.length > 0 &&
+      (current.length >= MAX_CAPTURE_ENVELOPES || bytes + size > HISTORY_CAPTURE_BYTES)
+    ) {
+      captures.push(current);
+      current = [];
+      bytes = 0;
+    }
+    current.push(envelope);
+    bytes += size;
+  }
+  if (current.length) captures.push(current);
+  return captures;
+}
+
 /** Record types of the exact-minute families (legacy Huami, Huawei, Garmin). */
 type HuamiHistoryRecordType =
   | "steps"
@@ -98,7 +154,9 @@ type HuamiHistoryRecordType =
   | "heart_rate"
   | "hrv_rmssd"
   | "resting_heart_rate"
-  | "workout";
+  | "workout"
+  | "oxygen_saturation"
+  | "respiratory_rate";
 
 export function immutableClient(
   serverUrl: string,
@@ -843,6 +901,58 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
           lastModifiedAt: sample.time,
         })),
       });
+    // SpO₂ and respiration ship like heart rate, but one record per UTC hour
+    // keyed by that hour: a re-read reading always lands under the same record
+    // id, so the server's (record id, time, value) key dedupes it.
+    const readings = <T extends { time: string }>(
+      items: readonly T[],
+      recordType: "oxygen_saturation" | "respiratory_rate",
+      tag: string,
+      value: (item: T) => Record<string, number>,
+    ) => {
+      const byHour = new Map<string, T[]>();
+      for (const item of unique(items)) {
+        const hour = item.time.slice(0, 13);
+        const bucket = byHour.get(hour) ?? [];
+        bucket.push(item);
+        byHour.set(hour, bucket);
+      }
+      if (!byHour.size) return;
+      const hours = [...byHour]
+        .sort(([left], [right]) => (left < right ? -1 : 1))
+        .map(([hour, bucket]) => {
+          const startTime = `${hour}:00:00.000Z`;
+          return {
+            type: recordType,
+            externalRecordId: `dd-${prefix}:${deviceId}:${tag}:${hour}`,
+            sourceApp: null,
+            startTime,
+            endTime: new Date(Date.parse(startTime) + 3_600_000).toISOString(),
+            samples: bucket
+              .sort((left, right) => Date.parse(left.time) - Date.parse(right.time))
+              .map((item) => ({ time: item.time, ...value(item) })),
+          };
+        });
+      groups.push({ recordType, upserts: hours });
+    };
+    readings(
+      samples.filter(
+        (sample): sample is Extract<DirectDeviceHistorySample, { type: "oxygen_saturation" }> =>
+          sample.type === "oxygen_saturation",
+      ),
+      "oxygen_saturation",
+      "spo2",
+      (item) => ({ percent: item.percent }),
+    );
+    readings(
+      samples.filter(
+        (sample): sample is Extract<DirectDeviceHistorySample, { type: "respiratory_rate" }> =>
+          sample.type === "respiratory_rate",
+      ),
+      "respiratory_rate",
+      "resp",
+      (item) => ({ breathsPerMinute: item.breathsPerMinute }),
+    );
     const workouts = [
       ...new Map(
         samples
@@ -971,28 +1081,41 @@ function createController(contextInput: HelioSyncContext, deps: Dependencies): H
       const endTime = new Date(Math.max(...starts) + 1000).toISOString();
       const prefix = historyPrefix(buffer.family);
       const captureId = `dd-${prefix}:${buffer.deviceId}:${startTime}:${++historyCaptureSequence}`;
-      const envelopes: IngestDirectDeviceBatchInput[] = groups.map((group) => ({
-        expectedContext: { userId: context.userId, organizationId: context.organizationId },
-        batch: {
-          schemaVersion: 1,
+      const envelope = (recordType: string, upserts: unknown[]) =>
+        ({
+          expectedContext: { userId: context.userId, organizationId: context.organizationId },
+          batch: {
+            schemaVersion: 1,
+            deviceId: buffer.deviceId,
+            deviceIdentity: identity,
+            provider: "direct_device",
+            recordType,
+            mode: "backfill",
+            upserts,
+            deletions: [],
+            clientTimezone: "UTC",
+          },
+        }) as IngestDirectDeviceBatchInput;
+      // A whole watch file arrives in one buffer (the transport emits a
+      // file's records synchronously), so split to the contract and store
+      // limits instead of letting one oversized capture be refused and lost.
+      const envelopes = groups.flatMap((group) =>
+        splitHistoryUpserts(group.upserts).map((upserts) => envelope(group.recordType, upserts)),
+      );
+      const captures = packHistoryEnvelopes(envelopes);
+      const nextCheckpoint = `${prefix}:${endTime}`;
+      let expectedPreviousCheckpoint = binding.captureCheckpoint;
+      for (const [part, partEnvelopes] of captures.entries()) {
+        deps.store.commitCapture(ticket, {
           deviceId: buffer.deviceId,
           deviceIdentity: identity,
-          provider: "direct_device",
-          recordType: group.recordType,
-          mode: "backfill",
-          upserts: group.upserts,
-          deletions: [],
-          clientTimezone: "UTC",
-        },
-      })) as IngestDirectDeviceBatchInput[];
-      deps.store.commitCapture(ticket, {
-        deviceId: buffer.deviceId,
-        deviceIdentity: identity,
-        captureId,
-        expectedPreviousCheckpoint: binding.captureCheckpoint,
-        nextCheckpoint: `${prefix}:${endTime}`,
-        envelopes,
-      });
+          captureId: captures.length === 1 ? captureId : `${captureId}:${part + 1}`,
+          expectedPreviousCheckpoint,
+          nextCheckpoint,
+          envelopes: partEnvelopes,
+        });
+        expectedPreviousCheckpoint = nextCheckpoint;
+      }
       publish({ pendingEnvelopes: deps.store.countUnaccepted(ticket.scope) });
     } catch {
       // Best effort: a stale authority or checkpoint conflict drops this

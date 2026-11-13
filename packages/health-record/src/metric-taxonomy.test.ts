@@ -34,6 +34,8 @@ describe("metric taxonomy (Issue #17 bounded read-side)", () => {
       "muscle_mass",
       "body_water",
       "bone_mass",
+      "oxygen_saturation",
+      "respiratory_rate",
     ]);
   });
 
@@ -236,5 +238,25 @@ describe("metric taxonomy (Issue #17 bounded read-side)", () => {
     }
     expect(Object.isFrozen(CANONICAL_METRIC_CODES)).toBe(true);
     expect(Object.isFrozen(CANONICAL_METRIC_DEFINITIONS)).toBe(true);
+  });
+
+  test("SpO₂ and respiratory rate are daily-averaged vitals", () => {
+    expect(getMetricDefinition("oxygen_saturation")).toMatchObject({
+      unit: "%",
+      category: "vitals",
+      aggregationDefault: "avg",
+    });
+    expect(getMetricDefinition("respiratory_rate")).toMatchObject({
+      unit: "breaths/min",
+      category: "vitals",
+      aggregationDefault: "avg",
+    });
+    expect(getDefaultSourcePriorityOrder("oxygen_saturation")).toEqual([
+      "watch",
+      "ring",
+      "ble_sensor",
+      "phone",
+    ]);
+    expect(getDefaultSourcePriorityOrder("respiratory_rate")).toEqual(["watch", "ring", "phone"]);
   });
 });

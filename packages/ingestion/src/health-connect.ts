@@ -30,7 +30,9 @@ export type CanonicalMetricWriteIntent = {
     | "blood_pressure_mean_arterial"
     | "muscle_mass"
     | "body_water"
-    | "bone_mass";
+    | "bone_mass"
+    | "oxygen_saturation"
+    | "respiratory_rate";
   sampledAt: string;
   /** Interval end for interval metrics (steps, calories, distance); stored in metadata. */
   endAt?: string;

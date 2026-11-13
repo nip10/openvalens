@@ -66,6 +66,24 @@ describe.skipIf(!url)("vitals queries against disposable PostgreSQL", () => {
       },
       {
         organizationId: ORG_A,
+        code: "oxygen_saturation",
+        displayName: "Blood Oxygen (SpO₂)",
+        category: "vitals",
+        unit: "%",
+        valueType: "number",
+        aggregationDefault: "avg",
+      },
+      {
+        organizationId: ORG_A,
+        code: "respiratory_rate",
+        displayName: "Respiratory Rate",
+        category: "vitals",
+        unit: "breaths/min",
+        valueType: "number",
+        aggregationDefault: "avg",
+      },
+      {
+        organizationId: ORG_A,
         code: "steps",
         displayName: "Steps",
         category: "activity",
@@ -177,6 +195,64 @@ describe.skipIf(!url)("vitals queries against disposable PostgreSQL", () => {
     const days = await listDailyVitals(db, ORG_A, 1);
     expect(days[0]?.hrv).toEqual({ avgMs: 45, sampleCount: 2 });
     expect(days[0]?.heartRate.sampleCount).toBe(0);
+  });
+
+  btest("keeps the day's average and lowest SpO₂, and averages respiration", async () => {
+    const spo2 = await defId("oxygen_saturation");
+    const respiration = await defId("respiratory_rate");
+    const today = new Date();
+    await db.insert(metricSample).values([
+      {
+        organizationId: ORG_A,
+        metricDefinitionId: spo2,
+        sampledAt: today,
+        numericValue: 97,
+        dedupeHash: "o-1",
+      },
+      {
+        organizationId: ORG_A,
+        metricDefinitionId: spo2,
+        sampledAt: today,
+        numericValue: 91,
+        dedupeHash: "o-2",
+      },
+      {
+        organizationId: ORG_A,
+        metricDefinitionId: spo2,
+        sampledAt: today,
+        numericValue: 94,
+        dedupeHash: "o-3",
+      },
+      {
+        organizationId: ORG_A,
+        metricDefinitionId: respiration,
+        sampledAt: today,
+        numericValue: 14,
+        dedupeHash: "r-1",
+      },
+      {
+        organizationId: ORG_A,
+        metricDefinitionId: respiration,
+        sampledAt: today,
+        numericValue: 15,
+        dedupeHash: "r-2",
+      },
+    ]);
+    const days = await listDailyVitals(db, ORG_A, 1);
+    expect(days[0]?.oxygenSaturation).toEqual({ avgPercent: 94, minPercent: 91, sampleCount: 3 });
+    expect(days[0]?.respiratoryRate).toEqual({ avgBreathsPerMinute: 14.5, sampleCount: 2 });
+
+    // A superseded reading no longer counts toward the day's lowest value.
+    await db
+      .update(metricSample)
+      .set({ supersededAt: new Date() })
+      .where(eq(metricSample.dedupeHash, "o-2"));
+    const after = await listDailyVitals(db, ORG_A, 1);
+    expect(after[0]?.oxygenSaturation).toEqual({
+      avgPercent: 95.5,
+      minPercent: 94,
+      sampleCount: 2,
+    });
   });
 
   btest("excludes superseded samples", async () => {

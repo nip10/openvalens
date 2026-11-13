@@ -10,6 +10,8 @@ import { describe, expect, test } from "bun:test";
 
 import {
   decodeGarminHrv,
+  decodeGarminRespiration,
+  decodeGarminSpo2,
   decodeGarminRestingHeartRate,
   decodeGarminWorkout,
   garminSportName,
@@ -805,6 +807,41 @@ describe("HRV, resting heart rate and workout decoders", () => {
     // 199 ASCII + one astral character would be 201 code units: the pair is dropped whole.
     const long = `${"a".repeat(199)}😀tail`;
     expect(titleOf([{ ...session, strings: new Map([[110, long]]) }])).toBe("a".repeat(199));
+  });
+
+  test("SpO₂ keeps plausible readings; respiration is raw/100 and skips non-positive", () => {
+    expect(
+      decodeGarminSpo2([
+        message(269, 1_700_000_000, [
+          [0, 96],
+          [2, 3],
+        ]),
+        message(269, null, [[0, 93]]), // carried timestamp
+        message(269, 1_700_000_120, [[0, 0]]),
+        message(269, 1_700_000_180, [[0, 40]]),
+      ]),
+    ).toEqual([
+      { type: "oxygen_saturation", time: iso(1_700_000_000), percent: 96 },
+      { type: "oxygen_saturation", time: iso(1_700_000_000), percent: 93 },
+    ]);
+    expect(
+      decodeGarminRespiration([
+        message(297, 1_700_000_000, [[0, 1425]]),
+        message(297, 1_700_000_060, [[0, -200]]),
+        message(297, 1_700_000_120, [[0, 0]]),
+      ]),
+    ).toEqual([{ type: "respiratory_rate", time: iso(1_700_000_000), breathsPerMinute: 14.25 }]);
+  });
+
+  test("SpO₂ keeps 50–100 %, respiration keeps up to 80/min", () => {
+    const percents = decodeGarminSpo2(
+      [49, 50, 100, 101].map((value, index) => message(269, 1_700_000_000 + index, [[0, value]])),
+    ).map((record) => record.percent);
+    expect(percents).toEqual([50, 100]);
+    const rates = decodeGarminRespiration(
+      [8000, 8001].map((value, index) => message(297, 1_700_000_000 + index, [[0, value]])),
+    ).map((record) => record.breathsPerMinute);
+    expect(rates).toEqual([80]);
   });
 
   test("sport names follow the FIT profile; unknown codes keep their number", () => {

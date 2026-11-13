@@ -6,7 +6,13 @@ import type { DailyVitalsSummary, VitalsSample } from "./types";
 
 const DAY_MS = 86_400_000;
 
-const CODES = ["heart_rate", "resting_heart_rate", "hrv_rmssd"] as const;
+const CODES = [
+  "heart_rate",
+  "resting_heart_rate",
+  "hrv_rmssd",
+  "oxygen_saturation",
+  "respiratory_rate",
+] as const;
 
 /**
  * Daily summaries for the most recent `days` UTC calendar days (inclusive of
@@ -62,6 +68,8 @@ export async function listDailyVitals(
       heartRate: { avgBpm: null, minBpm: null, maxBpm: null, sampleCount: 0 },
       restingHeartRate: { avgBpm: null, sampleCount: 0 },
       hrv: { avgMs: null, sampleCount: 0 },
+      oxygenSaturation: { avgPercent: null, minPercent: null, sampleCount: 0 },
+      respiratoryRate: { avgBreathsPerMinute: null, sampleCount: 0 },
     });
   }
 
@@ -77,6 +85,14 @@ export async function listDailyVitals(
       };
     } else if (row.code === "hrv_rmssd") {
       bucket.hrv = { avgMs: row.avg, sampleCount: Number(row.count) };
+    } else if (row.code === "oxygen_saturation") {
+      bucket.oxygenSaturation = {
+        avgPercent: row.avg,
+        minPercent: row.min,
+        sampleCount: Number(row.count),
+      };
+    } else if (row.code === "respiratory_rate") {
+      bucket.respiratoryRate = { avgBreathsPerMinute: row.avg, sampleCount: Number(row.count) };
     } else if (row.code === "resting_heart_rate") {
       bucket.restingHeartRate = {
         avgBpm: row.avg,

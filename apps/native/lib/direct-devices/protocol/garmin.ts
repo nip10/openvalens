@@ -213,7 +213,9 @@ export const GARMIN_FIT_MESSAGE = {
   ACTIVITY: 34,
   MONITORING: 55,
   MONITORING_HR_DATA: 211,
+  SPO2_DATA: 269,
   SLEEP_DATA_RAW: 274,
+  RESPIRATION_RATE: 297,
   SLEEP_LEVEL: 275,
   SLEEP_ASSESSMENT: 346,
   HRV_STATUS_SUMMARY: 370,
@@ -1399,7 +1401,23 @@ export type GarminWorkoutRecord = Readonly<{
   title: string | null;
 }>;
 
+/** One SpO₂ reading (`spo2_data`), percent. */
+export type GarminSpo2Record = Readonly<{
+  type: "oxygen_saturation";
+  time: string;
+  percent: number;
+}>;
+
+/** One respiration reading (`respiration_rate`), breaths per minute. */
+export type GarminRespirationRecord = Readonly<{
+  type: "respiratory_rate";
+  time: string;
+  breathsPerMinute: number;
+}>;
+
 export type GarminRecord =
+  | GarminSpo2Record
+  | GarminRespirationRecord
   | GarminStepsRecord
   | GarminHeartRateRecord
   | GarminSleepSession
@@ -1657,6 +1675,8 @@ export function garminFitRecordsFromMessages(
   records.push(...decodeGarminHrv(messages));
   records.push(...decodeGarminRestingHeartRate(messages));
   records.push(...decodeGarminWorkout(messages));
+  records.push(...decodeGarminSpo2(messages));
+  records.push(...decodeGarminRespiration(messages));
   return records;
 }
 
@@ -1702,6 +1722,50 @@ export function decodeGarminRestingHeartRate(
     const bpm = message.fields.get(1) ?? message.fields.get(0);
     if (bpm === undefined || bpm < 20 || bpm > 250) continue;
     out.push({ type: "resting_heart_rate", time: new Date(last * 1000).toISOString(), bpm });
+  }
+  return out;
+}
+
+/**
+ * SpO₂ from `spo2_data` (269) field 0 `reading_spo2`, UINT8 %. Upstream keeps
+ * every mode (manual, automatic, unknown) and skips values of 0 or less
+ * (`FitImporter`); readings below 50% are not physiological and are dropped.
+ */
+export function decodeGarminSpo2(messages: readonly GarminFitMessage[]): GarminSpo2Record[] {
+  const out: GarminSpo2Record[] = [];
+  let last: number | null = null;
+  for (const message of messages) {
+    if (message.timestamp !== null) last = message.timestamp;
+    if (message.messageNumber !== GARMIN_FIT_MESSAGE.SPO2_DATA || last === null) continue;
+    const percent = message.fields.get(0);
+    if (percent === undefined || percent < 50 || percent > 100) continue;
+    out.push({ type: "oxygen_saturation", time: new Date(last * 1000).toISOString(), percent });
+  }
+  return out;
+}
+
+/**
+ * Respiration from `respiration_rate` (297) field 0, SINT16 scale 100,
+ * breaths/min; values of 0 or less are skipped as upstream (negatives are the
+ * watch's "no reading" markers).
+ */
+export function decodeGarminRespiration(
+  messages: readonly GarminFitMessage[],
+): GarminRespirationRecord[] {
+  const out: GarminRespirationRecord[] = [];
+  let last: number | null = null;
+  for (const message of messages) {
+    if (message.timestamp !== null) last = message.timestamp;
+    if (message.messageNumber !== GARMIN_FIT_MESSAGE.RESPIRATION_RATE || last === null) continue;
+    const raw = message.fields.get(0);
+    if (raw === undefined || raw <= 0) continue;
+    const breathsPerMinute = raw / 100;
+    if (breathsPerMinute > 80) continue;
+    out.push({
+      type: "respiratory_rate",
+      time: new Date(last * 1000).toISOString(),
+      breathsPerMinute,
+    });
   }
   return out;
 }

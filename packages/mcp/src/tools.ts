@@ -228,6 +228,8 @@ const VITAL_LABELS: Record<string, { key: string; label: string; unit: string }>
   heart_rate: { key: "heartRate", label: "Heart rate", unit: "bpm" },
   resting_heart_rate: { key: "restingHeartRate", label: "Resting heart rate", unit: "bpm" },
   hrv_rmssd: { key: "hrvRmssd", label: "Heart rate variability (RMSSD)", unit: "ms" },
+  oxygen_saturation: { key: "oxygenSaturation", label: "Blood oxygen (SpO₂)", unit: "%" },
+  respiratory_rate: { key: "respiratoryRate", label: "Respiratory rate", unit: "breaths/min" },
 };
 
 function roundOrNull(value: number | null, digits = 1): number | null {

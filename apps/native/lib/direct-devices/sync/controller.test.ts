@@ -2244,7 +2244,9 @@ test("Garmin FIT history is committed as steps, sleep, heart rate, HRV, resting 
   expect(historyCapture.handler).not.toBeNull();
 
   const dayStart = new Date(Date.UTC(2026, 2, 1, 0, 0, 0));
-  for (let index = 0; index < 46; index += 1) {
+  // More minutes than one batch may carry (1000): a whole-day file used to be
+  // refused as one oversized batch and lost.
+  for (let index = 0; index < 1046; index += 1) {
     const start = new Date(dayStart.getTime() + index * 60_000);
     historyCapture.handler!({
       type: "steps",
@@ -2291,6 +2293,13 @@ test("Garmin FIT history is committed as steps, sleep, heart rate, HRV, resting 
     time: new Date(Date.UTC(2026, 2, 1, 6, 0, 0)).toISOString(),
     bpm: 55,
   });
+  const spo2Time = new Date(Date.UTC(2026, 2, 2, 2, 0, 0)).toISOString();
+  const spo2Later = new Date(Date.UTC(2026, 2, 2, 2, 30, 0)).toISOString();
+  const spo2NextHour = new Date(Date.UTC(2026, 2, 2, 3, 5, 0)).toISOString();
+  historyCapture.handler!({ type: "oxygen_saturation", time: spo2NextHour, percent: 94 });
+  historyCapture.handler!({ type: "oxygen_saturation", time: spo2Later, percent: 92 });
+  historyCapture.handler!({ type: "oxygen_saturation", time: spo2Time, percent: 95 });
+  historyCapture.handler!({ type: "respiratory_rate", time: spo2Time, breathsPerMinute: 14.5 });
   const workoutStart = new Date(Date.UTC(2026, 2, 1, 17, 0, 0)).toISOString();
   const workoutEnd = new Date(Date.UTC(2026, 2, 1, 17, 30, 1)).toISOString();
   historyCapture.handler!({
@@ -2303,16 +2312,52 @@ test("Garmin FIT history is committed as steps, sleep, heart rate, HRV, resting 
   await new Promise((resolve) => setTimeout(resolve, 0));
 
   const pending = store.listPending(ticket, 10);
-  expect(pending).toHaveLength(6);
-  const byType = new Map(pending.map((row) => [row.request.batch.recordType, row.request.batch]));
+  expect(pending).toHaveLength(9);
+  const stepBatches = pending
+    .map((row) => row.request.batch)
+    .filter((batch) => batch.recordType === "steps");
+  expect(stepBatches.map((batch) => batch.upserts.length)).toEqual([1000, 46]);
+  const byType = new Map(
+    pending
+      .filter((row) => row.request.batch.recordType !== "steps")
+      .map((row) => [row.request.batch.recordType, row.request.batch]),
+  );
+  byType.set("steps", stepBatches[0]!);
   expect([...byType.keys()].sort()).toEqual([
     "heart_rate",
     "hrv_rmssd",
+    "oxygen_saturation",
+    "respiratory_rate",
     "resting_heart_rate",
     "sleep_session",
     "steps",
     "workout",
   ]);
+  // One record per UTC hour, keyed by the hour.
+  expect(byType.get("oxygen_saturation")!.upserts).toEqual([
+    {
+      type: "oxygen_saturation",
+      externalRecordId: `dd-garmin:${deviceId}:spo2:2026-03-02T02`,
+      sourceApp: null,
+      startTime: "2026-03-02T02:00:00.000Z",
+      endTime: "2026-03-02T03:00:00.000Z",
+      samples: [
+        { time: spo2Time, percent: 95 },
+        { time: spo2Later, percent: 92 },
+      ],
+    },
+    {
+      type: "oxygen_saturation",
+      externalRecordId: `dd-garmin:${deviceId}:spo2:2026-03-02T03`,
+      sourceApp: null,
+      startTime: "2026-03-02T03:00:00.000Z",
+      endTime: "2026-03-02T04:00:00.000Z",
+      samples: [{ time: spo2NextHour, percent: 94 }],
+    },
+  ]);
+  expect(byType.get("respiratory_rate")!.upserts[0]).toMatchObject({
+    samples: [{ time: spo2Time, breathsPerMinute: 14.5 }],
+  });
   expect(byType.get("hrv_rmssd")!.upserts).toEqual([
     {
       type: "hrv_rmssd",
@@ -2352,7 +2397,7 @@ test("Garmin FIT history is committed as steps, sleep, heart rate, HRV, resting 
     });
 
   const steps = byType.get("steps")!.upserts;
-  expect(steps).toHaveLength(46);
+  expect(steps).toHaveLength(1000);
   expect(steps[0]).toMatchObject({
     type: "steps",
     count: 0,
@@ -3570,4 +3615,21 @@ test("the sleep fallback keeps an open night in the checkpoint and later publish
   expect(parseCheckpoint(store.getBinding(ticket, deviceId)!.captureCheckpoint).pending).toBeNull();
   await controller.dispose();
   db.close();
+});
+
+test("history uploads split to the batch count, request size and capture limits", async () => {
+  const { splitHistoryUpserts, packHistoryEnvelopes } = await import("./controller");
+  const small = Array.from({ length: 2500 }, (_, index) => ({ index }));
+  expect(splitHistoryUpserts(small).map((batch) => batch.length)).toEqual([1000, 1000, 500]);
+  // ~300 KB each: three fit under the ~0.95 MB request budget, the fourth starts a new batch.
+  const large = Array.from({ length: 4 }, () => ({ blob: "x".repeat(300_000) }));
+  expect(splitHistoryUpserts(large).map((batch) => batch.length)).toEqual([3, 1]);
+  // A single upsert larger than the budget still goes out alone, never dropped.
+  expect(splitHistoryUpserts([{ blob: "x".repeat(2_000_000) }])).toHaveLength(1);
+  // Captures: at most 100 envelopes, and within the ~3.9 MB capture budget.
+  expect(
+    packHistoryEnvelopes(Array.from({ length: 250 }, (_, index) => index)).map((c) => c.length),
+  ).toEqual([100, 100, 50]);
+  const envelopes = Array.from({ length: 5 }, () => ({ blob: "x".repeat(900_000) }));
+  expect(packHistoryEnvelopes(envelopes).map((capture) => capture.length)).toEqual([4, 1]);
 });

@@ -64,7 +64,13 @@ export type ExerciseSearchPort = (input: {
   limit: number;
 }) => Promise<ExerciseSearchResult[]>;
 
-const VITAL_CODES = ["heart_rate", "resting_heart_rate", "hrv_rmssd"] as const;
+const VITAL_CODES = [
+  "heart_rate",
+  "resting_heart_rate",
+  "hrv_rmssd",
+  "oxygen_saturation",
+  "respiratory_rate",
+] as const;
 
 export type SleepSessionRow = { id: number; startAt: Date; payload: unknown };
 export type WorkoutRow = {

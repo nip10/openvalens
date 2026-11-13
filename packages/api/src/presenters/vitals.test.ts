@@ -4,7 +4,9 @@ import { englishI18n } from "@openvalens/i18n/testing";
 
 import {
   formatBpm,
+  formatBreathsPerMinute,
   formatMs,
+  formatPercent,
   formatBpmRange,
   heartRateSeries,
   summarizeVitals,
@@ -63,6 +65,44 @@ describe("vitals presenter", () => {
       summarizeVitals([withHrv("2026-09-29", 41), withHrv("2026-09-30", null)], []).latestHrv,
     ).toEqual({ date: "2026-09-29", avgMs: 41 });
     expect(summarizeVitals([day("2026-09-30", 70)], []).latestHrv).toBeNull();
+  });
+
+  test("latest SpO₂ and respiration: most recent day with readings; null without any", () => {
+    const withBreathing = (
+      date: string,
+      avgPercent: number | null,
+      minPercent: number | null,
+      breaths: number | null,
+    ) => ({
+      ...day(date, 70),
+      oxygenSaturation: { avgPercent, minPercent, sampleCount: avgPercent === null ? 0 : 1 },
+      respiratoryRate: { avgBreathsPerMinute: breaths, sampleCount: breaths === null ? 0 : 1 },
+    });
+    const summary = summarizeVitals(
+      [withBreathing("2026-09-28", 96, 91, 14.2), withBreathing("2026-09-29", null, null, 15.1)],
+      [],
+    );
+    expect(summary.latestOxygenSaturation).toEqual({
+      date: "2026-09-28",
+      avgPercent: 96,
+      minPercent: 91,
+    });
+    expect(summary.latestRespiratoryRate).toEqual({
+      date: "2026-09-29",
+      avgBreathsPerMinute: 15.1,
+    });
+    const none = summarizeVitals([day("2026-09-30", 70)], []);
+    expect(none.latestOxygenSaturation).toBeNull();
+    expect(none.latestRespiratoryRate).toBeNull();
+  });
+
+  test("formatPercent and formatBreathsPerMinute", () => {
+    expect(formatPercent(null)).toBe("—");
+    expect(formatPercent(95.6)).toBe("96%");
+    expect(formatBreathsPerMinute(undefined)).toBe("—");
+    expect(formatBreathsPerMinute(14.26, "en")).toBe("14.3/min");
+    expect(formatBreathsPerMinute(14.26, "pt-PT")).toBe("14,3/min");
+    expect(formatBreathsPerMinute(15, "en")).toBe("15/min");
   });
 
   test("formatMs: rounded integer + unit, '—' for null", () => {

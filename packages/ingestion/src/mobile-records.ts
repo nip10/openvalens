@@ -48,6 +48,13 @@ export type MobileHealthRecord = MobileRecordBase &
     | ({ type: "hrv_rmssd"; rmssdMs: number } & Interval)
     /** Direct devices only: the device's resting heart rate for a day. */
     | ({ type: "resting_heart_rate"; bpm: number } & Interval)
+    /** Direct devices only: SpO₂ readings, percent. */
+    | ({ type: "oxygen_saturation"; samples: { time: string; percent: number }[] } & Interval)
+    /** Direct devices only: respiration readings, breaths per minute. */
+    | ({
+        type: "respiratory_rate";
+        samples: { time: string; breathsPerMinute: number }[];
+      } & Interval)
     | ({
         type: "blood_pressure";
         systolic: number;
@@ -162,6 +169,20 @@ export function adaptMobileHealthRecords(
         break;
       case "resting_heart_rate":
         metric("resting_heart_rate", record.bpm, "bpm");
+        break;
+      case "oxygen_saturation":
+      case "respiratory_rate":
+        // Like heart rate: one canonical sample per reading, keyed by its time.
+        for (const sample of record.samples)
+          intents.push({
+            kind: "metric_sample",
+            canonicalType: record.type,
+            sampledAt: sample.time,
+            value: "percent" in sample ? sample.percent : sample.breathsPerMinute,
+            unit: record.type === "oxygen_saturation" ? "%" : "breaths/min",
+            rawRecord: { externalRecordId: record.externalRecordId, ...sample },
+            ...common,
+          });
         break;
       case "blood_pressure": {
         const base = record.externalRecordId;

@@ -1089,6 +1089,7 @@ msgid "{withIntensity} of {0, plural, one {# session has} other {# sessions have
 msgstr "{withIntensity} of {0, plural, one {# session has} other {# sessions have}} an intensity."
 
 #. Unit symbol; keep as is.
+#. Unit symbol; keep as is.
 #: packages/api/src/presenters/timeline.ts
 msgid "%"
 msgstr "%"
@@ -2604,6 +2605,12 @@ msgstr "Biweekly"
 msgid "Blood"
 msgstr "Blood"
 
+#: apps/native/app/(drawer)/records/vitals.tsx
+#: apps/web/src/routes/_auth/records/vitals.tsx
+#: packages/api/src/presenters/timeline.ts
+msgid "Blood oxygen"
+msgstr "Blood oxygen"
+
 #: apps/native/components/blood-pressure-section.tsx
 #: apps/web/src/components/blood-pressure-section.tsx
 #: packages/api/src/presenters/log-kinds.ts
@@ -2685,6 +2692,11 @@ msgstr "Breakdown"
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Breakfast"
 msgstr "Breakfast"
+
+#. Unit for respiratory rate.
+#: packages/api/src/presenters/timeline.ts
+msgid "breaths/min"
+msgstr "breaths/min"
 
 #: apps/native/components/exercise-library.tsx
 msgid "Browse"
@@ -6411,8 +6423,8 @@ msgid "Experimental"
 msgstr "Experimental"
 
 #: apps/native/components/direct-device-settings.tsx
-msgid "Experimental direct Bluetooth support for several kinds of devices. Zepp OS devices sync per-minute steps, heart rate and sleep in the foreground (older models' sleep is estimated from activity minutes); Xiaomi devices sync step history. BLE GATT health sensors (heart rate, blood pressure, temperature) record live while connected, and a PineTime running InfiniTime reports live heart rate the same way. Bluetooth smart scales record weight live, and some also report stored measurements on connection. Colmi and Yawell smart rings sync stored step, heart-rate and sleep history on connection. Bangle.js watches sync stored step and heart-rate history on connection and keep reporting live heart rate. Moyoung/Da Fit watches sync stored heart-rate and sleep history on connection; they report steps as daily totals only, so steps are not synced. FitPro bands sync 15-minute step buckets, staged sleep and realtime heart rate on connection. GloryFit watches sync stored step, heart-rate and sleep history on connection. Legacy Huami (Amazfit/Mi Band) watches sync exact-minute steps, heart rate and sleep when you enter their 16-byte key. Huawei/Honor BLE bands and watches sync exact-minute steps, heart rate and sleep automatically; their Bluetooth-Classic models support connection checks only. Garmin wearables sync exact-minute steps, heart rate, sleep, nightly HRV, resting heart rate and workouts from FIT files; other Garmin devices support connection checks only. Pebble Classic 2, Pebble 2 Duo and Pebble Time 2 sync stored steps, sleep and heart rate (the 2 Duo has no heart-rate sensor) when you tap “Sync steps”; on iPhone the watch must already be paired. Older Pebble models talk over Bluetooth Classic, which is not implemented here. Fossil Hybrid HR, Fossil Gen 6 Hybrid and Skagen Jorn Gen 6 sync per-minute steps and heart rate when you enter their 16-byte key; other Fossil hybrids are not supported. No hardware verification has been done. No vendor login is requested."
-msgstr "Experimental direct Bluetooth support for several kinds of devices. Zepp OS devices sync per-minute steps, heart rate and sleep in the foreground (older models' sleep is estimated from activity minutes); Xiaomi devices sync step history. BLE GATT health sensors (heart rate, blood pressure, temperature) record live while connected, and a PineTime running InfiniTime reports live heart rate the same way. Bluetooth smart scales record weight live, and some also report stored measurements on connection. Colmi and Yawell smart rings sync stored step, heart-rate and sleep history on connection. Bangle.js watches sync stored step and heart-rate history on connection and keep reporting live heart rate. Moyoung/Da Fit watches sync stored heart-rate and sleep history on connection; they report steps as daily totals only, so steps are not synced. FitPro bands sync 15-minute step buckets, staged sleep and realtime heart rate on connection. GloryFit watches sync stored step, heart-rate and sleep history on connection. Legacy Huami (Amazfit/Mi Band) watches sync exact-minute steps, heart rate and sleep when you enter their 16-byte key. Huawei/Honor BLE bands and watches sync exact-minute steps, heart rate and sleep automatically; their Bluetooth-Classic models support connection checks only. Garmin wearables sync exact-minute steps, heart rate, sleep, nightly HRV, resting heart rate and workouts from FIT files; other Garmin devices support connection checks only. Pebble Classic 2, Pebble 2 Duo and Pebble Time 2 sync stored steps, sleep and heart rate (the 2 Duo has no heart-rate sensor) when you tap “Sync steps”; on iPhone the watch must already be paired. Older Pebble models talk over Bluetooth Classic, which is not implemented here. Fossil Hybrid HR, Fossil Gen 6 Hybrid and Skagen Jorn Gen 6 sync per-minute steps and heart rate when you enter their 16-byte key; other Fossil hybrids are not supported. No hardware verification has been done. No vendor login is requested."
+msgid "Experimental direct Bluetooth support for several kinds of devices. Zepp OS devices sync per-minute steps, heart rate and sleep in the foreground (older models' sleep is estimated from activity minutes); Xiaomi devices sync step history. BLE GATT health sensors (heart rate, blood pressure, temperature) record live while connected, and a PineTime running InfiniTime reports live heart rate the same way. Bluetooth smart scales record weight live, and some also report stored measurements on connection. Colmi and Yawell smart rings sync stored step, heart-rate and sleep history on connection. Bangle.js watches sync stored step and heart-rate history on connection and keep reporting live heart rate. Moyoung/Da Fit watches sync stored heart-rate and sleep history on connection; they report steps as daily totals only, so steps are not synced. FitPro bands sync 15-minute step buckets, staged sleep and realtime heart rate on connection. GloryFit watches sync stored step, heart-rate and sleep history on connection. Legacy Huami (Amazfit/Mi Band) watches sync exact-minute steps, heart rate and sleep when you enter their 16-byte key. Huawei/Honor BLE bands and watches sync exact-minute steps, heart rate and sleep automatically; their Bluetooth-Classic models support connection checks only. Garmin wearables sync exact-minute steps, heart rate, sleep, nightly HRV, resting heart rate, blood oxygen, respiration and workouts from FIT files; other Garmin devices support connection checks only. Pebble Classic 2, Pebble 2 Duo and Pebble Time 2 sync stored steps, sleep and heart rate (the 2 Duo has no heart-rate sensor) when you tap “Sync steps”; on iPhone the watch must already be paired. Older Pebble models talk over Bluetooth Classic, which is not implemented here. Fossil Hybrid HR, Fossil Gen 6 Hybrid and Skagen Jorn Gen 6 sync per-minute steps and heart rate when you enter their 16-byte key; other Fossil hybrids are not supported. No hardware verification has been done. No vendor login is requested."
+msgstr "Experimental direct Bluetooth support for several kinds of devices. Zepp OS devices sync per-minute steps, heart rate and sleep in the foreground (older models' sleep is estimated from activity minutes); Xiaomi devices sync step history. BLE GATT health sensors (heart rate, blood pressure, temperature) record live while connected, and a PineTime running InfiniTime reports live heart rate the same way. Bluetooth smart scales record weight live, and some also report stored measurements on connection. Colmi and Yawell smart rings sync stored step, heart-rate and sleep history on connection. Bangle.js watches sync stored step and heart-rate history on connection and keep reporting live heart rate. Moyoung/Da Fit watches sync stored heart-rate and sleep history on connection; they report steps as daily totals only, so steps are not synced. FitPro bands sync 15-minute step buckets, staged sleep and realtime heart rate on connection. GloryFit watches sync stored step, heart-rate and sleep history on connection. Legacy Huami (Amazfit/Mi Band) watches sync exact-minute steps, heart rate and sleep when you enter their 16-byte key. Huawei/Honor BLE bands and watches sync exact-minute steps, heart rate and sleep automatically; their Bluetooth-Classic models support connection checks only. Garmin wearables sync exact-minute steps, heart rate, sleep, nightly HRV, resting heart rate, blood oxygen, respiration and workouts from FIT files; other Garmin devices support connection checks only. Pebble Classic 2, Pebble 2 Duo and Pebble Time 2 sync stored steps, sleep and heart rate (the 2 Duo has no heart-rate sensor) when you tap “Sync steps”; on iPhone the watch must already be paired. Older Pebble models talk over Bluetooth Classic, which is not implemented here. Fossil Hybrid HR, Fossil Gen 6 Hybrid and Skagen Jorn Gen 6 sync per-minute steps and heart rate when you enter their 16-byte key; other Fossil hybrids are not supported. No hardware verification has been done. No vendor login is requested."
 
 #: packages/api/src/presenters/energy-estimate.ts
 msgid "Experimental estimate: not a target or a measure of what you ate."
@@ -6830,8 +6842,8 @@ msgid "Gadgetbridge pairing help"
 msgstr "Gadgetbridge pairing help"
 
 #: apps/native/components/direct-device-settings.tsx
-msgid "Garmin FIT files (exact-minute steps, heart rate, sleep, nightly HRV, resting heart rate and workouts) sync when the watch connects. Records are saved in batches and sent only when you tap “Retry upload”."
-msgstr "Garmin FIT files (exact-minute steps, heart rate, sleep, nightly HRV, resting heart rate and workouts) sync when the watch connects. Records are saved in batches and sent only when you tap “Retry upload”."
+msgid "Garmin FIT files (exact-minute steps, heart rate, sleep, nightly HRV, resting heart rate, blood oxygen, respiration and workouts) sync when the watch connects. Records are saved in batches and sent only when you tap “Retry upload”."
+msgstr "Garmin FIT files (exact-minute steps, heart rate, sleep, nightly HRV, resting heart rate, blood oxygen, respiration and workouts) sync when the watch connects. Records are saved in batches and sent only when you tap “Retry upload”."
 
 #. safety
 #: packages/api/src/presenters/micronutrients.ts
@@ -8712,6 +8724,13 @@ msgstr "Lower carb"
 msgctxt "macro preset"
 msgid "Lower fat"
 msgstr "Lower fat"
+
+#. placeholder {0}: formatPercent(summary.latestOxygenSaturation.minPercent)
+#. placeholder {1}: friendlyDate(i18n, summary.latestOxygenSaturation.date)
+#: apps/native/app/(drawer)/records/vitals.tsx
+#: apps/web/src/routes/_auth/records/vitals.tsx
+msgid "Lowest {0} · {1}"
+msgstr "Lowest {0} · {1}"
 
 #. safety
 #: packages/api/src/presenters/nutrition-diary.ts
@@ -12424,6 +12443,12 @@ msgstr "Resend code"
 #: apps/web/src/components/product-settings-form.tsx
 msgid "Reset"
 msgstr "Reset"
+
+#: apps/native/app/(drawer)/records/vitals.tsx
+#: apps/web/src/routes/_auth/records/vitals.tsx
+#: packages/api/src/presenters/timeline.ts
+msgid "Respiration"
+msgstr "Respiration"
 
 #: apps/web/src/components/workout-routine-exercise-editor.tsx
 msgid "Rest (seconds)"

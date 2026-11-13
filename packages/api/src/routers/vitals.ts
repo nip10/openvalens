@@ -48,6 +48,15 @@ const dailyOutput = z.array(
       avgMs: z.number().nullable(),
       sampleCount: z.number(),
     }),
+    oxygenSaturation: z.object({
+      avgPercent: z.number().nullable(),
+      minPercent: z.number().nullable(),
+      sampleCount: z.number(),
+    }),
+    respiratoryRate: z.object({
+      avgBreathsPerMinute: z.number().nullable(),
+      sampleCount: z.number(),
+    }),
   }),
 );
 

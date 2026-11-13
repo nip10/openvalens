@@ -7,7 +7,9 @@ import {
 } from "@openvalens/api/presenters/manual-entry";
 import {
   formatBpm,
+  formatBreathsPerMinute,
   formatMs,
+  formatPercent,
   formatBpmRange,
   heartRateSeries,
   summarizeVitals,
@@ -16,7 +18,7 @@ import {
 import { useLingui } from "@lingui/react/macro";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "heroui-native";
-import { Activity, HeartPulse, Plus, Waves } from "lucide-react-native";
+import { Activity, Droplet, HeartPulse, Plus, Waves, Wind } from "lucide-react-native";
 import { useMemo, useState } from "react";
 import { Pressable, RefreshControl, Text, TextInput, View } from "react-native";
 
@@ -274,6 +276,31 @@ export default function VitalsScreen() {
                   label={t`Overnight HRV`}
                   value={formatMs(summary.latestHrv.avgMs)}
                   note={friendlyDate(i18n, summary.latestHrv.date)}
+                />
+              ) : null}
+              {summary.latestOxygenSaturation ? (
+                <StatTile
+                  icon={Droplet}
+                  tone="heart"
+                  label={t`Blood oxygen`}
+                  value={formatPercent(summary.latestOxygenSaturation.avgPercent)}
+                  note={
+                    summary.latestOxygenSaturation.minPercent === null
+                      ? friendlyDate(i18n, summary.latestOxygenSaturation.date)
+                      : t`Lowest ${formatPercent(summary.latestOxygenSaturation.minPercent)} · ${friendlyDate(i18n, summary.latestOxygenSaturation.date)}`
+                  }
+                />
+              ) : null}
+              {summary.latestRespiratoryRate ? (
+                <StatTile
+                  icon={Wind}
+                  tone="heart"
+                  label={t`Respiration`}
+                  value={formatBreathsPerMinute(
+                    summary.latestRespiratoryRate.avgBreathsPerMinute,
+                    i18n.locale,
+                  )}
+                  note={friendlyDate(i18n, summary.latestRespiratoryRate.date)}
                 />
               ) : null}
             </TileGrid>

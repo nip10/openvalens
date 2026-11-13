@@ -8,7 +8,9 @@ import {
 } from "@openvalens/api/presenters/manual-entry";
 import {
   formatBpm,
+  formatBreathsPerMinute,
   formatMs,
+  formatPercent,
   formatBpmRange,
   heartRateSeries,
   summarizeVitals,
@@ -42,7 +44,7 @@ import {
 import { useMutation } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Activity, HeartPulse, Plus, Waves } from "lucide-react";
+import { Activity, Droplet, HeartPulse, Plus, Waves, Wind } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
 import {
@@ -246,7 +248,13 @@ function VitalsPage() {
         <>
           <div
             className={
-              summary.latestHrv ? "grid gap-4 sm:grid-cols-3" : "grid gap-4 sm:grid-cols-2"
+              [
+                summary.latestHrv,
+                summary.latestOxygenSaturation,
+                summary.latestRespiratoryRate,
+              ].filter(Boolean).length > 0
+                ? "grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+                : "grid gap-4 sm:grid-cols-2"
             }
           >
             <StatTile
@@ -269,6 +277,31 @@ function VitalsPage() {
                 label={t`Overnight HRV`}
                 value={formatMs(summary.latestHrv.avgMs)}
                 note={friendlyDate(i18n, summary.latestHrv.date)}
+              />
+            ) : null}
+            {summary.latestOxygenSaturation ? (
+              <StatTile
+                icon={Droplet}
+                tone="heart"
+                label={t`Blood oxygen`}
+                value={formatPercent(summary.latestOxygenSaturation.avgPercent)}
+                note={
+                  summary.latestOxygenSaturation.minPercent === null
+                    ? friendlyDate(i18n, summary.latestOxygenSaturation.date)
+                    : t`Lowest ${formatPercent(summary.latestOxygenSaturation.minPercent)} · ${friendlyDate(i18n, summary.latestOxygenSaturation.date)}`
+                }
+              />
+            ) : null}
+            {summary.latestRespiratoryRate ? (
+              <StatTile
+                icon={Wind}
+                tone="heart"
+                label={t`Respiration`}
+                value={formatBreathsPerMinute(
+                  summary.latestRespiratoryRate.avgBreathsPerMinute,
+                  i18n.locale,
+                )}
+                note={friendlyDate(i18n, summary.latestRespiratoryRate.date)}
               />
             ) : null}
           </div>

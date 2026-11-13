@@ -35,6 +35,7 @@ const ENUM = 0x00;
 const UINT8 = 0x02;
 const UINT32 = 0x86;
 const UINT16 = 0x84;
+const SINT16 = 0x83;
 
 type Field = readonly [number, number, number];
 
@@ -124,6 +125,14 @@ const MONITORING_TS16_FIELDS: readonly Field[] = [
   [27, 1, UINT8],
 ];
 
+const SPO2_FIELDS: readonly Field[] = [
+  [253, 4, UINT32],
+  [0, 1, UINT8],
+];
+const RESPIRATION_FIELDS: readonly Field[] = [
+  [253, 4, UINT32],
+  [0, 2, SINT16],
+];
 const RESTING_HR_FIELDS: readonly Field[] = [
   [253, 4, UINT32],
   [0, 1, UINT8],
@@ -138,6 +147,11 @@ const MONITORING_FIT = fitFile([
   // monitoring_hr_data: 7-day 55, current day 52 (upstream prefers field 1).
   definition(2, GARMIN_FIT_MESSAGE.MONITORING_HR_DATA, RESTING_HR_FIELDS),
   data(2, RESTING_HR_FIELDS, [0x50000 + 120, 55, 52]),
+  // spo2_data 95 %, respiration_rate 1450 / 100 = 14.5 breaths/min.
+  definition(3, GARMIN_FIT_MESSAGE.SPO2_DATA, SPO2_FIELDS),
+  data(3, SPO2_FIELDS, [0x50000 + 180, 95]),
+  definition(4, GARMIN_FIT_MESSAGE.RESPIRATION_RATE, RESPIRATION_FIELDS),
+  data(4, RESPIRATION_FIELDS, [0x50000 + 180, 1450]),
 ]);
 
 const STRING = 0x07;
@@ -517,6 +531,12 @@ test("a full sync downloads health FIT files, emits records and archives them", 
       activity: "running",
       title: "Trail Run ñ",
     },
+  ]);
+  expect(f.records.filter((record) => record.type === "oxygen_saturation")).toEqual([
+    { type: "oxygen_saturation", time: epoch(0x50000 + 180), percent: 95 },
+  ]);
+  expect(f.records.filter((record) => record.type === "respiratory_rate")).toEqual([
+    { type: "respiratory_rate", time: epoch(0x50000 + 180), breathsPerMinute: 14.5 },
   ]);
   expect(f.records.filter((record) => record.type === "hrv_rmssd")).toEqual([
     { type: "hrv_rmssd", time: epoch(HRV_TIME), rmssdMs: 42 },

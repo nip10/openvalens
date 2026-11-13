@@ -40,7 +40,9 @@ export type CanonicalMetricCode =
   | "blood_pressure_mean_arterial"
   | "muscle_mass"
   | "body_water"
-  | "bone_mass";
+  | "bone_mass"
+  | "oxygen_saturation"
+  | "respiratory_rate";
 
 export type CanonicalMetricCategory = "body" | "activity" | "vitals" | "cardiac" | "sleep" | "labs";
 
@@ -281,6 +283,28 @@ const METRIC_TAXONOMY: Record<CanonicalMetricCode, CanonicalMetricDefinition> = 
     supportedSources: Object.freeze(["scale", "ble_sensor", "phone", "watch"]),
     hasDefaultPriority: true,
   },
+  // Standard physiological measurements wearables record (Garmin FIT
+  // `spo2_data` / `respiration_rate`); averaged per day like heart rate.
+  oxygen_saturation: {
+    code: "oxygen_saturation",
+    displayName: "Blood Oxygen (SpO₂)",
+    category: "vitals",
+    unit: "%",
+    valueType: "number",
+    aggregationDefault: "avg",
+    supportedSources: Object.freeze(["watch", "ring", "ble_sensor", "phone"]),
+    hasDefaultPriority: true,
+  },
+  respiratory_rate: {
+    code: "respiratory_rate",
+    displayName: "Respiratory Rate",
+    category: "vitals",
+    unit: "breaths/min",
+    valueType: "number",
+    aggregationDefault: "avg",
+    supportedSources: Object.freeze(["watch", "ring", "phone"]),
+    hasDefaultPriority: true,
+  },
 };
 
 const METRIC_CODE_ALIASES = Object.freeze({
@@ -371,5 +395,9 @@ export function getDefaultSourcePriorityOrder(code: string): readonly string[] |
     case "body_water":
     case "bone_mass":
       return Object.freeze(["scale", "ble_sensor", "phone", "watch"]);
+    case "oxygen_saturation":
+      return Object.freeze(["watch", "ring", "ble_sensor", "phone"]);
+    case "respiratory_rate":
+      return Object.freeze(["watch", "ring", "phone"]);
   }
 }

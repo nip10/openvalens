@@ -89,6 +89,22 @@ type DirectDeviceRecord =
       lastModifiedAt?: string;
     }
   | {
+      type: "oxygen_saturation";
+      externalRecordId: string;
+      sourceApp: null;
+      startTime: string;
+      endTime: string;
+      samples: { time: string; percent: number }[];
+    }
+  | {
+      type: "respiratory_rate";
+      externalRecordId: string;
+      sourceApp: null;
+      startTime: string;
+      endTime: string;
+      samples: { time: string; breathsPerMinute: number }[];
+    }
+  | {
       type: "workout";
       externalRecordId: string;
       sourceApp: null;
@@ -120,7 +136,9 @@ type DirectDeviceBatch = {
     | "weight_measurement"
     | "hrv_rmssd"
     | "resting_heart_rate"
-    | "workout";
+    | "workout"
+    | "oxygen_saturation"
+    | "respiratory_rate";
   mode: "backfill";
   window?: { from: string; to: string };
   upserts: DirectDeviceRecord[];
@@ -165,6 +183,8 @@ const DIRECT_DEVICE_RECORD_TYPES = new Set<DirectDeviceRecordType>([
   "hrv_rmssd",
   "resting_heart_rate",
   "workout",
+  "oxygen_saturation",
+  "respiratory_rate",
 ]);
 
 export async function registerDirectDevice(
@@ -306,20 +326,12 @@ export async function ingestDirectDeviceBatch(
   const normalized = {
     ...batch,
     upserts: batch.upserts.map((record) => ({
-      ...record,
+      ...withIsoSamples(record),
       externalRecordId: `dd:v1:${batch.deviceId}:${record.type}:${record.externalRecordId}`,
       startTime: new Date(record.startTime).toISOString(),
       ...(record.type === "weight_measurement"
         ? {}
         : { endTime: new Date(record.endTime).toISOString() }),
-      ...(record.type === "heart_rate"
-        ? {
-            samples: record.samples.map((sample) => ({
-              ...sample,
-              time: new Date(sample.time).toISOString(),
-            })),
-          }
-        : {}),
       ...(record.type === "sleep_session" && record.stages
         ? {
             stages: record.stages.map((stage) => ({
@@ -340,6 +352,19 @@ export async function ingestDirectDeviceBatch(
     now: input.now,
     expectedOwnerId: input.authenticatedContext.userId,
   });
+}
+
+/**
+ * The record with its timed samples (heart rate, SpO₂, respiration) at
+ * canonical ISO times. Only `time` changes, so the record keeps its type.
+ */
+function withIsoSamples<R extends DirectDeviceRecord>(record: R): R {
+  if (!("samples" in record)) return record;
+  const samples = (record.samples as readonly { time: string }[]).map((sample) => ({
+    ...sample,
+    time: new Date(sample.time).toISOString(),
+  }));
+  return { ...record, samples } as R;
 }
 
 export function assertExpectedContext(

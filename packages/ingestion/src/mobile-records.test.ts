@@ -125,6 +125,40 @@ describe("adaptMobileHealthRecords", () => {
     });
   });
 
+  test("SpO₂ and respiration fan out to one canonical sample per reading", () => {
+    const intents = adaptMobileHealthRecords([
+      {
+        ...base,
+        type: "oxygen_saturation",
+        startTime: "2026-10-01T00:00:00.000Z",
+        endTime: "2026-10-01T00:02:00.000Z",
+        samples: [
+          { time: "2026-10-01T00:00:00.000Z", percent: 96 },
+          { time: "2026-10-01T00:01:00.000Z", percent: 93 },
+        ],
+      },
+      {
+        ...base,
+        externalRecordId: "hc-2",
+        type: "respiratory_rate",
+        startTime: "2026-10-01T00:00:00.000Z",
+        endTime: "2026-10-01T00:01:00.000Z",
+        samples: [{ time: "2026-10-01T00:00:00.000Z", breathsPerMinute: 14.5 }],
+      },
+    ]);
+    expect(
+      intents.map((intent) =>
+        intent.kind === "metric_sample"
+          ? [intent.canonicalType, intent.sampledAt, intent.value, intent.unit]
+          : null,
+      ),
+    ).toEqual([
+      ["oxygen_saturation", "2026-10-01T00:00:00.000Z", 96, "%"],
+      ["oxygen_saturation", "2026-10-01T00:01:00.000Z", 93, "%"],
+      ["respiratory_rate", "2026-10-01T00:00:00.000Z", 14.5, "breaths/min"],
+    ]);
+  });
+
   test("HRV and resting heart rate emit single canonical samples", () => {
     const [hrv, rhr] = adaptMobileHealthRecords([
       {

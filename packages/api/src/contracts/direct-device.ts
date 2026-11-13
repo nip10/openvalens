@@ -184,6 +184,28 @@ const directDeviceRecord = z.discriminatedUnion("type", [
     lastModifiedAt: isoUtc.optional(),
   }),
   z.strictObject({
+    type: z.literal("oxygen_saturation"),
+    externalRecordId: z.string().min(1).max(120),
+    sourceApp: z.null(),
+    startTime: isoUtc,
+    endTime: isoUtc,
+    samples: z
+      .array(z.strictObject({ time: isoUtc, percent: z.number().int().min(50).max(100) }))
+      .min(1)
+      .max(5000),
+  }),
+  z.strictObject({
+    type: z.literal("respiratory_rate"),
+    externalRecordId: z.string().min(1).max(120),
+    sourceApp: z.null(),
+    startTime: isoUtc,
+    endTime: isoUtc,
+    samples: z
+      .array(z.strictObject({ time: isoUtc, breathsPerMinute: z.number().positive().max(80) }))
+      .min(1)
+      .max(5000),
+  }),
+  z.strictObject({
     type: z.literal("workout"),
     externalRecordId: z.string().min(1).max(120),
     sourceApp: z.null(),
@@ -221,6 +243,8 @@ export const directDeviceBatch = z
       "hrv_rmssd",
       "resting_heart_rate",
       "workout",
+      "oxygen_saturation",
+      "respiratory_rate",
     ]),
     mode: z.literal("backfill"),
     window: z.strictObject({ from: isoUtc, to: isoUtc }).optional(),
@@ -287,7 +311,11 @@ export const directDeviceBatch = z
           previousEnd = stageEnd;
         });
       }
-      if (record.type === "heart_rate")
+      if (
+        record.type === "heart_rate" ||
+        record.type === "oxygen_saturation" ||
+        record.type === "respiratory_rate"
+      )
         record.samples.forEach((sample, sampleIndex) => {
           const time = new Date(sample.time).getTime();
           if (
