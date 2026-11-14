@@ -26,6 +26,7 @@ import { openFirstRun, openSetupItem, useHealthConsentStatus } from "@/component
 import { useIsInstanceAdmin } from "@/components/onboarding/steps";
 import { authClient } from "@/lib/auth-client";
 import { needsHealthConsent } from "@/lib/health-consent";
+import { storeSavedProfile } from "@/lib/onboarding/profile-writes";
 import { firstRunEntry, shouldOpenFirstRun } from "@/lib/onboarding/steps";
 import { client, orpc } from "@/utils/orpc";
 
@@ -49,7 +50,7 @@ function useSetupStatus() {
     mutationFn: (input: { revision: number; setupStatus: "completed" | "skipped" }) =>
       client.profile.update({ expectedRevision: input.revision, setupStatus: input.setupStatus }),
     onMutate: () => setError(null),
-    onSuccess: (next) => queryClient.setQueryData(wellnessProfileQueryKey(userId), next),
+    onSuccess: (next) => storeSavedProfile(queryClient, userId, next),
     onError: (failure) => {
       const described = describeProfileSaveError(failure);
       if (described.kind === "conflict") void profile.refetch();

@@ -10,10 +10,7 @@ import {
   toggleModule,
   type PersonModule,
 } from "@openvalens/api/presenters/modules";
-import {
-  describeProfileSaveError,
-  wellnessProfileQueryKey,
-} from "@openvalens/api/presenters/wellness-profile";
+import { describeProfileSaveError } from "@openvalens/api/presenters/wellness-profile";
 import type { WellnessProfileSnapshot } from "@openvalens/api/wellness-profile-contract";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "heroui-native";
@@ -25,6 +22,7 @@ import { Container } from "@/components/container";
 import { rememberSyncModules } from "@/lib/health-sync";
 import { MODULE_ICON_COMPONENTS } from "@/lib/modules/icons";
 import { useModules } from "@/lib/modules/use-modules";
+import { storeSavedProfile } from "@/lib/onboarding/profile-writes";
 import { client } from "@/utils/orpc";
 import { useThemeColor } from "@/utils/theme";
 
@@ -86,8 +84,8 @@ function ModuleList({
   const update = useMutation({
     mutationFn: (enabledModules: PersonModule[]) =>
       client.profile.update({ expectedRevision: snapshot.revision, enabledModules }),
-    onSuccess: (next) => {
-      queryClient.setQueryData(wellnessProfileQueryKey(userId), next);
+    onSuccess: async (next) => {
+      await storeSavedProfile(queryClient, userId, next);
       void rememberSyncModules(next.enabledModules);
     },
   });

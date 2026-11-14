@@ -64,6 +64,7 @@ import {
 import { Container } from "@/components/container";
 import { SetupCardSetting } from "@/components/finish-setup-card";
 import { authClient } from "@/lib/auth-client";
+import { storeSavedProfile } from "@/lib/onboarding/profile-writes";
 import { client, orpc } from "@/utils/orpc";
 import {
   CheckboxToggle,
@@ -163,7 +164,7 @@ function ProfileEditor({
           ? { ...input, setupStatus: "in_progress" }
           : input,
       ),
-    onSuccess: (next) => queryClient.setQueryData(wellnessProfileQueryKey(userId), next),
+    onSuccess: (next) => storeSavedProfile(queryClient, userId, next),
   });
 
   const save = async (section: SetupSection) => {
