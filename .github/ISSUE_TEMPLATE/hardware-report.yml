@@ -1,0 +1,95 @@
+name: Hardware report
+description: Report how a direct Bluetooth device synced with OpenValens on a real phone.
+title: "[Devices] Hardware report: <model>"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for trying a device on real hardware. One report per model.
+        The [supported devices](https://openvalens.com/devices) page lists every model and its status.
+
+        **Use synthetic or redacted values.** Do not paste health data, PINs, pairing keys or MAC addresses.
+        If you found a bug in a device that was already reported, comment on that issue instead.
+  - type: input
+    id: model
+    attributes:
+      label: Device model
+      description: The name the app shows for it, for example "Amazfit Balance" or "Huawei Band 8".
+    validations:
+      required: true
+  - type: input
+    id: firmware
+    attributes:
+      label: Device firmware
+      description: From the maker's app or the device's settings.
+    validations:
+      required: true
+  - type: input
+    id: phone-model
+    attributes:
+      label: Phone model
+      placeholder: Pixel 8
+    validations:
+      required: true
+  - type: input
+    id: phone-os
+    attributes:
+      label: Phone OS and version
+      placeholder: Android 16
+    validations:
+      required: true
+  - type: input
+    id: app-version
+    attributes:
+      label: OpenValens app version
+      description: Settings › About › App version. 1.2.0 or later.
+      placeholder: 1.2.0
+    validations:
+      required: true
+  - type: dropdown
+    id: transport
+    attributes:
+      label: Transport
+      description: Bluetooth Classic is used only on Android, for models paired over Classic.
+      options:
+        - BLE
+        - Bluetooth Classic
+        - I don't know
+    validations:
+      required: true
+  - type: input
+    id: auth-mode
+    attributes:
+      label: Auth mode (Huawei and Honor only)
+      description: HiChainLite, HiChain, HiChain3 or PAKE, if the app shows it.
+    validations:
+      required: false
+  - type: textarea
+    id: synced
+    attributes:
+      label: What synced
+      description: For example steps, heart rate, sleep. Say whether the values looked plausible next to the maker's app.
+    validations:
+      required: true
+  - type: textarea
+    id: not-synced
+    attributes:
+      label: What didn't sync
+      description: Anything missing or wrong, and the error the device settings screen shows, if any.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs (optional)
+      description: Redact MAC addresses, keys and any health values first.
+      render: text
+    validations:
+      required: false
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy
+      options:
+        - label: This report contains no health data, PINs, pairing keys or MAC addresses.
+          required: true

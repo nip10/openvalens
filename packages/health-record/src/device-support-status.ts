@@ -24,6 +24,10 @@
  * experimental is not more proven here), then
  * {@link DEFAULT_DEVICE_SUPPORT_STATUS}.
  *
+ * Hardware results arrive as `[Devices] Hardware report: <model>` issues, from
+ * the form in `.github/ISSUE_TEMPLATE/hardware-report.yml` (linked from the
+ * `/devices` page).
+ *
  * How the owner marks a model as tested on a device: add its `modelId` to
  * {@link DEVICE_SUPPORT_EXCEPTIONS} as `{ status: "tested" }`, with a comment
  * that says when, on which firmware, and which records synced. If the model

@@ -578,8 +578,9 @@ export function matchDeviceName(name: string): ZeppOsModel | null {
 
 /**
  * Models without the 0x48 sleep-session fetch (`supportsSleepScore() = false`
- * in their upstream coordinators; mostly Zepp OS 1.x/2.x). Their sleep would
- * come only from kind-120 activity minutes, which is not implemented yet.
+ * in their upstream coordinators; mostly Zepp OS 1.x/2.x). Their sleep comes
+ * from kind-120 activity minutes instead, segmented into nights by
+ * `protocol/zepp-sleep-fallback.ts`.
  */
 const NO_SLEEP_SESSIONS: ReadonlySet<ZeppOsModelId> = new Set<ZeppOsModelId>([
   "amazfit_band_7",

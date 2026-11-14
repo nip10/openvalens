@@ -139,13 +139,13 @@ Plan for:
 ## Install
 
 Install from a release tag: the newest one on the
-[Releases](https://github.com/nip10/openvalens/releases) page (the first is
-`v0.9.0`). `main` tracks unreleased code.
+[Releases](https://github.com/nip10/openvalens/releases) page, which the
+`git checkout` line below picks. `main` tracks unreleased code.
 
 ```bash
 git clone https://github.com/nip10/openvalens.git
 cd openvalens
-git checkout v1.0.1          # the newest release tag
+git checkout "$(git tag -l 'v*' --sort=-v:refname | head -n 1)"  # the newest release tag
 deploy/setup.sh install
 ```
 

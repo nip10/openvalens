@@ -8,10 +8,10 @@ supported install: the Docker Compose stack in `deploy/`, driven by
 code of this version; where something was only partly verified, the page says
 so.
 
-> **Version.** These docs describe OpenValens 1.0.1 (`v1.0.1`). 1.0.0 was the first
-> stable release. The version is the
-> `version` field of the root `package.json`; CI checks that every page here
-> states it.
+> **Version.** These docs describe the version in the "Applies to" line at the
+> top of each page; install the matching `v<version>` release tag. The version is
+> the `version` field of the root `package.json`: `bun run release:version`
+> updates every "Applies to" line, and CI checks that every page here states it.
 
 > **Keep the backup key off the server.** The stack takes encrypted backups of
 > the database and stored files daily and before every upgrade, but they are

@@ -12,8 +12,9 @@
  *
  * Build numbers are not here: EAS keeps them (`appVersionSource: remote`).
  *
- *   bun run release:version 1.2.3          # set all three to 1.2.3, and the
+ *   bun run release:version 1.2.3          # set all three to 1.2.3, the
  *                                          # "Applies to" line of versioned docs
+ *                                          # and the README's current version
  *   bun run release:version --check        # fail unless all three agree
  *   bun run release:version --check v1.2.3 # ...and equal the tag
  */
@@ -103,21 +104,38 @@ function replaceJsonVersion(
 export const VERSIONED_DOC_DIRS = ["docs/self-hosting", "docs/reference"] as const;
 const APPLIES_TO = /(\*\*Applies to:\*\* OpenValens )(\d+\.\d+\.\d+)/;
 
-/** Rewrites the "Applies to" version of each versioned page; returns the pages changed. */
+/**
+ * The root README's status note names the current version
+ * ("The current version is X.Y.Z"); `scripts/release-version.test.ts` holds it
+ * to the root version too.
+ */
+export const README_FILE = "README.md";
+export const README_CURRENT_VERSION = /(The current version is )(\d+\.\d+\.\d+)/;
+
+function stamp(repo: string, file: string, pattern: RegExp, version: string): boolean {
+  const path = join(repo, file);
+  if (!existsSync(path)) return false;
+  const text = readFileSync(path, "utf8");
+  const next = text.replace(pattern, `$1${version}`);
+  if (next === text) return false;
+  writeFileSync(path, next);
+  return true;
+}
+
+/**
+ * Rewrites the "Applies to" version of each versioned page and the README's
+ * current version; returns the files changed.
+ */
 export function stampDocs(repo: string, version: string): string[] {
   const changed: string[] = [];
   for (const dir of VERSIONED_DOC_DIRS) {
     if (!existsSync(join(repo, dir))) continue;
     const pages = readdirSync(join(repo, dir), { recursive: true, encoding: "utf8" });
     for (const page of pages.filter((path) => path.endsWith(".md")).sort()) {
-      const path = join(repo, dir, page);
-      const text = readFileSync(path, "utf8");
-      const next = text.replace(APPLIES_TO, `$1${version}`);
-      if (next === text) continue;
-      writeFileSync(path, next);
-      changed.push(join(dir, page));
+      if (stamp(repo, join(dir, page), APPLIES_TO, version)) changed.push(join(dir, page));
     }
   }
+  if (stamp(repo, README_FILE, README_CURRENT_VERSION, version)) changed.push(README_FILE);
   return changed;
 }
 
@@ -172,7 +190,7 @@ function main(argv: string[]): number {
   const pages = stampDocs(repo, version);
   if (pages.length > 0) {
     console.log(
-      `"Applies to" set to ${version} in ${pages.length} pages; review that they still hold:`,
+      `Docs version set to ${version} in ${pages.length} files; review that they still hold:`,
     );
     for (const page of pages) console.log(`  ${page}`);
   }
