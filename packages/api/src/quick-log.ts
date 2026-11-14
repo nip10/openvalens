@@ -1,4 +1,5 @@
 import type { Database } from "@openvalens/db";
+import { aiAppEntry } from "@openvalens/db/schema/ai-apps";
 import { metricDefinition, metricSample } from "@openvalens/db/schema/health-record";
 import {
   nutritionFoodSnapshot,
@@ -13,7 +14,7 @@ import {
   localDateIn,
   type LocalClock,
 } from "@openvalens/telegram/reminder-schedule";
-import { and, desc, eq, gte, inArray, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNull, sql, type AnyColumn } from "drizzle-orm";
 
 import {
   RECENT_METRIC_KINDS,
@@ -31,7 +32,9 @@ import {
  * data source stamped with their user id (weight, heart rate, steps, …, and
  * blood pressure pairs), plain water, supplement intakes and drink presets
  * (#443: diary entries saved with the `preset` method). Device data is never
- * offered as a "recent".
+ * offered as a "recent", and neither is an entry a connected AI app wrote for
+ * the member (#439): its metric samples carry the server-set `aiApp` tag, and
+ * its water entries and supplement intakes are listed in `ai_app_entry`.
  */
 
 /** How far back recents look (keeps the metric scan on recent rows). */
@@ -200,6 +203,19 @@ function mergeRecentEntries(sources: RecentSources): RecentLogEntry[] {
 
 type Owner = { organizationId: string; userId: string };
 
+/**
+ * #439 — true while no connected AI app wrote this row: no `ai_app_entry`
+ * (any grant, revoked ones too) lists it. A confirmed AI draft points there as
+ * well, so it stays out too.
+ */
+function notWrittenByAiApp(
+  table: "plain_water_entry" | "supplement_intake",
+  id: AnyColumn,
+  organizationId: AnyColumn,
+) {
+  return sql`not exists (select 1 from ${aiAppEntry} where ${aiAppEntry.organizationId} = ${organizationId} and ${aiAppEntry.targetTable} = ${table} and ${id} = any(${aiAppEntry.targetIds}))`;
+}
+
 /** The member's own typed-in metric samples from the last {@link RECENTS_WINDOW_DAYS}. */
 export async function loadRecentMetricRows(
   db: Database,
@@ -230,6 +246,8 @@ export async function loadRecentMetricRows(
         gte(metricSample.sampledAt, since),
         inArray(metricDefinition.code, [...METRIC_CODES, "heart_rate"]),
         sql`${metricSample.metadataJson}->>'ingestedByUserId' = ${owner.userId}`,
+        // A reading a connected AI app wrote is the app's, not the member's (#439).
+        sql`not coalesce(${metricSample.metadataJson} ? 'aiApp', false)`,
       ),
     )
     .orderBy(desc(metricSample.sampledAt), desc(metricSample.id))
@@ -246,6 +264,7 @@ export async function loadRecentWaterRows(db: Database, owner: Owner): Promise<R
         eq(plainWaterEntry.organizationId, owner.organizationId),
         eq(plainWaterEntry.userId, owner.userId),
         isNull(plainWaterEntry.deletedAt),
+        notWrittenByAiApp("plain_water_entry", plainWaterEntry.id, plainWaterEntry.organizationId),
       ),
     )
     .orderBy(desc(plainWaterEntry.observedAt), desc(plainWaterEntry.id))
@@ -267,6 +286,11 @@ export async function loadRecentIntakeRows(db: Database, owner: Owner): Promise<
         eq(supplementIntake.organizationId, owner.organizationId),
         eq(supplementIntake.userId, owner.userId),
         isNull(supplementIntake.deletedAt),
+        notWrittenByAiApp(
+          "supplement_intake",
+          supplementIntake.id,
+          supplementIntake.organizationId,
+        ),
       ),
     )
     .orderBy(desc(supplementIntake.occurredAt), desc(supplementIntake.id))

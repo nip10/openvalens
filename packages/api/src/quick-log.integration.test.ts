@@ -1,6 +1,7 @@
 import { readdir } from "node:fs/promises";
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { createDb, sql } from "@openvalens/db";
+import { aiAppEntry, aiAppGrant, aiAppWrite } from "@openvalens/db/schema/ai-apps";
 import { member, organization, user } from "@openvalens/db/schema/auth";
 import { metricDefinition, metricSample } from "@openvalens/db/schema/health-record";
 import {
@@ -18,6 +19,7 @@ import {
   loadRecentMetricRows,
   loadRecentWaterRows,
   loadSupplementsDue,
+  recentEntryKey,
 } from "./quick-log";
 
 const url = process.env.QUICK_LOG_TEST_DATABASE_URL;
@@ -268,6 +270,131 @@ describe.skipIf(!url)("quick log reads against disposable PostgreSQL (#440)", ()
     const recents = await loadRecentIntakeRows(db, A);
     expect(recents).toEqual([
       { at: now, supplementId: zinc!.id, supplementName: "Zinc", dose: "15 mg" },
+    ]);
+  });
+
+  test("entries a connected AI app wrote are not offered as recents (#439)", async () => {
+    // A member of their own, so the other tests' rows stay out of the way.
+    const AI_ORG = "org-quick-ai";
+    const D = { organizationId: AI_ORG, userId: "user-d" };
+    await db.insert(organization).values({ id: AI_ORG, name: "AI", slug: "quick-ai" });
+    await db.insert(user).values({ id: "user-d", email: "d@example.invalid", name: "D" });
+    await db
+      .insert(member)
+      .values({ id: "member-d", userId: "user-d", organizationId: AI_ORG, role: "owner" });
+    const [grant] = await db
+      .insert(aiAppGrant)
+      .values({
+        organizationId: AI_ORG,
+        userId: "user-d",
+        kind: "personal_key",
+        label: "Claude",
+        scopes: ["records:read", "water:write", "body:write", "supplements:write"],
+        consentVersion: "mcp-v1",
+        consentedAt: now,
+      })
+      .returning({ id: aiAppGrant.id });
+    const [write] = await db
+      .insert(aiAppWrite)
+      .values({
+        grantId: grant!.id,
+        organizationId: AI_ORG,
+        userId: "user-d",
+        mutationId: "m-1",
+        tool: "water.log",
+        fingerprint: "f",
+        entryCount: 2,
+        status: "done",
+      })
+      .returning({ id: aiAppWrite.id });
+
+    const [weight] = await db
+      .insert(metricDefinition)
+      .values({ organizationId: AI_ORG, code: "weight", displayName: "weight" })
+      .returning({ id: metricDefinition.id });
+    const at = (hoursAgo: number) => new Date(now.getTime() - hoursAgo * HOUR);
+    await db.insert(metricSample).values([
+      {
+        organizationId: AI_ORG,
+        metricDefinitionId: weight!.id,
+        sampledAt: at(1),
+        numericValue: 81,
+        dedupeHash: "ai-weight",
+        metadataJson: {
+          ingestedByUserId: "user-d",
+          aiApp: { grantId: grant!.id, label: "Claude" },
+        },
+      },
+      {
+        organizationId: AI_ORG,
+        metricDefinitionId: weight!.id,
+        sampledAt: at(2),
+        numericValue: 80,
+        dedupeHash: "own-weight",
+        metadataJson: { ingestedByUserId: "user-d" },
+      },
+    ]);
+    const water = await db
+      .insert(plainWaterEntry)
+      .values(
+        [
+          { quantityMl: 750, observedAt: at(1), clientMutationId: "ai-w" },
+          { quantityMl: 300, observedAt: at(2), clientMutationId: "own-w" },
+        ].map((row) => ({ ...row, organizationId: AI_ORG, userId: "user-d", timeZone: "UTC" })),
+      )
+      .returning({ id: plainWaterEntry.id });
+    const [creatine] = await db
+      .insert(supplement)
+      .values({ name: "Creatine", dose: "5 g" })
+      .returning({ id: supplement.id });
+    const intakes = await db
+      .insert(supplementIntake)
+      .values(
+        [
+          { occurredAt: at(1), dose: "10 g" },
+          { occurredAt: at(2), dose: "5 g" },
+        ].map((row) => ({
+          ...row,
+          organizationId: AI_ORG,
+          userId: "user-d",
+          supplementId: creatine!.id,
+          timezone: "UTC",
+        })),
+      )
+      .returning({ id: supplementIntake.id });
+    const tagged = { grantId: grant!.id, organizationId: AI_ORG, userId: "user-d" };
+    await db.insert(aiAppEntry).values([
+      {
+        ...tagged,
+        writeId: write!.id,
+        itemIndex: 0,
+        kind: "water",
+        targetTable: "plain_water_entry",
+        targetIds: [water[0]!.id],
+      },
+      {
+        ...tagged,
+        writeId: write!.id,
+        itemIndex: 1,
+        kind: "supplement_intake",
+        targetTable: "supplement_intake",
+        targetIds: [intakes[0]!.id],
+      },
+    ]);
+
+    const [metrics, waterRows, intakeRows] = await Promise.all([
+      loadRecentMetricRows(db, D, now),
+      loadRecentWaterRows(db, D),
+      loadRecentIntakeRows(db, D),
+    ]);
+    expect(metrics.map((row) => row.value)).toEqual([80]);
+    expect(waterRows.map((row) => row.quantityMl)).toEqual([300]);
+    expect(intakeRows.map((row) => row.dose)).toEqual(["5 g"]);
+    const recents = buildRecentLogEntries({ metrics, water: waterRows, intakes: intakeRows });
+    expect(recents.map(recentEntryKey)).toEqual([
+      "weight|80",
+      "water|300",
+      `supplement|${creatine!.id}|5 g`,
     ]);
   });
 });
