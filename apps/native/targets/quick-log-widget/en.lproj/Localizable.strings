@@ -1,0 +1,9 @@
+/* Generated from the Lingui catalogs by `bun run widget:strings`. Do not edit. */
+"widget_name" = "Quick log";
+"widget_description" = "Log a glass of water, take your next supplement or open the log in one tap.";
+"water" = "Water";
+"water_action" = "+1 glass";
+"supplement" = "Supplement";
+"supplement_action" = "Taken";
+"log" = "Log…";
+"log_action" = "Everything else";

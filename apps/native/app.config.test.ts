@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import type { ExpoConfig } from "expo/config";
 
 import appJson from "./app.json";
@@ -80,5 +82,32 @@ describe("app.config.ts", () => {
       },
     ]);
     expect(config.plugins?.length).toBe(base.plugins?.length);
+  });
+
+  test("the home-screen widget (#449) is home screen only and shares nothing with a widget process", () => {
+    // No App Group (or keychain group) for the app or the iOS widget target.
+    expect(base.ios?.entitlements).toBeUndefined();
+    const target = require("./targets/quick-log-widget/expo-target.config.js") as {
+      type: string;
+      entitlements?: unknown;
+    };
+    expect(target.type).toBe("widget");
+    expect(target.entitlements).toBeUndefined();
+    expect(base.plugins).toContain("@bacons/apple-targets");
+    expect(base.plugins).toContain("./plugins/home-widget");
+    // iOS: home-screen family only, no lock-screen (accessory) widgets.
+    const swift = readFileSync(
+      join(import.meta.dir, "targets/quick-log-widget/QuickLogWidget.swift"),
+      "utf8",
+    );
+    expect(swift).toContain(".supportedFamilies([.systemMedium])");
+    expect(swift).not.toMatch(/\.accessory[A-Z]/);
+    // Android: home screen, opted out of the lock screen.
+    const android = base.plugins?.find(
+      (entry) => Array.isArray(entry) && entry[0] === "react-native-android-widget",
+    ) as [string, { widgets: { name: string; widgetCategory: string }[] }];
+    expect(android[1].widgets.map((widget) => [widget.name, widget.widgetCategory])).toEqual([
+      ["QuickLog", "home_screen|not_keyguard"],
+    ]);
   });
 });

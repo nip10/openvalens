@@ -12,6 +12,8 @@ export type SignOutSteps = {
   resetHealthSync: () => Promise<unknown>;
   prepareOffline: (options?: ServerLeaveOptions) => Promise<unknown>;
   signOut: () => Promise<unknown>;
+  /** Issue #449 — the home-screen widget's buttons, values and opt-in. */
+  clearHomeWidget: () => Promise<unknown>;
   clearQueries: () => void;
 };
 
@@ -28,6 +30,8 @@ export function createSignOut(
     // Direct-device captures contain personal activity data and are never kept across sign-out.
     steps.purgeDirectDevices();
     await steps.signOut();
+    // After the session is gone, so nothing can redraw the widget for this account.
+    await steps.clearHomeWidget().catch(() => undefined);
     // Drop every cached response so the next account sees none of this one's data.
     steps.clearQueries();
   };

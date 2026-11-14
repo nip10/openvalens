@@ -255,6 +255,7 @@ describe("server-leave safety", () => {
       signOut: async () => {
         calls.push("authSignOut");
       },
+      clearHomeWidget: async () => undefined,
       clearQueries: () => calls.push("clearQueries"),
     });
     const switchServer = createSwitchServer({
@@ -292,6 +293,7 @@ describe("server-leave safety", () => {
         else clearOfflineData();
       },
       signOut: async () => calls.push("authSignOut"),
+      clearHomeWidget: async () => undefined,
       clearQueries: () => calls.push("signOutClearQueries"),
     });
     const switchServer = createSwitchServer({

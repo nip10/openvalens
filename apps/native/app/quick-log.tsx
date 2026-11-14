@@ -12,6 +12,7 @@ import { deviceTimeZone, newClientMutationId } from "@openvalens/api/presenters/
 import {
   buildQuickLogWrite,
   quickFormDefaults,
+  quickLogWriteValue,
   recentEntryTitle,
   recentEntryValue,
   repeatRecentEntry,
@@ -36,6 +37,14 @@ import { LOG_KIND_ICONS, LOG_KIND_TONES } from "@/components/quick-log/log-kind-
 import { QuickForm, type SupplementOption } from "@/components/quick-log/quick-form";
 import { TrackerValueInput } from "@/components/trackers/tracker-value-input";
 import { authClient } from "@/lib/auth-client";
+import { HOME_WIDGET_COPY } from "@/lib/home-widget/copy";
+import {
+  glassOfWaterWrite,
+  homeWidgetAvailability,
+  nextDueSupplement,
+  parseHomeWidgetAction,
+  planHomeWidgetTap,
+} from "@/lib/home-widget/model";
 import { useModules } from "@/lib/modules/use-modules";
 import {
   discardQueuedSupplementIntake,
@@ -74,6 +83,10 @@ const COPY = {
   undoFailed: msg`Could not remove it. Open the screen to change it.`,
   failed: msg`Could not save. Try again.`,
   takeHint: msg`Logs the scheduled dose now. Long-press to change it.`,
+  widgetOff: msg({
+    message: "{what} is turned off, so nothing was logged.",
+    comment: "After a tap on the home-screen widget for a kind the member has turned off.",
+  }),
   repeatHint: msg`Logs the same again, now.`,
 };
 
@@ -91,12 +104,14 @@ type PickerView =
  * trackers. Simple kinds save here at once with an undo; food, drinks, pain
  * (#442, the body map), labs, workouts and the like open their own screen; a
  * recent drink repeats at once as the same preset. Turned-off features never appear. `?kind=<id>` opens one kind
- * directly (for app-icon quick actions).
+ * directly (for app-icon quick actions). `?widget=<action>` is a tap on the
+ * home-screen widget (#449): water and "Taken" save at once, with Undo, the
+ * same as a tap here; "Log…" just opens the picker.
  */
 export default function QuickLogRoute() {
   const { t, i18n } = useLingui();
   const router = useRouter();
-  const params = useLocalSearchParams<{ kind?: string }>();
+  const params = useLocalSearchParams<{ kind?: string; widget?: string }>();
   const insets = useSafeAreaInsets();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -108,7 +123,7 @@ export default function QuickLogRoute() {
   const water = usePlainWaterOutbox();
 
   // What the member can log: modules, preferences and role.
-  const { enabled, isEnabled } = useModules();
+  const { enabled, isEnabled, profile } = useModules();
   const me = useQuery(orpc.sharing.me.queryOptions({ input: {} }));
   const waterPreferences = useCacheFirst(
     WATER_PREFERENCES_CACHE_KEY,
@@ -339,6 +354,69 @@ export default function QuickLogRoute() {
         goTo("/settings/modules");
     }
   };
+
+  // `?widget=<action>`: a tap on the home-screen widget, acted on once what the
+  // member can log is known (a kind turned off since the widget was drawn is not saved).
+  const widgetAction = parseHomeWidgetAction(params.widget);
+  const widgetHandled = useRef(false);
+  const waiting = (query: { isPending: boolean; isFetching: boolean }) =>
+    query.isPending && query.isFetching;
+  const kindsSettled =
+    Boolean(session.data) && !waiting(profile) && !waiting(me) && !waiting(waterPreferences);
+  // A cached answer may be from before a dose was taken elsewhere: wait for the refetch.
+  const nextDue = due.isFetching ? undefined : nextDueSupplement(due.data, queuedIntakes, timeZone);
+  useEffect(() => {
+    if (!widgetAction) {
+      widgetHandled.current = false;
+      return;
+    }
+    if (widgetHandled.current || saving) return;
+    const plan = planHomeWidgetTap(widgetAction, {
+      availability: kindsSettled ? homeWidgetAvailability(kinds) : null,
+      next: has("supplement_intake") ? nextDue : null,
+    });
+    if (plan.type === "wait") return;
+    widgetHandled.current = true;
+    // The picker stays open: clear the action so the same tap again acts again.
+    const stay = () => router.setParams({ widget: undefined });
+    switch (plan.type) {
+      case "picker":
+        stay();
+        return;
+      case "off":
+        stay();
+        toast.show({
+          label: i18n._({
+            ...COPY.widgetOff,
+            values: { what: i18n._(HOME_WIDGET_COPY[plan.action]) },
+          }),
+        });
+        return;
+      case "save_water": {
+        const waterKind = kinds.find((kind) => kind.id === "water");
+        if (!waterKind) return;
+        const write = glassOfWaterWrite({ timeZone, newId: newClientMutationId });
+        void save(
+          write,
+          `${i18n._(waterKind.label)} · ${quickLogWriteValue(write, waterKind, i18n)}`,
+          waterKind,
+        );
+        return;
+      }
+      case "take":
+        takeSupplement(plan.item);
+        return;
+      case "choose_supplement":
+        stay();
+        if (supplementKind)
+          openKind(
+            supplementKind,
+            plan.supplementId === null ? undefined : { supplement: String(plan.supplementId) },
+          );
+    }
+    // The handlers read the latest data; run once per tap.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [widgetAction, kindsSettled, kinds, nextDue, saving]);
 
   // `?kind=<id>`: open that kind once it is known to be available.
   const opened = useRef(false);
