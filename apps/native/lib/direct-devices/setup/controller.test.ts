@@ -1446,7 +1446,27 @@ test("a Zepp OS model upstream defaults to SPP syncs over RFCOMM on Android and 
                   encodeZeppSppFrame(
                     ZEPP_SPP_CMD.CHANNELS_RET,
                     0,
-                    Uint8Array.of(1, 2, 0, ...uuid("16"), 0, 1, 0, ...uuid("17"), 0, 2, 0),
+                    Uint8Array.of(
+                      1,
+                      4,
+                      0,
+                      ...uuid("16"),
+                      0,
+                      1,
+                      0,
+                      ...uuid("17"),
+                      0,
+                      2,
+                      0,
+                      ...uuid("04"),
+                      0,
+                      3,
+                      0,
+                      ...uuid("05"),
+                      0,
+                      4,
+                      0,
+                    ),
                   ),
                 );
               } else if (frame.cmd === ZEPP_SPP_CMD.SESSION_START) {
@@ -1466,15 +1486,20 @@ test("a Zepp OS model upstream defaults to SPP syncs over RFCOMM on Android and 
       },
     };
   };
-  const adapter = (openRfcomm: () => Promise<unknown>, opened: unknown[]) => () => ({
-    isSupported: () => true,
-    listBonded: async () => [],
-    discover: async () => undefined,
-    openRfcomm: async (args: unknown) => {
-      opened.push(args);
-      return (await openRfcomm()) as never;
-    },
-  });
+  const adapter =
+    (openRfcomm: () => Promise<unknown>, opened: unknown[], bonded = true) =>
+    () => ({
+      isSupported: () => true,
+      listBonded: async () =>
+        bonded
+          ? [{ address: "local-id", name: "Balance 3", type: "dual" as const, bonded: true }]
+          : [],
+      discover: async () => undefined,
+      openRfcomm: async (args: unknown) => {
+        opened.push(args);
+        return (await openRfcomm()) as never;
+      },
+    });
 
   // Android with the module: SPP first.
   const opened: unknown[] = [];
@@ -1499,24 +1524,47 @@ test("a Zepp OS model upstream defaults to SPP syncs over RFCOMM on Android and 
   expect(watch.closes()).toBe(1);
   await android.controller.dispose();
 
-  // The RFCOMM connect fails: the same sync runs over BLE.
+  // The RFCOMM connect fails: the same sync runs over BLE, and later syncs on
+  // this connection do not try RFCOMM again.
+  const refusedOpens: unknown[] = [];
   const refused = fixture({
     deviceName: "Amazfit Balance 3",
     runHelioHistory: runHelioHistory as never,
     btClassicAdapter: adapter(async () => {
       throw new Error("BT_CLASSIC_CONNECT_FAILED");
-    }, []),
+    }, refusedOpens),
   });
   await refused.controller.startScan();
   refused.emit();
   await refused.controller.connect("local-id");
   expect(await refused.controller.fetchSteps(fetchOptions)).toEqual(result);
+  expect(await refused.controller.fetchSteps(fetchOptions)).toEqual(result);
+  expect(refusedOpens).toHaveLength(1);
   await refused.controller.dispose();
 
-  // iOS / no module, and a BLE-only model on Android: BLE, no RFCOMM attempt.
+  // An abort while RFCOMM connects cancels the sync rather than falling back.
+  const hung = fixture({
+    deviceName: "Amazfit Balance 3",
+    runHelioHistory: runHelioHistory as never,
+    btClassicAdapter: adapter(() => new Promise(() => undefined), []),
+  });
+  await hung.controller.startScan();
+  hung.emit();
+  await hung.controller.connect("local-id");
+  const abort = new AbortController();
+  const hungFetch = hung.controller.fetchSteps({ ...fetchOptions, signal: abort.signal });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  abort.abort();
+  await expect(hungFetch).rejects.toThrow("CANCELLED");
+  await hung.controller.dispose();
+
+  // iOS / no module, a watch not bonded over Classic, and a BLE-only model on
+  // Android: BLE, no RFCOMM attempt.
   const neverOpened: unknown[] = [];
+  const unsupported = adapter(async () => watch.socket, neverOpened);
   for (const [deviceName, btClassicAdapter] of [
-    ["Amazfit Balance 3", undefined],
+    ["Amazfit Balance 3", () => ({ ...unsupported(), isSupported: () => false })],
+    ["Amazfit Balance 3", adapter(async () => watch.socket, neverOpened, false)],
     ["Amazfit GTR 4", adapter(async () => watch.socket, neverOpened)],
   ] as const) {
     const f = fixture({
@@ -1531,7 +1579,7 @@ test("a Zepp OS model upstream defaults to SPP syncs over RFCOMM on Android and 
     await f.controller.dispose();
   }
   expect(neverOpened).toEqual([]);
-  expect(links).toEqual(["spp", "ble", "ble", "ble"]);
+  expect(links).toEqual(["spp", "ble", "ble", "ble", "ble", "ble"]);
 });
 
 test("a Huawei model without a Huawei service is rejected", async () => {

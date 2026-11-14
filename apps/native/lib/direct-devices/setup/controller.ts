@@ -1701,6 +1701,11 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
                             signal: linked.signal,
                           }).catch(() => {
                             if (linked.signal.aborted) throw new Error("CANCELLED");
+                            // Not bonded, no SDP record or a failed handshake: keep BLE
+                            // for the rest of this connection instead of paying the
+                            // connect and handshake timeouts again on every sync.
+                            if (connectedZeppSppAddress === sppAddress)
+                              connectedZeppSppAddress = null;
                             return null;
                           })
                         : null;

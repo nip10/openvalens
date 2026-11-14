@@ -9,7 +9,6 @@ import {
   parseZeppSppChannelData,
   parseZeppSppChannels,
   parseZeppSppSessionAck,
-  ZEPP_SPP_BUFFER_BYTES,
   ZEPP_SPP_CMD,
   zeppSppCrc16,
   ZeppSppDeframer,
@@ -104,11 +103,15 @@ test("fewer than eight pending bytes wait for more, even without a preamble", ()
 
 test("the receive buffer is capped at 64 KiB", () => {
   const deframer = new ZeppSppDeframer();
-  // A header announcing 0xffff payload bytes keeps everything pending.
-  deframer.push(Uint8Array.of(0x55, 7, 0, 0xff, 0xff, 0, 0, 0));
-  expect(() => deframer.push(new Uint8Array(ZEPP_SPP_BUFFER_BYTES))).toThrow(
-    "ZEPP_SPP_BUFFER_OVERFLOW",
-  );
+  // A header that still fits the buffer keeps everything pending...
+  deframer.push(Uint8Array.of(0x55, 7, 0, 0xf0, 0xff, 0, 0, 0));
+  expect(deframer.push(new Uint8Array(0xff00))).toEqual([]);
+  // ...until the buffer would overflow.
+  expect(() => deframer.push(new Uint8Array(0x200))).toThrow("ZEPP_SPP_BUFFER_OVERFLOW");
+  // A length that can never fit is a false preamble: skipped, not waited on.
+  expect(
+    new ZeppSppDeframer().push(Uint8Array.of(0x55, 7, 0, 0xff, 0xff, ...SESSION_START_ACK)),
+  ).toHaveLength(1);
   // A length of 0x8000 or more is read unsigned (upstream's signed read throws).
   const big = new Uint8Array(0x8000);
   const frame = encodeZeppSppFrame(ZEPP_SPP_CMD.CHANNEL_DATA, 9, big);

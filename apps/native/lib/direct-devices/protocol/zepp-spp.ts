@@ -90,10 +90,11 @@ export type ZeppSppFrame = Readonly<{ cmd: number; seq: number; payload: Uint8Ar
  *   byte, which is then tried as a preamble;
  * - a frame with a bad CRC is dropped whole.
  *
- * One deviation: upstream reads the length as a signed short, which throws on
- * lengths of 0x8000 and above; this reads it unsigned. Bytes pending beyond the
- * 64 KiB buffer throw `ZEPP_SPP_BUFFER_OVERFLOW`, where upstream's
- * `ByteBuffer.put` would throw.
+ * Deviations: upstream reads the length as a signed short, which throws on
+ * lengths of 0x8000 and above; this reads it unsigned, and treats a length
+ * that cannot fit the 64 KiB buffer as a false preamble (skip one byte), so a
+ * stray 0x55 cannot stall the stream. Bytes pending beyond the buffer throw
+ * `ZEPP_SPP_BUFFER_OVERFLOW`, where upstream's `ByteBuffer.put` would throw.
  */
 export class ZeppSppDeframer {
   private pending = new Uint8Array(0);
@@ -117,6 +118,11 @@ export class ZeppSppDeframer {
       const cmd = buffer[at + 1]!;
       const seq = buffer[at + 2]!;
       const length = buffer[at + 3]! | (buffer[at + 4]! << 8);
+      // A header that can never fit the buffer is not a frame start: resync.
+      if (length + MIN_FRAME_BYTES > ZEPP_SPP_BUFFER_BYTES) {
+        at += 1;
+        continue;
+      }
       // Payload, CRC and trailer must all be present.
       if (buffer.length - (at + 5) < length + 3) break;
       const payload = buffer.slice(at + 5, at + 5 + length);
