@@ -328,9 +328,33 @@ export function decodeGarminCobsFrame(frame: Uint8Array): Uint8Array {
 export class GarminCobsDecoder {
   private buffer: number[] = [];
 
+  /**
+   * `maxBytes` is upstream's `CobsCoDec(bufferSize)`: 10 000 by default, 0x10000
+   * on RFCOMM, where file chunks use the device's whole 0x4000 packet size
+   * (GarminRfcommListener).
+   */
+  constructor(private readonly maxBytes = 10_000) {}
+
+  /**
+   * Every complete message in the buffer after `bytes`. A stream read can hold
+   * several frames; upstream feeds RFCOMM byte by byte for the same reason.
+   */
+  acceptAll(bytes: Uint8Array): Uint8Array[] {
+    const messages: Uint8Array[] = [];
+    let input = bytes;
+    for (;;) {
+      const before = this.buffer.length + input.length;
+      const message = this.accept(input);
+      input = new Uint8Array(0);
+      if (message) messages.push(message);
+      // Stop once nothing was consumed (no complete frame left) or all was.
+      if (this.buffer.length === before || this.buffer.length < 4) return messages;
+    }
+  }
+
   accept(bytes: Uint8Array): Uint8Array | null {
     for (const byte of bytes) this.buffer.push(byte);
-    if (this.buffer.length > 10_000) this.reset();
+    if (this.buffer.length > this.maxBytes) this.reset();
     if (this.buffer.length < 4) return null;
     if (this.buffer[0] !== 0) {
       this.reset();
@@ -760,6 +784,29 @@ export function parseGarminDeviceInformation(payload: Uint8Array): GarminDeviceI
     softwareVersion: uint16le(payload, 8),
     maxPacketSize: uint16le(payload, 10),
   };
+}
+
+/**
+ * The Bluetooth Classic address a dual-mode device appends to
+ * `DEVICE_INFORMATION` (`DeviceInformationMessage.parseIncoming`): after the
+ * fixed head and three length-prefixed strings, a `hasMac` byte; when it is 1,
+ * the BLE then the Classic address follow, 6 bytes each, little-endian.
+ * Returns `AA:BB:CC:DD:EE:FF` (upstream's `%02X` format), or null when absent
+ * or truncated (upstream would fail the whole message with an underflow).
+ */
+export function parseGarminClassicAddress(payload: Uint8Array): string | null {
+  let at = 12;
+  for (let index = 0; index < 3; index += 1) {
+    if (at >= payload.length) return null;
+    at += 1 + payload[at]!;
+  }
+  if (at >= payload.length || payload[at] !== 1) return null;
+  const classic = at + 1 + 6;
+  if (classic + 6 > payload.length) return null;
+  return Array.from(payload.subarray(classic, classic + 6))
+    .reverse()
+    .map((byte) => byte.toString(16).toUpperCase().padStart(2, "0"))
+    .join(":");
 }
 
 /** Upstream's own values (`DeviceInformationMessage`: protocol 150, software 7791, the rest -1). */

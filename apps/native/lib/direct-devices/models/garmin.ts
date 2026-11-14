@@ -2374,3 +2374,45 @@ export function matchGarminDeviceName(name: string): GarminModel | null {
   }
   return null;
 }
+
+/**
+ * Edge bike computers: the 24 coordinators that extend upstream's
+ * `GarminBikeComputerCoordinator` (`devices/garmin/bike/`). Upstream serves
+ * files over Bluetooth Classic RFCOMM for any Garmin device whose BLE
+ * directory lists no FIT file (`GarminSupport.onDirectoryWithoutFitFiles`,
+ * "e.g. Edge 520 Plus"). We enable that path, Android only, for this
+ * Edge-class family, which is otherwise registered for connection checks only.
+ * The eTrex SE (catalogued as a bike computer, but its coordinator extends
+ * `GarminCoordinator`) is not included. Not hardware-validated.
+ */
+export const GARMIN_RFCOMM_MODEL_IDS: ReadonlySet<GarminModelId> = new Set<GarminModelId>([
+  "garmin_edge_25",
+  "garmin_edge_130",
+  "garmin_edge_130_plus",
+  "garmin_edge_510",
+  "garmin_edge_520",
+  "garmin_edge_520_plus",
+  "garmin_edge_530",
+  "garmin_edge_540",
+  "garmin_edge_550",
+  "garmin_edge_810",
+  "garmin_edge_820",
+  "garmin_edge_830",
+  "garmin_edge_840",
+  "garmin_edge_850",
+  "garmin_edge_1000",
+  "garmin_edge_1030",
+  "garmin_edge_1030_plus",
+  "garmin_edge_1040",
+  "garmin_edge_1050",
+  "garmin_edge_explore",
+  "garmin_edge_explore_2",
+  "garmin_edge_explore_820",
+  "garmin_edge_explore_1000",
+  "garmin_edge_mtb",
+]);
+
+/** True for an Edge model whose files may come over RFCOMM on Android. */
+export function garminUsesRfcommFileTransfer(id: string): boolean {
+  return GARMIN_RFCOMM_MODEL_IDS.has(id as GarminModelId);
+}

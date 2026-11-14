@@ -297,6 +297,7 @@ class FakeGarminServer implements GarminSessionLink {
   chunkSize = 32;
   /** Send DEVICE_INFORMATION after registration, and CONFIGURATION once it is answered. */
   handshake = true;
+  deviceInformation: Uint8Array = DEVICE_INFORMATION;
   chunkDelayMs = 0;
   /** Stop streaming a file after this many chunks (a stalled transfer). */
   stallAfterChunks: number | null = null;
@@ -357,7 +358,10 @@ class FakeGarminServer implements GarminSessionLink {
       this.listener?.(withReliable);
       if (this.reliable === 0 && this.handshake) {
         this.handle = 5;
-        this.emit({ messageType: GARMIN_MESSAGE.DEVICE_INFORMATION, payload: DEVICE_INFORMATION });
+        this.emit({
+          messageType: GARMIN_MESSAGE.DEVICE_INFORMATION,
+          payload: this.deviceInformation,
+        });
       }
     }
   }
@@ -438,6 +442,8 @@ function fixture(
     chunkSize?: number;
     handshake?: boolean;
     configurationWaitMs?: number;
+    deviceInformation?: Uint8Array;
+    onDirectoryWithoutFitFiles?: (classicAddress: string, signal: AbortSignal) => Promise<boolean>;
   } = {},
 ) {
   const files =
@@ -464,6 +470,7 @@ function fixture(
   server.protocol = options.protocol ?? "v2";
   server.chunkSize = options.chunkSize ?? 32;
   server.handshake = options.handshake ?? true;
+  if (options.deviceInformation) server.deviceInformation = options.deviceInformation;
   const records: GarminRecord[] = [];
   const failures: string[] = [];
   const session = createGarminSession({
@@ -485,6 +492,7 @@ function fixture(
     keepOnDevice: options.keepOnDevice,
     syncState: options.syncState,
     link: server,
+    onDirectoryWithoutFitFiles: options.onDirectoryWithoutFitFiles,
   });
   return { session, server, records, failures };
 }
@@ -766,4 +774,82 @@ test("health files download before workouts, and oversized files are skipped", a
   await f.session.whenDone();
   expect(f.server.downloads).toEqual([0, 1, 3]);
   expect(f.server.archived).toEqual([1, 3]);
+});
+
+/** DEVICE_INFORMATION with `hasMac = 1`, BLE then Classic address (little-endian), then the unknown byte. */
+const DEVICE_INFORMATION_WITH_MAC = Uint8Array.of(
+  ...DEVICE_INFORMATION,
+  1,
+  0x01,
+  0x02,
+  0x03,
+  0x04,
+  0x05,
+  0x06,
+  0x11,
+  0x22,
+  0x33,
+  0x44,
+  0x55,
+  0x66,
+  0,
+);
+
+test("a directory without FIT files hands the sync to the RFCOMM hook with the Classic address", async () => {
+  // Edge 520 Plus: the BLE directory lists only non-FIT entries (GarminSupport:1067-1087).
+  const files = new Map<number, Uint8Array>([
+    [
+      DIRECTORY_INDEX,
+      directoryPayload([directoryEntry({ fileIndex: 7, dataType: 8, subType: 255, size: 4 })]),
+    ],
+  ]);
+  const calls: string[] = [];
+  const f = fixture({
+    files,
+    deviceInformation: DEVICE_INFORMATION_WITH_MAC,
+    onDirectoryWithoutFitFiles: async (classicAddress) => {
+      calls.push(classicAddress);
+      return true;
+    },
+  });
+  f.session.start();
+  await f.session.whenDone();
+  expect(calls).toEqual(["66:55:44:33:22:11"]);
+  expect(f.server.downloads).toEqual([0]);
+  expect(f.session.complete).toBe(true);
+  expect(f.server.systemEvents()).toEqual([8, 0]); // SYNC_READY, SYNC_COMPLETE
+
+  // An RFCOMM sync cut short leaves the session incomplete (no SYNC_COMPLETE).
+  const short = fixture({
+    files,
+    deviceInformation: DEVICE_INFORMATION_WITH_MAC,
+    onDirectoryWithoutFitFiles: async () => false,
+  });
+  short.session.start();
+  await short.session.whenDone();
+  expect(short.session.complete).toBe(false);
+  expect(short.server.systemEvents()).toEqual([8]);
+});
+
+test("the RFCOMM hook is skipped without a Classic address or when the directory has FIT files", async () => {
+  const calls: string[] = [];
+  const hook = async (classicAddress: string) => {
+    calls.push(classicAddress);
+    return true;
+  };
+  const noMac = fixture({
+    files: new Map([[DIRECTORY_INDEX, directoryPayload([])]]),
+    onDirectoryWithoutFitFiles: hook,
+  });
+  noMac.session.start();
+  await noMac.session.whenDone();
+  const withFit = fixture({
+    deviceInformation: DEVICE_INFORMATION_WITH_MAC,
+    onDirectoryWithoutFitFiles: hook,
+    syncState: createMemoryGarminSyncStateStore(),
+  });
+  withFit.session.start();
+  await withFit.session.whenDone();
+  expect(calls).toEqual([]);
+  expect(withFit.server.downloads).toEqual([0, 1, 2, 4, 3]);
 });

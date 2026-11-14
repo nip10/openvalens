@@ -1,5 +1,5 @@
 /**
- * Bluetooth Classic (RFCOMM) client sockets, Android only (decided 2026-11-13;
+ * Bluetooth Classic (RFCOMM) client and server sockets, Android only (decided 2026-11-13;
  * iOS cannot open RFCOMM to these watches). Mirrors `pebble-bond`: the native
  * module loads lazily, so pure tests inject a fake and never touch Expo.
  */
@@ -35,6 +35,26 @@ export type BtClassicAdapter = Readonly<{
     secure?: boolean;
     timeoutMs: number;
   }): Promise<RfcommLink>;
+  /**
+   * SDP query (`fetchUuidsWithSdp`): resolves with the reported service UUIDs,
+   * or the cached ones after `timeoutMs`. Garmin Edge connects back to a
+   * listening phone within seconds of such a query.
+   */
+  fetchUuids(address: string, timeoutMs: number): Promise<readonly string[]>;
+  /**
+   * Server socket: publishes an SDP record for `uuid`, calls `onListening`
+   * once it exists, and resolves with the first accepted link and its remote
+   * address. The server is closed after that accept, on timeout
+   * (`BT_CLASSIC_ACCEPT_TIMEOUT`) and on abort (`BT_CLASSIC_CANCELLED`).
+   */
+  listen(options: {
+    name: string;
+    uuid: string;
+    secure?: boolean;
+    timeoutMs: number;
+    signal?: AbortSignal;
+    onListening?: () => void;
+  }): Promise<{ link: RfcommLink; address: string | null }>;
 }>;
 
 type Subscription = { remove(): void };
@@ -48,6 +68,13 @@ export type NativeBtClassicModule = Readonly<{
   startReading(socketId: string, bufferSize: number): Promise<void>;
   write(socketId: string, bytes: Uint8Array): Promise<void>;
   close(socketId: string): Promise<void>;
+  fetchUuids(address: string, timeoutMs: number): Promise<unknown[]>;
+  listen(name: string, uuid: string, secure: boolean): Promise<string>;
+  accept(
+    serverId: string,
+    timeoutMs: number,
+  ): Promise<{ socketId?: unknown; address?: unknown } | null>;
+  stopListening(serverId: string): Promise<void>;
   addListener(event: string, listener: (payload: Record<string, unknown>) => void): Subscription;
 }>;
 
@@ -126,39 +153,76 @@ export function createBtClassicAdapter(
     async openRfcomm({ address, uuid, secure = true, timeoutMs }) {
       const module = native();
       const socketId = await module.connect(address, uuid, secure, timeoutMs).catch(rethrowCoded);
-      let readerStarted = false;
-      let queue: Promise<void> = Promise.resolve();
-      return {
-        socketId,
-        subscribe(onBytes, onClosed) {
-          const data = module.addListener("onData", (payload) => {
-            if (payload.socketId !== socketId) return;
-            const bytes = toBytes(payload.base64 ?? payload.bytes);
-            if (bytes) onBytes(bytes);
-          });
-          const closed = module.addListener("onClosed", (payload) => {
-            if (payload.socketId !== socketId) return;
-            onClosed(typeof payload.reason === "string" ? payload.reason : "error");
-          });
-          if (!readerStarted) {
-            readerStarted = true;
-            void module.startReading(socketId, READ_BUFFER_BYTES).catch(() => onClosed("error"));
-          }
-          return () => {
-            data.remove();
-            closed.remove();
-          };
-        },
-        write(bytes) {
-          // Strictly ordered, like the native writer.
-          const next = queue.then(() => module.write(socketId, bytes).catch(rethrowCoded));
-          queue = next.catch(() => undefined);
-          return next;
-        },
-        async close() {
-          await module.close(socketId).catch(() => undefined);
-        },
+      return socketLink(module, socketId);
+    },
+    async fetchUuids(address, timeoutMs) {
+      const uuids = await native().fetchUuids(address, timeoutMs).catch(rethrowCoded);
+      return uuids.filter((uuid): uuid is string => typeof uuid === "string");
+    },
+    async listen({ name, uuid, secure = true, timeoutMs, signal, onListening }) {
+      const module = native();
+      if (signal?.aborted) throw new Error("BT_CLASSIC_CANCELLED");
+      const serverId = await module.listen(name, uuid, secure).catch(rethrowCoded);
+      // Closing the server aborts a pending native accept (BT_CLASSIC_CANCELLED).
+      const stop = () => void module.stopListening(serverId).catch(() => undefined);
+      signal?.addEventListener("abort", stop, { once: true });
+      try {
+        if (signal?.aborted) throw new Error("BT_CLASSIC_CANCELLED");
+        onListening?.();
+        const accepted = await module.accept(serverId, timeoutMs).catch(rethrowCoded);
+        const socketId = accepted?.socketId;
+        if (typeof socketId !== "string") throw new Error("BT_CLASSIC_ACCEPT_FAILED");
+        const link = socketLink(module, socketId);
+        if (signal?.aborted) {
+          await link.close();
+          throw new Error("BT_CLASSIC_CANCELLED");
+        }
+        return {
+          link,
+          address: typeof accepted?.address === "string" ? accepted.address : null,
+        };
+      } finally {
+        signal?.removeEventListener("abort", stop);
+        // Native closes the server after one accept; this covers every other exit.
+        stop();
+      }
+    },
+  };
+}
+
+/** One native socket id as a byte stream; the reader starts on first subscribe. */
+function socketLink(module: NativeBtClassicModule, socketId: string): RfcommLink {
+  let readerStarted = false;
+  let queue: Promise<void> = Promise.resolve();
+  return {
+    socketId,
+    subscribe(onBytes, onClosed) {
+      const data = module.addListener("onData", (payload) => {
+        if (payload.socketId !== socketId) return;
+        const bytes = toBytes(payload.base64 ?? payload.bytes);
+        if (bytes) onBytes(bytes);
+      });
+      const closed = module.addListener("onClosed", (payload) => {
+        if (payload.socketId !== socketId) return;
+        onClosed(typeof payload.reason === "string" ? payload.reason : "error");
+      });
+      if (!readerStarted) {
+        readerStarted = true;
+        void module.startReading(socketId, READ_BUFFER_BYTES).catch(() => onClosed("error"));
+      }
+      return () => {
+        data.remove();
+        closed.remove();
       };
+    },
+    write(bytes) {
+      // Strictly ordered, like the native writer.
+      const next = queue.then(() => module.write(socketId, bytes).catch(rethrowCoded));
+      queue = next.catch(() => undefined);
+      return next;
+    },
+    async close() {
+      await module.close(socketId).catch(() => undefined);
     },
   };
 }
