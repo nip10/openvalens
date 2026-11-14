@@ -5,6 +5,7 @@ import {
   formatTrackerValue,
   parseTrackerInput,
 } from "@openvalens/api/presenters/trackers";
+import { entrySourceLabel, TRACKER_FEED_COPY } from "@openvalens/api/presenters/tracker-feeds";
 import { TRACKER_CHART_DAYS, type TrackerChartDays } from "@openvalens/trackers/model";
 import { Button } from "@openvalens/ui/components/button";
 import {
@@ -135,6 +136,7 @@ function TrackerPage() {
               <TrackerLogForm tracker={data} onLogged={refresh} />
             </Section>
           ) : null}
+          {data.canEdit ? <PhoneFeedNote trackerId={data.id} /> : null}
           {data.canEdit ? <SettingsSection tracker={data} onChanged={refresh} /> : null}
         </div>
       </div>
@@ -376,13 +378,7 @@ function EntriesSection({ tracker, onChanged }: { tracker: Tracker; onChanged: (
                   <p className="text-sm text-ink-3">
                     {friendlyDate(i18n, entry.localDate)} · {time(entry.loggedAt)}
                     {" · "}
-                    {entry.loggedBy.isYou ? (
-                      <Trans>logged by you</Trans>
-                    ) : entry.loggedBy.name ? (
-                      <Trans>logged by {entry.loggedBy.name}</Trans>
-                    ) : (
-                      <Trans>logged by a former member</Trans>
-                    )}
+                    <EntryOrigin entry={entry} />
                   </p>
                 </div>
                 {entry.canEdit ? (
@@ -490,6 +486,39 @@ function EntryEditor({
         </Button>
       </div>
     </form>
+  );
+}
+
+/** Who logged an entry, or the phone feed it came from (#452). */
+function EntryOrigin({ entry }: { entry: Entry }) {
+  const { i18n } = useLingui();
+  const from = entrySourceLabel(entry.source);
+  if (from) return <>{i18n._(from)}</>;
+  if (entry.loggedBy.isYou) return <Trans>logged by you</Trans>;
+  if (entry.loggedBy.name) return <Trans>logged by {entry.loggedBy.name}</Trans>;
+  return <Trans>logged by a former member</Trans>;
+}
+
+/**
+ * Phone feeds (#452) are linked and unlinked in the mobile app, which reads
+ * Apple Health or Health Connect; the web only says which feed fills this
+ * tracker.
+ */
+function PhoneFeedNote({ trackerId }: { trackerId: string }) {
+  const { i18n } = useLingui();
+  const feeds = useQuery(orpc.trackers.feeds.queryOptions());
+  const linked = (feeds.data ?? []).filter((link) => link.trackerId === trackerId);
+  if (linked.length === 0) return null;
+  const names = linked.map((link) => i18n._(TRACKER_FEED_COPY[link.feed].name)).join(", ");
+  return (
+    <Section title={<Trans>From your phone</Trans>} sheet>
+      <p className="text-ink-2" data-testid="tracker-phone-feed-note">
+        <Trans>
+          Filled from {names}. Link or unlink it in the tracker's settings in the OpenValens app on
+          your phone; unlinking keeps the entries already imported.
+        </Trans>
+      </p>
+    </Section>
   );
 }
 

@@ -89,6 +89,8 @@ export const DATA_RIGHTS_REGISTRY: Readonly<Record<string, TableEntry>> = Object
   // including entries a collaborator logged into a shared tracker.
   custom_tracker: { kind: "user" },
   custom_tracker_entry: { kind: "user" },
+  // Phone feeds (#452): which tracker each phone feed fills.
+  custom_tracker_feed: { kind: "user" },
   // Pain log (#442): the member's own ratings and their opt-in.
   pain_entry: { kind: "user" },
   pain_preference: { kind: "user" },
