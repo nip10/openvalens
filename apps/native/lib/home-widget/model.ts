@@ -21,6 +21,7 @@ import { isLocale, type Locale } from "@openvalens/i18n/locales";
 import { dueWithQueuedIntakes } from "@/lib/quick-log/picker";
 
 import { HOME_WIDGET_COPY } from "./copy";
+import { HOME_WIDGET_NONCE_PARAM } from "./link-guard";
 
 export const HOME_WIDGET_ACTIONS = ["water", "supplement", "log"] as const;
 export type HomeWidgetAction = (typeof HOME_WIDGET_ACTIONS)[number];
@@ -28,9 +29,14 @@ export type HomeWidgetAction = (typeof HOME_WIDGET_ACTIONS)[number];
 /** The app scheme (`app.json` `expo.scheme`). */
 export const APP_SCHEME = "openvalens";
 
-/** The deep link a widget button opens. The iOS widget's Swift has the same links. */
-export function homeWidgetUrl(action: HomeWidgetAction): string {
-  return `${APP_SCHEME}://quick-log?widget=${action}`;
+/**
+ * The deep link a widget button opens. The iOS widget's Swift has the same
+ * links, without a nonce. The Android widget's carry this install's nonce
+ * (`link-guard.ts`), which is what lets a tap save at once (#505).
+ */
+export function homeWidgetUrl(action: HomeWidgetAction, nonce?: string | null): string {
+  const base = `${APP_SCHEME}://quick-log?widget=${action}`;
+  return nonce ? `${base}&${HOME_WIDGET_NONCE_PARAM}=${encodeURIComponent(nonce)}` : base;
 }
 
 /** The deep link a signed-out widget opens: the app's start. */
@@ -238,6 +244,8 @@ export function homeWidgetView(
   snapshot: HomeWidgetSnapshot | null,
   i18n: I18n,
   today: string,
+  /** This install's nonce, for the buttons' links (Android). */
+  nonce: string | null = null,
 ): HomeWidgetView {
   if (!snapshot)
     return {
@@ -247,7 +255,8 @@ export function homeWidgetView(
     };
   const values = snapshot.values?.localDate === today ? snapshot.values : null;
   const buttons = snapshot.buttons.map((action): HomeWidgetButtonView => {
-    const url = homeWidgetUrl(action);
+    // "Log…" writes nothing, so its link needs no nonce.
+    const url = homeWidgetUrl(action, action === "log" ? null : nonce);
     switch (action) {
       case "water":
         return {

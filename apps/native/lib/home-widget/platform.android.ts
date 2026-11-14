@@ -5,7 +5,7 @@ import { TurboModuleRegistry } from "react-native";
 import type { WidgetTaskHandler } from "react-native-android-widget";
 
 import { homeWidgetView, type HomeWidgetSnapshot } from "./model";
-import { readHomeWidgetSnapshot } from "./storage";
+import { readHomeWidgetNonce, readHomeWidgetSnapshot } from "./storage";
 import { widgetLayouts } from "./widget-layout";
 
 /**
@@ -45,20 +45,25 @@ function deviceLocale(): string | null {
   }
 }
 
-function render(lib: Library, snapshot: HomeWidgetSnapshot | null) {
+function render(lib: Library, snapshot: HomeWidgetSnapshot | null, nonce: string | null) {
   // Signed out there is no snapshot: the phone's language.
   const i18n = i18nFor(snapshot?.locale ?? resolveLocale([deviceLocale()]));
-  const view = homeWidgetView(snapshot, i18n, localDateIn(deviceTimeZone(), new Date()));
+  const view = homeWidgetView(snapshot, i18n, localDateIn(deviceTimeZone(), new Date()), nonce);
   return widgetLayouts(lib, view);
 }
 
-/** Redraws every placed widget from `snapshot` (`null`: signed out). */
+/**
+ * Redraws every placed widget from `snapshot` (`null`: signed out). The
+ * buttons' links carry the stored nonce (#505); the app makes it before it
+ * first stores a snapshot (`ensureHomeWidgetNonce`).
+ */
 export async function drawHomeWidget(snapshot: HomeWidgetSnapshot | null): Promise<void> {
   const lib = library();
   if (!lib) return;
+  const nonce = snapshot ? await readHomeWidgetNonce() : null;
   await lib.requestWidgetUpdate({
     widgetName: WIDGET_NAME,
-    renderWidget: () => render(lib, snapshot),
+    renderWidget: () => render(lib, snapshot, nonce),
   });
 }
 
@@ -67,7 +72,8 @@ const handleWidgetTask: WidgetTaskHandler = async ({ widgetAction, renderWidget 
   const lib = library();
   // Taps open a deep link: they never reach here.
   if (!lib || widgetAction === "WIDGET_DELETED" || widgetAction === "WIDGET_CLICK") return;
-  renderWidget(render(lib, await readHomeWidgetSnapshot()));
+  const snapshot = await readHomeWidgetSnapshot();
+  renderWidget(render(lib, snapshot, snapshot ? await readHomeWidgetNonce() : null));
 };
 
 /** From the app entry (`index.ts`), so the headless task exists before any screen loads. */

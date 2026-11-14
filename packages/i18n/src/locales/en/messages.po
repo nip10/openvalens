@@ -1301,6 +1301,11 @@ msgstr "{value} kcal/day"
 msgid "{what} is turned off, so nothing was logged."
 msgstr "{what} is turned off, so nothing was logged."
 
+#. After a second tap on the same home-screen widget button within a few seconds.
+#: apps/native/app/quick-log.tsx
+msgid "{what} was logged from the widget a moment ago, so this tap was ignored."
+msgstr "{what} was logged from the widget a moment ago, so this tap was ignored."
+
 #. placeholder {0}: c.sessions
 #: packages/api/src/presenters/activity-load.ts
 msgid "{withIntensity} of {0, plural, one {# session has} other {# sessions have}} an intensity."
@@ -2068,6 +2073,10 @@ msgstr "Add here"
 #: packages/api/src/presenters/nutrition-templates.ts
 msgid "Add ingredient"
 msgstr "Add ingredient"
+
+#: apps/native/components/home-widget-settings.tsx
+msgid "Add it from your home screen to log a glass of water, take your next supplement or open the log. A tap opens OpenValens with the entry ready, and one more tap on Save logs it."
+msgstr "Add it from your home screen to log a glass of water, take your next supplement or open the log. A tap opens OpenValens with the entry ready, and one more tap on Save logs it."
 
 #: apps/native/components/home-widget-settings.tsx
 msgid "Add it from your home screen to log a glass of water, take your next supplement or open the log. A tap opens OpenValens, saves at once and offers Undo."
@@ -8028,6 +8037,11 @@ msgstr "from Apple Health"
 #: packages/api/src/presenters/tracker-feeds.ts
 msgid "from Health Connect"
 msgstr "from Health Connect"
+
+#. Shown when a home-screen widget link opens the app with the entry ready to save, e.g. on iPhone.
+#: apps/native/app/quick-log.tsx
+msgid "From the home-screen widget. Nothing is saved until you tap Save."
+msgstr "From the home-screen widget. Nothing is saved until you tap Save."
 
 #: apps/native/app/server.tsx
 msgid "From the link"
@@ -17799,6 +17813,11 @@ msgstr "The week remains open until Sunday."
 #: apps/web/src/routes/unsubscribe.tsx
 msgid "The weekly insights email is off. You can turn it on again in Settings."
 msgstr "The weekly insights email is off. You can turn it on again in Settings."
+
+#. After a tap on the home-screen widget while the active workspace belongs to someone else (one the member looks after).
+#: apps/native/app/quick-log.tsx
+msgid "The widget logs only to your own record, so nothing was logged here. Pick what to log, or switch to your own workspace."
+msgstr "The widget logs only to your own record, so nothing was logged here. Pick what to log, or switch to your own workspace."
 
 #. safety
 #. safety

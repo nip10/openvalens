@@ -27,7 +27,12 @@ export function HomeWidgetSettings() {
         <SettingsRow
           icon={LayoutGrid}
           label={t`Quick log widget`}
-          description={t`Add it from your home screen to log a glass of water, take your next supplement or open the log. A tap opens OpenValens, saves at once and offers Undo.`}
+          description={
+            // #505: only the Android widget can prove a tap is its own, so iOS asks for one more tap.
+            HOME_WIDGET_DRAWN_BY_APP
+              ? t`Add it from your home screen to log a glass of water, take your next supplement or open the log. A tap opens OpenValens, saves at once and offers Undo.`
+              : t`Add it from your home screen to log a glass of water, take your next supplement or open the log. A tap opens OpenValens with the entry ready, and one more tap on Save logs it.`
+          }
         />
         {HOME_WIDGET_DRAWN_BY_APP ? (
           <SettingsRow

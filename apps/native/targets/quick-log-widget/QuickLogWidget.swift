@@ -4,9 +4,11 @@ import WidgetKit
 // The iOS home-screen widget (#449): water +1 glass, "Taken" for the next
 // supplement that is due, and "Log…". Each button opens the app through a deep
 // link (`openvalens://quick-log?widget=<action>`, the same links as
-// lib/home-widget/model.ts); the app saves at once with the member's own
-// session and offline queue, and offers Undo. The widget is static and holds
-// no data: there is no App Group, so the app cannot give it any. Its labels
+// lib/home-widget/model.ts). The widget is static and holds no data: there is
+// no App Group, so the app cannot give it any, not even the nonce the Android
+// widget's links carry. So any page could open these links too, and on iOS the
+// app shows the entry ready to save with one "Save" tap instead of saving at
+// once (lib/home-widget/link-guard.ts, #505; App Intents could later). Its labels
 // come from Localizable.strings, generated from the Lingui catalogs.
 
 @main
