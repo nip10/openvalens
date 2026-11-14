@@ -8284,6 +8284,10 @@ msgid "How you'll add data"
 msgstr "How you'll add data"
 
 #: apps/native/components/direct-device-settings.tsx
+msgid "Huawei authentication needs the device MAC address, which this platform does not expose. Sync is only available on Android."
+msgstr "Huawei authentication needs the device MAC address, which this platform does not expose. Sync is only available on Android."
+
+#: apps/native/components/direct-device-settings.tsx
 msgid "Huawei/Honor history (exact-minute steps, heart rate and sleep) downloads when you tap “Sync steps”. Newer watches ask you to confirm pairing on the watch the first time: tap Confirm there within 30 seconds. Records are saved in batches and sent only when you tap “Retry upload”."
 msgstr "Huawei/Honor history (exact-minute steps, heart rate and sleep) downloads when you tap “Sync steps”. Newer watches ask you to confirm pairing on the watch the first time: tap Confirm there within 30 seconds. Records are saved in batches and sent only when you tap “Retry upload”."
 
@@ -12364,6 +12368,14 @@ msgstr "Pain log settings"
 #: packages/api/src/presenters/timeline.ts
 msgid "Pain: {region}"
 msgstr "Pain: {region}"
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "Pairing with the watch did not finish. Accept the pairing prompt on the phone and the watch, then sync again."
+msgstr "Pairing with the watch did not finish. Accept the pairing prompt on the phone and the watch, then sync again."
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "Pairing with the watch failed. Restart the watch, then sync again."
+msgstr "Pairing with the watch failed. Restart the watch, then sync again."
 
 #: apps/native/components/recipe-draft-editor.tsx
 #: apps/web/src/components/recipe-draft-editor.tsx
@@ -16739,6 +16751,10 @@ msgstr "The Garmin watch stopped acknowledging data. Move it closer to the phone
 msgid "The highest rating you logged in each region. Regions with no rating stay grey. The joint spots appear only on this layer."
 msgstr "The highest rating you logged in each region. Regions with no rating stay grey. The joint spots appear only on this layer."
 
+#: apps/native/components/direct-device-settings.tsx
+msgid "The Huawei/Honor device rejected the authentication exchange. Reconnect and try again."
+msgstr "The Huawei/Honor device rejected the authentication exchange. Reconnect and try again."
+
 #: apps/native/components/recipe-draft-editor.tsx
 #: apps/web/src/components/recipe-draft-editor.tsx
 msgid "The import failed. Nothing was saved."
@@ -16971,6 +16987,26 @@ msgstr "The vendor could not be reached on the last sync. It will retry automati
 msgid "The vendor no longer accepts this connection. Connect again to resume syncing."
 msgstr "The vendor no longer accepts this connection. Connect again to resume syncing."
 
+#: apps/native/components/direct-device-settings.tsx
+msgid "The watch did not answer the pairing check. Keep it unlocked and near the phone, then sync again from this screen. If the watch was reset, you will be asked to confirm on it."
+msgstr "The watch did not answer the pairing check. Keep it unlocked and near the phone, then sync again from this screen. If the watch was reset, you will be asked to confirm on it."
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "The watch did not confirm pairing in time. Unlock it, keep it near the phone, sync again and tap Confirm on the watch."
+msgstr "The watch did not confirm pairing in time. Unlock it, keep it near the phone, sync again and tap Confirm on the watch."
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "The watch no longer recognises this phone. Sync again to pair: you will confirm on the watch."
+msgstr "The watch no longer recognises this phone. Sync again to pair: you will confirm on the watch."
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "The watch rejected pairing. If it is paired with the Huawei Health app or another phone, unpair it there first, then sync again."
+msgstr "The watch rejected pairing. If it is paired with the Huawei Health app or another phone, unpair it there first, then sync again."
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "The watch reported a state this app cannot handle yet (it may need setting up in the Huawei Health app first)."
+msgstr "The watch reported a state this app cannot handle yet (it may need setting up in the Huawei Health app first)."
+
 #: apps/native/components/goal-editor.tsx
 msgid "The water target must be greater than zero."
 msgstr "The water target must be greater than zero."
@@ -17179,8 +17215,16 @@ msgid "This goal was replaced."
 msgstr "This goal was replaced."
 
 #: apps/native/components/direct-device-settings.tsx
+msgid "This Honor watch (Watch 5, 5 Pro or 6) needs a pairing mode that is not supported yet."
+msgstr "This Honor watch (Watch 5, 5 Pro or 6) needs a pairing mode that is not supported yet."
+
+#: apps/native/components/direct-device-settings.tsx
 msgid "This Huawei/Honor model syncs over Bluetooth Classic, which works on Android only; here it supports connection checks only."
 msgstr "This Huawei/Honor model syncs over Bluetooth Classic, which works on Android only; here it supports connection checks only."
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "This Huawei/Honor model syncs over Bluetooth Classic, which works on Android only."
+msgstr "This Huawei/Honor model syncs over Bluetooth Classic, which works on Android only."
 
 #: apps/web/src/routes/setup.tsx
 msgid "This instance has already been set up. If you have an account, sign in below."

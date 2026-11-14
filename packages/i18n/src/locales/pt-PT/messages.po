@@ -8284,6 +8284,10 @@ msgid "How you'll add data"
 msgstr "Como vai adicionar dados"
 
 #: apps/native/components/direct-device-settings.tsx
+msgid "Huawei authentication needs the device MAC address, which this platform does not expose. Sync is only available on Android."
+msgstr "A autenticação Huawei precisa do endereço MAC do dispositivo, que esta plataforma não disponibiliza. A sincronização só está disponível no Android."
+
+#: apps/native/components/direct-device-settings.tsx
 msgid "Huawei/Honor history (exact-minute steps, heart rate and sleep) downloads when you tap “Sync steps”. Newer watches ask you to confirm pairing on the watch the first time: tap Confirm there within 30 seconds. Records are saved in batches and sent only when you tap “Retry upload”."
 msgstr "O histórico Huawei/Honor (passos minuto a minuto, frequência cardíaca e sono) é descarregado quando toca em “Sincronizar passos”. Os relógios mais recentes pedem-lhe que confirme o emparelhamento no relógio na primeira vez: toque em Confirmar no relógio dentro de 30 segundos. Os registos são guardados em lotes e só são enviados quando toca em “Tentar enviar novamente”."
 
@@ -12364,6 +12368,14 @@ msgstr "Definições do registo de dor"
 #: packages/api/src/presenters/timeline.ts
 msgid "Pain: {region}"
 msgstr "Dor: {region}"
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "Pairing with the watch did not finish. Accept the pairing prompt on the phone and the watch, then sync again."
+msgstr "O emparelhamento com o relógio não terminou. Aceite o pedido de emparelhamento no telemóvel e no relógio e sincronize novamente."
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "Pairing with the watch failed. Restart the watch, then sync again."
+msgstr "O emparelhamento com o relógio falhou. Reinicie o relógio e sincronize novamente."
 
 #: apps/native/components/recipe-draft-editor.tsx
 #: apps/web/src/components/recipe-draft-editor.tsx
@@ -16739,6 +16751,10 @@ msgstr "O relógio Garmin deixou de confirmar a receção de dados. Aproxime-o d
 msgid "The highest rating you logged in each region. Regions with no rating stay grey. The joint spots appear only on this layer."
 msgstr "A classificação mais alta que registou em cada região. As regiões sem classificação ficam a cinzento. Os pontos das articulações só aparecem nesta camada."
 
+#: apps/native/components/direct-device-settings.tsx
+msgid "The Huawei/Honor device rejected the authentication exchange. Reconnect and try again."
+msgstr "O dispositivo Huawei/Honor rejeitou a troca de autenticação. Volte a ligar e tente novamente."
+
 #: apps/native/components/recipe-draft-editor.tsx
 #: apps/web/src/components/recipe-draft-editor.tsx
 msgid "The import failed. Nothing was saved."
@@ -16971,6 +16987,26 @@ msgstr "Não foi possível contactar o fornecedor na última sincronização. Se
 msgid "The vendor no longer accepts this connection. Connect again to resume syncing."
 msgstr "O fornecedor já não aceita esta ligação. Volte a ligar para retomar a sincronização."
 
+#: apps/native/components/direct-device-settings.tsx
+msgid "The watch did not answer the pairing check. Keep it unlocked and near the phone, then sync again from this screen. If the watch was reset, you will be asked to confirm on it."
+msgstr "O relógio não respondeu à verificação de emparelhamento. Mantenha-o desbloqueado e perto do telemóvel e sincronize novamente a partir deste ecrã. Se o relógio tiver sido reposto, ser-lhe-á pedido que confirme no relógio."
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "The watch did not confirm pairing in time. Unlock it, keep it near the phone, sync again and tap Confirm on the watch."
+msgstr "O relógio não confirmou o emparelhamento a tempo. Desbloqueie-o, mantenha-o perto do telemóvel, sincronize novamente e toque em Confirmar no relógio."
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "The watch no longer recognises this phone. Sync again to pair: you will confirm on the watch."
+msgstr "O relógio já não reconhece este telemóvel. Sincronize novamente para emparelhar: vai confirmar no relógio."
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "The watch rejected pairing. If it is paired with the Huawei Health app or another phone, unpair it there first, then sync again."
+msgstr "O relógio rejeitou o emparelhamento. Se estiver emparelhado com a app Huawei Health ou com outro telemóvel, desemparelhe-o primeiro aí e sincronize novamente."
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "The watch reported a state this app cannot handle yet (it may need setting up in the Huawei Health app first)."
+msgstr "O relógio indicou um estado que esta app ainda não consegue tratar (poderá ser necessário configurá-lo primeiro na app Huawei Health)."
+
 #: apps/native/components/goal-editor.tsx
 msgid "The water target must be greater than zero."
 msgstr "A meta de água tem de ser superior a zero."
@@ -17179,8 +17215,16 @@ msgid "This goal was replaced."
 msgstr "Esta meta foi substituída."
 
 #: apps/native/components/direct-device-settings.tsx
+msgid "This Honor watch (Watch 5, 5 Pro or 6) needs a pairing mode that is not supported yet."
+msgstr "Este relógio Honor (Watch 5, 5 Pro ou 6) precisa de um modo de emparelhamento que ainda não é suportado."
+
+#: apps/native/components/direct-device-settings.tsx
 msgid "This Huawei/Honor model syncs over Bluetooth Classic, which works on Android only; here it supports connection checks only."
 msgstr "Este modelo Huawei/Honor sincroniza por Bluetooth Clássico, que só funciona no Android; aqui apenas verifica a ligação."
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "This Huawei/Honor model syncs over Bluetooth Classic, which works on Android only."
+msgstr "Este modelo Huawei/Honor sincroniza por Bluetooth Clássico, que só funciona no Android."
 
 #: apps/web/src/routes/setup.tsx
 msgid "This instance has already been set up. If you have an account, sign in below."

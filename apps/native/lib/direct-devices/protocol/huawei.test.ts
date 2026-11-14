@@ -327,7 +327,37 @@ test("HiChainLite authVersion 2 digests use HMAC(secretKey || message)", () => {
       secretKey: KEY,
       crypto,
     }),
-  ).toThrow("HUAWEI_HICHAIN_LITE_PINCODE_UNSUPPORTED");
+  ).toThrow("HUAWEI_HICHAIN_PIN_FAILED");
+});
+
+test("computeHuaweiAuthDigest keys HiChainLite below auth version 2 with the watch PIN", () => {
+  // Known answers computed independently with Node crypto from
+  // `HuaweiCrypto.computeDigestHiChainLite`; nonce = 10..1F ‖ 20..2F.
+  const crypto = nodeCrypto();
+  const nonce = Uint8Array.from({ length: 32 }, (_, index) =>
+    index < 16 ? 0x10 + index : 0x20 + index - 16,
+  );
+  const digest = (authAlgo: number, message: Uint8Array) =>
+    hex(
+      computeHuaweiAuthDigest({
+        message,
+        nonce,
+        authMode: 0x02,
+        authVersion: 0x03,
+        secretKey: KEY,
+        pinCode: new TextEncoder().encode("12345678"),
+        authAlgo,
+        crypto,
+      }),
+    ).toUpperCase();
+  expect(digest(0, Uint8Array.of(0x01, 0x00))).toBe(
+    "FC939DDF4DC8B1562A23B14C903B27ED4C9F038CF5AB88FC4FE58DD454726A1A" +
+      "5F905B987AF7814A7FBBE22D71121AF9C0E19B6A4BC27DEF747B63D977B30831",
+  );
+  expect(digest(1, Uint8Array.of(0x01, 0x10))).toBe(
+    "6503EE5E093FE95AAE5B28C7485C5C6548761A6395D2807BAA63A699367CF04F" +
+      "74CDD7F64A843A70F8A60D6E31BDED4D6A70557F49EC8DA9F94D4AEA0ED784C6",
+  );
 });
 
 // ---------------------------------------------------------------------------

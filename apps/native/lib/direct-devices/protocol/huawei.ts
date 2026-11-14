@@ -35,6 +35,7 @@ import {
   HUAWEI_MESSAGE_CHALLENGE_V4,
   HUAWEI_MESSAGE_RESPONSE,
   computeHuaweiDigest,
+  computeHuaweiHiChainLiteDigest,
   concatHuaweiBytes,
   createHuaweiSecretKey,
   type HuaweiCryptoProvider,
@@ -867,8 +868,9 @@ export function parseHuaweiAuthResponse(tlv: HuaweiTlv): Uint8Array | null {
  * Normal mode (`authMode != 0x02`) is the upstream double-HMAC digest over the
  * fixed secret for the negotiated `authVersion`. HiChainLite with
  * `authVersion == 0x02` uses `HMAC(secretKey || message, nonce) || key`, which
- * needs no device-side PIN. Every other HiChainLite combination needs the
- * device PIN code and is deliberately unsupported here.
+ * needs no device-side PIN. Every other HiChainLite version keys the digest
+ * with the PIN read from the watch (`computeDigestHiChainLite`; `GetAuthRequest`
+ * passes `pinCode` as the key, `authAlgo` picks HMAC or PBKDF2).
  */
 export function computeHuaweiAuthDigest(args: {
   message: Uint8Array;
@@ -876,10 +878,23 @@ export function computeHuaweiAuthDigest(args: {
   authMode: number;
   authVersion: number;
   secretKey: Uint8Array | null;
+  /** HiChainLite with `authVersion != 2`: the decrypted 0x01/0x2C PIN. */
+  pinCode?: Uint8Array | null;
+  authAlgo?: number;
   crypto: HuaweiCryptoProvider;
 }): Uint8Array {
   if (args.authMode === 0x02) {
-    if (args.authVersion !== 0x02) throw new Error("HUAWEI_HICHAIN_LITE_PINCODE_UNSUPPORTED");
+    if (args.authVersion !== 0x02) {
+      if (!args.pinCode) throw new Error("HUAWEI_HICHAIN_PIN_FAILED");
+      return computeHuaweiHiChainLiteDigest({
+        message: args.message,
+        pinCode: args.pinCode,
+        nonce: args.nonce,
+        authVersion: args.authVersion,
+        authAlgo: args.authAlgo ?? 0,
+        crypto: args.crypto,
+      });
+    }
     if (!args.secretKey) throw new Error("HUAWEI_AUTH_SECRET_KEY_REQUIRED");
     const key = concatHuaweiBytes(args.secretKey, args.message);
     const out = new Uint8Array(0x40);

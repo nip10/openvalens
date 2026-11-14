@@ -11,7 +11,9 @@ import { createHash, createHmac, randomBytes } from "node:crypto";
 
 import {
   computeHuaweiDigest,
+  computeHuaweiHiChainLiteDigest,
   createHuaweiSecretKey,
+  pbkdf2HmacSha256,
   HUAWEI_MESSAGE_CHALLENGE,
   HUAWEI_MESSAGE_RESPONSE,
   type HuaweiCryptoProvider,
@@ -69,5 +71,51 @@ test("computeHuaweiDigest response vector is deterministic", () => {
   expect(toHex(computeHuaweiDigest(HUAWEI_MESSAGE_RESPONSE, nonce, 3, nodeCrypto))).toBe(
     "cb32aebff6616548392a6bbeb86f43cd44035454d2c11a33ace9b6c2c78978f9" +
       "0f2ca0c6d56e4d50ec0ba10134c2066b8df97e4f975ceaa1a6272e4392565b97",
+  );
+});
+
+test("pbkdf2HmacSha256 matches Node's PBKDF2-HMAC-SHA256, including a partial second block", () => {
+  const text = (value: string) => new TextEncoder().encode(value);
+  expect(toHex(pbkdf2HmacSha256(nodeCrypto, text("password"), text("salt"), 2, 32))).toBe(
+    "ae4d0c95af6b46d32d0adff928f06dd02a303f8ef3c251dfd6e2d85a95474c43",
+  );
+  expect(toHex(pbkdf2HmacSha256(nodeCrypto, text("password"), text("salt"), 1000, 40))).toBe(
+    "632c2812e46d4604102ba7618e9d6d7d2f8128f6266b4a03264d2a0460b7dcb388b3b1131f741bcb",
+  );
+});
+
+test("computeHuaweiHiChainLiteDigest matches the upstream PIN digest for both auth algorithms", () => {
+  // Known answers computed independently with Node crypto (createHmac and
+  // pbkdf2Sync) from `HuaweiCrypto.computeDigestHiChainLite`, PIN "12345678",
+  // nonce = 10..1F ‖ 20..2F.
+  const nonce = Uint8Array.from({ length: 32 }, (_, index) =>
+    index < 16 ? 0x10 + index : 0x20 + index - 16,
+  );
+  const digest = (authVersion: number, authAlgo: number, message: Uint8Array) =>
+    toHex(
+      computeHuaweiHiChainLiteDigest({
+        message,
+        pinCode: new TextEncoder().encode("12345678"),
+        nonce,
+        authVersion,
+        authAlgo,
+        crypto: nodeCrypto,
+      }),
+    ).toUpperCase();
+  expect(digest(1, 0, HUAWEI_MESSAGE_CHALLENGE)).toBe(
+    "7FE04D8B265762B7A24A45A75901117C18DAD93FB4636DF17B822DE157478FE6" +
+      "E97A8C864E726A802BEBBA4D88EF3CAC303BAC24A257C139289EB48605CCF14D",
+  );
+  expect(digest(1, 1, HUAWEI_MESSAGE_RESPONSE)).toBe(
+    "AF18492579C0963187C4BB62F945AFDCC7B723841EFCD47B6B09EFBC539D6B66" +
+      "087DA26E78891398C09C3B76825AD605BE2641409086A193860191F4912E99DB",
+  );
+  expect(digest(3, 0, HUAWEI_MESSAGE_RESPONSE)).toBe(
+    "76C635FA3908A19AD70EA3FBA0DBA9B57FC9FDEC7185FE23E36B606B2C9E45CF" +
+      "81CDFD12511E6B6BB307578C562ACB85684E22912C0BF607D45439DCC2F81D27",
+  );
+  expect(digest(3, 1, HUAWEI_MESSAGE_CHALLENGE)).toBe(
+    "CA0E0574EF892F96497A814DBB01C717F3188062E106517B74154DBDAA18BB43" +
+      "1CD6012916AA3B62C76B846A4F4EB1FD22B0827DAA18AD9FAAFCE67B1CFF3C28",
   );
 });

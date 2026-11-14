@@ -668,6 +668,29 @@ type HuaweiHiChainStore = Readonly<{
 
 This is separate work, but it shares §7.2's PIN code.
 
+**Status (2026-11-14): implemented.** Details read from source while porting:
+
+- `initializeDeviceHiChainLiteMode` fetches the PIN when `pinCode == null & authVersion != 2`, with no `authMode` check (`SP:747-753`). So a type-4 watch on HiChainLite (`authMode` 4) also fetches it, but `GetAuthRequest` only uses it as the key when `authMode == 2` (`GAR:70-74`); with `authMode` 4 the digest is normal mode. Ours mirrors both.
+- `computeDigestHiChainLite(message, key, nonce)` (`Cry:132-153`): `hashKey = SHA(UTF-8(hex(pin)))`; `secret = digestSecret(authVersion) XOR hashKey[0..16)`; `m = secret ‖ message` (18 bytes); `step1 = authAlgo == 1 ? PBKDF2-HMAC-SHA256(password = hex(m), salt = UTF-8(hex(nonce)), 1000, 256 bits) : HMAC(m, nonce)`; result `HMAC(step1, nonce) ‖ step1`. `CU:152-156` builds the `PBEKeySpec` from `hex(m).toCharArray()`; the hex is ASCII, so the char-to-byte encoding cannot matter.
+- In auth mode 2, `digestChallenge` always uses `MESSAGE_CHALLENGE` (`01 00`), never the v4 one (`Cry:155-177`).
+- The bond uses `firstKey = digest[0x20..0x30)` (`GAR:83-85`, `ByteBuffer.get` continues after the challenge), which is `step1[0..16)`. `GetBondRequest` picks it when `authMode == 2`, else the MAC key; `GetBondParamsRequest` stops on status 1 only when `authMode != 2` (`requests/GetBondRequest.java:54-58`, `requests/GetBondParamsRequest.java:56-60`). Ours now branches on `authMode` the same way.
+- No timeout and no user step: the PIN request has none (`GPR:31-35`), and nothing is shown on the watch for it.
+
+Vectors (ours, computed with Node `createHmac`/`pbkdf2Sync` from the lines above): PIN ASCII `"12345678"`, nonce `10…1F ‖ 20…2F`, in `crypto/huawei-auth.test.ts` and `protocol/huawei.test.ts`.
+
+### 7.8 Follow-on: a silent watch on op 2 (2026-11-14)
+
+Upstream, an op-2 step 1 with no reply in 5 s hits `configureReq.timeout` (`SP:685-694`): it reports a pairing error and sets `WAITING_FOR_RECONNECT`. The reconnect runs op 2 again (`firstConnection` is still false), so a watch that was factory-reset and dropped our group entry loops until the user re-pairs from the UI (`BRS:74-77` sets `firstConnection`). Upstream does not distinguish "slow" from "forgot us".
+
+Ours, in `HuaweiSession.hichain()`:
+
+1. A stored token runs op 2. If step 1 gets no answer in 10 s (§7.3), op 2 runs once more with fresh randoms and a fresh `requestId` (`HUAWEI_HICHAIN_AUTH_ATTEMPTS = 2`). A slow watch therefore never re-confirms on one timeout.
+2. A rejection or a token mismatch is still `HUAWEI_HICHAIN_REBIND_REQUIRED` (the token is cleared).
+3. Two silent attempts: if the caller passed `onAuthPrompt` (an interactive, user-started sync), the session fetches the PIN, then binds (op 1 with the "confirm on your watch" prompt), then authenticates with the new token, all in the same sync. The old token is cleared only after the watch answered the PIN request: a watch that is just out of reach keeps it.
+4. Without `onAuthPrompt`, it fails with `HUAWEI_HICHAIN_AUTH_TIMEOUT` and keeps the token.
+
+**Late replies.** A reply to an abandoned step 1 may arrive while a later request on the same `0x01/0x28` waits. Upstream's response JSON is not known to echo `requestId` (`DC:1534-1545` reads only `payload` and `errorCode`), so the session drops any step-1 reply whose token verifies against an abandoned attempt's `psk`/`randSelf`; that cannot match the current attempt except by an HMAC collision. **UNKNOWN:** whether a reset watch answers a stale op 2 late with an `errorCode`; such a reply cannot be told apart and would surface as `HUAWEI_HICHAIN_REJECTED`.
+
 ## 8. Uncertainties
 
 1. **Real `deviceSupportType`/`authType` per model.** There is no source evidence for which of the 41 BR models land here. That needs the probe.
