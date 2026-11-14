@@ -23,6 +23,16 @@ appId: com.openvalens.app
     start: "30%, 25%"
     end: "30%, 90%"
     duration: 200
+# A keyboard (Android gives focus back to the last field when the app
+# resumes) covers the end of the list, where Settings is: close it. Android
+# only: the iOS way (a tap in the gutter) would land on a drawer item.
+- runFlow:
+    when:
+      platform: Android
+      visible:
+        id: "com.google.android.inputmethod.latin:id/.*"
+    commands:
+      - hideKeyboard
 - scrollUntilVisible:
     element:
       id: ${ID}
