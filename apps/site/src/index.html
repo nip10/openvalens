@@ -162,8 +162,23 @@
               on Anthropic or any OpenAI-compatible service, including a model on your own machine.
               Cloud includes it, with a monthly cap.
             </p>
+            <p>
+              Or connect your own AI app, such as claude.ai, ChatGPT, Claude Code or another MCP
+              client. It reads your records and, if you allow it, adds entries, such as meal drafts
+              you confirm.
+            </p>
+            <p>
+              Each connection is opt-in: you choose what it may read and add, and you can revoke it
+              at any time. Cycle data and progress photos are never shared.
+              <a
+                class="text-link"
+                href="https://github.com/nip10/openvalens/blob/main/docs/help/ai-apps/README.md"
+                >How to connect <span aria-hidden="true">↗</span></a
+              >
+            </p>
             <p class="pillar-note">
-              Optional and off by default. It is not medical advice and can be wrong.
+              Optional and off by default. It is not medical advice and can be wrong. Once an AI app
+              has your data, its own terms apply.
             </p>
           </li>
         </ul>
@@ -202,7 +217,8 @@
               <th scope="row">AI</th>
               <td data-label="Closed">The provider the company picked</td>
               <td data-label="OpenValens">
-                Off until you turn it on; on your own server, any provider or a local model
+                Off until you turn it on; on your own server, any provider or a local model; or an
+                AI app you connect
               </td>
             </tr>
           </tbody>
@@ -509,8 +525,8 @@ deploy/setup.sh install</code></pre>
             <p>
               On your own server, your records stay in its database, with no published port.
               <strong>Resend</strong> sends sign-in and invitation emails and
-              <strong>Let’s Encrypt</strong> issues the HTTPS certificate. AI, barcode lookup, S3
-              storage, push and single sign-on stay off unless you turn them on.
+              <strong>Let’s Encrypt</strong> issues the HTTPS certificate. AI, connected AI apps,
+              barcode lookup, S3 storage, push and single sign-on stay off unless you turn them on.
             </p>
           </article>
           <article>
