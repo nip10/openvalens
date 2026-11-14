@@ -1,6 +1,6 @@
 # Install
 
-**Applies to:** OpenValens 1.1.0 · Last updated: 2026-10-31
+**Applies to:** OpenValens 1.2.0 · Last updated: 2026-10-31
 
 This is the **one supported self-host install** (Issue #63): a pinned Docker
 Compose stack (`deploy/compose.yml`) driven by an interactive setup script
@@ -42,10 +42,15 @@ it for a real installation.
   internet access.
 - The `db` network is `internal: true`: Postgres has no published port and no
   route to the internet. The server also joins `app` because it needs outbound
-  access to email/AI providers.
+  access to email/AI providers, and, once on the first start, to `wger.de` and
+  `raw.githubusercontent.com` to set up the exercise catalog and its images
+  ([Exercise catalog](../exercise-catalog-assets.md)).
 - Web and API share **one origin** (`https://<domain>`): Caddy routes `/api/*`,
-  `/rpc/*`, `/api-reference/*` and `/.well-known/openvalens` (the server check
-  the mobile app reads) to the server and everything else to the web app.
+  `/rpc/*`, `/api-reference/*`, `/.well-known/openvalens` (the server check
+  the mobile app reads) and the OAuth documents under
+  `/.well-known/oauth-protected-resource` and
+  `/.well-known/oauth-authorization-server` (for [connected AI apps](../ai-apps.md))
+  to the server, and everything else to the web app.
 - `<version>` is `git describe --tags --always --dirty` of your checkout (a
   commit hash until a release is tagged). Images are built from your checkout;
   published registry images are tracked separately (#129).

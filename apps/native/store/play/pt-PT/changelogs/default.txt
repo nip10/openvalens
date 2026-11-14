@@ -1,1 +1,9 @@
-Primeira versão.
+• Acompanhamentos personalizados, com objetivos e o que mudou
+• Acompanhamento de meditação a partir do Health Connect
+• Registe em poucos toques: separador "+", uma linha escrita ou o ícone
+• Dor no mapa corporal
+• Bebidas, com totais opcionais de cafeína e álcool
+• Novos separadores Alimento e Treino, com exercícios ilustrados
+• Mais relógios, pulseiras, anéis e balanças por Bluetooth
+• Confirme o que a sua app de IA prepara antes de ser guardado
+• Vírgula decimal em todos os campos numéricos

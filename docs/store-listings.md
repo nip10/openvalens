@@ -1,6 +1,6 @@
 # Store listings
 
-**Applies to:** the App Store and Google Play listings of `apps/native` · Last updated: 2026-11-05
+**Applies to:** the App Store and Google Play listings of `apps/native` · Last updated: 2026-11-14
 
 The listing text, App Privacy answers (Apple) and Data safety answers (Google)
 for the store app (#307). The text is in the repository so it is reviewed like
@@ -26,6 +26,12 @@ The landing site links each live store with its official badge, served from
 
 Both use the same description. The only difference is the health platform:
 Apple Health on iOS, Health Connect on Android.
+
+**What's New** is rewritten for each release from the Highlights of
+`docs/releases/vX.Y.Z.md` (and its pt-PT translation): `releaseNotes` in
+`store.config.json` (App Store, up to 4,000 characters) and
+`store/play/<locale>/changelogs/default.txt` (Play, up to 500). The same test
+checks it.
 
 **Wording rules** (checked by the test, in both languages):
 
@@ -91,18 +97,18 @@ Both forms only ask about what we collect. The source is the data map in
 
 ### Data the app sends to Cloud
 
-| Data                                                                                                                                                | Required? | Purpose           | Linked to the person |
-| --------------------------------------------------------------------------------------------------------------------------------------------------- | --------- | ----------------- | -------------------- |
-| Email address                                                                                                                                       | Yes       | Account, sign-in  | Yes                  |
-| Name                                                                                                                                                | No        | Account           | Yes                  |
-| User ID (account id; Google/Apple subject id when signing in with them)                                                                             | Yes       | Account           | Yes                  |
-| Health records: labs, body, vitals, sleep, activity, workouts, nutrition, water, cycle, goals, clinical notes, preventive care with family history  | No        | App functionality | Yes                  |
-| Apple Health / Health Connect: steps, heart rate, sleep, weight, body fat, active energy, distance, workouts                                        | No        | App functionality | Yes                  |
-| Progress photos (added on the web, shown in the app)                                                                                                | No        | App functionality | Yes                  |
-| Notes and AI assistant conversations                                                                                                                | No        | App functionality | Yes                  |
-| Push token                                                                                                                                          | No        | Notifications     | Yes                  |
-| Crash reports (Sentry, scrubbed of health data, only if `EXPO_PUBLIC_SENTRY_DSN` is set in the store build)                                         | Yes       | App functionality | No                   |
-| Product interaction: opt-in usage analytics (Settings › Share optional usage analytics), sent by the server to PostHog EU with a one-time random id | No        | Analytics         | No                   |
+| Data                                                                                                                                                                                      | Required? | Purpose           | Linked to the person |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- | ----------------- | -------------------- |
+| Email address                                                                                                                                                                             | Yes       | Account, sign-in  | Yes                  |
+| Name                                                                                                                                                                                      | No        | Account           | Yes                  |
+| User ID (account id; Google/Apple subject id when signing in with them)                                                                                                                   | Yes       | Account           | Yes                  |
+| Health records: labs, body, vitals, sleep, activity, workouts, nutrition, water, cycle, goals, custom trackers, pain, clinical notes, preventive care with family history                 | No        | App functionality | Yes                  |
+| Apple Health / Health Connect: steps, heart rate, sleep, weight, body fat, active energy, distance, workouts; mindfulness sessions and (iOS) State of Mind for a tracker the person links | No        | App functionality | Yes                  |
+| Progress photos (added on the web, shown in the app)                                                                                                                                      | No        | App functionality | Yes                  |
+| Notes and AI assistant conversations                                                                                                                                                      | No        | App functionality | Yes                  |
+| Push token                                                                                                                                                                                | No        | Notifications     | Yes                  |
+| Crash reports (Sentry, scrubbed of health data, only if `EXPO_PUBLIC_SENTRY_DSN` is set in the store build)                                                                               | Yes       | App functionality | No                   |
+| Product interaction: opt-in usage analytics (Settings › Share optional usage analytics), sent by the server to PostHog EU with a one-time random id                                       | No        | Analytics         | No                   |
 
 Not collected: location, contacts, browsing or search history, advertising
 identifiers, audio, purchases. Camera frames used for barcode scanning are not
@@ -186,3 +192,62 @@ The app only reads, never writes.
 Pick **Health and fitness** as the app category. The intended-purpose
 statement in the description answers Play's question about medical
 functionality: the app is not a medical device.
+
+#### `READ_MINDFULNESS` (1.2.0, #452)
+
+Phone feeds for custom trackers (PR #498) add
+`android.permission.health.READ_MINDFULNESS`. Add it to the declaration in the
+same Play Console form before the 1.2.0 Android build goes to review; Play
+rejects a build that asks for an undeclared Health Connect permission. The
+answers for the form:
+
+| Field                                | Answer                                                                                                                                                                                                                                                                                                                                                                                  |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Permission                           | Mindfulness (read), `android.permission.health.READ_MINDFULNESS`                                                                                                                                                                                                                                                                                                                        |
+| Why the app needs it                 | OpenValens lets people create their own trackers, such as a Meditation tracker that records minutes. A person can link such a tracker to Health Connect. The app then reads the person's mindfulness sessions (start, end and length) recorded by other apps and adds each one as an entry in that tracker, so the time appears in the person's own record next to their other entries. |
+| When the app asks                    | Only when the person opens a tracker's settings and taps "Link to this tracker" under "From your phone". The app does not ask at sign-in or during setup.                                                                                                                                                                                                                               |
+| Read or write                        | Read only. The app never writes to Health Connect.                                                                                                                                                                                                                                                                                                                                      |
+| How the person stops it              | "Unlink" in the same place stops imports at once; entries already imported stay until the person deletes them. The permission can also be revoked in Health Connect.                                                                                                                                                                                                                    |
+| Use of the data                      | Shown only to the person (and to members of their workspace if they share the tracker). Not used for advertising, not sold, not used to build profiles, not shared with third parties. Sent only to the server the person chose (OpenValens Cloud or their own).                                                                                                                        |
+| Core functionality                   | Custom trackers are a core feature of the app's record-keeping; the mindfulness feed fills one of them.                                                                                                                                                                                                                                                                                 |
+| Video (Play asks for one per change) | Record on a device with Health Connect: Trackers → create "Meditation" → open it → Settings → "From your phone" → "Link to this tracker" → Health Connect asks for Mindfulness → Allow → "Import now" → the session appears with "from Health Connect". Then "Unlink".                                                                                                                  |
+
+`[CONFIRM]` the use-case category Play offers for mindfulness in the form
+(wellness or mindfulness tracking). The intended-purpose statement still
+answers the medical-functionality question.
+
+Before submitting, the privacy policy must name the new data type, because
+Play checks it against the declaration. `docs/legal/privacy.md`,
+`docs/legal/data-map.md` and `apps/site/src/privacy.html` list the phone health
+data the app reads (steps, heart rate, sleep, weight, body fat, active energy,
+distance, workouts). `[CONFIRM]` and add: "mindfulness
+sessions, and on iPhone mindful minutes and State of Mind (daily mood), only
+for a tracker you link". The Data safety and App Privacy answers do not change:
+both already declare health and fitness data, collected, linked to the person,
+for app functionality.
+
+### Apple: HealthKit types for tracker feeds (1.2.0, #452)
+
+PR #498 reads two more HealthKit types, each asked for only when the person
+links a tracker: Mindful Minutes (`HKCategoryTypeIdentifierMindfulSession`)
+and State of Mind (`HKStateOfMindTypeIdentifier`, iOS 18 and later). It
+changes `NSHealthShareUsageDescription` in `app.json` to "OpenValens reads
+your health data from Apple Health to keep your health record, and the
+trackers you link to Apple Health, up to date." App Review checks that the
+purpose string covers each type the app asks for. `[CONFIRM]` whether to name
+the new types, for example "…to keep your health record up to date, and to
+fill the trackers you link, such as mindful minutes and your daily mood." No
+App Privacy answer changes.
+
+Add to App Review Information › Notes for the 1.2.0 submission:
+
+> New in 1.2.0: custom trackers can be linked to Apple Health. Open Trackers,
+> create a Meditation or Mood tracker, open it, then Settings › From your
+> phone › Link to this tracker. Only then does the app ask for Mindful
+> Minutes (Meditation) or State of Mind (Mood, iOS 18 and later). It only
+> reads; it never writes to Apple Health. Each session or daily mood becomes
+> an entry in that tracker, shown to the person in their own record. Unlink
+> stops it. The data is not used for advertising and is not shared.
+
+If the home-screen widget (#449, PR #499) is in the build, add: "The new
+home-screen widget only opens the app; it shows no health data."

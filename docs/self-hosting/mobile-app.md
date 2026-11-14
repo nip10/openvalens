@@ -1,6 +1,6 @@
 # Connecting the mobile app
 
-**Applies to:** OpenValens 1.1.0 · Last updated: 2026-10-28
+**Applies to:** OpenValens 1.2.0 · Last updated: 2026-11-14
 
 The OpenValens app from the App Store and Google Play connects to any
 OpenValens server, not only to OpenValens Cloud. You do not need to build the
@@ -41,12 +41,14 @@ app says how many before it deletes them.
   domain in the app.
 
 - **A version the app supports.** The server check returns the API version the
-  server speaks. Native app 1.1.0 supports API v2 only and cannot connect to an
-  API v1 server. API v1-only native clients are unsupported and require an
+  server speaks. Native app 1.1.0 and later (1.2.0 included) support API v2
+  only and cannot connect to an API v1 server. API v1-only native clients are unsupported and require an
   update. New connection checks block unsupported versions, but already-
   authenticated old binaries may still attempt calls and fail until updated.
   Upgrade the app before the server's API v2 cutover, and update the server
-  before connecting app 1.1.0.
+  before connecting app 1.1.0 or later. Update the server to 1.2.0 before
+  using app 1.2.0: its new screens (trackers, pain, drinks, AI app drafts)
+  need a 1.2.0 server.
 - **Working email**, for magic-link sign-in ([Email](email.md)).
 
 The store app's URL scheme, `openvalens://`, is already a trusted origin on
@@ -64,7 +66,7 @@ The answer looks like this:
 {
   "product": "openvalens",
   "apiVersion": 2,
-  "serverVersion": "1.1.0",
+  "serverVersion": "1.2.0",
   "mode": "self-hosted",
   "signIn": { "magicLink": true, "oidc": false, "google": false, "apple": false, "signUp": false }
 }
