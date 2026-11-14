@@ -10,9 +10,11 @@ import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { ALLOWED_PHRASES, BANNED_TERMS } from "./wording-rules";
+import { ALLOWED_PHRASES, BANNED_TERMS, COMPETITOR_NAMES } from "./wording-rules";
 
 import { readAllReleaseNotes } from "../../../scripts/release-notes";
+import { directDeviceSupportList } from "../../../packages/health-record/src/device-support-status";
+import { FAMILY_LABELS, registeredBrands, REASON_NOTES, STATUS_LABELS } from "./devices";
 import {
   auditCss,
   auditMarkup,
@@ -179,9 +181,12 @@ describe("site copy", () => {
     expect(hits).toEqual([]);
   });
 
-  test("states the name, the privacy tagline and the intended purpose", async () => {
+  test("states the name, the hero and the intended purpose", async () => {
     const text = await pageText();
-    expect(text).toContain("A private place for your health records.");
+    expect(text).toContain("Your whole health record, on your terms.");
+    expect(text).toContain(
+      "Labs, sleep, workouts, food and your watch, in one private record. Open source, hosted in the EU or on your own server.",
+    );
     expect(text).toContain("€7.99 / month");
     expect(text).toContain("€69 / year");
     expect(text).toContain("VAT included");
@@ -202,7 +207,10 @@ describe("site copy", () => {
     expect(text).toContain("The iPhone app is in App Store review.");
     expect(text).not.toContain("Mobile apps are not published in the stores yet.");
     expect(text).not.toContain("No hosted service.");
-    expect(text).toContain("no analytics and no telemetry");
+    expect(text).toContain("No device model is tested on real hardware yet.");
+    // Matches the privacy policy: Cloud analytics is opt-in, never health data.
+    expect(text).not.toContain("no analytics and no telemetry");
+    expect(text).toContain("usage analytics on Cloud is optional, off until you turn it on");
   });
 
   test("the install command matches the supported Compose install guide", async () => {
@@ -228,7 +236,9 @@ describe("legal and support pages", () => {
       join(import.meta.dir, "..", "deploy", "default.conf.template"),
       "utf8",
     );
-    expect(conf).toContain("location ~ ^/(changelog|privacy|subprocessors|support|terms)/?$");
+    expect(conf).toContain(
+      "location ~ ^/(changelog|devices|privacy|subprocessors|support|terms)/?$",
+    );
     for (const page of PAGES) {
       const html = await readFile(join(outDir, `${page}.html`), "utf8");
       expect(html).toContain(`<link rel="canonical" href="https://openvalens.com/${page}" />`);
@@ -434,5 +444,164 @@ describe("changelog (#446)", () => {
     const dockerfile = await readFile(join(import.meta.dir, "..", "Dockerfile"), "utf8");
     expect(dockerfile).toContain("COPY docs/releases ./docs/releases");
     expect(dockerfile).toContain("COPY scripts/release-notes.ts ./scripts/release-notes.ts");
+  });
+});
+
+describe("positioning (#445)", () => {
+  test("the page follows the settled order: hero, pillars, screens, devices, Cloud or self-host, pricing, FAQ", async () => {
+    const html = await readFile(join(outDir, "index.html"), "utf8");
+    const order = [
+      'id="hero-title"',
+      'id="why"',
+      'id="screens-title"',
+      'id="devices"',
+      'id="ways-to-use"',
+      'id="pricing"',
+      'id="faq"',
+      'id="purpose"',
+    ].map((marker) => html.indexOf(marker));
+    expect(order.every((index) => index > -1)).toBe(true);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
+  });
+
+  test("the four pillars and the four FAQ questions", async () => {
+    const html = await readFile(join(outDir, "index.html"), "utf8");
+    const pillars = [...html.matchAll(/<li class="pillar">[\s\S]*?<h3>([^<]+)<\/h3>/g)].map(
+      (m) => m[1],
+    );
+    expect(pillars).toEqual([
+      "Open source and yours",
+      "Your devices, without their cloud",
+      "The depth of your record",
+      "Your own AI",
+    ]);
+    const faq = html.slice(html.indexOf('id="faq"'), html.indexOf('id="purpose"'));
+    expect([...faq.matchAll(/<h3>([^<]+)<\/h3>/g)].map((m) => m[1])).toEqual([
+      "Is it really open source?",
+      "Can you read my data?",
+      "Is it medical advice?",
+      "What happens if you shut down?",
+    ]);
+  });
+
+  test("labs copy keeps and compares results; AI copy names a local model, not connected apps", async () => {
+    const text = await pageText();
+    expect(text).toContain("Keep and compare your lab results");
+    expect(text).toContain("what changed in them");
+    expect(text).toContain("including a model on your own machine");
+    // Connected AI apps (MCP, #439) are not claimed until they ship.
+    expect(text).not.toMatch(/\bMCP\b|Model Context Protocol|connected AI app/i);
+  });
+
+  test("the devices headline names brands, not a count, and every brand is in the allowlist", async () => {
+    const html = await readFile(join(outDir, "index.html"), "utf8");
+    const headline = /<h2 id="devices-title">\s*([\s\S]*?)\s*<\/h2>/.exec(html)?.[1];
+    expect(headline?.replace(/\s+/g, " ")).toBe(
+      "Works with Garmin, Huawei, Amazfit, Pebble and more, without their apps.",
+    );
+    expect(headline).not.toMatch(/\d/);
+    const brands = registeredBrands();
+    for (const brand of ["Garmin", "Huawei", "Amazfit", "Pebble"]) expect(brands).toContain(brand);
+    expect(html).toContain('href="/devices"');
+  });
+
+  test("Open Graph and Twitter descriptions match the new hero", async () => {
+    const html = (await readFile(join(outDir, "index.html"), "utf8")).replace(/\s+/g, " ");
+    const description =
+      "Labs, sleep, workouts, food and your watch, in one private health record. Open source, hosted in the EU or on your own server.";
+    expect(html).toContain(`<meta property="og:description" content="${description}" />`);
+    expect(html).toContain(`<meta name="twitter:description" content="${description}" />`);
+    expect(html).toContain("OpenValens: Your whole health record, on your terms.");
+  });
+
+  test("the OG card source carries the new headline", async () => {
+    const card = await readFile(join(import.meta.dir, "..", "og", "site.html"), "utf8");
+    expect(card).toContain("Your whole health record, on your terms.");
+  });
+});
+
+describe("supported devices page (#445)", () => {
+  test("lists every allowlisted model once, with its status, generated at build time", async () => {
+    const html = await readFile(join(outDir, "devices.html"), "utf8");
+    expect(html).not.toContain("__DEVICE_");
+    const items = [
+      ...html.matchAll(
+        /<li><span class="device-name">([^<]+)<\/span><span class="status [^"]+">([^<]+)<\/span>/g,
+      ),
+    ];
+    const list = directDeviceSupportList();
+    expect(items).toHaveLength(list.length);
+    const unescape = (name: string) => name.replaceAll("&amp;", "&");
+    const shown = new Map(items.map((m) => [unescape(m[1]!), m[2]]));
+    for (const model of list) {
+      expect({ model: model.displayName, status: shown.get(model.displayName) }).toEqual({
+        model: model.displayName,
+        status: STATUS_LABELS[model.support.status],
+      });
+    }
+  });
+
+  test("each experimental model shows why, and the legend explains every status", async () => {
+    const html = await readFile(join(outDir, "devices.html"), "utf8");
+    const experimental = directDeviceSupportList().filter(
+      (model) => model.support.status === "experimental",
+    ).length;
+    const notes = Object.values(REASON_NOTES)
+      .map((note) => html.split(`<span class="device-note">${note}</span>`).length - 1)
+      .reduce((a, b) => a + b, 0);
+    expect(notes).toBe(experimental);
+    for (const label of Object.values(STATUS_LABELS)) expect(html).toContain(label);
+    for (const label of Object.values(FAMILY_LABELS)) {
+      expect(html).toContain(label.replaceAll("&", "&amp;"));
+    }
+  });
+
+  test("the headline names no count until models are tested on a device", async () => {
+    const html = await readFile(join(outDir, "devices.html"), "utf8");
+    const h1 = /<h1>([^<]*)<\/h1>/.exec(html)?.[1];
+    expect(h1).toBe("Supported devices");
+    expect(await pageText(outDir, "devices.html")).toContain(
+      "No model has been tested on a real device yet",
+    );
+  });
+
+  test("uses none of the banned terms", async () => {
+    let scanned = await pageText(outDir, "devices.html");
+    for (const phrase of ALLOWED_PHRASES) scanned = scanned.replace(phrase, " ");
+    expect(BANNED_TERMS.filter((term) => term.test(scanned)).map(String)).toEqual([]);
+  });
+
+  test("is linked from the home page and served at /devices", async () => {
+    const html = await readFile(join(outDir, "index.html"), "utf8");
+    const devices = html.slice(html.indexOf('id="devices"'), html.indexOf('id="ways-to-use"'));
+    expect(devices).toContain('href="/devices"');
+    const dockerfile = await readFile(join(import.meta.dir, "..", "Dockerfile"), "utf8");
+    expect(dockerfile).toContain("packages/health-record/src/device-support-status.ts");
+  });
+});
+
+describe("no competitor is named (#445)", () => {
+  test("in any built page, the feed or the OG card sources", async () => {
+    const files = (await readdir(outDir, { recursive: true }))
+      .map(String)
+      .filter((file) => /\.(html|xml|txt|css|svg)$/.test(file));
+    const sources = await Promise.all([
+      ...files.map(async (file) => [file, await readFile(join(outDir, file), "utf8")] as const),
+      ...["site.html", "app.html"].map(
+        async (file) =>
+          [`og/${file}`, await readFile(join(import.meta.dir, "..", "og", file), "utf8")] as const,
+      ),
+    ]);
+    const hits = sources.flatMap(([file, text]) =>
+      COMPETITOR_NAMES.filter((name) => text.toLowerCase().includes(name)).map(
+        (name) => `${file}: ${name}`,
+      ),
+    );
+    expect(hits).toEqual([]);
+  });
+
+  test("the guard itself matches the name", () => {
+    expect(COMPETITOR_NAMES.length).toBeGreaterThan(0);
+    for (const name of COMPETITOR_NAMES) expect(name).toMatch(/^[a-z0-9.-]+$/);
   });
 });
