@@ -3,11 +3,17 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { createDb, sql } from "@openvalens/db";
 import { member, organization, user } from "@openvalens/db/schema/auth";
 import { metricDefinition, metricSample } from "@openvalens/db/schema/health-record";
-import { plainWaterEntry } from "@openvalens/db/schema/nutrition";
+import {
+  nutritionFoodSnapshot,
+  nutritionMeal,
+  nutritionMealEntry,
+  plainWaterEntry,
+} from "@openvalens/db/schema/nutrition";
 import { supplement, supplementIntake, supplementSchedule } from "@openvalens/db/schema/plans";
 
 import {
   buildRecentLogEntries,
+  loadRecentDrinkRows,
   loadRecentIntakeRows,
   loadRecentMetricRows,
   loadRecentWaterRows,
@@ -127,6 +133,83 @@ describe.skipIf(!url)("quick log reads against disposable PostgreSQL (#440)", ()
     expect(await loadRecentMetricRows(db, { organizationId: OTHER_ORG, userId: "user-b" })).toEqual(
       [],
     );
+  });
+
+  test("recent drinks (#443) are the member's own live preset entries, in grams", async () => {
+    const [espresso, oats] = await db
+      .insert(nutritionFoodSnapshot)
+      .values([
+        {
+          organizationId: ORG,
+          source: "fdc",
+          sourceFoodId: "171891",
+          name: "Beverages, coffee, brewed, espresso, restaurant-prepared",
+          nutrientBasisAmount: 100,
+          nutrientBasisUnit: "g",
+          contentHash: "snapshot-espresso",
+        },
+        {
+          organizationId: ORG,
+          source: "fdc",
+          sourceFoodId: "173904",
+          name: "Oats",
+          nutrientBasisAmount: 100,
+          nutrientBasisUnit: "g",
+          contentHash: "snapshot-oats",
+        },
+      ])
+      .returning({ id: nutritionFoodSnapshot.id });
+    const meals = await db
+      .insert(nutritionMeal)
+      .values([
+        {
+          organizationId: ORG,
+          userId: "user-a",
+          localDate: "2026-11-13",
+          timeZone: "UTC",
+          slot: "breakfast",
+        },
+        {
+          organizationId: ORG,
+          userId: "user-c",
+          localDate: "2026-11-13",
+          timeZone: "UTC",
+          slot: "breakfast",
+        },
+      ])
+      .returning({ id: nutritionMeal.id, userId: nutritionMeal.userId });
+    const meal = (userId: string) => meals.find((row) => row.userId === userId)!.id;
+    const entry = (
+      userId: string,
+      snapshotId: number,
+      method: "preset" | "manual",
+      extra: Partial<typeof nutritionMealEntry.$inferInsert> = {},
+    ) => ({
+      organizationId: ORG,
+      userId,
+      mealId: meal(userId),
+      snapshotId,
+      amount: 30,
+      unit: "g" as const,
+      nutrientFactor: 0.3,
+      method,
+      ...extra,
+    });
+    await db.insert(nutritionMealEntry).values([
+      entry("user-a", espresso!.id, "preset"),
+      // A food logged by hand, a deleted drink, one changed to ml and someone else's are left out.
+      entry("user-a", oats!.id, "preset"),
+      entry("user-a", espresso!.id, "manual"),
+      entry("user-a", espresso!.id, "preset", { deletedAt: now }),
+      entry("user-a", espresso!.id, "preset", { unit: "ml" }),
+      entry("user-c", espresso!.id, "preset"),
+    ]);
+
+    const drinks = await loadRecentDrinkRows(db, A);
+    expect(drinks.map((row) => [row.fdcId, row.amountG])).toEqual([["171891", 30]]);
+    expect(buildRecentLogEntries({ metrics: [], water: [], intakes: [], drinks })).toEqual([
+      expect.objectContaining({ kind: "drink:espresso", preset: "espresso", volumeMl: 30 }),
+    ]);
   });
 
   test("supplements due now count today's intakes", async () => {
