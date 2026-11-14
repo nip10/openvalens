@@ -16988,8 +16988,8 @@ msgid "The vendor no longer accepts this connection. Connect again to resume syn
 msgstr "The vendor no longer accepts this connection. Connect again to resume syncing."
 
 #: apps/native/components/direct-device-settings.tsx
-msgid "The watch did not answer the pairing check. Keep it unlocked and near the phone, then sync again from this screen. If the watch was reset, you will be asked to confirm on it."
-msgstr "The watch did not answer the pairing check. Keep it unlocked and near the phone, then sync again from this screen. If the watch was reset, you will be asked to confirm on it."
+msgid "The watch did not answer the pairing check. Keep it unlocked and near the phone, then sync again."
+msgstr "The watch did not answer the pairing check. Keep it unlocked and near the phone, then sync again."
 
 #: apps/native/components/direct-device-settings.tsx
 msgid "The watch did not confirm pairing in time. Unlock it, keep it near the phone, sync again and tap Confirm on the watch."

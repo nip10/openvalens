@@ -7,7 +7,7 @@
  */
 
 import { expect, test } from "bun:test";
-import { createHash, createHmac, randomBytes } from "node:crypto";
+import { createHash, createHmac, pbkdf2Sync, randomBytes } from "node:crypto";
 
 import {
   computeHuaweiDigest,
@@ -82,6 +82,19 @@ test("pbkdf2HmacSha256 matches Node's PBKDF2-HMAC-SHA256, including a partial se
   expect(toHex(pbkdf2HmacSha256(nodeCrypto, text("password"), text("salt"), 1000, 40))).toBe(
     "632c2812e46d4604102ba7618e9d6d7d2f8128f6266b4a03264d2a0460b7dcb388b3b1131f741bcb",
   );
+  // A provider's native PBKDF2 is used when present, with the same result.
+  const calls: number[] = [];
+  const native: HuaweiCryptoProvider = {
+    ...nodeCrypto,
+    pbkdf2Sha256: (password, salt, iterations, length) => {
+      calls.push(iterations);
+      return new Uint8Array(pbkdf2Sync(password, salt, iterations, length, "sha256"));
+    },
+  };
+  expect(toHex(pbkdf2HmacSha256(native, text("password"), text("salt"), 1000, 40))).toBe(
+    "632c2812e46d4604102ba7618e9d6d7d2f8128f6266b4a03264d2a0460b7dcb388b3b1131f741bcb",
+  );
+  expect(calls).toEqual([1000]);
 });
 
 test("computeHuaweiHiChainLiteDigest matches the upstream PIN digest for both auth algorithms", () => {

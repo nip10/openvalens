@@ -327,7 +327,7 @@ test("HiChainLite authVersion 2 digests use HMAC(secretKey || message)", () => {
       secretKey: KEY,
       crypto,
     }),
-  ).toThrow("HUAWEI_HICHAIN_PIN_FAILED");
+  ).toThrow("HUAWEI_AUTH_SECRET_KEY_REQUIRED");
 });
 
 test("computeHuaweiAuthDigest keys HiChainLite below auth version 2 with the watch PIN", () => {

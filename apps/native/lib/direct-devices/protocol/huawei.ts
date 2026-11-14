@@ -885,7 +885,7 @@ export function computeHuaweiAuthDigest(args: {
 }): Uint8Array {
   if (args.authMode === 0x02) {
     if (args.authVersion !== 0x02) {
-      if (!args.pinCode) throw new Error("HUAWEI_HICHAIN_PIN_FAILED");
+      if (!args.pinCode) throw new Error("HUAWEI_AUTH_SECRET_KEY_REQUIRED");
       return computeHuaweiHiChainLiteDigest({
         message: args.message,
         pinCode: args.pinCode,
