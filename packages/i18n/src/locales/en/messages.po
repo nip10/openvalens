@@ -1914,6 +1914,7 @@ msgstr "Add a note"
 msgid "Add a photo (JPEG or PNG, up to 10 MB)"
 msgstr "Add a photo (JPEG or PNG, up to 10 MB)"
 
+#: apps/native/components/pain/pain-panel.tsx
 #: apps/web/src/components/pain/pain-panel.tsx
 msgid "Add a region"
 msgstr "Add a region"
@@ -3277,6 +3278,7 @@ msgstr "Canada"
 #: apps/native/components/complete-export-card.tsx
 #: apps/native/components/direct-device-settings.tsx
 #: apps/native/components/nutrition-selection-bar.tsx
+#: apps/native/components/pain/pain-panel.tsx
 #: apps/native/components/progress-photos.tsx
 #: apps/native/components/routine-editor.tsx
 #: apps/native/components/workout-routines.tsx
@@ -3580,6 +3582,7 @@ msgstr "Checking private measurement setting…"
 msgid "Checking your account and server settings…"
 msgstr "Checking your account and server settings…"
 
+#: apps/native/app/(drawer)/body-map.tsx
 #: apps/native/app/(drawer)/private-measurements.tsx
 #: apps/web/src/routes/_auth/private-measurements.tsx
 msgid "Checking your account and workspace…"
@@ -3683,6 +3686,7 @@ msgstr "Choose a recipe to review"
 msgid "Choose a recipe to review."
 msgstr "Choose a recipe to review."
 
+#: apps/native/components/pain/pain-panel.tsx
 #: apps/web/src/components/pain/pain-panel.tsx
 msgid "Choose a region"
 msgstr "Choose a region"
@@ -4556,6 +4560,7 @@ msgstr "Could not check this setting. Measurements stay unavailable until it can
 msgid "Could not check this setting. Try again"
 msgstr "Could not check this setting. Try again"
 
+#: apps/native/app/(drawer)/body-map.tsx
 #: apps/web/src/routes/_auth/body-map.tsx
 msgid "Could not check whether the pain log is on."
 msgstr "Could not check whether the pain log is on."
@@ -4704,6 +4709,7 @@ msgstr "Could not delete this period. Try again."
 msgid "Could not delete this photo. Try again."
 msgstr "Could not delete this photo. Try again."
 
+#: apps/native/components/pain/pain-panel.tsx
 #: apps/web/src/components/pain/pain-panel.tsx
 msgid "Could not delete this rating. Try again."
 msgstr "Could not delete this rating. Try again."
@@ -5008,6 +5014,7 @@ msgstr "Could not load this conversation."
 msgid "Could not load this goal."
 msgstr "Could not load this goal."
 
+#: apps/native/components/pain/pain-panel.tsx
 #: apps/web/src/components/pain/pain-panel.tsx
 msgid "Could not load this region's history."
 msgstr "Could not load this region's history."
@@ -5087,6 +5094,7 @@ msgstr "Could not load your modules. Nothing has changed."
 msgid "Could not load your notification settings."
 msgstr "Could not load your notification settings."
 
+#: apps/native/app/(drawer)/body-map.tsx
 #: apps/web/src/routes/_auth/body-map.tsx
 msgid "Could not load your pain log."
 msgstr "Could not load your pain log."
@@ -5326,6 +5334,7 @@ msgstr "Could not save. Check the dates and try again."
 msgid "Could not save. Check the fields and try again."
 msgstr "Could not save. Check the fields and try again."
 
+#: apps/native/components/pain/pain-panel.tsx
 #: apps/web/src/components/pain/pain-panel.tsx
 #: apps/web/src/routes/_auth/private-measurements.tsx
 msgid "Could not save. Check your connection and try again."
@@ -5515,6 +5524,7 @@ msgid "Could not update this goal. Try again."
 msgstr "Could not update this goal. Try again."
 
 #: apps/native/app/(drawer)/private-measurements.tsx
+#: apps/native/components/pain/pain-panel.tsx
 #: apps/web/src/components/pain/pain-panel.tsx
 #: apps/web/src/routes/_auth/private-measurements.tsx
 msgid "Could not update this setting. Try again."
@@ -5896,6 +5906,7 @@ msgstr "Day totals"
 msgid "Day, YYYY-MM-DD"
 msgstr "Day, YYYY-MM-DD"
 
+#: apps/native/app/(drawer)/body-map.tsx
 #: apps/web/src/routes/_auth/body-map.tsx
 msgid "Days"
 msgstr "Days"
@@ -5976,6 +5987,7 @@ msgstr "Degraded"
 #: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/native/components/active-workout.tsx
 #: apps/native/components/nutrition-selection-bar.tsx
+#: apps/native/components/pain/pain-panel.tsx
 #: apps/native/components/progress-photos.tsx
 #: apps/native/components/workout-routines.tsx
 #: apps/native/components/workout-session-detail.tsx
@@ -6007,6 +6019,10 @@ msgstr "Delete {label} entry from {when}"
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 msgid "Delete {name}"
 msgstr "Delete {name}"
+
+#: apps/native/components/pain/pain-panel.tsx
+msgid "Delete {summary}, {when}"
+msgstr "Delete {summary}, {when}"
 
 #: apps/web/src/routes/_auth/nutrition.tsx
 msgid "Delete <0>{foodName}</0>"
@@ -6139,6 +6155,7 @@ msgstr "Delete this photo? This cannot be undone."
 msgid "Delete this private measurement? This cannot be undone."
 msgstr "Delete this private measurement? This cannot be undone."
 
+#: apps/native/components/pain/pain-panel.tsx
 #: apps/web/src/components/pain/pain-panel.tsx
 msgid "Delete this rating? This cannot be undone."
 msgstr "Delete this rating? This cannot be undone."
@@ -6916,6 +6933,10 @@ msgstr "Enter a positive number of consecutive days."
 #: packages/api/src/recipe-import/service.ts
 msgid "Enter a public http or https recipe address."
 msgstr "Enter a public http or https recipe address."
+
+#: apps/native/components/pain/pain-panel.tsx
+msgid "Enter a real local date and time."
+msgstr "Enter a real local date and time."
 
 #: apps/native/components/trackers/tracker-editor.tsx
 #: apps/web/src/components/trackers/tracker-editor.tsx
@@ -8275,12 +8296,14 @@ msgstr "Higher protein options appear when you turn on the active reference."
 msgid "Highest {highest} of {max}"
 msgstr "Highest {highest} of {max}"
 
+#: apps/native/app/(drawer)/body-map.tsx
 #: apps/web/src/routes/_auth/body-map.tsx
 msgid "Highest rating"
 msgstr "Highest rating"
 
 #. placeholder {0}: painMap.data.from
 #. placeholder {1}: painMap.data.to
+#: apps/native/app/(drawer)/body-map.tsx
 #: apps/web/src/routes/_auth/body-map.tsx
 msgid "Highest rating from {0} to {1}"
 msgstr "Highest rating from {0} to {1}"
@@ -8349,6 +8372,7 @@ msgstr "History sync on connection for steps and heart rate, plus live heart rat
 msgid "History sync on connection for steps, heart rate and sleep; not hardware-verified."
 msgstr "History sync on connection for steps, heart rate and sleep; not hardware-verified."
 
+#: apps/native/components/pain/pain-panel.tsx
 #: apps/web/src/components/pain/pain-panel.tsx
 msgid "History: {name}"
 msgstr "History: {name}"
@@ -9208,10 +9232,12 @@ msgstr "Language code"
 msgid "Last {windowDays} days"
 msgstr "Last {windowDays} days"
 
+#: apps/native/app/(drawer)/body-map.tsx
 #: apps/web/src/routes/_auth/body-map.tsx
 msgid "Last 30 days"
 msgstr "Last 30 days"
 
+#: apps/native/app/(drawer)/body-map.tsx
 #: apps/web/src/routes/_auth/body-map.tsx
 msgid "Last 7 days"
 msgstr "Last 7 days"
@@ -9715,6 +9741,7 @@ msgstr "Loading your workspace…"
 
 #: apps/native/app/(drawer)/(tabs)/index.tsx
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/body-map.tsx
 #: apps/native/app/(drawer)/cycle.tsx
 #: apps/native/app/(drawer)/foods.tsx
 #: apps/native/app/(drawer)/micronutrients.tsx
@@ -9723,6 +9750,7 @@ msgstr "Loading your workspace…"
 #: apps/native/components/insights-section.tsx
 #: apps/native/components/nutrition-trend-card.tsx
 #: apps/native/components/onboarding/steps.tsx
+#: apps/native/components/pain/pain-panel.tsx
 #: apps/native/components/plain-water-section.tsx
 #: apps/native/components/workout-history.tsx
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
@@ -9847,6 +9875,7 @@ msgstr "Log or correct intake"
 msgid "Log or go to"
 msgstr "Log or go to"
 
+#: apps/native/components/pain/pain-panel.tsx
 #: apps/web/src/components/pain/pain-panel.tsx
 msgid "Log pain"
 msgstr "Log pain"
@@ -11464,6 +11493,7 @@ msgstr "No targets set. Logging works the same without them."
 msgid "No trackers yet"
 msgstr "No trackers yet"
 
+#: apps/native/components/pain/pain-panel.tsx
 #: apps/web/src/components/pain/pain-panel.tsx
 msgid "No type"
 msgstr "No type"
@@ -11807,6 +11837,7 @@ msgstr "Not you? Revoke the key now from Connected AI apps in your settings."
 msgid "Note"
 msgstr "Note"
 
+#: apps/native/components/pain/pain-panel.tsx
 #: apps/native/components/trackers/tracker-log-form.tsx
 #: apps/web/src/components/pain/pain-panel.tsx
 #: apps/web/src/components/trackers/tracker-log-form.tsx
@@ -12574,6 +12605,7 @@ msgstr "P"
 msgid "Page Not Found"
 msgstr "Page Not Found"
 
+#: apps/native/app/(drawer)/body-map.tsx
 #: apps/web/src/routes/_auth/body-map.tsx
 #: packages/api/src/presenters/log-kinds.ts
 #: packages/api/src/presenters/timeline.ts
@@ -12585,6 +12617,7 @@ msgstr "Pain"
 msgid "Pain log"
 msgstr "Pain log"
 
+#: apps/native/components/pain/pain-panel.tsx
 #: apps/web/src/components/pain/pain-panel.tsx
 msgid "Pain log settings"
 msgstr "Pain log settings"
@@ -13895,6 +13928,7 @@ msgstr "Remove {0}"
 msgid "Remove {0}?"
 msgstr "Remove {0}?"
 
+#: apps/native/components/pain/pain-panel.tsx
 #: apps/web/src/components/pain/pain-panel.tsx
 msgid "Remove {name}"
 msgstr "Remove {name}"
@@ -14172,6 +14206,7 @@ msgstr "Retired version"
 #: apps/native/components/analytics-consent-section.tsx
 #: apps/native/components/energy-estimate-card.tsx
 #: apps/native/components/onboarding/flow.tsx
+#: apps/native/components/pain/pain-panel.tsx
 #: apps/native/components/server-compatibility-gate.tsx
 #: apps/native/components/sign-in-methods.tsx
 #: apps/native/components/sign-in.tsx
@@ -14655,6 +14690,7 @@ msgstr "Sauna"
 #: apps/native/components/manual-sleep-section.tsx
 #: apps/native/components/onboarding/first-log.tsx
 #: apps/native/components/onboarding/steps.tsx
+#: apps/native/components/pain/pain-panel.tsx
 #: apps/native/components/routine-editor.tsx
 #: apps/native/components/workout-exercise-tools.tsx
 #: apps/web/src/components/blood-pressure-section.tsx
@@ -14889,6 +14925,7 @@ msgstr "Saved entries are kept but not shown while it's off. Turn it on to see o
 msgid "Saved foods"
 msgstr "Saved foods"
 
+#: apps/native/components/pain/pain-panel.tsx
 #: apps/web/src/components/pain/pain-panel.tsx
 msgid "Saved for {count} regions."
 msgstr "Saved for {count} regions."
@@ -14929,6 +14966,7 @@ msgstr "Saved to your Goals under Workouts, where you can add a target and date 
 msgid "Saved: {what}"
 msgstr "Saved: {what}"
 
+#: apps/native/components/pain/pain-panel.tsx
 #: apps/web/src/components/pain/pain-panel.tsx
 #: apps/web/src/utils/product-settings-form-state.ts
 msgid "Saved."
@@ -14962,6 +15000,7 @@ msgstr "Saving photo…"
 #: apps/native/components/goal-editor.tsx
 #: apps/native/components/manual-sleep-section.tsx
 #: apps/native/components/onboarding/flow.tsx
+#: apps/native/components/pain/pain-panel.tsx
 #: apps/native/components/routine-editor.tsx
 #: apps/native/components/trackers/tracker-log-form.tsx
 #: apps/native/components/workout-routines.tsx
@@ -15158,6 +15197,7 @@ msgstr "See what needs attention, then browse longer-term progress below."
 msgid "Select"
 msgstr "Select"
 
+#: apps/native/components/pain/pain-panel.tsx
 #: apps/web/src/components/pain/pain-panel.tsx
 msgid "Select a region on the map, or add one from the list."
 msgstr "Select a region on the map, or add one from the list."
@@ -18271,6 +18311,7 @@ msgstr "Two separate views of your own records: measured DEXA values by region, 
 msgid "Type"
 msgstr "Type"
 
+#: apps/native/components/pain/pain-panel.tsx
 #: apps/web/src/components/pain/pain-panel.tsx
 #: packages/api/src/presenters/log-kinds.ts
 msgid "Type (optional)"
@@ -19210,6 +19251,7 @@ msgstr "Whatever this connection reads goes to {appName}, under that app's own t
 msgid "Whatever this key reads goes to the app you give it to, under that app's own terms and privacy policy. OpenValens cannot control what the app does with it."
 msgstr "Whatever this key reads goes to the app you give it to, under that app's own terms and privacy policy. OpenValens cannot control what the app does with it."
 
+#: apps/native/components/pain/pain-panel.tsx
 #: apps/web/src/components/ai-apps-view.tsx
 #: apps/web/src/components/pain/pain-panel.tsx
 msgid "When"
@@ -19219,6 +19261,7 @@ msgstr "When"
 msgid "When taken"
 msgstr "When taken"
 
+#: apps/native/components/pain/pain-panel.tsx
 #: apps/web/src/components/pain/pain-panel.tsx
 #: packages/api/src/presenters/log-kinds.ts
 msgid "Where"
@@ -19316,6 +19359,7 @@ msgstr "Workout type"
 msgid "Workouts"
 msgstr "Workouts"
 
+#: apps/native/components/pain/pain-panel.tsx
 #: apps/web/src/components/pain/pain-panel.tsx
 msgid "Workouts logged near this rating"
 msgstr "Workouts logged near this rating"

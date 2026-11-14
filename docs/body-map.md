@@ -2,7 +2,7 @@
 
 A front and back body diagram on web (`/body-map`) and mobile ("Body map" in
 the drawer). It has separate layers, never blended, and shows only measured
-or logged data. The pain layer (#442) is on web; mobile follows.
+or logged data, including the pain layer (#442) on both platforms.
 
 ## Shared presenter
 
@@ -98,13 +98,23 @@ off by default, gates the Coach `pain` tool (own session only, no notes) and
 the MCP `pain.entries` tool, which also needs the opt-in `pain:read` scope
 (notes only with `notes:read`).
 
+Both apps open the pain layer from a link: `/body-map?layer=pain`, with an
+optional `&region=<id>` that selects the region (a back region shows the back
+view). Quick logging's pain kind (#440) links there. The panel (notice, opt-in,
+log form, region history with delete, and the two switches) is
+`apps/web/src/components/pain/pain-panel.tsx` on web and
+`apps/native/components/pain/pain-panel.tsx` on mobile, with the same copy from
+`presenters/pain.ts`. Mobile keys the pain cache by member and workspace.
+
 ## Accessibility
 
 Every web region, and every joint spot on the pain layer, is a focusable
 button whose label includes its value.
 Enter or Space selects it and shows the region, value, source and scan date
 in a live region. On mobile, regions can be tapped on the drawing, and the
-regions with values are also listed as buttons for screen readers. Front/back
+regions with values (joint spots included on the pain layer) are also listed as
+buttons for screen readers. Every region can also be added to a pain entry from
+the log form's region list, and the 0–10 rating is a radio group. Front/back
 and layer toggles are radio groups on both platforms.
 
 ## Not included

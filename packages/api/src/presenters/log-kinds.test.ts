@@ -159,7 +159,7 @@ describe("pain (#442)", () => {
     );
     const pain = findLogKind("pain")!;
     expect(pain.save).toBe("at_once");
-    expect(pain.paths).toEqual({ web: "/body-map", native: "/body-map" });
+    expect(pain.paths).toEqual({ web: "/body-map", native: "/body-map?layer=pain" });
     const rating = pain.fields.find((field) => field.id === "rating");
     expect([rating?.min, rating?.max, rating?.step]).toEqual([0, 10, 1]);
   });

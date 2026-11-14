@@ -361,7 +361,8 @@ export const LOG_KINDS: readonly LogKind<BuiltInLogKindId>[] = Object.freeze([
       },
       observedAt,
     ],
-    paths: { web: "/body-map", native: "/body-map" },
+    // Mobile opens the pain layer from the link; the web palette passes it as search params.
+    paths: { web: "/body-map", native: "/body-map?layer=pain" },
   },
   {
     id: "food",
