@@ -37,6 +37,7 @@ function fakeWatch(
     ackNonce?: number;
     mtu?: number;
     silent?: boolean;
+    bonded?: boolean;
     openError?: string;
     openDelay?: Promise<void>;
   } = {},
@@ -96,7 +97,10 @@ function fakeWatch(
   };
   const btClassic: BtClassicAdapter = {
     isSupported: () => true,
-    listBonded: async () => [],
+    listBonded: async () =>
+      options.bonded === false
+        ? []
+        : [{ address: "aa:bb:cc:dd:ee:01", name: "Balance 3", type: "dual", bonded: true }],
     discover: async () => undefined,
     openRfcomm: async (args) => {
       opens.push(args);
@@ -112,6 +116,7 @@ function fakeWatch(
     deliver,
     closes: () => closes,
     remoteClose: () => onClosed?.("remote"),
+    deliverRaw: (bytes: Uint8Array) => onBytes?.(bytes),
   };
 }
 
@@ -199,6 +204,9 @@ test("characteristic writes and notifications ride their mapped channels", async
   watch.deliver(ZEPP_SPP_CMD.CHANNEL_DATA, Uint8Array.of(7, 0x99, 0, 1, 0xdd));
   expect(chunks).toEqual([[0xaa]]);
   expect(activity).toEqual([[0xbb]]);
+  // The unmapped frame asked for an ack; upstream returns before acking it.
+  await tick();
+  expect(watch.sent.some((frame) => frame.cmd === ZEPP_SPP_CMD.CHANNEL_ACK)).toBe(false);
   await link.close();
 });
 
@@ -260,6 +268,9 @@ test("handshake failures reject with a code and close the socket", async () => {
   const cases: [Parameters<typeof fakeWatch>[0], string][] = [
     [{ channels: channelsRet(DEFAULT_CHANNELS, 2) }, "ZEPP_SPP_UNSUPPORTED_VERSION"],
     [{ channels: channelsRet([[CHUNK_WRITE, 1]]) }, "ZEPP_SPP_CHANNELS_MISSING"],
+    // History needs the activity channels too.
+    [{ channels: channelsRet(DEFAULT_CHANNELS.slice(0, 3)) }, "ZEPP_SPP_CHANNELS_MISSING"],
+    [{ channels: Uint8Array.of(1, 1, 0, 0x30, 0x30) }, "ZEPP_SPP_CHANNELS_MALFORMED"],
     // Upstream ignores a bad nonce or status; the handshake then times out.
     [{ ackNonce: 0xdeadbeef }, "ZEPP_SPP_HANDSHAKE_TIMEOUT"],
     [{ ackStatus: 2 }, "ZEPP_SPP_HANDSHAKE_TIMEOUT"],
@@ -296,6 +307,8 @@ test("an abort during connect settles at once and closes the socket that arrives
     address: "AA:BB:CC:DD:EE:01",
     signal: abort.signal,
   });
+  await tick();
+  expect(watch.opens).toHaveLength(1);
   abort.abort();
   await expect(opening).rejects.toThrow("CANCELLED");
   release();
@@ -315,4 +328,57 @@ test("an abort during the handshake rejects CANCELLED", async () => {
   abort.abort();
   await expect(opening).rejects.toThrow("CANCELLED");
   expect(watch.closes()).toBe(1);
+});
+
+test("a watch not bonded on this address is refused before any connect", async () => {
+  const watch = fakeWatch({ bonded: false });
+  await expect(
+    openZeppSppLink({
+      btClassic: watch.btClassic,
+      address: "AA:BB:CC:DD:EE:01",
+      signal: new AbortController().signal,
+    }),
+  ).rejects.toThrow("ZEPP_SPP_NOT_BONDED");
+  expect(watch.opens).toEqual([]);
+});
+
+test("an overflowing receive buffer fails the link and its subscribers", async () => {
+  const watch = fakeWatch();
+  const link = await openZeppSppLink({
+    btClassic: watch.btClassic,
+    address: "AA:BB:CC:DD:EE:01",
+    signal: new AbortController().signal,
+  });
+  let failures = 0;
+  link.subscribe(
+    "chunk_read",
+    () => undefined,
+    () => (failures += 1),
+  );
+  // A throwing failure callback does not stop the others.
+  link.subscribe(
+    "activity_data",
+    () => undefined,
+    () => {
+      throw new Error("subscriber bug");
+    },
+  );
+  link.subscribe(
+    "activity_control",
+    () => undefined,
+    () => (failures += 1),
+  );
+  watch.deliverRaw(Uint8Array.of(0x55, 7, 0, 0xf0, 0xff));
+  watch.deliverRaw(new Uint8Array(0x10000));
+  expect(failures).toBe(2);
+  // Subscribing after the failure reports it too.
+  let late = 0;
+  link.subscribe(
+    "chunk_read",
+    () => undefined,
+    () => (late += 1),
+  );
+  await tick();
+  expect(late).toBe(1);
+  await link.close();
 });

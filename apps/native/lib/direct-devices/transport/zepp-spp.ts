@@ -56,8 +56,13 @@ const CHARACTERISTIC_UUID: Readonly<Record<Characteristic, string>> = {
   activity_control: ACTIVITY_CONTROL,
 };
 
-/** The chunked channel cannot work without both of its characteristics. */
-const REQUIRED_CHARACTERISTICS = [CHUNK_WRITE, CHUNK_READ];
+/**
+ * Everything the history fetch uses: the chunked channel, activity data and
+ * activity control. A partial map fails the handshake, so the caller keeps BLE
+ * instead of failing later inside the sync (upstream only logs and drops a
+ * write to an unmapped characteristic, ZBR:222-226).
+ */
+const REQUIRED_CHARACTERISTICS = [CHUNK_WRITE, CHUNK_READ, ACTIVITY_DATA, ACTIVITY_CONTROL];
 
 type Subscriber = { onBytes(bytes: Uint8Array): void; onFailure(): void };
 
@@ -73,14 +78,20 @@ export type OpenZeppSppOptions = Readonly<{
 }>;
 
 /**
- * Opens the RFCOMM socket and completes the SPP handshake. Rejects with a
- * `BT_CLASSIC_*` or `ZEPP_SPP_*` code, or `CANCELLED`; the socket is closed on
- * every failure.
+ * Opens the RFCOMM socket to a watch already bonded on this address and
+ * completes the SPP handshake. Rejects with a `BT_CLASSIC_*` or `ZEPP_SPP_*`
+ * code, or `CANCELLED`; the socket is closed on every failure.
  */
 export async function openZeppSppLink(options: OpenZeppSppOptions): Promise<ZeppSppLink> {
   const { signal } = options;
   if (signal.aborted) throw new Error("CANCELLED");
   if (!options.btClassic.isSupported()) throw new Error("BT_CLASSIC_UNSUPPORTED");
+  // A secure socket to a watch not bonded over Classic would raise the system
+  // pairing dialog (or fail) on every sync; such a watch keeps BLE instead.
+  const bonded = await options.btClassic.listBonded().catch(() => []);
+  if (signal.aborted) throw new Error("CANCELLED");
+  if (!bonded.some((device) => device.address.toUpperCase() === options.address.toUpperCase()))
+    throw new Error("ZEPP_SPP_NOT_BONDED");
   const socket = await openSocket(options);
   const link = new ZeppSppLink(socket);
   try {
@@ -298,7 +309,7 @@ export class ZeppSppLink implements HelioLink {
       }
       case ZEPP_SPP_CMD.SESSION_END: {
         // The watch drops the socket about 2 s after ending our session (ZBR:295-312).
-        if (this.open && payload.length >= 1 && payload[0] === this.session)
+        if (this.open && payload.length >= 2 && payload[0] === this.session)
           this.fail(new Error("ZEPP_SPP_SESSION_ENDED"));
         return;
       }
@@ -312,7 +323,7 @@ export class ZeppSppLink implements HelioLink {
             try {
               subscriber.onBytes(data.value);
             } catch {
-              subscriber.onFailure();
+              notifyFailure(subscriber);
             }
           }
         }
@@ -344,7 +355,16 @@ export class ZeppSppLink implements HelioLink {
     this.open = false;
     this.handshakeSettle?.(error);
     for (const set of this.subscribers.values())
-      for (const subscriber of Array.from(set)) subscriber.onFailure();
+      for (const subscriber of Array.from(set)) notifyFailure(subscriber);
+  }
+}
+
+/** A throwing callback must not stop the fan-out or drop the rest of the chunk. */
+function notifyFailure(subscriber: Subscriber): void {
+  try {
+    subscriber.onFailure();
+  } catch {
+    /* the subscriber's own error; the others still run */
   }
 }
 
