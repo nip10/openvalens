@@ -349,6 +349,48 @@ test("an ACK beyond what is outstanding is ignored", () => {
   expect(c.mlr.unacked).toBe(0);
 });
 
+test("a stale request number on a retransmitted packet does not expire fragments", () => {
+  const c = channel(3);
+  c.mlr.send(new Uint8Array(10).fill(1));
+  c.peer(10, 0, Uint8Array.of(0xa)); // all 10 acked; the watch's seq 0 carries reqNum 10
+  c.mlr.send(new Uint8Array(5).fill(2)); // seq 10..14 outstanding
+  // The watch retransmits seq 0 with its stored reqNum 10, then an older
+  // packet still carrying reqNum 0: neither moves the window.
+  c.peer(10, 0, Uint8Array.of(0xa));
+  c.peer(0, 0, Uint8Array.of(0xa));
+  expect(c.mlr.unacked).toBe(5);
+  expect(c.received).toHaveLength(1);
+  // The residual mod-64 ambiguity (shared with upstream): a stale number at
+  // least `64 - outstanding` behind reads as a forward ACK.
+  const far = channel(3);
+  far.mlr.send(new Uint8Array(40).fill(1));
+  far.peer(32, 0);
+  far.peer(40, 0);
+  far.mlr.send(new Uint8Array(30).fill(2)); // seq 40..5 (mod 64) outstanding
+  far.peer(0, 0); // 40 behind, but (0 - 40) mod 64 = 24 <= 30
+  expect(far.mlr.unacked).toBe(6);
+});
+
+test("an ACK that arrives inside a retransmission round leaves no timer behind", () => {
+  const timers = new FakeTimers();
+  let ackOnWrite = false;
+  const mlr: GarminMlrChannel = new GarminMlrChannel({
+    handle: HANDLE,
+    maxPacketSize: 3,
+    timers,
+    sendPacket: () => {
+      if (ackOnWrite) mlr.receive(encodeGarminMlrPacket(HANDLE, 3, 0));
+    },
+    onData: () => undefined,
+  });
+  mlr.send(Uint8Array.of(1, 2, 3));
+  ackOnWrite = true;
+  timers.advance(GARMIN_MLR_INITIAL_RTO_MS);
+  expect(mlr.unacked).toBe(0);
+  expect(timers.pending).toBe(0);
+  expect(mlr.rto).toBe(GARMIN_MLR_INITIAL_RTO_MS);
+});
+
 // ---------------------------------------------------------------------------
 // Lifecycle and bounds
 // ---------------------------------------------------------------------------

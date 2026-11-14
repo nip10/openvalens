@@ -21,16 +21,27 @@
  * timeout halves the window and resends everything unacknowledged with the
  * request number each fragment was first sent with.
  *
- * Deviations from `Mlr`, each one inert on a conforming peer:
- * - an ACK that acknowledges more than is outstanding is ignored. Upstream
+ * Deviations from `Mlr`:
+ * - a request number that would acknowledge more than is outstanding is
+ *   ignored. Upstream applies every changed request number, so a stale one
+ *   (a peer retransmits with the request number it first sent, as we do)
  *   would expire null slots, move `lastRcvAck` past `nextSendSeq` and stop
- *   sending for good (`Mlr:207-248`, INFERRED from the arithmetic);
+ *   sending for good (`Mlr:207-248`, INFERRED from the arithmetic). With 6-bit
+ *   numbers a stale value at least `64 - outstanding` behind still reads as a
+ *   valid ACK; that residual ambiguity is inherent to the protocol and is
+ *   shared with upstream;
  * - the outgoing fragment queue is capped (`GARMIN_MLR_MAX_QUEUED_FRAGMENTS`)
- *   so a peer that never acknowledges cannot grow it without bound;
+ *   and `send()` after `close()` throws; upstream queues without bound and
+ *   ignores a send after close;
  * - packets that arrive after `close()` are ignored; upstream removes the
  *   communicator from its handle map instead (`CommunicatorV2:446-451`);
  * - `maxPacketSize` is fixed for the life of the channel (the docs'
- *   requirement); upstream also updates it on an MTU change (`Mlr:84-88`).
+ *   requirement); upstream also updates it on an MTU change (`Mlr:84-88`);
+ * - protocol state and the retransmission timer are updated before each
+ *   write (upstream writes first), and a retransmission round restarts the
+ *   timer only while something is outstanding, so a `sendPacket` that calls
+ *   straight back into `receive` cannot leave a stale timer behind;
+ * - an `onAcked` or `onData` listener that throws is ignored.
  *
  * Nothing here is hardware-validated: upstream has no recorded MLR traces, so
  * the tests are built from the upstream source and the vectors in the note.
@@ -372,7 +383,8 @@ export class GarminMlrChannel {
       this.write(encodeGarminMlrPacket(this.handle, fragment.reqNum, index, fragment.data));
       if (this.isClosed) return;
     }
-    this.startRetransmissionTimer();
+    // Always true unless a write called back into `receive` and acked it all.
+    if (this.lastRcvAck !== this.nextSendSeq) this.startRetransmissionTimer();
   }
 
   private startRetransmissionTimer(): void {

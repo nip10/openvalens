@@ -231,6 +231,8 @@ type TransferState = {
 
 type MlWaiter = {
   requestType: number;
+  /** For a GFDI registration: whether it asked for MLR. */
+  reliable: boolean | null;
   done: Deferred<GarminMlMessage>;
 };
 
@@ -313,7 +315,12 @@ export class GarminSession {
     try {
       this.unsubscribe = this.link.subscribeRaw(
         (bytes) => this.handleNotification(bytes),
-        () => this.options.onFailure?.(this.stage),
+        () => {
+          // A failed subscription means the link is gone (upstream's
+          // `onConnectionStateChange`): stop MLR's timers.
+          this.unbindGfdi();
+          this.options.onFailure?.(this.stage);
+        },
       );
     } catch {
       this.options.onFailure?.(this.stage);
@@ -363,6 +370,8 @@ export class GarminSession {
       if (!this.stalled) await this.sendSystemEvent(GARMIN_SYSTEM_EVENT.SYNC_COMPLETE);
       this.settleResolve();
     } catch (error) {
+      // The chain is over: no MLR channel may keep retransmitting after it.
+      this.unbindGfdi();
       this.options.onFailure?.(this.stage);
       this.settleReject(error);
     }
@@ -416,7 +425,7 @@ export class GarminSession {
   }
 
   private async requestGfdiRegistration(reliable: boolean): Promise<void> {
-    const register = this.waitForMl(GARMIN_ML_REQUEST.REGISTER_ML_RESP);
+    const register = this.waitForMl(GARMIN_ML_REQUEST.REGISTER_ML_RESP, reliable);
     let response: GarminMlMessage;
     try {
       await this.link.writeRaw(
@@ -686,12 +695,23 @@ export class GarminSession {
         this.resolveMlWaiter(message);
         return;
       case GARMIN_ML_REQUEST.REGISTER_ML_RESP:
-        if (message.service !== GARMIN_ML_SERVICE_GFDI) return;
+        if (message.service !== GARMIN_ML_SERVICE_GFDI || this.closed || this.fatal) return;
+        // Upstream binds every grant, overwriting its handle maps
+        // (`CommunicatorV2:372-430`). The ML fallback (ours) means a grant can
+        // also be the late answer to a request already given up on, so:
+        // - with no request pending, a grant does not replace a live binding;
+        // - while the plain fallback is pending, a reliable grant is that late
+        //   answer, not the fallback's.
+        {
+          const pending =
+            this.mlWaiter?.requestType === GARMIN_ML_REQUEST.REGISTER_ML_RESP
+              ? this.mlWaiter.reliable
+              : null;
+          if (pending === null && this.gfdi !== null) return;
+          if (pending === false && this.mlrFallback && (message.reliable ?? 0) !== 0) return;
+        }
         // Bind before anything else is read: the watch starts GFDI (e.g.
-        // DEVICE_INFORMATION) right after the grant. An unrequested grant
-        // (e.g. the late answer to a registration that timed out) replaces
-        // the current one, as upstream overwrites its handle maps
-        // (`CommunicatorV2:372-430`).
+        // DEVICE_INFORMATION) right after the grant.
         if (message.status === 0 && message.handle !== null) {
           try {
             this.bindGfdi(message.handle, message.reliable ?? 0);
@@ -726,8 +746,10 @@ export class GarminSession {
    */
   private acceptGfdiBytes(bytes: Uint8Array): void {
     let decoded = this.decoder.accept(bytes);
-    while (decoded) {
-      this.handleGfdiMessage(decoded);
+    // A frame that fails to decode yields null but is consumed, so keep going
+    // while another complete frame is buffered (each pass consumes one).
+    while (decoded || this.decoder.hasCompleteFrame()) {
+      if (decoded) this.handleGfdiMessage(decoded);
       if (this.closed) return;
       decoded = this.decoder.accept(EMPTY);
     }
@@ -930,9 +952,12 @@ export class GarminSession {
     }
   }
 
-  private waitForMl(requestType: number): Deferred<GarminMlMessage> {
+  private waitForMl(
+    requestType: number,
+    reliable: boolean | null = null,
+  ): Deferred<GarminMlMessage> {
     const wait = deferred<GarminMlMessage>();
-    this.mlWaiter = { requestType, done: wait };
+    this.mlWaiter = { requestType, reliable, done: wait };
     return wait;
   }
 

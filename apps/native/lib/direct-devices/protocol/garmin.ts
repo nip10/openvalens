@@ -379,6 +379,11 @@ export class GarminCobsDecoder {
     }
   }
 
+  /** True when `accept(empty)` would consume a buffered, delimited frame. */
+  hasCompleteFrame(): boolean {
+    return this.buffer.length >= 4 && this.buffer[0] === 0 && this.buffer.indexOf(0, 1) >= 0;
+  }
+
   reset(): void {
     this.buffer = [];
   }
