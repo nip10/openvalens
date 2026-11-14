@@ -342,3 +342,183 @@ describe("goal progress counts goals on custom trackers (#451)", () => {
     expect(result).toMatchObject({ status: "withheld", withheldReason: "no_measurable_goals" });
   });
 });
+
+describe("goal progress counts personal goals of every source (#500)", () => {
+  const AS_OF = "2026-03-10"; // a Tuesday
+  const METRICS: Record<GoalDefinition["source"], string> = {
+    manual: "amount",
+    water: "water_ml",
+    sleep: "sleep_hours",
+    supplement: "supplement:7",
+    workout: "exercise:9",
+    tracker: trackerGoalMetric("0b9c6f1e-4a3d-4c2b-9f1e-2a3b4c5d6e7f"),
+  };
+  function personalGoal(
+    id: number,
+    source: GoalDefinition["source"],
+    rule: GoalDefinition["rule"],
+    days: Array<[string, number]>,
+    extra: Partial<GoalDefinition> = {},
+  ) {
+    const definition: GoalDefinition = {
+      id: `g${id}`,
+      title: `${source} goal ${id}`,
+      source,
+      metric: METRICS[source],
+      unit: null,
+      rule,
+      startDate: "2026-03-01",
+      timeZone: "UTC",
+      status: "active",
+      ...extra,
+    };
+    const evidence = days.map(([dateOnly, value], index) => ({
+      id: `${id}-${index}`,
+      source,
+      metric: definition.metric,
+      dateOnly,
+      value,
+    }));
+    return {
+      id,
+      title: definition.title,
+      definition,
+      evaluation: evaluateGoal(definition, evidence, AS_OF),
+    };
+  }
+  const days = (from: number, values: number[]): Array<[string, number]> =>
+    values.map((value, index) => [`2026-03-${String(from + index).padStart(2, "0")}`, value]);
+
+  test("water: a rolling average against its threshold once the window is full", () => {
+    const rule: GoalDefinition["rule"] = {
+      kind: "average",
+      target: { kind: "minimum", value: 2000 },
+      windowDays: 7,
+    };
+    const full = personalGoal(
+      1,
+      "water",
+      rule,
+      days(4, [1800, 1800, 1800, 1800, 1800, 1800, 1800]),
+    );
+    const partial = personalGoal(2, "water", rule, days(9, [1800, 1800]));
+    const result = computeGoalProgress([], [full, partial]);
+    expect(result.goals.map((item) => [item.goalId, item.state, item.progress])).toEqual([
+      [1, "scored", 0.9],
+      [2, "needs_current_value", null],
+    ]);
+    expect(result.score).toBe(90);
+  });
+
+  test("sleep: a daily schedule counts qualifying nights among the last seven, today pending", () => {
+    const sleep = personalGoal(
+      3,
+      "sleep",
+      { kind: "recurring", cadence: "daily", completion: { kind: "minimum", value: 8 } },
+      days(3, [7, 8.5, 9, 6, 8, 8, 7.5]),
+    );
+    const result = computeGoalProgress([], [sleep]);
+    expect(result.goals[0]).toMatchObject({
+      category: "personal",
+      state: "scored",
+      currentValue: 4,
+      targetValue: 7,
+    });
+    expect(result.score).toBe(57);
+  });
+
+  test("supplement: a streak counts the current streak against its length", () => {
+    const supplement = personalGoal(
+      4,
+      "supplement",
+      { kind: "streak", target: { kind: "minimum", value: 1 }, targetDays: 30 },
+      days(8, [1, 1, 1]),
+    );
+    expect(computeGoalProgress([], [supplement]).goals[0]).toMatchObject({
+      state: "scored",
+      currentValue: 3,
+      targetValue: 30,
+      progress: 0.1,
+    });
+  });
+
+  test("workout: a reached target counts 100%", () => {
+    const workout = personalGoal(
+      5,
+      "workout",
+      { kind: "target", target: { kind: "minimum", value: 100 } },
+      [["2026-03-09", 102.5]],
+    );
+    const result = computeGoalProgress([], [workout]);
+    expect(result.goals[0]).toMatchObject({ state: "scored", progress: 1, reachedTarget: true });
+    expect(result.score).toBe(100);
+  });
+
+  test("manual: a weekly schedule counts the last full week's qualifying days", () => {
+    const manual = personalGoal(
+      6,
+      "manual",
+      { kind: "recurring", cadence: "any-days-per-week", daysPerWeek: 3 },
+      // Monday 2 to Sunday 8 March: two qualifying days of three. This week
+      // (from Monday 9 March) is not over, so it does not count yet.
+      [
+        ["2026-03-03", 1],
+        ["2026-03-06", 1],
+        ["2026-03-09", 1],
+      ],
+    );
+    expect(computeGoalProgress([], [manual]).goals[0]).toMatchObject({
+      state: "scored",
+      currentValue: 2,
+      targetValue: 3,
+    });
+  });
+
+  test("an edited goal is measured against the rule in force today", () => {
+    const edited = personalGoal(
+      7,
+      "manual",
+      { kind: "target", target: { kind: "minimum", value: 50 } },
+      [["2026-03-09", 100]],
+      {
+        versions: [
+          {
+            id: "2",
+            effectiveDate: "2026-03-05",
+            rule: { kind: "target", target: { kind: "minimum", value: 200 } },
+          },
+        ],
+      },
+    );
+    expect(computeGoalProgress([], [edited]).goals[0]).toMatchObject({
+      state: "scored",
+      currentValue: 100,
+      targetValue: 200,
+      progress: 0.5,
+    });
+  });
+
+  test("paused goals of any source are left out; older goals still weigh in", () => {
+    const paused = personalGoal(
+      8,
+      "water",
+      { kind: "target", target: { kind: "minimum", value: 2000 } },
+      [["2026-03-09", 500]],
+      { status: "paused" },
+    );
+    const result = computeGoalProgress(
+      [
+        {
+          goal: goal({ id: 9, currentValue: "50", targetValue: "100", direction: "increase" }),
+          checkins: [],
+        },
+      ],
+      [paused],
+    );
+    expect(result.goals.map((item) => [item.goalId, item.state])).toEqual([
+      [9, "scored"],
+      [8, "paused"],
+    ]);
+    expect(result.coverage.scored).toBe(1);
+  });
+});

@@ -6,7 +6,7 @@ native drawer → Scores). They are never blended into one health score.
 | Number          | Version                        | Endpoint             | Permission     |
 | --------------- | ------------------------------ | -------------------- | -------------- |
 | Readiness index | `readiness-0.1.0-experimental` | `score.readiness`    | `records:read` |
-| Goal progress   | `goal-progress-0.2.0`          | `score.goalProgress` | `goals:read`   |
+| Goal progress   | `goal-progress-0.3.0`          | `score.goalProgress` | `goals:read`   |
 
 Both are computed on the server on every request from the active workspace's
 records (`packages/api/src/score.ts`), with pure, deterministic algorithms
@@ -77,7 +77,7 @@ with manually entered sleep and steps.
 `used`, `ready_not_used` (ready, but not in the active profile),
 `no_recent_value`, `insufficient_baseline`, `not_supported_yet`.
 
-## Goal progress — `goal-progress-0.2.0`
+## Goal progress — `goal-progress-0.3.0`
 
 ### Goal measurement contract
 
@@ -105,11 +105,20 @@ current value.
 - Trend: the change between the last two numeric check-ins, toward or away
   from the target. A goal moving away is **flagged** next to the total.
 
-### Goals on custom trackers (0.2.0, #451)
+### Personal goals of every source (0.2.0 trackers, #451; 0.3.0 every source, #500)
 
-A personal goal on one of the member's custom trackers counts too. Its
-evaluation of the tracker's days gives a current value and a target, then the
-same per-goal progress applies (measured from 0, priority normal):
+The member's own personal goals count too, whatever their source: manual
+check-ins, water (the plain-water diary), supplement intakes, workout sets,
+sleep nights and custom trackers. 0.2.0 counted tracker goals only; 0.3.0
+adds the other five sources. Only the member's own goals are read (the
+personal-goal repository is owner-scoped), and a sleep goal's nights come
+from the same evidence as the goals screen. The score counts a goal whatever
+the member's module choice: goals are always on, as goal insights are.
+
+The goal's own evaluation of its days gives a current value and a target,
+under the rule in force on the evaluation date (an edited goal is measured
+against its newest rule, not its first one). Then the same per-goal progress
+applies (measured from 0, priority normal):
 
 - One-time target and rolling average: the latest day (or the complete
   window's average; an incomplete window is `needs_current_value`) against the
@@ -119,8 +128,17 @@ same per-goal progress applies (measured from 0, priority normal):
   the days required. Daily and weekday schedules: the qualifying days among
   the last seven scheduled days; today counts once it has an entry.
 - A goal that reached its target, or that the member marked complete, is 100%.
-  Paused goals are left out. There is no trend, so tracker goals are never
+  Paused goals are left out. There is no trend, so personal goals are never
   flagged.
+
+| Source     | A day's value                                          | Example                                        |
+| ---------- | ------------------------------------------------------ | ---------------------------------------------- |
+| manual     | the day's latest check-in (a value, or done/not done)  | streak of days stretched                       |
+| water      | plain-water entries summed, in ml                      | 7-day average of at least 2000 ml              |
+| supplement | one credit for a day with an intake of that supplement | taken every day: qualifying days of the last 7 |
+| workout    | the day's heaviest set of that exercise, in kg         | squat 100 kg once: reached is 100%             |
+| sleep      | the night's sleep by wake date, in hours               | at least 7 h every night                       |
+| tracker    | the tracker's own daily combination (#451)             | sauna minutes per day                          |
 
 ### Goal states
 

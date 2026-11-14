@@ -1,10 +1,14 @@
 import { readdir } from "node:fs/promises";
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
+import { executeGoals } from "@openvalens/ai/tools/goals";
 import { clearRegisteredAuth, setRegisteredAuth, type Auth } from "@openvalens/auth";
 import { createDb, sql, type Database } from "@openvalens/db";
+import { createStructuredLogger } from "@openvalens/observability";
 import { createWorkoutRepository } from "@openvalens/plans";
+import { insertManualSleepSession } from "@openvalens/sleep/manual-sessions";
 import { RPCHandler } from "@orpc/server/fetch";
 import type { Context } from "../context";
+import { loadInsightEngineInput } from "../insights";
 import { appRouter } from "./index";
 
 const url = process.env.GOALS_TEST_DATABASE_URL;
@@ -1056,5 +1060,198 @@ describe.skipIf(!url)("personal goals authenticated PostgreSQL API", () => {
         definition: { source: "manual", metric: "water_ml", unit: "ml" },
       },
     });
+  });
+
+  test("goals of every source move goal progress and reach the Coach goals tool by their own switch (#500)", async () => {
+    const day = (offset: number) =>
+      new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
+    const today = day(0);
+    const startDate = day(-3);
+    const base = { id: "ignored", timeZone: "UTC", status: "active", startDate };
+    let mutation = 100;
+    const nextMutation = () => `00000000-0000-4000-8000-${String(mutation++).padStart(12, "0")}`;
+    const create = async (definition: Record<string, unknown>) => {
+      const created = await call("create", {
+        definition: { ...base, ...definition },
+        clientMutationId: nextMutation(),
+      });
+      expect([definition.title, created.status]).toEqual([definition.title, 200]);
+      return (created.body as { id: number }).id;
+    };
+
+    const supplementId = (
+      await db.execute(
+        sql`insert into supplement (name, dose) values ('Vitamin D', '1 cap') returning id`,
+      )
+    ).rows[0]!.id as number;
+    const exerciseId = (
+      await db.execute(
+        sql`insert into exercise (organization_id,source,name) values ('org-a','user','Goal squat') returning id`,
+      )
+    ).rows[0]!.id as number;
+    const ids = {
+      water: await create({
+        title: "Drink 2 litres",
+        source: "water",
+        metric: "water_ml",
+        unit: "ml",
+        rule: { kind: "target", target: { kind: "minimum", value: 2000 } },
+      }),
+      sleep: await create({
+        title: "Sleep 7 hours",
+        source: "sleep",
+        metric: "sleep_hours",
+        unit: "h",
+        rule: { kind: "recurring", cadence: "daily", completion: { kind: "minimum", value: 7 } },
+      }),
+      supplement: await create({
+        title: "Vitamin D every day",
+        source: "supplement",
+        metric: `supplement:${supplementId}`,
+        unit: null,
+        rule: { kind: "recurring", cadence: "daily" },
+      }),
+      workout: await create({
+        title: "Squat 100 kg",
+        source: "workout",
+        metric: `exercise:${exerciseId}`,
+        unit: "kg",
+        rule: { kind: "target", target: { kind: "minimum", value: 100 } },
+      }),
+      manual: await create({
+        title: "Stretch streak",
+        source: "manual",
+        metric: "stretch",
+        unit: null,
+        rule: { kind: "streak", target: { kind: "minimum", value: 1 }, targetDays: 5 },
+      }),
+    };
+
+    // Evidence from each source's own records.
+    const justNow = new Date(Date.now() - 60_000);
+    await db.execute(sql`insert into plain_water_entry
+      (organization_id, user_id, quantity_ml, observed_at, time_zone, client_mutation_id)
+      values ('org-a', 'user-a', 1000, ${justNow}, 'UTC', 'water-500-a'),
+             ('org-a', 'user-a', 500, ${justNow}, 'UTC', 'water-500-b')`);
+    await insertManualSleepSession(db, {
+      organizationId: "org-a",
+      userId: "user-a",
+      startAt: `${day(-2)}T23:00:00.000Z`,
+      endAt: `${day(-1)}T07:00:00.000Z`,
+      quality: null,
+      dedupeHash: "sleep-500",
+    });
+    await db.execute(sql`insert into supplement_intake
+      (organization_id, user_id, supplement_id, occurred_at, timezone, dose)
+      values ('org-a', 'user-a', ${supplementId}, ${justNow}, 'UTC', '1 cap')`);
+    await db.transaction((tx) =>
+      createWorkoutRepository(db).upsertWorkout(tx, "org-a", {
+        userId: "user-a",
+        date: day(-1),
+        type: "weights",
+        exercises: [{ name: "Goal squat", exerciseId, sets: [{ reps: 3, weightKg: 102.5 }] }],
+      }),
+    );
+    for (const date of [day(-1), today])
+      expect(
+        (
+          await call("createCheckin", {
+            goalId: ids.manual,
+            date,
+            value: 1,
+            clientMutationId: nextMutation(),
+          })
+        ).status,
+      ).toBe(200);
+
+    const input = await loadInsightEngineInput(
+      db,
+      { organizationId: "org-a", userId: "user-a" },
+      { weight: false, goals: true },
+      today,
+    );
+    const result = input.goals!.result;
+    const byId = new Map(result.goals.map((goal) => [goal.goalId, goal]));
+    expect(byId.get(ids.water)).toMatchObject({
+      state: "scored",
+      currentValue: 1500,
+      progress: 0.75,
+    });
+    // Three days before today, one qualifying night; today is still pending.
+    expect(byId.get(ids.sleep)).toMatchObject({ state: "scored", currentValue: 1, targetValue: 3 });
+    // Today has an intake, so it counts: one of four days.
+    expect(byId.get(ids.supplement)).toMatchObject({
+      state: "scored",
+      currentValue: 1,
+      targetValue: 4,
+    });
+    expect(byId.get(ids.workout)).toMatchObject({
+      state: "scored",
+      progress: 1,
+      reachedTarget: true,
+    });
+    expect(byId.get(ids.manual)).toMatchObject({
+      state: "scored",
+      currentValue: 2,
+      targetValue: 5,
+      progress: 0.4,
+    });
+    const progress = result.goals.map((goal) => goal.progress ?? 0);
+    expect(result).toMatchObject({ status: "available", coverage: { scored: 5, total: 5 } });
+    expect(result.score).toBe(
+      Math.round((100 * progress.reduce((sum, value) => sum + value, 0)) / progress.length),
+    );
+    // Another member's goal progress never includes them.
+    const other = await loadInsightEngineInput(
+      db,
+      { organizationId: "org-a", userId: "user-b" },
+      { weight: false, goals: true },
+      today,
+    );
+    expect(other.goals?.result.goals).toEqual([]);
+
+    // The goals tool shared by the Coach and connected AI apps.
+    const goalsFor = async (
+      grant: { nutrition?: boolean; trackers?: boolean },
+      userId = "user-a",
+    ) => {
+      const listed = await executeGoals(
+        {
+          db,
+          organizationId: "org-a",
+          userId,
+          canReadRecords: async () => true,
+          accessGate: async () => ({ allowed: true, includeNutritionNumbers: true, ...grant }),
+          logger: createStructuredLogger({ level: "error" }),
+        },
+        {},
+      );
+      return listed.status === "ok"
+        ? listed.goals.map((goal) => [goal.title, goal.source])
+        : listed.status;
+    };
+    // Without nutrition:read, no water goal.
+    expect(await goalsFor({})).toEqual([
+      ["Stretch streak", "manual"],
+      ["Squat 100 kg", "workout"],
+      ["Vitamin D every day", "supplement"],
+      ["Sleep 7 hours", "sleep"],
+    ]);
+    expect(await goalsFor({ nutrition: true })).toEqual([
+      ["Stretch streak", "manual"],
+      ["Squat 100 kg", "workout"],
+      ["Vitamin D every day", "supplement"],
+      ["Sleep 7 hours", "sleep"],
+      ["Drink 2 litres", "water"],
+    ]);
+    // Modules switched off hide their goals; manual goals stay.
+    await db.execute(
+      sql`insert into wellness_profile (user_id, revision, enabled_modules) values ('user-a', 1, array['food'])`,
+    );
+    expect(await goalsFor({ nutrition: true })).toEqual([
+      ["Stretch streak", "manual"],
+      ["Drink 2 litres", "water"],
+    ]);
+    expect(await goalsFor({ nutrition: true }, "user-b")).toBe("no_data");
   });
 });
