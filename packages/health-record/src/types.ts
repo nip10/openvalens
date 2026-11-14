@@ -39,7 +39,17 @@ export type TimelineEvent = {
    * `provider` is the ingest channel when known: `apple_health`,
    * `health_connect`, a wearable vendor id, or `manual` for a typed-in reading.
    */
-  sourceRefs: { type: string; label: string; id?: number | string; provider?: string }[];
+  sourceRefs: {
+    type: string;
+    label: string;
+    id?: number | string;
+    provider?: string;
+    /**
+     * #507 — for an `ai_app` source: the grant's kind and the host an OAuth
+     * app is shown with, so the apps never name it by its label alone.
+     */
+    app?: { kind: "personal_key" | "oauth"; host: string | null };
+  }[];
   provenanceRefs: { sourceTable: string; sourceId: number; relation: string }[];
   relatedRefs: { table: string; id: number; relation: string }[];
   canonical: Record<string, unknown>;

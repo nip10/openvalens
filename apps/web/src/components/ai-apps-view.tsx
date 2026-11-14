@@ -3,7 +3,9 @@ import {
   AI_APPS_HELP_PAGES,
   aiAppCallStatusLabel,
   aiAppCallTone,
+  aiAppGrantIdentity,
   aiAppGrantStatusLabel,
+  aiAppName,
   aiAppScopeTitle,
   aiAppsHelpUrl,
   claudeCodeOAuthCommand,
@@ -74,7 +76,13 @@ export type AiAppsViewProps = {
  * and links to the per-client help pages. The route supplies the data.
  */
 export function AiAppsView(props: AiAppsViewProps) {
+  const { i18n } = useLingui();
   const { status } = props;
+  // #507 — an OAuth app is named with its host, a key as a personal key.
+  const nameOf = (grant: AiAppGrantLike | null | undefined) =>
+    grant ? aiAppName(aiAppGrantIdentity(grant), i18n) : "";
+  const revokeName = nameOf(props.confirmRevoke);
+  const deleteWritesName = nameOf(props.confirmDeleteWrites);
   const connections = splitGrants(props.grants, "oauth");
   const keys = splitGrants(props.grants, "personal_key");
   const activeKeyCount = keys.active.length;
@@ -189,7 +197,7 @@ export function AiAppsView(props: AiAppsViewProps) {
           <AlertDialogHeader>
             <AlertDialogTitle>
               {props.confirmRevoke?.kind === "oauth" ? (
-                <Trans>Disconnect {props.confirmRevoke.label}?</Trans>
+                <Trans>Disconnect {revokeName}?</Trans>
               ) : (
                 <Trans>Revoke the key {props.confirmRevoke?.label}?</Trans>
               )}
@@ -229,7 +237,7 @@ export function AiAppsView(props: AiAppsViewProps) {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              <Trans>Delete everything {props.confirmDeleteWrites?.label} added?</Trans>
+              <Trans>Delete everything {deleteWritesName} added?</Trans>
             </AlertDialogTitle>
             <AlertDialogDescription>
               <Plural
@@ -363,13 +371,14 @@ function GrantCard(props: AiAppsViewProps & { grant: AiAppGrantLike }) {
       .join(", ");
   const writes = scopeNames(true);
   const entryCount = grant.entryCount ?? 0;
+  const name = aiAppName(aiAppGrantIdentity(grant), i18n);
 
   return (
     <li className="sheet grid gap-4 p-5" data-grant={grant.id}>
       <div className="flex flex-wrap items-start gap-4">
         <ToneIcon icon={grant.kind === "oauth" ? Bot : KeyRound} tone="neutral" />
         <div className="grid min-w-0 flex-1 basis-48 gap-1">
-          <h3 className="font-display text-lg font-medium wrap-anywhere text-ink">{grant.label}</h3>
+          <h3 className="font-display text-lg font-medium wrap-anywhere text-ink">{name}</h3>
           <div className="flex flex-wrap items-center gap-2 text-sm text-ink-3">
             {grant.kind === "oauth" ? (
               <>
@@ -395,7 +404,7 @@ function GrantCard(props: AiAppsViewProps & { grant: AiAppGrantLike }) {
             variant="outline"
             onClick={() => props.onConfirmRevokeChange(grant)}
             disabled={props.revokingId === grant.id}
-            aria-label={t`Revoke ${grant.label}`}
+            aria-label={t`Revoke ${name}`}
           >
             {props.revokingId === grant.id ? t`Revoking…` : t`Revoke`}
           </Button>

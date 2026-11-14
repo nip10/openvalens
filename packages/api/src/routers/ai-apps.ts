@@ -44,6 +44,8 @@ const grantShape = z.object({
   displayPrefix: z.string().nullable(),
   /** Host of an OAuth app's metadata-document client id; `null` otherwise. */
   clientIdHost: z.string().nullable(),
+  /** The host an OAuth app is shown with next to its label (#507); `null` for a key. */
+  clientHost: z.string().nullable(),
   createdAt: z.string(),
   lastUsedAt: z.string().nullable(),
   expiresAt: z.string().nullable(),
@@ -105,8 +107,11 @@ const draftKind = z.enum(["food", "lab", "workout"]);
 const draftCommon = {
   id: z.string(),
   grantId: z.string(),
-  /** The app's name, shown as "via <app>". */
+  /** The app's self-declared name or the key's name, shown as "via <app>". */
   appName: z.string(),
+  appKind: z.enum(["personal_key", "oauth"]),
+  /** The host shown next to an OAuth app's name (#507); `null` for a key. */
+  appHost: z.string().nullable(),
   createdAt: z.string(),
 };
 const draftShape = z.discriminatedUnion("kind", [
@@ -259,6 +264,8 @@ const oauthDescribeOutput = z.object({
     clientIdHost: z.string().nullable(),
     registration: z.enum(["cimd", "dcr"]),
     redirectHost: z.string(),
+    /** The host shown next to the app's name (#507). */
+    appHost: z.string(),
     verified: z.literal(false),
   }),
   scopes: z.array(
@@ -618,6 +625,7 @@ export const aiAppsRouter = {
               clientIdHost: request.clientIdHost,
               registration: request.registration,
               redirectHost: request.redirectHost,
+              appHost: request.appHost,
               verified: false as const,
             },
             scopes: request.offeredScopes.map((scope) => ({
@@ -669,6 +677,7 @@ export const aiAppsRouter = {
             clientId: request.clientId,
             clientName: request.clientName,
             clientIdHost: request.clientIdHost,
+            clientHost: request.appHost,
             scopes: input.scopes,
             consentVersion: input.consentVersion,
             correlationId: context.correlationId,

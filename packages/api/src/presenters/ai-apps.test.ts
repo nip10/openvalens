@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { GRANTABLE_SCOPES } from "@openvalens/mcp/scopes";
 
+import { createAppI18n } from "@openvalens/i18n";
 import { englishI18n } from "@openvalens/i18n/testing";
 
 import {
@@ -10,7 +11,11 @@ import {
   aiAppCallStatusLabel,
   aiAppCallTone,
   aiAppExpiryLabel,
+  aiAppDraftIdentity,
+  aiAppGrantIdentity,
+  aiAppName,
   aiAppScopeTitle,
+  aiAppSourceLabel,
   aiAppsHelpUrl,
   isAiAppWriteScope,
   claudeCodeKeyCommand,
@@ -18,6 +23,8 @@ import {
   splitGrants,
   type AiAppGrantLike,
 } from "./ai-apps";
+
+const portugueseI18n = createAppI18n("pt-PT");
 
 function grant(id: string, kind: AiAppGrantLike["kind"], status: AiAppGrantLike["status"]) {
   return {
@@ -29,6 +36,7 @@ function grant(id: string, kind: AiAppGrantLike["kind"], status: AiAppGrantLike[
     status,
     displayPrefix: null,
     clientIdHost: null,
+    clientHost: null,
     createdAt: "2026-11-01T00:00:00.000Z",
     lastUsedAt: null,
     expiresAt: null,
@@ -68,6 +76,88 @@ describe("ai apps presenter", () => {
     expect(keys.active.map((entry) => entry.id)).toEqual(["b"]);
     expect(keys.inactive.map((entry) => entry.id)).toEqual(["c", "d"]);
     expect(splitGrants(grants, "oauth").active.map((entry) => entry.id)).toEqual(["a"]);
+  });
+
+  describe("app names (#507)", () => {
+    const oauth = (label: string | null, host: string | null) =>
+      aiAppName({ kind: "oauth", label, host }, englishI18n);
+
+    test("an OAuth app's self-declared name always comes with its host", () => {
+      expect(oauth("Claude", "claude.ai")).toBe("Claude (claude.ai)");
+      expect(oauth("Your doctor", "evil.example")).toBe("Your doctor (evil.example)");
+      expect(oauth("  Cursor  ", "localhost")).toBe("Cursor (localhost)");
+      expect(
+        aiAppSourceLabel({ kind: "oauth", label: "Claude", host: "claude.ai" }, englishI18n),
+      ).toBe("via Claude (claude.ai)");
+    });
+
+    test("a name that reads as OpenValens is dropped for the host", () => {
+      for (const name of [
+        "OpenValens",
+        "openvalens",
+        "Open Valens",
+        "OPEN-VALENS",
+        "Open.Valens!",
+        "0penVaIens",
+        "OpenVa1ens",
+        "Ｏｐｅｎ Ｖａｌｅｎｓ",
+        "Öpen Valéns",
+        "\u041epenValens",
+        "\u039fpen\u03bd\u03b1lens",
+        "Openvalens 2",
+      ]) {
+        expect(oauth(name, "evil.example")).toBe("evil.example");
+      }
+      expect(oauth("OpenValens", null)).toBe("An unnamed app");
+    });
+
+    test("names that only contain OpenValens are kept, with the host", () => {
+      expect(oauth("Claude Code (openvalens)", "localhost")).toBe(
+        "Claude Code (openvalens) (localhost)",
+      );
+      expect(oauth("OpenValens helper", "evil.example")).toBe("OpenValens helper (evil.example)");
+    });
+
+    test("an app named by its host, or with no name, goes by the host", () => {
+      expect(oauth("claude.ai", "claude.ai")).toBe("claude.ai");
+      expect(oauth(null, "claude.ai")).toBe("claude.ai");
+      expect(oauth("", "claude.ai")).toBe("claude.ai");
+    });
+
+    test("without a host the name is marked unverified", () => {
+      expect(oauth("Claude", null)).toBe("Claude (unverified)");
+      expect(oauth(null, null)).toBe("An unnamed app");
+    });
+
+    test("a personal key keeps the member's name and says it is a key", () => {
+      expect(aiAppName({ kind: "personal_key", label: "My script", host: null }, englishI18n)).toBe(
+        "My script (personal key)",
+      );
+      // The member named it; even "OpenValens" stays.
+      expect(aiAppName({ kind: "personal_key", label: "OpenValens", host: "x" }, englishI18n)).toBe(
+        "OpenValens (personal key)",
+      );
+    });
+
+    test("grants and drafts map to the same identity", () => {
+      const connected = { ...grant("Claude", "oauth", "active"), clientHost: "claude.ai" };
+      expect(aiAppName(aiAppGrantIdentity(connected), englishI18n)).toBe("Claude (claude.ai)");
+      expect(
+        aiAppName(
+          aiAppDraftIdentity({ appKind: "oauth", appName: "Claude", appHost: "claude.ai" }),
+          englishI18n,
+        ),
+      ).toBe("Claude (claude.ai)");
+    });
+
+    test("translates to European Portuguese", () => {
+      expect(
+        aiAppName({ kind: "personal_key", label: "Script", host: null }, portugueseI18n),
+      ).not.toBe("Script (personal key)");
+      expect(aiAppName({ kind: "oauth", label: "Claude", host: null }, portugueseI18n)).not.toBe(
+        "Claude (unverified)",
+      );
+    });
   });
 
   test("call status words and tones; unknown statuses read as failed", () => {

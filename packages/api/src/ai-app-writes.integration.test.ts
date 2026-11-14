@@ -469,11 +469,13 @@ describe.skipIf(!url)("AI app writes against disposable PostgreSQL", () => {
     });
     expect(page.items.length).toBeGreaterThanOrEqual(4);
     for (const item of page.items) {
+      // #507 — with the grant's kind, so the apps say "Claude (personal key)".
       expect(item.sourceRefs).toContainEqual({
         type: "ai_app",
         label: "Claude",
         id: `ai_app:${writeGrantId}`,
         provider: "ai_app",
+        app: { kind: "personal_key", host: null },
       });
     }
     const weight = page.items.find((item) => item.title.toLowerCase().includes("weight"));
@@ -518,6 +520,7 @@ describe.skipIf(!url)("AI app writes against disposable PostgreSQL", () => {
           label: "Claude",
           id: `ai_app:${writeGrantId}`,
           provider: "ai_app",
+          app: { kind: "personal_key", host: null },
         });
     const water = page.items.filter((item) => item.domain === "water");
     expect(water.map((item) => item.canonical.quantityMl).sort()).toEqual([111, 222, 250, 500]);
@@ -1319,6 +1322,7 @@ describe.skipIf(!url)("AI app writes against disposable PostgreSQL", () => {
         label: "Claude M2b",
         id: `ai_app:${setup.grantId}`,
         provider: "ai_app",
+        app: { kind: "personal_key", host: null },
       });
     // The member's own entries carry no AI tag.
     const all = await createHealthRecordRepository(db).listTimeline(ORG, { limit: 500 }, [], {
@@ -1559,6 +1563,10 @@ describe.skipIf(!url)("AI app writes against disposable PostgreSQL", () => {
     expect(owned.every((row) => row.targetTable === "ai_app_draft")).toBe(true);
 
     const listed = await review.list({ organizationId: ORG, userId: USER });
+    // #507 — a key's drafts say which kind of app wrote them; a key has no host.
+    expect(
+      listed.every((draft) => draft.appKind === "personal_key" && draft.appHost === null),
+    ).toBe(true);
     expect(listed.map((draft) => [draft.kind, draft.appName])).toEqual([
       ["food", "Claude M2c"],
       ["food", "Claude M2c"],

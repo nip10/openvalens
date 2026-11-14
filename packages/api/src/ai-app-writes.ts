@@ -1172,8 +1172,11 @@ export type AiAppDraftRow = {
   id: string;
   kind: AiAppDraftKind;
   grantId: string;
-  /** The app's name, shown as "via <app>". */
+  /** The app's self-declared name or the key's name, shown as "via <app>". */
   appName: string;
+  appKind: "personal_key" | "oauth";
+  /** The host shown next to an OAuth app's name (#507); `null` for a key. */
+  appHost: string | null;
   createdAt: string;
   payload: AiAppDraftPayload;
 };
@@ -1385,6 +1388,8 @@ export function createAiAppDraftReview(db: Database) {
           payload: aiAppDraft.payload,
           createdAt: aiAppDraft.createdAt,
           appName: aiAppGrant.label,
+          appKind: aiAppGrant.kind,
+          appHost: aiAppGrant.clientHost,
         })
         .from(aiAppDraft)
         .innerJoin(aiAppGrant, eq(aiAppGrant.id, aiAppDraft.grantId))
@@ -1402,6 +1407,8 @@ export function createAiAppDraftReview(db: Database) {
         kind: row.kind as AiAppDraftKind,
         grantId: row.grantId,
         appName: row.appName,
+        appKind: row.appKind === "oauth" ? "oauth" : "personal_key",
+        appHost: row.appKind === "oauth" ? row.appHost : null,
         createdAt: row.createdAt.toISOString(),
         payload: row.payload as AiAppDraftPayload,
       }));

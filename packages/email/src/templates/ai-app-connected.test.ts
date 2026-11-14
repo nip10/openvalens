@@ -4,7 +4,7 @@ import { renderAiAppConnectedEmail } from "./ai-app-connected";
 
 const INPUT = {
   appName: "Claude",
-  clientIdHost: "claude.ai",
+  host: "claude.ai",
   workspaceName: "Ada's records",
   connectedAt: "13 November 2026, 10:00 UTC",
   manageUrl: "https://app.example.test/settings/ai-apps",
@@ -22,9 +22,19 @@ describe("renderAiAppConnectedEmail", () => {
     expect(email.html).toContain("https://app.example.test/settings/ai-apps");
   });
 
-  test("omits the host for a dynamically registered app", async () => {
-    const email = await renderAiAppConnectedEmail({ ...INPUT, clientIdHost: null });
+  test("omits the host when it is unknown", async () => {
+    const email = await renderAiAppConnectedEmail({ ...INPUT, host: null });
     expect(email.text).not.toContain("(from");
+  });
+
+  test("names an app known only by its host by that host (#507)", async () => {
+    const email = await renderAiAppConnectedEmail({
+      ...INPUT,
+      appName: "evil.example",
+      host: "evil.example",
+    });
+    expect(email.text).toContain("An AI app from evil.example was connected");
+    expect(email.text).not.toContain("calling itself");
   });
 
   test("renders in European Portuguese", async () => {

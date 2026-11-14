@@ -2,8 +2,11 @@ import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import type { MealSlot } from "@openvalens/api/contracts/nutrition-diary";
 import {
   AI_APP_LAB_RANGE_FROM_REPORT,
-  AI_APP_SOURCE_LABEL,
+  aiAppDraftIdentity,
+  aiAppName,
+  aiAppSourceLabel,
   type AiAppDraftKind,
+  type AiAppIdentity,
 } from "@openvalens/api/presenters/ai-apps";
 import { displayLabRange, formatLabRange, formatLabValue } from "@openvalens/api/presenters/labs";
 import { SLOT_LABELS } from "@openvalens/api/presenters/nutrition-diary";
@@ -76,12 +79,10 @@ export function useAiAppDraftActions(onChanged?: () => void) {
 
 export type AiAppDraftActions = ReturnType<typeof useAiAppDraftActions>;
 
-/** "via Claude": which app wrote a draft. */
-export function ViaApp({ name }: { name: string }) {
+/** "via Claude (claude.ai)": which app wrote a draft (#507). */
+export function ViaApp({ app }: { app: AiAppIdentity }) {
   const { i18n } = useLingui();
-  return (
-    <StatusPill tone="neutral">{i18n._({ ...AI_APP_SOURCE_LABEL, values: { name } })}</StatusPill>
-  );
+  return <StatusPill tone="neutral">{aiAppSourceLabel(app, i18n)}</StatusPill>;
 }
 
 export function AiAppDraftError({ error }: { error: string | null }) {
@@ -133,7 +134,7 @@ export function AiAppLabDrafts({ onSaved }: { onSaved?: () => void }) {
         {drafts.map((draft, index) => {
           const range = labRangeLine(i18n, draft);
           const marker = draft.payload.markerName;
-          const app = draft.appName;
+          const app = aiAppName(aiAppDraftIdentity(draft), i18n);
           return (
             <DraftCard key={draft.id} label={t`${marker}, from ${app}`}>
               <View className="flex-row flex-wrap items-center justify-between gap-2">
@@ -146,7 +147,7 @@ export function AiAppLabDrafts({ onSaved }: { onSaved?: () => void }) {
                 <Text className="font-sans text-sm text-ink-3">
                   {friendlyDate(i18n, draft.payload.observedAt)}
                 </Text>
-                <ViaApp name={app} />
+                <ViaApp app={aiAppDraftIdentity(draft)} />
               </View>
               {range ? <Text className="font-sans text-sm text-ink-2">{range}</Text> : null}
               <View className="flex-row flex-wrap gap-2">
@@ -290,7 +291,7 @@ function WorkoutDraftCard({
     .filter(({ item }) => item.exerciseId === null);
   const ready = unresolved.every(({ index }) => chosen[index]);
   const type = i18n._(workoutTypeLabel(plan.type));
-  const app = draft.appName;
+  const app = aiAppName(aiAppDraftIdentity(draft), i18n);
   return (
     <DraftCard label={t`${type}, from ${app}`}>
       <View className="flex-row flex-wrap items-center justify-between gap-2">
@@ -300,7 +301,7 @@ function WorkoutDraftCard({
           {plan.duration ? ` · ${workoutDurationLabel(plan.duration)}` : ""}
         </Text>
       </View>
-      <ViaApp name={app} />
+      <ViaApp app={aiAppDraftIdentity(draft)} />
       <View className="gap-3">
         {plan.exercises.map((item, index) => (
           <View key={index} className="gap-1.5">
@@ -407,7 +408,7 @@ export function AiAppFoodDrafts({ onReview }: { onReview: (draft: AiAppFoodDraft
     >
       <View className="gap-3" testID="ai-app-food-drafts">
         {drafts.map((draft, index) => {
-          const app = draft.appName;
+          const app = aiAppName(aiAppDraftIdentity(draft), i18n);
           return (
             <DraftCard key={draft.id} label={t`Meal draft from ${app}`}>
               <View className="flex-row flex-wrap items-center gap-2">
@@ -415,7 +416,7 @@ export function AiAppFoodDrafts({ onReview }: { onReview: (draft: AiAppFoodDraft
                 <Text className="font-sans text-sm text-ink-3">
                   {friendlyDate(i18n, draft.payload.eatenAt)}
                 </Text>
-                <ViaApp name={app} />
+                <ViaApp app={aiAppDraftIdentity(draft)} />
               </View>
               <Text className="font-sans text-sm text-ink-2">
                 {draft.payload.items.map((item) => item.foodText).join(", ")}
@@ -479,7 +480,7 @@ export function AiAppFoodDraftReview({
     <View className="gap-3" testID="ai-food-draft-review">
       <View className="flex-row flex-wrap items-center gap-2">
         <Text className="font-sans text-base font-semibold text-ink">{title(draft)}</Text>
-        <ViaApp name={draft.appName} />
+        <ViaApp app={aiAppDraftIdentity(draft)} />
       </View>
       <Text className="font-sans text-sm text-ink-2">
         <Trans>

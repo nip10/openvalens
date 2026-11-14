@@ -51,6 +51,12 @@ export const aiAppGrant = pgTable(
     consentedAt: timestamp("consented_at", { withTimezone: true, mode: "date" }).notNull(),
     /** Reserved for OAuth connections (M1b): the registered client id. */
     oauthClientId: text("oauth_client_id"),
+    /**
+     * Issue #507 — the host an OAuth app is shown with next to its
+     * self-declared name ("Claude (claude.ai)"): its client id's host for a
+     * metadata document, else its redirect URL's. `null` for a personal key.
+     */
+    clientHost: text("client_host"),
     lastUsedAt: timestamp("last_used_at", { withTimezone: true, mode: "date" }),
     /** `null` means the grant never expires. */
     expiresAt: timestamp("expires_at", { withTimezone: true, mode: "date" }),

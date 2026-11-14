@@ -43,6 +43,7 @@ function grant(overrides: Partial<AiAppGrantLike> = {}): AiAppGrantLike {
     status: "active",
     displayPrefix: "ov_abc123",
     clientIdHost: null,
+    clientHost: null,
     createdAt: "2026-11-01T10:00:00.000Z",
     lastUsedAt: null,
     expiresAt: "2027-01-30T10:00:00.000Z",
@@ -92,6 +93,7 @@ describe("AiAppsView", () => {
               label: "Claude",
               displayPrefix: null,
               clientIdHost: "claude.ai",
+              clientHost: "claude.ai",
               scopes: ["nutrition:read", "records:read"],
               expiresAt: null,
             }),
@@ -103,7 +105,9 @@ describe("AiAppsView", () => {
     expect(html).toInclude("claude.ai");
     expect(html).toInclude("Nutrition, Your records");
     expect(html).toInclude("mcp-v1");
-    expect(html).toInclude('aria-label="Revoke Claude"');
+    // #507 — the self-declared name always comes with the host.
+    expect(html).toInclude(">Claude (claude.ai)</h3>");
+    expect(html).toInclude('aria-label="Revoke Claude (claude.ai)"');
   });
 
   test("a grant that can write lists what it may add, its entries and the delete action", () => {
@@ -153,7 +157,7 @@ describe("AiAppsView", () => {
     );
     expect(html).toInclude("No personal keys");
     expect(html).toInclude("1 revoked or expired");
-    expect(html).not.toInclude('aria-label="Revoke Claude Code"');
+    expect(html).not.toInclude('aria-label="Revoke Claude Code (personal key)"');
   });
 
   test("a member who is not the owner cannot create and is told why", () => {

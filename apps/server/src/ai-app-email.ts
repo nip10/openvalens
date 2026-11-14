@@ -97,7 +97,7 @@ export function createAiAppConnectedEmail(deps: {
     const message = await renderAiAppConnectedEmail(
       {
         appName: event.label,
-        clientIdHost: event.clientIdHost,
+        host: event.clientHost ?? event.clientIdHost,
         workspaceName: workspace?.name ?? "OpenValens",
         connectedAt: formatDate(locale, event.createdAt, true),
         manageUrl: `${new URL(deps.webOrigin).origin}${AI_APPS_SETTINGS_PATH}`,

@@ -1,5 +1,6 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import {
+  aiAppName,
   aiAppScopeDetail,
   aiAppScopeTitle,
   isAiAppWriteScope,
@@ -49,7 +50,7 @@ export type OAuthConsentViewProps = {
  * are listed apart and start unticked too.
  */
 export function OAuthConsentView(props: OAuthConsentViewProps) {
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const workspaceId = useId();
 
   if (props.status === "pending") {
@@ -77,7 +78,8 @@ export function OAuthConsentView(props: OAuthConsentViewProps) {
   const { client, workspaces, consentVersion } = props.request;
   const readScopes = props.request.scopes.filter((entry) => !isAiAppWriteScope(entry.scope));
   const writeScopes = props.request.scopes.filter((entry) => isAiAppWriteScope(entry.scope));
-  const appName = client.name ?? t`An unnamed app`;
+  // #507 — the self-declared name always comes with the app's host.
+  const appName = aiAppName({ kind: "oauth", label: client.name, host: client.appHost }, i18n);
   const allowedWorkspaces = workspaces.filter((workspace) => workspace.allowed);
   // Every read scope the connection would hold: required ones plus those ticked.
   const grantedReadScopes = readScopes

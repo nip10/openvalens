@@ -3,7 +3,9 @@ import {
   AI_APP_DISCLOSURE,
   aiAppCallStatusLabel,
   aiAppCallTone,
+  aiAppGrantIdentity,
   aiAppGrantStatusLabel,
+  aiAppName,
   aiAppScopeTitle,
   splitGrants,
   type AiAppGrantLike,
@@ -38,7 +40,7 @@ import { useThemeColor } from "@/utils/theme";
 export default function AiAppsSettingsScreen() {
   const foreground = useThemeColor("foreground");
   const queryClient = useQueryClient();
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const status = useQuery(orpc.aiApps.status.queryOptions({ input: {} }));
   const enabled = status.data?.enabled === true;
   const grants = useQuery({ ...orpc.aiApps.listGrants.queryOptions({ input: {} }), enabled });
@@ -68,9 +70,11 @@ export default function AiAppsSettingsScreen() {
     );
   }
 
-  const confirmRevoke = (grant: AiAppGrantLike) =>
+  // #507 — an OAuth app is named with its host; a key keeps the member's name.
+  const confirmRevoke = (grant: AiAppGrantLike) => {
+    const name = aiAppName(aiAppGrantIdentity(grant), i18n);
     Alert.alert(
-      grant.kind === "oauth" ? t`Disconnect ${grant.label}?` : t`Revoke the key ${grant.label}?`,
+      grant.kind === "oauth" ? t`Disconnect ${name}?` : t`Revoke the key ${grant.label}?`,
       t`The app stops reading your records on its next request. What it already read stays with the app.`,
       [
         { text: t`Cancel`, style: "cancel" },
@@ -81,6 +85,7 @@ export default function AiAppsSettingsScreen() {
         },
       ],
     );
+  };
 
   const list = grants.data?.grants ?? [];
   const connections = splitGrants(list, "oauth");
@@ -244,6 +249,7 @@ function GrantCard(props: {
       return title ? i18n._(title) : scope;
     })
     .join(", ");
+  const name = aiAppName(aiAppGrantIdentity(grant), i18n);
   const identity =
     grant.kind === "oauth"
       ? `${t`Unverified app`} · ${grant.clientIdHost ?? t`Registered automatically, no verified identity`}`
@@ -253,7 +259,7 @@ function GrantCard(props: {
     <ListCard
       icon={grant.kind === "oauth" ? Bot : KeyRound}
       tone="neutral"
-      title={grant.label}
+      title={name}
       status={{
         label: i18n._(aiAppGrantStatusLabel(grant.status)),
         tone: active ? "good" : "neutral",
@@ -283,7 +289,7 @@ function GrantCard(props: {
           size="sm"
           className="self-start"
           isDisabled={props.busyId === grant.id}
-          accessibilityLabel={t`Revoke ${grant.label}`}
+          accessibilityLabel={t`Revoke ${name}`}
           onPress={() => props.onRevoke(grant)}
         >
           <Button.Label>{props.busyId === grant.id ? t`Revoking…` : t`Revoke`}</Button.Label>

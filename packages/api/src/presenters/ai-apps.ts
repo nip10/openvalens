@@ -4,8 +4,9 @@
  * apps render with Lingui; scope strings, tool names and key prefixes are
  * identifiers and stay as the server sends them.
  */
-import type { MessageDescriptor } from "@lingui/core";
+import type { I18n, MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
+import { isReservedAiAppName } from "@openvalens/auth/mcp-oauth/client-name";
 
 /** The shape `aiApps.listGrants` returns per grant. */
 export type AiAppGrantLike = {
@@ -17,6 +18,8 @@ export type AiAppGrantLike = {
   status: "active" | "revoked" | "expired";
   displayPrefix: string | null;
   clientIdHost: string | null;
+  /** The host an OAuth app is shown with next to its label (#507); `null` for a key. */
+  clientHost: string | null;
   createdAt: string;
   lastUsedAt: string | null;
   expiresAt: string | null;
@@ -290,11 +293,90 @@ export function splitGrants(
   };
 }
 
-/** "via Claude": how entries an AI app wrote are labelled. */
+/** "via Claude (claude.ai)": how entries an AI app wrote are labelled. */
 export const AI_APP_SOURCE_LABEL = msg({
   message: "via {name}",
-  comment: "Source of an entry a connected AI app wrote; {name} is the app's or key's name.",
+  comment:
+    "Source of an entry a connected AI app wrote; {name} is the app's name with its web address, e.g. 'Claude (claude.ai)', or a personal key's name, e.g. 'My script (personal key)'.",
 });
+
+/**
+ * Who a connected AI app is (#507): an OAuth app's self-declared name (or a
+ * personal key's name, which the member typed) and, for an OAuth app, the
+ * host it connected from.
+ */
+export type AiAppIdentity = {
+  kind: AiAppGrantLike["kind"];
+  /** `null` when the app gave no name. */
+  label: string | null;
+  /** `null` for a personal key, or when the server does not know it. */
+  host: string | null;
+};
+
+const APP_NAME = {
+  withHost: msg({
+    message: "{name} ({host})",
+    comment:
+      "A connected AI app: the name it gives itself, then the web address it connected from, e.g. 'Claude (claude.ai)'. Keep both as they are.",
+  }),
+  unverified: msg({
+    message: "{name} (unverified)",
+    comment:
+      "A connected AI app whose web address is not known: the name it gives itself, which nobody checked.",
+  }),
+  personalKey: msg({
+    message: "{name} (personal key)",
+    comment: "A personal API key, by the name the member gave it, e.g. 'My script (personal key)'.",
+  }),
+  unnamed: msg`An unnamed app`,
+} as const;
+
+/** A grant as an {@link AiAppIdentity}. */
+export function aiAppGrantIdentity(
+  grant: Pick<AiAppGrantLike, "kind" | "label" | "clientHost">,
+): AiAppIdentity {
+  return { kind: grant.kind, label: grant.label, host: grant.clientHost };
+}
+
+/** An AI-app draft's app as an {@link AiAppIdentity}. */
+export function aiAppDraftIdentity(draft: {
+  appKind: AiAppGrantLike["kind"];
+  appName: string;
+  appHost: string | null;
+}): AiAppIdentity {
+  return { kind: draft.appKind, label: draft.appName, host: draft.appHost };
+}
+
+/**
+ * How a connected AI app is named everywhere (#507). An OAuth app's name is
+ * self-declared, so it always comes with its host: "Claude (claude.ai)". A
+ * name that reads as "OpenValens" is dropped and the app goes by its host
+ * alone, as does an app whose name is its host. Without a host the name is
+ * marked "(unverified)". A personal key keeps the name the member typed:
+ * "My script (personal key)".
+ */
+export function aiAppName(app: AiAppIdentity, i18n: I18n): string {
+  const label = app.label?.trim() || null;
+  if (app.kind === "personal_key") {
+    return label
+      ? i18n._({ ...APP_NAME.personalKey, values: { name: label } })
+      : i18n._(APP_NAME.unnamed);
+  }
+  const host = app.host?.trim() || null;
+  const name =
+    label && !isReservedAiAppName(label) && label.toLowerCase() !== host?.toLowerCase()
+      ? label
+      : null;
+  if (name && host) return i18n._({ ...APP_NAME.withHost, values: { name, host } });
+  if (host) return host;
+  if (name) return i18n._({ ...APP_NAME.unverified, values: { name } });
+  return i18n._(APP_NAME.unnamed);
+}
+
+/** "via Claude (claude.ai)": the source line of an entry an AI app wrote. */
+export function aiAppSourceLabel(app: AiAppIdentity, i18n: I18n): string {
+  return i18n._({ ...AI_APP_SOURCE_LABEL, values: { name: aiAppName(app, i18n) } });
+}
 
 /** The timeline filter that shows only what one grant wrote. */
 export function aiAppTimelineSource(grantId: string): string {

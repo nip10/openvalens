@@ -1,4 +1,5 @@
 import type { FoodDraftCandidateWire } from "@openvalens/api/contracts/nutrition-food-drafts";
+import { aiAppDraftIdentity, aiAppName } from "@openvalens/api/presenters/ai-apps";
 import {
   FOOD_DRAFT_COPY,
   FOOD_DRAFT_FLAG_LABELS,
@@ -139,7 +140,7 @@ function FoodDraftPage() {
     : (provider.data?.provider ?? "");
   const itemLegend = (number: number, heard: string | null) => {
     if (aiDraft && heard !== null) {
-      const app = aiDraft.appName;
+      const app = aiAppName(aiAppDraftIdentity(aiDraft), i18n);
       return t`Item ${number}, from ${app}: “${heard}”`;
     }
     return heard === null ? t`Item ${number}, from the photo` : t`Item ${number}, heard “${heard}”`;
@@ -330,7 +331,7 @@ function FoodDraftPage() {
           <div className="grid gap-3">
             {aiDraft ? (
               <p className="text-sm text-ink-2">
-                <ViaApp name={aiDraft.appName} />{" "}
+                <ViaApp app={aiAppDraftIdentity(aiDraft)} />{" "}
                 <Trans>
                   Log each food in your meal diary, then mark the draft done. It stays here until
                   you do.
