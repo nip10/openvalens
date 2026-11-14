@@ -49,12 +49,12 @@ const TMP_AUTH_KEY_INFO = utf8("hichain_tmp_auth_enc_key");
 export const HUAWEI_PAKE_EXCHANGE_REQUEST_AAD = utf8("hichain_exchange_request");
 export const HUAWEI_PAKE_EXCHANGE_RESPONSE_AAD = utf8("hichain_exchange_response");
 
-/** RFC 7748 base point u = 9. */
-export const HUAWEI_PAKE_BASE_POINT = (() => {
+/** RFC 7748 base point u = 9 (a fresh copy each call). */
+export function huaweiPakeBasePoint(): Uint8Array {
   const point = new Uint8Array(32);
   point[0] = 9;
   return point;
-})();
+}
 
 // ---------------------------------------------------------------------------
 // SecurityNegotiation, PAKE form (`DeviceConfig.SecurityNegotiation.Request`, MBB)
@@ -137,7 +137,7 @@ export type HuaweiPakeResponse =
  * (1 DH, 2 JSON, 3 device identity), tag 2 the payload. STS replies are routed
  * by message number, bind replies by their keys. A non-zero
  * `payload.errorCode` is the watch refusing (`HUAWEI_PAKE_REJECTED`);
- * anything unrecognised is `HUAWEI_PAKE_PROTOCOL` (upstream would restart).
+ * anything unrecognised is `HUAWEI_PAKE_PROTOCOL` (upstream fails it too, in its step-0 branch).
  */
 export function parseHuaweiPakeResponse(tlv: HuaweiTlv): HuaweiPakeResponse {
   if (huaweiTlvBytes(tlv, 0x04) !== null) throw new Error("HUAWEI_PAKE_PROTOCOL");
@@ -155,10 +155,17 @@ export function parseHuaweiPakeResponse(tlv: HuaweiTlv): HuaweiPakeResponse {
   } catch {
     throw new Error("HUAWEI_PAKE_PROTOCOL");
   }
+  if (!envelope || typeof envelope !== "object") throw new Error("HUAWEI_PAKE_PROTOCOL");
   const payload = envelope.payload as Record<string, unknown> | undefined;
   if (!payload || typeof payload !== "object") throw new Error("HUAWEI_PAKE_PROTOCOL");
-  const errorCode = payload.errorCode;
-  if (typeof errorCode === "number" && errorCode !== 0) throw new Error("HUAWEI_PAKE_REJECTED");
+  // org.json `getInt`/`optInt` also coerce numeric strings.
+  const integer = (value: unknown) =>
+    typeof value === "number" ? value : typeof value === "string" ? Number(value) : Number.NaN;
+  if ("errorCode" in payload) {
+    const errorCode = integer(payload.errorCode);
+    if (Number.isNaN(errorCode)) throw new Error("HUAWEI_PAKE_PROTOCOL");
+    if (errorCode !== 0) throw new Error("HUAWEI_PAKE_REJECTED");
+  }
   const hex = (key: string) => {
     const value = payload[key];
     if (typeof value !== "string") throw new Error("HUAWEI_PAKE_PROTOCOL");
@@ -168,7 +175,7 @@ export function parseHuaweiPakeResponse(tlv: HuaweiTlv): HuaweiPakeResponse {
       throw new Error("HUAWEI_PAKE_PROTOCOL");
     }
   };
-  const message = envelope.message;
+  const message = integer(envelope.message);
   if (message === HUAWEI_PAKE_MESSAGE.stsStartReply)
     return {
       kind: "sts_start",

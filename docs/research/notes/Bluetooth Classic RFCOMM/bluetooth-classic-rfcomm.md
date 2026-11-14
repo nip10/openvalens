@@ -186,7 +186,7 @@ Auth-mode selection, which is the same code for BR and LE (`SP:585-637`):
 - `deviceSupportType` `1`, `3` or `4` → HiChain. Upstream sends a SecurityNegotiation (`0x01/0x33`). If `supportsHiChainPake()`, it goes to the Honor PAKE/STS path (`SP:620-621`, `SP:640-656`). Otherwise it goes to `finalizeSecurityNegotiationHiChain`: HiChain/HiChain3 for `authType 0x0186A0` or HiChain3 bits, HiChainLite for `authType` 1 or 2 (`SP:663-673`).
 - Full HiChain fetches the watch PIN with `GetPincodeRequest` (`0x01/0x2C`) on the first connection only. The PIN comes back encrypted with the digest secret (`DC:1690-1732`, `Cry:248-257`). Upstream then runs the HiChain ISO exchange (`0x01/0x28`, JSON steps). It derives `sessionKey = HKDF-SHA256(psk, randSelf‖randPeer, "hichain_iso_session_key")` and finally sets the packet secret key (`SP:708-722`, `R/GetHiChainRequest.java:132`, `:196`).
 
-What we have now (`ours/…/transport/huawei.ts`): normal mode, HiChainLite (with the watch PIN below auth version 2) full HiChain, and Honor PAKE/STS for the three `honorPake` models (`honor-pake-sts.md`).
+What we have now (`ours/…/transport/huawei.ts`): normal mode, HiChainLite (with the watch PIN below auth version 2), full HiChain and Honor PAKE/STS for the three `honorPake` models (`honor-pake-sts.md`).
 
 ### 3.5 Messages that differ
 

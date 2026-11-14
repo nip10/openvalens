@@ -13,7 +13,7 @@ import { nodeHuaweiAes, nodeHuaweiCrypto } from "../crypto/huawei-node-crypto.te
 import { decodeHuaweiTlv, encodeHuaweiTlv } from "./huawei";
 import { huaweiHexUpper, huaweiUnhex } from "./huawei-hichain";
 import {
-  HUAWEI_PAKE_BASE_POINT,
+  huaweiPakeBasePoint,
   HUAWEI_PAKE_EXCHANGE_REQUEST_AAD,
   buildHuaweiPakeDhRequest,
   buildHuaweiPakeJson,
@@ -74,6 +74,19 @@ test("Elligator2 matches upstream's OpenHarmony-validated vectors byte for byte"
     expect(lower(huaweiPakeHashToCurve(huaweiUnhex(input)))).toBe(output);
 });
 
+test("Elligator2 keeps upstream's left-aligned placement when x < 2^248", () => {
+  // None of upstream's vectors reaches this case. Found and computed by an
+  // independent BigInt script; the ordinary little-endian encoding would be
+  // 0c4bcd…539500 (x's top byte is zero).
+  expect(
+    lower(
+      huaweiPakeHashToCurve(
+        huaweiUnhex("2810ef4ae2add576ad9f835237431d1211f993d6dcba48b0c017779ab2cc67c2"),
+      ),
+    ),
+  ).toBe("000c4bcd28b3e726dbdeb11a0c1bcadf4430a2c4540def36f3dace0e57b89539");
+});
+
 test("X25519 matches RFC 7748 §5.2 vector 1", () => {
   expect(
     lower(
@@ -122,7 +135,7 @@ test("the Ed25519-to-X25519 maps agree and both sides derive one STS PSK", () =>
   const seedB = huaweiUnhex("a1b2c3d4e5f60718293a4b5c6d7e8f900f1e2d3c4b5a69788796a5b4c3d2e1f0");
   for (const seed of [seedA, seedB])
     expect(
-      lower(huaweiPakeX25519(huaweiPakeIdentityToX25519Secret(seed), HUAWEI_PAKE_BASE_POINT)),
+      lower(huaweiPakeX25519(huaweiPakeIdentityToX25519Secret(seed), huaweiPakeBasePoint())),
     ).toBe(lower(huaweiPakeIdentityToX25519Public(huaweiPakeIdentityPublicKey(seed))));
   const pskA = huaweiPakeStsPsk(seedA, huaweiPakeIdentityPublicKey(seedB));
   const pskB = huaweiPakeStsPsk(seedB, huaweiPakeIdentityPublicKey(seedA));
@@ -140,8 +153,8 @@ const BIND_INPUTS = HONOR_PAKE_INPUTS;
 
 test("the bind's DH, PIN, SPEKE keys and proofs match the independent script", () => {
   const input = BIND_INPUTS;
-  const phoneDhPub = huaweiPakeX25519(input.phoneDh, HUAWEI_PAKE_BASE_POINT);
-  const watchDhPub = huaweiPakeX25519(input.watchDh, HUAWEI_PAKE_BASE_POINT);
+  const phoneDhPub = huaweiPakeX25519(input.phoneDh, huaweiPakeBasePoint());
+  const watchDhPub = huaweiPakeX25519(input.watchDh, huaweiPakeBasePoint());
   expect(huaweiHexUpper(phoneDhPub)).toBe(KAT.phoneDhPub);
   expect(huaweiHexUpper(watchDhPub)).toBe(KAT.watchDhPub);
   const pin = huaweiPakeBindPin(huaweiPakeX25519(input.phoneDh, watchDhPub));
@@ -325,6 +338,14 @@ test("replies route by data type, STS message number, then payload keys", () => 
   expect(() => parseHuaweiPakeResponse(json({ message: 1, payload: {} }))).toThrow(
     "HUAWEI_PAKE_PROTOCOL",
   );
+  // org.json coerces numeric strings (`getInt`, `optInt`); a JSON `null` body is malformed.
+  expect(() =>
+    parseHuaweiPakeResponse(json({ message: 32770, payload: { errorCode: "7" } })),
+  ).toThrow("HUAWEI_PAKE_REJECTED");
+  expect(parseHuaweiPakeResponse(json({ message: "32786", payload: { kcfData: "01" } })).kind).toBe(
+    "sts_ack",
+  );
+  expect(() => parseHuaweiPakeResponse(json(null))).toThrow("HUAWEI_PAKE_PROTOCOL");
   // Classic HiChain framing (tag 0x04) is not PAKE.
   expect(() => parseHuaweiPakeResponse([{ tag: 0x04, value: Uint8Array.of(0) }])).toThrow(
     "HUAWEI_PAKE_PROTOCOL",

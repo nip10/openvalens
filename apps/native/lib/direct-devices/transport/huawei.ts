@@ -584,7 +584,11 @@ export class HuaweiSession {
         // `finalizeSecurityNegotiationPake`: the MBB request asks to reconnect
         // once we know the watch; its pairType answer (2: STS, else bind)
         // decides, never authType.
-        const known = this.hichainStore.getPakePeer(this.options.deviceId) !== null;
+        // A watch identity without our seed cannot run STS: treat it as unknown.
+        const deviceId = this.options.deviceId;
+        if (this.hichainStore.getPakePeer(deviceId) && !this.hichainStore.getPakeSeed(deviceId))
+          this.forgetPakeWatch();
+        const known = this.hichainStore.getPakePeer(deviceId) !== null;
         const reply = parseHuaweiSecurityNegotiationResponse(
           await this.request(
             HUAWEI_DEVICE_CONFIG_SERVICE,
@@ -671,18 +675,29 @@ export class HuaweiSession {
       seed,
     };
     if (this.pakeReconnect) {
-      // Upstream fails the same way ("the watch must be re-paired").
-      if (!peer) throw new Error("HUAWEI_PAKE_REBIND_REQUIRED");
       try {
+        // Upstream fails the same way ("the watch must be re-paired").
+        if (!peer) throw new Error("HUAWEI_PAKE_REBIND_REQUIRED");
         await runHuaweiPakeReconnect(context, peer);
       } catch (error) {
         if (error instanceof Error && error.message === "HUAWEI_PAKE_REBIND_REQUIRED")
-          this.hichainStore.clearPakePeer(deviceId);
+          this.forgetPakeWatch();
         throw error;
       }
       return;
     }
     this.hichainStore.setPakePeer(deviceId, await runHuaweiPakeBind(context));
+  }
+
+  /**
+   * After a failed STS: drop the watch's identity and take a new authId, so
+   * the next negotiation asks for (and, since the watch does not know the new
+   * id, gets) a fresh bind instead of another STS against a stale trust entry.
+   */
+  private forgetPakeWatch(): void {
+    const deviceId = this.options.deviceId;
+    this.hichainStore.clearPakePeer(deviceId);
+    this.hichainStore.setAndroidId(deviceId, huaweiHexUpper(this.randomBytes(16)));
   }
 
   // -------------------------------------------------------------------------
