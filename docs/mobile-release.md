@@ -1,6 +1,6 @@
 # Mobile release (EAS)
 
-**Applies to:** the Expo app in `apps/native` · Last updated: 2026-11-01
+**Applies to:** the Expo app in `apps/native` · Last updated: 2026-11-14
 
 How to build and submit the iOS and Android apps with
 [EAS Build](https://docs.expo.dev/build/introduction/) and
@@ -124,6 +124,76 @@ and `android/` folders this generates are not committed.
   usual. `minSdkVersion` is 26.
 - **Camera:** used only to scan food barcodes (the usage text is in
   `app.json`).
+- **Bluetooth:** used only to connect to a device the person chooses to pair
+  (`@config-plugins/react-native-ble-plx`, usage text in `app.json`). On
+  Android, two local modules (`apps/native/modules/bt-classic`,
+  `pebble-bond`) add `BLUETOOTH_CONNECT` and `BLUETOOTH_SCAN`.
+
+## iOS app extensions: the home-screen widget
+
+The quick-log widget (#449, PR #499) is an iOS WidgetKit extension built at
+prebuild by `@bacons/apple-targets` from `apps/native/targets/quick-log-widget`.
+It has its own bundle id, `com.openvalens.app.quicklogwidget`, so it needs its
+own App ID and provisioning profile. It has no App Group and no other
+capability, and it shows no health data on iOS: its three buttons only open
+`openvalens://quick-log?widget=…`. On Android the widget is a receiver inside
+the app package and needs nothing extra.
+
+**Nothing goes in `eas.json`.** `eas.json` has no setting for extensions or
+their entitlements. The plugin writes the extension into the app config
+(`extra.eas.build.experimental.ios.appExtensions`), which is where EAS looks
+for the targets to sign, and the widget has no entitlements to declare
+(checked on 1.2.0, with `ios.appleTeamId` still unset). To see it:
+
+```bash
+cd apps/native
+bunx expo config --type prebuild --json | jq '.extra.eas.build.experimental.ios.appExtensions'
+# → [{ "bundleIdentifier": "com.openvalens.app.quicklogwidget", "targetName": "QuickLogWidget" }]
+```
+
+**Once, before the first store build with the widget** (the owner; CI builds
+with `--non-interactive` and can only reuse stored credentials, so a tag build
+without the extension's profile fails):
+
+1. **Set `ios.appleTeamId`.** Find the Team ID (10 characters) at
+   developer.apple.com → Account → Membership details. It is the same value
+   as the server's `APPLE_TEAM_ID` for Sign in with Apple. Add
+   `"appleTeamId": "<TEAM ID>"` under `expo.ios` in `apps/native/app.json`
+   in a pull request; it is not a secret. Without it `@bacons/apple-targets`
+   warns "Expo config is missing required ios.appleTeamId" and the
+   extension's Xcode target has no development team. EAS applies its own
+   profiles to every target, so builds can sign without it, but set it so
+   prebuilds and local Xcode builds match.
+2. **Register the extension and create its credentials:**
+
+   ```bash
+   cd apps/native
+   bunx eas-cli credentials --platform ios
+   # → production → it lists OpenValens (com.openvalens.app) and
+   #   QuickLogWidget (com.openvalens.app.quicklogwidget)
+   # → Build Credentials → set up all the required credentials
+   # → sign in with the Apple ID of the team
+   ```
+
+   EAS registers the App ID `com.openvalens.app.quicklogwidget` in the Apple
+   Developer portal, reuses the existing distribution certificate and creates
+   an App Store provisioning profile for the extension. Leave the extension's
+   capabilities empty: it needs no App Group, HealthKit or push. Do the same
+   for `preview` if you build preview (ad hoc) builds; its profile must list
+   the test devices. Running the first production build interactively
+   (`bunx eas-cli build --profile production --platform ios`) does the same.
+
+   To register the App ID by hand instead: developer.apple.com →
+   Certificates, Identifiers & Profiles → Identifiers → + → App IDs → App →
+   Explicit Bundle ID `com.openvalens.app.quicklogwidget`, no capabilities.
+   Then run `eas credentials` as above to create the profile.
+
+3. **Check** with `bunx eas-cli credentials --platform ios` that both targets
+   have a valid distribution certificate and provisioning profile, then push
+   the tag.
+
+App Store Connect needs nothing for the extension: it ships inside the app,
+and it adds no purpose string or App Privacy answer.
 
 ## Pre-submission checklist
 
@@ -138,3 +208,6 @@ and `android/` folders this generates are not committed.
 - [ ] Age rating questionnaires answered (health information, no user-generated content shared publicly).
 - [ ] Medical disclaimer visible in the store description: OpenValens is not a medical device and gives no diagnosis.
 - [ ] `EXPO_PUBLIC_EAS_PROJECT_ID` set and push tested, or push knowingly shipped off.
+- [ ] Every iOS target has credentials on EAS (`bunx eas-cli credentials --platform ios`), including app extensions such as the [home-screen widget](#ios-app-extensions-the-home-screen-widget).
+- [ ] What's New written for the version: `releaseNotes` in `apps/native/store.config.json` (App Store) and `apps/native/store/play/<locale>/changelogs/default.txt` (Play), in en-US and pt-PT; `bun test apps/native/store` passes.
+- [ ] A new Health Connect permission or HealthKit type has its Play declaration and App Review note ([Store listings](store-listings.md#google-health-connect-permissions-declaration)).

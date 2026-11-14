@@ -1,1 +1,10 @@
-First release.
+• Custom trackers, with goals and insights on what changed
+• Fill a Meditation tracker from Health Connect
+• Log in a few taps: the new "+" tab, a typed one-liner or the app icon
+• Home-screen widget for quick logging
+• Pain on the body map
+• Drinks, with opt-in caffeine and alcohol totals
+• New Food and Training tabs, with an exercise library
+• More watches, bands, rings and scales over Bluetooth
+• Check what your AI app drafts before it is saved
+• Decimal comma in every number field
