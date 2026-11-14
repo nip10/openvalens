@@ -3,6 +3,7 @@ import type { I18n } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import type { GoalSummary } from "@openvalens/plans/personal-goals";
 import type { GoalComparator, GoalRule } from "@openvalens/plans/goal-model";
+import { trackerIdFromGoalMetric } from "@openvalens/plans/goal-tracker";
 import { Button } from "@openvalens/ui/components/button";
 import { Input } from "@openvalens/ui/components/input";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -346,6 +347,16 @@ function QuickAction({ goal, onSaved }: { goal: GoalSummary; onSaved: () => void
         className="inline-flex min-h-9 w-fit items-center rounded-xl bg-food-soft px-3 text-sm font-medium text-ink"
       >{t`Log water`}</Link>
     );
+  if (actionKind === "tracker-entries") {
+    const trackerId = trackerIdFromGoalMetric(goal.definition.metric);
+    return trackerId ? (
+      <Link
+        to="/trackers/$trackerId"
+        params={{ trackerId }}
+        className="inline-flex min-h-9 w-fit items-center rounded-xl bg-paper-2 px-3 text-sm font-medium text-ink"
+      >{t`Log in the tracker`}</Link>
+    ) : null;
+  }
   if (actionKind === "sleep-records" || actionKind === "workout-records")
     return (
       <p className="text-xs text-ink-3">
