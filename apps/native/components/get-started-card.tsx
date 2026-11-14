@@ -8,6 +8,7 @@ import { useEffect } from "react";
 import { Platform, Pressable, Text, View } from "react-native";
 
 import { Icon, Section, Sheet, ToneIcon } from "@/components/bloom";
+import { useSetupCardShown } from "@/components/finish-setup-card";
 import { getHealthAccess } from "@/lib/health-sync";
 import { useModules } from "@/lib/modules/use-modules";
 import {
@@ -17,7 +18,6 @@ import {
   type GetStartedItemId,
 } from "@/lib/onboarding/get-started";
 import { useGetStartedProgress } from "@/lib/onboarding/get-started-progress";
-import { shouldShowSetupCard } from "@/lib/onboarding/steps";
 import { orpc } from "@/utils/orpc";
 
 const ITEM_HREF: Record<GetStartedItemId, Href> = {
@@ -47,6 +47,7 @@ export function GetStartedCard({
   const snapshot = modules.profile.data ?? null;
   const progress = useGetStartedProgress(modules.userId);
   const food = modules.enabled.has("food");
+  const setupCardShown = useSetupCardShown(snapshot);
 
   const access = useQuery({ queryKey: ["health-sync", "access"], queryFn: getHealthAccess });
   const localDate = localDateIn(undefined);
@@ -99,7 +100,7 @@ export function GetStartedCard({
   if (
     !shouldShowGetStarted(items, {
       dismissed: progress.dismissed,
-      setupCardShown: shouldShowSetupCard(snapshot),
+      setupCardShown,
     })
   )
     return null;

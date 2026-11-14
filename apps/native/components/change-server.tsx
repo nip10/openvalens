@@ -8,6 +8,7 @@ import { Alert } from "react-native";
 import { Icon, Section, Sheet } from "./bloom";
 import { ListRow } from "./list-row";
 import { serverLabel } from "../lib/server/server-address";
+import { rememberLinkedServer } from "../lib/server/server-link";
 import { isServerLocked, useServer } from "../lib/server/server-url";
 import { switchServer, unsyncedWriteCount } from "../lib/server/switch-server";
 import {
@@ -17,7 +18,11 @@ import {
 } from "../lib/server/server-leave-safety";
 import { queryClient } from "../utils/orpc";
 
-type ChangeServerOptions = { pendingDataPolicy?: "preserve" };
+type ChangeServerOptions = {
+  pendingDataPolicy?: "preserve";
+  /** A server link's address (#444): offered on the server choice once this one is left. */
+  nextServer?: string;
+};
 
 /**
  * Issue #295 — "Change server": confirm (warning first when writes are still
@@ -35,8 +40,10 @@ export function useChangeServer(options: ChangeServerOptions = {}): () => void {
     if (running.current) return;
     running.current = true;
     try {
+      rememberLinkedServer(options.nextServer ?? null);
       await switchServer(null);
     } catch {
+      rememberLinkedServer(null);
       toast.show({
         variant: "danger",
         label: t`Could not change server. Your data on this phone was kept. Try again.`,
