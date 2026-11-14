@@ -549,6 +549,11 @@ msgstr "{amount} per year"
 msgid "{amount} steps"
 msgstr "{amount} steps"
 
+#. Home-screen widget: today's plain water, e.g. “1,250 ml today”.
+#: apps/native/lib/home-widget/copy.ts
+msgid "{amount} today"
+msgstr "{amount} today"
+
 #: apps/native/app/(drawer)/settings.tsx
 msgid "{appVersion} (build {build})"
 msgstr "{appVersion} (build {build})"
@@ -561,6 +566,10 @@ msgstr "{baselineDays} of {baselineMinDays} days with data so far."
 #: apps/native/app/(drawer)/settings.tsx
 msgid "{blockerNames} also has another owner. Remove them or transfer the record before deleting."
 msgstr "{blockerNames} also has another owner. Remove them or transfer the record before deleting."
+
+#: apps/native/lib/home-widget/model.ts
+msgid "{count, plural, =0 {All taken} one {# due} other {# due}}"
+msgstr "{count, plural, =0 {All taken} one {# due} other {# due}}"
 
 #: apps/web/src/components/wearable-devices-view.tsx
 msgid "{count, plural, one {{name} access was revoked. # record is hidden until you choose whether to keep it or delete it.} other {{name} access was revoked. # records are hidden until you choose whether to keep them or delete them.}}"
@@ -1246,6 +1255,11 @@ msgstr "{value} from {reported} of {count, plural, one {# entry} other {# entrie
 msgid "{value} kcal/day"
 msgstr "{value} kcal/day"
 
+#. After a tap on the home-screen widget for a kind the member has turned off.
+#: apps/native/app/quick-log.tsx
+msgid "{what} is turned off, so nothing was logged."
+msgstr "{what} is turned off, so nothing was logged."
+
 #. placeholder {0}: c.sessions
 #: packages/api/src/presenters/activity-load.ts
 msgid "{withIntensity} of {0, plural, one {# session has} other {# sessions have}} an intensity."
@@ -1273,6 +1287,11 @@ msgstr "+ Custom"
 #: apps/native/components/training-home.tsx
 msgid "+ Empty workout"
 msgstr "+ Empty workout"
+
+#. Home-screen widget: logs one glass of water (250 ml).
+#: apps/native/lib/home-widget/copy.ts
+msgid "+1 glass"
+msgstr "+1 glass"
 
 #: apps/native/components/active-workout.tsx
 msgid "+30 s"
@@ -2003,6 +2022,10 @@ msgstr "Add here"
 #: packages/api/src/presenters/nutrition-templates.ts
 msgid "Add ingredient"
 msgstr "Add ingredient"
+
+#: apps/native/components/home-widget-settings.tsx
+msgid "Add it from your home screen to log a glass of water, take your next supplement or open the log. A tap opens OpenValens, saves at once and offers Undo."
+msgstr "Add it from your home screen to log a glass of water, take your next supplement or open the log. A tap opens OpenValens, saves at once and offers Undo."
 
 #: apps/web/src/components/ai-app-key-form.tsx
 msgid "Add it to Claude Code"
@@ -5327,6 +5350,7 @@ msgstr "Could not save your feedback."
 msgid "Could not save your height. Try again."
 msgstr "Could not save your height. Try again."
 
+#: apps/native/components/home-widget-settings.tsx
 #: apps/native/components/whats-new-settings.tsx
 #: apps/web/src/components/whats-new-section.tsx
 msgid "Could not save your setting. Try again."
@@ -7276,6 +7300,11 @@ msgstr "Every period and import is deleted and your consent is withdrawn. This c
 msgid "Every record this connection brought in is permanently deleted. It can't be undone."
 msgstr "Every record this connection brought in is permanently deleted. It can't be undone."
 
+#. Home-screen widget: under “Log…”, which opens the log picker.
+#: apps/native/lib/home-widget/copy.ts
+msgid "Everything else"
+msgstr "Everything else"
+
 #: packages/api/src/presenters/preventive-care.ts
 msgid "Evidence check"
 msgstr "Evidence check"
@@ -8436,6 +8465,10 @@ msgstr "Hold current weight and habits."
 #: packages/api/src/presenters/coach-settings.ts
 msgid "Holds the line on targets and habits."
 msgstr "Holds the line on targets and habits."
+
+#: apps/native/components/home-widget-settings.tsx
+msgid "Home-screen widget"
+msgstr "Home-screen widget"
 
 #. safety
 #: apps/native/app/(drawer)/cycle.tsx
@@ -9854,6 +9887,11 @@ msgstr "Log {name} ({amount})"
 msgid "Log {number} as…"
 msgstr "Log {number} as…"
 
+#. Home-screen widget description in the widget gallery.
+#: apps/native/lib/home-widget/copy.ts
+msgid "Log a glass of water, take your next supplement or open the log in one tap."
+msgstr "Log a glass of water, take your next supplement or open the log in one tap."
+
 #: apps/native/components/get-started-card.tsx
 msgid "Log a meal"
 msgstr "Log a meal"
@@ -10005,7 +10043,9 @@ msgstr "Log workout sessions with exercises from the exercise catalog. A workout
 msgid "Log your first entry"
 msgstr "Log your first entry"
 
+#. Home-screen widget button: opens the log picker.
 #. Opens the quick log palette.
+#: apps/native/lib/home-widget/copy.ts
 #: apps/web/src/components/header.tsx
 msgid "Log…"
 msgstr "Log…"
@@ -12204,6 +12244,10 @@ msgstr "Off by default. No nutrition observations are shown."
 msgid "Off by default. Shows eight vitamins and minerals from the foods you log, with how many foods reported each one. Many foods, especially from labels, don't report them, so totals are often incomplete. Turn it off at any time."
 msgstr "Off by default. Shows eight vitamins and minerals from the foods you log, with how many foods reported each one. Many foods, especially from labels, don't report them, so totals are often incomplete. Turn it off at any time."
 
+#: apps/native/components/home-widget-settings.tsx
+msgid "Off by default. Shows today's water and the supplement doses due on the widget, where anyone who sees your home screen can read them. Only on this phone."
+msgstr "Off by default. Shows today's water and the supplement doses due on the widget, where anyone who sees your home screen can read them. Only on this phone."
+
 #: packages/api/src/presenters/recipe-draft.ts
 msgid "Off by default. When on, you can submit a recipe link and the server fetches that one page to start an unsaved draft. It keeps ingredients, servings and credit, never the steps, photos or stories. Turn it off at any time."
 msgstr "Off by default. When on, you can submit a recipe link and the server fetches that one page to start an unsaved draft. It keeps ingredients, servings and credit, never the steps, photos or stories. Turn it off at any time."
@@ -13565,6 +13609,15 @@ msgstr "Queued"
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Quick add"
 msgstr "Quick add"
+
+#. Home-screen widget name in the widget gallery.
+#: apps/native/lib/home-widget/copy.ts
+msgid "Quick log"
+msgstr "Quick log"
+
+#: apps/native/components/home-widget-settings.tsx
+msgid "Quick log widget"
+msgstr "Quick log widget"
 
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "Radial pulse counted by a physician for 30 seconds (×2) after about 4 minutes of seated quiet rest, in a mobile examination centre."
@@ -15775,6 +15828,10 @@ msgstr "Show the topic on the lock screen (for example “sleep”)"
 msgid "Show token"
 msgstr "Show token"
 
+#: apps/native/components/home-widget-settings.tsx
+msgid "Show values on the widget"
+msgstr "Show values on the widget"
+
 #: apps/native/components/whats-new-settings.tsx
 #: apps/web/src/components/whats-new-section.tsx
 msgid "Show what's new after an update"
@@ -15886,6 +15943,11 @@ msgstr "Sign in to browse your workspace library."
 #: apps/web/src/components/recipe-draft-editor.tsx
 msgid "Sign in to create a private, session-only draft."
 msgstr "Sign in to create a private, session-only draft."
+
+#. Home-screen widget when no one is signed in on this phone.
+#: apps/native/lib/home-widget/copy.ts
+msgid "Sign in to OpenValens to log from here."
+msgstr "Sign in to OpenValens to log from here."
 
 #: apps/native/components/complete-export-card.tsx
 msgid "Sign in to request and download your export."
@@ -16630,7 +16692,9 @@ msgstr "Suggestions follow the estimated intake that keeps your weight trend ste
 msgid "Suggestions never go below 1,200 kcal a day, your profile's minimum or your estimated resting energy, whichever is highest. Reductions are turned off while any answer in About you is yes, and for anyone younger than 18. These safeguards come from published guidelines. They are not medical advice."
 msgstr "Suggestions never go below 1,200 kcal a day, your profile's minimum or your estimated resting energy, whichever is highest. Reductions are turned off while any answer in About you is yes, and for anyone younger than 18. These safeguards come from published guidelines. They are not medical advice."
 
+#. Home-screen widget button.
 #: apps/native/app/(drawer)/supplements.tsx
+#: apps/native/lib/home-widget/copy.ts
 #: apps/web/src/routes/_auth/-goal-editor.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
 #: packages/api/src/presenters/log-kinds.ts
@@ -16817,6 +16881,8 @@ msgstr "Take care: {cautions}"
 msgid "Take photo"
 msgstr "Take photo"
 
+#. Home-screen widget: marks the next supplement that is due as taken.
+#: apps/native/lib/home-widget/copy.ts
 #: apps/native/lib/quick-log/picker.ts
 #: apps/web/src/components/quick-log/palette-sections.ts
 msgctxt "supplement"
@@ -19079,6 +19145,8 @@ msgstr "Walk 8,000 steps a day"
 msgid "Watches, rings, scales and wearable accounts"
 msgstr "Watches, rings, scales and wearable accounts"
 
+#. Home-screen widget button.
+#: apps/native/lib/home-widget/copy.ts
 #: packages/api/src/presenters/log-kinds.ts
 #: packages/api/src/presenters/onboarding.ts
 msgid "Water"

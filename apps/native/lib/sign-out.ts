@@ -1,5 +1,7 @@
 import { authClient } from "@/lib/auth-client";
 import { resetHealthSync } from "@/lib/health-sync";
+import { drawHomeWidget } from "@/lib/home-widget/platform";
+import { clearHomeWidgetStorage } from "@/lib/home-widget/storage";
 import { isMetricOutboxBusy, prepareOfflineSignOut } from "@/lib/offline/sync";
 import { disablePushOnThisPhone } from "@/lib/push-notifications";
 import { createSignOut } from "@/lib/sign-out-steps";
@@ -33,5 +35,6 @@ export const signOutOfThisPhone = createSignOut({
   resetHealthSync,
   prepareOffline: (options) => prepareOfflineSignOut(preserveOptions(options)),
   signOut: () => authClient.signOut(),
+  clearHomeWidget: () => clearHomeWidgetStorage().then(() => drawHomeWidget(null)),
   clearQueries: () => queryClient.clear(),
 });

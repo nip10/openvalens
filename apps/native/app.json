@@ -99,7 +99,28 @@
         {
           "defaultChannel": "insights"
         }
-      ]
+      ],
+      "@bacons/apple-targets",
+      [
+        "react-native-android-widget",
+        {
+          "widgets": [
+            {
+              "name": "QuickLog",
+              "label": "@string/home_widget_name",
+              "description": "@string/home_widget_description",
+              "minWidth": "250dp",
+              "minHeight": "100dp",
+              "targetCellWidth": 4,
+              "targetCellHeight": 1,
+              "resizeMode": "horizontal|vertical",
+              "widgetCategory": "home_screen|not_keyguard",
+              "updatePeriodMillis": 3600000
+            }
+          ]
+        }
+      ],
+      "./plugins/home-widget"
     ],
     "experiments": {
       "typedRoutes": true,

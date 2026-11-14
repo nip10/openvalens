@@ -61,6 +61,7 @@ import { useConfirmedSignOut } from "@/components/confirm-sign-out";
 import { ListRow } from "@/components/list-row";
 import { Container } from "@/components/container";
 import { HealthSyncSettings } from "@/components/health-sync-settings";
+import { HomeWidgetSettings } from "@/components/home-widget-settings";
 import { LanguageSection, SettingsGroup, SettingsIcon } from "@/components/language-section";
 import { AnalyticsConsentSection } from "@/components/analytics-consent-section";
 import { AiSection } from "@/components/ai-section";
@@ -197,6 +198,8 @@ export default function SettingsScreen() {
         )}
 
         {session?.user && <WhatsNewSettings />}
+
+        {session?.user && <HomeWidgetSettings />}
 
         {session?.user && <HealthSyncSettings />}
 

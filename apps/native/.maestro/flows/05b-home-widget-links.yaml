@@ -1,0 +1,39 @@
+# 5b. The home-screen widget's deep links (#449). The widget itself is native
+# (WidgetKit, App Widgets) and Maestro cannot place it, so this opens the
+# links its buttons open: "Log…" shows the picker; water +1 glass saves at
+# once and Undo takes it back, so the day's water is as flow 05 left it.
+appId: com.openvalens.app
+name: 05b Home-screen widget links
+tags: [widget]
+---
+- runFlow: ../subflows/fresh-start.yaml
+
+# "Log…": the log picker
+- runFlow:
+    file: ../subflows/open-link.yaml
+    env:
+      LINK: "openvalens://quick-log?widget=log"
+- extendedWaitUntil:
+    visible:
+      id: "quick-log-close"
+    timeout: 20000
+- takeScreenshot: 05b-widget-log
+- tapOn:
+    id: "quick-log-close"
+- extendedWaitUntil:
+    visible: "Show navigation menu"
+    timeout: 10000
+
+# Water +1 glass: saved at once with Undo (the toast stays about 6 s)
+- runFlow:
+    file: ../subflows/open-link.yaml
+    env:
+      LINK: "openvalens://quick-log?widget=water"
+- extendedWaitUntil:
+    visible: "Saved: Water · 250 ml"
+    timeout: 20000
+- takeScreenshot: 05b-widget-water
+- tapOn: "Undo"
+- extendedWaitUntil:
+    visible: "Removed: Water · 250 ml"
+    timeout: 10000
