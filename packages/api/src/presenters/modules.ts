@@ -181,7 +181,8 @@ export const METRIC_MODULES: Record<InsightMetric, PersonModule> = {
  * module's data produces no insight, the same rule the Coach goals tool
  * applies (`GOAL_SOURCE_MODULES` in `@openvalens/ai/tools/goals`, kept equal by
  * a test). Manual goals follow the always-on goals; tracker goals belong to no
- * module, like custom-tracker insights (#450).
+ * module, like custom-tracker insights (#450), and follow their tracker's
+ * insights/AI switch instead (`insightGoalInput` in `insights.ts`).
  */
 export const GOAL_SOURCE_MODULES: Record<GoalSource, PersonModule | null> = {
   manual: null,

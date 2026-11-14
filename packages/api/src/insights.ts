@@ -9,9 +9,14 @@ import {
   pushDevice,
 } from "@openvalens/db/schema/insights";
 import { telegramAccount } from "@openvalens/db/schema/integrations";
-import { createGoalRepository, createPersonalGoalRepository } from "@openvalens/plans";
+import {
+  createGoalRepository,
+  createPersonalGoalRepository,
+  trackerIdFromGoalMetric,
+} from "@openvalens/plans";
 import { listSleepDailySummaries } from "@openvalens/sleep";
 import { getPersonalSleepDailyEvidence } from "@openvalens/sleep/queries";
+import { listAiReadableTrackers } from "@openvalens/trackers";
 import { and, count, eq } from "drizzle-orm";
 
 import {
@@ -202,19 +207,45 @@ async function loadGoals(db: Database, organizationId: string, userId: string) {
   const personalGoals = await createPersonalGoalRepository(db, organizationId, userId, (range) =>
     getPersonalSleepDailyEvidence(db, { organizationId, userId, ...range }),
   ).list();
-  return insightGoalInput(entries, personalGoals);
+  // Tracker goals speak only for trackers with the insights/AI switch on, the
+  // same trackers the custom-tracker change insights read (#450).
+  const insightTrackerIds = personalGoals.some((goal) => goal.definition.source === "tracker")
+    ? new Set((await listAiReadableTrackers(db, { organizationId, userId })).map((row) => row.id))
+    : new Set<string>();
+  return insightGoalInput(entries, personalGoals, insightTrackerIds);
+}
+
+/** Whether a personal goal may produce goal insights: a tracker goal needs its tracker's switch on. */
+function goalSpeaksInInsights(
+  definition: PersonalGoalForProgress["definition"],
+  insightTrackerIds: ReadonlySet<string>,
+): boolean {
+  if (definition.source !== "tracker") return true;
+  // An unreadable tracker metric names no tracker: keep the goal silent.
+  const trackerId =
+    typeof definition.metric === "string" ? trackerIdFromGoalMetric(definition.metric) : null;
+  return trackerId !== null && insightTrackerIds.has(trackerId);
 }
 
 /**
  * The goal input of the insight rules from the member's older goals and their
  * personal goals (pure). Each personal goal carries its source's module, so a
  * goal on a hidden module's data (a water goal with Food & water off) produces
- * no insight on any channel (#500).
+ * no insight on any channel (#500). A tracker goal produces no insight unless
+ * its tracker is in `insightTrackerIds` (insights/AI switch on, not archived),
+ * like the custom-tracker change insights (#450). Every goal still counts
+ * toward the goal-progress score.
  */
 export function insightGoalInput(
   entries: readonly GoalWithHistory[],
   personalGoals: readonly PersonalGoalForProgress[],
+  insightTrackerIds: ReadonlySet<string>,
 ): InsightGoalInput {
+  const silentGoalIds = new Set(
+    personalGoals
+      .filter((goal) => !goalSpeaksInInsights(goal.definition, insightTrackerIds))
+      .map((goal) => goal.id),
+  );
   const goalModules: Record<number, PersonModule | null> = {};
   for (const goal of personalGoals)
     goalModules[goal.id] = GOAL_SOURCE_MODULES[goal.definition.source];
@@ -230,7 +261,14 @@ export function insightGoalInput(
       goal.evaluation.days
         .filter((day) => day.state === "qualifies" || day.state === "does-not-qualify")
         .at(-1)?.date ?? null;
-  return { result: computeGoalProgress(entries, personalGoals), latestCheckinDates, goalModules };
+  // The score is computed over every goal; only the per-goal results the
+  // rules turn into insights leave the silent goals out.
+  const result = computeGoalProgress(entries, personalGoals);
+  return {
+    result: { ...result, goals: result.goals.filter((goal) => !silentGoalIds.has(goal.goalId)) },
+    latestCheckinDates,
+    goalModules,
+  };
 }
 
 // ─── preferences ───────────────────────────────────────────────
