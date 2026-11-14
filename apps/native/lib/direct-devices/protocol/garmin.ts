@@ -170,6 +170,14 @@ export const GARMIN_ML_REQUEST = {
 export const GARMIN_ML_SERVICE_GFDI = 1;
 /** `MlrCommunicator.MLR_FLAG_MASK` — reliable (MLR) service registrations. */
 export const GARMIN_MLR_FLAG_MASK = 0x80;
+/** `MlrCommunicator.HANDLE_MASK`: bits 6-4 of the first MLR header byte. */
+export const GARMIN_MLR_HANDLE_MASK = 0x70;
+/** `MlrCommunicator.HANDLE_SHIFT`. */
+export const GARMIN_MLR_HANDLE_SHIFT = 4;
+/** `MlrCommunicator.REQ_NUM_MASK`: the high 4 bits of the 6-bit request number. */
+export const GARMIN_MLR_REQ_NUM_MASK = 0x0f;
+/** `MlrCommunicator.SEQ_NUM_MASK`: the 6-bit sequence number in byte 1. */
+export const GARMIN_MLR_SEQ_NUM_MASK = 0x3f;
 
 /**
  * Directory file types this family downloads (`FileType.FILETYPE`). Only the

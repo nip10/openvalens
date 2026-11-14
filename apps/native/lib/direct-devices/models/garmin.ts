@@ -233,6 +233,18 @@ export type GarminFeatureLevel = "most" | "partial" | "unknown";
 
 export type GarminModelCategory = "wearables" | "bike-computers" | "navigations" | "hr-bands";
 
+/**
+ * Whether the session asks for MLR (Multi-Link Reliable) when it registers
+ * GFDI. Upstream has no per-model transport flag: it asks whenever the
+ * `garmin_mlr` preference is on, which defaults on at the pin
+ * (`GarminSupport.mlrEnabled`). Here MLR is asked for only where upstream
+ * forces it, the models whose coordinators return true from
+ * `defaultNewSyncProtocol()` ("new sync protocol without MLR fails to sync
+ * large workouts", `GarminCoordinator.java:122-131`). Every other model
+ * registers plain ML, but still runs MLR if the watch grants it unasked.
+ */
+export type GarminMlrMode = "preferred" | "off";
+
 export type GarminModel = Readonly<{
   id: GarminModelId;
   displayName: string;
@@ -251,6 +263,8 @@ export type GarminModel = Readonly<{
   bleNamePattern: string;
   /** Upstream coordinator source file, relative to the app repo root. */
   sourceFile: string;
+  /** MLR preference; absent means `"off"` (see `GarminMlrMode`). */
+  mlr?: GarminMlrMode;
 }>;
 
 /** The 190 catalog Garmin entries, in upstream catalog order. */
@@ -265,6 +279,7 @@ export const GARMIN_MODELS: readonly GarminModel[] = [
     sync: true,
     bleNamePattern: "^CIRQA Smart Band$",
     sourceFile: `app/src/main/java/nodomain/freeyourgadget/gadgetbridge/devices/garmin/watches/cirqa/GarminCirqaCoordinator.java`,
+    mlr: "preferred",
   },
   {
     id: "garmin_d2_air",
@@ -298,6 +313,7 @@ export const GARMIN_MODELS: readonly GarminModel[] = [
     sync: true,
     bleNamePattern: "^D2 Air X15( - \\d+mm)?$",
     sourceFile: `app/src/main/java/nodomain/freeyourgadget/gadgetbridge/devices/garmin/watches/d2/GarminD2AirX15Coordinator.java`,
+    mlr: "preferred",
   },
   {
     id: "garmin_d2_mach_1",
@@ -1717,6 +1733,7 @@ export const GARMIN_MODELS: readonly GarminModel[] = [
     sync: true,
     bleNamePattern: "^Venu 4 (- )?\\d+mm$",
     sourceFile: `app/src/main/java/nodomain/freeyourgadget/gadgetbridge/devices/garmin/watches/venu/GarminVenu4Coordinator.java`,
+    mlr: "preferred",
   },
   {
     id: "garmin_venu_x1",
@@ -1728,6 +1745,7 @@ export const GARMIN_MODELS: readonly GarminModel[] = [
     sync: true,
     bleNamePattern: "^Venu X1$",
     sourceFile: `app/src/main/java/nodomain/freeyourgadget/gadgetbridge/devices/garmin/watches/venu/GarminVenuX1Coordinator.java`,
+    mlr: "preferred",
   },
   {
     id: "garmin_vivoactive",
@@ -1816,6 +1834,7 @@ export const GARMIN_MODELS: readonly GarminModel[] = [
     sync: true,
     bleNamePattern: "^vívoactive 6$",
     sourceFile: `app/src/main/java/nodomain/freeyourgadget/gadgetbridge/devices/garmin/watches/vivoactive/GarminVivoActive6Coordinator.java`,
+    mlr: "preferred",
   },
   {
     id: "garmin_vivoactive_hr",
@@ -2354,6 +2373,11 @@ const MODEL_BY_ID = new Map<GarminModelId, GarminModel>(
 /** Looks up a Garmin model by upstream id. */
 export function getGarminModel(id: GarminModelId): GarminModel | undefined {
   return MODEL_BY_ID.get(id);
+}
+
+/** The model's MLR preference; `"off"` unless the registry says otherwise. */
+export function getGarminMlrMode(id: GarminModelId): GarminMlrMode {
+  return MODEL_BY_ID.get(id)?.mlr ?? "off";
 }
 
 const MATCHERS: readonly { model: GarminModel; pattern: RegExp }[] = GARMIN_MODELS.map((model) => ({

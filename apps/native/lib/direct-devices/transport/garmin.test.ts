@@ -9,6 +9,8 @@
 import { expect, test } from "bun:test";
 
 import {
+  GarminCobsDecoder,
+  decodeGarminGfdiFrame,
   GARMIN_FIT_MESSAGE,
   GARMIN_ML_REQUEST,
   GARMIN_MESSAGE,
@@ -21,6 +23,7 @@ import {
   type GarminGfdiFrame,
   type GarminRecord,
 } from "../protocol/garmin";
+import { decodeGarminMlrHeader, encodeGarminMlrPacket } from "../protocol/garmin-mlr";
 import {
   createGarminSession,
   createMemoryGarminSyncStateStore,
@@ -286,14 +289,47 @@ function typeOf(frame: GarminGfdiFrame): string {
   return `status:${original}:${frame.payload[2]}${frame.payload.length > 3 && original === GARMIN_MESSAGE.DEVICE_INFORMATION ? ":reply" : ""}`;
 }
 
+type Registration = Readonly<{
+  /** REGISTER_ML_RESP status; 0 = success. */
+  status?: number;
+  handle?: number;
+  /** Reliable byte in the grant; defaults to "granted iff asked". */
+  reliable?: number;
+  /** Do not answer this registration at all. */
+  ignore?: boolean;
+  /** After granting, close GFDI unsolicited instead of starting GFDI. */
+  closeAfterGrant?: boolean;
+}>;
+
+/** The watch's side of one MLR registration: in-order receive, instant ACKs. */
+type MlrPeer = {
+  handle: number;
+  expected: number;
+  nextSeq: number;
+  decoder: GarminCobsDecoder;
+};
+
 class FakeGarminServer implements GarminSessionLink {
   protocol: "v0" | "v1" | "v2" = "v2";
   readonly maxWriteBytes = 244;
   readonly gfdi: GarminGfdiFrame[] = [];
   readonly raw: Uint8Array[] = [];
+  /** Every `writePacket` the session made, MLR header intact. */
+  readonly packets: Uint8Array[] = [];
+  /** Every MLR packet the watch sent, in order. */
+  readonly sentPackets: Uint8Array[] = [];
   readonly archived: number[] = [];
   readonly downloads: number[] = [];
-  reliable = 0;
+  /** GFDI frames that arrived through the ML `write` path. */
+  mlWrites = 0;
+  /** Forced reliable byte for every grant (legacy tests); null = as asked. */
+  reliable: number | null = 0;
+  /** Handle granted to a reliable request. */
+  mlrHandle = 0x86;
+  /** Per-registration overrides, consumed in order. */
+  registrations: Registration[] = [];
+  /** Data bytes per MLR packet the watch sends. */
+  mlrChunk = 40;
   chunkSize = 32;
   /** Send DEVICE_INFORMATION after registration, and CONFIGURATION once it is answered. */
   handshake = true;
@@ -302,6 +338,7 @@ class FakeGarminServer implements GarminSessionLink {
   /** Stop streaming a file after this many chunks (a stalled transfer). */
   stallAfterChunks: number | null = null;
   handle = 0;
+  mlr: MlrPeer | null = null;
   private listener: ((bytes: Uint8Array) => void) | null = null;
   private runningCrc = 0;
   private chunkTimer: ReturnType<typeof setTimeout> | null = null;
@@ -324,12 +361,58 @@ class FakeGarminServer implements GarminSessionLink {
     this.listener = null;
   }
 
+  fileLength(index: number): number {
+    return this.files.get(index)?.length ?? 0;
+  }
+
+  notify(bytes: Uint8Array): void {
+    this.listener?.(bytes);
+  }
+
   emit(frame: GarminGfdiFrame): void {
     const encoded = encodeGarminCobs(encodeGarminGfdiFrame(frame));
+    if (this.mlr) {
+      this.emitMlrData(encoded);
+      return;
+    }
     const out = new Uint8Array(encoded.length + 1);
     out[0] = this.handle;
     out.set(encoded, 1);
     this.listener?.(out);
+  }
+
+  /** Sends raw GFDI bytes as MLR data packets of `mlrChunk` bytes each. */
+  emitMlrData(data: Uint8Array, chunk = this.mlrChunk): void {
+    const peer = this.mlr!;
+    for (let offset = 0; offset < data.length; offset += chunk) {
+      const packet = encodeGarminMlrPacket(
+        peer.handle,
+        peer.expected,
+        peer.nextSeq,
+        data.subarray(offset, offset + chunk),
+      );
+      peer.nextSeq = (peer.nextSeq + 1) % 64;
+      this.sentPackets.push(packet);
+      this.listener?.(packet);
+    }
+  }
+
+  /** The session's MLR packets: deliver in-order data, ACK each at once. */
+  async writePacket(bytes: Uint8Array): Promise<void> {
+    // A real GATT write completes asynchronously.
+    await Promise.resolve();
+    this.packets.push(bytes);
+    const peer = this.mlr;
+    if (!peer || bytes.length <= 2) return;
+    const header = decodeGarminMlrHeader(bytes[0]!, bytes[1]!);
+    if (header.seqNum !== peer.expected) return;
+    peer.expected = (peer.expected + 1) % 64;
+    this.listener?.(encodeGarminMlrPacket(peer.handle, peer.expected, 0));
+    let message = peer.decoder.accept(bytes.subarray(2));
+    while (message) {
+      void this.handleFrame(decodeGarminGfdiFrame(message));
+      message = peer.decoder.accept(new Uint8Array(0));
+    }
   }
 
   async writeRaw(bytes: Uint8Array): Promise<void> {
@@ -346,18 +429,33 @@ class FakeGarminServer implements GarminSessionLink {
       return;
     }
     if (message.requestType === GARMIN_ML_REQUEST.REGISTER_ML_REQ) {
-      const response = new Uint8Array(14);
+      const override = this.registrations.shift() ?? {};
+      if (override.ignore) return;
+      const asked = bytes[12]!;
+      const reliable = override.reliable ?? this.reliable ?? (asked === 2 ? 1 : 0);
+      const status = override.status ?? 0;
+      const handle =
+        override.handle ?? (reliable !== 0 && this.reliable === null ? this.mlrHandle : 5);
+      const response = new Uint8Array(15);
       response[1] = GARMIN_ML_REQUEST.REGISTER_ML_RESP;
       writeUint32(response, 2, 2);
       response[10] = 1; // GFDI
-      response[12] = 0; // status OK
-      response[13] = 5; // handle
-      const withReliable = new Uint8Array(15);
-      withReliable.set(response);
-      withReliable[14] = this.reliable;
-      this.listener?.(withReliable);
-      if (this.reliable === 0 && this.handshake) {
-        this.handle = 5;
+      response[12] = status;
+      response[13] = handle;
+      response[14] = reliable;
+      this.listener?.(response);
+      if (status !== 0) return;
+      this.handle = handle;
+      this.mlr =
+        reliable !== 0
+          ? { handle, expected: 0, nextSeq: 0, decoder: new GarminCobsDecoder() }
+          : null;
+      if (override.closeAfterGrant) {
+        this.mlr = null;
+        this.closeGfdi(handle);
+        return;
+      }
+      if (this.handshake) {
         this.emit({
           messageType: GARMIN_MESSAGE.DEVICE_INFORMATION,
           payload: this.deviceInformation,
@@ -366,7 +464,23 @@ class FakeGarminServer implements GarminSessionLink {
     }
   }
 
-  async write(frame: GarminGfdiFrame): Promise<void> {
+  /** An unsolicited CLOSE_HANDLE_RESP for GFDI (`CommunicatorV2:433-469`). */
+  closeGfdi(handle: number): void {
+    const response = new Uint8Array(14);
+    response[1] = GARMIN_ML_REQUEST.CLOSE_HANDLE_RESP;
+    writeUint32(response, 2, 2);
+    response[10] = 1;
+    response[12] = handle;
+    response[13] = 0;
+    this.listener?.(response);
+  }
+
+  write(frame: GarminGfdiFrame): Promise<void> {
+    this.mlWrites += 1;
+    return this.handleFrame(frame);
+  }
+
+  async handleFrame(frame: GarminGfdiFrame): Promise<void> {
     this.gfdi.push(frame);
     if (
       this.handshake &&
@@ -435,7 +549,9 @@ function fixture(
   options: {
     files?: Map<number, Uint8Array>;
     keepOnDevice?: boolean;
-    reliable?: number;
+    reliable?: number | null;
+    mlr?: "preferred" | "off";
+    registrations?: Registration[];
     protocol?: "v0" | "v1" | "v2";
     watchdogMs?: number;
     syncState?: ReturnType<typeof createMemoryGarminSyncStateStore>;
@@ -466,7 +582,8 @@ function fixture(
       [4, HRV_FIT],
     ]);
   const server = new FakeGarminServer(files);
-  server.reliable = options.reliable ?? 0;
+  server.reliable = options.reliable === undefined ? 0 : options.reliable;
+  server.registrations = [...(options.registrations ?? [])];
   server.protocol = options.protocol ?? "v2";
   server.chunkSize = options.chunkSize ?? 32;
   server.handshake = options.handshake ?? true;
@@ -484,13 +601,14 @@ function fixture(
     },
     deviceId: "watch-1",
     modelId: "garmin_fenix_7",
+    ...(options.mlr ? { mlr: options.mlr } : {}),
     onRecord: (record) => records.push(record),
     onFailure: (failure) => failures.push(failure),
     initDelayMs: 0,
     configurationWaitMs: options.configurationWaitMs ?? 2_000,
     watchdogMs: options.watchdogMs ?? 500,
     keepOnDevice: options.keepOnDevice,
-    syncState: options.syncState,
+    syncState: options.syncState ?? createMemoryGarminSyncStateStore(),
     link: server,
     onDirectoryWithoutFitFiles: options.onDirectoryWithoutFitFiles,
   });
@@ -580,10 +698,335 @@ test("a v1-only GFDI device is refused instead of half-supported", async () => {
   expect(f.failures).toEqual(["init"]);
 });
 
-test("an MLR registration is refused honestly", async () => {
-  const f = fixture({ reliable: 2 });
+// ---------------------------------------------------------------------------
+// MLR
+// ---------------------------------------------------------------------------
+
+const isMlrPacket = (packet: Uint8Array, handle = 0x86) =>
+  (packet[0]! & 0xf0) === (0x80 | ((handle & 0x07) << 4));
+
+/** The registrations' `reliable` request bytes. */
+const requested = (raw: readonly Uint8Array[]) =>
+  raw.filter((bytes) => bytes[1] === GARMIN_ML_REQUEST.REGISTER_ML_REQ).map((bytes) => bytes[12]);
+
+const ackOnly = (packets: readonly Uint8Array[]) => packets.filter((packet) => packet.length === 2);
+const reqNumOf = (packet: Uint8Array) => decodeGarminMlrHeader(packet[0]!, packet[1]!).reqNum;
+
+/** The GFDI frames the session sent inside MLR data packets. */
+function framesFromPackets(packets: readonly Uint8Array[]): GarminGfdiFrame[] {
+  const decoder = new GarminCobsDecoder();
+  const frames: GarminGfdiFrame[] = [];
+  for (const packet of packets) {
+    if (packet.length <= 2) continue;
+    let message = decoder.accept(packet.subarray(2));
+    while (message) {
+      frames.push(decodeGarminGfdiFrame(message));
+      message = decoder.accept(new Uint8Array(0));
+    }
+  }
+  return frames;
+}
+
+const tick = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+test("a preferred-MLR model syncs end to end over MLR", async () => {
+  const f = fixture({ reliable: null, mlr: "preferred", chunkSize: 16 });
   f.session.start();
-  await expect(f.session.whenDone()).rejects.toThrow("GARMIN_MLR_UNSUPPORTED");
+  await f.session.whenDone();
+
+  expect(requested(f.server.raw)).toEqual([2]);
+  expect(f.server.handle).toBe(0x86);
+  // Nothing went down the plain ML path; every GFDI write was MLR-framed.
+  expect(f.server.mlWrites).toBe(0);
+  expect(f.server.packets.length).toBeGreaterThan(0);
+  expect(f.server.packets.every((packet) => isMlrPacket(packet))).toBe(true);
+  expect(f.server.packets.every((packet) => packet.length <= 244)).toBe(true);
+  // The GFDI conversation is the same as over ML.
+  expect(f.server.downloads).toEqual([0, 1, 2, 4, 3]);
+  expect(f.server.archived).toEqual([1, 2, 4, 3]);
+  expect(f.server.systemEvents()).toEqual([8, 0]);
+  // Every FILE_TRANSFER_DATA chunk got its TransferDataStatus inside MLR.
+  const transferStatuses = framesFromPackets(f.server.packets).filter(
+    (frame) =>
+      frame.messageType === GARMIN_MESSAGE.RESPONSE &&
+      (frame.payload[0]! | (frame.payload[1]! << 8)) === GARMIN_MESSAGE.FILE_TRANSFER_DATA,
+  );
+  const totalBytes = [DIRECTORY_INDEX, 1, 2, 3, 4]
+    .map((index) => f.server.fileLength(index))
+    .reduce((sum, length) => sum + length, 0);
+  expect(transferStatuses).toHaveLength(
+    [DIRECTORY_INDEX, 1, 2, 3, 4]
+      .map((index) => Math.ceil(f.server.fileLength(index) / 16))
+      .reduce((sum, count) => sum + count, 0),
+  );
+  expect(totalBytes).toBeGreaterThan(0);
+  expect(f.records.filter((record) => record.type === "workout")).toHaveLength(1);
+  expect(f.records.filter((record) => record.type === "hrv_rmssd")).toHaveLength(1);
+  expect(f.failures).toEqual([]);
+  // The last cumulative ACK covers every packet the watch sent.
+  await tick(30);
+  expect(reqNumOf(f.server.packets.at(-1)!)).toBe(f.server.sentPackets.length % 64);
+});
+
+test("MLR reassembles a frame split over 3 packets and two frames sharing one", async () => {
+  const f = fixture({
+    reliable: null,
+    mlr: "preferred",
+    handshake: false,
+    configurationWaitMs: 60,
+  });
+  f.session.start();
+  await tick(10);
+  const peer = f.server.mlr!;
+  expect(peer).not.toBeNull();
+  const cobs = (frame: GarminGfdiFrame) => encodeGarminCobs(encodeGarminGfdiFrame(frame));
+  const a = cobs({
+    messageType: GARMIN_MESSAGE.BATTERY_STATUS,
+    payload: Uint8Array.of(0, 0, 80, 1, 2, 3, 4, 5),
+  });
+  const b = cobs({ messageType: GARMIN_MESSAGE.WEATHER_REQUEST, payload: new Uint8Array(0) });
+  const c = cobs({ messageType: GARMIN_MESSAGE.SYNCHRONIZATION, payload: Uint8Array.of(0) });
+  // `a` spans packets 1-3; packet 3 holds the end of `a`, all of `b` and the
+  // start of `c`; packet 4 finishes `c`.
+  const third = Math.floor(a.length / 3);
+  const shared = new Uint8Array(a.length - 2 * third + b.length + 2);
+  shared.set(a.subarray(2 * third));
+  shared.set(b, a.length - 2 * third);
+  shared.set(c.subarray(0, 2), a.length - 2 * third + b.length);
+  const acksBefore = ackOnly(f.server.packets).length;
+  for (const data of [a.subarray(0, third), a.subarray(third, 2 * third), shared, c.subarray(2)]) {
+    f.server.notify(encodeGarminMlrPacket(peer.handle, peer.expected, peer.nextSeq, data));
+    peer.nextSeq = (peer.nextSeq + 1) % 64;
+  }
+  // Four in-order packets: no ACK-only packet yet; the 20 ms timer sends one.
+  await tick(0);
+  const immediate = ackOnly(f.server.packets).slice(acksBefore);
+  await tick(40);
+  const acks = ackOnly(f.server.packets).slice(acksBefore);
+  expect(acks.length).toBeGreaterThan(immediate.length);
+  expect(reqNumOf(acks.at(-1)!)).toBe(peer.nextSeq);
+  await f.session.whenDone();
+  const replies = framesFromPackets(f.server.packets).filter(
+    (frame) => frame.messageType === GARMIN_MESSAGE.RESPONSE,
+  );
+  expect(replies.slice(0, 3).map(typeOf)).toEqual([
+    "status:5023:0",
+    "status:5014:0",
+    "status:5037:0",
+  ]);
+});
+
+test("five MLR packets in a burst are acknowledged at once", async () => {
+  const f = fixture({
+    reliable: null,
+    mlr: "preferred",
+    handshake: false,
+    configurationWaitMs: 60_000,
+  });
+  f.session.start();
+  await tick(10);
+  const peer = f.server.mlr!;
+  const start = peer.nextSeq;
+  const acksBefore = ackOnly(f.server.packets).length;
+  // An unknown message type gets no GFDI reply, so only MLR ACKs go out.
+  const frame = encodeGarminCobs(
+    encodeGarminGfdiFrame({ messageType: 5099, payload: new Uint8Array(40).fill(1) }),
+  );
+  f.server.emitMlrData(frame, 9); // 6 packets
+  expect(peer.nextSeq - start).toBe(6);
+  await tick(0);
+  // One immediate ACK after the fifth packet; the sixth waits for the timer.
+  expect(ackOnly(f.server.packets).slice(acksBefore).map(reqNumOf)).toEqual([start + 5]);
+  await tick(40);
+  expect(ackOnly(f.server.packets).slice(acksBefore).map(reqNumOf)).toEqual([start + 5, start + 6]);
+  await f.session.close();
+});
+
+test("a model without the MLR preference asks for ML, and still runs MLR when granted", async () => {
+  const f = fixture({ reliable: null, mlr: "off", registrations: [{ reliable: 1, handle: 0x81 }] });
+  f.session.start();
+  await f.session.whenDone();
+  expect(requested(f.server.raw)).toEqual([0]);
+  expect(f.server.mlWrites).toBe(0);
+  expect(f.server.packets.every((packet) => isMlrPacket(packet, 0x81))).toBe(true);
+  expect(f.server.downloads).toEqual([0, 1, 2, 4, 3]);
+});
+
+test("the registry's MLR preference drives the registration", async () => {
+  const run = async (modelId: "garmin_venu_x1" | "garmin_fenix_7") => {
+    const server = new FakeGarminServer(new Map([[DIRECTORY_INDEX, directoryPayload([])]]));
+    server.reliable = null;
+    const session = createGarminSession({
+      device: {} as never,
+      profile: {
+        protocol: "v2",
+        serviceUuid: "6a4e2800-667b-11e3-949a-0800200c9a66",
+        readUuid: "6a4e2810-667b-11e3-949a-0800200c9a66",
+        writeUuid: "6a4e2820-667b-11e3-949a-0800200c9a66",
+        handlePrefixed: true,
+      },
+      deviceId: "watch-1",
+      modelId,
+      onRecord: () => undefined,
+      initDelayMs: 0,
+      link: server,
+    });
+    session.start();
+    await session.whenDone();
+    return requested(server.raw);
+  };
+  expect(await run("garmin_venu_x1")).toEqual([2]);
+  expect(await run("garmin_fenix_7")).toEqual([0]);
+});
+
+test("a refused reliable registration falls back to plain ML once", async () => {
+  // ALREADY_IN_USE (`… 03 12 28`), then the plain ML grant.
+  const f = fixture({
+    reliable: null,
+    mlr: "preferred",
+    registrations: [{ status: 3, handle: 0x12, reliable: 0x28 }],
+  });
+  f.session.start();
+  await f.session.whenDone();
+  expect(requested(f.server.raw)).toEqual([2, 0]);
+  expect(f.server.handle).toBe(5);
+  expect(f.server.packets).toEqual([]);
+  expect(f.server.downloads).toEqual([0, 1, 2, 4, 3]);
+});
+
+test("an unanswered reliable registration falls back to plain ML after the watchdog", async () => {
+  const f = fixture({
+    reliable: null,
+    mlr: "preferred",
+    watchdogMs: 40,
+    registrations: [{ ignore: true }],
+  });
+  f.session.start();
+  await f.session.whenDone();
+  expect(requested(f.server.raw)).toEqual([2, 0]);
+  expect(f.records.length).toBeGreaterThan(0);
+});
+
+test("a reliable grant on a handle MLR cannot route falls back to plain ML", async () => {
+  const f = fixture({
+    reliable: null,
+    mlr: "preferred",
+    registrations: [{ reliable: 1, handle: 0x04 }],
+  });
+  f.session.start();
+  await f.session.whenDone();
+  expect(requested(f.server.raw)).toEqual([2, 0]);
+  expect(f.server.downloads).toEqual([0, 1, 2, 4, 3]);
+});
+
+test("an unasked reliable grant on an unroutable handle fails cleanly", async () => {
+  const f = fixture({ reliable: 2 }); // handle 5, reliable, never asked
+  f.session.start();
+  await expect(f.session.whenDone()).rejects.toThrow("GARMIN_MLR_HANDLE");
+  expect(f.failures).toEqual(["init"]);
+});
+
+test("both registrations refused ends the session", async () => {
+  const f = fixture({
+    reliable: null,
+    mlr: "preferred",
+    registrations: [{ status: 4 }, { status: 4 }],
+  });
+  f.session.start();
+  await expect(f.session.whenDone()).rejects.toThrow("GARMIN_ML_REGISTER_FAILED");
+  expect(requested(f.server.raw)).toEqual([2, 0]);
+});
+
+test("an unsolicited GFDI close re-registers with the same MLR choice", async () => {
+  const f = fixture({
+    reliable: null,
+    mlr: "preferred",
+    registrations: [{ closeAfterGrant: true }],
+  });
+  f.session.start();
+  await f.session.whenDone();
+  expect(requested(f.server.raw)).toEqual([2, 2]);
+  expect(f.server.mlWrites).toBe(0);
+  expect(f.server.downloads).toEqual([0, 1, 2, 4, 3]);
+  expect(f.failures).toEqual([]);
+});
+
+test("a GFDI close that cannot be re-registered fails the session", async () => {
+  const f = fixture({
+    reliable: null,
+    mlr: "preferred",
+    registrations: [{ closeAfterGrant: true }, { status: 4 }, { status: 4 }],
+  });
+  f.session.start();
+  await expect(f.session.whenDone()).rejects.toThrow("GARMIN_ML_REGISTER_FAILED");
+  expect(requested(f.server.raw)).toEqual([2, 2, 0]);
+});
+
+test("a close for another handle does not tear down GFDI", async () => {
+  const f = fixture({
+    reliable: null,
+    mlr: "preferred",
+    handshake: false,
+    configurationWaitMs: 30,
+  });
+  f.session.start();
+  await tick(10);
+  f.server.closeGfdi(0x85);
+  await f.session.whenDone();
+  expect(requested(f.server.raw)).toEqual([2]);
+  expect(f.server.downloads).toEqual([0, 1, 2, 4, 3]);
+});
+
+test("an ML handle with the msb set and no MLR channel stays on the ML path (#5476)", async () => {
+  const f = fixture({ registrations: [{ handle: 0xa5, reliable: 0 }] });
+  f.session.start();
+  await f.session.whenDone();
+  expect(f.server.handle).toBe(0xa5);
+  expect(f.server.packets).toEqual([]);
+  expect(f.server.downloads).toEqual([0, 1, 2, 4, 3]);
+  expect(f.records.length).toBeGreaterThan(0);
+});
+
+test("close() stops the MLR channel's retransmissions", async () => {
+  const f = fixture({
+    reliable: null,
+    mlr: "preferred",
+    handshake: false,
+    configurationWaitMs: 60_000,
+  });
+  f.session.start();
+  await tick(10);
+  // The watch's battery status gets a GFDI ACK that the watch never
+  // acknowledges at the MLR level, so it would be retransmitted after 1 s.
+  f.server.emit({ messageType: GARMIN_MESSAGE.BATTERY_STATUS, payload: Uint8Array.of(0, 0, 80) });
+  f.server.mlr = null;
+  await tick(10);
+  const before = f.server.packets.length;
+  expect(before).toBeGreaterThan(0);
+  await f.session.close();
+  await tick(1_100);
+  expect(f.server.packets.length).toBe(before);
+});
+
+test("an unacknowledged MLR packet is retransmitted after 1 s", async () => {
+  const f = fixture({
+    reliable: null,
+    mlr: "preferred",
+    handshake: false,
+    configurationWaitMs: 60_000,
+  });
+  f.session.start();
+  await tick(10);
+  f.server.emit({ messageType: GARMIN_MESSAGE.BATTERY_STATUS, payload: Uint8Array.of(0, 0, 80) });
+  f.server.mlr = null;
+  await tick(10);
+  const data = f.server.packets.filter((packet) => packet.length > 2);
+  expect(data).toHaveLength(1);
+  await tick(1_050);
+  const again = f.server.packets.filter((packet) => packet.length > 2);
+  expect(again).toHaveLength(2);
+  expect(Array.from(again[1]!)).toEqual(Array.from(again[0]!));
+  await f.session.close();
 });
 
 test("a missing download status trips the watchdog", async () => {

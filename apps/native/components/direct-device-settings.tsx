@@ -3,6 +3,8 @@ import { Bluetooth, ShieldCheck } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { Alert, AppState, Linking, Text, TextInput, View } from "react-native";
 import { useFocusEffect } from "expo-router";
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 
 import { Icon, Section, Sheet, StatusPill } from "@/components/bloom";
@@ -175,7 +177,7 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
     controller?.getSnapshot ?? (() => initialSnapshot),
     () => initialSnapshot,
   );
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const [authKey, setAuthKey] = useState("");
   const [working, setWorking] = useState(false);
   // Fossil keys are parsed the upstream way (spaces and any "0x" allowed).
@@ -658,7 +660,9 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
         ) : null}
         {snapshot.errorCode ? (
           <Text className="font-sans text-sm text-destructive">
-            {friendlyError(snapshot.errorCode)}
+            {GARMIN_ERROR_COPY[snapshot.errorCode]
+              ? i18n._(GARMIN_ERROR_COPY[snapshot.errorCode]!)
+              : friendlyError(snapshot.errorCode)}
           </Text>
         ) : null}
         <View className="flex-row items-center gap-2">
@@ -669,6 +673,17 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
     </Section>
   );
 }
+
+/** Garmin failure codes (`lib/direct-devices/transport/garmin.ts`), localized. */
+const GARMIN_ERROR_COPY: Record<string, MessageDescriptor> = {
+  GARMIN_HISTORY_UNSUPPORTED: msg`Garmin connection checks are available, but step history sync is not implemented.`,
+  GARMIN_ML_REQUIRED: msg`This Garmin watch uses an older Bluetooth protocol that sync does not support.`,
+  GARMIN_ML_CLOSE_TIMEOUT: msg`The Garmin watch did not open its data link. Keep it near the phone, restart it if this repeats, then sync again.`,
+  GARMIN_ML_REGISTER_TIMEOUT: msg`The Garmin watch did not open its data link. Keep it near the phone, restart it if this repeats, then sync again.`,
+  GARMIN_ML_REGISTER_FAILED: msg`The Garmin watch refused to open its data link. Close other apps connected to it, restart the watch, then sync again.`,
+  GARMIN_MLR_HANDLE: msg`The Garmin watch offered a reliable link this app cannot use. Restart the watch, then sync again.`,
+  GARMIN_MLR_QUEUE_FULL: msg`The Garmin watch stopped acknowledging data. Move it closer to the phone, then sync again.`,
+};
 
 function friendlyError(code: string) {
   if (code === "BLUETOOTH_UNAUTHORIZED") return "Allow Bluetooth access in device settings.";
@@ -710,12 +725,6 @@ function friendlyError(code: string) {
     return "This older capture has no device identity and cannot be assigned automatically.";
   if (code === "IDENTITY_MISMATCH")
     return "The saved device identity does not match this device. Select a compatible binding or create a new one.";
-  if (code === "GARMIN_HISTORY_UNSUPPORTED")
-    return "Garmin connection checks are available, but step history sync is not implemented.";
-  if (code === "GARMIN_ML_REQUIRED")
-    return "This Garmin watch uses an older Bluetooth protocol that sync does not support.";
-  if (code === "GARMIN_MLR_UNSUPPORTED")
-    return "This Garmin watch asked for its newer reliable link, which sync does not support yet.";
   if (code === "BANGLE_JS_HISTORY_UNSUPPORTED")
     return "This Bangle.js watch connected, but its history syncs on connection rather than through a step sync action.";
   if (code === "HUAMI_AUTH_FAILED")
