@@ -412,6 +412,11 @@ export const PROCEDURE_ACCESS: Readonly<Record<string, ProcedureAccessClass>> = 
   "trackers.log": W,
   "trackers.updateEntry": W,
   "trackers.deleteEntry": W,
+  // #452: phone feeds. Linking and importing are writes; Cloud read-only blocks them.
+  "trackers.feeds": R,
+  "trackers.linkFeed": W,
+  "trackers.unlinkFeed": W,
+  "trackers.importFeed": W,
 
   // Pain log (#442).
   "pain.preference": R,

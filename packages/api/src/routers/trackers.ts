@@ -3,6 +3,8 @@ import { requirePermission } from "@openvalens/auth/authz/guard";
 import {
   createTrackerService,
   TRACKER_AGGREGATIONS,
+  TRACKER_FEED_DEFINITIONS,
+  TRACKER_FEEDS,
   TRACKER_ICONS,
   TRACKER_TARGET_PERIODS,
   TRACKER_TEMPLATE_IDS,
@@ -15,6 +17,9 @@ import {
   trackerEntriesInput,
   trackerEntryIdInput,
   trackerEntryUpdateInput,
+  trackerFeedImportInput,
+  trackerFeedLinkInput,
+  trackerFeedUnlinkInput,
   trackerIdInput,
   trackerListInput,
   trackerLogInput,
@@ -36,6 +41,11 @@ import { requireProfileOwner } from "../wellness-profile";
  * collaborators and above log into it. Only the owner changes, shares,
  * archives or deletes a tracker (`FORBIDDEN` otherwise). Audit rows carry ids
  * only: no names, values or notes.
+ *
+ * Phone feeds (#452): the owner links one tracker per feed (HealthKit mindful
+ * sessions, Health Connect mindfulness, HealthKit State of Mind) from the
+ * phone, and the phone imports what it reads with `importFeed`, idempotent on
+ * the platform record id.
  */
 
 const person = z.object({
@@ -95,6 +105,14 @@ const chart = z.object({
   progress: progress.nullable(),
 });
 
+const feedLink = z.object({
+  feed: z.enum(TRACKER_FEEDS),
+  trackerId: z.string(),
+  trackerName: z.string(),
+  trackerArchived: z.boolean(),
+  linkedAt: z.string(),
+});
+
 type TrackerContext = {
   session: Parameters<typeof requireProfileOwner>[0];
   authz: { user: { id: string }; activeOrganizationId: string };
@@ -142,6 +160,7 @@ function mapError(error: unknown): never {
       case "LOCKED":
       case "LIMIT":
       case "ARCHIVED":
+      case "NOT_LINKED":
         throw raiseApiError("CONFLICT", error.message);
     }
   }
@@ -164,6 +183,7 @@ async function audit(
   eventType: "RECORD_CREATED" | "RECORD_UPDATED" | "RECORD_DELETED",
   targetType: "custom_tracker" | "custom_tracker_entry",
   targetId: string,
+  metadata: Record<string, string | number> = { source: "manual" },
 ) {
   await writeAuditLog({
     db: context.db,
@@ -173,7 +193,7 @@ async function audit(
     targetType,
     targetId,
     correlationId: context.correlationId,
-    metadata: { source: "manual" },
+    metadata,
   });
 }
 
@@ -301,5 +321,61 @@ export const trackersRouter = {
     .output(chart)
     .handler(async ({ context, input }) =>
       run(async () => service(context).chart(await reader(context), input)),
+    ),
+
+  /** The member's own phone-feed links (#452). */
+  feeds: read()
+    .output(z.array(feedLink))
+    .handler(async ({ context }) => run(async () => service(context).feeds(member(context)))),
+
+  linkFeed: write()
+    .use(validateInput(trackerFeedLinkInput))
+    .input(trackerFeedLinkInput)
+    .output(feedLink)
+    .handler(async ({ context, input }) =>
+      run(async () => {
+        const link = await service(context).linkFeed(writer(context), input);
+        await audit(context, "RECORD_UPDATED", "custom_tracker", link.trackerId, {
+          source: TRACKER_FEED_DEFINITIONS[input.feed].source,
+          feed: input.feed,
+          action: "feed_linked",
+        });
+        return link;
+      }),
+    ),
+
+  unlinkFeed: write()
+    .use(validateInput(trackerFeedUnlinkInput))
+    .input(trackerFeedUnlinkInput)
+    .output(z.object({ unlinked: z.boolean() }))
+    .handler(async ({ context, input }) =>
+      run(async () => {
+        const result = await service(context).unlinkFeed(writer(context), input);
+        if (result.trackerId)
+          await audit(context, "RECORD_UPDATED", "custom_tracker", result.trackerId, {
+            source: TRACKER_FEED_DEFINITIONS[input.feed].source,
+            feed: input.feed,
+            action: "feed_unlinked",
+          });
+        return { unlinked: result.unlinked };
+      }),
+    ),
+
+  importFeed: write()
+    .use(validateInput(trackerFeedImportInput))
+    .input(trackerFeedImportInput)
+    .output(z.object({ imported: z.number(), duplicates: z.number(), skipped: z.number() }))
+    .handler(async ({ context, input }) =>
+      run(async () => {
+        const result = await service(context).importFeed(writer(context), input);
+        // One row per import call, with counts only: no values or record ids.
+        if (result.imported > 0)
+          await audit(context, "RECORD_CREATED", "custom_tracker", input.trackerId, {
+            source: TRACKER_FEED_DEFINITIONS[input.feed].source,
+            feed: input.feed,
+            imported: result.imported,
+          });
+        return result;
+      }),
     ),
 };

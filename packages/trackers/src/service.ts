@@ -1,8 +1,18 @@
 import type { Database } from "@openvalens/db";
 import { user } from "@openvalens/db/schema/auth";
-import { customTracker, customTrackerEntry } from "@openvalens/db/schema/trackers";
+import {
+  customTracker,
+  customTrackerEntry,
+  customTrackerFeed,
+} from "@openvalens/db/schema/trackers";
 import { and, asc, between, count, desc, eq, inArray, isNull, lt, or, sql } from "drizzle-orm";
 
+import {
+  feedFitsTracker,
+  TRACKER_FEED_DEFINITIONS,
+  type TrackerFeed,
+  type TrackerFeedImportInput,
+} from "./feeds";
 import {
   addDays,
   aggregateValues,
@@ -52,7 +62,9 @@ export type TrackerErrorCode =
   | "LIMIT"
   | "ARCHIVED"
   | "CONFIRMATION"
-  | "INVALID";
+  | "INVALID"
+  /** An import for a feed that no longer fills that tracker (#452). */
+  | "NOT_LINKED";
 
 export class TrackerError extends Error {
   constructor(
@@ -119,6 +131,24 @@ export type TrackerChart = {
   /** The total of the logged days' values (sum trackers and yes days). */
   total: number | null;
   progress: TargetProgress | null;
+};
+
+/** A phone feed linked to one of the member's trackers (#452). */
+export type TrackerFeedLinkView = {
+  feed: TrackerFeed;
+  trackerId: string;
+  trackerName: string;
+  trackerArchived: boolean;
+  linkedAt: string;
+};
+
+export type TrackerFeedImportResult = {
+  /** New entries written. */
+  imported: number;
+  /** Entries already imported before (same source and record id): untouched. */
+  duplicates: number;
+  /** Entries refused: a value the tracker cannot hold or a time in the future. */
+  skipped: number;
 };
 
 type TrackerRow = typeof customTracker.$inferSelect;
@@ -610,6 +640,175 @@ export function createTrackerService(input: { db: Database; now?: () => Date }) 
       if (!entryView(entry, tracker, viewer, null).canEdit)
         throw new TrackerError("FORBIDDEN", "You cannot delete this entry.");
       await db.delete(customTrackerEntry).where(eq(customTrackerEntry.id, entry.id));
+    },
+
+    // ─── Phone feeds (#452) ─────────────────────────────────────
+
+    /** The member's own feed links, with the tracker each one fills. */
+    async feeds(viewer: TrackerScope): Promise<TrackerFeedLinkView[]> {
+      const rows = await db
+        .select({ link: customTrackerFeed, tracker: customTracker })
+        .from(customTrackerFeed)
+        .innerJoin(customTracker, eq(customTracker.id, customTrackerFeed.trackerId))
+        .where(
+          and(
+            eq(customTrackerFeed.organizationId, viewer.organizationId),
+            eq(customTrackerFeed.userId, viewer.userId),
+          ),
+        )
+        .orderBy(asc(customTrackerFeed.feed));
+      return rows.map(({ link, tracker }) => ({
+        feed: link.feed as TrackerFeed,
+        trackerId: tracker.id,
+        trackerName: tracker.name,
+        trackerArchived: Boolean(tracker.archivedAt),
+        linkedAt: link.linkedAt.toISOString(),
+      }));
+    },
+
+    /**
+     * Links a feed to one of the owner's trackers. One tracker per feed: a
+     * feed already linked elsewhere moves here, and the entries it imported
+     * into the other tracker stay there.
+     */
+    async linkFeed(
+      viewer: TrackerViewer,
+      input: { trackerId: string; feed: TrackerFeed },
+    ): Promise<TrackerFeedLinkView> {
+      const tracker = await owned(viewer, input.trackerId);
+      if (tracker.archivedAt)
+        throw new TrackerError("ARCHIVED", "Restore this tracker to link it.");
+      if (!feedFitsTracker(input.feed, tracker.type as TrackerType))
+        throw new TrackerError(
+          "INVALID",
+          TRACKER_FEED_DEFINITIONS[input.feed].trackerType === "duration"
+            ? "Mindful minutes fill a duration tracker."
+            : "State of Mind fills a 1 to 5 tracker.",
+        );
+      const linkedAt = now();
+      const [link] = await db
+        .insert(customTrackerFeed)
+        .values({
+          organizationId: viewer.organizationId,
+          userId: viewer.userId,
+          feed: input.feed,
+          trackerId: tracker.id,
+          linkedAt,
+        })
+        .onConflictDoUpdate({
+          target: [
+            customTrackerFeed.organizationId,
+            customTrackerFeed.userId,
+            customTrackerFeed.feed,
+          ],
+          set: { trackerId: tracker.id, linkedAt },
+        })
+        .returning();
+      return {
+        feed: link!.feed as TrackerFeed,
+        trackerId: tracker.id,
+        trackerName: tracker.name,
+        trackerArchived: false,
+        linkedAt: link!.linkedAt.toISOString(),
+      };
+    },
+
+    /**
+     * Unlinks a feed: imports stop, and the entries already imported stay.
+     * With `trackerId`, only while the feed still fills that tracker.
+     */
+    async unlinkFeed(
+      viewer: TrackerViewer,
+      input: { feed: TrackerFeed; trackerId?: string },
+    ): Promise<{ unlinked: boolean; trackerId: string | null }> {
+      if (!viewer.canWrite)
+        throw new TrackerError("FORBIDDEN", "Your role cannot change trackers.");
+      const removed = await db
+        .delete(customTrackerFeed)
+        .where(
+          and(
+            eq(customTrackerFeed.organizationId, viewer.organizationId),
+            eq(customTrackerFeed.userId, viewer.userId),
+            eq(customTrackerFeed.feed, input.feed),
+            input.trackerId ? eq(customTrackerFeed.trackerId, input.trackerId) : undefined,
+          ),
+        )
+        .returning({ trackerId: customTrackerFeed.trackerId });
+      return { unlinked: removed.length > 0, trackerId: removed[0]?.trackerId ?? null };
+    },
+
+    /**
+     * Imports entries a phone read from a linked feed. Idempotent on
+     * (tracker, source, record id): an entry imported before is left as it is
+     * (with any change the member made to it), so a retry or a re-read after
+     * a cursor reset never duplicates. Refused once the feed no longer fills
+     * this tracker.
+     */
+    async importFeed(
+      viewer: TrackerViewer,
+      input: TrackerFeedImportInput,
+    ): Promise<TrackerFeedImportResult> {
+      const tracker = await owned(viewer, input.trackerId);
+      if (tracker.archivedAt) throw new TrackerError("ARCHIVED", "Restore this tracker to log it.");
+      const [link] = await db
+        .select({ trackerId: customTrackerFeed.trackerId })
+        .from(customTrackerFeed)
+        .where(
+          and(
+            eq(customTrackerFeed.organizationId, viewer.organizationId),
+            eq(customTrackerFeed.userId, viewer.userId),
+            eq(customTrackerFeed.feed, input.feed),
+          ),
+        );
+      if (!link || link.trackerId !== tracker.id)
+        throw new TrackerError("NOT_LINKED", "This feed no longer fills this tracker.");
+      const type = tracker.type as TrackerType;
+      if (!feedFitsTracker(input.feed, type))
+        throw new TrackerError("INVALID", "This feed cannot fill this tracker.");
+      const at = now();
+      const seen = new Set<string>();
+      const valid: typeof input.entries = [];
+      let skipped = 0;
+      for (const entry of input.entries) {
+        if (seen.has(entry.sourceRecordId)) continue;
+        seen.add(entry.sourceRecordId);
+        const loggedAt = new Date(entry.loggedAt);
+        if (
+          trackerValueProblem(type, entry.value) !== null ||
+          !Number.isFinite(loggedAt.getTime()) ||
+          loggedAt.getTime() > at.getTime() + FUTURE_TOLERANCE_MS
+        ) {
+          skipped += 1;
+          continue;
+        }
+        valid.push(entry);
+      }
+      if (valid.length === 0) return { imported: 0, duplicates: 0, skipped };
+      const source = TRACKER_FEED_DEFINITIONS[input.feed].source;
+      // The partial unique index on (organization, user, tracker, source,
+      // source record id) turns a repeat into a no-op.
+      const inserted = await db
+        .insert(customTrackerEntry)
+        .values(
+          valid.map((entry) => {
+            const loggedAt = new Date(entry.loggedAt);
+            return {
+              trackerId: tracker.id,
+              organizationId: tracker.organizationId,
+              userId: tracker.userId,
+              loggedByUserId: viewer.userId,
+              value: entry.value,
+              loggedAt,
+              localDate: localDateIn(loggedAt, input.timeZone),
+              note: null,
+              source,
+              sourceRecordId: entry.sourceRecordId,
+            };
+          }),
+        )
+        .onConflictDoNothing()
+        .returning({ id: customTrackerEntry.id });
+      return { imported: inserted.length, duplicates: valid.length - inserted.length, skipped };
     },
 
     /** A tracker's entries, newest first. */

@@ -4,10 +4,13 @@ import { clearSyncModules } from "./module-profile";
 import { unregisterHealthSyncTask } from "./scheduler";
 import { clearHealthSyncStatus } from "./status";
 
+import { clearTrackerFeedState } from "@/lib/tracker-feeds/store";
+
 /**
  * Called on sign-out: stop background sync and drop cursors, the device
- * registration and the last-run status, so another account on this phone
- * starts clean. Health Connect data itself is untouched.
+ * registration, the last-run status and the tracker-feed cursors (#452), so
+ * another account on this phone starts clean. Health Connect data itself is
+ * untouched.
  */
 export async function resetHealthSync(): Promise<void> {
   await Promise.allSettled([
@@ -16,5 +19,6 @@ export async function resetHealthSync(): Promise<void> {
     forgetDeviceRegistration(),
     clearHealthSyncStatus(),
     clearSyncModules(),
+    clearTrackerFeedState(),
   ]);
 }
