@@ -7649,6 +7649,10 @@ msgid "Gadgetbridge pairing help"
 msgstr "Gadgetbridge pairing help"
 
 #: apps/native/components/direct-device-settings.tsx
+msgid "Garmin connection checks are available, but step history sync is not implemented."
+msgstr "Garmin connection checks are available, but step history sync is not implemented."
+
+#: apps/native/components/direct-device-settings.tsx
 msgid "Garmin FIT files (exact-minute steps, heart rate, sleep, nightly HRV, resting heart rate, blood oxygen, respiration and workouts) sync when the watch connects. Records are saved in batches and sent only when you tap “Retry upload”."
 msgstr "Garmin FIT files (exact-minute steps, heart rate, sleep, nightly HRV, resting heart rate, blood oxygen, respiration and workouts) sync when the watch connects. Records are saved in batches and sent only when you tap “Retry upload”."
 
@@ -16711,6 +16715,22 @@ msgstr "The file was downloaded, but sharing is unavailable on this device."
 msgid "The food source could not be reached. Try the lookup again later, or enter the food from its label."
 msgstr "The food source could not be reached. Try the lookup again later, or enter the food from its label."
 
+#: apps/native/components/direct-device-settings.tsx
+msgid "The Garmin watch did not open its data link. Keep it near the phone, restart it if this repeats, then sync again."
+msgstr "The Garmin watch did not open its data link. Keep it near the phone, restart it if this repeats, then sync again."
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "The Garmin watch offered a reliable link this app cannot use. Restart the watch, then sync again."
+msgstr "The Garmin watch offered a reliable link this app cannot use. Restart the watch, then sync again."
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "The Garmin watch refused to open its data link. Close other apps connected to it, restart the watch, then sync again."
+msgstr "The Garmin watch refused to open its data link. Close other apps connected to it, restart the watch, then sync again."
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "The Garmin watch stopped acknowledging data. Move it closer to the phone, then sync again."
+msgstr "The Garmin watch stopped acknowledging data. Move it closer to the phone, then sync again."
+
 #: packages/api/src/presenters/pain.ts
 msgid "The highest rating you logged in each region. Regions with no rating stay grey. The joint spots appear only on this layer."
 msgstr "The highest rating you logged in each region. Regions with no rating stay grey. The joint spots appear only on this layer."
@@ -17145,6 +17165,10 @@ msgstr "This food was archived on another device. Restore it to edit."
 #: apps/native/components/direct-device-settings.tsx
 msgid "This Garmin model is registered for connection checks only; it carries no health-monitoring FIT files."
 msgstr "This Garmin model is registered for connection checks only; it carries no health-monitoring FIT files."
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "This Garmin watch uses an older Bluetooth protocol that sync does not support."
+msgstr "This Garmin watch uses an older Bluetooth protocol that sync does not support."
 
 #: apps/web/src/routes/_auth/goals.$goalId.tsx
 msgid "This goal was replaced."

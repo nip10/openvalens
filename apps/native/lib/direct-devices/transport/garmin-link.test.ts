@@ -317,3 +317,29 @@ test("NativeGarminLink requires a handle for v2 writes", async () => {
     encodeGarminGfdiFrame({ messageType: 5001, payload: Uint8Array.of(1) }),
   );
 });
+
+test("NativeGarminLink.writePacket makes exactly one GATT write, verbatim", async () => {
+  const fake = fakeDevice();
+  const link = new NativeGarminLink(fake.device, GARMIN_BLE_PROFILES[0]!);
+  const packet = new Uint8Array(244).fill(0xaa);
+  packet[0] = 0xe0;
+  packet[1] = 0x00;
+  await link.writePacket(packet, new AbortController().signal);
+  const writes = fake.writes();
+  expect(writes).toHaveLength(1);
+  expect(writes[0]!.characteristic).toBe(GARMIN_ML_SEND_UUIDS[0]);
+  expect(hex(Uint8Array.from(Buffer.from(writes[0]!.value, "base64")))).toBe(hex(packet));
+  // No handle needed and no chunking: one byte over `maxWriteBytes` is refused.
+  await expect(link.writePacket(new Uint8Array(245), new AbortController().signal)).rejects.toThrow(
+    "GARMIN_PACKET_TOO_LARGE",
+  );
+  await expect(link.writePacket(new Uint8Array(0), new AbortController().signal)).rejects.toThrow(
+    "GARMIN_PACKET_EMPTY",
+  );
+  const aborted = new AbortController();
+  aborted.abort();
+  await expect(link.writePacket(Uint8Array.of(0xe1, 0x40), aborted.signal)).rejects.toThrow(
+    "CANCELLED",
+  );
+  expect(fake.writes()).toHaveLength(1);
+});

@@ -201,6 +201,12 @@ export interface GarminLink {
   write(frame: GarminGfdiFrame, signal: AbortSignal): Promise<void>;
   /** Writes raw bytes (ML handle management); no COBS, no handle prefix. */
   writeRaw(bytes: Uint8Array, signal: AbortSignal): Promise<void>;
+  /**
+   * Writes one packet as exactly one GATT write, no chunking and no prefix
+   * (an MLR packet already carries its header). Rejects a packet longer than
+   * `maxWriteBytes`.
+   */
+  writePacket(bytes: Uint8Array, signal: AbortSignal): Promise<void>;
   /** Sets the ML GFDI handle once the device has registered the service. */
   setHandle(handle: number): void;
   close(): Promise<void>;
@@ -342,6 +348,20 @@ export class NativeGarminLink implements GarminLink {
         if (signal.aborted) throw new Error("CANCELLED");
         await this.writeChunk(bytes.subarray(offset, offset + chunkSize), signal);
       }
+      if (signal.aborted) throw new Error("CANCELLED");
+    });
+    this.queue = task.catch(() => undefined);
+    return task;
+  }
+
+  writePacket(bytes: Uint8Array, signal: AbortSignal): Promise<void> {
+    const task = this.queue.then(async () => {
+      if (signal.aborted) throw new Error("CANCELLED");
+      // `CommunicatorV2.createMlrCommunicator`: one `builder.write` per packet,
+      // sized by the same `calcMaxWriteChunk(mtu)` as `maxWriteBytes`.
+      if (bytes.length === 0) throw new Error("GARMIN_PACKET_EMPTY");
+      if (bytes.length > this.maxWriteBytes) throw new Error("GARMIN_PACKET_TOO_LARGE");
+      await this.writeChunk(bytes, signal);
       if (signal.aborted) throw new Error("CANCELLED");
     });
     this.queue = task.catch(() => undefined);

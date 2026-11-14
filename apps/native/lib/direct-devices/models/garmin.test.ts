@@ -8,7 +8,7 @@
 
 import { expect, test } from "bun:test";
 
-import { GARMIN_MODELS, getGarminModel, matchGarminDeviceName } from "./garmin";
+import { GARMIN_MODELS, getGarminMlrMode, getGarminModel, matchGarminDeviceName } from "./garmin";
 
 test("the registry contains the 190 catalog Garmin entries", () => {
   expect(GARMIN_MODELS).toHaveLength(190);
@@ -175,4 +175,22 @@ test("matchGarminDeviceName rejects partial and differently-cased names", () => 
   expect(matchGarminDeviceName("vívoactive 99")).toBeNull();
   expect(matchGarminDeviceName("Edge 530 Mountain")).toBeNull();
   expect(matchGarminDeviceName("HRM 200 Pro")).toBeNull();
+});
+
+test("MLR is preferred exactly for the five upstream new-sync models", () => {
+  // The coordinators that override `defaultNewSyncProtocol()` (and so force
+  // MLR on, `GarminCoordinator.java:122-131`).
+  const preferred = GARMIN_MODELS.filter((model) => getGarminMlrMode(model.id) === "preferred");
+  expect(preferred.map((model) => model.id).sort()).toEqual([
+    "garmin_cirqa",
+    "garmin_d2_air_x15",
+    "garmin_venu_4",
+    "garmin_venu_x1",
+    "garmin_vivoactive_6",
+  ]);
+  for (const model of preferred) expect(model.sync, model.id).toBe(true);
+  expect(getGarminMlrMode("garmin_fenix_7")).toBe("off");
+  expect(GARMIN_MODELS.every((model) => model.mlr === undefined || model.mlr === "preferred")).toBe(
+    true,
+  );
 });

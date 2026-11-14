@@ -16,11 +16,20 @@
  *
  * Transport scope
  * ---------------
- * v1 implements the Multi-Link (ML) transport only, which is what current
+ * The session speaks the Multi-Link (ML) transport, which is what current
  * watches expose (`6a4e2800-…`). Devices that only advertise the v0/v1 GFDI
  * services are refused with `GARMIN_ML_REQUIRED` rather than half-supported.
- * MLR (reliable ML, the 2-byte header + ack variant) is detected from the
- * service registration and refused with `GARMIN_MLR_UNSUPPORTED`.
+ *
+ * MLR (Multi-Link Reliable, `MlrCommunicator.java`) is negotiated per service
+ * registration: models whose registry entry says `mlr: "preferred"` register
+ * GFDI with `reliable = 2`, and whenever the watch grants a reliable handle
+ * (asked or not, as upstream) GFDI runs through a `GarminMlrChannel` instead
+ * of the plain `[handle][COBS]` path. A failed or unanswered reliable
+ * registration is retried once as plain ML (a local safety net; upstream has
+ * none). An unsolicited `CLOSE_HANDLE_RESP` for GFDI closes the channel and
+ * registers again (`CommunicatorV2:456-464`). MLR retransmits without a
+ * retry limit, so the per-request watchdogs below stay the outer bound. No
+ * model is hardware-validated, over ML or MLR.
  *
  * Auth: none. Pairing is a GFDI system event (`PAIR_COMPLETE`); there is no
  * key exchange or account on the BLE link.
@@ -30,7 +39,12 @@
 
 import type { Device } from "react-native-ble-plx";
 
-import type { GarminModelId } from "../models/garmin";
+import { getGarminMlrMode, type GarminMlrMode, type GarminModelId } from "../models/garmin";
+import {
+  GarminMlrChannel,
+  garminMlrRouteHandle,
+  isGarminMlrRoutableHandle,
+} from "../protocol/garmin-mlr";
 import {
   GARMIN_DOWNLOAD_STATUS,
   GarminCobsDecoder,
@@ -54,6 +68,8 @@ import {
   buildGarminSystemEvent,
   buildGarminTransferDataStatus,
   decodeGarminGfdiFrame,
+  encodeGarminCobs,
+  encodeGarminGfdiFrame,
   garminCrc16,
   garminFitRecords,
   isGarminDirectorySentinel,
@@ -68,6 +84,7 @@ import {
   parseGarminStatus,
   type GarminDirectoryEntry,
   type GarminGfdiFrame,
+  type GarminMlMessage,
   type GarminRecord,
   type GarminStatusMessage,
 } from "../protocol/garmin";
@@ -142,6 +159,8 @@ export interface GarminSessionLink {
   subscribeRaw(onNotification: (bytes: Uint8Array) => void, onFailure: () => void): () => void;
   write(frame: GarminGfdiFrame, signal: AbortSignal): Promise<void>;
   writeRaw(bytes: Uint8Array, signal: AbortSignal): Promise<void>;
+  /** Exactly one GATT write, no chunking (MLR packets). */
+  writePacket(bytes: Uint8Array, signal: AbortSignal): Promise<void>;
   setHandle(handle: number): void;
   close(): Promise<void>;
 }
@@ -158,6 +177,8 @@ export type GarminSessionOptions = Readonly<{
   /** Stable device id used as the sync-state key. */
   deviceId: string;
   modelId: GarminModelId;
+  /** Overrides the registry's MLR preference for `modelId`. */
+  mlr?: GarminMlrMode;
   onRecord: (record: GarminRecord) => void;
   onFailure?: (failure: GarminFailure) => void;
   timers?: GarminTimers;
@@ -210,8 +231,13 @@ type TransferState = {
 
 type MlWaiter = {
   requestType: number;
-  done: Deferred<ReturnType<typeof parseGarminMlMessage>>;
+  done: Deferred<GarminMlMessage>;
 };
+
+/** The registered GFDI handle, and its MLR channel when the grant was reliable. */
+type GfdiBinding = Readonly<{ handle: number; mlr: GarminMlrChannel | null }>;
+
+const EMPTY = new Uint8Array(0);
 
 /**
  * One device connection. `start()` subscribes and runs the sync chain;
@@ -230,7 +256,19 @@ export class GarminSession {
   private readonly link: GarminSessionLink;
   private readonly abort = new AbortController();
   private readonly decoder = new GarminCobsDecoder();
-  private handle: number | null = null;
+  /** Ask for MLR when registering GFDI (`GarminSupport.mlrEnabled`). */
+  private readonly mlrPreferred: boolean;
+  /** Set once a reliable registration failed; later ones ask for plain ML. */
+  private mlrFallback = false;
+  private gfdi: GfdiBinding | null = null;
+  /** Resolved with the binding on every GFDI registration. */
+  private bound = deferred<GfdiBinding>();
+  /** `CommunicatorV2.closingAll`: a CLOSE_ALL_REQ is outstanding. */
+  private closingAll = false;
+  /** An unsolicited re-registration is in flight. */
+  private reregistering = false;
+  /** A failure that ends the session, e.g. GFDI could not be re-registered. */
+  private fatal: Error | null = null;
   private readonly done: Promise<void>;
   private resolveDone!: () => void;
   private rejectDone!: (error: unknown) => void;
@@ -258,6 +296,7 @@ export class GarminSession {
     this.keepOnDevice = options.keepOnDevice ?? false;
     this.syncState = options.syncState ?? defaultGarminSyncStateStore;
     this.maxFiles = options.maxFiles ?? GARMIN_MAX_FILES_PER_SYNC;
+    this.mlrPreferred = (options.mlr ?? getGarminMlrMode(options.modelId)) === "preferred";
     this.link =
       options.link ?? new NativeGarminLink(options.device, options.profile, options.manager);
     this.done = new Promise<void>((resolve, reject) => {
@@ -298,6 +337,7 @@ export class GarminSession {
     this.abort.abort();
     this.unsubscribe?.();
     this.unsubscribe = null;
+    this.unbindGfdi();
     this.failPending(new Error("GARMIN_CLOSED"));
     await this.link.close().catch(() => undefined);
     this.settleResolve();
@@ -344,28 +384,128 @@ export class GarminSession {
 
   /**
    * `CommunicatorV2.initializeDevice` + `processHandleManagement`: close every
-   * handle, then register the GFDI service and keep its handle. A registration
-   * that comes back reliable is MLR, which v1 does not implement.
+   * handle, then register the GFDI service and keep its handle.
    */
   private async registerMlHandle(): Promise<void> {
     const closeAll = this.waitForMl(GARMIN_ML_REQUEST.CLOSE_ALL_RESP);
-    await this.link.writeRaw(buildGarminMlCloseAll(), this.abort.signal);
-    await this.withWatchdog(closeAll, "GARMIN_ML_CLOSE_TIMEOUT");
+    this.closingAll = true;
+    try {
+      await this.link.writeRaw(buildGarminMlCloseAll(), this.abort.signal);
+      await this.withWatchdog(closeAll.promise, "GARMIN_ML_CLOSE_TIMEOUT");
+    } finally {
+      this.closingAll = false;
+      this.clearMlWaiter(closeAll);
+    }
+    await this.registerGfdi();
+  }
 
+  /**
+   * Registers GFDI, reliable when MLR is preferred. A reliable request that is
+   * refused, unanswered or granted on a handle MLR cannot route falls back to
+   * plain ML once per session (INFERRED safety net; upstream has none).
+   */
+  private async registerGfdi(): Promise<void> {
+    const reliable = this.mlrPreferred && !this.mlrFallback;
+    try {
+      await this.requestGfdiRegistration(reliable);
+    } catch (error) {
+      if (!reliable || this.closed) throw error;
+      this.mlrFallback = true;
+      await this.requestGfdiRegistration(false);
+    }
+  }
+
+  private async requestGfdiRegistration(reliable: boolean): Promise<void> {
     const register = this.waitForMl(GARMIN_ML_REQUEST.REGISTER_ML_RESP);
-    await this.link.writeRaw(
-      buildGarminMlRegisterService(GARMIN_ML_SERVICE_GFDI),
-      this.abort.signal,
-    );
-    const response = await this.withWatchdog(register, "GARMIN_ML_REGISTER_TIMEOUT");
-    if (!response || response.service !== GARMIN_ML_SERVICE_GFDI || response.handle === null) {
+    let response: GarminMlMessage;
+    try {
+      await this.link.writeRaw(
+        buildGarminMlRegisterService(GARMIN_ML_SERVICE_GFDI, reliable),
+        this.abort.signal,
+      );
+      response = await this.withWatchdog(register.promise, "GARMIN_ML_REGISTER_TIMEOUT");
+    } finally {
+      this.clearMlWaiter(register);
+    }
+    // `CommunicatorV2:364-367`: a non-zero status is a failed registration.
+    if (response.handle === null || response.status !== 0) {
       throw new Error("GARMIN_ML_REGISTER_FAILED");
     }
-    if (response.status !== 0) throw new Error("GARMIN_ML_REGISTER_FAILED");
-    // `CommunicatorV2` treats any non-zero reliability byte as MLR.
-    if ((response.reliable ?? 0) !== 0) throw new Error("GARMIN_MLR_UNSUPPORTED");
-    this.handle = response.handle;
-    this.link.setHandle(response.handle);
+    // `handleMlManagement` bound the grant synchronously, so GFDI messages
+    // the watch sends right behind it are not lost; it refuses only an MLR
+    // grant that no packet could reach. (The binding may already be gone
+    // again: an unsolicited close re-registers on its own.)
+    if ((response.reliable ?? 0) !== 0 && !isGarminMlrRoutableHandle(response.handle)) {
+      throw new Error("GARMIN_MLR_HANDLE");
+    }
+  }
+
+  /**
+   * `CommunicatorV2:417-430`: any non-zero reliability byte is MLR, whether
+   * or not it was asked for; zero is plain ML.
+   */
+  private bindGfdi(handle: number, reliable: number): void {
+    if (reliable !== 0 && !isGarminMlrRoutableHandle(handle)) {
+      // Upstream would key a communicator that no packet can reach
+      // (`CommunicatorV2:201`); fail so the registration falls back to ML.
+      throw new Error("GARMIN_MLR_HANDLE");
+    }
+    this.unbindGfdi();
+    // Upstream creates a fresh `GfdiCallback` (and COBS decoder) per grant.
+    this.decoder.reset();
+    const mlr =
+      reliable === 0
+        ? null
+        : new GarminMlrChannel({
+            handle,
+            maxPacketSize: this.link.maxWriteBytes,
+            timers: this.timers,
+            sendPacket: (packet) => {
+              void this.link.writePacket(packet, this.abort.signal).catch(() => undefined);
+            },
+            onData: (data) => this.acceptGfdiBytes(data),
+          });
+    const binding: GfdiBinding = { handle, mlr };
+    this.gfdi = binding;
+    this.link.setHandle(handle);
+    this.bound.resolve(binding);
+  }
+
+  private unbindGfdi(): void {
+    const current = this.gfdi;
+    if (!current) return;
+    current.mlr?.close();
+    this.gfdi = null;
+    this.bound = deferred<GfdiBinding>();
+  }
+
+  /**
+   * `CommunicatorV2:456-464`: the watch closed GFDI outside a close-all, so
+   * register it again with the same MLR choice. Requests in flight keep
+   * their watchdogs; if registration fails for good, the session ends.
+   */
+  private onGfdiClosed(): void {
+    this.unbindGfdi();
+    if (this.reregistering || this.closed || this.fatal) return;
+    this.reregistering = true;
+    this.registerGfdi().then(
+      () => {
+        this.reregistering = false;
+      },
+      (error: unknown) => {
+        this.reregistering = false;
+        if (this.closed) return;
+        this.failSession(error instanceof Error ? error : new Error("GARMIN_ML_REGISTER_FAILED"));
+      },
+    );
+  }
+
+  private failSession(error: Error): void {
+    if (this.fatal) return;
+    this.fatal = error;
+    this.unbindGfdi();
+    this.bound.reject(error);
+    this.failPending(error);
   }
 
   private async syncFiles(): Promise<void> {
@@ -513,25 +653,84 @@ export class GarminSession {
   // -------------------------------------------------------------------------
 
   /**
-   * V2 notifications are `[handle][payload]`. Handle 0 carries ML
-   * handle-management messages; the registered GFDI handle carries COBS data.
+   * `CommunicatorV2.onCharacteristicChanged` (`CommunicatorV2:193-243`): a
+   * packet with bit 7 set goes to the MLR channel when one is registered for
+   * `((b0 & 0x70) >> 4) | 0x80`; everything else is read as `[handle][data]`,
+   * so ML handles with the msb set still work (#5476). Handle 0 carries ML
+   * handle management; the GFDI handle carries COBS data.
    */
   private handleNotification(bytes: Uint8Array): void {
     if (this.closed || bytes.length === 0) return;
     if (this.link.protocol !== "v2") return;
-    const handle = bytes[0]!;
-    if (handle === 0) {
-      const message = parseGarminMlMessage(bytes);
-      if (message && this.mlWaiter && this.mlWaiter.requestType === message.requestType) {
-        const waiter = this.mlWaiter;
-        this.mlWaiter = null;
-        waiter.done.resolve(message);
-      }
+    const first = bytes[0]!;
+    const gfdi = this.gfdi;
+    if ((first & 0x80) !== 0 && gfdi?.mlr && garminMlrRouteHandle(first) === gfdi.handle) {
+      gfdi.mlr.receive(bytes);
       return;
     }
-    if (this.handle !== null && handle !== this.handle) return;
-    const decoded = this.decoder.accept(bytes.subarray(1));
-    if (decoded) this.handleGfdiMessage(decoded);
+    if (first === 0) {
+      const message = parseGarminMlMessage(bytes);
+      if (message) this.handleMlManagement(message);
+      return;
+    }
+    // Plain ML data is accepted only on a plain ML GFDI registration; an MLR
+    // registration's data always carries the MLR header.
+    if (!gfdi || gfdi.mlr || first !== gfdi.handle) return;
+    this.acceptGfdiBytes(bytes.subarray(1));
+  }
+
+  /** `CommunicatorV2.processHandleManagement`, for the GFDI service. */
+  private handleMlManagement(message: GarminMlMessage): void {
+    switch (message.requestType) {
+      case GARMIN_ML_REQUEST.CLOSE_ALL_RESP:
+        this.resolveMlWaiter(message);
+        return;
+      case GARMIN_ML_REQUEST.REGISTER_ML_RESP:
+        if (message.service !== GARMIN_ML_SERVICE_GFDI) return;
+        // Bind before anything else is read: the watch starts GFDI (e.g.
+        // DEVICE_INFORMATION) right after the grant. An unrequested grant
+        // (e.g. the late answer to a registration that timed out) replaces
+        // the current one, as upstream overwrites its handle maps
+        // (`CommunicatorV2:372-430`).
+        if (message.status === 0 && message.handle !== null) {
+          try {
+            this.bindGfdi(message.handle, message.reliable ?? 0);
+          } catch {
+            // An unroutable MLR grant: keep the current registration; a
+            // waiting registration sees the mismatch and falls back.
+          }
+        }
+        this.resolveMlWaiter(message);
+        return;
+      case GARMIN_ML_REQUEST.CLOSE_HANDLE_RESP:
+        // Upstream matches the service only; matching the handle as well keeps
+        // a late close of a superseded registration from closing the current.
+        if (
+          message.service === GARMIN_ML_SERVICE_GFDI &&
+          !this.closingAll &&
+          this.gfdi !== null &&
+          message.handle === this.gfdi.handle
+        ) {
+          this.onGfdiClosed();
+        }
+        return;
+      default:
+        return;
+    }
+  }
+
+  /**
+   * Feeds GFDI bytes (an ML payload or in-order MLR data) to the COBS decoder
+   * and handles every complete message. MLR fragments do not line up with
+   * GFDI messages, so one packet can end one frame and start or hold another.
+   */
+  private acceptGfdiBytes(bytes: Uint8Array): void {
+    let decoded = this.decoder.accept(bytes);
+    while (decoded) {
+      this.handleGfdiMessage(decoded);
+      if (this.closed) return;
+      decoded = this.decoder.accept(EMPTY);
+    }
   }
 
   private handleGfdiMessage(bytes: Uint8Array): void {
@@ -605,8 +804,27 @@ export class GarminSession {
   // Writes and waits
   // -------------------------------------------------------------------------
 
-  private writeFrame(frame: GarminGfdiFrame): Promise<void> {
-    return this.link.write(frame, this.abort.signal);
+  /**
+   * `CommunicatorV2.sendMessage`: COBS-encode the frame, then hand it to the
+   * MLR channel when GFDI is reliable, else to the ML chunker. While GFDI is
+   * being registered again, writes wait for the new handle (bounded by the
+   * watchdog). An MLR write resolves once queued; the channel delivers it.
+   */
+  private async writeFrame(frame: GarminGfdiFrame): Promise<void> {
+    const binding = await this.gfdiBinding();
+    if (binding.mlr) {
+      if (this.abort.signal.aborted) throw new Error("CANCELLED");
+      binding.mlr.send(encodeGarminCobs(encodeGarminGfdiFrame(frame)));
+      return;
+    }
+    await this.link.write(frame, this.abort.signal);
+  }
+
+  private gfdiBinding(): Promise<GfdiBinding> {
+    if (this.fatal) return Promise.reject(this.fatal);
+    if (this.closed) return Promise.reject(new Error("GARMIN_CLOSED"));
+    if (this.gfdi) return Promise.resolve(this.gfdi);
+    return this.withWatchdog(this.bound.promise, "GARMIN_ML_REGISTER_TIMEOUT");
   }
 
   private sendSystemEvent(eventType: number): Promise<void> {
@@ -712,10 +930,22 @@ export class GarminSession {
     }
   }
 
-  private waitForMl(requestType: number): Promise<ReturnType<typeof parseGarminMlMessage>> {
-    const wait = deferred<ReturnType<typeof parseGarminMlMessage>>();
+  private waitForMl(requestType: number): Deferred<GarminMlMessage> {
+    const wait = deferred<GarminMlMessage>();
     this.mlWaiter = { requestType, done: wait };
-    return wait.promise;
+    return wait;
+  }
+
+  private resolveMlWaiter(message: GarminMlMessage): boolean {
+    const waiter = this.mlWaiter;
+    if (!waiter || waiter.requestType !== message.requestType) return false;
+    this.mlWaiter = null;
+    waiter.done.resolve(message);
+    return true;
+  }
+
+  private clearMlWaiter(wait: Deferred<GarminMlMessage>): void {
+    if (this.mlWaiter?.done === wait) this.mlWaiter = null;
   }
 
   private withWatchdog<T>(promise: Promise<T>, code: string): Promise<T> {
@@ -740,6 +970,8 @@ export class GarminSession {
 
   private failPending(error: Error): void {
     this.configured.resolve();
+    // No-op when GFDI is bound; otherwise wakes writes waiting for a handle.
+    this.bound.reject(error);
     const status = this.statusWaiter;
     if (status) {
       this.statusWaiter = null;
