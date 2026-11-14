@@ -17,7 +17,9 @@ import {
 } from "@openvalens/mcp";
 import { z } from "zod";
 
+import { AiAppDraftReviewError, createAiAppDraftReview } from "../ai-app-writes";
 import type { Context } from "../context";
+import { foodDraftCandidate } from "../contracts/nutrition-food-drafts";
 import { permissionedProcedure, raiseApiError, validateInput } from "../index";
 
 /**
@@ -96,6 +98,101 @@ const activityInput = z
     grantId: z.uuid().optional(),
   })
   .strict();
+
+// ─── Drafts waiting for the member's review (M2c) ────────────
+
+const draftKind = z.enum(["food", "lab", "workout"]);
+const draftCommon = {
+  id: z.string(),
+  grantId: z.string(),
+  /** The app's name, shown as "via <app>". */
+  appName: z.string(),
+  createdAt: z.string(),
+};
+const draftShape = z.discriminatedUnion("kind", [
+  z.object({
+    ...draftCommon,
+    kind: z.literal("food"),
+    payload: z.object({
+      eatenAt: z.string(),
+      meal: z.string().nullable(),
+      description: z.string().nullable(),
+      items: z.array(foodDraftCandidate),
+    }),
+  }),
+  z.object({
+    ...draftCommon,
+    kind: z.literal("lab"),
+    payload: z.object({
+      observedAt: z.string(),
+      markerCode: z.string(),
+      markerName: z.string(),
+      value: z.number(),
+      unit: z.string(),
+      /** Only when the app sent one: the range printed on the report. */
+      referenceRange: z
+        .object({
+          low: z.number().nullable(),
+          high: z.number().nullable(),
+          text: z.string().nullable(),
+          source: z.literal("report"),
+        })
+        .nullable(),
+    }),
+  }),
+  z.object({
+    ...draftCommon,
+    kind: z.literal("workout"),
+    payload: z.object({
+      date: z.string(),
+      type: z.string(),
+      duration: z.number().nullable(),
+      notes: z.string().nullable(),
+      intensity: z.string().nullable(),
+      effortRating: z.number().nullable(),
+      exercises: z.array(
+        z.object({
+          name: z.string(),
+          /** `null`: not in the catalog; map it or create it before confirming. */
+          exerciseId: z.number().nullable(),
+          sets: z.array(
+            z.object({
+              reps: z.number(),
+              weightKg: z.number().nullable(),
+              rpe: z.number().nullable(),
+            }),
+          ),
+        }),
+      ),
+    }),
+  }),
+]);
+
+const draftsListInput = z.object({ kind: draftKind.optional() }).strict();
+const draftIdInput = z.object({ draftId: z.uuid() }).strict();
+const draftConfirmInput = z
+  .object({
+    draftId: z.uuid(),
+    /** Workout drafts: for each exercise that was not in the catalog, the one to use. */
+    exercises: z
+      .array(
+        z
+          .object({
+            index: z.number().int().min(0).max(100),
+            exerciseId: z.number().int().positive(),
+          })
+          .strict(),
+      )
+      .max(100)
+      .optional(),
+  })
+  .strict();
+
+const writeProcedure = permissionedProcedure({ resource: "records", action: "write" });
+
+function memberScope(context: Context & { authz: { activeOrganizationId: string } }) {
+  return { organizationId: context.authz.activeOrganizationId, userId: trustedUserId(context) };
+}
 
 async function workspaceNameOf(db: Context["db"], organizationId: string): Promise<string> {
   const [row] = await db
@@ -388,6 +485,73 @@ export const aiAppsRouter = {
       if (!result) throw raiseApiError("NOT_FOUND", "This key or connection was not found.");
       return result;
     }),
+
+  /**
+   * Drafts an AI app wrote that wait for the member's review (M2c): meal
+   * drafts, lab results and workouts with an exercise that is not in the
+   * catalog. Nothing is in the member's records until they confirm one.
+   * These stay reachable after the operator turns AI apps off, so a waiting
+   * draft can always be confirmed or discarded.
+   */
+  drafts: {
+    /** The member's own drafts in the active workspace, oldest first. */
+    list: readProcedure
+      .use(validateInput(draftsListInput))
+      .input(draftsListInput)
+      .output(z.object({ drafts: z.array(draftShape) }))
+      .handler(async ({ input, context }) => ({
+        drafts: (await createAiAppDraftReview(context.db).list({
+          ...memberScope(context),
+          kind: input.kind,
+        })) as Array<z.infer<typeof draftShape>>,
+      })),
+
+    /**
+     * Confirms one draft through the app's own write paths: a lab result is
+     * saved, a workout is saved once every exercise not in the catalog is
+     * mapped (a catalog one or the member's own, made on review), and a meal
+     * draft is done once its items were logged in the meal diary.
+     */
+    confirm: writeProcedure
+      .use(validateInput(draftConfirmInput))
+      .input(draftConfirmInput)
+      .output(z.object({ kind: draftKind, savedId: z.number().nullable() }))
+      .handler(async ({ input, context }) => {
+        let result;
+        try {
+          result = await createAiAppDraftReview(context.db).confirm({
+            ...memberScope(context),
+            draftId: input.draftId,
+            exercises: input.exercises,
+            correlationId: context.correlationId,
+          });
+        } catch (error) {
+          if (error instanceof AiAppDraftReviewError)
+            throw raiseApiError("INVALID_INPUT", error.message, { reason: "EXERCISE_MAPPING" });
+          throw error;
+        }
+        if (!result) throw raiseApiError("NOT_FOUND", "This draft was not found.");
+        return result;
+      }),
+
+    /**
+     * Discards one draft: nothing is saved. Like "Delete everything this app
+     * wrote", allowed while the workspace is read-only.
+     */
+    discard: readProcedure
+      .use(validateInput(draftIdInput))
+      .input(draftIdInput)
+      .output(z.object({ discarded: z.boolean() }))
+      .handler(async ({ input, context }) => {
+        const discarded = await createAiAppDraftReview(context.db).discard({
+          ...memberScope(context),
+          draftId: input.draftId,
+          correlationId: context.correlationId,
+        });
+        if (!discarded) throw raiseApiError("NOT_FOUND", "This draft was not found.");
+        return { discarded };
+      }),
+  },
 
   /** Workspace setting "Members can connect AI apps" (default on; owner only to change). */
   workspaceSetting: {

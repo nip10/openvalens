@@ -53,6 +53,17 @@ slices") are not linked to it, and "a couple of" is treated as vague rather
 than 2. These are measurements on a small set, not an accuracy claim; the
 review step exists because the parser will be wrong.
 
+## Drafts from a connected AI app (#439)
+
+With the `food:write` scope, a connected AI app can make a meal draft
+(`food.log`, see [ai-apps.md](ai-apps.md#writes)): a description in the
+member's words, split by the same local parser, or items already split. It
+carries no nutrient value. Unlike the drafts above, it is stored
+(`ai_app_draft`) until the member deals with it: "Describe a meal" lists it
+with "via <app name>", "Review" opens it in the same review and logging steps,
+and the member marks it done or discards it. Nothing is in the meal diary
+until the member logs each food there.
+
 # Food drafts from a meal photo (#71)
 
 An optional way to start a draft from a photo of a meal. It feeds the same

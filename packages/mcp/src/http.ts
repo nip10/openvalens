@@ -48,6 +48,7 @@ export const MCP_SERVER_INSTRUCTIONS = [
   "OpenValens is a personal record-keeping and wellness tool. It is not a medical device and does not give medical advice, diagnosis or treatment. Do not present its data as a diagnosis; encourage the member to talk to a qualified health professional about medical questions.",
   "Cycle data and progress photos are never available through this server.",
   "With a write scope the member granted, tools can add the member's own entries (water, weight and body composition, vitals, a supplement taken, workouts, sleep, custom trackers, pain ratings) and delete entries this app added. Only write what the member asked you to record, give every write a new mutationId, and reuse it only to retry that same write. Entries are labelled with this app's name and never change device data.",
+  "Meals, lab results and a workout with an exercise that is not in the catalog are drafts (status pending_review): the member confirms or discards each one in the app, and nothing reaches their records before that. A lab result must use one of the member's markers in a unit it already uses; never convert a value yourself.",
 ].join("\n\n");
 
 export type AiAppsHttpOptions = {
@@ -160,6 +161,8 @@ type ToolOutcome =
       status: "insufficient_scope" | "invalid_input" | "read_only" | "limit_reached" | "error";
       message: string;
       retryAfterSeconds?: number;
+      /** Machine-readable detail of a refused input, e.g. `accepted_units` (M2c). */
+      details?: Record<string, unknown>;
     };
 
 const READ_ONLY_MESSAGE =
@@ -313,7 +316,12 @@ export function createAiAppsHttp(options: AiAppsHttpOptions) {
           transport,
           status: "invalid_input",
         });
-        return { ok: false, status: "invalid_input", message: error.message };
+        return {
+          ok: false,
+          status: "invalid_input",
+          message: error.message,
+          ...(error.details ? { details: error.details } : {}),
+        };
       }
       if (error instanceof AiWriteLimitError) {
         await options.service.recordCall({
@@ -476,7 +484,11 @@ export function createAiAppsHttp(options: AiAppsHttpOptions) {
       );
     }
     if (outcome.status === "invalid_input") {
-      return json(400, { error: "invalid_input", error_description: outcome.message });
+      return json(400, {
+        ...outcome.details,
+        error: "invalid_input",
+        error_description: outcome.message,
+      });
     }
     if (outcome.status === "read_only") {
       return json(403, { error: "access_read_only", error_description: outcome.message });

@@ -487,9 +487,10 @@ assertCloudAiUsageCap({ mode: deploymentConfig.mode, ai: aiConfig, usage: aiUsag
 export const aiUsageMeter = createPgAiUsageMeter({ db, config: aiUsageConfig });
 
 /**
- * Issue #439 (M2a, M2b) — AI app writes over the app's own domain write paths
- * (water, weight and body composition, vitals, supplement taken, workouts,
- * sleep, custom trackers, pain), with
+ * Issue #439 (M2a, M2b, M2c) — AI app writes over the app's own domain write
+ * paths (water, weight and body composition, vitals, supplement taken,
+ * workouts, sleep, custom trackers, pain; meal and lab drafts and non-catalog
+ * workouts as drafts the member confirms), with
  * receipts, ownership and the per-call and per-day limits; `null` while the
  * MCP server is off.
  */

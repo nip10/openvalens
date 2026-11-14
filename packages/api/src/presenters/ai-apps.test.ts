@@ -39,7 +39,9 @@ describe("ai apps presenter", () => {
     for (const scope of GRANTABLE_SCOPES) expect(aiAppScopeTitle(scope)).not.toBeNull();
     expect(aiAppScopeTitle("water:write")).not.toBeNull();
     expect(aiAppScopeTitle("workouts:write")).not.toBeNull();
-    expect(aiAppScopeTitle("food:write")).toBeNull();
+    expect(aiAppScopeTitle("food:write")).not.toBeNull();
+    expect(aiAppScopeTitle("labs:write")).not.toBeNull();
+    expect(aiAppScopeTitle("cycle:read")).toBeNull();
     expect(isAiAppWriteScope("water:write")).toBe(true);
     expect(isAiAppWriteScope("records:read")).toBe(false);
   });

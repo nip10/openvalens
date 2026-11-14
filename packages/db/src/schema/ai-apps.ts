@@ -271,7 +271,53 @@ export const aiAppEntry = pgTable(
     ),
     aiAppEntryTargetTableCheck: check(
       "ai_app_entry_target_table_check",
-      sql`${table.targetTable} in ('metric_sample', 'plain_water_entry', 'supplement_intake', 'workout', 'health_event', 'custom_tracker_entry', 'pain_entry')`,
+      sql`${table.targetTable} in ('metric_sample', 'plain_water_entry', 'supplement_intake', 'workout', 'health_event', 'custom_tracker_entry', 'pain_entry', 'ai_app_draft')`,
+    ),
+  }),
+);
+
+/**
+ * Issue #439 (M2c) — an entry an AI app wrote that waits for the member's
+ * review before anything lands in their records: a meal draft (`food`, items
+ * to match to foods in the meal diary, #73), a lab result (`lab`) or a workout
+ * with an exercise that is not in the catalog (`workout`). Its `ai_app_entry`
+ * points here (`target_table = 'ai_app_draft'`, the id in `target_uuids`)
+ * while it waits. Confirming writes the domain rows through the app's own
+ * write paths and points the entry at them; discarding deletes both. The row
+ * is deleted either way, so only pending drafts are kept.
+ *
+ * The id is derived from the entry key (grant, mutation id, position), so a
+ * retried write finds the same draft instead of adding one. `payload` is what
+ * the app sent, already checked (one of the member's own lab markers in its
+ * own unit, catalog exercises by id), and is what the review screen shows.
+ */
+export const aiAppDraft = pgTable(
+  "ai_app_draft",
+  {
+    id: uuid("id").primaryKey(),
+    grantId: uuid("grant_id")
+      .notNull()
+      .references(() => aiAppGrant.id, { onDelete: "cascade" }),
+    organizationId: orgId(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    /** `food`, `lab` or `workout`. */
+    kind: text("kind").notNull(),
+    payload: jsonb("payload").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => ({
+    aiAppDraftMemberIdx: index("ai_app_draft_organization_id_user_id_kind_idx").on(
+      table.organizationId,
+      table.userId,
+      table.kind,
+    ),
+    aiAppDraftGrantIdx: index("ai_app_draft_grant_id_idx").on(table.grantId),
+    aiAppDraftUserIdx: index("ai_app_draft_user_id_idx").on(table.userId),
+    aiAppDraftKindCheck: check(
+      "ai_app_draft_kind_check",
+      sql`${table.kind} in ('food', 'lab', 'workout')`,
     ),
   }),
 );

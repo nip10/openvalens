@@ -525,6 +525,8 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
     expect(all).not.toContain("seed-write-fingerprint-");
     expect(parse("ai_app_write")[0]).not.toHaveProperty("fingerprint");
     expect(parse("ai_app_entry")[0]).toHaveProperty("target_ids");
+    // #439 (M2c) — a draft waiting for review is the member's own: exported whole.
+    expect(parse("ai_app_draft")[0]).toHaveProperty("payload");
     // #439 (M1b) — OAuth token digests and the stored refresh response neither.
     expect(all).not.toContain("seed-access-hash-");
     expect(all).not.toContain("seed-refresh-hash-");

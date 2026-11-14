@@ -4,7 +4,7 @@ import { GRANTABLE_SCOPES, isWriteScope, WRITE_SCOPES } from "./scopes";
 import { MCP_TOOLS, toolsForScopes } from "./tools";
 import { entryKeyOf, sourceLabel, WRITE_DOMAIN_KINDS, writeFingerprint } from "./writes";
 
-describe("AI app writes (M2a, M2b)", () => {
+describe("AI app writes (M2a, M2b, M2c)", () => {
   test("a request has one fingerprint whatever its key order, and it holds no values", () => {
     const a = writeFingerprint("water.log", [
       { at: "2026-11-14T08:00:00Z", amount: 250, unit: "ml" },
@@ -38,6 +38,10 @@ describe("AI app writes (M2a, M2b)", () => {
     expect(writeTools.map((tool) => tool.name).sort()).toEqual([
       "body.delete",
       "body.log",
+      "food.delete",
+      "food.log",
+      "labs.delete",
+      "labs.log",
       "pain.delete",
       "pain.log",
       "sleep.delete",
@@ -107,6 +111,66 @@ describe("AI app writes (M2a, M2b)", () => {
       }).success,
     ).toBe(false);
     expect(log.description).toContain("exercises.search");
+  });
+
+  test("M2c inputs: a meal is a description or items; a lab result needs a marker and a unit", () => {
+    const food = MCP_TOOLS.find((tool) => tool.name === "food.log")!;
+    const at = "2026-11-14T08:00:00+00:00";
+    expect(
+      food.input.safeParse({ mutationId: "m-1", entries: [{ at, description: "two eggs" }] })
+        .success,
+    ).toBe(true);
+    expect(
+      food.input.safeParse({
+        mutationId: "m-1",
+        entries: [{ at, items: [{ food: "toast", quantity: "half", unit: "slice" }] }],
+      }).success,
+    ).toBe(true);
+    // Not both, and not neither.
+    expect(
+      food.input.safeParse({
+        mutationId: "m-1",
+        entries: [{ at, description: "toast", items: [{ food: "toast" }] }],
+      }).success,
+    ).toBe(false);
+    expect(food.input.safeParse({ mutationId: "m-1", entries: [{ at }] }).success).toBe(false);
+    // No nutrient values.
+    expect(
+      food.input.safeParse({
+        mutationId: "m-1",
+        entries: [{ at, items: [{ food: "toast", kcal: 80 }] }],
+      }).success,
+    ).toBe(false);
+    expect(food.description).toContain("pending_review");
+
+    const labs = MCP_TOOLS.find((tool) => tool.name === "labs.log")!;
+    expect(
+      labs.input.safeParse({
+        mutationId: "m-1",
+        entries: [
+          {
+            at,
+            marker: "ferritin",
+            value: 45,
+            unit: "ng/mL",
+            referenceRange: { low: 30, high: 400 },
+          },
+        ],
+      }).success,
+    ).toBe(true);
+    expect(
+      labs.input.safeParse({
+        mutationId: "m-1",
+        entries: [{ at, marker: "ferritin", value: 45 }],
+      }).success,
+    ).toBe(false);
+    expect(
+      labs.input.safeParse({
+        mutationId: "m-1",
+        entries: [{ at, marker: "ferritin", value: 45, unit: "ng/mL", referenceRange: {} }],
+      }).success,
+    ).toBe(false);
+    expect(labs.description).toContain("accepted units");
   });
 
   test("M2b inputs: sleep, tracker and pain entries", () => {
