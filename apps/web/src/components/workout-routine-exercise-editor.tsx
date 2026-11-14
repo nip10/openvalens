@@ -47,7 +47,7 @@ export function WorkoutRoutineExerciseEditor({
   onMoveUp,
   onMoveDown,
 }: WorkoutRoutineExerciseEditorProps) {
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const id = useId();
   const [weightText, setWeightText] = useState(
     exercise.targetWeightKg == null ? "" : String(shownWeight(exercise.targetWeightKg, units)),
@@ -234,7 +234,7 @@ export function WorkoutRoutineExerciseEditor({
                   set({ targetWeightKg: null });
                   return;
                 }
-                const value = parseDecimal(raw);
+                const value = parseDecimal(raw, i18n.locale);
                 if (value !== null && value >= 0 && value <= (units === "metric" ? 1000 : 2204.62))
                   set({ targetWeightKg: units === "metric" ? value : value / LB_PER_KG });
               }}
@@ -277,7 +277,7 @@ export function WorkoutRoutineExerciseEditor({
                 onChange={(e) => {
                   const raw = e.target.value;
                   setIncrementText(raw);
-                  const n = parseDecimal(raw);
+                  const n = parseDecimal(raw, i18n.locale);
                   const progression = exercise.progression;
                   if (
                     n !== null &&

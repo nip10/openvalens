@@ -21,6 +21,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { FlaskConical, Plus, TestTube } from "lucide-react";
 
+import { DecimalHint } from "@/components/decimal-hint";
 import {
   EmptyState,
   ErrorState,
@@ -44,6 +45,7 @@ export const Route = createFileRoute("/_auth/records/labs")({
 });
 
 function AddReadingForm({ markerCode, onSaved }: { markerCode: string; onSaved: () => void }) {
+  const { i18n } = useLingui();
   const [value, setValue] = useState("");
   const [observedAt, setObservedAt] = useState(defaultObservedAt);
 
@@ -59,7 +61,7 @@ function AddReadingForm({ markerCode, onSaved }: { markerCode: string; onSaved: 
   );
 
   const field = { min: 0, max: 100_000 } as const;
-  const numeric = parseManualEntryValue(field, value);
+  const numeric = parseManualEntryValue(field, value, i18n.locale);
 
   const submit = () => {
     if (numeric === null) return;
@@ -84,6 +86,7 @@ function AddReadingForm({ markerCode, onSaved }: { markerCode: string; onSaved: 
             onChange={(event) => setValue(event.target.value)}
             placeholder="0–100000"
           />
+          <DecimalHint value={value} />
         </div>
         <div className="grid gap-2">
           <Label className="text-sm font-medium">

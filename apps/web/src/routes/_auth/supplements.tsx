@@ -25,6 +25,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 
+import { DecimalHint } from "@/components/decimal-hint";
 import { ReminderDaysField, ReminderDaysRow } from "@/components/reminder-days";
 import { Pill, Plus, Tablets } from "lucide-react";
 
@@ -87,7 +88,7 @@ function SaveStatus({
 }
 
 function AddSupplementForm({ onSaved }: { onSaved: () => void }) {
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const { _ } = useLinguiRuntime();
   const [name, setName] = useState("");
   const [dose, setDose] = useState("");
@@ -99,7 +100,7 @@ function AddSupplementForm({ onSaved }: { onSaved: () => void }) {
   const addSupplement = useMutation(orpc.plans.upsertSupplement.mutationOptions());
   const addSchedule = useMutation(orpc.plans.upsertSchedule.mutationOptions());
 
-  const numeric = parseDecimal(dose) ?? Number.NaN;
+  const numeric = parseDecimal(dose, i18n.locale) ?? Number.NaN;
   const valid = name.trim().length > 0 && Number.isFinite(numeric);
   const pending = addSupplement.isPending || addSchedule.isPending;
 
@@ -146,6 +147,7 @@ function AddSupplementForm({ onSaved }: { onSaved: () => void }) {
             placeholder="500"
             className="num"
           />
+          <DecimalHint value={dose} />
         </Field>
         <Field label={t({ message: "Unit", comment: "safety" })}>
           <Select value={unit} onValueChange={setUnit}>
@@ -194,7 +196,7 @@ function AddSupplementForm({ onSaved }: { onSaved: () => void }) {
 }
 
 function AddMedicationForm({ onSaved }: { onSaved: () => void }) {
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const { _ } = useLinguiRuntime();
   const [name, setName] = useState("");
   const [dose, setDose] = useState("");
@@ -205,7 +207,7 @@ function AddMedicationForm({ onSaved }: { onSaved: () => void }) {
 
   const addMedication = useMutation(orpc.plans.upsertMedication.mutationOptions());
 
-  const numeric = parseDecimal(dose) ?? Number.NaN;
+  const numeric = parseDecimal(dose, i18n.locale) ?? Number.NaN;
   const valid = name.trim().length > 0 && Number.isFinite(numeric);
 
   const submit = () => {
@@ -251,6 +253,7 @@ function AddMedicationForm({ onSaved }: { onSaved: () => void }) {
             placeholder="500"
             className="num"
           />
+          <DecimalHint value={dose} />
         </Field>
         <Field label={t({ message: "Unit", comment: "safety" })}>
           <Select value={unit} onValueChange={setUnit}>

@@ -11,6 +11,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "heroui-native";
 
+import { DecimalHint } from "@/components/decimal-hint";
 import { NutritionDatePicker } from "@/components/nutrition-date-picker";
 import { Sheet } from "@/components/bloom";
 
@@ -102,6 +103,7 @@ export function NutritionEntryEditor({
               placeholder={hideNumbers ? labels.hidden : labels.amount}
               className="min-h-11 rounded-xl border border-rule bg-sheet px-3 text-base text-ink"
             />
+            {hideNumbers ? null : <DecimalHint value={amount} />}
             {units.length === 0 ? (
               <Text className="text-sm text-ink-3">{labels.unitUnavailable}</Text>
             ) : null}

@@ -352,9 +352,9 @@ function FoodForm({
   const [clientMutationId] = useState(newClientMutationId);
   const create = useMutation(orpc.nutritionCustomFoods.create.mutationOptions());
   const update = useMutation(orpc.nutritionCustomFoods.update.mutationOptions());
-  const parsed = parseCustomFood(fields);
-  const pending = create.isPending || update.isPending;
   const { t, i18n } = useLingui();
+  const parsed = parseCustomFood(fields, i18n.locale);
+  const pending = create.isPending || update.isPending;
 
   const failed = (retry: () => void) => {
     const error = i18n._(CUSTOM_FOOD_COPY.networkError);

@@ -32,6 +32,7 @@ import type {
   TargetSource,
 } from "../contracts/nutrition-targets";
 import { MAX_TARGET_AMOUNT } from "../contracts/nutrition-targets";
+import { ambiguousDecimalMessage } from "./decimal-input";
 import {
   NUTRIENT_LABELS,
   SUMMARY_NUTRIENTS,
@@ -296,11 +297,14 @@ export type TargetFormFields = { min: string; max: string; effectiveFrom: string
 /**
  * Turns target form text into a `setTarget` input. Blank stays unset (never
  * 0); at least one bound is needed and the minimum may not exceed the
- * maximum. Returns a message for invalid input.
+ * maximum. Returns a message for invalid input. `locale` is the member's, so
+ * "1,250" g reads as they mean it; text that reads two ways ("2,000" kcal)
+ * gets a message naming both readings (#455).
  */
 export function parseTargetForm(
   nutrient: CoreNutrientKey,
   fields: TargetFormFields,
+  locale?: string,
 ):
   | {
       ok: true;
@@ -314,11 +318,15 @@ export function parseTargetForm(
   | { ok: false; error: MessageDescriptor } {
   const parse = (raw: string): number | null | "invalid" => {
     if (!raw.trim()) return null;
-    const value = parseDecimal(raw);
+    const value = parseDecimal(raw, locale);
     return value !== null && value >= 0 && value <= MAX_TARGET_AMOUNT ? value : "invalid";
   };
   const min = parse(fields.min);
   const max = parse(fields.max);
+  const ambiguous =
+    (min === "invalid" ? ambiguousDecimalMessage(fields.min, locale) : null) ??
+    (max === "invalid" ? ambiguousDecimalMessage(fields.max, locale) : null);
+  if (ambiguous) return { ok: false, error: ambiguous };
   if (min === "invalid" || max === "invalid")
     return {
       ok: false,
@@ -353,12 +361,18 @@ export function parseTargetForm(
 /** Height text to a settings value: blank clears it; otherwise 100–250 cm. */
 export function parseHeight(
   raw: string,
+  locale?: string,
 ): { ok: true; value: number | null } | { ok: false; error: MessageDescriptor } {
   const text = raw.trim();
   if (!text) return { ok: true, value: null };
-  const value = parseDecimal(text);
+  const value = parseDecimal(text, locale);
   if (value === null || value < 100 || value > 250)
-    return { ok: false, error: msg`Height must be between 100 and 250 cm, or left blank.` };
+    return {
+      ok: false,
+      error:
+        ambiguousDecimalMessage(text, locale) ??
+        msg`Height must be between 100 and 250 cm, or left blank.`,
+    };
   return { ok: true, value: Math.round(value * 10) / 10 };
 }
 

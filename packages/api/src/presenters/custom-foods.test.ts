@@ -152,6 +152,29 @@ describe("custom food form", () => {
     }
   });
 
+  test("the member's locale reads every amount; a two-way amount says why (#455)", () => {
+    const base = { ...EMPTY_CUSTOM_FOOD_FIELDS, name: "Food" };
+    expect(
+      parseCustomFood(
+        { ...base, servingSizeAmount: "1,250", nutrients: { proteinG: "2,125" } },
+        "pt-PT",
+      ),
+    ).toMatchObject({
+      ok: true,
+      food: { servingSizeAmount: 1.25, nutrients: { proteinG: 2.125 } },
+    });
+    const serving = parseCustomFood({ ...base, servingSizeAmount: "1,250" }, "en");
+    if (serving.ok) throw new Error("expected a refusal");
+    expect(inEnglish(serving.error)).toBe(
+      "“1,250” could mean 1250 or 1.25. Type 1250 or 1.25, whichever you mean.",
+    );
+    const basis = parseCustomFood({ ...base, basisAmount: "1.000" }, "pt-PT");
+    if (basis.ok) throw new Error("expected a refusal");
+    expect(inEnglish(basis.error)).toBe(
+      "“1.000” could mean 1000 or 1. Type 1000 or 1, whichever you mean.",
+    );
+  });
+
   test("summaries state the basis and how much was entered", () => {
     expect(describeBasis(food.basis, englishI18n)).toBe("Values per 100 g (1 slice = 40 g)");
     expect(

@@ -12,6 +12,8 @@ import { msg, plural, select } from "@lingui/core/macro";
 import { parseDecimal } from "@openvalens/i18n/numbers";
 import { summarizeNutrients } from "@openvalens/nutrition/totals";
 
+import { ambiguousDecimalMessage } from "./decimal-input";
+
 import {
   DRINK_NUTRIENT_KEYS,
   NUTRIENT_KEYS,
@@ -483,21 +485,29 @@ export type QuickAddFields = {
 /**
  * Turns quick-add form text into a manual food. Blank nutrient fields stay
  * unknown (omitted), never 0. Returns an error message for invalid input.
+ * `locale` is the member's, so `"1,250"` reads as they mean it (#455).
  */
 export function parseQuickAdd(
   fields: QuickAddFields,
+  locale?: string,
 ): { ok: true; food: ManualFoodInput } | { ok: false; error: MessageDescriptor } {
   const name = fields.name.trim();
   if (!name) return { ok: false, error: msg`Enter a food name.` };
-  const basisAmount = parseDecimal(fields.basisAmount);
+  const basisAmount = parseDecimal(fields.basisAmount, locale);
   if (basisAmount === null || basisAmount <= 0)
-    return { ok: false, error: msg`Values are per a positive amount, for example 100 g.` };
+    return {
+      ok: false,
+      error:
+        ambiguousDecimalMessage(fields.basisAmount, locale) ??
+        msg`Values are per a positive amount, for example 100 g.`,
+    };
   const nutrients: Partial<NutrientValues> = {};
   for (const key of NUTRIENT_KEYS) {
     const raw = fields.nutrients[key]?.trim();
     if (!raw) continue;
-    const value = parseDecimal(raw);
-    if (value === null || value < 0) return { ok: false, error: nutrientValueError(key) };
+    const value = parseDecimal(raw, locale);
+    if (value === null || value < 0)
+      return { ok: false, error: ambiguousDecimalMessage(raw, locale) ?? nutrientValueError(key) };
     nutrients[key] = value;
   }
   const rawBarcode = fields.barcode?.replace(/[\s-]/g, "") ?? "";

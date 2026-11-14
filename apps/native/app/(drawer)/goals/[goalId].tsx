@@ -9,6 +9,7 @@ import { ArrowLeft, Check, Pencil, Plus, Trash2 } from "lucide-react-native";
 import { useState } from "react";
 import { Alert, Pressable, Text, TextInput, View } from "react-native";
 
+import { DecimalHint } from "@/components/decimal-hint";
 import { ErrorState, Icon, Page, PageHeader, Section, Sheet, StatusPill } from "@/components/bloom";
 import { Container } from "@/components/container";
 import { GoalEditor } from "@/components/goal-editor";
@@ -249,7 +250,7 @@ function TodaySection({
   completion: boolean;
   onSaved: () => Promise<void>;
 }) {
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const client = useQueryClient();
   const [date, setDate] = useState(() =>
     goalDate(goal.definition.timeZone, goal.definition.dayCutoff),
@@ -320,10 +321,11 @@ function TodaySection({
                 onChangeText={setValue}
                 keyboardType="decimal-pad"
               />
+              <DecimalHint value={value} />
               <Button
                 isDisabled={!value.trim() || save.isPending}
                 onPress={() => {
-                  const amount = parseDecimal(value);
+                  const amount = parseDecimal(value, i18n.locale);
                   if (amount !== null)
                     save.mutate({
                       goalId: goal.id,
@@ -594,7 +596,7 @@ function CheckinEditor({
   }) => void;
   onDelete: () => void;
 }) {
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const [date, setDate] = useState(checkin.date);
   const [value, setValue] = useState(checkin.value === null ? "" : String(checkin.value));
   const [completed, setCompleted] = useState(checkin.completed === true);
@@ -636,10 +638,18 @@ function CheckinEditor({
               className="rounded-xl border border-border p-3 text-ink"
             />
           )}
+          {completionOnly ? null : <DecimalHint value={value} />}
           <Button
-            isDisabled={!completionOnly && !checkinCorrectionPayload(value, false, completed)}
+            isDisabled={
+              !completionOnly && !checkinCorrectionPayload(value, false, completed, i18n.locale)
+            }
             onPress={() => {
-              const correction = checkinCorrectionPayload(value, completionOnly, completed);
+              const correction = checkinCorrectionPayload(
+                value,
+                completionOnly,
+                completed,
+                i18n.locale,
+              );
               if (!correction) return;
               onSave({
                 id: checkin.id,

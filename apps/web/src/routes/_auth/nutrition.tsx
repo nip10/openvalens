@@ -107,6 +107,7 @@ import {
   StatusPill,
   ToneIcon,
 } from "@/components/page";
+import { DecimalHint } from "@/components/decimal-hint";
 import { DrinksSection } from "@/components/drinks-section";
 import { PlainWaterSection } from "@/components/plain-water-section";
 import { friendlyDate } from "@/utils/friendly";
@@ -461,7 +462,6 @@ function EntryRow({
 }) {
   const [editing, setEditing] = useState(false);
   const [amount, setAmount] = useState(String(entry.amount));
-  const amountValue = parseDecimal(amount) ?? Number.NaN;
   const [unit, setUnit] = useState<AmountUnit>(entry.unit);
   const [slot, setSlot] = useState<MealSlot>(entry.slot);
   const [conflict, setConflict] = useState<DiaryEntry | null>(null);
@@ -471,6 +471,7 @@ function EntryRow({
   const restore = useMutation(orpc.nutritionDiary.restoreEntry.mutationOptions());
   const favoriteMutation = useMutation(orpc.nutritionDiary.setFavorite.mutationOptions());
   const { t, i18n } = useLingui();
+  const amountValue = parseDecimal(amount, i18n.locale) ?? Number.NaN;
   const foodName = entry.food.name;
 
   const handle = (result: EntryOutcome, done: string) => {
@@ -680,13 +681,16 @@ function EntryRow({
           <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end">
             <Field label={t`Amount`}>
               {(id) => (
-                <Input
-                  id={id}
-                  inputMode="decimal"
-                  className="num"
-                  value={amount}
-                  onChange={(event) => setAmount(event.target.value)}
-                />
+                <>
+                  <Input
+                    id={id}
+                    inputMode="decimal"
+                    className="num"
+                    value={amount}
+                    onChange={(event) => setAmount(event.target.value)}
+                  />
+                  <DecimalHint value={amount} />
+                </>
               )}
             </Field>
             <Field label={t`Unit`}>
@@ -866,7 +870,6 @@ function AddFood({
   const [query, setQuery] = useState(initialQuery);
   const [chosen, setChosen] = useState<FoodCandidate | null>(null);
   const [amount, setAmount] = useState("100");
-  const amountValue = parseDecimal(amount) ?? Number.NaN;
   const [unit, setUnit] = useState<AmountUnit>("g");
   const [quick, setQuick] = useState<QuickAddFields>(EMPTY_QUICK);
   /** Set while the quick-add form is a manual draft started from a barcode. */
@@ -878,6 +881,7 @@ function AddFood({
   // Kept across retries of one save so a lost response cannot save the food twice (#81).
   const [saveFoodMutationId, setSaveFoodMutationId] = useState(newClientMutationId);
   const { t, i18n } = useLingui();
+  const amountValue = parseDecimal(amount, i18n.locale) ?? Number.NaN;
 
   const saved = useMemo(() => {
     const seen = new Set<string>();
@@ -945,7 +949,7 @@ function AddFood({
     setBarcodeReset((value) => value + 1);
   };
 
-  const parsedQuick = parseQuickAdd(quick);
+  const parsedQuick = parseQuickAdd(quick, i18n.locale);
   const basis =
     mode !== "quick"
       ? chosen?.basis
@@ -1276,12 +1280,15 @@ function AddFood({
           </Field>
           <Field label={t`Amount`}>
             {(id) => (
-              <Input
-                id={id}
-                inputMode="decimal"
-                value={amount}
-                onChange={(event) => setAmount(event.target.value)}
-              />
+              <>
+                <Input
+                  id={id}
+                  inputMode="decimal"
+                  value={amount}
+                  onChange={(event) => setAmount(event.target.value)}
+                />
+                <DecimalHint value={amount} />
+              </>
             )}
           </Field>
           <Field label={t`Unit`}>

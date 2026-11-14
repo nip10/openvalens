@@ -335,10 +335,10 @@ function FoodForm({
   const [clientMutationId] = useState(newClientMutationId);
   const create = useMutation(orpc.nutritionCustomFoods.create.mutationOptions());
   const update = useMutation(orpc.nutritionCustomFoods.update.mutationOptions());
-  const parsed = parseCustomFood(fields);
+  const { t, i18n } = useLingui();
+  const parsed = parseCustomFood(fields, i18n.locale);
   const pending = create.isPending || update.isPending;
   const set = (patch: Partial<CustomFoodFields>) => setFields({ ...fields, ...patch });
-  const { t, i18n } = useLingui();
   const savedText = (name: string) => t`${name}: Food saved.`;
   const foodName = food?.name ?? "";
 

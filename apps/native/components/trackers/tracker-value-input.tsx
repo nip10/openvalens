@@ -3,6 +3,7 @@ import { TRACKER_TEMPLATE_COPY } from "@openvalens/api/presenters/trackers";
 import type { TrackerTemplateId, TrackerType } from "@openvalens/trackers/model";
 import { Pressable, Text, TextInput, View } from "react-native";
 
+import { DecimalHint } from "@/components/decimal-hint";
 import { useThemeColor } from "@/utils/theme";
 
 export const TRACKER_INPUT_CLASS =
@@ -77,21 +78,24 @@ export function TrackerValueInput({
     );
   }
   return (
-    <View className="flex-row items-center gap-2">
-      <TextInput
-        testID={testID}
-        accessibilityLabel={label}
-        value={text}
-        onChangeText={onText}
-        keyboardType={type === "number" ? "decimal-pad" : "default"}
-        placeholder={type === "duration" ? t`20 min, 1:30 or 45 s` : undefined}
-        placeholderTextColor={placeholder}
-        autoCorrect={false}
-        className={`${TRACKER_INPUT_CLASS} min-w-32 flex-1`}
-      />
-      {type === "number" && unit ? (
-        <Text className="font-sans text-base text-ink-3">{unit}</Text>
-      ) : null}
+    <View className="gap-1">
+      <View className="flex-row items-center gap-2">
+        <TextInput
+          testID={testID}
+          accessibilityLabel={label}
+          value={text}
+          onChangeText={onText}
+          keyboardType={type === "number" ? "decimal-pad" : "default"}
+          placeholder={type === "duration" ? t`20 min, 1:30 or 45 s` : undefined}
+          placeholderTextColor={placeholder}
+          autoCorrect={false}
+          className={`${TRACKER_INPUT_CLASS} min-w-32 flex-1`}
+        />
+        {type === "number" && unit ? (
+          <Text className="font-sans text-base text-ink-3">{unit}</Text>
+        ) : null}
+      </View>
+      {type === "number" ? <DecimalHint value={text} /> : null}
     </View>
   );
 }

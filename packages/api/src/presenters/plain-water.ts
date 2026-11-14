@@ -19,6 +19,7 @@ import type { I18n, MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { parseDecimal } from "@openvalens/i18n/numbers";
 
+import { ambiguousDecimalMessage } from "./decimal-input";
 import { HIDDEN_VALUE } from "./nutrition-targets";
 import {
   hasAuthoritativeWaterNonApplication,
@@ -499,12 +500,19 @@ export type WaterAmountResult =
   | { ok: true; quantity: number; unit: WaterUnit; quantityMl: number }
   | { ok: false; error: MessageDescriptor };
 
-/** Form text to an amount. Blank, zero and non-finite values are refused. */
-export function parseWaterAmount(raw: string, unit: WaterUnit): WaterAmountResult {
+/**
+ * Form text to an amount. Blank, zero and non-finite values are refused.
+ * `locale` is the member's, so "1,250" L is 1.25 L in pt-PT (#455).
+ */
+export function parseWaterAmount(raw: string, unit: WaterUnit, locale?: string): WaterAmountResult {
   const text = raw.trim();
   if (!text) return { ok: false, error: WATER_COPY.amountInvalid };
-  const quantity = parseDecimal(text);
-  if (quantity === null || quantity <= 0) return { ok: false, error: WATER_COPY.amountInvalid };
+  const quantity = parseDecimal(text, locale);
+  if (quantity === null || quantity <= 0)
+    return {
+      ok: false,
+      error: ambiguousDecimalMessage(text, locale) ?? WATER_COPY.amountInvalid,
+    };
   const quantityMl = waterQuantityMl(quantity, unit);
   if (!Number.isFinite(quantityMl) || quantityMl >= MAX_QUANTITY_ML)
     return { ok: false, error: WATER_COPY.amountTooLarge };
@@ -515,10 +523,12 @@ export function parseWaterAmount(raw: string, unit: WaterUnit): WaterAmountResul
 export function parseWaterGoal(
   raw: string,
   unit: WaterUnit,
+  locale?: string,
 ): { ok: true; personalGoalMl: number | null } | { ok: false; error: MessageDescriptor } {
   if (!raw.trim()) return { ok: true, personalGoalMl: null };
-  const parsed = parseWaterAmount(raw, unit);
-  if (!parsed.ok) return { ok: false, error: WATER_COPY.goalInvalid };
+  const parsed = parseWaterAmount(raw, unit, locale);
+  if (!parsed.ok)
+    return { ok: false, error: ambiguousDecimalMessage(raw, locale) ?? WATER_COPY.goalInvalid };
   return { ok: true, personalGoalMl: parsed.quantityMl };
 }
 

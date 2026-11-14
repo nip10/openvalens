@@ -22,6 +22,7 @@ import { Activity, Droplet, HeartPulse, Plus, Waves, Wind } from "lucide-react-n
 import { useMemo, useState } from "react";
 import { Pressable, RefreshControl, Text, TextInput, View } from "react-native";
 
+import { DecimalHint } from "@/components/decimal-hint";
 import {
   Details,
   EmptyState,
@@ -73,7 +74,7 @@ function AddReadingForm({ onSaved }: { onSaved: () => void }) {
     }),
   );
 
-  const numeric = parseManualEntryValue(field, value);
+  const numeric = parseManualEntryValue(field, value, i18n.locale);
   const submit = () => {
     if (numeric === null) return;
     save.mutate({
@@ -127,6 +128,7 @@ function AddReadingForm({ onSaved }: { onSaved: () => void }) {
               className={INPUT_CLASS}
               placeholderTextColor={placeholderColor}
             />
+            <DecimalHint value={value} />
           </View>
           <View className="flex-1 gap-2">
             <Text className="font-sans text-sm text-ink-3">{t`Observed at`}</Text>

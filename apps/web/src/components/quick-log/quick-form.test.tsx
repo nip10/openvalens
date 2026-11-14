@@ -45,6 +45,30 @@ describe("QuickForm", () => {
     expect(html).toContain("Check the highlighted values.");
   });
 
+  test("a number that reads two ways names both readings (#455)", () => {
+    const kind = findLogKind("weight")!;
+    const form = (value: string) =>
+      render(
+        <QuickForm
+          kind={kind}
+          values={{ ...quickFormDefaults(kind), value }}
+          errors={[]}
+          showErrors={false}
+          supplements={null}
+          pending={false}
+          failed={false}
+          onChange={noop}
+          onSubmit={noop}
+          onBack={noop}
+        />,
+      );
+    expect(form("1,250")).toContain(
+      "“1,250” could mean 1250 or 1.25. Type 1250 or 1.25, whichever you mean.",
+    );
+    expect(form("82,4")).not.toContain("could mean");
+    expect(form("1.250")).not.toContain("could mean");
+  });
+
   test("supplement: the member's own supplements with their dose", () => {
     const kind = findLogKind("supplement_intake")!;
     const html = render(

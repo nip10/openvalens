@@ -151,13 +151,15 @@ export function localDateTimeToIso(local: string): string | null {
 /**
  * Parses the value from a form string and clamps to the metric's allowed range.
  * The single number parser for manual forms; it uses the shared decimal
- * parser (#448), so "82,4" and "82.4" both read as 82.4.
+ * parser (#448), so "82,4" and "82.4" both read as 82.4. With the member's
+ * `locale`, "1,250" is 1.25 in pt-PT (#455).
  */
 export function parseManualEntryValue(
   field: Pick<ManualEntryField, "min" | "max">,
   raw: string,
+  locale?: string,
 ): number | null {
-  const value = parseDecimal(raw);
+  const value = parseDecimal(raw, locale);
   if (value === null) return null;
   const rounded = Math.round(value * 1000) / 1000;
   if (rounded < field.min || rounded > field.max) return null;

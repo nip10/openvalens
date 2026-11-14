@@ -18,6 +18,8 @@ import { useLingui } from "@lingui/react/macro";
 import { Button } from "heroui-native";
 import { useEffect, useRef, useState } from "react";
 import { ScrollView, Text, TextInput, View } from "react-native";
+
+import { DecimalHint } from "@/components/decimal-hint";
 import { parseDecimal } from "@openvalens/i18n/numbers";
 
 export type TemplateFoodChoice = {
@@ -33,6 +35,8 @@ type DraftIngredient = {
   food: FoodRef | null;
   foodName: string;
   amount: number | null;
+  /** The amount as typed, so "8," stays while the member types (#455). */
+  amountText?: string;
   unit: AmountUnit;
 };
 type SaveArgs = { clientMutationId: string; content: NutritionTemplateContent };
@@ -122,7 +126,7 @@ export function NutritionTemplateManager(props: NutritionTemplateManagerProps) {
         ...blankIngredient(`import-${item.id}`),
         foodName: item.foodText ?? item.rawText,
         unit: "serving",
-        amount: (item.quantityText ? parseDecimal(item.quantityText) : null) ?? 1,
+        amount: (item.quantityText ? parseDecimal(item.quantityText, i18n.locale) : null) ?? 1,
       })),
     );
     setNotice(i18n._(COPY.matchImported));
@@ -208,7 +212,7 @@ export function NutritionTemplateManager(props: NutritionTemplateManagerProps) {
       unit: item.unit,
     }));
     if ((editing?.kind ?? creating) === "recipe") {
-      const yieldServings = parseDecimal(yieldText);
+      const yieldServings = parseDecimal(yieldText, i18n.locale);
       if (yieldServings === null || yieldServings <= 0) return null;
       return { kind: "recipe", name: name.trim(), yieldServings, ingredients: contentIngredients };
     }
@@ -220,7 +224,8 @@ export function NutritionTemplateManager(props: NutritionTemplateManagerProps) {
     if (!content) {
       setNotice(
         i18n._(
-          (editing?.kind ?? creating) === "recipe" && !((parseDecimal(yieldText) ?? 0) > 0)
+          (editing?.kind ?? creating) === "recipe" &&
+            !((parseDecimal(yieldText, i18n.locale) ?? 0) > 0)
             ? COPY.badYield
             : COPY.invalidTemplate,
         ),
@@ -368,7 +373,7 @@ export function NutritionTemplateManager(props: NutritionTemplateManagerProps) {
       ) : (
         active.map((template) => {
           const recipeServings = servings[template.id] ?? "1";
-          const servingsValue = parseDecimal(recipeServings);
+          const servingsValue = parseDecimal(recipeServings, i18n.locale);
           const scale =
             template.kind === "recipe" && servingsValue !== null && template.yieldServings
               ? servingsValue / template.yieldServings
@@ -409,6 +414,9 @@ export function NutritionTemplateManager(props: NutritionTemplateManagerProps) {
                     className="min-h-11 min-w-20 rounded-xl border border-rule px-3 text-ink"
                   />
                 </View>
+              ) : null}
+              {template.kind === "recipe" && !hidden ? (
+                <DecimalHint value={recipeServings} />
               ) : null}
               <View className="flex-row flex-wrap gap-2">
                 <Button
@@ -467,6 +475,7 @@ export function NutritionTemplateManager(props: NutritionTemplateManagerProps) {
                 className="min-h-11 rounded-xl border border-rule px-3 text-ink"
               />
             ) : null}
+            {formKind === "recipe" && !hidden ? <DecimalHint value={yieldText} /> : null}
             {ingredients.map((item, index) => (
               <View key={item.key} className="gap-2 rounded-xl bg-paper-2 p-3">
                 <Text>
@@ -503,6 +512,7 @@ export function NutritionTemplateManager(props: NutritionTemplateManagerProps) {
                               foodName: choice.name,
                               unit,
                               amount: choice.defaultAmount ?? 1,
+                              amountText: undefined,
                             });
                           }}
                         >
@@ -513,10 +523,16 @@ export function NutritionTemplateManager(props: NutritionTemplateManagerProps) {
                 )}
                 <View className="flex-row flex-wrap gap-2">
                   <TextInput
-                    value={templateAmountValue(item.amount, hidden)}
+                    value={
+                      hidden || item.amountText === undefined
+                        ? templateAmountValue(item.amount, hidden)
+                        : item.amountText
+                    }
                     onChangeText={(value) =>
                       updateIngredient(item.key, {
-                        amount: value === "" ? null : (parseDecimal(value) ?? Number.NaN),
+                        amountText: value,
+                        amount:
+                          value === "" ? null : (parseDecimal(value, i18n.locale) ?? Number.NaN),
                       })
                     }
                     editable={!hidden}
@@ -534,6 +550,7 @@ export function NutritionTemplateManager(props: NutritionTemplateManagerProps) {
                     </Button>
                   ))}
                 </View>
+                {hidden ? null : <DecimalHint value={item.amountText} />}
                 <Button
                   variant="ghost"
                   onPress={() =>

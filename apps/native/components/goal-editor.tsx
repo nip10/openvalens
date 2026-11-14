@@ -11,6 +11,7 @@ import { Plus, Trash2 } from "lucide-react-native";
 import { useState } from "react";
 import { Text, TextInput, View } from "react-native";
 import { Icon, Sheet } from "@/components/bloom";
+import { DecimalHint } from "@/components/decimal-hint";
 import { orpc } from "@/utils/orpc";
 import { canEditEvidenceSource } from "@/utils/goal-ui";
 import { parseDecimal } from "@openvalens/i18n/numbers";
@@ -49,7 +50,7 @@ function makeComparator(kind: ComparatorKind, minimum: number, maximum: number):
 }
 
 export function GoalEditor({ initial, seed, replacesId, replacesVersion, onSaved }: Props) {
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const client = useQueryClient();
   const canChangeSource = initial
     ? canEditEvidenceSource(initial.definition, initial.sourceLocked)
@@ -128,8 +129,8 @@ export function GoalEditor({ initial, seed, replacesId, replacesVersion, onSaved
     }),
   );
 
-  const lower = parseDecimal(minimum) ?? Number.NaN;
-  const upper = parseDecimal(maximum) ?? Number.NaN;
+  const lower = parseDecimal(minimum, i18n.locale) ?? Number.NaN;
+  const upper = parseDecimal(maximum, i18n.locale) ?? Number.NaN;
   const comparator = makeComparator(comparison, lower, upper);
   const selectedModeComparator =
     mode === "completion" ? { kind: "minimum" as const, value: 1 } : comparator;
@@ -237,7 +238,7 @@ export function GoalEditor({ initial, seed, replacesId, replacesVersion, onSaved
 
   function addMilestone() {
     if (!milestoneValue.trim() || !milestoneDate) return;
-    const value = parseDecimal(milestoneValue);
+    const value = parseDecimal(milestoneValue, i18n.locale);
     if (value === null) return;
     setMilestones((current) => [
       ...current,
@@ -582,6 +583,7 @@ function Field({
         editable={editable}
         className="rounded-xl border border-border p-3 text-ink"
       />
+      {keyboardType === "decimal-pad" ? <DecimalHint value={value} /> : null}
     </View>
   );
 }
@@ -644,7 +646,12 @@ function MilestoneRow({
   onChange: (value: GoalMilestone) => void;
   onRemove: () => void;
 }) {
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
+  // The text as typed, so "8," stays while the member types; the number is
+  // read from it on every change and checked on save (#455).
+  const [valueText, setValueText] = useState(() =>
+    Number.isFinite(milestone.value) ? String(milestone.value) : "",
+  );
   return (
     <View className="rounded-2xl bg-paper-2 p-3">
       <View className="flex-row items-center justify-between">
@@ -656,10 +663,11 @@ function MilestoneRow({
       </View>
       <Field
         label={t`Value`}
-        value={String(milestone.value)}
-        onChangeText={(value) =>
-          onChange({ ...milestone, value: parseDecimal(value) ?? Number.NaN })
-        }
+        value={valueText}
+        onChangeText={(value) => {
+          setValueText(value);
+          onChange({ ...milestone, value: parseDecimal(value, i18n.locale) ?? Number.NaN });
+        }}
         keyboardType="decimal-pad"
       />
       <Field

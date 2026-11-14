@@ -3,14 +3,18 @@ import { parseWaterAmount, type WaterUnit } from "@openvalens/api/presenters/pla
 
 export type WaterEditAmount = { amount: string; amountDirty: boolean; unit: WaterUnit };
 
-/** Builds only an intentional amount change; untouched rounded display text is never resubmitted. */
+/**
+ * Builds only an intentional amount change; untouched rounded display text is
+ * never resubmitted. `locale` is the member's, for "1,250" L (#455).
+ */
 export function waterEditAmountPatch(
   edit: WaterEditAmount,
+  locale?: string,
 ):
   | { ok: true; patch: { quantity?: number; unit?: WaterUnit } }
   | { ok: false; error: MessageDescriptor } {
   if (!edit.amountDirty) return { ok: true, patch: {} };
-  const parsed = parseWaterAmount(edit.amount, edit.unit);
+  const parsed = parseWaterAmount(edit.amount, edit.unit, locale);
   if (!parsed.ok) return parsed;
   return { ok: true, patch: { quantity: parsed.quantity, unit: parsed.unit } };
 }

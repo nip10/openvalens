@@ -9,6 +9,7 @@ import {
   type NutrientBasis,
   type NutrientKey,
 } from "../contracts/nutrition-diary";
+import { ambiguousDecimalMessage } from "./decimal-input";
 import { NUTRIENT_LABELS, formatAmount, parseQuickAdd } from "./nutrition-diary";
 
 /**
@@ -104,14 +105,18 @@ export function fieldsFromCustomFood(food: CustomFood): CustomFoodFields {
  */
 export function parseCustomFood(
   fields: CustomFoodFields,
+  locale?: string,
 ): { ok: true; food: CustomFoodContent } | { ok: false; error: MessageDescriptor } {
-  const base = parseQuickAdd({
-    name: fields.name,
-    basisAmount: fields.basisAmount,
-    basisUnit: fields.basisUnit,
-    nutrients: fields.nutrients,
-    barcode: fields.barcode,
-  });
+  const base = parseQuickAdd(
+    {
+      name: fields.name,
+      basisAmount: fields.basisAmount,
+      basisUnit: fields.basisUnit,
+      nutrients: fields.nutrients,
+      barcode: fields.barcode,
+    },
+    locale,
+  );
   if (!base.ok) return base;
   if (base.food.name.length > 200)
     return { ok: false, error: msg`Use at most 200 characters for the name.` };
@@ -122,9 +127,14 @@ export function parseCustomFood(
   if (servingLabel.length > 100)
     return { ok: false, error: msg`Use at most 100 characters for the serving name.` };
   const rawServing = fields.servingSizeAmount.trim();
-  const servingSizeAmount = rawServing ? parseDecimal(rawServing) : null;
+  const servingSizeAmount = rawServing ? parseDecimal(rawServing, locale) : null;
   if (rawServing && (servingSizeAmount === null || servingSizeAmount <= 0))
-    return { ok: false, error: msg`Serving size must be a positive amount, or left blank.` };
+    return {
+      ok: false,
+      error:
+        ambiguousDecimalMessage(rawServing, locale) ??
+        msg`Serving size must be a positive amount, or left blank.`,
+    };
   const nutrients = Object.fromEntries(
     NUTRIENT_KEYS.map((key) => [key, base.food.nutrients?.[key] ?? null]),
   ) as Record<NutrientKey, number | null>;

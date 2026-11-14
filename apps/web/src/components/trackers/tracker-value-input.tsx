@@ -4,6 +4,8 @@ import type { TrackerTemplateId, TrackerType } from "@openvalens/trackers/model"
 import { Input } from "@openvalens/ui/components/input";
 import { cn } from "@openvalens/ui/lib/utils";
 
+import { DecimalHint } from "@/components/decimal-hint";
+
 /**
  * The value control for one tracker type (#441): a number with its unit, the
  * 1-5 self-rating as five buttons, yes/no, or a typed duration ("20 min",
@@ -109,19 +111,22 @@ export function TrackerValueInput({
     );
   }
   return (
-    <div className="flex items-center gap-2">
-      <Input
-        id={id}
-        value={text}
-        onChange={(event) => onText(event.target.value)}
-        inputMode={type === "number" ? "decimal" : "text"}
-        placeholder={type === "duration" ? t`20 min, 1:30 or 45 s` : undefined}
-        aria-invalid={invalid || undefined}
-        aria-describedby={describedBy}
-        autoComplete="off"
-        className="max-w-48"
-      />
-      {type === "number" && unit ? <span className="text-ink-3">{unit}</span> : null}
+    <div className="grid gap-1">
+      <div className="flex items-center gap-2">
+        <Input
+          id={id}
+          value={text}
+          onChange={(event) => onText(event.target.value)}
+          inputMode={type === "number" ? "decimal" : "text"}
+          placeholder={type === "duration" ? t`20 min, 1:30 or 45 s` : undefined}
+          aria-invalid={invalid || undefined}
+          aria-describedby={describedBy}
+          autoComplete="off"
+          className="max-w-48"
+        />
+        {type === "number" && unit ? <span className="text-ink-3">{unit}</span> : null}
+      </div>
+      {type === "number" ? <DecimalHint value={text} /> : null}
     </div>
   );
 }

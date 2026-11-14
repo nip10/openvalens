@@ -1,4 +1,4 @@
-import { parseDecimal } from "@openvalens/i18n/numbers";
+import { parseNumberInputValue } from "@openvalens/i18n/numbers";
 import type { GoalEvaluation } from "@openvalens/plans/goal-evaluation";
 import type { GoalDefinition } from "@openvalens/plans/goal-model";
 
@@ -69,8 +69,9 @@ export function quickActionKind(
   return "workout-records";
 }
 
+/** A goal value from an `<input type="number">`, which always reports a plain "1.25" (#455). */
 export function parseManualAmount(value: string): number | null {
-  return parseDecimal(value);
+  return parseNumberInputValue(value);
 }
 
 export function checkinCorrectionPayload(
@@ -79,6 +80,6 @@ export function checkinCorrectionPayload(
   completed: boolean,
 ) {
   if (completionOnly) return { completed };
-  const parsed = parseDecimal(value);
+  const parsed = parseNumberInputValue(value);
   return parsed === null ? null : { value: parsed };
 }

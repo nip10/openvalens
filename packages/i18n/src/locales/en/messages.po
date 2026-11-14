@@ -13,6 +13,10 @@ msgstr ""
 msgid "—"
 msgstr "—"
 
+#: packages/api/src/presenters/decimal-input.ts
+msgid "“{typed}” could mean {whole} or {decimal}. Type {whole} or {decimal}, whichever you mean."
+msgstr "“{typed}” could mean {whole} or {decimal}. Type {whole} or {decimal}, whichever you mean."
+
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
 msgid "(done)"
 msgstr "(done)"

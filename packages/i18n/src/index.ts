@@ -5,7 +5,12 @@ import { SOURCE_LOCALE, type Locale } from "./locales";
 
 export { messagesFor, reviewStatusOf, type ReviewStatus } from "./catalogs";
 export * from "./locales";
-export { parseDecimal } from "./numbers";
+export {
+  ambiguousDecimal,
+  parseDecimal,
+  parseNumberInputValue,
+  type DecimalReadings,
+} from "./numbers";
 
 /** A Lingui instance with every shipped locale loaded through {@link messagesFor}. */
 export function createAppI18n(locale: Locale = SOURCE_LOCALE): I18n {

@@ -26,6 +26,7 @@ import {
   Sheet,
 } from "@/components/bloom";
 import { Container } from "@/components/container";
+import { DecimalHint } from "@/components/decimal-hint";
 import { ReminderDaysField, ReminderDaysRow } from "@/components/reminder-days";
 import { orpc } from "@/utils/orpc";
 import { useThemeColor } from "@/utils/theme";
@@ -114,7 +115,7 @@ function SaveStatus({
 }
 
 function AddSupplementForm({ onSaved }: { onSaved: () => void }) {
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const { _ } = useLinguiRuntime();
   const placeholder = useThemeColor("ink-3");
   const [name, setName] = useState("");
@@ -127,7 +128,7 @@ function AddSupplementForm({ onSaved }: { onSaved: () => void }) {
   const addSupplement = useMutation(orpc.plans.upsertSupplement.mutationOptions());
   const addSchedule = useMutation(orpc.plans.upsertSchedule.mutationOptions());
 
-  const numeric = parseDecimal(dose) ?? Number.NaN;
+  const numeric = parseDecimal(dose, i18n.locale) ?? Number.NaN;
   const valid = name.trim().length > 0 && Number.isFinite(numeric);
   const pending = addSupplement.isPending || addSchedule.isPending;
 
@@ -172,6 +173,7 @@ function AddSupplementForm({ onSaved }: { onSaved: () => void }) {
           className={INPUT_CLASS}
           placeholderTextColor={placeholder}
         />
+        <DecimalHint value={dose} />
       </Field>
       <Field label={t({ message: "Unit", comment: "safety" })}>
         <Pills options={UNITS} value={unit} onChange={setUnit} labelFor={(option) => option} />
@@ -202,7 +204,7 @@ function AddSupplementForm({ onSaved }: { onSaved: () => void }) {
 }
 
 function AddMedicationForm({ onSaved }: { onSaved: () => void }) {
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const { _ } = useLinguiRuntime();
   const placeholder = useThemeColor("ink-3");
   const [name, setName] = useState("");
@@ -214,7 +216,7 @@ function AddMedicationForm({ onSaved }: { onSaved: () => void }) {
 
   const addMedication = useMutation(orpc.plans.upsertMedication.mutationOptions());
 
-  const numeric = parseDecimal(dose) ?? Number.NaN;
+  const numeric = parseDecimal(dose, i18n.locale) ?? Number.NaN;
   const valid = name.trim().length > 0 && Number.isFinite(numeric);
 
   const submit = () => {
@@ -258,6 +260,7 @@ function AddMedicationForm({ onSaved }: { onSaved: () => void }) {
           className={INPUT_CLASS}
           placeholderTextColor={placeholder}
         />
+        <DecimalHint value={dose} />
       </Field>
       <Field label={t({ message: "Unit", comment: "safety" })}>
         <Pills options={UNITS} value={unit} onChange={setUnit} labelFor={(option) => option} />

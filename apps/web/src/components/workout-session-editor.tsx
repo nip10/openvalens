@@ -547,7 +547,7 @@ export function WorkoutSessionEditor({
                                   setWeights((current) => ({ ...current, [set.clientId]: text }));
                                   if (text === "") changeSet(ei, si, { weightKg: null });
                                   else {
-                                    const weight = parseDecimal(text);
+                                    const weight = parseDecimal(text, i18n.locale);
                                     if (weight !== null && weight >= 0)
                                       changeSet(ei, si, {
                                         weightKg:

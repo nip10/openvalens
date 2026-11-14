@@ -370,7 +370,7 @@ function TargetsCard({
   const activeForSelected = targets.find((target) => target.nutrient === nutrient);
 
   const save = () => {
-    const parsed = parseTargetForm(nutrient, { min, max, effectiveFrom });
+    const parsed = parseTargetForm(nutrient, { min, max, effectiveFrom }, i18n.locale);
     if (!parsed.ok) {
       setError(i18n._(parsed.error));
       announce(i18n._(parsed.error));
@@ -601,7 +601,7 @@ function SettingsCard({
   };
 
   const save = (confirmClearEatingDisorder = false) => {
-    const parsedHeight = parseHeight(height);
+    const parsedHeight = parseHeight(height, i18n.locale);
     if (!parsedHeight.ok) {
       setMessage(i18n._(parsedHeight.error));
       announce(i18n._(parsedHeight.error));
