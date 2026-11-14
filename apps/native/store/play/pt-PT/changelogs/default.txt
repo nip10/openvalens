@@ -1,10 +1,5 @@
-• Acompanhamentos personalizados, com objetivos e o que mudou
-• Meditação importada do Health Connect
-• Registe em poucos toques: separador "+", texto ou ícone da app
-• Widget no ecrã principal para registar
-• Dor no mapa corporal
-• Bebidas, com totais opcionais de cafeína e álcool
-• Novos separadores Alimento e Treino
-• Mais relógios, pulseiras, anéis e balanças por Bluetooth
-• Confirme o que a sua app de IA prepara antes de guardar
-• Vírgula decimal em todos os campos numéricos
+• A sincronização em segundo plano com o Health Connect volta a funcionar
+• Volta a instalar-se em dispositivos sem Bluetooth ou localização; Definições › Dispositivos avisa em vez de fechar a app
+• Toques no widget só guardam a partir do widget; ligações de outras apps esperam por Guardar
+• Apps de IA ligadas mostram de onde se ligam, como "Claude (claude.ai)"
+• Registos importados que eliminar num acompanhamento ficam eliminados
