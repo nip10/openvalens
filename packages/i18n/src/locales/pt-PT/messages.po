@@ -7862,6 +7862,7 @@ msgstr "Do wger, {licenseText}"
 msgid "From wger, {licenseText}, {author}"
 msgstr "Do wger, {licenseText}, {author}"
 
+#: apps/native/lib/quick-log/picker.ts
 #: apps/web/src/components/quick-log/one-liner-section.ts
 msgid "From what you typed"
 msgstr "Do que escreveu"
@@ -10006,6 +10007,8 @@ msgid "Log your first entry"
 msgstr "Faça o seu primeiro registo"
 
 #. Opens the quick log palette.
+#. Opens the quick log palette.
+#: apps/native/lib/quick-log/quick-actions.ts
 #: apps/web/src/components/header.tsx
 msgid "Log…"
 msgstr "Registar…"
@@ -14777,6 +14780,7 @@ msgstr "Sauna"
 #: apps/native/components/quick-log/quick-form.tsx
 #: apps/native/components/routine-editor.tsx
 #: apps/native/components/workout-exercise-tools.tsx
+#: apps/native/lib/quick-log/picker.ts
 #: apps/web/src/components/blood-pressure-section.tsx
 #: apps/web/src/components/manual-sleep-section.tsx
 #: apps/web/src/components/onboarding/setup-steps.tsx
@@ -18411,6 +18415,10 @@ msgstr "Duas vistas separadas dos seus próprios registos: valores DEXA medidos 
 msgid "Type"
 msgstr "Tipo"
 
+#: apps/native/lib/quick-log/picker.ts
+msgid "Type “500 ml” or “82.4 kg”…"
+msgstr "Escreva “500 ml” ou “82,4 kg”…"
+
 #: apps/native/components/pain/pain-panel.tsx
 #: apps/web/src/components/pain/pain-panel.tsx
 #: packages/api/src/presenters/log-kinds.ts
@@ -18451,6 +18459,10 @@ msgstr "Escrever os dígitos"
 #: packages/api/src/presenters/food-lookup.ts
 msgid "Type the digits printed under the barcode. Camera scanning is available in the mobile app."
 msgstr "Escreva os dígitos impressos por baixo do código de barras. A leitura com a câmara está disponível na aplicação para telemóvel."
+
+#: apps/native/lib/quick-log/picker.ts
+msgid "Type what to log"
+msgstr "Escreva o que registar"
 
 #: packages/api/src/presenters/vitals.ts
 msgctxt "data source"

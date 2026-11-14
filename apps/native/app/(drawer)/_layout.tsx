@@ -40,6 +40,7 @@ import { BloomMark, DISPLAY_MAX_FONT_SCALE } from "@/components/bloom";
 import { DISPLAY_FONT } from "@/components/fonts";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { HealthDataConsentPrompt } from "@/components/health-data-consent-prompt";
+import { QuickActionsSync } from "@/components/quick-log/quick-actions-sync";
 import { authClient } from "@/lib/auth-client";
 import { isRouteVisible } from "@/lib/modules/routes";
 import { useModules } from "@/lib/modules/use-modules";
@@ -314,6 +315,7 @@ function DrawerLayout() {
   return (
     <View className="flex-1">
       <HealthDataConsentPrompt />
+      <QuickActionsSync />
       <Drawer
         // Right after a server is chosen the screens mount afresh: open the
         // sign-in screen (this group's index), as a launch at `/` does.
