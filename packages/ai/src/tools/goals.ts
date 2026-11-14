@@ -1,4 +1,9 @@
-import { parseGoalNumeric, type Goal, type GoalCheckin } from "@openvalens/plans";
+import {
+  parseGoalNumeric,
+  trackerIdFromGoalMetric,
+  type Goal,
+  type GoalCheckin,
+} from "@openvalens/plans";
 import { tool } from "ai";
 import { z } from "zod";
 
@@ -15,7 +20,9 @@ import { round, shortText, unavailableReason } from "./format";
  * stored.
  *
  * Redaction: the goal title is included (it names the goal), capped in
- * length. Row ids, goal notes and check-in notes are never copied.
+ * length. Row ids, goal notes and check-in notes are never copied. A goal on
+ * a custom tracker with "Coach and connected AI apps can read this" off is
+ * never listed (#451; see {@link withoutAiHiddenTrackerGoals}).
  */
 
 /** Cap on goals returned. */
@@ -87,6 +94,31 @@ function projectGoal(goal: Goal, checkins: readonly GoalCheckin[]): z.infer<type
   };
 }
 
+/** The tracker a goal is on (#451), or null for every other goal. */
+export function goalTrackerId(goal: Pick<Goal, "definition">): string | null {
+  const definition = goal.definition;
+  if (!definition || typeof definition !== "object" || Array.isArray(definition)) return null;
+  const { source, metric } = definition as { source?: unknown; metric?: unknown };
+  if (source !== "tracker") return null;
+  // An unreadable tracker metric still names a tracker goal: keep it hidden.
+  return (typeof metric === "string" && trackerIdFromGoalMetric(metric)) || "";
+}
+
+/**
+ * Drops goals on a tracker whose "Coach and connected AI apps can read this"
+ * is off (#451), for the Coach and the MCP `goals` tool alike.
+ * `readableTrackerIds` are the member's AI-readable trackers.
+ */
+export function withoutAiHiddenTrackerGoals<T extends Pick<Goal, "definition">>(
+  goals: readonly T[],
+  readableTrackerIds: ReadonlySet<string>,
+): T[] {
+  return goals.filter((goal) => {
+    const trackerId = goalTrackerId(goal);
+    return trackerId === null || readableTrackerIds.has(trackerId);
+  });
+}
+
 /** Pure projection; `goals` is in repository order (newest first). */
 export function buildGoals(
   goals: ReadonlyArray<{ goal: Goal; checkins: GoalCheckin[] }>,
@@ -130,9 +162,23 @@ export async function executeGoals(
 
   const organizationId = context.organizationId;
   const userId = context.userId;
-  const goals = (await access.sources.listGoals(organizationId, userId)).filter(
+  const listed = (await access.sources.listGoals(organizationId, userId)).filter(
     (goal) => goal.deletedAt == null,
   );
+  // Only the member's AI-readable trackers come back from this port, so a
+  // goal on a tracker with AI reading off (or another member's) drops out.
+  const today = access.now.toISOString().slice(0, 10);
+  const readableTrackerIds = listed.some((goal) => goalTrackerId(goal) !== null)
+    ? new Set(
+        (
+          await access.sources.listAiTrackers(
+            { organizationId, userId },
+            { from: today, to: today },
+          )
+        ).map((tracker) => tracker.id),
+      )
+    : new Set<string>();
+  const goals = withoutAiHiddenTrackerGoals(listed, readableTrackerIds);
   const visible = goals.filter(
     (goal) => input.status === undefined || goal.status === input.status,
   );

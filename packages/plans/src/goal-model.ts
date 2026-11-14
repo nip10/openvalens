@@ -1,5 +1,12 @@
 /** Persistence-independent shared model for personal goals. */
-export const GOAL_SOURCES = ["manual", "water", "supplement", "workout", "sleep"] as const;
+export const GOAL_SOURCES = [
+  "manual",
+  "water",
+  "supplement",
+  "workout",
+  "sleep",
+  "tracker",
+] as const;
 export type GoalSource = (typeof GOAL_SOURCES)[number];
 export const GOAL_RULE_KINDS = ["target", "recurring", "average", "streak"] as const;
 export type GoalRuleKind = (typeof GOAL_RULE_KINDS)[number];

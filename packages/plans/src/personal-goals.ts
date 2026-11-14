@@ -17,6 +17,8 @@ import {
 import { member } from "@openvalens/db/schema/auth";
 import { exercise } from "@openvalens/db/schema/exercises";
 import { plainWaterEntry } from "@openvalens/db/schema/nutrition";
+import { customTracker, customTrackerEntry } from "@openvalens/db/schema/trackers";
+import type { TrackerAggregation, TrackerType } from "@openvalens/trackers/model";
 import { and, asc, desc, eq, gte, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
 import { evaluateGoal, type GoalEvaluation } from "./goal-evaluation";
 import { goalDateAt, goalDefinitionAt } from "./goal-calendar";
@@ -25,6 +27,12 @@ import {
   sameMeasurementContract,
 } from "./goal-measurement-contract";
 import { GoalWaterLinkConflictError, lockGoalOwner, reconcileWaterLink } from "./goal-water-link";
+import {
+  trackerGoalEvidence,
+  trackerGoalProblem,
+  trackerIdFromGoalMetric,
+  type TrackerGoalShape,
+} from "./goal-tracker";
 import {
   isIsoDate,
   isIsoInstant,
@@ -404,6 +412,40 @@ export function createPersonalGoalRepository(
     return validated.value;
   }
 
+  /** The member's own tracker a `tracker:<id>` metric names; never another member's. */
+  async function ownTracker(
+    queryDb: PersonalGoalQueryDb,
+    metric: string,
+  ): Promise<(TrackerGoalShape & { id: string }) | null> {
+    const trackerId = trackerIdFromGoalMetric(metric);
+    if (!trackerId) return null;
+    const row = (
+      await queryDb
+        .select({
+          id: customTracker.id,
+          type: customTracker.type,
+          unit: customTracker.unit,
+          aggregation: customTracker.aggregation,
+        })
+        .from(customTracker)
+        .where(
+          and(
+            eq(customTracker.organizationId, organizationId),
+            eq(customTracker.userId, userId),
+            eq(customTracker.id, trackerId),
+          ),
+        )
+        .limit(1)
+    )[0];
+    return row
+      ? {
+          id: row.id,
+          type: row.type as TrackerType,
+          unit: row.unit,
+          aggregation: row.aggregation as TrackerAggregation,
+        }
+      : null;
+  }
   async function collectEvidence(
     queryDb: PersonalGoalQueryDb,
     def: GoalDefinition,
@@ -539,6 +581,29 @@ export function createPersonalGoalRepository(
             sourceRecordId: String(s.setId),
           })),
       );
+    } else if (def.source === "tracker") {
+      const tracker = await ownTracker(queryDb, def.metric);
+      if (tracker) {
+        const rows = await queryDb
+          .select({
+            id: customTrackerEntry.id,
+            value: customTrackerEntry.value,
+            loggedAt: customTrackerEntry.loggedAt,
+            localDate: customTrackerEntry.localDate,
+          })
+          .from(customTrackerEntry)
+          .where(
+            and(
+              eq(customTrackerEntry.organizationId, organizationId),
+              eq(customTrackerEntry.userId, userId),
+              eq(customTrackerEntry.trackerId, tracker.id),
+              gte(customTrackerEntry.localDate, def.startDate),
+              lte(customTrackerEntry.localDate, asOf),
+              lte(customTrackerEntry.loggedAt, clock()),
+            ),
+          );
+        evidence.push(...trackerGoalEvidence({ metric: def.metric, tracker, entries: rows }));
+      }
     } else if (def.source === "sleep" && def.metric === "sleep_hours" && sleepEvidence) {
       const revisions = [
         def,
@@ -671,6 +736,25 @@ export function createPersonalGoalRepository(
             lte(workout.date, asOf),
             gte(workoutSet.reps, 1),
             isNotNull(workoutSet.weightKg),
+          ),
+        )
+        .limit(1);
+      return rows.length > 0;
+    }
+    if (def.source === "tracker") {
+      const tracker = await ownTracker(queryDb, def.metric);
+      if (!tracker) return false;
+      const rows = await queryDb
+        .select({ id: customTrackerEntry.id })
+        .from(customTrackerEntry)
+        .where(
+          and(
+            eq(customTrackerEntry.organizationId, organizationId),
+            eq(customTrackerEntry.userId, userId),
+            eq(customTrackerEntry.trackerId, tracker.id),
+            gte(customTrackerEntry.localDate, def.startDate),
+            lte(customTrackerEntry.localDate, asOf),
+            lte(customTrackerEntry.loggedAt, clock()),
           ),
         )
         .limit(1);
@@ -896,12 +980,34 @@ export function createPersonalGoalRepository(
       throw new PersonalGoalValidationError(
         "Supplement source requires a selected supplement and recurring completion rule",
       );
+    if (def.source === "tracker" && !trackerIdFromGoalMetric(def.metric))
+      throw new PersonalGoalValidationError("Tracker source requires a selected tracker");
     if (def.source === "workout" && (!/^exercise:[1-9]\d*$/.test(def.metric) || def.unit !== "kg"))
       throw new PersonalGoalValidationError(
         "Workout source requires a catalog exercise metric in kg",
       );
   }
+  /**
+   * A tracker goal names one of the member's own trackers, and its rules,
+   * unit and milestones fit the tracker type. On an edit that keeps the same
+   * tracker, a tracker deleted since is tolerated so the goal stays editable.
+   */
+  async function validateTrackerGoal(
+    tx: PersonalGoalTransaction,
+    def: GoalDefinition,
+    previousMetric?: string,
+  ) {
+    if (def.source !== "tracker") return;
+    const tracker = await ownTracker(tx, def.metric);
+    if (!tracker) {
+      if (previousMetric === def.metric) return;
+      throw new PersonalGoalValidationError("Selected tracker does not exist");
+    }
+    const problem = trackerGoalProblem(def, tracker);
+    if (problem) throw new PersonalGoalValidationError(problem);
+  }
   async function validateSourceExists(tx: PersonalGoalTransaction, def: GoalDefinition) {
+    await validateTrackerGoal(tx, def);
     if (def.source === "supplement") {
       const item = await tx
         .select({ id: supplement.id })
@@ -1459,6 +1565,11 @@ export function createPersonalGoalRepository(
           const previous = await readDefinition(row, tx);
           const requested = editorDefinition(requestedInput, previous.id, previous.status);
           checkSource(requested);
+          await validateTrackerGoal(
+            tx,
+            requested,
+            previous.source === "tracker" ? previous.metric : undefined,
+          );
           const now = clock();
           const asOf = goalDateAt(previous, now);
           const evidence = await collectEvidence(tx, previous, row.id, asOf);

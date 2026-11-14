@@ -174,7 +174,7 @@ export const goal = pgTable(
     goalVersionCheck: check("goal_version_check", sql`${table.version} > 0`),
     goalSourceCheck: check(
       "goal_source_check",
-      sql`${table.source} is null or ${table.source} in ('manual', 'water', 'supplement', 'workout', 'sleep')`,
+      sql`${table.source} is null or ${table.source} in ('manual', 'water', 'supplement', 'workout', 'sleep', 'tracker')`,
     ),
     goalDirectionCheck: check(
       "goal_direction_check",

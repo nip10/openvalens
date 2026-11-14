@@ -12,7 +12,7 @@ import { z } from "zod";
  */
 
 export const READINESS_ALGORITHM_VERSION = "readiness-0.1.0-experimental";
-export const GOAL_PROGRESS_ALGORITHM_VERSION = "goal-progress-0.1.0";
+export const GOAL_PROGRESS_ALGORITHM_VERSION = "goal-progress-0.2.0";
 
 // ─── readiness ─────────────────────────────────────────────────
 
