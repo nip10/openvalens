@@ -3,6 +3,7 @@ import { user } from "@openvalens/db/schema/auth";
 import {
   customTracker,
   customTrackerEntry,
+  customTrackerEntryTombstone,
   customTrackerFeed,
 } from "@openvalens/db/schema/trackers";
 import { and, asc, between, count, desc, eq, inArray, isNull, lt, or, sql } from "drizzle-orm";
@@ -147,7 +148,10 @@ export type TrackerFeedImportResult = {
   imported: number;
   /** Entries already imported before (same source and record id): untouched. */
   duplicates: number;
-  /** Entries refused: a value the tracker cannot hold or a time in the future. */
+  /**
+   * Entries refused: a value the tracker cannot hold, a time in the future,
+   * or a record the member deleted after an earlier import (#506).
+   */
   skipped: number;
 };
 
@@ -639,7 +643,25 @@ export function createTrackerService(input: { db: Database; now?: () => Date }) 
       const { entry, tracker } = await visibleEntry(viewer, id);
       if (!entryView(entry, tracker, viewer, null).canEdit)
         throw new TrackerError("FORBIDDEN", "You cannot delete this entry.");
-      await db.delete(customTrackerEntry).where(eq(customTrackerEntry.id, entry.id));
+      if (entry.sourceRecordId === null) {
+        await db.delete(customTrackerEntry).where(eq(customTrackerEntry.id, entry.id));
+        return;
+      }
+      // An imported entry (#506): keep its source record as a tombstone, so
+      // the phone's next re-read does not bring it back.
+      await db.transaction(async (tx) => {
+        await tx
+          .insert(customTrackerEntryTombstone)
+          .values({
+            trackerId: entry.trackerId,
+            organizationId: entry.organizationId,
+            userId: entry.userId,
+            source: entry.source,
+            sourceRecordId: entry.sourceRecordId!,
+          })
+          .onConflictDoNothing();
+        await tx.delete(customTrackerEntry).where(eq(customTrackerEntry.id, entry.id));
+      });
     },
 
     // ─── Phone feeds (#452) ─────────────────────────────────────
@@ -715,7 +737,9 @@ export function createTrackerService(input: { db: Database; now?: () => Date }) 
 
     /**
      * Unlinks a feed: imports stop, and the entries already imported stay.
-     * With `trackerId`, only while the feed still fills that tracker.
+     * With `trackerId`, only while the feed still fills that tracker. The
+     * tombstones of entries the member deleted stay too, so linking the feed
+     * to this tracker again does not bring them back (#506).
      */
     async unlinkFeed(
       viewer: TrackerViewer,
@@ -741,8 +765,9 @@ export function createTrackerService(input: { db: Database; now?: () => Date }) 
      * Imports entries a phone read from a linked feed. Idempotent on
      * (tracker, source, record id): an entry imported before is left as it is
      * (with any change the member made to it), so a retry or a re-read after
-     * a cursor reset never duplicates. Refused once the feed no longer fills
-     * this tracker.
+     * a cursor reset never duplicates. A record whose entry the member
+     * deleted has a tombstone and is skipped (#506). Refused once the feed no
+     * longer fills this tracker.
      */
     async importFeed(
       viewer: TrackerViewer,
@@ -785,12 +810,34 @@ export function createTrackerService(input: { db: Database; now?: () => Date }) 
       }
       if (valid.length === 0) return { imported: 0, duplicates: 0, skipped };
       const source = TRACKER_FEED_DEFINITIONS[input.feed].source;
+      const tombstoned = new Set(
+        (
+          await db
+            .select({ sourceRecordId: customTrackerEntryTombstone.sourceRecordId })
+            .from(customTrackerEntryTombstone)
+            .where(
+              and(
+                eq(customTrackerEntryTombstone.organizationId, tracker.organizationId),
+                eq(customTrackerEntryTombstone.userId, tracker.userId),
+                eq(customTrackerEntryTombstone.trackerId, tracker.id),
+                eq(customTrackerEntryTombstone.source, source),
+                inArray(
+                  customTrackerEntryTombstone.sourceRecordId,
+                  valid.map((entry) => entry.sourceRecordId),
+                ),
+              ),
+            )
+        ).map((row) => row.sourceRecordId),
+      );
+      const fresh = valid.filter((entry) => !tombstoned.has(entry.sourceRecordId));
+      skipped += valid.length - fresh.length;
+      if (fresh.length === 0) return { imported: 0, duplicates: 0, skipped };
       // The partial unique index on (organization, user, tracker, source,
       // source record id) turns a repeat into a no-op.
       const inserted = await db
         .insert(customTrackerEntry)
         .values(
-          valid.map((entry) => {
+          fresh.map((entry) => {
             const loggedAt = new Date(entry.loggedAt);
             return {
               trackerId: tracker.id,
@@ -808,7 +855,7 @@ export function createTrackerService(input: { db: Database; now?: () => Date }) 
         )
         .onConflictDoNothing()
         .returning({ id: customTrackerEntry.id });
-      return { imported: inserted.length, duplicates: valid.length - inserted.length, skipped };
+      return { imported: inserted.length, duplicates: fresh.length - inserted.length, skipped };
     },
 
     /** A tracker's entries, newest first. */

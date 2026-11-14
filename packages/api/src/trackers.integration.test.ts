@@ -22,7 +22,8 @@ import { appRouter } from "./routers/index";
  * typed-confirmation delete, the timeline's member filter, the Coach's AI
  * switch, and data-rights export and erasure. Phone feeds (#452): one
  * tracker per feed, type checks, idempotent imports on the platform record id,
- * and unlinking that stops imports and keeps the entries.
+ * and unlinking that stops imports and keeps the entries. Deleted imports
+ * (#506): a tombstone keeps a deleted imported entry from coming back.
  */
 
 const url = process.env.TRACKERS_TEST_DATABASE_URL;
@@ -922,6 +923,126 @@ describe.skipIf(!url)("custom trackers over RPC and PostgreSQL", () => {
       ).body,
     ).toEqual({ unlinked: false });
     expect((await call("trackers/feeds", undefined)).body).toHaveLength(1);
+  });
+
+  // ─── Deleted imports (#506) ─────────────────────────────────
+
+  const entryIdOf = async (trackerId: string, sourceRecordId: string) => {
+    const rows = await db.execute(
+      sql`select id from custom_tracker_entry where tracker_id = ${trackerId} and source_record_id = ${sourceRecordId}`,
+    );
+    return (rows.rows[0] as { id: string }).id;
+  };
+  const recordIds = async (trackerId: string) =>
+    (
+      await db.execute(
+        sql`select source, source_record_id from custom_tracker_entry where tracker_id = ${trackerId} order by source, source_record_id`,
+      )
+    ).rows;
+
+  test("a deleted imported entry stays deleted when the phone sends it again", async () => {
+    const id = (await create(meditation)).body.id as string;
+    await call("trackers/linkFeed", { trackerId: id, feed: "healthkit_mindful_sessions" });
+    await importFeed(id, [session("HK-1"), session("HK-2")]);
+
+    const deleted = await call("trackers/deleteEntry", { id: await entryIdOf(id, "HK-1") });
+    expect(deleted.status).toBe(200);
+    const tombstones = await db.execute(
+      sql`select organization_id, user_id, tracker_id, source, source_record_id from custom_tracker_entry_tombstone`,
+    );
+    expect(tombstones.rows).toEqual([
+      {
+        organization_id: "org-a",
+        user_id: "user-a",
+        tracker_id: id,
+        source: "healthkit",
+        source_record_id: "HK-1",
+      },
+    ]);
+
+    // HealthKit re-reads its whole history after sign-out: HK-1 is skipped.
+    const again = await importFeed(id, [session("HK-1"), session("HK-2"), session("HK-3")]);
+    expect(again.body).toEqual({ imported: 1, duplicates: 1, skipped: 1 });
+    expect(await recordIds(id)).toEqual([
+      { source: "healthkit", source_record_id: "HK-2" },
+      { source: "healthkit", source_record_id: "HK-3" },
+    ]);
+
+    // Unlinking and linking the feed again keeps it deleted.
+    await call("trackers/unlinkFeed", { feed: "healthkit_mindful_sessions" });
+    await call("trackers/linkFeed", { trackerId: id, feed: "healthkit_mindful_sessions" });
+    expect((await importFeed(id, [session("HK-1")])).body).toEqual({
+      imported: 0,
+      duplicates: 0,
+      skipped: 1,
+    });
+
+    // The tombstone is per source: the same id from Health Connect imports.
+    await call("trackers/linkFeed", { trackerId: id, feed: "health_connect_mindfulness" });
+    expect(
+      (await importFeed(id, [session("HK-1")], "health_connect_mindfulness")).body.imported,
+    ).toBe(1);
+
+    // Deleting it twice (a retry) keeps one tombstone.
+    const hc = await entryIdOf(id, "HK-1");
+    await call("trackers/deleteEntry", { id: hc });
+    expect((await call("trackers/deleteEntry", { id: hc })).status).toBe(404);
+    expect(
+      (await db.execute(sql`select source from custom_tracker_entry_tombstone order by source`))
+        .rows,
+    ).toEqual([{ source: "health_connect" }, { source: "healthkit" }]);
+  });
+
+  test("deleting a manual entry leaves no tombstone", async () => {
+    const id = (await create(meditation)).body.id as string;
+    const logged = await call("trackers/log", { trackerId: id, value: 600, timeZone: ZONE });
+    expect((await call("trackers/deleteEntry", { id: logged.body.id })).status).toBe(200);
+    expect((await db.execute(sql`select 1 from custom_tracker_entry_tombstone`)).rows).toEqual([]);
+    // Logging the same again is a new entry, as before.
+    await call("trackers/log", { trackerId: id, value: 600, timeZone: ZONE });
+    expect((await call("trackers/entries", { trackerId: id })).body.entries).toHaveLength(1);
+  });
+
+  test("tombstones belong to the tracker: deleting it clears them, another tracker imports", async () => {
+    const first = (await create(meditation)).body.id as string;
+    await call("trackers/linkFeed", { trackerId: first, feed: "healthkit_mindful_sessions" });
+    await importFeed(first, [session("HK-1")]);
+    await call("trackers/deleteEntry", { id: await entryIdOf(first, "HK-1") });
+
+    // Moving the feed to another tracker imports the record there.
+    const second = (await create({ ...meditation, name: "Breathing" })).body.id as string;
+    await call("trackers/linkFeed", { trackerId: second, feed: "healthkit_mindful_sessions" });
+    expect((await importFeed(second, [session("HK-1")])).body.imported).toBe(1);
+
+    await call("trackers/delete", { id: first, confirmation: "Meditation" });
+    expect((await db.execute(sql`select 1 from custom_tracker_entry_tombstone`)).rows).toEqual([]);
+  });
+
+  test("tombstones are exported and erased with the member", async () => {
+    const id = (await create(meditation)).body.id as string;
+    await call("trackers/linkFeed", { trackerId: id, feed: "healthkit_mindful_sessions" });
+    await importFeed(id, [session("HK-1")]);
+    await call("trackers/deleteEntry", { id: await entryIdOf(id, "HK-1") });
+    const theirs = (await create(meditation, "user-b")).body.id as string;
+    await call(
+      "trackers/linkFeed",
+      { trackerId: theirs, feed: "healthkit_mindful_sessions" },
+      "user-b",
+    );
+    await importFeed(theirs, [session("HK-9")], undefined, "user-b");
+    await call("trackers/deleteEntry", { id: await entryIdOf(theirs, "HK-9") }, "user-b");
+
+    const exported = await exportSubjectData(db, { userId: "user-a", organizationIds: ["org-a"] });
+    const file = exported.files.find(
+      (entry) => entry.path === "entities/custom_tracker_entry_tombstone.json",
+    );
+    expect(JSON.parse(file!.content)).toMatchObject([
+      { tracker_id: id, source: "healthkit", source_record_id: "HK-1" },
+    ]);
+    await deleteSubjectData(db, { userId: "user-a", organizationIds: [] });
+    expect(
+      (await db.execute(sql`select user_id from custom_tracker_entry_tombstone`)).rows,
+    ).toEqual([{ user_id: "user-b" }]);
   });
 
   test("only the owner links and imports; never into another member's tracker", async () => {
