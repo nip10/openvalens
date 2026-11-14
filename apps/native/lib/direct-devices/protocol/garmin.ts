@@ -195,7 +195,11 @@ export const GARMIN_FILE_TYPE = {
   HRV_STATUS: { dataType: 128, subType: 68 },
 } as const;
 
-/** Health FIT file types the v1 sync downloads. */
+/**
+ * Health FIT file types the v1 sync downloads. Upstream's other `pull` types
+ * stay on the watch; `docs/research/notes/Garmin MLR transport/
+ * garmin-new-sync-protocol.md` §10 gives each one and why.
+ */
 export const GARMIN_HEALTH_FILE_TYPES: readonly Readonly<{
   dataType: number;
   subType: number;

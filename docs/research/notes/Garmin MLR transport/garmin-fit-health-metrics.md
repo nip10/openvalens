@@ -86,6 +86,7 @@ Notation:
 Notes:
 
 - Upstream does not route per-metric samples by file type. Every file's HRV, resting HR, stress, Body Battery, SpO₂ and respiration samples are collected in one loop and persisted after the type-specific `switch`. The code comment reads "some of these samples can occur in multiple FIT file types" (`Imp:583-599`). Only steps (MONITOR), sleep stages (SLEEP) and workouts (ACTIVITY) are type-gated (`Imp:555-581`).
+- Upstream pulls other types as well (WEIGHT, METRICS, HSA, SKIN_TEMP and more). We leave them on the watch. `garmin-new-sync-protocol.md` §10 lists each one and why (checked 2026-11-14).
 - The `switch` uses the FIT `file_id.type` field (field 0), which `FTD:16-22` decodes as `FILETYPE(128, raw)`. It does not use the directory entry's type.
 
 ## 4. HRV

@@ -594,8 +594,9 @@ function withTypeName(item: GarminItemReference, typeName: string): Uint8Array {
  * notification: resolves type names (string, else the key's string seen
  * earlier in the same message, else `DEVICE_XML`/`TYPE_<key>` for a formatted
  * type) and keeps the health FIT types this family decodes. Items of other
- * types are left on the watch untouched (upstream would pull its other
- * `pull` types too; we have no decoder for them).
+ * types are left on the watch untouched. Upstream would pull its other `pull`
+ * types too, but none of them carries data that upstream decodes into a
+ * record type we have: see spec §10 for each type and the reason.
  */
 export function selectGarminSyncItems(
   items: readonly GarminItemReference[],
