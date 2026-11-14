@@ -11,6 +11,7 @@ import {
 import { telegramAccount } from "@openvalens/db/schema/integrations";
 import { createGoalRepository, createPersonalGoalRepository } from "@openvalens/plans";
 import { listSleepDailySummaries } from "@openvalens/sleep";
+import { getPersonalSleepDailyEvidence } from "@openvalens/sleep/queries";
 import { and, count, eq } from "drizzle-orm";
 
 import {
@@ -187,12 +188,13 @@ async function loadGoals(db: Database, organizationId: string, userId: string) {
       ),
     })),
   );
-  // Goals on custom trackers (#451) count toward goal progress too. The
-  // personal-goal repository is owner-scoped, so only the member's own goals
-  // (on their own trackers) are read.
-  const trackerGoals = (
-    await createPersonalGoalRepository(db, organizationId, userId).list()
-  ).filter((goal) => goal.definition.source === "tracker");
+  // Personal goals of every source count toward goal progress too: manual,
+  // water, supplement, workout, sleep (#500) and custom trackers (#451). The
+  // repository is owner-scoped, so only the member's own goals are read. Sleep
+  // goals get their nights from the same evidence the goals screen uses.
+  const personalGoals = await createPersonalGoalRepository(db, organizationId, userId, (range) =>
+    getPersonalSleepDailyEvidence(db, { organizationId, userId, ...range }),
+  ).list();
   const latestCheckinDates: Record<number, string | null> = {};
   for (const entry of entries)
     latestCheckinDates[entry.goal.id] =
@@ -200,12 +202,12 @@ async function loadGoals(db: Database, organizationId: string, userId: string) {
         (latest, checkin) => (latest === null || checkin.date > latest ? checkin.date : latest),
         null,
       ) ?? null;
-  for (const goal of trackerGoals)
+  for (const goal of personalGoals)
     latestCheckinDates[goal.id] =
       goal.evaluation.days
         .filter((day) => day.state === "qualifies" || day.state === "does-not-qualify")
         .at(-1)?.date ?? null;
-  return { result: computeGoalProgress(entries, trackerGoals), latestCheckinDates };
+  return { result: computeGoalProgress(entries, personalGoals), latestCheckinDates };
 }
 
 // ─── preferences ───────────────────────────────────────────────

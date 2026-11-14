@@ -351,6 +351,58 @@ describe.skipIf(!url)("MCP server and REST tools against disposable PostgreSQL",
     expect(withNotes).not.toContain("ai-off-secret");
   });
 
+  test("personal goals follow their source's scope: water needs nutrition:read, tracker goals trackers:read and the AI switch (#500)", async () => {
+    const trackerId = async (name: string) =>
+      (
+        await db.execute(
+          sql`select id from custom_tracker where user_id = ${USER} and name = ${name} limit 1`,
+        )
+      ).rows[0]!.id as string;
+    // Stored the way the goals API stores a personal goal (see `seedPersonalGoals`).
+    const createGoal = async (
+      title: string,
+      source: string,
+      metric: string,
+      unit: string | null,
+    ) => {
+      const definition = JSON.stringify({
+        id: `goal-500-${title}`,
+        title,
+        source,
+        metric,
+        unit,
+        rule: { kind: "streak", target: { kind: "minimum", value: 1 }, targetDays: 3 },
+        startDate: "2026-10-01",
+        timeZone: "UTC",
+        status: "active",
+      });
+      await db.execute(sql`
+        insert into goal (organization_id, user_id, title, category, status, source, definition, timezone, start_date)
+        values (${ORG}, ${USER}, ${title}, 'health', 'in_progress', ${source}, ${definition}::jsonb, 'UTC', '2026-10-01')`);
+    };
+    await createGoal("Hang every day", "tracker", `tracker:${await trackerId("Dead hang")}`, "min");
+    await createGoal(
+      "Mood goal ai-off-secret",
+      "tracker",
+      `tracker:${await trackerId("Mood ai-off-secret")}`,
+      null,
+    );
+    await createGoal("Stretch streak", "manual", "stretch", null);
+
+    const titles = async (bearer: string) => {
+      const body = (await (await rest("goals", {}, bearer)).json()) as any;
+      return (body.result.goals as Array<{ title: string }>).map((goal) => goal.title).sort();
+    };
+    // The seeded water goal is a nutrition record.
+    expect(await titles(baseKey)).toEqual(["Stretch streak"]);
+    expect(await titles(trackersKey)).toEqual(["Hang every day", "Stretch streak"]);
+    expect(await titles(fullKey)).toEqual([
+      "Hang every day",
+      `Personal goal ${WHO}`,
+      "Stretch streak",
+    ]);
+  });
+
   test("the pain log needs pain:read and its own AI switch, and notes need notes:read", async () => {
     expect((await rest("pain.entries", RANGE, baseKey)).status).toBe(403);
     const base = await mcp(baseKey, "tools/list");

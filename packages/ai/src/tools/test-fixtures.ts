@@ -9,7 +9,13 @@ import { nutritionCoachConsent } from "@openvalens/db/schema/nutrition";
 import type { TimelineEvent } from "@openvalens/health-record";
 import type { LabMarkerLatest } from "@openvalens/labs";
 import type { DailyTotals } from "@openvalens/nutrition";
-import type { Goal, GoalCheckin, SupplementListItem, SupplementSchedule } from "@openvalens/plans";
+import type {
+  Goal,
+  GoalCheckin,
+  GoalSummary,
+  SupplementListItem,
+  SupplementSchedule,
+} from "@openvalens/plans";
 import type { SleepDailySummary, SleepWindowSummary } from "@openvalens/sleep";
 import type { StructuredLogger } from "@openvalens/observability";
 
@@ -180,6 +186,8 @@ export function createFakeSources(data: Partial<Record<string, Partial<FakeOrgDa
     legacyCheckins: [],
     supplements: [],
     goals: [],
+    personalGoals: [],
+    enabledModules: null,
     timeline: [],
     nutritionTotals: [],
     trackers: [],
@@ -259,6 +267,19 @@ export function createFakeSources(data: Partial<Record<string, Partial<FakeOrgDa
           forOrg(organizationId).goals.find((entry) => entry.goal.id === goalId)?.checkins ?? []
         );
       },
+      listPersonalGoals: async (scope) => {
+        calls.push({
+          port: "listPersonalGoals",
+          organizationId: scope.organizationId,
+          subjectUserId: scope.userId,
+        });
+        return forOrg(scope.organizationId).personalGoals;
+      },
+      getEnabledModules: async (scope) => {
+        calls.push({ port: "getEnabledModules", organizationId: "", subjectUserId: scope.userId });
+        // Profiles are per user; the fixtures keep them on the bound org.
+        return forOrg(ORG_A).enabledModules;
+      },
       listTimeline: async (organizationId, filters) => {
         calls.push({ port: "listTimeline", organizationId });
         const from = filters.from ? Date.parse(`${filters.from}T00:00:00.000Z`) : -Infinity;
@@ -307,6 +328,10 @@ export type FakeOrgData = {
   legacyCheckins: LegacyWeightCheckinRow[];
   supplements: Array<{ supplement: SupplementListItem; schedules: SupplementSchedule[] }>;
   goals: Array<{ goal: Goal; checkins: GoalCheckin[] }>;
+  /** Already owner-scoped as the real port scopes them. */
+  personalGoals: GoalSummary[];
+  /** The member's module choice; `null` = never chose (every module on). */
+  enabledModules: string[] | null;
   timeline: TimelineEvent[];
   nutritionTotals: DailyTotals[];
   /** Already filtered as the real port filters (own, AI on, not archived). */

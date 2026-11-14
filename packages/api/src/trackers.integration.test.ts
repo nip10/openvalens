@@ -686,18 +686,41 @@ describe.skipIf(!url)("custom trackers over RPC and PostgreSQL", () => {
     );
     expect(other.goals?.result.goals).toEqual([]);
 
-    const coach = await executeGoals(
-      {
-        db,
-        organizationId: "org-a",
-        userId: "user-a",
-        canReadRecords: async () => true,
-        accessGate: async () => ({ allowed: true, includeNutritionNumbers: true }),
-        logger: createStructuredLogger({ level: "error" }),
-      },
-      {},
-    );
-    expect(JSON.stringify(coach)).not.toContain("Mood check-in streak");
+    // A goal on a tracker with the AI switch on reaches the goals tool (#500).
+    const reading = (await create({ name: "Reading", icon: "book", type: "number", unit: "pages" }))
+      .body;
+    expect(reading.aiVisible).toBe(true);
+    const readable = await createGoal({
+      ...trackerGoal(
+        reading.id,
+        { kind: "target", target: { kind: "minimum", value: 20 } },
+        "pages",
+      ),
+      title: "Read 20 pages",
+    });
+    expect(readable.status).toBe(200);
+
+    const goalsWith = async (grant: { trackers?: boolean }) =>
+      executeGoals(
+        {
+          db,
+          organizationId: "org-a",
+          userId: "user-a",
+          canReadRecords: async () => true,
+          accessGate: async () => ({ allowed: true, includeNutritionNumbers: true, ...grant }),
+          logger: createStructuredLogger({ level: "error" }),
+        },
+        {},
+      );
+    const withScope = await goalsWith({ trackers: true });
+    expect(withScope).toMatchObject({
+      status: "ok",
+      goals: [{ title: "Read 20 pages", source: "tracker", unit: "pages" }],
+    });
+    expect(JSON.stringify(withScope)).not.toContain("Mood check-in streak");
+    // A connected AI app without trackers:read sees no tracker goal at all.
+    const withoutScope = await goalsWith({});
+    expect(JSON.stringify(withoutScope)).not.toMatch(/Read 20 pages|Mood check-in streak/);
   });
 
   test("erasure covers both tables for the member only", async () => {

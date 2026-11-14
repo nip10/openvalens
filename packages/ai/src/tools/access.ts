@@ -53,8 +53,26 @@ export const AI_HEALTH_TOOL_SCOPE: AiConsentScope = "insights";
 export type AiToolUnavailableReason = "permission_denied" | "consent_required";
 
 export type AiToolAccessGateResult =
-  | { allowed: true; includeNutritionNumbers: boolean }
+  | {
+      allowed: true;
+      includeNutritionNumbers: boolean;
+      /**
+       * The caller may read nutrition records (an AI app holding
+       * `nutrition:read`). Absent means no. Tools that would show a
+       * nutrition-derived value outside `nutritionContext`, such as a water
+       * goal in `goals` (#500), check it.
+       */
+      nutrition?: boolean;
+      /**
+       * The caller may read custom trackers (an AI app holding
+       * `trackers:read`). Absent means no. A goal on a tracker (#451, #500)
+       * needs it as well as the tracker's own AI switch.
+       */
+      trackers?: boolean;
+    }
   | { allowed: false; reason: AiToolUnavailableReason };
+
+export type AiToolAccessGateGrant = Extract<AiToolAccessGateResult, { allowed: true }>;
 
 /** Runs a caller-supplied {@link AiHealthToolContext.accessGate}; fails closed. */
 export async function runAccessGate(
@@ -68,7 +86,14 @@ export async function runAccessGate(
 }
 
 export type ResolvedToolAccess =
-  | { allowed: true; sources: AiHealthToolSources; now: Date; logger: StructuredLogger }
+  | {
+      allowed: true;
+      sources: AiHealthToolSources;
+      now: Date;
+      logger: StructuredLogger;
+      /** The connected AI app's gate result (#439), or `null` for the Coach. */
+      gate: AiToolAccessGateGrant | null;
+    }
   | { allowed: false; reason: AiToolUnavailableReason; now: Date; logger: StructuredLogger };
 
 /**
@@ -115,6 +140,7 @@ export async function resolveToolAccess(
       sources: context.sources ?? createDomainHealthToolSources(context.db, context.userId),
       now,
       logger,
+      gate,
     };
   }
 
@@ -141,6 +167,7 @@ export async function resolveToolAccess(
     sources: context.sources ?? createDomainHealthToolSources(context.db, context.userId),
     now,
     logger,
+    gate: null,
   };
 }
 

@@ -504,6 +504,14 @@ function compare(
 function ruleForDate(goal: GoalDefinition, date: IsoDate): GoalRule {
   return versionForDate(goal, date)?.rule ?? goal.rule;
 }
+/**
+ * The rule in force on a local goal date: the latest version effective on or
+ * before it, otherwise the goal's first rule. A stored goal's `rule` is its
+ * first rule; later edits live in `versions`.
+ */
+export function goalRuleAt(goal: GoalDefinition, date: IsoDate): GoalRule {
+  return ruleForDate(goal, date);
+}
 function versionForDate(goal: GoalDefinition, date: IsoDate): GoalRuleVersion | undefined {
   return [...(goal.versions ?? [])]
     .filter((v) => v.effectiveDate <= date)

@@ -1,5 +1,6 @@
 import {
   deriveGoalProgress,
+  goalRuleAt,
   deriveGoalTrend,
   isGoalPriority,
   orderCheckinsByDate,
@@ -17,7 +18,7 @@ import {
 } from "./score-contract";
 
 /**
- * Issue #95 — goal progress (`goal-progress-0.2.0`). Pure and deterministic.
+ * Issue #95 — goal progress (`goal-progress-0.3.0`). Pure and deterministic.
  *
  * Progress toward the targets a person configured, weighted by the priority
  * they chose (low 1, normal 2, high 3; unset counts as normal). Each goal's
@@ -28,8 +29,9 @@ import {
  * Progress per goal comes from `deriveGoalProgress` in `@openvalens/plans`
  * (capped at 100% once the target is reached).
  *
- * Goals on custom trackers (#451) count too: their progress comes from the
- * goal's evaluation of the tracker's days (see {@link trackerGoalResult}).
+ * Personal goals of every source count too: manual, water, supplement,
+ * workout, sleep (#500) and custom trackers (#451). Their progress comes from
+ * the goal's own evaluation of its days (see {@link personalGoalResult}).
  */
 
 export type GoalWithHistory = { goal: Goal; checkins: readonly GoalCheckin[] };
@@ -91,8 +93,8 @@ function evaluateGoal(entry: GoalWithHistory): Omit<GoalResult, "contribution"> 
   };
 }
 
-/** What a tracker goal (#451) needs for goal progress: its current rule and evaluation. */
-export type TrackerGoalForProgress = Pick<
+/** What a personal goal (#451, #500) needs for goal progress: its definition and evaluation. */
+export type PersonalGoalForProgress = Pick<
   GoalSummary,
   "id" | "title" | "definition" | "evaluation"
 >;
@@ -100,7 +102,8 @@ export type TrackerGoalForProgress = Pick<
 const RECENT_DAYS = 7;
 
 /**
- * Where a tracker goal stands, as a current value against a target:
+ * Where a personal goal stands, as a current value against a target, under
+ * the rule in force on the evaluation date (edits live in `versions`):
  * - target and rolling-average rules: the latest value (or the complete
  *   window's average) against the threshold, upward for "at least", downward
  *   for "at most", toward the nearer edge for "between";
@@ -110,13 +113,13 @@ const RECENT_DAYS = 7;
  *   seven scheduled days (today counts once it has a record).
  * A goal that reached its target or was marked complete is 100%.
  */
-function trackerGoalMeasure(goal: TrackerGoalForProgress): {
+function personalGoalMeasure(goal: PersonalGoalForProgress): {
   current: number | null;
   target: number | null;
   direction: "increase" | "decrease";
 } {
-  const { rule } = goal.definition;
   const evaluation = goal.evaluation;
+  const rule = goalRuleAt(goal.definition, evaluation.asOf);
   if (rule.kind === "streak")
     return { current: evaluation.currentStreak, target: rule.targetDays, direction: "increase" };
   if (rule.kind === "recurring") {
@@ -152,15 +155,15 @@ function trackerGoalMeasure(goal: TrackerGoalForProgress): {
   return { current, target: comparator.minimum, direction: "increase" };
 }
 
-/** One tracker goal's goal-progress result (#451). Null for an ended (deleted) goal. */
-export function trackerGoalResult(
-  goal: TrackerGoalForProgress,
+/** One personal goal's goal-progress result (#451, #500). Null for a deleted goal. */
+export function personalGoalResult(
+  goal: PersonalGoalForProgress,
 ): Omit<GoalResult, "contribution"> | null {
   const { definition, evaluation } = goal;
   if (definition.status === "deleted" || evaluation.state === "deleted") return null;
   const reached = definition.status === "completed" || evaluation.achieved;
   const paused = !reached && (definition.status === "paused" || evaluation.state === "paused");
-  const measure = trackerGoalMeasure(goal);
+  const measure = personalGoalMeasure(goal);
   const progress = deriveGoalProgress({
     currentValue: measure.current === null ? null : String(measure.current),
     targetValue: measure.target === null ? null : String(measure.target),
@@ -198,11 +201,11 @@ export function trackerGoalResult(
 
 export function computeGoalProgress(
   entries: readonly GoalWithHistory[],
-  trackerGoals: readonly TrackerGoalForProgress[] = [],
+  personalGoals: readonly PersonalGoalForProgress[] = [],
 ): GoalProgressResult {
   const evaluated = [
     ...entries.map(evaluateGoal),
-    ...trackerGoals.flatMap((goal) => trackerGoalResult(goal) ?? []),
+    ...personalGoals.flatMap((goal) => personalGoalResult(goal) ?? []),
   ];
   const scored = evaluated.filter((goal) => goal.state === "scored");
   const totalWeight = scored.reduce((sum, goal) => sum + GOAL_PRIORITY_WEIGHTS[goal.priority], 0);

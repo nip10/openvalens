@@ -100,7 +100,15 @@ function coachContext(context: McpToolContext): AiHealthToolContext {
     userId: context.principal.userId,
     // The grant was re-checked for this request (owner, not revoked, workspace on).
     canReadRecords: async () => true,
-    accessGate: async () => ({ allowed: true, includeNutritionNumbers: true }),
+    // `nutritionContext` is only reachable with `nutrition:read`. The other
+    // Coach tools are base-scope tools, so a value from another domain (a
+    // water goal, a goal on a custom tracker, #500) needs that domain's scope.
+    accessGate: async () => ({
+      allowed: true,
+      includeNutritionNumbers: true,
+      nutrition: hasScope(context.principal.scopes, "nutrition:read"),
+      trackers: hasScope(context.principal.scopes, "trackers:read"),
+    }),
     now: () => context.now,
     logger: context.logger,
     correlationId: context.correlationId,
@@ -701,7 +709,7 @@ export const MCP_TOOLS: readonly McpToolDefinition[] = Object.freeze([
   coachTool(
     "goals",
     "Goals",
-    "the member's goals with their recent check-ins.",
+    "the member's goals with their recent check-ins, and their personal goals of every source (manual, water, supplement, workout, sleep, custom tracker) with each goal's rule, current value and days with a record. Water goals need the nutrition scope, tracker goals the trackers scope and the tracker's own AI switch, and a goal whose module the member turned off is left out.",
     goalsInput,
     executeGoals as never,
   ),

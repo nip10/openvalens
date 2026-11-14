@@ -232,6 +232,29 @@ scope), `exercises.search`, and the write tools above. Range reads cover at most
 and page with `nextCursor`. Times are ISO 8601 with the member's UTC offset;
 values keep their stored unit next to the member's preferred unit.
 
+### Goals
+
+`goals` (the same tool the Coach uses) lists the member's older free-form
+goals and their personal goals of every source (#500): manual, water,
+supplement, workout, sleep and custom trackers. A personal goal gives its
+source, its rule in plain words ("every day", "streak of 30 days"), unit,
+current value, target, current streak and the days with a record. It never
+gives row ids, the supplement, exercise or tracker id behind a goal, or notes.
+Each goal follows its source's own switch, with `records:read` as the base:
+
+| Source     | Also needs                                                          |
+| ---------- | ------------------------------------------------------------------- |
+| manual     | nothing more                                                        |
+| water      | `nutrition:read` (water is a nutrition record), Food & water module |
+| supplement | the Supplements module                                              |
+| workout    | the Activity & workouts module                                      |
+| sleep      | the Sleep module                                                    |
+| tracker    | `trackers:read` and the tracker's own AI switch                     |
+
+A module the member never chose counts as on. The Coach applies the same
+switches, with its nutrition consent (numbers included) in place of
+`nutrition:read`; it can always read the trackers whose AI switch is on.
+
 ## Reachability
 
 claude.ai and ChatGPT connect **from the vendor's cloud**, not from the

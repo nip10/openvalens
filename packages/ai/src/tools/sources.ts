@@ -11,6 +11,7 @@ import {
   type BloodPanelWithContext,
 } from "@openvalens/clinical";
 import type { Database } from "@openvalens/db";
+import { wellnessProfile } from "@openvalens/db/schema/profile";
 import {
   createHealthRecordRepository,
   type TimelineFilters,
@@ -24,20 +25,24 @@ import {
 } from "@openvalens/nutrition";
 import {
   createGoalRepository,
+  createPersonalGoalRepository,
   createPlansRepository,
   type Goal,
   type GoalCheckin,
+  type GoalSummary,
   type SupplementListItem,
   type SupplementSchedule,
 } from "@openvalens/plans";
 import { listAiPainEntries, type AiPainEntry } from "@openvalens/pain/service";
 import { getSleepSummary, type SleepWindowSummary } from "@openvalens/sleep";
+import { getPersonalSleepDailyEvidence } from "@openvalens/sleep/queries";
 import {
   listAiReadableTrackers,
   listAiTrackerDays,
   type AiTrackerRow,
 } from "@openvalens/trackers/service";
 import { listDailyVitals, type DailyVitalsSummary } from "@openvalens/vitals";
+import { eq } from "drizzle-orm";
 
 export type BodyCompositionTimeline = Awaited<ReturnType<typeof getBodyCompositionTimeline>>;
 export type DexaScanRow = Awaited<ReturnType<typeof listAllDexaScans>>[number];
@@ -49,7 +54,8 @@ export type LegacyWeightCheckinRow = Awaited<ReturnType<typeof listLegacyCheckin
  * Every port takes the `organizationId` explicitly; the tools bind it from the
  * server-side authz context and never from model or client input. The default
  * implementation delegates to the existing org-scoped domain queries — the AI
- * package adds no SQL of its own. Tests swap the ports for fakes.
+ * package adds no SQL of its own, apart from reading the member's module
+ * choice. Tests swap the ports for fakes.
  */
 export type AiHealthToolSources = {
   listLabMarkers: (organizationId: string, recentLimit: number) => Promise<LabMarkerLatest[]>;
@@ -87,6 +93,16 @@ export type AiHealthToolSources = {
     userId: string,
     goalId: number,
   ) => Promise<GoalCheckin[]>;
+  /**
+   * The member's own personal goals of every source (#500), each with its
+   * evaluation, newest first. Owner-only: never another member's goals.
+   */
+  listPersonalGoals: (scope: { organizationId: string; userId: string }) => Promise<GoalSummary[]>;
+  /**
+   * The modules the member switched on (`wellness_profile.enabled_modules`),
+   * or `null` when they never chose, which reads as every module on.
+   */
+  getEnabledModules: (scope: { userId: string }) => Promise<readonly string[] | null>;
   /** Merged health-record timeline page (`@openvalens/health-record`). */
   listTimeline: (organizationId: string, filters: TimelineFilters) => Promise<TimelinePage>;
   /**
@@ -153,6 +169,18 @@ export function createDomainHealthToolSources(db: Database, userId: string): AiH
       (await goals.listGoals(organizationId)).filter((item) => item.deletedAt == null),
     listGoalCheckins: async (organizationId, _userId, goalId) =>
       (await goals.listCheckins(organizationId, goalId)).filter((item) => item.deletedAt == null),
+    listPersonalGoals: (scope) =>
+      createPersonalGoalRepository(db, scope.organizationId, scope.userId, (range) =>
+        getPersonalSleepDailyEvidence(db, { ...scope, ...range }),
+      ).list(),
+    getEnabledModules: async (scope) => {
+      const rows = await db
+        .select({ enabledModules: wellnessProfile.enabledModules })
+        .from(wellnessProfile)
+        .where(eq(wellnessProfile.userId, scope.userId))
+        .limit(1);
+      return rows[0]?.enabledModules ?? null;
+    },
     listTimeline: (organizationId, filters) => healthRecord.listTimeline(organizationId, filters),
     listNutritionDailyTotals: (scope, range) => nutritionTotals.listDays(scope, range),
     listAiTrackers: async (scope, range) => {
