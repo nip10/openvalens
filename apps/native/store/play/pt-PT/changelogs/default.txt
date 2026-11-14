@@ -1,9 +1,10 @@
 • Acompanhamentos personalizados, com objetivos e o que mudou
-• Acompanhamento de meditação a partir do Health Connect
-• Registe em poucos toques: separador "+", uma linha escrita ou o ícone
+• Meditação importada do Health Connect
+• Registe em poucos toques: separador "+", texto ou ícone da app
+• Widget no ecrã principal para registar
 • Dor no mapa corporal
 • Bebidas, com totais opcionais de cafeína e álcool
-• Novos separadores Alimento e Treino, com exercícios ilustrados
+• Novos separadores Alimento e Treino
 • Mais relógios, pulseiras, anéis e balanças por Bluetooth
-• Confirme o que a sua app de IA prepara antes de ser guardado
+• Confirme o que a sua app de IA prepara antes de guardar
 • Vírgula decimal em todos os campos numéricos

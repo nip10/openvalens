@@ -139,14 +139,16 @@ capability, and it shows no health data on iOS: its three buttons only open
 `openvalens://quick-log?widget=…`. On Android the widget is a receiver inside
 the app package and needs nothing extra.
 
-**Nothing goes in `eas.json`.** The plugin writes the extension into the app
-config (`extra.eas.build.experimental.ios.appExtensions`), which is where EAS
-looks for the targets to sign. To see it:
+**Nothing goes in `eas.json`.** `eas.json` has no setting for extensions or
+their entitlements. The plugin writes the extension into the app config
+(`extra.eas.build.experimental.ios.appExtensions`), which is where EAS looks
+for the targets to sign, and the widget has no entitlements to declare
+(checked on 1.2.0, with `ios.appleTeamId` still unset). To see it:
 
 ```bash
 cd apps/native
 bunx expo config --type prebuild --json | jq '.extra.eas.build.experimental.ios.appExtensions'
-# → [{ "targetName": "QuickLogWidget", "bundleIdentifier": "com.openvalens.app.quicklogwidget", … }]
+# → [{ "bundleIdentifier": "com.openvalens.app.quicklogwidget", "targetName": "QuickLogWidget" }]
 ```
 
 **Once, before the first store build with the widget** (the owner; CI builds

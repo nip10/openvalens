@@ -247,7 +247,7 @@ Add to App Review Information › Notes for the 1.2.0 submission:
 > Minutes (Meditation) or State of Mind (Mood, iOS 18 and later). It only
 > reads; it never writes to Apple Health. Each session or daily mood becomes
 > an entry in that tracker, shown to the person in their own record. Unlink
-> stops it. The data is not used for advertising and is not shared.
-
-If the home-screen widget (#449, PR #499) is in the build, add: "The new
-home-screen widget only opens the app; it shows no health data."
+> stops it. The data is not used for advertising and is not shared. The new
+> home-screen widget (Quick log) only opens the app; it shows no health data
+> on iPhone. Bluetooth is used only to connect to a device the person chooses
+> to pair.
