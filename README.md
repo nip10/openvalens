@@ -8,7 +8,7 @@ export it on a server you control. "Open" means open source (AGPL-3.0); it
 never means your records are public. An instance has no public sign-up, and
 every workspace is invite-only.
 
-> **Status.** The current version is 1.2.0
+> **Status.** The current version is 1.2.1
 > ([Releases](https://github.com/nip10/openvalens/releases)). Self-hosting is
 > one supported install; [OpenValens Cloud](https://app.openvalens.com) is the
 > hosted service, with sign-up on the web. The Android app is on
