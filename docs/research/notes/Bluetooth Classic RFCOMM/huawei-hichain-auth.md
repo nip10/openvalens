@@ -1,6 +1,6 @@
 # Huawei full HiChain authentication (HiChain and HiChain3)
 
-Byte-level spec of the Huawei **full HiChain** app-layer authentication as Gadgetbridge implements it, written so we can port it into `HuaweiSession`. Scope: `deviceSupportType` 1, 3 and 4 (and the `deviceSupportType` 2 devices whose negotiation lands on HiChain), the classic HiChain ISO exchange on `0x01/0x28`, and the PIN fetch on `0x01/0x2C`. Out of scope: HiChainLite (`GetAuthRequest` digest) and Honor PAKE/STS (`GetHiChainPakeRequest`).
+Byte-level spec of the Huawei **full HiChain** app-layer authentication as Gadgetbridge implements it, written so we can port it into `HuaweiSession`. Scope: `deviceSupportType` 1, 3 and 4 (and the `deviceSupportType` 2 devices whose negotiation lands on HiChain), the classic HiChain ISO exchange on `0x01/0x28`, and the PIN fetch on `0x01/0x2C`. Out of scope: HiChainLite (`GetAuthRequest` digest; see §7.7) and Honor PAKE/STS (`GetHiChainPakeRequest`; see `honor-pake-sts.md`).
 
 Today our session refuses this path with `HuaweiUnsupportedAuthError("hichain")` (`ours/transport/huawei.ts:438`, `:457-458`). The parent spec is `bluetooth-classic-rfcomm.md` §3.4 (P2 in its plan).
 

@@ -16441,8 +16441,8 @@ msgid "Syncing…"
 msgstr "Syncing…"
 
 #: apps/native/components/direct-device-settings.tsx
-msgid "Syncs over Bluetooth Classic on Android; the first sync asks you to confirm pairing on the watch. Honor Watch 5, 5 Pro and 6 are not supported yet. Connection checks only on iPhone. Not hardware-verified."
-msgstr "Syncs over Bluetooth Classic on Android; the first sync asks you to confirm pairing on the watch. Honor Watch 5, 5 Pro and 6 are not supported yet. Connection checks only on iPhone. Not hardware-verified."
+msgid "Syncs over Bluetooth Classic on Android; the first sync may ask you to confirm pairing on the watch. Connection checks only on iPhone. Not hardware-verified."
+msgstr "Syncs over Bluetooth Classic on Android; the first sync may ask you to confirm pairing on the watch. Connection checks only on iPhone. Not hardware-verified."
 
 #: apps/native/components/direct-device-settings.tsx
 msgid "Syncs recorded rides on Android, over Bluetooth Classic when the device lists no files over Bluetooth LE. Connection checks only on iPhone. Not hardware-verified."
@@ -17090,8 +17090,16 @@ msgid "The watch did not confirm pairing in time. Unlock it, keep it near the ph
 msgstr "The watch did not confirm pairing in time. Unlock it, keep it near the phone, sync again and tap Confirm on the watch."
 
 #: apps/native/components/direct-device-settings.tsx
+msgid "The watch no longer recognises this phone. Sync again to pair it again."
+msgstr "The watch no longer recognises this phone. Sync again to pair it again."
+
+#: apps/native/components/direct-device-settings.tsx
 msgid "The watch no longer recognises this phone. Sync again to pair: you will confirm on the watch."
 msgstr "The watch no longer recognises this phone. Sync again to pair: you will confirm on the watch."
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "The watch rejected pairing. If it is paired with the Honor Health app or another phone, unpair it there first, then sync again."
+msgstr "The watch rejected pairing. If it is paired with the Honor Health app or another phone, unpair it there first, then sync again."
 
 #: apps/native/components/direct-device-settings.tsx
 msgid "The watch rejected pairing. If it is paired with the Huawei Health app or another phone, unpair it there first, then sync again."
@@ -17311,10 +17319,6 @@ msgstr "This Garmin watch uses an older Bluetooth protocol that sync does not su
 #: apps/web/src/routes/_auth/goals.$goalId.tsx
 msgid "This goal was replaced."
 msgstr "This goal was replaced."
-
-#: apps/native/components/direct-device-settings.tsx
-msgid "This Honor watch (Watch 5, 5 Pro or 6) needs a pairing mode that is not supported yet."
-msgstr "This Honor watch (Watch 5, 5 Pro or 6) needs a pairing mode that is not supported yet."
 
 #: apps/native/components/direct-device-settings.tsx
 msgid "This Huawei/Honor model syncs over Bluetooth Classic, which works on Android only; here it supports connection checks only."

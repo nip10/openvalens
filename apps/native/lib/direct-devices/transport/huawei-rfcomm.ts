@@ -15,7 +15,6 @@ import { matchHuaweiDeviceName } from "../models/huawei";
 import type { HuaweiRecord } from "../protocol/huawei";
 import {
   createHuaweiSession,
-  HuaweiUnsupportedAuthError,
   type HuaweiHiChainStore,
   type HuaweiSession,
   type HuaweiSessionOptions,
@@ -90,8 +89,6 @@ export async function runHuaweiBrSync(options: HuaweiBrSyncOptions): Promise<voi
   const { model, btClassic } = options;
   if (model.transport !== "br" || !model.sdpUuid) throw new Error("HUAWEI_HISTORY_UNSUPPORTED");
   if (!btClassic.isSupported()) throw new Error("HUAWEI_BR_UNSUPPORTED");
-  // Upstream gives these models no auth path but Honor PAKE/STS.
-  if (model.honorPake) throw new HuaweiUnsupportedAuthError("honor_pake");
   const { signal } = options;
   const requestId = `huawei-br:${options.deviceId}`;
   const cancelled = () => {
@@ -135,6 +132,7 @@ export async function runHuaweiBrSync(options: HuaweiBrSyncOptions): Promise<voi
     link,
     transport: "br",
     transactionsCrypted: model.transactionsCrypted,
+    honorPake: model.honorPake,
     deviceId: options.deviceId,
     macAddress: address,
     onRecord: options.onRecord,

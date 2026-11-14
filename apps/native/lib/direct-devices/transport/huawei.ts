@@ -26,7 +26,9 @@
  * - full HiChain / HiChain3: one bind (the user confirms on the watch), then an
  *   authenticate with the stored token on every connection.
  *
- * Refused with a typed error (never attempted): Honor PAKE/STS.
+ * - Honor PAKE/STS (`honorPake`: Honor Watch 5, 5 Pro, 6): a PSK-SPEKE bind
+ *   with a PIN from an anonymous X25519 exchange, then an STS reconnect keyed
+ *   by both Ed25519 identities; no packet key (these models send in the clear).
  *
  * Deliberately deferred (not implemented, not attempted):
  * - TruSleep file downloads (service 0x0E/0x0F) and dictionary/sequence sleep
@@ -134,6 +136,8 @@ import {
   parseHuaweiHiChainResponse,
   type HuaweiHiChainOperation,
 } from "../protocol/huawei-hichain";
+import { buildHuaweiPakeSecurityNegotiationRequest } from "../protocol/huawei-pake";
+import { runHuaweiPakeBind, runHuaweiPakeReconnect, type HuaweiPakePeer } from "./huawei-pake";
 
 /** Local watchdog for each request; upstream has no explicit timeout. */
 export const HUAWEI_SESSION_WATCHDOG_MS = 30_000;
@@ -155,9 +159,6 @@ export type HuaweiFailure =
   | "heart_rate"
   | "sleep_session";
 
-/** Typed refusals for the auth modes this build does not implement. */
-export type HuaweiUnsupportedAuthReason = "honor_pake";
-
 /** Op-2 step 1 waits longer than upstream's 5 s: Bluetooth Classic adds latency. */
 export const HUAWEI_HICHAIN_AUTH_STEP_MS = 10_000;
 /**
@@ -177,18 +178,12 @@ type HuaweiHiChainAbandonedStep = Readonly<{
 /** Op-2 retry state for one session: abandoned step 1s, and whether a late reply proved the token. */
 type HuaweiHiChainRetry = { abandoned: HuaweiHiChainAbandonedStep[]; tokenProven: boolean };
 
-export class HuaweiUnsupportedAuthError extends Error {
-  readonly code = "HUAWEI_AUTH_UNSUPPORTED";
-  constructor(readonly reason: HuaweiUnsupportedAuthReason) {
-    super(`HUAWEI_AUTH_UNSUPPORTED:${reason}`);
-    this.name = "HuaweiUnsupportedAuthError";
-  }
-}
-
 /**
  * HiChain identity per watch: our persisted id (the watch's group entry is
  * keyed by it, so it survives re-binds) and the bind's auth token. Kept apart
  * from the normal-mode secret key: upstream sharing one slot breaks auth.
+ * Honor PAKE watches use the same id, plus our Ed25519 seed and the watch's
+ * identity learned at bind.
  */
 export type HuaweiHiChainStore = Readonly<{
   getAndroidId(deviceId: string): string | null;
@@ -197,17 +192,35 @@ export type HuaweiHiChainStore = Readonly<{
   setAuthToken(deviceId: string, token: Uint8Array): void;
   /** Forget the bind (the token); the id stays. */
   clearAuthToken(deviceId: string): void;
+  /** Honor PAKE: our long-term Ed25519 seed (32 bytes), made once per watch. */
+  getPakeSeed(deviceId: string): Uint8Array | null;
+  setPakeSeed(deviceId: string, seed: Uint8Array): void;
+  /** Honor PAKE: the watch's authId and Ed25519 key, needed for the STS reconnect. */
+  getPakePeer(deviceId: string): HuaweiPakePeer | null;
+  setPakePeer(deviceId: string, peer: HuaweiPakePeer): void;
+  clearPakePeer(deviceId: string): void;
 }>;
 
 export function createMemoryHuaweiHiChainStore(): HuaweiHiChainStore {
   const ids = new Map<string, string>();
   const tokens = new Map<string, Uint8Array>();
+  const seeds = new Map<string, Uint8Array>();
+  const peers = new Map<string, HuaweiPakePeer>();
   return {
     getAndroidId: (deviceId) => ids.get(deviceId) ?? null,
     setAndroidId: (deviceId, androidId) => void ids.set(deviceId, androidId),
     getAuthToken: (deviceId) => tokens.get(deviceId) ?? null,
     setAuthToken: (deviceId, token) => void tokens.set(deviceId, Uint8Array.from(token)),
     clearAuthToken: (deviceId) => void tokens.delete(deviceId),
+    getPakeSeed: (deviceId) => seeds.get(deviceId) ?? null,
+    setPakeSeed: (deviceId, seed) => void seeds.set(deviceId, Uint8Array.from(seed)),
+    getPakePeer: (deviceId) => peers.get(deviceId) ?? null,
+    setPakePeer: (deviceId, peer) =>
+      void peers.set(deviceId, {
+        authId: Uint8Array.from(peer.authId),
+        authPk: Uint8Array.from(peer.authPk),
+      }),
+    clearPakePeer: (deviceId) => void peers.delete(deviceId),
   };
 }
 
@@ -333,6 +346,8 @@ export type HuaweiSessionOptions = Readonly<{
   transport?: "ble" | "br";
   /** Upstream `isTransactionCrypted()`; eight BR models send in the clear. */
   transactionsCrypted?: boolean;
+  /** Upstream `supportsHiChainPake()`: Honor PAKE/STS instead of HiChain/HiChainLite. */
+  honorPake?: boolean;
   /** HiChain id and bind token; defaults to a process-wide memory store. */
   hichainStore?: HuaweiHiChainStore;
   /**
@@ -406,7 +421,9 @@ export class HuaweiSession {
   private readonly transport: "ble" | "br";
   private readonly transactionsCrypted: boolean;
   private readonly hichainStore: HuaweiHiChainStore;
-  private authPath: "normal" | "lite" | "hichain" = "normal";
+  private authPath: "normal" | "lite" | "hichain" | "pake" = "normal";
+  /** Honor PAKE: the watch answered pairType 2 (it still trusts us), so run STS. */
+  private pakeReconnect = false;
   /** HiChain3 (support type 4): fully random IVs instead of the counter. */
   private randomIv = false;
   private readonly done: Promise<void>;
@@ -493,7 +510,8 @@ export class HuaweiSession {
       await this.negotiate();
       if (this.closed) return this.settleResolve();
       this.stage = "auth";
-      if (this.authPath === "hichain") await this.hichain();
+      if (this.authPath === "pake") await this.pake();
+      else if (this.authPath === "hichain") await this.hichain();
       else await this.authenticate();
       if (this.closed) return this.settleResolve();
       this.stage = "steps";
@@ -562,6 +580,27 @@ export class HuaweiSession {
       const authMode = this.deviceSupportType === 0x04 ? 0x04 : 0x02;
       // `ParamsProvider.getIv`: any type-4 watch uses fully random IVs.
       this.randomIv = this.deviceSupportType === 0x04;
+      if (this.options.honorPake) {
+        // `finalizeSecurityNegotiationPake`: the MBB request asks to reconnect
+        // once we know the watch; its pairType answer (2: STS, else bind)
+        // decides, never authType.
+        const known = this.hichainStore.getPakePeer(this.options.deviceId) !== null;
+        const reply = parseHuaweiSecurityNegotiationResponse(
+          await this.request(
+            HUAWEI_DEVICE_CONFIG_SERVICE,
+            HUAWEI_SECURITY_NEGOTIATION_COMMAND,
+            buildHuaweiPakeSecurityNegotiationRequest({
+              authMode,
+              pairType: known ? 2 : 1,
+              authId: asciiBytes(this.androidId()),
+            }),
+            { encrypted: false },
+          ),
+        );
+        this.pakeReconnect = reply.honorPairType === 0x02;
+        this.authPath = "pake";
+        return;
+      }
       const negotiation = parseHuaweiSecurityNegotiationResponse(
         await this.request(
           HUAWEI_DEVICE_CONFIG_SERVICE,
@@ -597,6 +636,53 @@ export class HuaweiSession {
     const created = huaweiHexUpper(this.randomBytes(16));
     this.hichainStore.setAndroidId(this.options.deviceId, created);
     return created;
+  }
+
+  // -------------------------------------------------------------------------
+  // Honor PAKE/STS (spec honor-pake-sts.md)
+  // -------------------------------------------------------------------------
+
+  /**
+   * STS when the watch still trusts us, else a PSK-SPEKE bind (no user input:
+   * the PIN comes from an X25519 exchange). A failed STS forgets the watch's
+   * identity, so the next sync binds again. No packet key results: these
+   * models send their transactions in the clear.
+   */
+  private async pake(): Promise<void> {
+    const deviceId = this.options.deviceId;
+    const peer = this.hichainStore.getPakePeer(deviceId);
+    let seed = this.hichainStore.getPakeSeed(deviceId);
+    if (!seed || seed.length !== 32) {
+      seed = this.randomBytes(32);
+      this.hichainStore.setPakeSeed(deviceId, seed);
+    }
+    const context = {
+      io: {
+        request: (tlv: Uint8Array, accept: (reply: HuaweiTlv) => boolean) =>
+          this.request(HUAWEI_DEVICE_CONFIG_SERVICE, HUAWEI_HICHAIN_COMMAND, tlv, {
+            encrypted: false,
+            accept,
+          }),
+      },
+      crypto: this.crypto!,
+      aes: this.aes!,
+      randomBytes: (size: number) => this.randomBytes(size),
+      authId: asciiBytes(this.androidId()),
+      seed,
+    };
+    if (this.pakeReconnect) {
+      // Upstream fails the same way ("the watch must be re-paired").
+      if (!peer) throw new Error("HUAWEI_PAKE_REBIND_REQUIRED");
+      try {
+        await runHuaweiPakeReconnect(context, peer);
+      } catch (error) {
+        if (error instanceof Error && error.message === "HUAWEI_PAKE_REBIND_REQUIRED")
+          this.hichainStore.clearPakePeer(deviceId);
+        throw error;
+      }
+      return;
+    }
+    this.hichainStore.setPakePeer(deviceId, await runHuaweiPakeBind(context));
   }
 
   // -------------------------------------------------------------------------
