@@ -59,6 +59,22 @@ test("purging removes every watch's id and token, and the index", async () => {
   expect([...items.keys()]).toEqual(["unrelated.key"]);
 });
 
+test("a store created before a purge stops serving what it cached, and re-indexes new writes", async () => {
+  const { items, secure } = fakeSecure();
+  const store = createSecureHuaweiHiChainStore(() => secure);
+  store.setAuthToken("watch-1", Uint8Array.of(1));
+  store.setAndroidId("watch-1", "000102030405060708090A0B0C0D0E0F");
+  expect(store.getAuthToken("watch-1")).toEqual(Uint8Array.of(1));
+  await purgeSecureHuaweiHiChainStore(() => secure);
+  expect(store.getAuthToken("watch-1")).toBeNull();
+  expect(store.getAndroidId("watch-1")).toBeNull();
+  // The next account's bind is indexed again, so a later purge finds it.
+  store.setAuthToken("watch-1", Uint8Array.of(2));
+  expect(JSON.parse(items.get("huawei.hichain.index")!)).toEqual(["watch-1"]);
+  await purgeSecureHuaweiHiChainStore(() => secure);
+  expect([...items.keys()]).toEqual([]);
+});
+
 test("the Honor PAKE seed and watch identity persist, clear and purge", async () => {
   const { items, secure } = fakeSecure();
   const store = createSecureHuaweiHiChainStore(() => secure);

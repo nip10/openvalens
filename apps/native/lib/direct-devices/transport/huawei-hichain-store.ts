@@ -25,6 +25,8 @@ const keyFor = (deviceId: string, field: (typeof FIELDS)[number]) =>
   `huawei.hichain.${safeId(deviceId)}.${field}`;
 /** The keystore cannot list keys, so the store keeps the ids it wrote, for purging. */
 const INDEX_KEY = "huawei.hichain.index";
+/** Bumped by every purge, so stores created earlier drop what they cached. */
+let purgeGeneration = 0;
 
 const loadSecureStore = (): SecureKeyValue =>
   require("expo-secure-store") as typeof import("expo-secure-store");
@@ -45,6 +47,7 @@ function readIndex(secure: SecureKeyValue): string[] {
 export async function purgeSecureHuaweiHiChainStore(
   load: () => SecureKeyValue = loadSecureStore,
 ): Promise<void> {
+  purgeGeneration += 1;
   const secure = load();
   const ids = readIndex(secure);
   await Promise.all(
@@ -64,14 +67,23 @@ export function createSecureHuaweiHiChainStore(
   const secure = () => (store ??= load());
   // A delete is async; the cache makes it visible to this process at once.
   const cache = new Map<string, string | null>();
+  const indexed = new Set<string>();
+  let generation = purgeGeneration;
+  const sinceLastPurge = () => {
+    if (generation === purgeGeneration) return;
+    generation = purgeGeneration;
+    cache.clear();
+    indexed.clear();
+  };
   const read = (key: string) => {
+    sinceLastPurge();
     if (cache.has(key)) return cache.get(key)!;
     const value = secure().getItem(key);
     cache.set(key, value);
     return value;
   };
-  const indexed = new Set<string>();
   const write = (deviceId: string, key: string, value: string) => {
+    sinceLastPurge();
     const id = safeId(deviceId);
     if (!indexed.has(id)) {
       const ids = readIndex(secure());
