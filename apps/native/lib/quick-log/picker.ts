@@ -12,6 +12,14 @@ import type { DueSupplement, RecentLogEntry } from "@openvalens/api/contracts/qu
 import type { LogKind, LogKindIconKey } from "@openvalens/api/presenters/log-kinds";
 import { localDateIn } from "@openvalens/api/presenters/nutrition-diary";
 import {
+  ONE_LINER_COPY,
+  previewOneLinerEntry,
+  type OneLiner,
+  type OneLinerEntry,
+  type OneLinerPreview,
+  type OneLinerPreviewContext,
+} from "@openvalens/api/presenters/one-liner";
+import {
   hasQuickForm,
   recentEntryTitle,
   recentEntryValue,
@@ -23,7 +31,11 @@ export type PickerAction =
   | { type: "take"; item: DueSupplement }
   | { type: "repeat"; entry: RecentLogEntry; kind: LogKind }
   | { type: "kind"; kind: LogKind }
-  | { type: "more" };
+  | { type: "more" }
+  /** A typed one-liner (#440): saves the preview's write, or opens its form when there is none. */
+  | { type: "typed"; entry: OneLinerEntry; preview: OneLinerPreview }
+  | { type: "typed_workout"; text: string }
+  | { type: "typed_food"; text: string };
 
 export type PickerItem = {
   id: string;
@@ -37,7 +49,11 @@ export type PickerItem = {
   action: PickerAction;
 };
 
-export type PickerSection = { id: "due" | "recent" | "log"; heading: string; items: PickerItem[] };
+export type PickerSection = {
+  id: "typed" | "due" | "recent" | "log";
+  heading: string;
+  items: PickerItem[];
+};
 
 export type PickerData = {
   /** Every kind the member can log now, built-ins first, then custom trackers. */
@@ -54,6 +70,10 @@ export const PICKER_COPY = Object.freeze({
   repeat: msg`Repeat`,
   open: msg`Open`,
   more: msg`More things to track…`,
+  typed: msg`From what you typed`,
+  save: msg`Save`,
+  typePlaceholder: msg`Type “500 ml” or “82.4 kg”…`,
+  typeLabel: msg`Type what to log`,
 });
 
 /** How choosing a kind behaves: a quick form here, a tracker's own value, or its full screen. */
@@ -158,4 +178,89 @@ export function buildPickerSections(data: PickerData, i18n: I18n): PickerSection
   });
 
   return sections;
+}
+
+function typedEntryItem(
+  entry: OneLinerEntry,
+  index: number,
+  i18n: I18n,
+  context: OneLinerPreviewContext,
+): PickerItem {
+  const preview = previewOneLinerEntry(entry, i18n, context);
+  return {
+    id: `typed:${index}:${entry.kind.id}`,
+    label: preview.title,
+    detail: [preview.value, preview.time].filter(Boolean).join(" · "),
+    hint: i18n._(preview.write ? PICKER_COPY.save : PICKER_COPY.open),
+    icon: entry.kind.icon,
+    action: { type: "typed", entry, preview },
+  };
+}
+
+/**
+ * The rows for what the member typed in the picker (#440), read by the same
+ * parser as the web palette: the preview of one entry ("Water · 500 ml ·
+ * now"), the kinds a bare number could be (one row each), the workout
+ * screen, or food search. Null when the text is not a one-liner.
+ */
+export function buildTypedSection(
+  oneLiner: OneLiner | null,
+  i18n: I18n,
+  context: OneLinerPreviewContext,
+): PickerSection | null {
+  if (!oneLiner) return null;
+  const heading = i18n._(PICKER_COPY.typed);
+  switch (oneLiner.type) {
+    case "entry":
+      return { id: "typed", heading, items: [typedEntryItem(oneLiner.entry, 0, i18n, context)] };
+    case "choices":
+      return {
+        id: "typed",
+        heading: i18n._({ ...ONE_LINER_COPY.choices, values: { number: oneLiner.number } }),
+        items: oneLiner.entries.map((entry, index) => typedEntryItem(entry, index, i18n, context)),
+      };
+    case "workout":
+      return {
+        id: "typed",
+        heading,
+        items: [
+          {
+            id: "typed:workout",
+            label: i18n._({ ...ONE_LINER_COPY.workout, values: { text: oneLiner.text } }),
+            hint: i18n._(PICKER_COPY.open),
+            icon: "dumbbell",
+            action: { type: "typed_workout", text: oneLiner.text },
+          },
+        ],
+      };
+    case "food":
+      // The app's food search takes the text; its describe flow does not yet,
+      // so typed food always opens the search.
+      return {
+        id: "typed",
+        heading,
+        items: [
+          {
+            id: "typed:food",
+            label: i18n._({ ...ONE_LINER_COPY.foodSearch, values: { text: oneLiner.text } }),
+            hint: i18n._(PICKER_COPY.open),
+            icon: "utensils",
+            action: { type: "typed_food", text: oneLiner.text },
+          },
+        ],
+      };
+  }
+}
+
+/**
+ * What the keyboard's return key picks: the one row for an entry, a workout
+ * or food. A bare number's choices wait for a tap, so "82" is never saved on
+ * its own.
+ */
+export function typedSubmitItem(
+  oneLiner: OneLiner | null,
+  section: PickerSection | null,
+): PickerItem | null {
+  if (!oneLiner || oneLiner.type === "choices") return null;
+  return section?.items[0] ?? null;
 }
