@@ -28,7 +28,7 @@ guide in November 2026; if a label has moved, follow that page.
 6. Select **Create as a plugin**, then install it.
 7. When ChatGPT sends you to OpenValens, sign in if asked, then on the consent
    screen choose the workspace, tick any extra records you want to share, tick
-   the consent and select **Allow access**.
+   "I want to send this health data to …" and select **Connect**.
 
 In a chat, type `@` and pick the plugin to use it.
 

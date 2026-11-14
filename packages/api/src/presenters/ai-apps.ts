@@ -55,7 +55,7 @@ export function aiAppsHelpUrl(file?: string): string {
 const SCOPES: Record<string, { title: MessageDescriptor; detail: MessageDescriptor }> = {
   "records:read": {
     title: msg`Your records`,
-    detail: msg`Labs, sleep, workouts, vitals, weight and body composition, supplements and goals. Always included.`,
+    detail: msg`Labs, sleep, workouts, steps, vitals, weight and body composition, supplements and goals, including what your phone syncs from Apple Health or Health Connect. Always included.`,
   },
   "nutrition:read": {
     title: msg`Nutrition`,
@@ -71,7 +71,7 @@ const SCOPES: Record<string, { title: MessageDescriptor; detail: MessageDescript
   },
   "trackers:read": {
     title: msg`Custom trackers`,
-    detail: msg`Trackers you made, except those with "Coach and connected AI apps can read this" off.`,
+    detail: msg`Trackers you made, including mindful minutes and daily mood synced from Apple Health or Health Connect, except those with "Coach and connected AI apps can read this" off.`,
   },
   "pain:read": {
     title: msg`Pain log`,
@@ -121,6 +121,87 @@ const SCOPES: Record<string, { title: MessageDescriptor; detail: MessageDescript
     detail: msg`Add lab results for your own markers, in a unit the marker already uses. Each result waits on the Labs screen until you confirm it. The app can delete only the results it added.`,
   },
 };
+
+/**
+ * The sentence naming the Apple Health / Health Connect data the chosen read
+ * scopes reach, or `null` when they reach none (Issue #518). `records:read`
+ * covers steps, heart rate, sleep, weight, body composition and workouts;
+ * `trackers:read` covers the trackers the platforms fill (mindful minutes,
+ * daily mood). Write scopes never read.
+ */
+export function aiAppPlatformDataNotice(scopes: readonly string[]): MessageDescriptor | null {
+  const records = scopes.includes("records:read");
+  const trackers = scopes.includes("trackers:read");
+  if (records && trackers) return PLATFORM_DATA.recordsAndTrackers;
+  if (records) return PLATFORM_DATA.records;
+  if (trackers) return PLATFORM_DATA.trackers;
+  return null;
+}
+
+const PLATFORM_DATA = {
+  records: msg({
+    message:
+      "This includes data synced from Apple Health or Health Connect: steps, heart rate, sleep, weight, body composition and workouts.",
+    comment: "safety",
+  }),
+  recordsAndTrackers: msg({
+    message:
+      "This includes data synced from Apple Health or Health Connect: steps, heart rate, sleep, weight, body composition, workouts, mindfulness and daily mood.",
+    comment: "safety",
+  }),
+  trackers: msg({
+    message:
+      "This includes data synced from Apple Health or Health Connect: mindfulness and daily mood.",
+    comment: "safety",
+  }),
+} as const;
+
+/**
+ * The disclosure every AI-app connection shows before consent, and the
+ * mobile list shows next to the connections (Issue #518: Apple Review
+ * Guidelines 5.1.2(i), DPLA 3.3.3(H), Google Play User Data policy). `{app}`
+ * is the app's own name (OAuth) or the key's name.
+ */
+export const AI_APP_DISCLOSURE = {
+  thirdParty: msg({
+    message:
+      "{app} is a third-party app, which can be an AI service. OpenValens doesn't run it and has no agreement with it. Once it has your data, its own terms and privacy policy apply, which may let it store your data or use it to train models.",
+    comment: "safety",
+  }),
+  /** A personal key before the member has named it. */
+  thirdPartyUnnamed: msg({
+    message:
+      "The app you use this key in is a third-party app, which can be an AI service. OpenValens doesn't run it and has no agreement with it. Once it has your data, its own terms and privacy policy apply, which may let it store your data or use it to train models.",
+    comment: "safety",
+  }),
+  thirdPartyAny: msg({
+    message:
+      "Connected apps are third-party apps, which can be AI services. OpenValens doesn't run them and has no agreement with them. Once an app has your data, its own terms and privacy policy apply, which may let it store your data or use it to train models.",
+    comment: "safety",
+  }),
+  platformDataAny: msg({
+    message:
+      "What they read includes data synced from Apple Health or Health Connect: steps, heart rate, sleep, weight, body composition, workouts, mindfulness and daily mood.",
+    comment: "safety",
+  }),
+  purpose: msg({
+    message:
+      "Shared only so the app can help you with your own health and fitness. Never used for advertising and never sold.",
+    comment: "safety",
+  }),
+  disconnect: msg({
+    message: "Disconnecting stops new reads at once but doesn't delete what the app already has.",
+    comment: "safety",
+  }),
+  agree: msg({
+    message: "I want to send this health data to {app}",
+    comment: "safety",
+  }),
+  agreeUnnamed: msg({
+    message: "I want to send this health data to the app I use this key in",
+    comment: "safety",
+  }),
+} as const;
 
 /** Whether an AI-app draft is a meal, a lab result or a workout (M2c). */
 export type AiAppDraftKind = "food" | "lab" | "workout";

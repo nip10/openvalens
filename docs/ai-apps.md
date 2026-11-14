@@ -28,7 +28,7 @@ and `MCP_WRITE_ENTRIES_PER_DAY` (1,000 added per grant in any 24 hours). See
 The workspace owner can turn **Members can connect AI apps** off (on by
 default). Existing keys and connections in that workspace stop on their next
 call. The switch is separate from the Coach AI switch, and the AI-app consent
-(`mcp-v1`) is separate from Coach consent.
+(`mcp-v2`, see [Consent versions](#consent-versions)) is separate from Coach consent.
 
 ## Grants
 
@@ -38,7 +38,7 @@ member's own records in one workspace they own, with `records:read` plus any of
 `pain:read` (all off by default; a custom tracker with its own AI switch off
 stays invisible, and the pain log needs its own AI switch on, which is off by
 default),
-and the `mcp-v1` consent. Revoking a grant, expiry, leaving the workspace,
+and the AI-app consent version it was given with. Revoking a grant, expiry, leaving the workspace,
 losing ownership or the owner's switch stops the next call. Cycle data and
 progress photos are never reachable (lint rule, allowlisted sources in
 `packages/mcp/src/sources.ts`, and an integration test). A grant may also hold
@@ -80,6 +80,37 @@ never arguments or results) for 90 days.
   to, a workspace picker (workspaces you own and where the owner allows AI
   apps), and the scopes, with sensitive ones unticked. Nothing is
   pre-approved. A new connection sends a security email.
+
+### Consent versions
+
+Before a member can approve a connection or create a key, the consent screen
+and the key form show the store-rule disclosure (Issue #518; Apple Review
+Guidelines 5.1.2(i), Apple DPLA 3.3.3(H), Google Play User Data policy): the
+app's name, unverified, and its host; the scopes in plain words, saying which
+Apple Health / Health Connect data they reach (`records:read`: steps, heart
+rate, sleep, weight, body composition, workouts; `trackers:read`: mindfulness
+and daily mood); that the app is a third party, possibly an AI service, with
+no agreement with OpenValens and under its own terms and privacy policy,
+which may let it store the data or train models on it; that it is only for
+the member's own health and fitness, never advertising or sale; that
+disconnecting stops new reads but doesn't delete what the app has. **Connect**
+and **Create key** stay disabled until the member ticks an unticked "I want to
+send this health data to {app}". The copy lives in
+`packages/api/src/presenters/ai-apps.ts` (`AI_APP_DISCLOSURE`,
+`aiAppPlatformDataNotice`), shared with the mobile Settings › Connected AI
+apps screen, which shows the same disclosure above the list.
+
+| Version  | Since         | What changed                                  |
+| -------- | ------------- | --------------------------------------------- |
+| `mcp-v1` | #439          | First AI-app consent                          |
+| `mcp-v2` | #518 (v1.2.0) | The disclosure above, with the named checkbox |
+
+`AI_APP_CONSENT_VERSION` in `packages/mcp/src/grants.ts` is the version a new
+key or connection must send, and the grant records it. Calls never compare a
+grant's version, so grants given with `mcp-v1` keep working unchanged.
+Approving an existing OAuth connection again (for example a step-up after
+`403 insufficient_scope`) goes through the new consent screen and moves that
+grant to `mcp-v2`. A personal key keeps the version it was created with.
 
 ## Writes
 

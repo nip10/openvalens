@@ -16,7 +16,7 @@ function render(node: ReactElement): string {
 
 const STATUS: AiAppsStatus = {
   enabled: true,
-  consentVersion: "mcp-v1",
+  consentVersion: "mcp-v2",
   membersCanConnect: true,
   isOwner: true,
   canCreate: true,
@@ -239,7 +239,7 @@ function formProps(overrides: Partial<AiAppKeyFormProps> = {}): AiAppKeyFormProp
     baseScope: "records:read",
     optInScopes: ["nutrition:read", "private_body:read", "notes:read"],
     expiryDays: [30, 90, 365, null],
-    consentVersion: "mcp-v1",
+    consentVersion: "mcp-v2",
     workspaceName: "Ada's records",
     draft: { label: "", scopes: [], expiresInDays: 90, agreed: false },
     onDraftChange: () => {},
@@ -253,6 +253,10 @@ function formProps(overrides: Partial<AiAppKeyFormProps> = {}): AiAppKeyFormProp
 
 function inputOf(html: string, attribute: string): string {
   return html.match(new RegExp(`<input[^>]*${attribute}[^>]*>`))?.[0] ?? "";
+}
+
+function buttonOf(html: string, testId: string): string {
+  return html.match(new RegExp(`<button[^>]*data-testid="${testId}"[^>]*>`))?.[0] ?? "";
 }
 
 describe("AiAppKeyForm", () => {
@@ -306,8 +310,52 @@ describe("AiAppKeyForm", () => {
       />,
     );
     expect(ready).not.toMatch(submit);
-    expect(ready).toInclude("consent mcp-v1");
+    expect(ready).toInclude("Consent mcp-v2");
     expect(ready).toInclude("separate from Coach AI consent");
+  });
+
+  test("the disclosure names the key's app and Create key waits for the unticked box (#518)", () => {
+    const named = { label: "Cursor", scopes: [], expiresInDays: 90 as const };
+    const unticked = render(
+      <AiAppKeyForm {...formProps({ draft: { ...named, agreed: false } })} />,
+    );
+    expect(inputOf(unticked, 'data-testid="ai-app-key-consent"')).not.toContain("checked");
+    expect(inputOf(unticked, 'data-testid="ai-app-key-consent"')).toBeTruthy();
+    expect(buttonOf(unticked, "ai-app-key-create")).toContain('disabled=""');
+    expect(unticked).toInclude(
+      "Cursor is a third-party app, which can be an AI service. OpenValens doesn&#x27;t run it and has no agreement with it.",
+    );
+    expect(unticked).toInclude("may let it store your data or use it to train models");
+    expect(unticked).toInclude("Never used for advertising and never sold.");
+    expect(unticked).toInclude(
+      "Disconnecting stops new reads at once but doesn&#x27;t delete what the app already has.",
+    );
+    expect(unticked).toInclude("I want to send this health data to Cursor");
+
+    const ticked = render(<AiAppKeyForm {...formProps({ draft: { ...named, agreed: true } })} />);
+    expect(buttonOf(ticked, "ai-app-key-create")).not.toContain('disabled=""');
+  });
+
+  test("before the key is named, the disclosure speaks of the app it will be used in", () => {
+    const html = render(<AiAppKeyForm {...formProps()} />);
+    expect(html).toInclude("The app you use this key in is a third-party app");
+    expect(html).toInclude("I want to send this health data to the app I use this key in");
+  });
+
+  test("the scope wording says which Apple Health / Health Connect data is included", () => {
+    const base = render(<AiAppKeyForm {...formProps()} />);
+    expect(base).toInclude(
+      "This includes data synced from Apple Health or Health Connect: steps, heart rate, sleep, weight, body composition and workouts.",
+    );
+    const withTrackers = render(
+      <AiAppKeyForm
+        {...formProps({
+          optInScopes: ["nutrition:read", "trackers:read"],
+          draft: { label: "", scopes: ["trackers:read"], expiresInDays: 90, agreed: false },
+        })}
+      />,
+    );
+    expect(withTrackers).toInclude("workouts, mindfulness and daily mood.");
   });
 });
 

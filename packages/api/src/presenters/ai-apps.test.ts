@@ -4,7 +4,9 @@ import { GRANTABLE_SCOPES } from "@openvalens/mcp/scopes";
 import { englishI18n } from "@openvalens/i18n/testing";
 
 import {
+  AI_APP_DISCLOSURE,
   AI_APPS_HELP_PAGES,
+  aiAppPlatformDataNotice,
   aiAppCallStatusLabel,
   aiAppCallTone,
   aiAppExpiryLabel,
@@ -90,5 +92,36 @@ describe("ai apps presenter", () => {
     }
     const index = new URL("../../../../docs/help/ai-apps/README.md", import.meta.url);
     expect(await Bun.file(index).exists()).toBe(true);
+  });
+
+  test("the phone-data notice follows the read scopes that reach Apple Health / Health Connect data (#518)", () => {
+    const notice = (scopes: string[]) => {
+      const descriptor = aiAppPlatformDataNotice(scopes);
+      return descriptor ? englishI18n._(descriptor) : null;
+    };
+    expect(notice(["records:read"])).toBe(
+      "This includes data synced from Apple Health or Health Connect: steps, heart rate, sleep, weight, body composition and workouts.",
+    );
+    expect(notice(["records:read", "trackers:read", "nutrition:read"])).toBe(
+      "This includes data synced from Apple Health or Health Connect: steps, heart rate, sleep, weight, body composition, workouts, mindfulness and daily mood.",
+    );
+    expect(notice(["trackers:read"])).toBe(
+      "This includes data synced from Apple Health or Health Connect: mindfulness and daily mood.",
+    );
+    // Opt-ins that hold no phone data, and write scopes, reach none on their own.
+    expect(notice(["nutrition:read", "notes:read", "pain:read", "body:write"])).toBeNull();
+  });
+
+  test("the disclosure names the app and says it may be an AI service under its own terms", () => {
+    const text = englishI18n._({ ...AI_APP_DISCLOSURE.thirdParty, values: { app: "Claude" } });
+    expect(text).toStartWith("Claude is a third-party app, which can be an AI service.");
+    expect(text).toContain("has no agreement with it");
+    expect(text).toContain("use it to train models");
+    expect(englishI18n._({ ...AI_APP_DISCLOSURE.agree, values: { app: "Claude" } })).toBe(
+      "I want to send this health data to Claude",
+    );
+    expect(englishI18n._(AI_APP_DISCLOSURE.platformDataAny)).toContain(
+      "Apple Health or Health Connect",
+    );
   });
 });

@@ -10,6 +10,8 @@ import { Input } from "@openvalens/ui/components/input";
 import { Check, Copy, KeyRound } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 
+import { AiAppDisclosure } from "@/components/ai-app-disclosure";
+
 /** What the create-key form edits. */
 export type AiAppKeyDraft = {
   label: string;
@@ -43,13 +45,17 @@ const CHECKBOX = "mt-1 size-4 shrink-0 accent-primary disabled:opacity-55";
  * always on; nutrition, private body measurements and notes start unticked;
  * so do the write scopes, each for one domain (M2). The key is for the workspace the member is in now
  * (the server never takes a workspace from the form). Nothing is created
- * until the member ticks the `mcp-v1` consent.
+ * until the member reads the disclosure and ticks the AI-app consent
+ * (Issue #518), which names the key.
  */
 export function AiAppKeyForm(props: AiAppKeyFormProps) {
   const { t, i18n } = useLingui();
   const nameId = useId();
-  const agreeId = useId();
   const { draft } = props;
+  const readScopes = [
+    props.baseScope,
+    ...props.optInScopes.filter((s) => draft.scopes.includes(s)),
+  ];
   const set = (patch: Partial<AiAppKeyDraft>) => props.onDraftChange({ ...draft, ...patch });
   const canSubmit = draft.label.trim().length > 0 && draft.agreed && !props.isSubmitting;
 
@@ -168,36 +174,15 @@ export function AiAppKeyForm(props: AiAppKeyFormProps) {
         </div>
       </fieldset>
 
-      <section className="grid gap-2 rounded-xl bg-paper-2 p-4 text-sm text-ink-2">
-        <p>
-          <Trans comment="safety">
-            Whatever this key reads goes to the app you give it to, under that app's own terms and
-            privacy policy. OpenValens cannot control what the app does with it.
-          </Trans>
-        </p>
-        <p>
-          <Trans comment="safety">
-            This is separate from Coach AI consent. You can revoke the key at any time on this page;
-            revoking stops it on its next request.
-          </Trans>
-        </p>
-        <label htmlFor={agreeId} className="flex items-start gap-3 pt-1">
-          <input
-            id={agreeId}
-            type="checkbox"
-            checked={draft.agreed}
-            onChange={(event) => set({ agreed: event.target.checked })}
-            className={CHECKBOX}
-            data-testid="ai-app-key-consent"
-          />
-          <span>
-            <Trans comment="safety">
-              I agree to share the records chosen above with the app I use this key in (consent{" "}
-              {props.consentVersion}).
-            </Trans>
-          </span>
-        </label>
-      </section>
+      <AiAppDisclosure
+        appName={draft.label.trim() || null}
+        scopes={readScopes}
+        kind="key"
+        consentVersion={props.consentVersion}
+        agreed={draft.agreed}
+        onAgreedChange={(agreed) => set({ agreed })}
+        checkboxTestId="ai-app-key-consent"
+      />
 
       {props.error ? (
         <p role="alert" className="text-sm text-destructive">
@@ -214,7 +199,12 @@ export function AiAppKeyForm(props: AiAppKeyFormProps) {
         >
           <Trans>Cancel</Trans>
         </Button>
-        <Button type="submit" disabled={!canSubmit} aria-busy={props.isSubmitting || undefined}>
+        <Button
+          type="submit"
+          disabled={!canSubmit}
+          aria-busy={props.isSubmitting || undefined}
+          data-testid="ai-app-key-create"
+        >
           {props.isSubmitting ? t`Creating…` : t`Create key`}
         </Button>
       </div>

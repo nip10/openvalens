@@ -539,9 +539,18 @@ describe.skipIf(!url)("OAuth 2.1 for AI apps against disposable PostgreSQL", () 
 
   test("revoking a grant stops the next call; approving more scopes steps the grant up", async () => {
     const first = await connect({ clientId: CIMD_CLIENT, redirectUri: CIMD_REDIRECT });
+    expect(first.result.grant.consentVersion).toBe(AI_APP_CONSENT_VERSION);
     expect((await mcp(first.tokens.access_token, "tools/list")).status).toBe(200);
 
-    // Step-up: the same client approved again with nutrition reuses the grant.
+    // A connection approved before the #518 consent (`mcp-v1`) keeps working.
+    await db
+      .update(aiAppGrant)
+      .set({ consentVersion: "mcp-v1" })
+      .where(eq(aiAppGrant.id, first.result.grant.id));
+    expect((await mcp(first.tokens.access_token, "tools/list")).status).toBe(200);
+
+    // Step-up: the same client approved again with nutrition reuses the grant
+    // and records the current consent on it.
     const second = await connect({
       clientId: CIMD_CLIENT,
       redirectUri: CIMD_REDIRECT,
@@ -550,6 +559,7 @@ describe.skipIf(!url)("OAuth 2.1 for AI apps against disposable PostgreSQL", () 
     });
     expect(second.result.created).toBe(false);
     expect(second.result.grant.id).toBe(first.result.grant.id);
+    expect(second.result.grant.consentVersion).toBe(AI_APP_CONSENT_VERSION);
     expect(second.request.requestedScopes.sort()).toEqual(["nutrition:read", "records:read"]);
     const stepped = await mcp(second.tokens.access_token, "tools/list");
     expect(

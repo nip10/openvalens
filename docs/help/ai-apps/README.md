@@ -43,15 +43,31 @@ access.
 
 You choose when you connect:
 
-- **Your records** (always): labs, sleep, workouts, vitals, weight and body
-  composition, supplements and goals.
-- **Nutrition**, **private body measurements** and **notes**: each off unless
-  you tick it.
+- **Your records** (always): labs, sleep, workouts, steps, vitals, weight and
+  body composition, supplements and goals, including what your phone syncs
+  from Apple Health or Health Connect.
+- **Nutrition**, **private body measurements**, **notes**, **custom
+  trackers** (including mindful minutes and daily mood from Apple Health or
+  Health Connect) and your **pain log**: each off unless you tick it.
 
-Cycle data and progress photos are never shared with any app. Whatever the app
-reads goes to that app under its own terms and privacy policy; OpenValens
-cannot control what it does with it. This consent (`mcp-v1`) is separate from
-Coach AI consent.
+Cycle data and progress photos are never shared with any app.
+
+Before you connect, the consent screen (and the personal key form) tells you:
+
+- the app is a third-party app, which can be an AI service. OpenValens doesn't
+  run it and has no agreement with it. Once it has your data, its own terms
+  and privacy policy apply, which may let it store your data or use it to
+  train models;
+- which Apple Health or Health Connect data the permissions you chose include;
+- your data is shared only so the app can help you with your own health and
+  fitness, never used for advertising and never sold;
+- disconnecting stops new reads at once but doesn't delete what the app
+  already has.
+
+**Connect** (or **Create key**) works only after you tick "I want to send this
+health data to …", which is never ticked for you. This consent (`mcp-v2`) is
+separate from Coach AI consent. The mobile app shows the same notice in
+Settings → Connected AI apps, where you can also revoke a connection.
 
 ## Personal keys
 

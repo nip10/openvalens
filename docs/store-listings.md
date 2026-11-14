@@ -156,6 +156,19 @@ Apple does not list push tokens as a data type, so they are not declared.
   optional AI provider and the optional analytics provider (PostHog) are
   service providers acting for us, which Google does
   not count as sharing. Nothing is sold.
+- **Connected AI apps (#518):** a person can connect an AI app of their own
+  choice (OAuth or a personal key, set up on the web), which then reads their
+  records, Health Connect data included. Answer **Health and fitness: Health
+  info and Fitness info: Collected, for App functionality; Shared: No**. Play
+  does not count a transfer as sharing when it is made by a "user-initiated
+  action" or "based on prominent disclosure and user consent", and every
+  connection is both: the person starts it, and the consent screen names the
+  app, says it is a third party that can be an AI service under its own
+  terms, lists the scopes and the Health Connect data they reach, and needs an
+  unticked checkbox before Connect or Create key works. The mobile Settings ›
+  Connected AI apps screen repeats that disclosure above the list. Declaring
+  **Shared: Yes** (Health info and Fitness info, App functionality) is the
+  conservative alternative if Play's reviewer objects.
 
 | Google category          | Data type                        | Collected | Optional | Purpose            | Processed ephemerally |
 | ------------------------ | -------------------------------- | --------- | -------- | ------------------ | --------------------- |
@@ -175,19 +188,19 @@ Apple does not list push tokens as a data type, so they are not declared.
 Play Console › App content › Health apps asks why each permission is needed.
 The app only reads, never writes.
 
-| Permission                       | Justification                                                                                                 |
-| -------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `READ_STEPS`                     | Shows daily steps in the person's activity history.                                                           |
-| `READ_HEART_RATE`                | Shows heart rate readings in the person's vitals history.                                                     |
-| `READ_SLEEP`                     | Shows sleep sessions and stages in the person's sleep history.                                                |
-| `READ_WEIGHT`                    | Adds weight measurements to the person's body record.                                                         |
-| `READ_BODY_FAT`                  | Adds body fat measurements to the person's body record.                                                       |
-| `READ_ACTIVE_CALORIES_BURNED`    | Shows active energy in the person's activity history.                                                         |
-| `READ_DISTANCE`                  | Shows walking and running distance in the person's activity history.                                          |
-| `READ_EXERCISE`                  | Imports workouts recorded by other apps into the person's workout log.                                        |
-| `READ_MINDFULNESS`               | Imports mindfulness sessions into a meditation tracker, only after the person links one (experimental API).   |
-| `READ_HEALTH_DATA_IN_BACKGROUND` | Keeps the record up to date when the app is closed. The person turns sync on and can turn it off in Settings. |
-| `READ_HEALTH_DATA_HISTORY`       | Imports data from before the app was installed, so the person's history is complete from the start.           |
+| Permission                       | Justification                                                                                                                                                                                                                 |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `READ_STEPS`                     | Shows daily steps in the person's activity history. If the person connects an AI app themselves and ticks the consent that names it, that app can read it too (#518).                                                         |
+| `READ_HEART_RATE`                | Shows heart rate readings in the person's vitals history. If the person connects an AI app themselves and ticks the consent that names it, that app can read it too (#518).                                                   |
+| `READ_SLEEP`                     | Shows sleep sessions and stages in the person's sleep history. If the person connects an AI app themselves and ticks the consent that names it, that app can read it too (#518).                                              |
+| `READ_WEIGHT`                    | Adds weight measurements to the person's body record. If the person connects an AI app themselves and ticks the consent that names it, that app can read it too (#518).                                                       |
+| `READ_BODY_FAT`                  | Adds body fat measurements to the person's body record. If the person connects an AI app themselves and ticks the consent that names it, that app can read it too (#518).                                                     |
+| `READ_ACTIVE_CALORIES_BURNED`    | Shows active energy in the person's activity history. If the person connects an AI app themselves and ticks the consent that names it, that app can read it too (#518).                                                       |
+| `READ_DISTANCE`                  | Shows walking and running distance in the person's activity history. If the person connects an AI app themselves and ticks the consent that names it, that app can read it too (#518).                                        |
+| `READ_EXERCISE`                  | Imports workouts recorded by other apps into the person's workout log. If the person connects an AI app themselves and ticks the consent that names it, that app can read it too (#518).                                      |
+| `READ_MINDFULNESS`               | Imports mindfulness sessions into a meditation tracker, only after the person links one (experimental API). If the person connects an AI app themselves and ticks the consent that names it, that app can read it too (#518). |
+| `READ_HEALTH_DATA_IN_BACKGROUND` | Keeps the record up to date when the app is closed. The person turns sync on and can turn it off in Settings.                                                                                                                 |
+| `READ_HEALTH_DATA_HISTORY`       | Imports data from before the app was installed, so the person's history is complete from the start.                                                                                                                           |
 
 Pick **Health and fitness** as the app category. The intended-purpose
 statement in the description answers Play's question about medical
@@ -201,16 +214,16 @@ same Play Console form before the 1.2.0 Android build goes to review; Play
 rejects a build that asks for an undeclared Health Connect permission. The
 answers for the form:
 
-| Field                                | Answer                                                                                                                                                                                                                                                                                                                                                                                  |
-| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Permission                           | Mindfulness (read), `android.permission.health.READ_MINDFULNESS`                                                                                                                                                                                                                                                                                                                        |
-| Why the app needs it                 | OpenValens lets people create their own trackers, such as a Meditation tracker that records minutes. A person can link such a tracker to Health Connect. The app then reads the person's mindfulness sessions (start, end and length) recorded by other apps and adds each one as an entry in that tracker, so the time appears in the person's own record next to their other entries. |
-| When the app asks                    | Only when the person opens a tracker's settings and taps "Link to this tracker" under "From your phone". The app does not ask at sign-in or during setup.                                                                                                                                                                                                                               |
-| Read or write                        | Read only. The app never writes to Health Connect.                                                                                                                                                                                                                                                                                                                                      |
-| How the person stops it              | "Unlink" in the same place stops imports at once; entries already imported stay until the person deletes them. The permission can also be revoked in Health Connect.                                                                                                                                                                                                                    |
-| Use of the data                      | Shown only to the person (and to members of their workspace if they share the tracker). Not used for advertising, not sold, not used to build profiles, not shared with third parties. Sent only to the server the person chose (OpenValens Cloud or their own).                                                                                                                        |
-| Core functionality                   | Custom trackers are a core feature of the app's record-keeping; the mindfulness feed fills one of them.                                                                                                                                                                                                                                                                                 |
-| Video (Play asks for one per change) | Record on a device with Health Connect: Trackers → create "Meditation" → open it → Settings → "From your phone" → "Link to this tracker" → Health Connect asks for Mindfulness → Allow → "Import now" → the session appears with "from Health Connect". Then "Unlink".                                                                                                                  |
+| Field                                | Answer                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Permission                           | Mindfulness (read), `android.permission.health.READ_MINDFULNESS`                                                                                                                                                                                                                                                                                                                                           |
+| Why the app needs it                 | OpenValens lets people create their own trackers, such as a Meditation tracker that records minutes. A person can link such a tracker to Health Connect. The app then reads the person's mindfulness sessions (start, end and length) recorded by other apps and adds each one as an entry in that tracker, so the time appears in the person's own record next to their other entries.                    |
+| When the app asks                    | Only when the person opens a tracker's settings and taps "Link to this tracker" under "From your phone". The app does not ask at sign-in or during setup.                                                                                                                                                                                                                                                  |
+| Read or write                        | Read only. The app never writes to Health Connect.                                                                                                                                                                                                                                                                                                                                                         |
+| How the person stops it              | "Unlink" in the same place stops imports at once; entries already imported stay until the person deletes them. The permission can also be revoked in Health Connect.                                                                                                                                                                                                                                       |
+| Use of the data                      | Shown only to the person (and to members of their workspace if they share the tracker). Not used for advertising, not sold, not used to build profiles. Sent only to the server the person chose (OpenValens Cloud or their own). Not shared with third parties, except an AI app the person connects themselves after a consent screen that names the app and the Health Connect data it can read (#518). |
+| Core functionality                   | Custom trackers are a core feature of the app's record-keeping; the mindfulness feed fills one of them.                                                                                                                                                                                                                                                                                                    |
+| Video (Play asks for one per change) | Record on a device with Health Connect: Trackers → create "Meditation" → open it → Settings → "From your phone" → "Link to this tracker" → Health Connect asks for Mindfulness → Allow → "Import now" → the session appears with "from Health Connect". Then "Unlink".                                                                                                                                     |
 
 `[CONFIRM]` the use-case category Play offers for mindfulness in the form
 (wellness or mindfulness tracking). The intended-purpose statement still
@@ -235,8 +248,10 @@ and State of Mind (`HKStateOfMindTypeIdentifier`, iOS 18 and later). `NSHealthSh
 Review checks that the purpose string covers each type the app asks for:
 "OpenValens reads your health data from Apple Health to keep your health
 record up to date, and to fill the trackers you link, such as mindful minutes
-and your daily mood." No
-App Privacy answer changes.
+and your daily mood. It's shared with another app only if you connect one
+yourself." The last sentence (#518) covers connected AI apps (Review
+Guidelines 5.1.1(ii): the purpose string describes every use). No App Privacy
+answer changes.
 
 Add to App Review Information › Notes for the 1.2.0 submission:
 
@@ -246,7 +261,28 @@ Add to App Review Information › Notes for the 1.2.0 submission:
 > Minutes (Meditation) or State of Mind (Mood, iOS 18 and later). It only
 > reads; it never writes to Apple Health. Each session or daily mood becomes
 > an entry in that tracker, shown to the person in their own record. Unlink
-> stops it. The data is not used for advertising and is not shared. The new
+> stops it. The data is not used for advertising and is not sold. The new
 > home-screen widget (Quick log) only opens the app; it shows no health data
 > on iPhone. Bluetooth is used only to connect to a device the person chooses
 > to pair.
+>
+> Connected AI apps: a person can connect an AI app they choose (for example
+> Claude or ChatGPT) to their own records, including data synced from Apple
+> Health, so the app can answer questions about their own health and
+> fitness. The connection is made only by the person, on the web
+> (Settings › Connected AI apps, or the app's own sign-in, which opens our
+> consent screen). Before anything is shared, the consent screen names the
+> app and its host, marks it unverified, lists what it may read in plain
+> words and says which Apple Health data that includes, says the app is a
+> third party that can be an AI service, that OpenValens has no agreement
+> with it and that its own terms and privacy policy apply, that the data is
+> only for the person's own health and fitness and never used for
+> advertising or sold, and that disconnecting stops new reads but does not
+> delete what the app already has. Connect stays disabled until the person
+> ticks an unticked box, "I want to send this health data to <app>". The
+> iPhone app shows the same disclosure in Settings › Connected AI apps, next
+> to the list of connections, where each one can be revoked. Cycle data and
+> progress photos are never shared. To test: sign in to the web app with the
+> demo account, open Settings › Connected AI apps › Create key, and see the
+> disclosure and the disabled Create key button; then open Settings ›
+> Connected AI apps in the iPhone app.

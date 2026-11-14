@@ -24,7 +24,7 @@ const REQUEST: NonNullable<OAuthConsentViewProps["request"]> = {
     { organizationId: "org-shared", name: "Family", allowed: false, reason: "NOT_OWNER" },
   ],
   activeOrganizationId: "org-own",
-  consentVersion: "mcp-v1",
+  consentVersion: "mcp-v2",
 };
 
 function render(overrides: Partial<OAuthConsentViewProps> = {}): string {
@@ -60,7 +60,7 @@ describe("OAuthConsentView", () => {
     expect(html).toContain("Connect Claude to OpenValens?");
     expect(html).toContain("Unverified app");
     expect(html).toContain("claude.ai");
-    expect(html).toContain("mcp-v1");
+    expect(html).toContain("Consent mcp-v2");
   });
 
   test("ticks only the required scope; sensitive scopes start off even when requested", () => {
@@ -101,6 +101,52 @@ describe("OAuthConsentView", () => {
       /<button[^>]*type="submit"[^>]*disabled/,
     );
     expect(render()).toContain("only the owner can connect apps");
+  });
+
+  test("Connect stays disabled until the unticked health-data box is ticked (#518)", () => {
+    const connect = (html: string) =>
+      html.match(/<button[^>]*data-testid="oauth-connect"[^>]*>/)?.[0] ?? "";
+    const html = render();
+    const box = html.match(/<input[^>]*data-testid="oauth-consent"[^>]*>/)?.[0] ?? "";
+    expect(box).toContain('type="checkbox"');
+    expect(box).not.toContain("checked");
+    expect(connect(html)).toContain('disabled=""');
+    expect(html).toContain("I want to send this health data to Claude");
+    expect(connect(render({ agreed: true }))).not.toContain('disabled=""');
+    expect(render({ agreed: true })).toContain(">Connect<");
+  });
+
+  test("discloses the third party, its own terms, the purpose and what disconnecting does", () => {
+    const html = render();
+    expect(html).toContain(
+      "Claude is a third-party app, which can be an AI service. OpenValens doesn&#x27;t run it and has no agreement with it. Once it has your data, its own terms and privacy policy apply, which may let it store your data or use it to train models.",
+    );
+    expect(html).toContain(
+      "Shared only so the app can help you with your own health and fitness. Never used for advertising and never sold.",
+    );
+    expect(html).toContain(
+      "Disconnecting stops new reads at once but doesn&#x27;t delete what the app already has.",
+    );
+  });
+
+  test("the scope wording names the phone data the chosen scopes reach", () => {
+    const base = render();
+    expect(base).toContain(
+      "This includes data synced from Apple Health or Health Connect: steps, heart rate, sleep, weight, body composition and workouts.",
+    );
+    expect(base).not.toContain("mindfulness and daily mood");
+    const request = {
+      ...REQUEST,
+      scopes: [
+        ...REQUEST.scopes,
+        { scope: "trackers:read", required: false, requestedByApp: true },
+      ],
+    };
+    // Requested but not ticked: still only the base scope's phone data.
+    expect(render({ request })).not.toContain("workouts, mindfulness and daily mood.");
+    expect(render({ request, selectedScopes: ["trackers:read"] })).toContain(
+      "workouts, mindfulness and daily mood.",
+    );
   });
 
   test("explains a request that cannot be used", () => {
