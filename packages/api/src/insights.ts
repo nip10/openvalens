@@ -17,7 +17,6 @@ import {
 import { listSleepDailySummaries } from "@openvalens/sleep";
 import { listAiReadableTrackers, listAiTrackerDays } from "@openvalens/trackers";
 import { getPersonalSleepDailyEvidence } from "@openvalens/sleep/queries";
-import { listAiReadableTrackers } from "@openvalens/trackers";
 import { and, count, eq } from "drizzle-orm";
 
 import {
