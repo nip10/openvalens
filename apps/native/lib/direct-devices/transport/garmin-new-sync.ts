@@ -232,7 +232,7 @@ export class GarminNewSyncDriver {
           "item_list_response",
         );
         if (response.kind !== "item_list_response") break;
-        this.enqueue(response.items);
+        this.enqueue(response.items, true);
         // `FileSyncServiceHandler.kt:163-173`: a session id means more pages.
         if (response.sessionId === null) break;
         sessionId = response.sessionId;
@@ -247,9 +247,11 @@ export class GarminNewSyncDriver {
       for (let index = 0; index < queue.length; index += 1) {
         if (this.host.isClosed()) return { stalled: false };
         if (processed >= this.host.maxFiles) break;
-        processed += 1;
         const outcome = await this.download(queue[index]!);
         if (outcome === "stalled") return { stalled: true };
+        // Files we already hold (e.g. kept on the watch) cost no transfer and
+        // do not use up the per-sync budget.
+        if (outcome !== "known") processed += 1;
       }
       return { stalled: false };
     } finally {
@@ -257,10 +259,10 @@ export class GarminNewSyncDriver {
     }
   }
 
-  private enqueue(items: readonly GarminItemReference[]): void {
+  private enqueue(items: readonly GarminItemReference[], resolveKeys: boolean): void {
     const queue = this.queue;
     if (!queue) return;
-    for (const item of selectGarminSyncItems(items)) {
+    for (const item of selectGarminSyncItems(items, { resolveKeys })) {
       const key = item.item.key!;
       if (this.queuedKeys.has(key) || queue.length >= GARMIN_NEW_SYNC_MAX_QUEUED) continue;
       this.queuedKeys.add(key);
@@ -268,14 +270,14 @@ export class GarminNewSyncDriver {
     }
   }
 
-  private async download(entry: GarminSyncItem): Promise<"done" | "skipped" | "stalled"> {
+  private async download(entry: GarminSyncItem): Promise<"done" | "known" | "skipped" | "stalled"> {
     const key = entry.item.key!;
     const size = entry.item.dataSize;
     if (size !== null && size > this.host.maxFileBytes) return "skipped";
     if (this.host.syncState.hasDownloaded(this.host.deviceId, key)) {
       // Already have it (e.g. a kept file, or a lost ModifyFlags): mark again.
       this.markSynced(entry);
-      return "skipped";
+      return "known";
     }
     let pull: GarminFileAccessMessage;
     try {
@@ -300,7 +302,11 @@ export class GarminNewSyncDriver {
     } catch (error) {
       if (this.host.isClosed() || this.failed) throw error;
       this.host.onFailure("file_transfer");
-      return error instanceof Error && error.message === "GARMIN_TRANSFER_TIMEOUT"
+      // A watch that stops sending, or never grants the transfer service,
+      // keeps the rest for the next sync.
+      return error instanceof Error &&
+        (error.message === "GARMIN_TRANSFER_TIMEOUT" ||
+          error.message === "GARMIN_TRANSFER_REGISTER_TIMEOUT")
         ? "stalled"
         : "skipped";
     }
@@ -329,7 +335,7 @@ export class GarminNewSyncDriver {
   // -------------------------------------------------------------------------
 
   private deliver(message: GarminFileAccessMessage): void {
-    if (message.kind === "item_added_notification") this.enqueue(message.items);
+    if (message.kind === "item_added_notification") this.enqueue(message.items, false);
     const waiter = this.waiter;
     if (waiter && waiter.kind === message.kind) {
       this.waiter = null;
@@ -358,7 +364,12 @@ export class GarminNewSyncDriver {
       };
       // Upstream does not match replies to request ids; neither do we.
       this.waiter = waiter;
-      this.sendRequest(service);
+      try {
+        this.sendRequest(service);
+      } catch (error) {
+        if (this.waiter === waiter) this.waiter = null;
+        waiter.reject(error);
+      }
     });
   }
 

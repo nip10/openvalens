@@ -597,7 +597,12 @@ export function parseGarminMlMessage(bytes: Uint8Array): GarminMlMessage | null 
   const service = bytes.length >= 12 ? uint16le(bytes, 10) : null;
   switch (requestType) {
     case GARMIN_ML_REQUEST.REGISTER_ML_RESP:
-      if (bytes.length < 14) return null;
+      if (bytes.length < 13) return null;
+      // `CommunicatorV2:359-367` reads the status and stops on a refusal, so a
+      // refusal needs no handle byte.
+      if (bytes[12] !== 0 || bytes.length === 13) {
+        return { requestType, service, status: bytes[12]!, handle: null, reliable: null };
+      }
       return {
         requestType,
         service,

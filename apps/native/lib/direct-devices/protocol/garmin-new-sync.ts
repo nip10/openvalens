@@ -155,35 +155,40 @@ function concat(parts: readonly Uint8Array[]): Uint8Array {
 const hex = (bytes: Uint8Array): string =>
   Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
 
-function lastOf(fields: Map<number, ProtoValue[]>, field: number): ProtoValue | undefined {
-  const values = fields.get(field);
-  return values && values.length > 0 ? values[values.length - 1] : undefined;
-}
-
+// Like protobuf-java for proto2, a field with an unexpected wire type is
+// treated as an unknown field (absent), not as an error.
 function varintOf(fields: Map<number, ProtoValue[]>, field: number): number | undefined {
-  const value = lastOf(fields, field);
-  if (!value) return undefined;
-  if (value.wireType !== 0) throw new Error("GARMIN_PROTO_WIRE_TYPE");
-  return value.value as number;
+  const values = (fields.get(field) ?? []).filter((value) => value.wireType === 0);
+  return values.length > 0 ? (values[values.length - 1]!.value as number) : undefined;
 }
 
 function bytesOf(fields: Map<number, ProtoValue[]>, field: number): Uint8Array | undefined {
-  const value = lastOf(fields, field);
-  if (!value) return undefined;
-  if (value.wireType !== 2) throw new Error("GARMIN_PROTO_WIRE_TYPE");
-  return value.value as Uint8Array;
+  const values = allBytesOf(fields, field);
+  return values.length > 0 ? values[values.length - 1] : undefined;
 }
 
 function allBytesOf(fields: Map<number, ProtoValue[]>, field: number): Uint8Array[] {
-  return (fields.get(field) ?? []).map((value) => {
-    if (value.wireType !== 2) throw new Error("GARMIN_PROTO_WIRE_TYPE");
-    return value.value as Uint8Array;
-  });
+  return (fields.get(field) ?? [])
+    .filter((value) => value.wireType === 2)
+    .map((value) => value.value as Uint8Array);
 }
 
-/** Strict UTF-8 decode (type names are ASCII in practice). */
+/** UTF-8 decode; like protobuf-java, invalid bytes become U+FFFD. */
 function utf8(bytes: Uint8Array): string {
-  return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  return new TextDecoder("utf-8").decode(bytes);
+}
+
+/** Items that fail to decode are dropped, not the whole message (local). */
+function decodeItems(raws: readonly Uint8Array[]): GarminItemReference[] {
+  const items: GarminItemReference[] = [];
+  for (const raw of raws) {
+    try {
+      items.push(decodeGarminItemReference(raw));
+    } catch {
+      // A malformed item; the rest of the list still syncs.
+    }
+  }
+  return items;
 }
 
 // ---------------------------------------------------------------------------
@@ -243,7 +248,7 @@ export function chunkGarminProtobuf(
   return chunks;
 }
 
-/** `ProtobufStatusMessage.generateOutgoing` payload (11 bytes, `ProtobufStatusMessage.java:91-102`). */
+/** `ProtobufStatusMessage.generateOutgoing` payload (11 bytes, `ProtobufStatusMessage.java:74-86`). */
 export function buildGarminProtobufStatus(input: {
   originalMessageType: number;
   requestId: number;
@@ -272,7 +277,7 @@ export type GarminProtobufStatus = Readonly<{
   ok: boolean;
 }>;
 
-/** `ProtobufStatusMessage.parseIncoming`; null when not a protobuf status. */
+/** `ProtobufStatusMessage.parseIncoming` (`ProtobufStatusMessage.java:30-46`); null when not a protobuf status. */
 export function parseGarminProtobufStatus(payload: Uint8Array): GarminProtobufStatus | null {
   if (payload.length < 11) return null;
   const originalMessageType = uint16le(payload, 0);
@@ -334,7 +339,8 @@ export class GarminProtobufReassembler {
       entry = { total: chunk.totalLength, parts: [chunk.data], held: chunk.data.length };
       this.pending.set(chunk.requestId, entry);
     } else {
-      if (!entry || chunk.dataOffset !== entry.held) {
+      // A non-advancing chunk would grow the buffer list forever (local guard).
+      if (!entry || chunk.dataOffset !== entry.held || chunk.data.length === 0) {
         this.pending.delete(chunk.requestId);
         return { kind: "dropped" };
       }
@@ -446,10 +452,15 @@ function decodeDataType(bytes: Uint8Array): GarminDataType {
 
 function uuidKey(uid: Uint8Array): string | null {
   const fields = decodeMessage(uid, GARMIN_PROTOBUF_MAX_BYTES);
-  const most = lastOf(fields, 1);
-  const least = lastOf(fields, 2);
-  if (most?.wireType !== 1 || least?.wireType !== 1) return null;
-  return `uid:${hex(most.value as Uint8Array)}:${hex(least.value as Uint8Array)}`;
+  const fixed = (field: number) =>
+    (fields.get(field) ?? []).filter((value) => value.wireType === 1).at(-1)?.value as
+      | Uint8Array
+      | undefined;
+  const most = fixed(1);
+  const least = fixed(2);
+  // Both are `required` (`gdi_data_types.proto:140-143`).
+  if (!most || !least) return null;
+  return `uid:${hex(most)}:${hex(least)}`;
 }
 
 /** Decodes one `ItemReference` (`gdi_file_access.proto:155-169`). */
@@ -498,15 +509,13 @@ export function decodeGarminFileAccessService(service: Uint8Array): GarminFileAc
         status: varintOf(list, 1) ?? null,
         sessionId: varintOf(list, 2) ?? null,
         nextTransactionId: varintOf(list, 3) ?? null,
-        items: allBytesOf(list, 4).map(decodeGarminItemReference),
+        items: decodeItems(allBytesOf(list, 4)),
       };
     }
     case GARMIN_FILE_ACCESS.ITEM_ADDED_NOTIFICATION:
       return {
         kind: "item_added_notification",
-        items: allBytesOf(decodeMessage(body, GARMIN_PROTOBUF_MAX_BYTES), 1).map(
-          decodeGarminItemReference,
-        ),
+        items: decodeItems(allBytesOf(decodeMessage(body, GARMIN_PROTOBUF_MAX_BYTES), 1)),
       };
     case GARMIN_FILE_ACCESS.PULL_ITEM_RESPONSE: {
       const pull = decodeMessage(body, GARMIN_PROTOBUF_MAX_BYTES);
@@ -588,18 +597,29 @@ function withTypeName(item: GarminItemReference, typeName: string): Uint8Array {
  * types are left on the watch untouched (upstream would pull its other
  * `pull` types too; we have no decoder for them).
  */
-export function selectGarminSyncItems(items: readonly GarminItemReference[]): GarminSyncItem[] {
+export function selectGarminSyncItems(
+  items: readonly GarminItemReference[],
+  options: { resolveKeys?: boolean } = {},
+): GarminSyncItem[] {
+  // `handleItemAddedNotification` passes no name map (`FileSyncServiceHandler.kt:97`).
+  const resolveKeys = options.resolveKeys ?? true;
   const names = new Map<number, string>();
   const selected: GarminSyncItem[] = [];
   for (const item of items) {
     const dataType = item.dataType;
     if (!dataType) continue;
-    if (dataType.gdxmlStringKey !== undefined && dataType.gdxmlString !== undefined) {
+    if (
+      resolveKeys &&
+      dataType.gdxmlStringKey !== undefined &&
+      dataType.gdxmlString !== undefined
+    ) {
       names.set(dataType.gdxmlStringKey, dataType.gdxmlString);
     }
     let name: string | undefined;
     if (dataType.gdxmlString !== undefined) name = dataType.gdxmlString;
-    else if (dataType.gdxmlStringKey !== undefined) name = names.get(dataType.gdxmlStringKey);
+    else if (resolveKeys && dataType.gdxmlStringKey !== undefined) {
+      name = names.get(dataType.gdxmlStringKey);
+    }
     if (!name) {
       if (dataType.format === undefined) continue;
       name = dataType.gdxmlStringKey === 3 ? "DEVICE_XML" : `TYPE_${dataType.gdxmlStringKey}`;
@@ -668,6 +688,9 @@ export class GarminTransferStream {
   }
 }
 
+/** Trailing bytes tolerated after the zlib trailer (local bound). */
+export const GARMIN_ZLIB_MAX_TRAILING_BYTES = 16;
+
 function adler32(bytes: Uint8Array): number {
   let a = 1;
   let b = 0;
@@ -688,7 +711,7 @@ function adler32(bytes: Uint8Array): number {
  * header and Adler-32 trailer). Streams through `fflate.Unzlib` so the output
  * is capped while it grows, and checks the Adler-32 that `fflate` skips.
  * Unlike upstream (whose loop never ends on a truncated stream), a truncated
- * stream is an error. INFERRED: the trailer is the last 4 bytes received.
+ * stream is an error.
  */
 export function inflateGarminZlib(data: Uint8Array, maxBytes: number): Uint8Array {
   const parts: Uint8Array[] = [];
@@ -712,12 +735,20 @@ export function inflateGarminZlib(data: Uint8Array, maxBytes: number): Uint8Arra
   if (!ended) throw new Error("GARMIN_INFLATE_FAILED");
   const out = concat(parts);
   if (data.length < 6) throw new Error("GARMIN_INFLATE_FAILED");
-  const trailer =
-    ((data[data.length - 4]! << 24) |
-      (data[data.length - 3]! << 16) |
-      (data[data.length - 2]! << 8) |
-      data[data.length - 1]!) >>>
-    0;
-  if (trailer !== adler32(out)) throw new Error("GARMIN_INFLATE_CHECKSUM");
-  return out;
+  // `fflate` does not report where the deflate stream ended, so look for the
+  // big-endian Adler-32 at the end, allowing a few trailing bytes as
+  // `java.util.zip.Inflater` would (INFERRED bound).
+  const checksum = adler32(out);
+  const expected = [
+    checksum >>> 24,
+    (checksum >>> 16) & 0xff,
+    (checksum >>> 8) & 0xff,
+    checksum & 0xff,
+  ];
+  for (let trailing = 0; trailing <= GARMIN_ZLIB_MAX_TRAILING_BYTES; trailing += 1) {
+    const at = data.length - 4 - trailing;
+    if (at < 2) break;
+    if (expected.every((byte, index) => data[at + index] === byte)) return out;
+  }
+  throw new Error("GARMIN_INFLATE_CHECKSUM");
 }

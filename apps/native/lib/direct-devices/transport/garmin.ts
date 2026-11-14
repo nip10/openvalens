@@ -269,6 +269,8 @@ type ServiceTransfer = {
   granted: Deferred<void>;
   done: Deferred<Uint8Array>;
   touch: () => void;
+  /** The watch closed the handle (the normal end of a file). */
+  closedByWatch: boolean;
 };
 
 const EMPTY = new Uint8Array(0);
@@ -309,6 +311,15 @@ export class GarminSession {
   private serviceTransfer: ServiceTransfer | null = null;
   /** `FILE_TRANSFER_*` services registered and not yet closed by the watch. */
   private readonly openTransferServices = new Set<number>();
+  /** `service:handle` pairs we asked the watch to close; their replies end nothing. */
+  private readonly requestedCloses = new Set<string>();
+  /**
+   * Service ids we closed ourselves are not reused this session: a late close
+   * from the watch for the same id and handle could otherwise end a later
+   * file (local; at most 6 ids exist, so a sync with many failed transfers
+   * ends with `GARMIN_TRANSFER_SERVICE_BUSY` skips).
+   */
+  private readonly retiredTransferServices = new Set<number>();
   private readonly done: Promise<void>;
   private resolveDone!: () => void;
   private rejectDone!: (error: unknown) => void;
@@ -571,6 +582,7 @@ export class GarminSession {
     if (this.fatal) return;
     this.fatal = error;
     this.unbindGfdi();
+    this.endServiceTransfer(error);
     this.bound.reject(error);
     this.failPending(error);
   }
@@ -664,7 +676,8 @@ export class GarminSession {
   private async openTransfer(transferHandle: number, maxBytes: number): Promise<Uint8Array> {
     if (this.closed) throw new Error("GARMIN_CLOSED");
     const service = GARMIN_FILE_TRANSFER_SERVICES.find(
-      (candidate) => !this.openTransferServices.has(candidate),
+      (candidate) =>
+        !this.openTransferServices.has(candidate) && !this.retiredTransferServices.has(candidate),
     );
     if (service === undefined) throw new Error("GARMIN_TRANSFER_SERVICE_BUSY");
     let idle: unknown = null;
@@ -682,6 +695,7 @@ export class GarminSession {
           this.watchdogMs,
         );
       },
+      closedByWatch: false,
     };
     this.endServiceTransfer(new Error("GARMIN_TRANSFER_REPLACED"));
     this.serviceTransfer = transfer;
@@ -720,13 +734,20 @@ export class GarminSession {
       this.timers.clearTimeout(cap);
       if (this.serviceTransfer === transfer) this.serviceTransfer = null;
       transfer.mlr?.close();
-      if (!finished && transfer.handle !== null && !this.closed) {
+      if (!finished && transfer.handle !== null && !transfer.closedByWatch && !this.closed) {
         // Give the handle back; its CLOSE_HANDLE_RESP frees the service id.
-        void this.link
-          .writeRaw(buildGarminMlCloseService(service, transfer.handle), this.abort.signal)
-          .catch(() => undefined);
+        this.requestClose(service, transfer.handle);
       }
     }
+  }
+
+  private requestClose(service: number, handle: number): void {
+    if (this.requestedCloses.size >= 32) this.requestedCloses.clear();
+    this.requestedCloses.add(`${service}:${handle}`);
+    this.retiredTransferServices.add(service);
+    void this.link
+      .writeRaw(buildGarminMlCloseService(service, handle), this.abort.signal)
+      .catch(() => undefined);
   }
 
   /** Fails the in-flight new-sync transfer and stops its MLR channel. */
@@ -757,11 +778,7 @@ export class GarminSession {
     const granted = message.status === 0 && message.handle !== null;
     if (!transfer || transfer.service !== service || transfer.handle !== null) {
       // `CommunicatorV2:409-413`: a registration nobody waits for is closed.
-      if (granted) {
-        void this.link
-          .writeRaw(buildGarminMlCloseService(service, message.handle!), this.abort.signal)
-          .catch(() => undefined);
-      }
+      if (granted) this.requestClose(service, message.handle!);
       return;
     }
     if (!granted) {
@@ -796,8 +813,12 @@ export class GarminSession {
   private onTransferClosed(message: GarminMlMessage): void {
     const service = message.service!;
     this.openTransferServices.delete(service);
+    // The answer to a close we asked for: never the end of a current file
+    // (a reused service id and handle would otherwise cut the next file short).
+    if (this.requestedCloses.delete(`${service}:${message.handle}`)) return;
     const transfer = this.serviceTransfer;
     if (!transfer || transfer.service !== service || transfer.handle !== message.handle) return;
+    transfer.closedByWatch = true;
     // Upstream closes the MLR communicator, then inflates what it holds
     // (`CommunicatorV2:440-451`); MLR data still in retransmission is lost.
     transfer.mlr?.close();

@@ -28,6 +28,7 @@ Notation:
 | `V2`       | `G/service/devices/garmin/communicator/v2/CommunicatorV2.java`        |
 | `Zlib`     | `G/util/CompressionUtils.kt`                                          |
 | `AU`       | `G/util/ArrayUtils.java`                                              |
+| `Mlr`      | `G/service/devices/garmin/communicator/v2/MlrCommunicator.java`       |
 | `FA`       | `P/gdi_file_access.proto`                                             |
 | `DT`       | `P/gdi_data_types.proto`                                              |
 | `Smart`    | `P/gdi_smart_proto.proto`                                             |
@@ -98,9 +99,9 @@ Request ids are a 16-bit counter that starts at 1 for each session (`Pbh:104-107
 
 - `maxChunkSize = maxPacketSize - 20` (18 bytes of GFDI header and 2 of CRC). `maxPacketSize` is `DEVICE_INFORMATION` offset 10 (`Sup:606-610`). Before that arrives, `maxChunkSize` is 375 (`Pbh:76`).
 - A longer protobuf goes out as chunk 0 of `maxChunkSize` bytes. Each ACKed protobuf status for that request id (section 3.4) sends the next chunk at `statusOffset + maxChunkSize` (`Pbh:300-321`).
-- The requests this protocol sends are far below 355 bytes (section 4 vectors), so they never chunk. INFERRED from the sizes.
+- The requests this protocol sends are 45 to roughly 70 bytes (section 4 vectors), below `maxChunkSize` for any `maxPacketSize` above about 90, so in practice they go out in one chunk. INFERRED from the sizes.
 
-### 3.4 Status replies (`PbStatus:62-73`, `PbStatus:91-102`)
+### 3.4 Status replies (`PbStatus:30-46`, `PbStatus:68-72`, `PbStatus:74-86`)
 
 A `RESPONSE` (5000) whose original type is 5043 or 5044 carries:
 
@@ -115,12 +116,16 @@ A `RESPONSE` (5000) whose original type is 5043 or 5044 carries:
 
 Which status the phone sends for an incoming protobuf (`PbMsg:29-33`, `Pbh:119-298`, `Sup:503`):
 
-| Incoming                                                         | Status sent                                              |
-| ---------------------------------------------------------------- | -------------------------------------------------------- |
-| a chunk of a longer message (offset ≠ 0 or chunk length ≠ total) | protobuf status ACK, KEPT, NO_ERROR (11 bytes)           |
-| complete, handled, phone replies with a protobuf                 | generic status ACK (3 bytes, `buildGarminStatusPayload`) |
-| complete, handled, no protobuf reply                             | protobuf status ACK, KEPT, NO_ERROR                      |
-| complete, not handled by any service                             | protobuf status ACK, DISCARDED, UNKNOWN_REQUEST_ID       |
+| Incoming                                                         | Status sent                                                                                                                 |
+| ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| a chunk of a longer message (offset ≠ 0 or chunk length ≠ total) | protobuf status ACK, KEPT, NO_ERROR (11 bytes)                                                                              |
+| a chunk that does not start where the held bytes end             | nothing: upstream throws (`Pbh:772-776`)                                                                                    |
+| complete, `Smart` fails to parse                                 | the constructor status (next two rows' first column)                                                                        |
+| complete, handled, phone replies with a protobuf                 | single-chunk message: generic status ACK (3 bytes, `buildGarminStatusPayload`); multi-chunk: protobuf status KEPT, NO_ERROR |
+| complete, handled, no protobuf reply                             | protobuf status ACK, KEPT, NO_ERROR                                                                                         |
+| complete, not handled by any service                             | protobuf status ACK, DISCARDED, UNKNOWN_REQUEST_ID                                                                          |
+
+The "constructor status" is the one `PbMsg:29-33` sets: generic ACK for a single-chunk message, protobuf KEPT for the final chunk of a multi-chunk one.
 
 Order on the wire: the status first, then the protobuf reply if any (`Sup:495-514`).
 
@@ -241,12 +246,16 @@ The type name decides whether the bytes are FIT (`FileType.isFitFile()`: data ty
 - Downloaded bytes go through `garminFitRecords`, the same function as the legacy path, so record types and ids are unchanged and the server needs no change.
 - Only the six health FIT types we decode are pulled (4.4). Upstream also pulls its other `pull = true` types (METRICS, SCORE, …); we leave those on the watch unflagged.
 - Like upstream, the phone does not match replies to request ids; it waits for the next message of the expected kind.
+- Names from `gdxml_string_key` resolve only within one `ItemListResponse`. An `ItemAddedNotification` item must carry its own name, because upstream passes no name map there (`FileSync:97`).
+- For these 5 models, any protobuf that is not file access (core, calendar, notifications, …) now gets upstream's "unknown request" status (DISCARDED, UNKNOWN_REQUEST_ID). Upstream answers many of those services; we implement none of them. Other models still leave every protobuf unanswered.
 - Local bounds and failure handling that upstream does not have:
   - a watchdog on every awaited protobuf reply, transfer grant and transfer message, plus the legacy path's overall cap per file;
   - caps on compressed and inflated bytes (8 MiB, the legacy cap), on reassembled protobuf size (1 MiB) and on concurrent reassemblies, list pages (32), queued files (1024) and files per sync;
-  - a failed, skipped file on every path where upstream's queue would stall (failed grant, unexpected first message, empty buffer, inflate error), with the transfer handle given back by `CLOSE_HANDLE_REQ`;
+  - a failed, skipped file on every path where upstream's queue would stall (refused grant, unexpected first message, empty buffer, inflate error). If the watch has not closed the handle yet, we give it back with `CLOSE_HANDLE_REQ`. The reply to our own close never completes a transfer, and a service id we closed ourselves is not reused in that session, so a late close from the watch cannot end a later file. A refusal may be 13 bytes with no handle byte, as upstream reads it (`V2:359-367`);
+  - an unanswered grant ends the sync as incomplete, like a stalled transfer, because the id stays reserved in case the grant arrives late;
   - a transfer that stops mid-way, or a pull that gets no answer, ends the sync as incomplete (no `SYNC_COMPLETE`), like a stalled legacy transfer;
-  - the Adler-32 trailer is verified (`fflate` does not), assuming it is the last 4 bytes received (INFERRED; `java.util.zip.Inflater` would ignore trailing bytes);
+  - the Adler-32 trailer is verified (`fflate` does not). It must sit within the last 20 bytes received; `java.util.zip.Inflater` ignores any bytes after the stream, and the bound on trailing bytes is ours (INFERRED);
+  - malformed protobuf fields of an unexpected wire type are treated as absent, as protobuf-java does for proto2, and an item that fails to decode is dropped rather than failing the whole list;
   - a failed legacy flush does not block the protobuf list (upstream only lists after the directory completes).
 - Sync state: files are keyed by their UUID (`uid:<most>:<least>` in hex), so a kept-on-device file is not downloaded twice. A file already downloaded but still listed (a lost `ModifyFlagsRequest`) is flagged again without a download.
 
@@ -272,4 +281,5 @@ The type name decides whether the bytes are FIT (`FileType.isFitFile()`: data ty
 4. **The phone-side request `00 00 <handle> 00 00`.** The meaning of the zero bytes is UNKNOWN.
 5. **Response message id.** Whether the watch answers our 5043 requests with 5044 or 5043 is not stated; upstream handles both identically, and so do we.
 6. **Whether these watches still need the legacy directory "flush"**, and whether they answer it, is UNKNOWN. Upstream sends it unless `PREF_GARMIN_LEGACY_SYNC_FLUSH` is off, whose comment says "Some firmwares will freeze on the legacy sync request" (#6700, `Sup:689-697`). We send it, as upstream's default, and continue to the file list even if it fails.
-7. **Paging.** `next_transaction_id` is kept by upstream for the next listing in the same app session (`FileSync:161`). Our sessions are per connection, so we only follow `session_id` within one sync (INFERRED equivalent for a fresh connection).
+7. **Migration from the legacy path.** Files that a legacy sync archived with `SET_FILE_FLAG` may still be listed as not SYNCED. If so, the first new-protocol sync re-pulls that backlog under new `uid:` sync-state keys (UNKNOWN). The records are identical, so this costs transfer time, not duplicate data, as long as the server deduplicates by record id.
+8. **Paging.** `next_transaction_id` is kept by upstream for the next listing in the same app session (`FileSync:161`). Our sessions are per connection, so we only follow `session_id` within one sync (INFERRED equivalent for a fresh connection).
