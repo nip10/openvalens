@@ -6,6 +6,7 @@ import {
   type PreserveServerLeaveOptions,
   type ServerLeaveSafety,
 } from "../server/server-leave-policy";
+import type { QueuedWrite } from "./queued-write";
 import { OFFLINE_SCHEMA_SQL } from "./schema";
 
 /**
@@ -19,6 +20,9 @@ import { OFFLINE_SCHEMA_SQL } from "./schema";
  *                payload TEXT, last_error TEXT, saved_at INTEGER, scope TEXT)
  *   nutrition_outbox (seq, scope, id, item) — meal-diary changes, see lib/nutrition
  *   plain_water_outbox (seq, scope, id, item) — plain-water changes, see lib/plain-water
+ *
+ * The `outbox` rows are metric samples and, since #440, supplement intakes the
+ * log picker could not send (see `queued-write.ts`).
  *
  * Meal and water operations never share a table, so one lane cannot list,
  * drain or clear the other's pending writes.
@@ -80,7 +84,7 @@ function rowKey(scope: string, dedupeHash: string): string {
   return `${scope}|${dedupeHash}`;
 }
 
-function toEntry(row: OutboxRow): OutboxEntry | null {
+function toEntry(row: OutboxRow): OutboxEntry<QueuedWrite> | null {
   try {
     return {
       scope: row.scope,
@@ -125,12 +129,12 @@ export function writeCache<T>(scope: string, queryKey: string, data: T): void {
 }
 
 /** This account's queued writes, oldest first. */
-export function readOutbox(scope: string): OutboxEntry[] {
+export function readOutbox(scope: string): OutboxEntry<QueuedWrite>[] {
   const rows = getDb().getAllSync<OutboxRow>(
     "SELECT id, dedupe_hash, payload, last_error, saved_at, scope FROM outbox WHERE scope = ? ORDER BY id ASC",
     scope,
   );
-  const entries: OutboxEntry[] = [];
+  const entries: OutboxEntry<QueuedWrite>[] = [];
   for (const row of rows) {
     const entry = toEntry(row);
     // Skip a corrupt row rather than wedging the whole queue.
@@ -143,7 +147,7 @@ export function readOutbox(scope: string): OutboxEntry[] {
  * Upserts a queued write by account + `dedupeHash`, then drops the oldest
  * rows once the outbox exceeds `OUTBOX_MAX_ENTRIES`.
  */
-export function pushOutbox(entry: OutboxEntry): void {
+export function pushOutbox(entry: OutboxEntry<QueuedWrite>): void {
   const db = getDb();
   db.runSync(
     "INSERT OR REPLACE INTO outbox (dedupe_hash, payload, last_error, saved_at, scope) VALUES (?, ?, ?, ?, ?)",
@@ -160,7 +164,7 @@ export function pushOutbox(entry: OutboxEntry): void {
 }
 
 /** Removes and returns this account's oldest queued write, or `null` when empty. */
-export function popOutbox(scope: string): OutboxEntry | null {
+export function popOutbox(scope: string): OutboxEntry<QueuedWrite> | null {
   const db = getDb();
   const row = db.getFirstSync<OutboxRow>(
     "SELECT id, dedupe_hash, payload, last_error, saved_at, scope FROM outbox WHERE scope = ? ORDER BY id ASC LIMIT 1",
@@ -169,6 +173,18 @@ export function popOutbox(scope: string): OutboxEntry | null {
   if (!row) return null;
   db.runSync("DELETE FROM outbox WHERE id = ?", row.id);
   return toEntry(row);
+}
+
+/**
+ * Removes one of this account's queued writes before it is sent (#440 undo).
+ * False when it is not there: already sent, or being sent right now.
+ */
+export function removeOutboxEntry(scope: string, dedupeHash: string): boolean {
+  const result = getDb().runSync(
+    "DELETE FROM outbox WHERE dedupe_hash = ?",
+    rowKey(scope, dedupeHash),
+  );
+  return result.changes > 0;
 }
 
 /** Removes this account's cached reads whose key starts with `prefix`. */

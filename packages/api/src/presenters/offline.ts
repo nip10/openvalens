@@ -17,14 +17,17 @@ export type MetricSamplePayload = {
   dedupeHash?: string;
 };
 
-/** One queued write awaiting sync. */
-export type OutboxEntry = {
+/**
+ * One queued write awaiting sync. The payload is an `ingestMetricSample` input
+ * by default; the native outbox also queues supplement intakes (#440).
+ */
+export type OutboxEntry<Payload = MetricSamplePayload> = {
   /** Account the write belongs to (see `offlineScope`); never sent under another. */
   scope: string;
   /** Stable dedupe hash (see `makeManualEntryHash`), unique per queued write. */
   dedupeHash: string;
-  /** The `ingestMetricSample` input, ready to send unchanged. */
-  payload: MetricSamplePayload;
+  /** The procedure input, ready to send unchanged. */
+  payload: Payload;
   /** Epoch milliseconds when the entry entered the outbox. */
   savedAt: number;
   /** Last transport/validation error message, or `null` while untried. */

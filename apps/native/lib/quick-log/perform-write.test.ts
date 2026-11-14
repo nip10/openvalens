@@ -44,6 +44,8 @@ function fakeOffline(overrides: Partial<PickerOffline> = {}) {
     enqueueMetric: mock(() => {}),
     enqueueWater: mock(() => "queue-1" as string | null),
     discardWater: mock(() => true),
+    enqueueSupplement: mock(() => "supplement-intake:m-3" as string | null),
+    discardSupplement: mock(() => true),
     ...overrides,
   };
 }
@@ -161,6 +163,59 @@ describe("performPickerWrite", () => {
       fakeOffline(),
     );
     expect(result.undo).toBeUndefined();
+  });
+
+  const taken = {
+    type: "supplement" as const,
+    input: {
+      supplementId: 3,
+      occurredAt: "2026-11-13T09:00:00.000Z",
+      timeZone: "Europe/Lisbon",
+      dose: "200 mg",
+      clientMutationId: "m-3",
+    },
+  };
+
+  test("a supplement taken offline waits in the outbox; undo takes it off before it syncs", async () => {
+    const api = fakeApi({
+      supplementIntake: { create: mock(async () => Promise.reject(offlineError)), delete: mock() },
+    });
+    const offline = fakeOffline();
+    const result = await performPickerWrite(taken, api, offline);
+    expect(result.queued).toBe(true);
+    // The same input, so a retry replays the same client mutation id.
+    expect(offline.enqueueSupplement).toHaveBeenCalledWith(taken.input, offlineError);
+    await result.undo!();
+    expect(offline.discardSupplement).toHaveBeenCalledWith("supplement-intake:m-3");
+    expect(api.supplementIntake.delete).not.toHaveBeenCalled();
+  });
+
+  test("undoing a queued intake that may have been sent says so", async () => {
+    const api = fakeApi({
+      supplementIntake: { create: mock(async () => Promise.reject(offlineError)), delete: mock() },
+    });
+    const result = await performPickerWrite(
+      taken,
+      api,
+      fakeOffline({ discardSupplement: mock(() => false) }),
+    );
+    await expect(result.undo!()).rejects.toThrow();
+  });
+
+  test("an intake the server refuses, or one the device would not queue, is not saved offline", async () => {
+    const refusedApi = fakeApi({
+      supplementIntake: { create: mock(async () => Promise.reject(refused)), delete: mock() },
+    });
+    const offline = fakeOffline();
+    await expect(performPickerWrite(taken, refusedApi, offline)).rejects.toBe(refused);
+    expect(offline.enqueueSupplement).not.toHaveBeenCalled();
+
+    const offlineApi = fakeApi({
+      supplementIntake: { create: mock(async () => Promise.reject(offlineError)), delete: mock() },
+    });
+    await expect(
+      performPickerWrite(taken, offlineApi, fakeOffline({ enqueueSupplement: mock(() => null) })),
+    ).rejects.toBe(offlineError);
   });
 
   test("a tracker entry saves and its undo deletes it", async () => {

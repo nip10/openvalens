@@ -37,7 +37,13 @@ import { QuickForm, type SupplementOption } from "@/components/quick-log/quick-f
 import { TrackerValueInput } from "@/components/trackers/tracker-value-input";
 import { authClient } from "@/lib/auth-client";
 import { useModules } from "@/lib/modules/use-modules";
-import { enqueueMetricSample, useCacheFirst } from "@/lib/offline/sync";
+import {
+  discardQueuedSupplementIntake,
+  enqueueMetricSample,
+  enqueueSupplementIntake,
+  useCacheFirst,
+  useQueuedSupplementIntakes,
+} from "@/lib/offline/sync";
 import { usePlainWaterOutbox } from "@/lib/plain-water/sync";
 import { WATER_PREFERENCES_CACHE_KEY } from "@/lib/plain-water/view";
 import {
@@ -45,7 +51,12 @@ import {
   type PickerOffline,
   type PickerWrite,
 } from "@/lib/quick-log/perform-write";
-import { buildPickerSections, kindOpening, type PickerItem } from "@/lib/quick-log/picker";
+import {
+  buildPickerSections,
+  dueWithQueuedIntakes,
+  kindOpening,
+  type PickerItem,
+} from "@/lib/quick-log/picker";
 import { client, orpc } from "@/utils/orpc";
 
 /** How long the undo toast stays (#440: about 6 s). */
@@ -155,14 +166,16 @@ export default function QuickLogRoute() {
     ...orpc.quickLog.recents.queryOptions({ input: {} }),
     enabled: canRecords,
   });
-  const due = useQuery({
+  // Cached on the device, so "Taken" still works offline (#440); the intake then waits in the outbox.
+  const due = useCacheFirst(`quick-log:supplements-due:${timeZone}`, {
     ...orpc.quickLog.supplementsDue.queryOptions({ input: { timeZone } }),
     enabled: has("supplement_intake"),
   });
-  const supplements = useQuery({
+  const supplements = useCacheFirst("quick-log:supplements", {
     ...orpc.plans.listSupplements.queryOptions({ input: {} }),
     enabled: has("supplement_intake"),
   });
+  const queuedIntakes = useQueuedSupplementIntakes();
   const supplementOptions: SupplementOption[] | null = supplements.data
     ? supplements.data.map((item) => ({ id: item.id, name: item.name, dose: item.dose }))
     : null;
@@ -174,6 +187,8 @@ export default function QuickLogRoute() {
     enqueueMetric: enqueueMetricSample,
     enqueueWater: (input) => water.enqueue({ kind: "add", input })?.id ?? null,
     discardWater: (id) => water.discard(id),
+    enqueueSupplement: enqueueSupplementIntake,
+    discardSupplement: discardQueuedSupplementIntake,
   };
 
   const refresh = () => {
@@ -341,7 +356,11 @@ export default function QuickLogRoute() {
   if (!session.isPending && !session.data) return <Redirect href="/" />;
 
   const sections = buildPickerSections(
-    { kinds, recents: recents.data?.entries ?? [], due: due.data?.items ?? [] },
+    {
+      kinds,
+      recents: recents.data?.entries ?? [],
+      due: dueWithQueuedIntakes(due.data, queuedIntakes, timeZone),
+    },
     i18n,
   );
   const heading = view.type === "list" ? i18n._(COPY.title) : i18n._(view.kind.label);

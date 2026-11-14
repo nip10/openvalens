@@ -10,7 +10,7 @@ import { repeatRecentEntry } from "@openvalens/api/presenters/quick-log";
 import { trackerLogKinds } from "@openvalens/api/presenters/trackers";
 import { englishI18n } from "@openvalens/i18n/testing";
 
-import { buildPickerSections, kindOpening, opensInPicker } from "./picker";
+import { buildPickerSections, dueWithQueuedIntakes, kindOpening, opensInPicker } from "./picker";
 
 const magnesium: DueSupplement = {
   supplementId: 3,
@@ -181,5 +181,37 @@ describe("kindOpening", () => {
     expect(kind("pain").paths.native).toBe("/body-map?layer=pain");
     expect(opensInPicker(kind("tracker:sauna-1"))).toBe(true);
     expect(opensInPicker(kind("lab_result"))).toBe(false);
+  });
+});
+
+describe("dueWithQueuedIntakes", () => {
+  const now = new Date("2026-11-13T10:00:00.000Z");
+  const due = {
+    localDate: "2026-11-13",
+    items: [magnesium, { ...magnesium, supplementId: 4, name: "Zinc", pending: 2 }],
+  };
+
+  test("a dose taken offline is not offered again while it waits to sync", () => {
+    const queued = [{ supplementId: 3, occurredAt: "2026-11-13T09:30:00.000Z" }];
+    const items = dueWithQueuedIntakes(due, queued, "Europe/Lisbon", now);
+    expect(items.map((item) => item.name)).toEqual(["Zinc"]);
+  });
+
+  test("each queued intake covers one open dose", () => {
+    const queued = [{ supplementId: 4, occurredAt: "2026-11-13T09:30:00.000Z" }];
+    const items = dueWithQueuedIntakes(due, queued, "Europe/Lisbon", now);
+    expect(items.find((item) => item.supplementId === 4)?.pending).toBe(1);
+    expect(items).toHaveLength(2);
+  });
+
+  test("an intake queued on another day does not count", () => {
+    const queued = [{ supplementId: 3, occurredAt: "2026-11-12T21:00:00.000Z" }];
+    expect(dueWithQueuedIntakes(due, queued, "Europe/Lisbon", now)).toHaveLength(2);
+  });
+
+  test("a cached answer from another day offers nothing", () => {
+    const yesterday = { ...due, localDate: "2026-11-12" };
+    expect(dueWithQueuedIntakes(yesterday, [], "Europe/Lisbon", now)).toEqual([]);
+    expect(dueWithQueuedIntakes(undefined, [], "Europe/Lisbon", now)).toEqual([]);
   });
 });

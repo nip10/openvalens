@@ -23,8 +23,17 @@ import {
   pushOutbox,
   readCache,
   readOutbox,
+  removeOutboxEntry,
   writeCache,
 } from "./cache";
+import {
+  isDroppedQueuedWriteError,
+  queuedSupplementIntakes,
+  sendQueuedWrite,
+  supplementIntakeQueueKey,
+  type QueuedWrite,
+  type SupplementIntakePayload,
+} from "./queued-write";
 import {
   ServerLeaveBlockedError,
   type PreserveServerLeaveOptions,
@@ -33,7 +42,8 @@ import {
 
 /**
  * Native sync engine (Issue #43). Drains the manual-entry outbox through
- * `healthRecord.ingestMetricSample` every `SYNC_INTERVAL_MS` while the app is
+ * `healthRecord.ingestMetricSample` (and `supplementIntake.create` for intakes
+ * queued by the log picker, #440) every `SYNC_INTERVAL_MS` while the app is
  * active, and exposes the cache-first query hook and outbox status badge state
  * used by the metric-domain screens.
  *
@@ -68,16 +78,22 @@ let syncing = false;
 let started = false;
 let interval: ReturnType<typeof setInterval> | null = null;
 let snapshot: OutboxStatus = { pending: 0, state: "online" };
+let queuedIntakes: readonly SupplementIntakePayload[] = [];
 const listeners = new Set<() => void>();
 
-function computeStatus(): OutboxStatus {
-  const pending = currentScope ? readOutbox(currentScope).length : 0;
-  const state: OutboxState = syncing ? "syncing" : online ? "online" : "offline";
-  return { pending, state };
-}
-
 function emit(): void {
-  snapshot = computeStatus();
+  const entries = currentScope ? readOutbox(currentScope) : [];
+  const state: OutboxState = syncing ? "syncing" : online ? "online" : "offline";
+  snapshot = { pending: entries.length, state };
+  const intakes = queuedSupplementIntakes(entries.map((entry) => entry.payload));
+  // A new array only when the list changed, so subscribers re-render only then.
+  if (
+    intakes.length !== queuedIntakes.length ||
+    intakes.some(
+      (intake, index) => intake.clientMutationId !== queuedIntakes[index]?.clientMutationId,
+    )
+  )
+    queuedIntakes = intakes;
   for (const listener of listeners) listener();
 }
 
@@ -156,16 +172,16 @@ export async function drainOutbox(): Promise<void> {
   syncing = true;
   try {
     emit();
-    let queued: OutboxEntry | null = popOutbox(scope);
+    let queued: OutboxEntry<QueuedWrite> | null = popOutbox(scope);
     while (queued) {
       if (currentScope !== scope) {
         pushOutbox(queued);
         break;
       }
       try {
-        await client.healthRecord.ingestMetricSample(queued.payload);
+        await sendQueuedWrite(queued.payload, client);
       } catch (error) {
-        if (!isPermanentSyncError(error)) {
+        if (!isDroppedQueuedWriteError(queued.payload, error)) {
           pushOutbox({ ...queued, lastError: messageOf(error) });
           break;
         }
@@ -213,6 +229,54 @@ export function enqueueMetricSample(payload: MetricSamplePayload, error?: unknow
   });
   emit();
   void drainOutbox();
+}
+
+/**
+ * Queues a supplement intake the log picker could not send (#440), under the
+ * current account; the same rules as a metric sample decide what may wait.
+ * Returns its queue key for an undo, or `null` when it was not queued.
+ */
+export function enqueueSupplementIntake(
+  input: SupplementIntakePayload,
+  error: unknown,
+): string | null {
+  const scope = currentScope;
+  if (!scope) return null;
+  if (isPermanentSyncError(error) || isAuthSyncError(error) || isAccessReadOnlySyncError(error))
+    return null;
+  const dedupeHash = supplementIntakeQueueKey(input.clientMutationId);
+  pushOutbox({
+    scope,
+    dedupeHash,
+    payload: { type: "supplement_intake", input },
+    savedAt: Date.now(),
+    lastError: messageOf(error),
+  });
+  emit();
+  void drainOutbox();
+  return dedupeHash;
+}
+
+/**
+ * Takes a queued intake off the device before it is sent (#440 undo). False
+ * once it has left the queue: it was sent, or is being sent now.
+ */
+export function discardQueuedSupplementIntake(queueKey: string): boolean {
+  const scope = currentScope;
+  if (!scope) return false;
+  const removed = removeOutboxEntry(scope, queueKey);
+  if (removed) emit();
+  return removed;
+}
+
+/** This account's supplement intakes still waiting on the device, oldest first. */
+export function useQueuedSupplementIntakes(): readonly SupplementIntakePayload[] {
+  useOutboxStatus();
+  return useSyncExternalStore(subscribe, getQueuedIntakes, getQueuedIntakes);
+}
+
+function getQueuedIntakes(): readonly SupplementIntakePayload[] {
+  return queuedIntakes;
 }
 
 /**
@@ -322,6 +386,8 @@ export function useOutboxStatus(): OutboxStatus {
 type CacheFirstQueryOptions<T> = {
   queryKey: readonly unknown[];
   queryFn: QueryFunction<T>;
+  /** False skips the network read; a cached value is still served. */
+  enabled?: boolean;
 };
 
 /**
@@ -361,5 +427,6 @@ export function useCacheFirst<T>(
     initialData: cached?.data,
     initialDataUpdatedAt: cached?.savedAt,
     staleTime: ttlMs,
+    enabled: queryOptions.enabled,
   });
 }

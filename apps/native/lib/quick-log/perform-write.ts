@@ -29,6 +29,7 @@ export type PickerApi = {
 };
 
 export type WaterAddInput = Extract<QuickLogWrite, { type: "water" }>["input"];
+export type SupplementIntakeInput = Extract<QuickLogWrite, { type: "supplement" }>["input"];
 
 /** The device queues a write falls back to when the server cannot be reached. */
 export type PickerOffline = {
@@ -38,6 +39,10 @@ export type PickerOffline = {
   enqueueWater: (input: WaterAddInput) => string | null;
   /** Removes a queued water add that has not been sent yet; false once it may have been. */
   discardWater: (queueId: string) => boolean;
+  /** Queues a supplement intake in the offline outbox; its queue id, or null if it was not queued. */
+  enqueueSupplement: (input: SupplementIntakeInput, error: unknown) => string | null;
+  /** Removes a queued intake that has not been sent yet; false once it may have been. */
+  discardSupplement: (queueId: string) => boolean;
 };
 
 export type PickerResult = {
@@ -62,10 +67,10 @@ export function canQueueAfter(error: unknown): boolean {
 
 /**
  * Runs one picker write through the kind's own procedure (#440). A metric
- * sample or a water add the server cannot take now waits in the device's
- * existing queues, as on the Vitals, Body and water screens; undoing a water
- * add that is still queued takes it off the queue. Everything else surfaces
- * the error to the caller.
+ * sample, a water add or a supplement intake the server cannot take now waits
+ * in the device's queues, as on the Vitals, Body and water screens; undoing a
+ * water add or an intake that is still queued takes it off the queue.
+ * Everything else surfaces the error to the caller.
  */
 export async function performPickerWrite(
   write: PickerWrite,
@@ -129,7 +134,22 @@ export async function performPickerWrite(
       };
     }
     case "supplement": {
-      const saved = await api.supplementIntake.create(write.input);
+      let saved: Awaited<ReturnType<PickerApi["supplementIntake"]["create"]>>;
+      try {
+        saved = await api.supplementIntake.create(write.input);
+      } catch (error) {
+        if (!canQueueAfter(error)) throw error;
+        // Same client mutation id: if the first try did reach the server, the
+        // queued intake replays it instead of logging the dose twice.
+        const queueId = offline.enqueueSupplement(write.input, error);
+        if (queueId === null) throw error;
+        return {
+          queued: true,
+          undo: async () => {
+            if (!offline.discardSupplement(queueId)) throw new Error("SUPPLEMENT_ALREADY_SENT");
+          },
+        };
+      }
       if (!saved.created) return { queued: false };
       return {
         queued: false,
