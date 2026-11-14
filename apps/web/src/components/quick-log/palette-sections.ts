@@ -2,9 +2,18 @@ import type { I18n, MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import type { DueSupplement, RecentLogEntry } from "@openvalens/api/contracts/quick-log";
 import type { DiaryEntry, FoodChoice, MealSlot } from "@openvalens/api/contracts/nutrition-diary";
-import { findLogKind, type LogKind } from "@openvalens/api/presenters/log-kinds";
+import { DRINK_PRESETS, DRINKS_COPY } from "@openvalens/api/presenters/drinks";
+import {
+  drinkPresetKeyOfLogKind,
+  findLogKind,
+  type LogKind,
+} from "@openvalens/api/presenters/log-kinds";
 import { SLOT_LABELS } from "@openvalens/api/presenters/nutrition-diary";
-import { recentEntryTitle, recentEntryValue } from "@openvalens/api/presenters/quick-log";
+import {
+  recentEntryLogKind,
+  recentEntryTitle,
+  recentEntryValue,
+} from "@openvalens/api/presenters/quick-log";
 import { supplementDoseLabel } from "@openvalens/api/presenters/supplements";
 import { Copy, type LucideIcon, Settings2, Star } from "lucide-react";
 
@@ -33,6 +42,8 @@ export type PaletteActions = {
   repeat: (entry: RecentLogEntry) => void;
   takeSupplement: (item: DueSupplement) => void;
   openKind: (kind: LogKind) => void;
+  /** Saves a drink preset at once in the current meal (#443). */
+  logDrink: (kind: LogKind) => void;
   logFood: (food: FoodChoice) => void;
   copyMeals: (input: { slot: MealSlot | null; entries: readonly DiaryEntry[] }) => void;
   navigate: (to: string) => void;
@@ -70,6 +81,7 @@ export const PALETTE_COPY = Object.freeze({
   copySlot: msg`Copy yesterday's {meal}`,
   favourite: msg`Favourite`,
   goToScreen: msg`Go to {screen}`,
+  volume: msg({ message: "{amount} ml", comment: "Keep ml as is." }),
 });
 
 const FOOD_LIMIT = 4;
@@ -81,8 +93,9 @@ const kindIcon = (kind: LogKind) => ({
 
 /**
  * Pure: the palette's sections in order — supplements due now, recent
- * entries, food (favourites, recents, copy yesterday), every kind the member
- * can log, then the app's screens. Empty sections are left out.
+ * entries, food (favourites, recents, copy yesterday), drink presets (#443,
+ * saved at once), every other kind the member can log, then the app's
+ * screens. Empty sections are left out.
  */
 export function buildPaletteSections(
   data: PaletteData,
@@ -115,7 +128,7 @@ export function buildPaletteSections(
       id: "recent",
       heading: i18n._(PALETTE_COPY.recent),
       items: recents.map((entry, index) => {
-        const kind = findLogKind(entry.kind)!;
+        const kind = recentEntryLogKind(entry)!;
         return {
           id: `recent:${index}:${entry.kind}`,
           label: recentEntryTitle(entry, i18n),
@@ -177,18 +190,51 @@ export function buildPaletteSections(
     if (items.length > 0) sections.push({ id: "food", heading: i18n._(PALETTE_COPY.food), items });
   }
 
+  const drinks = data.kinds.filter((kind) => drinkPresetKeyOfLogKind(kind.id) !== null);
+  if (drinks.length > 0) {
+    const heading = i18n._(DRINKS_COPY.title);
+    sections.push({
+      id: "drinks",
+      heading,
+      items: drinks.map((kind) => {
+        const volume = DRINK_PRESETS.find(
+          (preset) => preset.key === drinkPresetKeyOfLogKind(kind.id),
+        )?.volumeMl;
+        return {
+          id: `kind:${kind.id}`,
+          label: i18n._(kind.label),
+          detail:
+            volume === undefined
+              ? undefined
+              : i18n._({
+                  ...PALETTE_COPY.volume,
+                  values: { amount: volume.toLocaleString(i18n.locale || "en") },
+                }),
+          hint: i18n._(PALETTE_COPY.log1),
+          ...kindIcon(kind),
+          keywords: [heading, i18n._(PALETTE_COPY.log)],
+          onSelect: () => actions.logDrink(kind),
+        };
+      }),
+    });
+  }
+
   sections.push({
     id: "log",
     heading: i18n._(PALETTE_COPY.log),
     items: [
-      ...data.kinds.map((kind) => ({
-        id: `kind:${kind.id}`,
-        label: i18n._(kind.label),
-        hint: kind.save === "at_once" ? undefined : i18n._(PALETTE_COPY.open),
-        ...kindIcon(kind),
-        keywords: [i18n._(PALETTE_COPY.log)],
-        onSelect: () => actions.openKind(kind),
-      })),
+      ...data.kinds
+        .filter((kind) => drinkPresetKeyOfLogKind(kind.id) === null)
+        .map((kind) => ({
+          id: `kind:${kind.id}`,
+          label: i18n._(kind.label),
+          // Drafts and pain open a screen (pain: the body map, to tap a region).
+          hint:
+            kind.save === "at_once" && kind.id !== "pain" ? undefined : i18n._(PALETTE_COPY.open),
+          ...kindIcon(kind),
+          keywords: [i18n._(PALETTE_COPY.log)],
+          onSelect: () => actions.openKind(kind),
+        })),
       {
         id: "more",
         label: i18n._(PALETTE_COPY.more),

@@ -85,6 +85,33 @@ describe("buildRecentLogEntries", () => {
     ]);
   });
 
+  test("drink presets (#443) repeat as the preset and the volume their grams stand for", () => {
+    const entries = buildRecentLogEntries({
+      metrics: [],
+      water: [],
+      intakes: [],
+      drinks: [
+        { at: at("2026-11-13T09:00:00Z"), fdcId: "171891", amountG: 30 },
+        { at: at("2026-11-13T08:00:00Z"), fdcId: "171891", amountG: 30 },
+        { at: at("2026-11-12T20:00:00Z"), fdcId: "168746", amountG: 331 },
+        // Not a preset food: left out.
+        { at: at("2026-11-12T19:00:00Z"), fdcId: "999", amountG: 100 },
+      ],
+    });
+    expect(entries).toEqual([
+      { kind: "drink:espresso", at: "2026-11-13T09:00:00.000Z", preset: "espresso", volumeMl: 30 },
+      { kind: "drink:beer", at: "2026-11-12T20:00:00.000Z", preset: "beer", volumeMl: 330 },
+    ]);
+    expect(
+      countRecentKinds({
+        metrics: [],
+        water: [],
+        intakes: [],
+        drinks: [{ at: at("2026-11-13T09:00:00Z"), fdcId: "171891", amountG: 30 }],
+      }),
+    ).toEqual({ "drink:espresso": 1 });
+  });
+
   test("stops at the limit", () => {
     const metrics = Array.from({ length: 9 }, (_, index) => ({
       code: "weight",

@@ -506,6 +506,8 @@ msgid "{amount} kg over {days} days, from {weighIns} weigh-ins"
 msgstr "{amount} kg over {days} days, from {weighIns} weigh-ins"
 
 #. Keep ml as is.
+#. Keep ml as is.
+#: apps/web/src/components/quick-log/palette-sections.ts
 #: packages/api/src/presenters/quick-log.ts
 msgid "{amount} ml"
 msgstr "{amount} ml"
@@ -1054,7 +1056,7 @@ msgstr "{rated} of {0, plural, one {# session} other {# sessions}} rated."
 msgid "{ratedWithDuration, plural, one {From # rated session.} other {From # rated sessions.}}"
 msgstr "{ratedWithDuration, plural, one {From # rated session.} other {From # rated sessions.}}"
 
-#: packages/api/src/presenters/pain.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "{rating} of {max}"
 msgstr "{rating} of {max}"
 
@@ -1700,7 +1702,7 @@ msgstr "Account setup failed"
 msgid "Accounts are shown by their opaque id only. Usage counts tokens and estimated cost, never what anyone wrote. See docs/ai-providers.md, section Monthly usage cap."
 msgstr "Accounts are shown by their opaque id only. Usage counts tokens and estimated cost, never what anyone wrote. See docs/ai-providers.md, section Monthly usage cap."
 
-#: packages/api/src/presenters/pain.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgctxt "pain type"
 msgid "Ache"
 msgstr "Ache"
@@ -3060,7 +3062,7 @@ msgstr "Build a reusable plan. Progression suggestions are optional and never ch
 msgid "Building your usual"
 msgstr "Building your usual"
 
-#: packages/api/src/presenters/pain.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgctxt "pain type"
 msgid "Burning"
 msgstr "Burning"
@@ -7886,10 +7888,12 @@ msgid "Have a sign-in code?"
 msgstr "Have a sign-in code?"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Head (back)"
 msgstr "Head (back)"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Head (front)"
 msgstr "Head (front)"
 
@@ -8097,6 +8101,7 @@ msgid "Hip"
 msgstr "Hip"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Hips (front)"
 msgstr "Hips (front)"
 
@@ -9171,90 +9176,106 @@ msgid "Leave blank for bodyweight or unspecified."
 msgstr "Leave blank for bodyweight or unspecified."
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Left abdomen (front)"
 msgstr "Left abdomen (front)"
 
-#: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Left ankle and foot"
 msgstr "Left ankle and foot"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Left back of thigh (back)"
 msgstr "Left back of thigh (back)"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Left calf (back)"
 msgstr "Left calf (back)"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Left chest (front)"
 msgstr "Left chest (front)"
 
-#: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Left elbow"
 msgstr "Left elbow"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Left forearm (back)"
 msgstr "Left forearm (back)"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Left forearm (front)"
 msgstr "Left forearm (front)"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Left glute (back)"
 msgstr "Left glute (back)"
 
-#: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Left hip"
 msgstr "Left hip"
 
-#: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Left jaw"
 msgstr "Left jaw"
 
-#: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Left knee"
 msgstr "Left knee"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Left lower back (back)"
 msgstr "Left lower back (back)"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Left lower leg (front)"
 msgstr "Left lower leg (front)"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Left shoulder (back)"
 msgstr "Left shoulder (back)"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Left shoulder (front)"
 msgstr "Left shoulder (front)"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Left side (front)"
 msgstr "Left side (front)"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Left thigh (front)"
 msgstr "Left thigh (front)"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Left upper arm (back)"
 msgstr "Left upper arm (back)"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Left upper arm (front)"
 msgstr "Left upper arm (front)"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Left upper back (back)"
 msgstr "Left upper back (back)"
 
-#: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Left wrist and hand"
 msgstr "Left wrist and hand"
 
@@ -10245,6 +10266,7 @@ msgid "Missing data is unknown, not zero. Dates follow this goal’s timezone an
 msgstr "Missing data is unknown, not zero. Dates follow this goal’s timezone and cutoff."
 
 #. Unit symbol; keep as is.
+#. Unit symbol; keep as is.
 #: packages/api/src/presenters/log-kinds.ts
 msgid "ml"
 msgstr "ml"
@@ -10491,7 +10513,7 @@ msgstr "Nearby device"
 
 #: apps/native/app/(drawer)/private-measurements.tsx
 #: apps/web/src/routes/_auth/private-measurements.tsx
-#: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Neck"
 msgstr "Neck"
 
@@ -12321,6 +12343,7 @@ msgid "Page Not Found"
 msgstr "Page Not Found"
 
 #: apps/web/src/routes/_auth/body-map.tsx
+#: packages/api/src/presenters/log-kinds.ts
 #: packages/api/src/presenters/timeline.ts
 msgid "Pain"
 msgstr "Pain"
@@ -13231,6 +13254,7 @@ msgstr "Rate your energy yourself, from 1 to 5."
 msgid "Rate your mood yourself, from 1 to 5."
 msgstr "Rate your mood yourself, from 1 to 5."
 
+#: packages/api/src/presenters/log-kinds.ts
 #: packages/api/src/presenters/pain.ts
 msgid "Rating from 0 to 10"
 msgstr "Rating from 0 to 10"
@@ -14125,90 +14149,106 @@ msgid "Revoking…"
 msgstr "Revoking…"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Right abdomen (front)"
 msgstr "Right abdomen (front)"
 
-#: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Right ankle and foot"
 msgstr "Right ankle and foot"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Right back of thigh (back)"
 msgstr "Right back of thigh (back)"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Right calf (back)"
 msgstr "Right calf (back)"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Right chest (front)"
 msgstr "Right chest (front)"
 
-#: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Right elbow"
 msgstr "Right elbow"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Right forearm (back)"
 msgstr "Right forearm (back)"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Right forearm (front)"
 msgstr "Right forearm (front)"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Right glute (back)"
 msgstr "Right glute (back)"
 
-#: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Right hip"
 msgstr "Right hip"
 
-#: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Right jaw"
 msgstr "Right jaw"
 
-#: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Right knee"
 msgstr "Right knee"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Right lower back (back)"
 msgstr "Right lower back (back)"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Right lower leg (front)"
 msgstr "Right lower leg (front)"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Right shoulder (back)"
 msgstr "Right shoulder (back)"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Right shoulder (front)"
 msgstr "Right shoulder (front)"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Right side (front)"
 msgstr "Right side (front)"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Right thigh (front)"
 msgstr "Right thigh (front)"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Right upper arm (back)"
 msgstr "Right upper arm (back)"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Right upper arm (front)"
 msgstr "Right upper arm (front)"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Right upper back (back)"
 msgstr "Right upper back (back)"
 
-#: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Right wrist and hand"
 msgstr "Right wrist and hand"
 
@@ -15264,7 +15304,7 @@ msgstr "Sharing is off unless you explicitly opt in."
 msgid "Sharing is on."
 msgstr "Sharing is on."
 
-#: packages/api/src/presenters/pain.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgctxt "pain type"
 msgid "Sharp"
 msgstr "Sharp"
@@ -15986,7 +16026,7 @@ msgstr "Steps: none recorded in the last 7 days."
 msgid "Steps: the published step tables used hip-worn monitors, and wrist or phone counts are not comparable with them. See active minutes against the WHO range instead."
 msgstr "Steps: the published step tables used hip-worn monitors, and wrist or phone counts are not comparable with them. See active minutes against the WHO range instead."
 
-#: packages/api/src/presenters/pain.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgctxt "pain type"
 msgid "Stiffness"
 msgstr "Stiffness"
@@ -17386,7 +17426,7 @@ msgstr "This workout could not be opened. Please try again."
 msgid "This workspace's OpenValens Cloud access has ended. Its records are still here, and you can export them."
 msgstr "This workspace's OpenValens Cloud access has ended. Its records are still here, and you can export them."
 
-#: packages/api/src/presenters/pain.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgctxt "pain type"
 msgid "Throbbing"
 msgstr "Throbbing"
@@ -17433,7 +17473,7 @@ msgctxt "diary view"
 msgid "Timeline"
 msgstr "Timeline"
 
-#: packages/api/src/presenters/pain.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgctxt "pain type"
 msgid "Tingling"
 msgstr "Tingling"
@@ -17856,6 +17896,7 @@ msgid "Type"
 msgstr "Type"
 
 #: apps/web/src/components/pain/pain-panel.tsx
+#: packages/api/src/presenters/log-kinds.ts
 msgid "Type (optional)"
 msgstr "Type (optional)"
 
@@ -18118,6 +18159,7 @@ msgid "Upper arm"
 msgstr "Upper arm"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Upper back and neck (back)"
 msgstr "Upper back and neck (back)"
 
@@ -18792,6 +18834,7 @@ msgid "When taken"
 msgstr "When taken"
 
 #: apps/web/src/components/pain/pain-panel.tsx
+#: packages/api/src/presenters/log-kinds.ts
 msgid "Where"
 msgstr "Where"
 

@@ -22,6 +22,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bot, History, Info, Lock, NotebookPen, X } from "lucide-react";
 import { useId, useState } from "react";
 
+import { PAIN_KEYS } from "@/components/pain/pain-keys";
 import { ErrorState, Section, ToneIcon } from "@/components/page";
 import { SettingsGroup, SettingsRow } from "@/components/settings-rows";
 import { client } from "@/utils/orpc";
@@ -32,12 +33,7 @@ import { client } from "@/utils/orpc";
  * member rated: nothing here changes with the value.
  */
 
-export const PAIN_KEYS = {
-  all: ["pain"] as const,
-  preference: ["pain", "preference"] as const,
-  map: (days: number) => ["pain", "map", days] as const,
-  history: (region: string) => ["pain", "history", region] as const,
-};
+export { PAIN_KEYS };
 
 const NATIVE_SELECT =
   "h-9 rounded-md border border-input bg-card px-3 text-ink hover:bg-muted focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-55";

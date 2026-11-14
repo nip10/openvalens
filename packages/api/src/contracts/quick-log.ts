@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { DRINK_PRESET_KEYS, type DrinkPresetKey } from "./nutrition-drinks";
+
 /**
  * `quickLog.*` wire contract (#440). Shared by the server router, the web
  * command palette and the mobile log picker, so this file imports only `zod`.
@@ -15,6 +17,19 @@ export const RECENT_METRIC_KINDS = [
   "distance",
 ] as const;
 export type RecentMetricKind = (typeof RECENT_METRIC_KINDS)[number];
+
+/** Drink preset kinds (#443): `drink:<preset key>`; a test keeps them equal to the presets. */
+export const RECENT_DRINK_KINDS = [
+  "drink:espresso",
+  "drink:filter_coffee",
+  "drink:tea",
+  "drink:cola",
+  "drink:energy_drink",
+  "drink:beer",
+  "drink:wine",
+  "drink:spirits",
+] as const satisfies readonly `drink:${DrinkPresetKey}`[];
+export type RecentDrinkKind = (typeof RECENT_DRINK_KINDS)[number];
 
 const at = z.string();
 
@@ -43,6 +58,13 @@ export const recentLogEntry = z.discriminatedUnion("kind", [
     supplementId: z.number().int().positive(),
     supplementName: z.string(),
     dose: z.string(),
+  }),
+  /** A drink preset logged before (#443), repeated as the same preset and volume. */
+  z.object({
+    kind: z.enum(RECENT_DRINK_KINDS),
+    at,
+    preset: z.enum(DRINK_PRESET_KEYS),
+    volumeMl: z.number(),
   }),
 ]);
 export type RecentLogEntry = z.infer<typeof recentLogEntry>;

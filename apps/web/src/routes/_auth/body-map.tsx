@@ -21,7 +21,7 @@ import {
 } from "@openvalens/api/presenters/body-map";
 import { PAIN_COPY } from "@openvalens/api/presenters/pain";
 import { browserTimeZone } from "@openvalens/api/presenters/tracker-draft";
-import type { PainMapWindow } from "@openvalens/pain/model";
+import { isPainRegion, type PainMapWindow } from "@openvalens/pain/model";
 import { Button } from "@openvalens/ui/components/button";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -41,7 +41,32 @@ import {
   PainSettings,
 } from "@/components/pain/pain-panel";
 
-export const Route = createFileRoute("/_auth/body-map")({ component: BodyMapPage });
+type BodyMapSearch = { layer?: "pain"; region?: string };
+
+export const Route = createFileRoute("/_auth/body-map")({
+  component: BodyMapRoute,
+  // The quick log palette (#440) opens the pain layer, with a region when one was typed.
+  validateSearch: (search: Record<string, unknown>): BodyMapSearch =>
+    search.layer === "pain"
+      ? {
+          layer: "pain",
+          ...(typeof search.region === "string" && isPainRegion(search.region)
+            ? { region: search.region }
+            : {}),
+        }
+      : {},
+});
+
+function BodyMapRoute() {
+  const search = Route.useSearch();
+  return (
+    <BodyMapPage
+      key={`${search.layer ?? ""}:${search.region ?? ""}`}
+      initialLayer={search.layer}
+      initialRegion={search.region}
+    />
+  );
+}
 
 /**
  * Body map (#94): measured DEXA values by region, this week's logged sets by
@@ -183,10 +208,18 @@ function BodyFigure({
   );
 }
 
-export function BodyMapPage() {
-  const [layer, setLayer] = useState<Layer>("composition");
-  const [view, setView] = useState<BodyMapView>("front");
-  const [selected, setSelected] = useState<string | null>(null);
+export function BodyMapPage({
+  initialLayer,
+  initialRegion,
+}: { initialLayer?: Layer; initialRegion?: string } = {}) {
+  const [layer, setLayer] = useState<Layer>(initialLayer ?? "composition");
+  // A back region (back.lower_back_left) shows the back view.
+  const [view, setView] = useState<BodyMapView>(
+    initialRegion?.startsWith("back.") ? "back" : "front",
+  );
+  const [selected, setSelected] = useState<string | null>(
+    initialLayer === "pain" ? (initialRegion ?? null) : null,
+  );
   const [scanId, setScanId] = useState<number | null>(null);
   const [compareScanId, setCompareScanId] = useState<number | null>(null);
   const [measurementType, setMeasurementType] = useState<string | null>(null);

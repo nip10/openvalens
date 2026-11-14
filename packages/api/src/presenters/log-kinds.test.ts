@@ -3,10 +3,14 @@ import { RESOURCES } from "@openvalens/auth/access/permissions";
 import { englishI18n } from "@openvalens/i18n/testing";
 
 import { PROCEDURE_ACCESS } from "../access-policy";
+import { DRINK_PRESET_KEYS } from "../contracts/nutrition-drinks";
 import { PERSON_MODULES } from "../wellness-profile-contract";
 import {
   availableLogKinds,
   BUILT_IN_LOG_KIND_IDS,
+  drinkLogKind,
+  drinkLogKinds,
+  drinkPresetKeyOfLogKind,
   findLogKind,
   isLogKindAvailable,
   LOG_KINDS,
@@ -17,7 +21,7 @@ import {
 
 const everything: LogKindContext = {
   enabledModules: null,
-  preferences: { plain_water: true, private_body: true },
+  preferences: { plain_water: true, private_body: true, pain: true },
 };
 const ids = (kinds: readonly LogKind[]) => kinds.map((kind) => kind.id);
 
@@ -96,6 +100,7 @@ describe("availableLogKinds", () => {
     expect(kinds).toEqual([
       "weight",
       "private_measurement",
+      "pain",
       "food",
       "water",
       "supplement_intake",
@@ -142,6 +147,53 @@ describe("availableLogKinds", () => {
     const kinds = [...LOG_KINDS, tracker];
     expect(ids(availableLogKinds(everything, kinds))).toContain("tracker:mood");
     expect(isLogKindAvailable(tracker, { ...everything, enabledModules: ["food"] })).toBe(false);
+  });
+});
+
+describe("pain (#442)", () => {
+  test("only for a member who turned the pain log on, with the body module", () => {
+    expect(ids(availableLogKinds({ ...everything, preferences: {} }))).not.toContain("pain");
+    expect(ids(availableLogKinds(everything))).toContain("pain");
+    expect(ids(availableLogKinds({ ...everything, enabledModules: ["food"] }))).not.toContain(
+      "pain",
+    );
+    const pain = findLogKind("pain")!;
+    expect(pain.save).toBe("at_once");
+    expect(pain.paths).toEqual({ web: "/body-map", native: "/body-map" });
+    const rating = pain.fields.find((field) => field.id === "rating");
+    expect([rating?.min, rating?.max, rating?.step]).toEqual([0, 10, 1]);
+  });
+});
+
+describe("drink presets (#443)", () => {
+  const presets = DRINK_PRESET_KEYS.map((key) => ({ key, available: key !== "spirits" }));
+
+  test("only the presets the server can log, in preset order, as drink:<key> kinds", () => {
+    const drinks = drinkLogKinds(presets);
+    expect(ids(drinks)).toEqual(
+      DRINK_PRESET_KEYS.filter((key) => key !== "spirits").map((key) => `drink:${key}`),
+    );
+    expect(drinkLogKinds(undefined)).toEqual([]);
+    for (const drink of drinks) {
+      expect(drink.save).toBe("at_once");
+      expect(drink.gate).toEqual({ module: "food" });
+      expect(drink.paths).toEqual({ web: "/nutrition", native: "/nutrition" });
+      expect<string | null>(drinkPresetKeyOfLogKind(drink.id)).toBe(
+        drink.id.slice("drink:".length),
+      );
+    }
+    expect(englishI18n._(drinkLogKind("wine").label)).toBe("Glass of wine");
+    expect(drinkPresetKeyOfLogKind("drink:milkshake")).toBeNull();
+    expect(drinkPresetKeyOfLogKind("water")).toBeNull();
+  });
+
+  test("hidden with the food module off, like food", () => {
+    const kinds = [...LOG_KINDS, ...drinkLogKinds(presets)];
+    expect(
+      ids(availableLogKinds({ ...everything, enabledModules: ["sleep"] }, kinds)).some((id) =>
+        id.startsWith("drink:"),
+      ),
+    ).toBe(false);
   });
 });
 

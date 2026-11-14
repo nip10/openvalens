@@ -1,6 +1,12 @@
 import { describe, expect, mock, test } from "bun:test";
 import { msg } from "@lingui/core/macro";
-import { availableLogKinds, LOG_KINDS } from "@openvalens/api/presenters/log-kinds";
+import {
+  availableLogKinds,
+  drinkLogKinds,
+  findLogKind,
+  LOG_KINDS,
+  type LogKind,
+} from "@openvalens/api/presenters/log-kinds";
 import { englishI18n } from "@openvalens/i18n/testing";
 import { FlaskConical } from "lucide-react";
 
@@ -11,6 +17,7 @@ const actions = (): PaletteActions => ({
   repeat: mock(),
   takeSupplement: mock(),
   openKind: mock(),
+  logDrink: mock(),
   logFood: mock(),
   copyMeals: mock(),
   navigate: mock(),
@@ -132,8 +139,73 @@ describe("buildPaletteSections", () => {
   });
 });
 
+describe("drink presets (#443) and pain (#442)", () => {
+  const drinks = drinkLogKinds([
+    { key: "espresso", available: true },
+    { key: "beer", available: true },
+    { key: "wine", available: false },
+  ]);
+  const kinds = availableLogKinds(
+    { enabledModules: null, preferences: { plain_water: true, pain: true } },
+    [...LOG_KINDS, ...drinks] as LogKind[],
+  );
+
+  test("available drinks get their own section after food and save at once", () => {
+    const handlers = actions();
+    const sections = buildPaletteSections(data({ kinds }), handlers, englishI18n);
+    expect(sections.map((section) => section.id)).toEqual(["drinks", "log", "nav"]);
+    const [drinkSection, log] = sections;
+    expect(drinkSection!.items.map((item) => [item.label, item.detail, item.hint])).toEqual([
+      ["Espresso", "30 ml", "Log"],
+      ["Beer", "330 ml", "Log"],
+    ]);
+    drinkSection!.items[1]!.onSelect();
+    expect(handlers.logDrink).toHaveBeenCalledWith(drinks[1]);
+    // Drinks are not listed again with the other kinds.
+    expect(log!.items.some((item) => item.id.startsWith("kind:drink:"))).toBe(false);
+  });
+
+  test("pain opens the body map; it is gone while the pain log is off", () => {
+    const handlers = actions();
+    const log = buildPaletteSections(data({ kinds }), handlers, englishI18n).find(
+      (section) => section.id === "log",
+    )!;
+    const pain = log.items.find((item) => item.id === "kind:pain")!;
+    expect(pain).toMatchObject({ label: "Pain", hint: "Open" });
+    pain.onSelect();
+    expect(handlers.openKind).toHaveBeenCalledWith(findLogKind("pain"));
+    const off = buildPaletteSections(data(), actions(), englishI18n);
+    expect(off.flatMap((section) => section.items).some((item) => item.id === "kind:pain")).toBe(
+      false,
+    );
+  });
+
+  test("a recent drink repeats with its own label and volume", () => {
+    const handlers = actions();
+    const recent = {
+      kind: "drink:beer" as const,
+      at: "2026-11-13T08:00:00Z",
+      preset: "beer" as const,
+      volumeMl: 500,
+    };
+    const sections = buildPaletteSections(
+      data({ kinds, recents: [recent] }),
+      handlers,
+      englishI18n,
+    );
+    expect(sections[0]!.items[0]).toMatchObject({
+      label: "Beer",
+      detail: "500 ml",
+      hint: "Repeat",
+    });
+    // A drink the server cannot log now is not offered as a recent either.
+    const noBeer = buildPaletteSections(data({ recents: [recent] }), actions(), englishI18n);
+    expect(noBeer.some((section) => section.id === "recent")).toBe(false);
+  });
+});
+
 test("every log kind's icon key has a lucide icon and a tone", () => {
-  for (const { icon: key } of LOG_KINDS) {
+  for (const { icon: key } of [...LOG_KINDS, ...drinkLogKinds([{ key: "tea", available: true }])]) {
     expect(LOG_KIND_ICONS[key]).toBeDefined();
     expect(LOG_KIND_TONES[key]).toBeDefined();
   }

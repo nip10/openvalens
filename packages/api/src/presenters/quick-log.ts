@@ -10,18 +10,40 @@
  * open their own screen (each goal and each measurement has its own rules
  * there), as do the draft kinds (food, lab result, workout).
  *
+ * Drink presets (#443) and pain (#442) have no quick form: a drink saves at
+ * once from its row or a one-liner ("beer 330"); pain saves from a one-liner
+ * ("pain left knee 4"), and its row opens the body map to tap a region. Both
+ * still build their write here, so the checks are shared.
+ *
  * Undo: only kinds whose domain lets the member delete their own entry offer
- * it (sleep, water, supplement taken, food, trackers). Metric samples (weight, blood
+ * it (sleep, water, supplement taken, food and drinks, pain, trackers). Metric samples (weight, blood
  * pressure, heart rate, steps, …) have no member delete, so they save without
  * an undo and stay editable on their screen.
  */
 import type { I18n, MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { parseDecimal } from "@openvalens/i18n/numbers";
+import { drinkPreset, presetGrams, type DrinkPresetKey } from "@openvalens/nutrition/drinks";
+import {
+  isPainRegion,
+  PAIN_RATING_MAX,
+  PAIN_RATING_MIN,
+  PAIN_TYPES,
+  type PainType,
+} from "@openvalens/pain/model";
 import { TRACKER_LIMITS } from "@openvalens/trackers/model";
 
+import type { LogEntryInput } from "../contracts/nutrition-diary";
 import type { RecentLogEntry } from "../contracts/quick-log";
-import { findLogKind, type BuiltInLogKindId, type LogKind } from "./log-kinds";
+import { DRINK_PRESET_LABELS } from "./drinks";
+import {
+  DRINK_MAX_ML,
+  drinkLogKind,
+  drinkPresetKeyOfLogKind,
+  findLogKind,
+  type BuiltInLogKindId,
+  type LogKind,
+} from "./log-kinds";
 import {
   bloodPressureSamples,
   defaultObservedAt,
@@ -32,7 +54,9 @@ import {
   type ManualEntryMetric,
 } from "./manual-entry";
 import { defaultManualSleepWindow, parseManualSleepForm } from "./manual-sleep";
+import { mealSlotForLocalTime } from "./nutrition-diary";
 import type { MetricSamplePayload } from "./offline";
+import { painEntrySummary, painRegionEntryLabel } from "./pain-entry";
 import { KG_TO_LB } from "./product-formatting";
 import {
   formatTrackerDuration,
@@ -66,12 +90,16 @@ export function hasQuickForm(kind: Pick<LogKind, "id" | "save">): boolean {
   );
 }
 
-/** Kinds whose saved entry the member can delete again, so an undo is offered. */
+/**
+ * Built-in kinds whose saved entry the member can delete again, so an undo is
+ * offered. Drink presets (`drink:<key>`, diary entries) and trackers undo too.
+ */
 export const UNDOABLE_KIND_IDS: ReadonlySet<string> = new Set([
   "sleep",
   "water",
   "supplement_intake",
   "food",
+  "pain",
 ]);
 
 const SINGLE_METRICS = [
@@ -125,7 +153,69 @@ export type QuickLogWrite =
         timeZone: string;
         note?: string;
       };
+    }
+  | {
+      type: "drink";
+      preset: DrinkPresetKey;
+      volumeMl: number;
+      /** `nutritionDiary.logEntry` input; undo goes through `nutritionDiary.deleteEntry`. */
+      input: LogEntryInput;
+    }
+  | {
+      type: "pain";
+      /** `pain.log` input, one region; undo goes through `pain.delete`. */
+      input: {
+        regions: [string];
+        rating: number;
+        type: PainType | null;
+        loggedAt: string;
+        timeZone: string;
+      };
     };
+
+/** Millilitres per typed drink unit. */
+const DRINK_ML_PER: Record<string, number> = { ml: 1, cl: 10, l: 1000 };
+/** Smallest drink volume a quick log accepts, in ml. */
+const DRINK_MIN_ML = 10;
+
+/** A local `YYYY-MM-DDTHH:MM` as a device-local `Date`. */
+function localDateTime(local: string): Date | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(local);
+  if (!match) return null;
+  const [, y, mo, d, h, mi] = match.map(Number) as [number, number, number, number, number, number];
+  return new Date(y, mo - 1, d, h, mi);
+}
+
+/**
+ * A drink preset saved as a catalog food (#443): the preset's food and its
+ * grams for `volumeMl`, on the local day and in the meal slot of `local`.
+ */
+function drinkWrite(
+  key: DrinkPresetKey,
+  volumeMl: number,
+  local: string,
+  context: { timeZone: string; newId: () => string },
+  consumedAt?: string,
+): Extract<QuickLogWrite, { type: "drink" }> {
+  const preset = drinkPreset(key)!;
+  const when = localDateTime(local) ?? new Date();
+  return {
+    type: "drink",
+    preset: key,
+    volumeMl,
+    input: {
+      clientMutationId: context.newId(),
+      localDate: local.slice(0, 10),
+      timeZone: context.timeZone,
+      slot: mealSlotForLocalTime(when),
+      food: { kind: "catalog", id: preset.catalogId },
+      amount: Math.max(1, presetGrams(volumeMl, preset.gramsPerFlOz)),
+      unit: "g",
+      method: "preset",
+      ...(consumedAt ? { consumedAt } : {}),
+    },
+  };
+}
 
 /** Raw form text by field id; a unit choice is under `"<fieldId>:unit"`. */
 export type QuickFormValues = Readonly<Record<string, string>>;
@@ -212,6 +302,64 @@ export function buildQuickLogWrite(
           loggedAt: observedAt,
           timeZone: context.timeZone,
           ...(note ? { note } : {}),
+        },
+      },
+    };
+  }
+
+  const drinkKey = drinkPresetKeyOfLogKind(kind.id);
+  if (drinkKey !== null) {
+    // No volume typed: the preset's own ("espresso" is 30 ml).
+    const typedText = values.volume?.trim() ?? "";
+    const unit = values[unitKey("volume")] ?? "ml";
+    const typed = typedText ? parseNumber(typedText, context.locale) : null;
+    const perUnit = DRINK_ML_PER[unit];
+    const ml = typedText
+      ? typed === null || perUnit === undefined
+        ? null
+        : Math.round(typed * perUnit)
+      : (drinkPreset(drinkKey)?.volumeMl ?? null);
+    const errors: string[] = [];
+    if (ml === null || ml < DRINK_MIN_ML || ml > DRINK_MAX_ML) errors.push("volume");
+    if (timeErrors) errors.push("observedAt");
+    if (errors.length > 0 || ml === null || !observedAt) return { ok: false, errors };
+    const named = values.observedAt?.trim() ? observedAt : undefined;
+    return { ok: true, write: drinkWrite(drinkKey, ml, observedLocal, context, named) };
+  }
+
+  if (kind.id === "pain") {
+    const region = values.region?.trim() ?? "";
+    const rating = parseNumber(values.rating, context.locale);
+    const typeText = values.type?.trim() ?? "";
+    // Empty is "no type"; an unknown word is an error (undefined).
+    const type: PainType | null | undefined = !typeText
+      ? null
+      : (PAIN_TYPES as readonly string[]).includes(typeText)
+        ? (typeText as PainType)
+        : undefined;
+    const errors: string[] = [];
+    if (!isPainRegion(region)) errors.push("region");
+    if (
+      rating === null ||
+      !Number.isInteger(rating) ||
+      rating < PAIN_RATING_MIN ||
+      rating > PAIN_RATING_MAX
+    )
+      errors.push("rating");
+    if (type === undefined) errors.push("type");
+    if (timeErrors) errors.push("observedAt");
+    if (errors.length > 0 || rating === null || type === undefined || !observedAt)
+      return { ok: false, errors };
+    return {
+      ok: true,
+      write: {
+        type: "pain",
+        input: {
+          regions: [region],
+          rating,
+          type,
+          loggedAt: observedAt,
+          timeZone: context.timeZone,
         },
       },
     };
@@ -361,6 +509,7 @@ export function repeatRecentEntry(
   const now = context.now ?? new Date();
   const local = defaultObservedAt(now);
   const iso = localDateTimeToIso(local) ?? now.toISOString();
+  if ("preset" in entry) return drinkWrite(entry.preset, entry.volumeMl, local, context);
   switch (entry.kind) {
     case "blood_pressure":
       return {
@@ -436,6 +585,11 @@ const formatNumber = (i18n: I18n, value: number, digits = 1) =>
 
 /** "82,4 kg", "120/80 mmHg", "500 ml", "200 mg": the value a recent entry repeats. */
 export function recentEntryValue(entry: RecentLogEntry, i18n: I18n): string {
+  if ("preset" in entry)
+    return i18n._({
+      ...QUICK_LOG_COPY.water,
+      values: { amount: formatNumber(i18n, entry.volumeMl, 0) },
+    });
   switch (entry.kind) {
     case "blood_pressure": {
       const reading = i18n._({
@@ -467,11 +621,17 @@ export function recentEntryValue(entry: RecentLogEntry, i18n: I18n): string {
   }
 }
 
-/** "Weight", "Water", or the supplement's name. */
+/** "Weight", "Water", "Espresso", or the supplement's name. */
 export function recentEntryTitle(entry: RecentLogEntry, i18n: I18n): string {
   if (entry.kind === "supplement_intake") return entry.supplementName;
+  if ("preset" in entry) return i18n._(DRINK_PRESET_LABELS[entry.preset]);
   const kind = findLogKind(entry.kind);
   return kind ? i18n._(kind.label) : entry.kind;
+}
+
+/** The kind a recent entry repeats: a built-in kind, or a drink preset's kind. */
+export function recentEntryLogKind(entry: RecentLogEntry): LogKind | undefined {
+  return "preset" in entry ? drinkLogKind(entry.preset) : findLogKind(entry.kind);
 }
 
 const formatClock = (i18n: I18n, iso: string) =>
@@ -543,6 +703,17 @@ export function quickLogWriteValue(
     case "tracker": {
       const shape = trackerShapeOfLogKind(kind);
       return shape ? formatTrackerValue(i18n, shape, write.input.value) : String(write.input.value);
+    }
+    case "drink":
+      return i18n._({
+        ...QUICK_LOG_COPY.water,
+        values: { amount: formatNumber(i18n, write.volumeMl, 0) },
+      });
+    case "pain": {
+      // "Left knee · 4 of 10 · Ache": the number as given, nothing else.
+      const region = write.input.regions[0];
+      const label = painRegionEntryLabel(region);
+      return `${label ? i18n._(label) : region} · ${painEntrySummary(write.input, i18n)}`;
     }
   }
 }

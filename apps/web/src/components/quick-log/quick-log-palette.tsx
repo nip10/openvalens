@@ -5,12 +5,18 @@ import type { DiaryEntry, FoodChoice, MealSlot } from "@openvalens/api/contracts
 import { candidateFromChoice, defaultFoodPortion } from "@openvalens/api/presenters/food-lookup";
 import {
   availableLogKinds,
+  drinkLogKinds,
+  drinkPresetKeyOfLogKind,
   findLogKind,
   LOG_KINDS,
   logKindPermissionCheck,
   type LogKind,
 } from "@openvalens/api/presenters/log-kinds";
-import { parseOneLiner, type OneLinerSupplement } from "@openvalens/api/presenters/one-liner";
+import {
+  parseOneLiner,
+  type OneLinerEntry,
+  type OneLinerSupplement,
+} from "@openvalens/api/presenters/one-liner";
 import { trackerLogKinds } from "@openvalens/api/presenters/trackers";
 import {
   deviceTimeZone,
@@ -24,6 +30,7 @@ import {
   hasQuickForm,
   quickFormDefaults,
   quickLogWriteValue,
+  recentEntryLogKind,
   recentEntryTitle,
   recentEntryValue,
   repeatRecentEntry,
@@ -48,6 +55,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { PAIN_KEYS } from "@/components/pain/pain-keys";
 import { ToneIcon } from "@/components/page";
 import { useEnabledModules } from "@/utils/modules";
 import { client, orpc } from "@/utils/orpc";
@@ -98,9 +106,10 @@ type View = { type: "list" } | { type: "form"; kind: LogKind; preset?: Record<st
  * The quick log command palette (#440): due supplements with one-tap "Taken",
  * recent entries to repeat, food favourites / recents / copy yesterday, every
  * kind the member can log (a quick form, or the full screen for drafts),
- * custom trackers (#441), and the app's screens. Turned-off features never
- * appear. Typed one-liners (#440d) show a preview of what was understood at
- * the top ("Water · 500 ml · now"); Enter logs it.
+ * custom trackers (#441), drink presets (#443) and pain (#442), and the
+ * app's screens. Turned-off features never appear. Typed one-liners (#440d)
+ * show a preview of what was understood at the top ("Water · 500 ml · now",
+ * "Pain · Left knee · 4 of 10 · now"); Enter logs it.
  */
 export function QuickLogPalette({
   open,
@@ -136,10 +145,21 @@ export function QuickLogPalette({
     ...orpc.privateBody.preference.queryOptions({ input: {} }),
     enabled: open && isEnabled("body"),
   });
+  // Pain (#442): the member's own opt-in. Fails closed: unknown or an error reads as off.
+  const pain = useQuery({
+    queryKey: PAIN_KEYS.preference,
+    queryFn: () => client.pain.preference({}),
+    enabled: open && isEnabled("body"),
+  });
   // Custom trackers (#441) join the same list as `tracker:<id>` kinds.
   const trackers = useQuery({
     ...orpc.trackers.list.queryOptions({ input: { timeZone } }),
     enabled: open,
+  });
+  // Drink presets (#443), only the ones the server can log (FDC imported).
+  const drinkPresets = useQuery({
+    ...orpc.nutritionDrinks.presets.queryOptions({ input: {} }),
+    enabled: open && isEnabled("food"),
   });
   const kinds = useMemo(
     () =>
@@ -149,12 +169,25 @@ export function QuickLogPalette({
           preferences: {
             plain_water: water.data?.enabled === true,
             private_body: privateBody.data?.enabled === true,
+            pain: pain.data?.enabled === true,
           },
           can: logKindPermissionCheck(me.data?.role),
         },
-        [...LOG_KINDS, ...trackerLogKinds(trackers.data ?? [])] as LogKind[],
+        [
+          ...LOG_KINDS,
+          ...drinkLogKinds(drinkPresets.data?.presets),
+          ...trackerLogKinds(trackers.data ?? []),
+        ] as LogKind[],
       ),
-    [enabledModules, water.data?.enabled, privateBody.data?.enabled, me.data?.role, trackers.data],
+    [
+      enabledModules,
+      water.data?.enabled,
+      privateBody.data?.enabled,
+      pain.data?.enabled,
+      me.data?.role,
+      drinkPresets.data?.presets,
+      trackers.data,
+    ],
   );
   const has = (id: string) => kinds.some((kind) => kind.id === id);
   const canRecords = kinds.some((kind) => kind.permission.resource === "records");
@@ -203,8 +236,23 @@ export function QuickLogPalette({
       orpc.goals.key(),
       orpc.trackers.key(),
       orpc.quickLog.key(),
+      orpc.nutritionDrinks.key(),
+      PAIN_KEYS.all,
     ])
       void queryClient.invalidateQueries({ queryKey: key });
+  };
+
+  /** A kind's own screen; pain opens the body map's pain layer, with a region when known. */
+  const openScreen = (kind: LogKind, region?: string) => {
+    onOpenChange(false);
+    if (kind.id === "pain") {
+      void navigate({
+        to: "/body-map",
+        search: { layer: "pain", ...(region ? { region } : {}) },
+      });
+      return;
+    }
+    void navigate({ to: kind.paths.web });
   };
 
   /** Toast after a save; the action undoes it, or opens the screen to change it. */
@@ -233,7 +281,7 @@ export function QuickLogPalette({
             },
           }
         : kind
-          ? { label: i18n._(COPY.edit), onClick: () => void navigate({ to: kind.paths.web }) }
+          ? { label: i18n._(COPY.edit), onClick: () => openScreen(kind) }
           : undefined,
     });
   };
@@ -264,7 +312,21 @@ export function QuickLogPalette({
     void save(
       write,
       `${recentEntryTitle(entry, i18n)} · ${recentEntryValue(entry, i18n)}`,
-      findLogKind(entry.kind),
+      recentEntryLogKind(entry),
+    );
+  };
+
+  /** A drink preset (#443) saves at once with its own volume, in the current meal. */
+  const logDrink = (kind: LogKind) => {
+    const parsed = buildQuickLogWrite(kind, {}, { timeZone, newId: newClientMutationId });
+    if (!parsed.ok) {
+      openScreen(kind);
+      return;
+    }
+    void save(
+      parsed.write,
+      `${i18n._(kind.label)} · ${quickLogWriteValue(parsed.write, kind, i18n)}`,
+      kind,
     );
   };
 
@@ -354,12 +416,24 @@ export function QuickLogPalette({
   };
 
   const openKind = (kind: LogKind) => {
+    if (drinkPresetKeyOfLogKind(kind.id) !== null) {
+      logDrink(kind);
+      return;
+    }
     if (hasQuickForm(kind)) {
       setView({ type: "form", kind });
       return;
     }
-    onOpenChange(false);
-    void navigate({ to: kind.paths.web });
+    openScreen(kind);
+  };
+
+  /** A one-liner that cannot save as typed: its quick form, or its screen (pain, drinks). */
+  const openOneLiner = (entry: OneLinerEntry) => {
+    if (hasQuickForm(entry.kind)) {
+      setView({ type: "form", kind: entry.kind, preset: entry.values });
+      return;
+    }
+    openScreen(entry.kind, entry.kind.id === "pain" ? entry.values.region : undefined);
   };
 
   const go = (to: string) => {
@@ -377,7 +451,7 @@ export function QuickLogPalette({
       slot: mealSlotForLocalTime(),
       navGroups,
     },
-    { repeat, takeSupplement, openKind, logFood, copyMeals, navigate: go },
+    { repeat, takeSupplement, openKind, logDrink, logFood, copyMeals, navigate: go },
     i18n,
   );
 
@@ -412,7 +486,7 @@ export function QuickLogPalette({
           void save(preview.write, `${preview.title} · ${preview.value}`, entry.kind);
           return;
         }
-        setView({ type: "form", kind: entry.kind, preset: entry.values });
+        openOneLiner(entry);
       },
       openWorkout: (text) => {
         onOpenChange(false);

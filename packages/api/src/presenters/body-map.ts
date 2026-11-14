@@ -25,6 +25,8 @@ import { msg, plural } from "@lingui/core/macro";
 
 import { PAIN_RATING_MAX, type PainJointRegion } from "@openvalens/pain/model";
 
+import { PAIN_JOINT_LABELS } from "./pain-entry";
+
 import {
   circlePath,
   fitViewBox,
@@ -355,22 +357,8 @@ export type PainSpot = {
   path: string;
 };
 
-export const PAIN_JOINT_LABELS: Readonly<Record<PainJointRegion, MessageDescriptor>> =
-  Object.freeze({
-    "joint.neck": msg`Neck`,
-    "joint.jaw_left": msg`Left jaw`,
-    "joint.jaw_right": msg`Right jaw`,
-    "joint.elbow_left": msg`Left elbow`,
-    "joint.elbow_right": msg`Right elbow`,
-    "joint.wrist_hand_left": msg`Left wrist and hand`,
-    "joint.wrist_hand_right": msg`Right wrist and hand`,
-    "joint.hip_left": msg`Left hip`,
-    "joint.hip_right": msg`Right hip`,
-    "joint.knee_left": msg`Left knee`,
-    "joint.knee_right": msg`Right knee`,
-    "joint.ankle_foot_left": msg`Left ankle and foot`,
-    "joint.ankle_foot_right": msg`Right ankle and foot`,
-  });
+/** Defined with the other pain labels, which quick logging uses without the artwork. */
+export { PAIN_JOINT_LABELS };
 
 const SPOT_RADIUS = 5.5;
 

@@ -1,13 +1,16 @@
 import { describe, expect, test } from "bun:test";
 import { englishI18n } from "@openvalens/i18n/testing";
 
-import { findLogKind, LOG_KINDS } from "./log-kinds";
+import { DRINK_PRESET_KEYS } from "../contracts/nutrition-drinks";
+import { RECENT_DRINK_KINDS } from "../contracts/quick-log";
+import { drinkLogKind, drinkLogKindId, findLogKind, LOG_KINDS } from "./log-kinds";
 import { trackerLogKind, type TrackerForLogKind } from "./trackers";
 import {
   buildQuickLogWrite,
   hasQuickForm,
   quickFormDefaults,
   quickLogWriteValue,
+  recentEntryLogKind,
   recentEntryTitle,
   recentEntryValue,
   repeatRecentEntry,
@@ -20,11 +23,12 @@ const now = new Date(2026, 10, 13, 9, 30);
 const context = { timeZone: "Europe/Lisbon", newId: () => "id-1", now };
 
 describe("quick forms", () => {
-  test("every at-once kind but goals and private measurements has a quick form", () => {
+  test("every at-once kind but goals, private measurements and pain has a quick form", () => {
     const quick = LOG_KINDS.filter(hasQuickForm).map((item) => item.id);
     const atOnce = LOG_KINDS.filter((item) => item.save === "at_once").map((item) => item.id);
     expect(atOnce.filter((id) => !quick.includes(id as never))).toEqual([
       "private_measurement",
+      "pain",
       "goal_checkin",
     ]);
     expect(LOG_KINDS.filter((item) => item.save === "draft").some(hasQuickForm)).toBe(false);
@@ -120,7 +124,13 @@ describe("quick forms", () => {
   });
 
   test("only kinds with a member delete offer an undo", () => {
-    expect([...UNDOABLE_KIND_IDS].sort()).toEqual(["food", "sleep", "supplement_intake", "water"]);
+    expect([...UNDOABLE_KIND_IDS].sort()).toEqual([
+      "food",
+      "pain",
+      "sleep",
+      "supplement_intake",
+      "water",
+    ]);
   });
 });
 
@@ -228,5 +238,124 @@ describe("recent entries", () => {
       "82.4 kg",
     );
     expect(recentEntryValue({ kind: "water", at: "x", quantityMl: 500 }, i18n)).toBe("500 ml");
+  });
+});
+
+describe("drink presets (#443)", () => {
+  const espresso = drinkLogKind("espresso");
+  const beer = drinkLogKind("beer");
+
+  test("no quick form: a drink saves at once with the preset's own volume", () => {
+    expect(hasQuickForm(espresso)).toBe(false);
+    const write = buildQuickLogWrite(espresso, {}, context);
+    expect(write.ok && write.write).toMatchObject({
+      type: "drink",
+      preset: "espresso",
+      volumeMl: 30,
+      input: {
+        localDate: "2026-11-13",
+        slot: "breakfast",
+        food: { kind: "catalog", id: "fdc:171891" },
+        amount: 30,
+        unit: "g",
+        method: "preset",
+      },
+    });
+    // No time named: the server keeps the logged time.
+    expect(write.ok && write.write.type === "drink" && "consumedAt" in write.write.input).toBe(
+      false,
+    );
+  });
+
+  test("a typed volume scales the grams with the preset's fl oz weight", () => {
+    const half = buildQuickLogWrite(
+      beer,
+      { volume: "0,5", [unitKey("volume")]: "l" },
+      { ...context, locale: "pt-PT" },
+    );
+    expect(half.ok && half.write.type === "drink" && half.write.input.amount).toBe(502);
+    expect(half.ok && quickLogWriteValue(half.write, beer, englishI18n)).toBe("500 ml");
+    expect(buildQuickLogWrite(beer, { volume: "5" }, context)).toEqual({
+      ok: false,
+      errors: ["volume"],
+    });
+    expect(buildQuickLogWrite(beer, { volume: "3000" }, context)).toEqual({
+      ok: false,
+      errors: ["volume"],
+    });
+  });
+
+  test("the meal slot follows the time", () => {
+    const evening = buildQuickLogWrite(beer, { observedAt: "2026-11-12T20:00" }, context);
+    expect(evening.ok && evening.write.type === "drink" && evening.write.input).toMatchObject({
+      localDate: "2026-11-12",
+      slot: "dinner",
+      consumedAt: new Date(2026, 10, 12, 20, 0).toISOString(),
+    });
+  });
+
+  test("a recent drink repeats as the same preset and volume, now", () => {
+    const recent = {
+      kind: "drink:beer" as const,
+      at: "2026-11-01T20:00:00Z",
+      preset: "beer" as const,
+      volumeMl: 330,
+    };
+    expect(repeatRecentEntry(recent, context)).toMatchObject({
+      type: "drink",
+      preset: "beer",
+      volumeMl: 330,
+      input: { localDate: "2026-11-13", slot: "breakfast", amount: 331, method: "preset" },
+    });
+    expect(recentEntryTitle(recent, englishI18n)).toBe("Beer");
+    expect(recentEntryValue(recent, englishI18n)).toBe("330 ml");
+    expect(recentEntryLogKind(recent)?.id).toBe("drink:beer");
+  });
+
+  test("recent drink kinds are the preset kinds", () => {
+    expect([...RECENT_DRINK_KINDS]).toEqual(DRINK_PRESET_KEYS.map((key) => drinkLogKindId(key)));
+  });
+});
+
+describe("pain (#442)", () => {
+  const pain = kind("pain");
+
+  test("a region, a whole rating from 0 to 10 and an optional type", () => {
+    const write = buildQuickLogWrite(
+      pain,
+      { region: "joint.knee_left", rating: "4", type: "ache" },
+      context,
+    );
+    expect(write.ok && write.write).toEqual({
+      type: "pain",
+      input: {
+        regions: ["joint.knee_left"],
+        rating: 4,
+        type: "ache",
+        loggedAt: new Date(2026, 10, 13, 9, 30).toISOString(),
+        timeZone: "Europe/Lisbon",
+      },
+    });
+    expect(write.ok && quickLogWriteValue(write.write, pain, englishI18n)).toBe(
+      "Left knee · 4 of 10 · Ache",
+    );
+  });
+
+  test("wrong values name the field; the wording is the same for every rating", () => {
+    expect(buildQuickLogWrite(pain, { region: "joint.tail", rating: "11" }, context)).toEqual({
+      ok: false,
+      errors: ["region", "rating"],
+    });
+    expect(
+      buildQuickLogWrite(pain, { region: "front.head", rating: "4,5", type: "x" }, context),
+    ).toEqual({ ok: false, errors: ["rating", "type"] });
+    const low = buildQuickLogWrite(pain, { region: "front.head", rating: "1" }, context);
+    const high = buildQuickLogWrite(pain, { region: "front.head", rating: "9" }, context);
+    expect(low.ok && quickLogWriteValue(low.write, pain, englishI18n)).toBe(
+      "Head (front) · 1 of 10",
+    );
+    expect(high.ok && quickLogWriteValue(high.write, pain, englishI18n)).toBe(
+      "Head (front) · 9 of 10",
+    );
   });
 });

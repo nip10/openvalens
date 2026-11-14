@@ -22,6 +22,7 @@ import {
   painStep,
   trainingLayer,
 } from "./body-map";
+import { PAIN_REGION_LABELS, painRegionEntryLabel } from "./pain-entry";
 
 const scan = [
   { region: "left_arm", measurementType: "fat_pct", value: 20 },
@@ -238,6 +239,15 @@ describe("pain layer (#442)", () => {
       expect(inEnglish(PAIN_JOINT_LABELS[id as keyof typeof PAIN_JOINT_LABELS])).toBe(name);
     for (const id of PAIN_REGION_IDS) expect(painRegionLabel(id)).not.toBeNull();
     expect(painRegionLabel("joint.tail")).toBeNull();
+  });
+
+  test("the light pain labels (quick log, no artwork) are the map's own labels", () => {
+    expect(Object.keys(PAIN_REGION_LABELS).sort()).toEqual([...PAIN_REGION_IDS].sort());
+    for (const id of PAIN_REGION_IDS) {
+      expect(painRegionEntryLabel(id)?.id).toBe(painRegionLabel(id)!.id!);
+      expect(inEnglish(painRegionEntryLabel(id)!)).toBe(inEnglish(painRegionLabel(id)!));
+    }
+    expect(painRegionEntryLabel("joint.tail")).toBeNull();
   });
 
   test("joint spots are only on the pain layer: never map regions, never composition or training fills", () => {
