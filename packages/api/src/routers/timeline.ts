@@ -249,6 +249,8 @@ export const timelineRouter = {
         input,
         [],
         await timelineViewer(context),
+        // Sleep nights and weigh-ins: the signed-in member's own and legacy ones (#509).
+        { memberUserId: context.authz.user.id },
       ),
     ),
   changesSinceReview: permissionedProcedure({ resource: "records", action: "read" })
@@ -257,7 +259,12 @@ export const timelineRouter = {
     .handler(async ({ context, input }) =>
       createHealthRecordRepository(context.db).listChangesSinceReview(
         context.authz.activeOrganizationId,
-        { ...input, viewer: await timelineViewer(context) },
+        {
+          ...input,
+          viewer: await timelineViewer(context),
+          // Sleep nights and weigh-ins: the signed-in member's own and legacy ones (#509).
+          memberUserId: context.authz.user.id,
+        },
       ),
     ),
   listMetrics: permissionedProcedure({ resource: "records", action: "read" })

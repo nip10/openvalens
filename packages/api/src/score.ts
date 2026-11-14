@@ -41,7 +41,7 @@ export function createScoreService(deps: { db: Database; now?: () => Date }): Sc
       if (await viewerDeclaredUnder18(viewerUserId)) return readinessAdultsOnly(asOf);
 
       const [sleep, vitals, activity] = await Promise.all([
-        listSleepDailySummaries(db, organizationId, READINESS_HISTORY_DAYS + 1),
+        listSleepDailySummaries(db, organizationId, viewerUserId, READINESS_HISTORY_DAYS + 1),
         listDailyVitals(db, organizationId, READINESS_HISTORY_DAYS),
         listDailyActivityTotals(db, organizationId, READINESS_HISTORY_DAYS),
       ]);

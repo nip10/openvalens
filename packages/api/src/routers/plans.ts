@@ -1311,6 +1311,7 @@ export const plansRouter = {
           to: range.to,
           types: input.types,
           limit: input.limit ?? 200,
+          viewerUserId: context.authz.user.id,
         });
       }),
 
@@ -1369,6 +1370,7 @@ export const plansRouter = {
         const result = await createCalendarRepository(context.db).deleteEvent(
           authz.activeOrganizationId,
           input.id,
+          authz.user.id,
         );
         if (!result) return null;
         await writeAuditLog({

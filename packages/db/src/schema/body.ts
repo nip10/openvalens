@@ -324,6 +324,11 @@ export const weightCheckin = pgTable(
   {
     id: serial("id").primaryKey(),
     organizationId: orgId(),
+    /**
+     * The member who logged it (#509). Null on check-ins from before authors
+     * were recorded that could not be matched to one; those stay shared.
+     */
+    userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
     date: text("date").notNull(),
     weightKg: real("weight_kg").notNull(),
     bodyFatPct: real("body_fat_pct"),
@@ -338,6 +343,16 @@ export const weightCheckin = pgTable(
       table.organizationId,
       table.date,
     ),
+    weightCheckinOrgUserDateIdx: index("weight_checkin_org_user_date_idx").on(
+      table.organizationId,
+      table.userId,
+      table.date,
+    ),
+    weightCheckinMemberFk: foreignKey({
+      columns: [table.organizationId, table.userId],
+      foreignColumns: [member.organizationId, member.userId],
+      name: "weight_checkin_org_user_member_fk",
+    }).onDelete("cascade"),
   }),
 );
 

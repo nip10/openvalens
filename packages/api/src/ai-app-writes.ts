@@ -389,6 +389,7 @@ function metricWriter<Input>(
         targetIds.push(await writeSample(context, sample, entry.at));
       const possibleDuplicate = await hasDeviceReadingNear(db, {
         organizationId: context.scope.organizationId,
+        userId: context.scope.userId,
         codes: entry.overlapCodes,
         at: entry.at,
       });
@@ -674,6 +675,7 @@ function sleepWriter(db: Database): AiDomainWriter<SleepEntryInput> {
       });
       const possibleDuplicate = await overlapsDeviceSleep(db, {
         organizationId: context.scope.organizationId,
+        userId: context.scope.userId,
         startAt: entry.startAt,
         endAt: entry.endAt,
       });

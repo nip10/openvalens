@@ -112,11 +112,16 @@ export function defaultManualSleepWindow(now: Date = new Date()): {
 }
 
 /**
- * Stable id for one manual night, so a double-tap or a retry of "Save" keeps a
- * single row: the same bedtime and wake time are the same entry.
+ * Stable id for one member's manual night, so a double-tap or a retry of
+ * "Save" keeps a single row: the same member, bedtime and wake time are the
+ * same entry. The member is part of it (#509): two members of one workspace
+ * can log the same night, and a retry never finds another member's row.
  */
-export function manualSleepDedupeHash(window: Pick<ManualSleepWindow, "startAt" | "endAt">) {
-  return `manual-sleep:${window.startAt.slice(0, 16)}:${window.endAt.slice(0, 16)}`;
+export function manualSleepDedupeHash(
+  userId: string,
+  window: Pick<ManualSleepWindow, "startAt" | "endAt">,
+) {
+  return `manual-sleep:${userId}:${window.startAt.slice(0, 16)}:${window.endAt.slice(0, 16)}`;
 }
 
 export const MANUAL_SLEEP_DUPLICATE_NOTE = msg`Possible duplicate: a device recorded sleep at the same time. The device night counts in your totals.`;

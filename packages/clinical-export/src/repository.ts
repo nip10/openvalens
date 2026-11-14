@@ -1,4 +1,5 @@
 import type { Database } from "@openvalens/db";
+import { ownOrUnattributed } from "@openvalens/db/member-private";
 import {
   healthEvent,
   metricSample,
@@ -15,7 +16,11 @@ import {
   type CanonicalRecordRow,
 } from "./build-bundle";
 
-/** Read-only boundary. Organization authority must come from the records:read guard. */
+/**
+ * Read-only boundary. Organization authority must come from the records:read
+ * guard. `userId` is the reading member: another member's attributed sleep
+ * nights and weigh-ins are never in the bundle (#509).
+ */
 export function createClinicalExportRepository(db: Database) {
   return {
     async buildBundle(
@@ -38,6 +43,8 @@ export function createClinicalExportRepository(db: Database) {
               .where(
                 and(
                   eq(healthEvent.organizationId, organizationId),
+                  // Sleep nights and weigh-ins are private per member (#509).
+                  ownOrUnattributed(healthEvent.userId, options.userId),
                   isNull(healthEvent.supersededAt),
                   sql`(${healthEvent.dataSourceId} is null or exists (
               select 1 from ${dataSource} where ${dataSource.id} = ${healthEvent.dataSourceId}
@@ -60,6 +67,7 @@ export function createClinicalExportRepository(db: Database) {
               .where(
                 and(
                   eq(metricSample.organizationId, organizationId),
+                  ownOrUnattributed(metricSample.userId, options.userId),
                   isNull(metricSample.supersededAt),
                   sql`exists (select 1 from ${metricDefinition}
               where ${metricDefinition.id} = ${metricSample.metricDefinitionId}

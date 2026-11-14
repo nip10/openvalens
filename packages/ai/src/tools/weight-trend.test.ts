@@ -17,6 +17,7 @@ function legacy(id: number, date: string, weightKg: number) {
   return {
     id,
     organizationId: ORG_A,
+    userId: null,
     date,
     weightKg,
     bodyFatPct: null,

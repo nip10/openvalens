@@ -444,9 +444,13 @@ describe.skipIf(!url)("AI app writes against disposable PostgreSQL", () => {
       writeKey,
     );
     expect(body.status).toBe(200);
-    const page = await createHealthRecordRepository(db).listTimeline(ORG, {
-      source: `ai_app:${writeGrantId}`,
-      limit: 200,
+    const filters = { source: `ai_app:${writeGrantId}`, limit: 200 };
+    // The weigh-in and body fat are the member's own (#509): with no member to
+    // read as, they stay off the timeline.
+    const anonymous = await createHealthRecordRepository(db).listTimeline(ORG, filters);
+    expect(anonymous.items.some((item) => item.title.toLowerCase().includes("weight"))).toBe(false);
+    const page = await createHealthRecordRepository(db).listTimeline(ORG, filters, [], null, {
+      memberUserId: USER,
     });
     expect(page.items.length).toBeGreaterThanOrEqual(4);
     for (const item of page.items) {

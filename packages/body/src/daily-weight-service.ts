@@ -28,6 +28,7 @@ export function createDailyWeightService(db: Database) {
           .insert(weightCheckin)
           .values({
             organizationId: input.organizationId,
+            userId: input.userId,
             date: input.date,
             weightKg: input.weightKg,
             bodyFatPct: input.bodyFatPct,

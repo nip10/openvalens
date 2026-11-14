@@ -87,7 +87,7 @@ export function createReferenceComparisonService(deps: {
       const [settings, rhr, sleep, activity] = await Promise.all([
         readSettings(viewerUserId),
         listDailyMetricBySource(db, organizationId, "resting_heart_rate", USUAL_WINDOW_DAYS + 1),
-        listSleepDailySummaries(db, organizationId, USUAL_WINDOW_DAYS + 1),
+        listSleepDailySummaries(db, organizationId, viewerUserId, USUAL_WINDOW_DAYS + 1),
         createActivityLoadService({ db, now }).weekly({ organizationId, viewerUserId }),
       ]);
       const optedIn = new Set<ComparisonMetric>(

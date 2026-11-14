@@ -264,6 +264,27 @@ describe.skipIf(!url)("reference comparisons over HTTP against disposable Postgr
     expect(byMetric(body, "sleep_duration").ownTrend.usualValue).toBe(450);
   });
 
+  test("own trend: another member's attributed sleep stays theirs; legacy sleep is shared (#509)", async () => {
+    const usualSleep = async (user: string) =>
+      byMetric(
+        (await call<ReferenceComparisonsResult>("comparison/get", {}, user)).body,
+        "sleep_duration",
+      ).ownTrend.usualValue;
+    // The seeded nights have no author: both members of org-a see them.
+    expect(await usualSleep("user-v")).toBe(450);
+    await db.execute(
+      sql`update health_event set user_id = 'user-a' where organization_id = 'org-a' and event_type = 'sleep_session'`,
+    );
+    try {
+      expect(await usualSleep("user-a")).toBe(450);
+      expect(await usualSleep("user-v")).toBeNull();
+    } finally {
+      await db.execute(
+        sql`update health_event set user_id = null where organization_id = 'org-a' and event_type = 'sleep_session'`,
+      );
+    }
+  });
+
   test("opting in shows the cited band and guideline; opt-in is per metric", async () => {
     const on = await call<ComparisonSettings>("comparison/updateSettings", {
       metric: "resting_heart_rate",

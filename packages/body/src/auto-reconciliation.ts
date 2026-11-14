@@ -307,18 +307,27 @@ export function createAutoReconciliationTxService(db: DbLike, tx: DbTransaction)
     },
 
     /**
-     * Org-scoped `weight_event` history, ordered newest-first. Used by
-     * `body.listWeightHistory` to surface ingested samples.
+     * The member's own `weight_event` history (#509), ordered newest-first.
+     * Used by `body.listWeightHistory` to surface ingested samples.
      */
-    async listWeightHistory(organizationId: string, limit: number) {
-      return db
-        .select()
-        .from(weightEvent)
-        .where(eq(weightEvent.organizationId, organizationId))
-        .orderBy(desc(weightEvent.measuredAt), desc(weightEvent.id))
-        .limit(limit);
+    async listWeightHistory(organizationId: string, userId: string, limit: number) {
+      return listWeightHistory(db, organizationId, userId, limit);
     },
   };
+}
+
+function listWeightHistory(
+  db: Pick<DbLike, "select">,
+  organizationId: string,
+  userId: string,
+  limit: number,
+) {
+  return db
+    .select()
+    .from(weightEvent)
+    .where(and(eq(weightEvent.organizationId, organizationId), eq(weightEvent.userId, userId)))
+    .orderBy(desc(weightEvent.measuredAt), desc(weightEvent.id))
+    .limit(limit);
 }
 
 /** Root-pool entrypoints open one transaction before acquiring the shared safety lock. */
@@ -343,13 +352,9 @@ export function createAutoReconciliationService(db: Database) {
         createAutoReconciliationTxService(tx, tx).supersedeForMetricSamples(input),
       );
     },
-    listWeightHistory(organizationId: string, limit: number) {
-      return db
-        .select()
-        .from(weightEvent)
-        .where(eq(weightEvent.organizationId, organizationId))
-        .orderBy(desc(weightEvent.measuredAt), desc(weightEvent.id))
-        .limit(limit);
+    /** The member's own `weight_event` history (#509), newest first. */
+    listWeightHistory(organizationId: string, userId: string, limit: number) {
+      return listWeightHistory(db, organizationId, userId, limit);
     },
   };
 }

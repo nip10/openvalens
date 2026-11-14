@@ -289,7 +289,9 @@ describe.skipIf(!url)("HealthKit sleep ingestion on disposable PostgreSQL", () =
     expect(sources).toHaveLength(2);
 
     // The sleep summary prefers the watch night and keeps the nap.
-    const [summary] = await listSleepDailySummaries(db, "org-a", 3650);
+    // The nights belong to the phone's member (#509).
+    const [summary] = await listSleepDailySummaries(db, "org-a", "u1", 3650);
+    expect(await listSleepDailySummaries(db, "org-a", "u2", 3650)).toEqual([]);
     expect(summary!.date).toBe("2026-10-02");
     expect(summary!.deepMinutes).toBe(60);
     expect(summary!.awakeMinutes).toBe(10);

@@ -88,7 +88,7 @@ function fakeDb(rows: unknown[]): { db: Database; selects: CapturedSelect[] } {
 describe("getSleepSummary Drizzle query", () => {
   test("scopes by organizationId and filters eventType='sleep_session'", async () => {
     const fake = fakeDb([]);
-    const summary: SleepWindowSummary = await getSleepSummary(fake.db, "org-1", 30);
+    const summary: SleepWindowSummary = await getSleepSummary(fake.db, "org-1", "user-1", 30);
     expect(summary.days).toEqual([]);
     expect(fake.selects).toHaveLength(1);
     const select = fake.selects[0]!;
@@ -101,7 +101,7 @@ describe("getSleepSummary Drizzle query", () => {
 
   test("returns low-confidence summary when no sleep rows exist", async () => {
     const fake = fakeDb([]);
-    const summary = await getSleepSummary(fake.db, "org-1", 30);
+    const summary = await getSleepSummary(fake.db, "org-1", "user-1", 30);
     expect(summary.lastNight).toBeNull();
     expect(summary.status).toBe("low_confidence");
     expect(summary.confidence).toBe("low");
@@ -120,7 +120,7 @@ describe("getSleepSummary Drizzle query", () => {
         },
       },
     ]);
-    const summary = await getSleepSummary(fake.db, "org-1", 30);
+    const summary = await getSleepSummary(fake.db, "org-1", "user-1", 30);
     expect(summary.days).toHaveLength(1);
     expect(summary.days[0]?.date).toBe("2026-03-08");
     expect(summary.lastNight?.mainSleepStart).toBe("2026-03-07T23:30:00.000Z");
@@ -131,7 +131,7 @@ describe("getSleepSummary Drizzle query", () => {
 describe("listSleepDailySummaries Drizzle query", () => {
   test("scopes by organizationId and orders by eventAt desc", async () => {
     const fake = fakeDb([]);
-    const rows = await listSleepDailySummaries(fake.db, "org-1", 30);
+    const rows = await listSleepDailySummaries(fake.db, "org-1", "user-1", 30);
     expect(rows).toEqual([]);
     expect(fake.selects[0]?.table).toBe(healthEvent);
     expect(fake.selects[0]?.params).toContain("org-1");
@@ -233,9 +233,31 @@ describe("personal sleep goal evidence", () => {
 
 test("every sleep read skips superseded sessions (#44)", async () => {
   const fake = fakeDb([]);
-  await getSleepSummary(fake.db, "org-1", 30);
-  await getSleepSummaryForRange(fake.db, "org-1", "2026-03-01", "2026-03-08");
-  await listSleepDailySummaries(fake.db, "org-1", 30);
+  await getSleepSummary(fake.db, "org-1", "user-1", 30);
+  await getSleepSummaryForRange(fake.db, "org-1", "user-1", "2026-03-01", "2026-03-08");
+  await listSleepDailySummaries(fake.db, "org-1", "user-1", 30);
   expect(fake.selects).toHaveLength(3);
   for (const select of fake.selects) expect(select.sql).toContain('"superseded_at" is null');
+});
+
+describe("sleep reads are private per member (#509)", () => {
+  test("each read keeps the member's own nights and legacy ones with no author", async () => {
+    const fake = fakeDb([]);
+    await getSleepSummary(fake.db, "org-1", "user-1", 30);
+    await getSleepSummaryForRange(fake.db, "org-1", "user-1", "2026-03-01", "2026-03-08");
+    await listSleepDailySummaries(fake.db, "org-1", "user-1", 30);
+    expect(fake.selects).toHaveLength(3);
+    for (const select of fake.selects) {
+      expect(select.sql).toContain('("health_event"."user_id" = $');
+      expect(select.sql).toContain('"health_event"."user_id" is null)');
+      expect(select.params).toContain("user-1");
+    }
+  });
+
+  test("with no member, only nights with no author match", async () => {
+    const fake = fakeDb([]);
+    await listSleepDailySummaries(fake.db, "org-1", null, 30);
+    expect(fake.selects[0]?.sql).toContain('"health_event"."user_id" is null');
+    expect(fake.selects[0]?.sql).not.toContain('"health_event"."user_id" = $');
+  });
 });

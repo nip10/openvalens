@@ -105,8 +105,15 @@ test("quality runs from 1 to 5, each with a label", () => {
 
 test("the same night always gets the same dedupe hash", () => {
   const night = { startAt: "2026-11-11T23:00:00.000Z", endAt: "2026-11-12T07:00:00.000Z" };
-  expect(manualSleepDedupeHash(night)).toBe(manualSleepDedupeHash({ ...night }));
-  expect(manualSleepDedupeHash(night)).not.toBe(
-    manualSleepDedupeHash({ ...night, endAt: "2026-11-12T07:30:00.000Z" }),
+  expect(manualSleepDedupeHash("user-a", night)).toBe(
+    manualSleepDedupeHash("user-a", { ...night }),
   );
+  expect(manualSleepDedupeHash("user-a", night)).not.toBe(
+    manualSleepDedupeHash("user-a", { ...night, endAt: "2026-11-12T07:30:00.000Z" }),
+  );
+});
+
+test("two members logging the same night get different dedupe hashes (#509)", () => {
+  const night = { startAt: "2026-11-11T23:00:00.000Z", endAt: "2026-11-12T07:00:00.000Z" };
+  expect(manualSleepDedupeHash("user-a", night)).not.toBe(manualSleepDedupeHash("user-b", night));
 });

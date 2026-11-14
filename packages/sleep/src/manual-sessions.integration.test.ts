@@ -53,10 +53,12 @@ describe.skipIf(!url)("manual sleep sessions against disposable PostgreSQL (#440
     await db.insert(user).values([
       { id: "user-a", email: "a@example.invalid", name: "A" },
       { id: "user-b", email: "b@example.invalid", name: "B" },
+      { id: "user-c", email: "c@example.invalid", name: "C" },
     ]);
     await db.insert(member).values([
       { id: "member-a", userId: "user-a", organizationId: ORG, role: "owner" },
       { id: "member-b", userId: "user-b", organizationId: OTHER_ORG, role: "owner" },
+      { id: "member-c", userId: "user-c", organizationId: ORG, role: "member" },
     ]);
   });
 
@@ -92,11 +94,12 @@ describe.skipIf(!url)("manual sleep sessions against disposable PostgreSQL (#440
     expect(
       await overlapsDeviceSleep(db, {
         organizationId: ORG,
+        userId: "user-a",
         startAt: input.startAt,
         endAt: input.endAt,
       }),
     ).toBe(false);
-    const summary = await getSleepSummary(db, ORG, 30);
+    const summary = await getSleepSummary(db, ORG, "user-a", 30);
     expect(summary.lastNight?.asleepMinutes).toBe(480);
     expect(summary.lastNight?.sessionIds).toEqual([String(first.id)]);
     expect(
@@ -127,7 +130,7 @@ describe.skipIf(!url)("manual sleep sessions against disposable PostgreSQL (#440
       })
       .returning({ id: healthEvent.id });
 
-    const summary = await getSleepSummary(db, ORG, 30);
+    const summary = await getSleepSummary(db, ORG, "user-a", 30);
     expect(summary.lastNight?.asleepMinutes).toBe(360);
     expect(summary.lastNight?.sessionIds).toEqual([String(device?.id)]);
 
@@ -140,6 +143,7 @@ describe.skipIf(!url)("manual sleep sessions against disposable PostgreSQL (#440
     expect(
       await overlapsDeviceSleep(db, {
         organizationId: ORG,
+        userId: "user-a",
         startAt: bed.toISOString(),
         endAt: wake.toISOString(),
       }),
@@ -148,6 +152,7 @@ describe.skipIf(!url)("manual sleep sessions against disposable PostgreSQL (#440
     expect(
       await overlapsDeviceSleep(db, {
         organizationId: OTHER_ORG,
+        userId: "user-b",
         startAt: bed.toISOString(),
         endAt: wake.toISOString(),
       }),
@@ -196,5 +201,91 @@ describe.skipIf(!url)("manual sleep sessions against disposable PostgreSQL (#440
     ).toEqual([]);
     const [still] = await db.select().from(healthEvent).where(eq(healthEvent.id, device.id));
     expect(still).toBeDefined();
+  });
+
+  test("another member's nights never show or flag a duplicate; legacy ones do (#509)", async () => {
+    const shift = (date: Date, hours: number) => new Date(date.getTime() + hours * HOUR);
+    // Two nights ago: user-c's device night and user-a's manual night, same window.
+    const otherBed = shift(bed, -48);
+    const otherWake = shift(wake, -48);
+    const [deviceC] = await db
+      .insert(healthEvent)
+      .values({
+        organizationId: ORG,
+        userId: "user-c",
+        eventType: "sleep_session",
+        eventAt: otherBed,
+        payloadJson: { endAt: otherWake.toISOString(), sourceApp: "Oura" },
+        dedupeHash: "device-night-c",
+      })
+      .returning({ id: healthEvent.id });
+    // Yesterday: a legacy night with no author, from before authors were recorded.
+    const [legacy] = await db
+      .insert(healthEvent)
+      .values({
+        organizationId: ORG,
+        userId: null,
+        eventType: "sleep_session",
+        eventAt: shift(bed, -24),
+        payloadJson: { endAt: shift(wake, -24).toISOString(), sourceApp: "Oura" },
+        dedupeHash: "legacy-night",
+      })
+      .returning({ id: healthEvent.id });
+    const window = { startAt: otherBed.toISOString(), endAt: otherWake.toISOString() };
+    const manualA = await insertManualSleepSession(db, {
+      organizationId: ORG,
+      userId: "user-a",
+      ...window,
+      quality: null,
+      dedupeHash: "manual-sleep:user-a:night",
+    });
+    const manualC = await insertManualSleepSession(db, {
+      organizationId: ORG,
+      userId: "user-c",
+      ...window,
+      quality: null,
+      dedupeHash: "manual-sleep:user-c:night",
+    });
+    expect(manualA.created && manualC.created).toBe(true);
+    expect(manualA.id).not.toBe(manualC.id);
+
+    const sessionIds = async (userId: string | null) =>
+      (await getSleepSummary(db, ORG, userId, 30)).days.flatMap((day) => day.sessionIds);
+    const forA = await sessionIds("user-a");
+    expect(forA).toContain(String(legacy?.id));
+    expect(forA).toContain(String(manualA.id));
+    expect(forA).not.toContain(String(deviceC?.id));
+    expect(forA).not.toContain(String(manualC.id));
+    const forC = await sessionIds("user-c");
+    expect(forC).toContain(String(legacy?.id));
+    expect(forC).toContain(String(deviceC?.id));
+    expect(forC).not.toContain(String(manualA.id));
+    // No member (a job): legacy nights only.
+    expect(await sessionIds(null)).toEqual([String(legacy?.id)]);
+
+    // user-c's device night is no duplicate of user-a's manual one, only of user-c's.
+    expect(
+      await overlapsDeviceSleep(db, { organizationId: ORG, userId: "user-a", ...window }),
+    ).toBe(false);
+    expect(
+      await overlapsDeviceSleep(db, { organizationId: ORG, userId: "user-c", ...window }),
+    ).toBe(true);
+    const listed = async (userId: string) =>
+      (await listManualSleepSessions(db, { organizationId: ORG, userId, days: 30 })).map(
+        (night) => [night.id, night.possibleDuplicate],
+      );
+    expect(await listed("user-a")).toEqual([[manualA.id, false]]);
+    expect(await listed("user-c")).toEqual([[manualC.id, true]]);
+
+    // A retry with another member's dedupe hash never answers with their row.
+    await expect(
+      insertManualSleepSession(db, {
+        organizationId: ORG,
+        userId: "user-a",
+        ...window,
+        quality: null,
+        dedupeHash: "manual-sleep:user-c:night",
+      }),
+    ).rejects.toThrow("Manual sleep insert did not return a row");
   });
 });

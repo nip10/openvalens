@@ -125,7 +125,12 @@ export type AiTrackerWithDays = AiTrackerRow & {
   days: { date: string; value: number; count: number }[];
 };
 
-/** Binds the ports to the real domain packages for one database handle. */
+/**
+ * Binds the ports to the real domain packages for one database handle and one
+ * member. Sleep, weigh-ins and body composition are private per member (#509),
+ * like workouts: those ports read the member's own rows and legacy rows with no
+ * author, never another member's.
+ */
 export function createDomainHealthToolSources(db: Database, userId: string): AiHealthToolSources {
   const clinical = createClinicalRepository(db);
   const plans = createPlansRepository(db);
@@ -136,16 +141,16 @@ export function createDomainHealthToolSources(db: Database, userId: string): AiH
     listLabMarkers: (organizationId, recentLimit) =>
       listLabMarkerLatest(db, organizationId, recentLimit),
     listDailyVitals: (organizationId, days) => listDailyVitals(db, organizationId, days),
-    getSleepSummary: (organizationId, days) => getSleepSummary(db, organizationId, days),
+    getSleepSummary: (organizationId, days) => getSleepSummary(db, organizationId, userId, days),
     listDailyActivity: (organizationId, days) => listDailyActivityTotals(db, organizationId, days),
-    getLatestWeight: (organizationId) => getLatestWeight(db, organizationId),
+    getLatestWeight: (organizationId) => getLatestWeight(db, organizationId, userId),
     listBloodPanels: (organizationId, limit) => clinical.listBloodPanels(organizationId, limit),
     getBloodPanel: (organizationId, panelId) => clinical.getBloodPanel(organizationId, panelId),
     getBodyCompositionTimeline: (organizationId, limit) =>
-      getBodyCompositionTimeline(db, organizationId, limit),
+      getBodyCompositionTimeline(db, organizationId, userId, limit),
     listDexaScans: (organizationId) => listAllDexaScans(db, organizationId),
     listLegacyWeightCheckins: (organizationId, limit) =>
-      listLegacyCheckins(db, organizationId, limit),
+      listLegacyCheckins(db, organizationId, userId, limit),
     listSupplements: (organizationId) => plans.listSupplements(organizationId),
     listSupplementSchedules: (organizationId, supplementId) =>
       plans.listSchedules(organizationId, supplementId),
@@ -153,7 +158,8 @@ export function createDomainHealthToolSources(db: Database, userId: string): AiH
       (await goals.listGoals(organizationId)).filter((item) => item.deletedAt == null),
     listGoalCheckins: async (organizationId, _userId, goalId) =>
       (await goals.listCheckins(organizationId, goalId)).filter((item) => item.deletedAt == null),
-    listTimeline: (organizationId, filters) => healthRecord.listTimeline(organizationId, filters),
+    listTimeline: (organizationId, filters) =>
+      healthRecord.listTimeline(organizationId, filters, [], null, { memberUserId: userId }),
     listNutritionDailyTotals: (scope, range) => nutritionTotals.listDays(scope, range),
     listAiTrackers: async (scope, range) => {
       const trackers = await listAiReadableTrackers(db, scope);

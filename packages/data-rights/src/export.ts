@@ -197,6 +197,26 @@ export function rowFilter(table: string, subject: DataRightsSubject): SQL {
       // member's attributed events, even from a workspace the subject owns.
       if (table === "health_event")
         return sql`user_id = ${subject.userId} or (user_id is null and ${inList("organization_id", orgIds)})`;
+      // Weigh-ins and body composition are private per member (#509), like
+      // workouts: the subject's own across their memberships, never another
+      // member's, even in a workspace the subject owns. These always carry an author.
+      if (
+        table === "weight_event" ||
+        table === "daily_weight" ||
+        table === "daily_weight_override" ||
+        table === "body_comp_event"
+      )
+        return sql`user_id = ${subject.userId}`;
+      // These carry an author when one is known; the rest are legacy workspace rows.
+      if (table === "weight_checkin" || table === "metric_sample")
+        return sql`user_id = ${subject.userId} or (user_id is null and ${inList("organization_id", orgIds)})`;
+      // The weight form's day event names the weight; it follows its check-in.
+      if (table === "calendar_event")
+        return sql`${inList("organization_id", orgIds)} and not (type = 'weight'
+          and reference_table = 'weight_checkin'
+          and exists (select 1 from weight_checkin c
+            where c.organization_id = calendar_event.organization_id and c.id = calendar_event.reference_id
+              and c.user_id is not null and c.user_id <> ${subject.userId}))`;
       if (table === "workout")
         return sql`user_id = ${subject.userId} or (user_id is null and ${inList("organization_id", orgIds)} and exists (
           select 1 from workout_exercise e where e.workout_id = workout.id
@@ -256,6 +276,18 @@ export function rowFilter(table: string, subject: DataRightsSubject): SQL {
  */
 export function deletionRowFilter(table: string, subject: DataRightsSubject): SQL {
   const orgIds = [...subject.organizationIds];
+  // #509: the subject's own weigh-ins wherever they are a member, plus every
+  // row in an erased container (unchanged container erasure).
+  if (
+    table === "weight_event" ||
+    table === "daily_weight" ||
+    table === "daily_weight_override" ||
+    table === "body_comp_event" ||
+    table === "weight_checkin" ||
+    table === "metric_sample"
+  )
+    return sql`user_id = ${subject.userId} or ${inList("organization_id", orgIds)}`;
+  if (table === "calendar_event") return inList("organization_id", orgIds);
   if (table === "workout")
     return sql`user_id = ${subject.userId} or (user_id is null and ${inList("organization_id", orgIds)})`;
   if (table === "workout_exercise")

@@ -32,7 +32,13 @@ mock.module("@openvalens/auth/authz/guard", () => ({
   requirePermission,
 }));
 const list = mock(
-  async (_org: string, _filters: unknown, _excluded?: unknown, _viewer?: unknown) => ({
+  async (
+    _org: string,
+    _filters: unknown,
+    _excluded?: unknown,
+    _viewer?: unknown,
+    _options?: unknown,
+  ) => ({
     items: [],
     nextCursor: null,
   }),
@@ -159,7 +165,12 @@ test("reads require records:read and use only active authz org", async () => {
   expect(requirePermission.mock.calls[0]?.[1]).toEqual({ resource: "records", action: "read" });
   expect(list.mock.calls[0]?.[0]).toBe("org-a");
   await timelineRouter.changesSinceReview.callable({ context: context() })({ limit: 5 });
-  expect(changes.mock.calls[0]).toEqual(["org-a", { limit: 5, viewer: null }]);
+  // Sleep nights and weigh-ins are read as the signed-in member (#509).
+  expect(changes.mock.calls[0]).toEqual([
+    "org-a",
+    { limit: 5, viewer: null, memberUserId: "actor" },
+  ]);
+  expect(list.mock.calls[0]?.[4]).toEqual({ memberUserId: "actor" });
   expect(audit).not.toHaveBeenCalled();
 });
 test("domain cursors retain records:read authority and accept only migrated record kinds", async () => {
@@ -174,7 +185,13 @@ test("domain cursors retain records:read authority and accept only migrated reco
   ]) {
     const cursor = `2026-09-29T00:00:00.000Z|${table}:1`;
     await timelineRouter.list.callable({ context: context() })({ cursor, limit: 1 });
-    expect(list.mock.calls.at(-1)).toEqual(["org-a", { cursor, limit: 1 }, [], null]);
+    expect(list.mock.calls.at(-1)).toEqual([
+      "org-a",
+      { cursor, limit: 1 },
+      [],
+      null,
+      { memberUserId: "actor" },
+    ]);
     expect(requirePermission.mock.calls.at(-1)?.[1]).toEqual({
       resource: "records",
       action: "read",
@@ -480,6 +497,12 @@ test("cursors page past water entries, supplement intakes and workouts (#493)", 
   for (const table of ["plain_water_entry", "supplement_intake", "workout"]) {
     const cursor = `2026-09-29T12:00:00.000Z|${table}:3`;
     await timelineRouter.list.callable({ context: context() })({ cursor, limit: 1 });
-    expect(list.mock.calls.at(-1)).toEqual(["org-a", { cursor, limit: 1 }, [], null]);
+    expect(list.mock.calls.at(-1)).toEqual([
+      "org-a",
+      { cursor, limit: 1 },
+      [],
+      null,
+      { memberUserId: "actor" },
+    ]);
   }
 });

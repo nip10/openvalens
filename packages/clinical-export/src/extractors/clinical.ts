@@ -9,7 +9,8 @@ import type { Database } from "@openvalens/db";
 import { bloodMarker, bloodPanel, cardiacExam, imagingStudy } from "@openvalens/db/schema/clinical";
 import { medication, supplement, supplementSchedule } from "@openvalens/db/schema/plans";
 import { weightCheckin } from "@openvalens/db/schema/body";
-import { desc, eq, sql } from "drizzle-orm";
+import { ownOrUnattributed } from "@openvalens/db/member-private";
+import { and, desc, eq, sql } from "drizzle-orm";
 import {
   getLatestCanonicalWeight,
   getLatestDexaScan,
@@ -63,12 +64,12 @@ export async function extractBody(
 ): Promise<ExportPayloadDataByDomain["body"]> {
   const [latestDexa, latestCanonicalWeight] = await Promise.all([
     getLatestDexaScan(db, scope.organizationId),
-    getLatestCanonicalWeight(db, scope.organizationId),
+    getLatestCanonicalWeight(db, scope.organizationId, scope.userId ?? null),
   ]);
 
   const latestLegacyWeight = latestCanonicalWeight
     ? undefined
-    : await getLatestLegacyWeightFromRepo(db, scope.organizationId);
+    : await getLatestLegacyWeightFromRepo(db, scope.organizationId, scope.userId ?? null);
   const latestWeight = selectLatestBodyWeight(
     latestCanonicalWeight
       ? { date: latestCanonicalWeight.date, weightKg: latestCanonicalWeight.weightKg }
@@ -91,9 +92,13 @@ export async function extractBody(
   };
 }
 
-async function getLatestLegacyWeightFromRepo(db: Database, organizationId: string) {
+async function getLatestLegacyWeightFromRepo(
+  db: Database,
+  organizationId: string,
+  userId: string | null,
+) {
   // Mirror of `getLatestWeight` fallback when canonical is missing.
-  const rows = await listLegacyCheckins(db, organizationId, 1);
+  const rows = await listLegacyCheckins(db, organizationId, userId, 1);
   const row = rows[0];
   if (!row) return undefined;
   return { date: row.date, weightKg: row.weightKg, bodyFatPct: row.bodyFatPct };
@@ -224,7 +229,13 @@ export async function extractWeight(
   const rows = await db
     .select()
     .from(weightCheckin)
-    .where(eq(weightCheckin.organizationId, scope.organizationId))
+    .where(
+      and(
+        eq(weightCheckin.organizationId, scope.organizationId),
+        // Weigh-ins are private per member (#509): own and legacy unattributed only.
+        ownOrUnattributed(weightCheckin.userId, scope.userId),
+      ),
+    )
     .orderBy(desc(weightCheckin.date), desc(weightCheckin.id));
   return rows.map((row) => ({
     id: row.id,

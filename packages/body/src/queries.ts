@@ -1,4 +1,5 @@
 import type { Database } from "@openvalens/db";
+import { ownOrUnattributed } from "@openvalens/db/member-private";
 import {
   bodyCompEvent,
   dailyWeight,
@@ -9,12 +10,31 @@ import {
 } from "@openvalens/db/schema/body";
 import { and, asc, between, desc, eq } from "drizzle-orm";
 
+/**
+ * Weigh-ins are private to their member (#509), like workouts: every weight
+ * read here takes the reading member. Canonical daily rows and
+ * body-composition events always carry an author; legacy check-ins saved
+ * before authors were recorded have none and stay visible to the workspace.
+ * DEXA scans are imported clinical reports with no author, like blood panels,
+ * and belong to the workspace.
+ */
+
 /** Historical check-ins, intentionally independent of the materialized daily canonical view. */
-export async function listLegacyCheckins(db: Database, organizationId: string, limit: number) {
+export async function listLegacyCheckins(
+  db: Database,
+  organizationId: string,
+  userId: string | null,
+  limit: number,
+) {
   return db
     .select()
     .from(weightCheckin)
-    .where(eq(weightCheckin.organizationId, organizationId))
+    .where(
+      and(
+        eq(weightCheckin.organizationId, organizationId),
+        ownOrUnattributed(weightCheckin.userId, userId),
+      ),
+    )
     .orderBy(desc(weightCheckin.date), desc(weightCheckin.id))
     .limit(limit);
 }
@@ -102,8 +122,13 @@ export async function listDexaRegionals(db: Database, organizationId: string, sc
 
 // ─── Latest weight + body-composition timeline (Issue #21) ──────
 
-/** Latest canonical row for the org, or `null`. */
-export async function getLatestCanonicalWeight(db: Database, organizationId: string) {
+/** The member's latest canonical row, or `null` (always `null` with no member). */
+export async function getLatestCanonicalWeight(
+  db: Database,
+  organizationId: string,
+  userId: string | null,
+) {
+  if (!userId) return null;
   const rows = await db
     .select({
       id: dailyWeight.id,
@@ -125,31 +150,30 @@ export async function getLatestCanonicalWeight(db: Database, organizationId: str
         eq(dailyWeight.organizationId, weightEvent.organizationId),
       ),
     )
-    .where(eq(dailyWeight.organizationId, organizationId))
+    .where(and(eq(dailyWeight.organizationId, organizationId), eq(dailyWeight.userId, userId)))
     .orderBy(desc(dailyWeight.date), desc(dailyWeight.id))
     .limit(1);
   return rows[0] ?? null;
 }
 
-/** Latest legacy check-in (pre-materialized fallback), or `null`. */
-export async function getLatestLegacyWeight(db: Database, organizationId: string) {
-  const rows = await db
-    .select()
-    .from(weightCheckin)
-    .where(eq(weightCheckin.organizationId, organizationId))
-    .orderBy(desc(weightCheckin.date), desc(weightCheckin.id))
-    .limit(1);
+/** Latest legacy check-in (pre-materialized fallback) the member may see, or `null`. */
+export async function getLatestLegacyWeight(
+  db: Database,
+  organizationId: string,
+  userId: string | null,
+) {
+  const rows = await listLegacyCheckins(db, organizationId, userId, 1);
   return rows[0] ?? null;
 }
 
 /**
- * Mirrors anchovy `getLatestWeight`: prefer the latest canonical row, fall back
- * to the latest legacy check-in. Returns the legacy shape so the caller can
- * consume a single envelope without further mapping. Returns `null` when the
- * org has neither.
+ * Mirrors anchovy `getLatestWeight`: prefer the member's latest canonical row,
+ * fall back to the latest legacy check-in they may see. Returns the legacy
+ * shape so the caller can consume a single envelope without further mapping.
+ * Returns `null` when there is neither.
  */
-export async function getLatestWeight(db: Database, organizationId: string) {
-  const canonical = await getLatestCanonicalWeight(db, organizationId);
+export async function getLatestWeight(db: Database, organizationId: string, userId: string | null) {
+  const canonical = await getLatestCanonicalWeight(db, organizationId, userId);
   if (canonical) {
     return {
       id: canonical.id,
@@ -161,16 +185,17 @@ export async function getLatestWeight(db: Database, organizationId: string) {
       createdAt: canonical.createdAt,
     };
   }
-  return getLatestLegacyWeight(db, organizationId);
+  return getLatestLegacyWeight(db, organizationId, userId);
 }
 
 /**
  * Body-composition timeline (Issue #21): canonical daily weight points plus
- * `body_comp_event` markers. Both projections are org-scoped.
+ * `body_comp_event` markers, both the member's own (#509).
  */
 export async function getBodyCompositionTimeline(
   db: Database,
   organizationId: string,
+  userId: string,
   limit: number,
 ) {
   const canonical = db
@@ -188,7 +213,7 @@ export async function getBodyCompositionTimeline(
         eq(dailyWeight.organizationId, weightEvent.organizationId),
       ),
     )
-    .where(eq(dailyWeight.organizationId, organizationId))
+    .where(and(eq(dailyWeight.organizationId, organizationId), eq(dailyWeight.userId, userId)))
     .orderBy(desc(dailyWeight.date), desc(dailyWeight.id))
     .limit(limit);
 
@@ -205,7 +230,7 @@ export async function getBodyCompositionTimeline(
       boneMassKg: bodyCompEvent.boneMassKg,
     })
     .from(bodyCompEvent)
-    .where(eq(bodyCompEvent.organizationId, organizationId))
+    .where(and(eq(bodyCompEvent.organizationId, organizationId), eq(bodyCompEvent.userId, userId)))
     .orderBy(desc(bodyCompEvent.date), desc(bodyCompEvent.measuredAt), desc(bodyCompEvent.id))
     .limit(limit);
 

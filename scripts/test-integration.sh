@@ -78,6 +78,7 @@ SUITES=(
   "ADMISSION_AUTH_TEST_DATABASE_URL|admission_rpc_test|packages/api/src/admission-rpc.integration.test.ts"
   "ADMISSION_AUTH_TEST_DATABASE_URL|admission_cli_test|scripts/admission.integration.test.ts"
   "ADMISSION_AUTH_TEST_DATABASE_URL|admission_sharing_test|packages/api/src/routers/sharing.integration.test.ts"
+  "SLEEP_WEIGHT_PRIVACY_TEST_DATABASE_URL|sleep_weight_privacy_test|packages/api/src/sleep-weight-privacy.integration.test.ts"
   "PRODUCT_SETTINGS_TEST_DATABASE_URL|product_settings_test|packages/api/src/product-settings.integration.test.ts"
   "WELLNESS_PROFILE_TEST_DATABASE_URL|wellness_profile_test|packages/api/src/wellness-profile.integration.test.ts"
   "DATA_RIGHTS_ERASURE_AUTH_TEST_DATABASE_URL|data_rights_erasure_auth_test|packages/api/src/routers/data-rights.integration.test.ts"
