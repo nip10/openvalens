@@ -14,7 +14,7 @@ import { concatHuaweiBytes } from "../crypto/huawei-auth";
 import type { HuaweiAesProvider, HuaweiTlv } from "../protocol/huawei";
 import { huaweiHexUpper } from "../protocol/huawei-hichain";
 import {
-  HUAWEI_PAKE_BASE_POINT,
+  huaweiPakeBasePoint,
   HUAWEI_PAKE_EXCHANGE_REQUEST_AAD,
   HUAWEI_PAKE_EXCHANGE_RESPONSE_AAD,
   HUAWEI_PAKE_MESSAGE,
@@ -82,6 +82,16 @@ function expect<K extends HuaweiPakeResponse["kind"]>(
   return reply as Extract<HuaweiPakeResponse, { kind: K }>;
 }
 
+/**
+ * `pakeChallenge` is two 16-byte `arraycopy`s (`GHPR:355-358`, `:384-386`): only the
+ * first 16 bytes of the watch's challenge are signed (the proofs use all of it), and a
+ * shorter one fails upstream.
+ */
+function challenge16(challenge: Uint8Array): Uint8Array {
+  if (challenge.length < 16) throw new Error("HUAWEI_PAKE_PROTOCOL");
+  return challenge.subarray(0, 16);
+}
+
 const json = (
   messageId: number,
   fields: ReadonlyArray<readonly [string, string | number | boolean]>,
@@ -101,7 +111,7 @@ export async function runHuaweiPakeBind(context: HuaweiPakeContext): Promise<Hua
   const dh = expect(
     await exchange(
       context,
-      buildHuaweiPakeDhRequest(huaweiPakeX25519(dhPrivate, HUAWEI_PAKE_BASE_POINT)),
+      buildHuaweiPakeDhRequest(huaweiPakeX25519(dhPrivate, huaweiPakeBasePoint())),
     ),
     "dh",
   );
@@ -152,7 +162,7 @@ export async function runHuaweiPakeBind(context: HuaweiPakeContext): Promise<Hua
   const signature = huaweiPakeSign(
     crypto,
     context.seed,
-    concatHuaweiBytes(speke.selfChallenge, start.challenge, info),
+    concatHuaweiBytes(speke.selfChallenge, challenge16(start.challenge), info),
   );
   const sealed = huaweiPakeSeal(
     aes,
@@ -171,7 +181,7 @@ export async function runHuaweiPakeBind(context: HuaweiPakeContext): Promise<Hua
   const peer = parseHuaweiPakePeerIdentity(
     huaweiPakeOpen(aes, speke.sessionKey, HUAWEI_PAKE_EXCHANGE_RESPONSE_AAD, reply.exAuthInfo),
   );
-  const signed = concatHuaweiBytes(start.challenge, speke.selfChallenge, peer.info);
+  const signed = concatHuaweiBytes(challenge16(start.challenge), speke.selfChallenge, peer.info);
   if (!huaweiPakeVerify(crypto, signed, peer.signature, peer.authPk))
     throw new Error("HUAWEI_PAKE_FAILED");
   return { authId: peer.authId, authPk: peer.authPk };
@@ -180,20 +190,27 @@ export async function runHuaweiPakeBind(context: HuaweiPakeContext): Promise<Hua
 /**
  * The STS reconnect: the SPEKE PIN comes from the static X25519 between both
  * Ed25519 identities and the watch's nonce, so a watch that still trusts us
- * proves it without a new bind. Any refusal or proof mismatch is
- * `HUAWEI_PAKE_REBIND_REQUIRED`.
+ * proves it without a new bind. Any answer that does not complete it (a
+ * refusal, a proof mismatch, or a reply we cannot use) is
+ * `HUAWEI_PAKE_REBIND_REQUIRED`, so the caller can forget the watch and bind
+ * next time. A watch that does not answer at all keeps its error (out of reach).
  */
 export async function runHuaweiPakeReconnect(
   context: HuaweiPakeContext,
   peer: HuaweiPakePeer,
 ): Promise<void> {
-  const { crypto } = context;
-  const rebind = (error: unknown): never => {
+  try {
+    await reconnect(context, peer);
+  } catch (error) {
     const code = error instanceof Error ? error.message : "";
-    if (code === "HUAWEI_PAKE_REJECTED" || code === "HUAWEI_PAKE_FAILED")
+    if (code.startsWith("HUAWEI_PAKE_") && code !== "HUAWEI_PAKE_REBIND_REQUIRED")
       throw new Error("HUAWEI_PAKE_REBIND_REQUIRED", { cause: error });
     throw error;
-  };
+  }
+}
+
+async function reconnect(context: HuaweiPakeContext, peer: HuaweiPakePeer): Promise<void> {
+  const { crypto } = context;
   // Message 17: its challenge and epk are never used again (upstream: "cosmetic").
   const start = await exchange(
     context,
@@ -201,7 +218,7 @@ export async function runHuaweiPakeReconnect(
       HUAWEI_PAKE_MESSAGE.stsStart,
       [
         ["challenge", huaweiHexUpper(context.randomBytes(16))],
-        ["epk", huaweiHexUpper(huaweiPakeX25519(context.randomBytes(32), HUAWEI_PAKE_BASE_POINT))],
+        ["epk", huaweiHexUpper(huaweiPakeX25519(context.randomBytes(32), huaweiPakeBasePoint()))],
         ["serviceType", HUAWEI_PAKE_SERVICE_TYPE],
         ["peerAuthId", huaweiHexUpper(context.authId)],
         ["keyLength", 32],
@@ -209,7 +226,7 @@ export async function runHuaweiPakeReconnect(
       ],
       { first: { operationCode: 2 }, authForm: true },
     ),
-  ).catch(rebind);
+  );
   const sts = expect(start, "sts_start");
   const pin = huaweiPakeStsPin(crypto, huaweiPakeStsPsk(context.seed, peer.authPk), sts.nonce);
   const speke = huaweiPakeSpeke({
@@ -233,7 +250,7 @@ export async function runHuaweiPakeReconnect(
         ],
         { authForm: true },
       ),
-    ).catch(rebind),
+    ),
     "sts_ack",
   );
   if (!huaweiPakeProofMatches(speke.peerProof, ack.kcfData))

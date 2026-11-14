@@ -701,7 +701,7 @@ const HUAWEI_ERROR_COPY: Partial<Record<string, MessageDescriptor>> = {
   HUAWEI_DEVICE_STATUS_UNSUPPORTED: msg`The watch reported a state this app cannot handle yet (it may need setting up in the Huawei Health app first).`,
   HUAWEI_PAKE_REBIND_REQUIRED: msg`The watch no longer recognises this phone. Sync again to pair it again.`,
   HUAWEI_PAKE_REJECTED: honorRejected,
-  HUAWEI_PAKE_FAILED: honorRejected,
+  HUAWEI_PAKE_FAILED: huaweiPairingFailed,
   HUAWEI_PAKE_PROTOCOL: huaweiPairingFailed,
   HUAWEI_HICHAIN_CONFIRM_TIMEOUT: msg`The watch did not confirm pairing in time. Unlock it, keep it near the phone, sync again and tap Confirm on the watch.`,
   HUAWEI_HICHAIN_AUTH_TIMEOUT: msg`The watch did not answer the pairing check. Keep it unlocked and near the phone, then sync again.`,

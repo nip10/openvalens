@@ -208,4 +208,18 @@ test("a refused or mismatched STS reconnect asks for a re-bind", async () => {
       peer(),
     ),
   ).rejects.toThrow("HUAWEI_PAKE_REBIND_REQUIRED");
+  // A reply we cannot use (no nonce) also ends in a re-bind, not a stuck reconnect.
+  await expect(
+    runHuaweiPakeReconnect(
+      scripted(
+        stsRandoms(),
+        stsWatch({ start: reply(32785, { challenge: "01", epk: KAT.stsWatchEpk, salt: "02" }) }),
+      ).context,
+      peer(),
+    ),
+  ).rejects.toThrow("HUAWEI_PAKE_REBIND_REQUIRED");
+  // No answer at all keeps its own error: the watch may just be out of reach.
+  await expect(
+    runHuaweiPakeReconnect(scripted(stsRandoms(), () => []).context, peer()),
+  ).rejects.toThrow("HUAWEI_REQUEST_TIMEOUT");
 });

@@ -56,7 +56,7 @@ import {
   type HuaweiTlv,
 } from "../protocol/huawei";
 import {
-  HUAWEI_PAKE_BASE_POINT,
+  huaweiPakeBasePoint,
   huaweiPakeBindPin,
   huaweiPakeHashToCurve,
   huaweiPakeIdentityInfo,
@@ -1260,7 +1260,7 @@ for (const status of [0, 1]) {
  * The watch side of the PSK-SPEKE bind and STS reconnect, with its own random
  * keys. It trusts a phone identity learned at bind until `forget()`.
  */
-function honorWatch() {
+function honorWatch(options: { supportType?: number } = {}) {
   const crypto = nodeCrypto();
   const aes = nodeAes();
   const seed = crypto.randomBytes(32);
@@ -1338,7 +1338,7 @@ function honorWatch() {
       state.pin = huaweiPakeBindPin(huaweiPakeX25519(state.dhPrivate!, data));
       return out([
         { tag: 0x01, value: Uint8Array.of(0x01) },
-        { tag: 0x02, value: huaweiPakeX25519(state.dhPrivate!, HUAWEI_PAKE_BASE_POINT) },
+        { tag: 0x02, value: huaweiPakeX25519(state.dhPrivate!, huaweiPakeBasePoint()) },
       ]);
     }
     const request = JSON.parse(new TextDecoder().decode(data)) as {
@@ -1391,7 +1391,10 @@ function honorWatch() {
     }
     return null;
   };
-  const fake = fakeDevice({ crypto, aes, linkParams: HICHAIN_LINK_PARAMS, respond });
+  const linkParams = HICHAIN_LINK_PARAMS.map((field) =>
+    field.tag === 0x07 ? { tag: 0x07, value: Uint8Array.of(options.supportType ?? 0x01) } : field,
+  );
+  const fake = fakeDevice({ crypto, aes, linkParams, respond });
   return {
     fake,
     negotiations,
@@ -1470,15 +1473,64 @@ test("a failed STS reconnect forgets the watch identity and asks for a re-bind",
     authId: watch.authId,
     authPk: huaweiPakeIdentityPublicKey(new Uint8Array(32).fill(5)),
   });
+  const oldId = store.getAndroidId("device-1");
   const second = createHuaweiSession(honorOptions(watch, store));
   second.start();
   await expect(second.whenDone()).rejects.toThrow("HUAWEI_PAKE_REBIND_REQUIRED");
   expect(store.getPakePeer("device-1")).toBeNull();
   expect(store.getPakeSeed("device-1")).toEqual(seed);
-  // The next sync binds again, with no user input.
+  // A new authId, so a watch that still trusts the old one cannot steer us back into STS.
+  const newId = store.getAndroidId("device-1");
+  expect(newId).toMatch(/^[0-9A-F]{32}$/);
+  expect(newId).not.toBe(oldId);
+  // The next sync binds again, with no user input, under the new id.
   const third = createHuaweiSession(honorOptions(watch, store));
   third.start();
   await third.whenDone();
   expect(Array.from(watch.negotiations[2]![1]!.value)).toEqual([1]);
+  expect(new TextDecoder().decode(watch.negotiations[2]![2]!.value)).toBe(newId!);
   await third.close();
+});
+
+test("a stored watch identity without our seed is dropped before negotiating", async () => {
+  const watch = honorWatch();
+  const store = createMemoryHuaweiHiChainStore();
+  store.setPakePeer("device-1", { authId: watch.authId, authPk: watch.publicKey });
+  const session = createHuaweiSession(honorOptions(watch, store));
+  session.start();
+  await session.whenDone();
+  // No seed means no STS: we ask for a first pair and bind.
+  expect(Array.from(watch.negotiations[0]![1]!.value)).toEqual([1]);
+  expect(watch.kinds).toEqual(["dh", "1", "2", "3"]);
+  await session.close();
+});
+
+test("a type-4 Honor watch negotiates PAKE with auth mode 4", async () => {
+  const watch = honorWatch({ supportType: 0x04 });
+  const session = createHuaweiSession(honorOptions(watch, createMemoryHuaweiHiChainStore()));
+  session.start();
+  await session.whenDone();
+  expect(Array.from(watch.negotiations[0]![0]!.value)).toEqual([0x04]);
+  await session.close();
+});
+
+test("an Honor PAKE model reporting support type 0 still runs normal mode", async () => {
+  const crypto = nodeCrypto();
+  const auth = authResponder(crypto);
+  const commands: number[] = [];
+  const fake = fakeDevice({
+    crypto,
+    aes: nodeAes(),
+    respond: (packet) => {
+      if (packet.serviceId === HUAWEI_DEVICE_CONFIG_SERVICE) commands.push(packet.commandId);
+      return auth(packet) ?? syncResponder(packet);
+    },
+  });
+  const session = createHuaweiSession(brOptions(fake, { honorPake: true }));
+  session.start();
+  await session.whenDone();
+  expect(commands).toContain(HUAWEI_AUTH_COMMAND);
+  expect(commands).not.toContain(HUAWEI_SECURITY_NEGOTIATION_COMMAND);
+  expect(commands).not.toContain(0x28);
+  await session.close();
 });
