@@ -169,3 +169,49 @@ export const customTrackerEntry = pgTable(
     ),
   }),
 );
+
+// ─── Phone feeds (Issue #452) ─────────────────────────────────
+// Which tracker a feed from the member's phone fills: HealthKit mindful
+// sessions or Health Connect mindfulness into a duration tracker, HealthKit
+// State of Mind (daily moods) into a 1-5 scale tracker. One tracker per feed
+// per member. Stored here, not on the phone, so every phone of the member
+// knows the link and the server refuses imports once it is gone. Unlinking
+// deletes the row and keeps the entries already imported.
+
+export const customTrackerFeed = pgTable(
+  "custom_tracker_feed",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: orgId(),
+    /** The owning member; only the tracker's owner links a feed. */
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    /** `healthkit_mindful_sessions`, `health_connect_mindfulness` or `healthkit_state_of_mind`. */
+    feed: text("feed").notNull(),
+    trackerId: uuid("tracker_id").notNull(),
+    linkedAt: timestamp("linked_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => ({
+    customTrackerFeedMemberKey: uniqueIndex("custom_tracker_feed_org_user_feed_key").on(
+      table.organizationId,
+      table.userId,
+      table.feed,
+    ),
+    customTrackerFeedTrackerIdx: index("custom_tracker_feed_tracker_idx").on(table.trackerId),
+    customTrackerFeedTrackerFk: foreignKey({
+      columns: [table.trackerId, table.organizationId, table.userId],
+      foreignColumns: [customTracker.id, customTracker.organizationId, customTracker.userId],
+      name: "custom_tracker_feed_tracker_fk",
+    }).onDelete("cascade"),
+    customTrackerFeedMemberFk: foreignKey({
+      columns: [table.organizationId, table.userId],
+      foreignColumns: [member.organizationId, member.userId],
+      name: "custom_tracker_feed_org_user_member_fk",
+    }).onDelete("cascade"),
+    customTrackerFeedFeedCheck: check(
+      "custom_tracker_feed_feed_check",
+      sql`${table.feed} in ('healthkit_mindful_sessions', 'health_connect_mindfulness', 'healthkit_state_of_mind')`,
+    ),
+  }),
+);

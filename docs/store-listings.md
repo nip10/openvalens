@@ -179,6 +179,7 @@ The app only reads, never writes.
 | `READ_ACTIVE_CALORIES_BURNED`    | Shows active energy in the person's activity history.                                                         |
 | `READ_DISTANCE`                  | Shows walking and running distance in the person's activity history.                                          |
 | `READ_EXERCISE`                  | Imports workouts recorded by other apps into the person's workout log.                                        |
+| `READ_MINDFULNESS`               | Imports mindfulness sessions into a meditation tracker, only after the person links one (experimental API).   |
 | `READ_HEALTH_DATA_IN_BACKGROUND` | Keeps the record up to date when the app is closed. The person turns sync on and can turn it off in Settings. |
 | `READ_HEALTH_DATA_HISTORY`       | Imports data from before the app was installed, so the person's history is complete from the start.           |
 
