@@ -873,6 +873,8 @@ test("the registry's MLR preference drives the registration", async () => {
       },
       deviceId: "watch-1",
       modelId,
+      // The file sync protocol is covered in `garmin-new-sync.test.ts`.
+      newSyncProtocol: false,
       onRecord: () => undefined,
       initDelayMs: 0,
       link: server,

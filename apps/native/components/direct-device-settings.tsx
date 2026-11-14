@@ -683,6 +683,7 @@ const GARMIN_ERROR_COPY: Record<string, MessageDescriptor> = {
   GARMIN_ML_REGISTER_FAILED: msg`The Garmin watch refused to open its data link. Close other apps connected to it, restart the watch, then sync again.`,
   GARMIN_MLR_HANDLE: msg`The Garmin watch offered a reliable link this app cannot use. Restart the watch, then sync again.`,
   GARMIN_MLR_QUEUE_FULL: msg`The Garmin watch stopped acknowledging data. Move it closer to the phone, then sync again.`,
+  GARMIN_PROTOBUF_TIMEOUT: msg`The Garmin watch did not send its file list. Keep it near the phone, then sync again.`,
 };
 
 function friendlyError(code: string) {

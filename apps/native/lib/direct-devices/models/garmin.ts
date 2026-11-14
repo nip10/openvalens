@@ -265,6 +265,14 @@ export type GarminModel = Readonly<{
   sourceFile: string;
   /** MLR preference; absent means `"off"` (see `GarminMlrMode`). */
   mlr?: GarminMlrMode;
+  /**
+   * Sync files with the protobuf "new sync protocol" (`FileSyncServiceHandler`)
+   * instead of the legacy directory download. True exactly where the upstream
+   * coordinator overrides `defaultNewSyncProtocol()` ("Some new devices like
+   * Venu X1 misses a lot of files without the new sync protocol",
+   * `GarminCoordinator.java:122-131`).
+   */
+  newSyncProtocol?: true;
 }>;
 
 /** The 190 catalog Garmin entries, in upstream catalog order. */
@@ -280,6 +288,7 @@ export const GARMIN_MODELS: readonly GarminModel[] = [
     bleNamePattern: "^CIRQA Smart Band$",
     sourceFile: `app/src/main/java/nodomain/freeyourgadget/gadgetbridge/devices/garmin/watches/cirqa/GarminCirqaCoordinator.java`,
     mlr: "preferred",
+    newSyncProtocol: true,
   },
   {
     id: "garmin_d2_air",
@@ -314,6 +323,7 @@ export const GARMIN_MODELS: readonly GarminModel[] = [
     bleNamePattern: "^D2 Air X15( - \\d+mm)?$",
     sourceFile: `app/src/main/java/nodomain/freeyourgadget/gadgetbridge/devices/garmin/watches/d2/GarminD2AirX15Coordinator.java`,
     mlr: "preferred",
+    newSyncProtocol: true,
   },
   {
     id: "garmin_d2_mach_1",
@@ -1734,6 +1744,7 @@ export const GARMIN_MODELS: readonly GarminModel[] = [
     bleNamePattern: "^Venu 4 (- )?\\d+mm$",
     sourceFile: `app/src/main/java/nodomain/freeyourgadget/gadgetbridge/devices/garmin/watches/venu/GarminVenu4Coordinator.java`,
     mlr: "preferred",
+    newSyncProtocol: true,
   },
   {
     id: "garmin_venu_x1",
@@ -1746,6 +1757,7 @@ export const GARMIN_MODELS: readonly GarminModel[] = [
     bleNamePattern: "^Venu X1$",
     sourceFile: `app/src/main/java/nodomain/freeyourgadget/gadgetbridge/devices/garmin/watches/venu/GarminVenuX1Coordinator.java`,
     mlr: "preferred",
+    newSyncProtocol: true,
   },
   {
     id: "garmin_vivoactive",
@@ -1835,6 +1847,7 @@ export const GARMIN_MODELS: readonly GarminModel[] = [
     bleNamePattern: "^vívoactive 6$",
     sourceFile: `app/src/main/java/nodomain/freeyourgadget/gadgetbridge/devices/garmin/watches/vivoactive/GarminVivoActive6Coordinator.java`,
     mlr: "preferred",
+    newSyncProtocol: true,
   },
   {
     id: "garmin_vivoactive_hr",
@@ -2373,6 +2386,11 @@ const MODEL_BY_ID = new Map<GarminModelId, GarminModel>(
 /** Looks up a Garmin model by upstream id. */
 export function getGarminModel(id: GarminModelId): GarminModel | undefined {
   return MODEL_BY_ID.get(id);
+}
+
+/** True when the model syncs with the protobuf new sync protocol. */
+export function usesGarminNewSyncProtocol(id: GarminModelId): boolean {
+  return MODEL_BY_ID.get(id)?.newSyncProtocol === true;
 }
 
 /** The model's MLR preference; `"off"` unless the registry says otherwise. */
