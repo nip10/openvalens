@@ -1,5 +1,6 @@
 import { readdir } from "node:fs/promises";
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
+import { executeGoals } from "@openvalens/ai/tools/goals";
 import { executeTrackers } from "@openvalens/ai/tools/trackers";
 import { ROLE_PERMISSION_PRESETS, isRole } from "@openvalens/auth/access/roles";
 import { clearRegisteredAuth, setRegisteredAuth, type Auth } from "@openvalens/auth";
@@ -7,9 +8,11 @@ import { deleteSubjectData } from "@openvalens/data-rights/delete";
 import { exportSubjectData } from "@openvalens/data-rights/export";
 import { createDb, sql, type Database } from "@openvalens/db";
 import { createStructuredLogger } from "@openvalens/observability";
+import { addDays, localDateIn } from "@openvalens/trackers/model";
 import { RPCHandler } from "@orpc/server/fetch";
 
 import type { Context } from "./context";
+import { loadInsightEngineInput } from "./insights";
 import { appRouter } from "./routers/index";
 
 /**
@@ -185,6 +188,9 @@ describe.skipIf(!url)("custom trackers over RPC and PostgreSQL", () => {
   });
 
   beforeEach(async () => {
+    // Goals restrict deleting their owner, so the organization (which
+    // cascades to goals) goes first.
+    await db.execute(sql`delete from organization`);
     await db.execute(sql`delete from "user"`);
     await db.execute(sql`delete from organization`);
     await db.execute(sql`insert into "user" (id, email, name) values
@@ -464,6 +470,234 @@ describe.skipIf(!url)("custom trackers over RPC and PostgreSQL", () => {
     // Turning the switch off hides it at once.
     await call("trackers/update", { id: visible.id, aiVisible: false });
     expect(await coachTrackerNames("user-a", "org-a")).toEqual([]);
+  });
+
+  // ─── Goals on trackers (#451) ───────────────────────────────
+
+  let mutationSeq = 0;
+  const mutationId = () =>
+    `00000000-0000-4000-8000-${String((mutationSeq += 1)).padStart(12, "0")}`;
+  const today = () => localDateIn(new Date(), ZONE);
+  function trackerGoal(
+    trackerId: string,
+    rule: Record<string, unknown>,
+    unit: string | null,
+    extra: Record<string, unknown> = {},
+  ) {
+    return {
+      id: "client-id",
+      title: "Tracker goal",
+      source: "tracker",
+      metric: `tracker:${trackerId}`,
+      unit,
+      rule,
+      startDate: addDays(today(), -1),
+      timeZone: ZONE,
+      status: "active",
+      ...extra,
+    };
+  }
+  const createGoal = (definition: unknown, user = "user-a") =>
+    call("goals/create", { definition, clientMutationId: mutationId() }, user);
+  const doneStreak = (targetDays: number) => ({
+    kind: "streak",
+    target: { kind: "minimum", value: 1 },
+    targetDays,
+  });
+
+  test("a goal on a number tracker counts the day's entries combined the tracker's way", async () => {
+    const reading = (await create({ name: "Reading", icon: "book", type: "number", unit: "pages" }))
+      .body;
+    await call("trackers/log", { trackerId: reading.id, value: 12, timeZone: ZONE });
+    await call("trackers/log", { trackerId: reading.id, value: 10, timeZone: ZONE });
+
+    const created = await createGoal(
+      trackerGoal(
+        reading.id,
+        { kind: "recurring", cadence: "daily", completion: { kind: "minimum", value: 20 } },
+        "pages",
+      ),
+    );
+    expect(created.status).toBe(200);
+    expect(created.body.sourceLocked).toBe(true);
+    expect(created.body.evaluation.days.at(-1)).toMatchObject({
+      date: today(),
+      state: "qualifies",
+      value: 22,
+    });
+    const detail = await call("goals/detail", { id: created.body.id });
+    expect(detail.status).toBe(200);
+    expect(detail.body.evidence).toEqual([
+      expect.objectContaining({ source: "tracker", dateOnly: today(), value: 22 }),
+    ]);
+
+    // A new entry updates the goal on the next read.
+    await call("trackers/log", { trackerId: reading.id, value: 3, timeZone: ZONE });
+    const listed = await call("goals/list", {});
+    expect(listed.body[0].evaluation.days.at(-1)).toMatchObject({ value: 25 });
+
+    // Goals stay owner-only: another member of the workspace never sees it.
+    expect((await call("goals/detail", { id: created.body.id }, "user-b")).status).toBe(404);
+    expect((await call("goals/list", {}, "user-b")).body).toEqual([]);
+
+    // The unit must be the tracker's.
+    expect(
+      (
+        await createGoal(
+          trackerGoal(reading.id, { kind: "target", target: { kind: "minimum", value: 5 } }, "kg"),
+        )
+      ).status,
+    ).toBe(400);
+  });
+
+  test("only the member's own trackers can back a goal, even a shared one", async () => {
+    const shared = (await create({ ...sauna, name: "Bruno sauna", shared: true }, "user-b")).body;
+    expect(
+      (
+        await createGoal(
+          trackerGoal(shared.id, { kind: "target", target: { kind: "minimum", value: 20 } }, "min"),
+        )
+      ).status,
+    ).toBe(400);
+    const elsewhere = (await create(sauna, "user-d")).body;
+    expect((await createGoal(trackerGoal(elsewhere.id, doneStreak(3), "min"))).status).toBe(400);
+  });
+
+  test("duration goals compare minutes; a 1-5 scale only gets a logged-it streak", async () => {
+    const saunaId = (await create(sauna)).body.id as string;
+    await call("trackers/log", { trackerId: saunaId, value: 900, timeZone: ZONE });
+    await call("trackers/log", { trackerId: saunaId, value: 600, timeZone: ZONE });
+    const minutes = await createGoal(
+      trackerGoal(saunaId, { kind: "target", target: { kind: "minimum", value: 20 } }, "min"),
+    );
+    expect(minutes.status).toBe(200);
+    expect(minutes.body.evaluation).toMatchObject({ achieved: true, currentValue: 25 });
+
+    const mood = (await create({ template: "mood", name: "Mood", icon: "smile", type: "scale" }))
+      .body;
+    await call("trackers/log", { trackerId: mood.id, value: 2, timeZone: ZONE });
+    for (const rule of [
+      { kind: "average", target: { kind: "minimum", value: 4 }, windowDays: 7 },
+      { kind: "target", target: { kind: "minimum", value: 4 } },
+      { kind: "recurring", cadence: "daily" },
+      { kind: "streak", target: { kind: "minimum", value: 4 }, targetDays: 3 },
+    ])
+      expect((await createGoal(trackerGoal(mood.id, rule, null))).status).toBe(400);
+    const streak = await createGoal(trackerGoal(mood.id, doneStreak(5), null));
+    expect(streak.status).toBe(200);
+    expect(streak.body.evaluation.days.at(-1)).toMatchObject({ state: "qualifies", value: null });
+    expect(streak.body.evaluation.currentStreak).toBe(1);
+
+    // An edit cannot reach a value rule either.
+    expect(
+      (
+        await call("goals/update", {
+          id: streak.body.id,
+          version: streak.body.version,
+          definition: trackerGoal(
+            mood.id,
+            {
+              kind: "average",
+              target: { kind: "minimum", value: 4 },
+            },
+            null,
+          ),
+          clientMutationId: mutationId(),
+        })
+      ).status,
+    ).toBe(400);
+  });
+
+  test("yes/no goals count yes days; a no-only day does not qualify", async () => {
+    const flossed = (
+      await create({ template: "flossed", name: "Flossed", icon: "sparkles", type: "yes_no" })
+    ).body;
+    const yesterday = addDays(today(), -1);
+    await call("trackers/log", {
+      trackerId: flossed.id,
+      value: 0,
+      timeZone: ZONE,
+      loggedAt: `${yesterday}T12:00:00+00:00`,
+    });
+    await call("trackers/log", { trackerId: flossed.id, value: 0, timeZone: ZONE });
+    await call("trackers/log", { trackerId: flossed.id, value: 1, timeZone: ZONE });
+    expect(
+      (
+        await createGoal(
+          trackerGoal(
+            flossed.id,
+            { kind: "recurring", cadence: "daily", completion: { kind: "minimum", value: 1 } },
+            null,
+          ),
+        )
+      ).status,
+    ).toBe(400);
+    const goal = await createGoal(
+      trackerGoal(flossed.id, { kind: "recurring", cadence: "daily" }, null),
+    );
+    expect(goal.status).toBe(200);
+    expect(
+      goal.body.evaluation.days.map((day: { date: string; state: string }) => [
+        day.date,
+        day.state,
+      ]),
+    ).toEqual([
+      [yesterday, "does-not-qualify"],
+      [today(), "qualifies"],
+    ]);
+  });
+
+  test("tracker goals count toward goal progress, and AI-private ones stay away from the Coach", async () => {
+    const mood = (await create({ template: "mood", name: "Mood", icon: "smile", type: "scale" }))
+      .body;
+    expect(mood.aiVisible).toBe(false);
+    await call("trackers/log", { trackerId: mood.id, value: 3, timeZone: ZONE });
+    const goal = await createGoal({
+      ...trackerGoal(mood.id, doneStreak(4), null),
+      title: "Mood check-in streak",
+    });
+    expect(goal.status).toBe(200);
+
+    const input = await loadInsightEngineInput(
+      db,
+      { organizationId: "org-a", userId: "user-a" },
+      { weight: false, goals: true },
+      today(),
+    );
+    expect(input.goals?.result).toMatchObject({
+      status: "available",
+      score: 25,
+      goals: [
+        {
+          goalId: goal.body.id,
+          title: "Mood check-in streak",
+          state: "scored",
+          currentValue: 1,
+          targetValue: 4,
+        },
+      ],
+    });
+    // Another member's goal progress never includes it.
+    const other = await loadInsightEngineInput(
+      db,
+      { organizationId: "org-a", userId: "user-b" },
+      { weight: false, goals: true },
+      today(),
+    );
+    expect(other.goals?.result.goals).toEqual([]);
+
+    const coach = await executeGoals(
+      {
+        db,
+        organizationId: "org-a",
+        userId: "user-a",
+        canReadRecords: async () => true,
+        accessGate: async () => ({ allowed: true, includeNutritionNumbers: true }),
+        logger: createStructuredLogger({ level: "error" }),
+      },
+      {},
+    );
+    expect(JSON.stringify(coach)).not.toContain("Mood check-in streak");
   });
 
   test("erasure covers both tables for the member only", async () => {
