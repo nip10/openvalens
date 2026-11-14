@@ -169,7 +169,11 @@ export function createBtClassicAdapter(
       try {
         if (signal?.aborted) throw new Error("BT_CLASSIC_CANCELLED");
         onListening?.();
-        const accepted = await module.accept(serverId, timeoutMs).catch(rethrowCoded);
+        const accepted = await module.accept(serverId, timeoutMs).catch((error: unknown) => {
+          // An abort can close the server before the native accept starts.
+          if (signal?.aborted) throw new Error("BT_CLASSIC_CANCELLED", { cause: error });
+          return rethrowCoded(error);
+        });
         const socketId = accepted?.socketId;
         if (typeof socketId !== "string") throw new Error("BT_CLASSIC_ACCEPT_FAILED");
         const link = socketLink(module, socketId);

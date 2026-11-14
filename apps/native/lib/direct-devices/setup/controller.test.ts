@@ -1731,16 +1731,26 @@ test("an Edge bike computer offers history sync only where Bluetooth Classic is 
       throw new Error("BT_CLASSIC_UNSUPPORTED");
     },
   });
-  for (const [deviceName, supported, expected] of [
-    ["Edge 520 Plus", true, true],
-    ["Edge 520 Plus", false, false],
+  const v1Services = async () => [{ uuid: "6a4e2401-667b-11e3-949a-0800200c9a66" }];
+  const v1Characteristics = async (service: string) =>
+    service === "6a4e2401-667b-11e3-949a-0800200c9a66"
+      ? [
+          { uuid: "6a4ecd28-667b-11e3-949a-0800200c9a66" },
+          { uuid: "6a4e4c80-667b-11e3-949a-0800200c9a66" },
+        ]
+      : [];
+  for (const [deviceName, supported, expected, ml] of [
+    ["Edge 520 Plus", true, true, true],
+    ["Edge 520 Plus", false, false, true],
+    // The BLE session (which finds the Classic address) needs the ML transport.
+    ["Edge 520 Plus", true, false, false],
     // The eTrex SE is not a GarminBikeComputerCoordinator upstream.
-    ["eTrex SE", true, false],
+    ["eTrex SE", true, false, true],
   ] as const) {
     const f = fixture({
       deviceName,
-      services: garminServices,
-      characteristics: garminCharacteristics,
+      services: ml ? garminServices : v1Services,
+      characteristics: ml ? garminCharacteristics : v1Characteristics,
       onHistorySample: () => undefined,
       btClassicAdapter: btClassic(supported),
     });

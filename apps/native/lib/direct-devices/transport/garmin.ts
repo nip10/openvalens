@@ -35,6 +35,7 @@ import {
   GARMIN_DOWNLOAD_STATUS,
   GarminCobsDecoder,
   GARMIN_FILE_FLAG,
+  GARMIN_FIT_DATA_TYPE,
   GARMIN_ML_REQUEST,
   GARMIN_ML_SERVICE_GFDI,
   GARMIN_MESSAGE,
@@ -371,8 +372,12 @@ export class GarminSession {
     const directory = await this.downloadFile(0);
     const entries = parseGarminDirectory(directory);
     const rfcomm = this.options.onDirectoryWithoutFitFiles;
-    // FileTransferHandler: no entry of data type 128 (FIT) moves the sync to RFCOMM.
-    if (rfcomm && this.classicAddress && !entries.some((entry) => entry.dataType === 128)) {
+    // FileTransferHandler: no FIT entry moves the sync to RFCOMM.
+    if (
+      rfcomm &&
+      this.classicAddress &&
+      !entries.some((entry) => entry.dataType === GARMIN_FIT_DATA_TYPE)
+    ) {
       if (!(await rfcomm(this.classicAddress, this.abort.signal))) this.stalled = true;
       return;
     }

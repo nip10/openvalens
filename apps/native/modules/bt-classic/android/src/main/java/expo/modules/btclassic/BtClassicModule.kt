@@ -48,6 +48,8 @@ class BtClassicModule : Module() {
 
   private val sockets = ConcurrentHashMap<String, SocketEntry>()
   private val servers = ConcurrentHashMap<String, ServerEntry>()
+  /** Servers open or opening; reserved on the caller thread, freed by closeServer. */
+  private val serverSlots = AtomicInteger(0)
   /** ACTION_UUID receivers still waiting; unregistered on settle or destroy. */
   private val uuidReceivers = ConcurrentHashMap.newKeySet<BroadcastReceiver>()
   private val pendingConnects = ConcurrentHashMap<String, BluetoothSocket>()
@@ -258,30 +260,41 @@ class BtClassicModule : Module() {
         promise.reject("BT_CLASSIC_INVALID_UUID", uuid, error)
         return@AsyncFunction
       }
-      if (servers.size >= MAX_SERVERS) {
+      // Reserve a slot before the executor runs, so concurrent listens cannot
+      // exceed the cap; released when the server closes or listen fails.
+      if (serverSlots.incrementAndGet() > MAX_SERVERS) {
+        serverSlots.decrementAndGet()
         promise.reject("BT_CLASSIC_BUSY", null, null)
         return@AsyncFunction
       }
-      connectExecutor.execute {
-        val server = try {
-          if (secure) adapter.listenUsingRfcommWithServiceRecord(name, serviceUuid)
-          else adapter.listenUsingInsecureRfcommWithServiceRecord(name, serviceUuid)
-        } catch (error: SecurityException) {
-          promise.reject("BT_CLASSIC_PERMISSION", error.message, error)
-          return@execute
-        } catch (error: IOException) {
-          promise.reject("BT_CLASSIC_LISTEN_FAILED", error.message, error)
-          return@execute
+      try {
+        connectExecutor.execute {
+          val server = try {
+            if (secure) adapter.listenUsingRfcommWithServiceRecord(name, serviceUuid)
+            else adapter.listenUsingInsecureRfcommWithServiceRecord(name, serviceUuid)
+          } catch (error: SecurityException) {
+            serverSlots.decrementAndGet()
+            promise.reject("BT_CLASSIC_PERMISSION", error.message, error)
+            return@execute
+          } catch (error: Throwable) {
+            // Anything escaping a pool thread would kill the process.
+            serverSlots.decrementAndGet()
+            promise.reject("BT_CLASSIC_LISTEN_FAILED", error.message, error)
+            return@execute
+          }
+          val id = "server-${nextId.getAndIncrement()}"
+          servers[id] = ServerEntry(server)
+          // OnDestroy may have swept the map before this entry landed.
+          if (destroyed.get()) {
+            closeServer(id)
+            promise.reject("BT_CLASSIC_CANCELLED", null, null)
+            return@execute
+          }
+          promise.resolve(id)
         }
-        val id = "server-${nextId.getAndIncrement()}"
-        servers[id] = ServerEntry(server)
-        // OnDestroy may have swept the map before this entry landed.
-        if (destroyed.get()) {
-          closeServer(id)
-          promise.reject("BT_CLASSIC_CANCELLED", null, null)
-          return@execute
-        }
-        promise.resolve(id)
+      } catch (error: java.util.concurrent.RejectedExecutionException) {
+        serverSlots.decrementAndGet()
+        promise.reject("BT_CLASSIC_CANCELLED", null, error)
       }
     }
 
@@ -321,14 +334,22 @@ class BtClassicModule : Module() {
       val device = adapter.getRemoteDevice(address)
       val settled = AtomicBoolean(false)
       val receiver = object : BroadcastReceiver() {
+        // Runs on the main thread: nothing may escape it.
         override fun onReceive(context: Context, intent: Intent) {
-          if (intent.action != BluetoothDevice.ACTION_UUID) return
-          val found = deviceExtra(intent) ?: return
-          if (!found.address.equals(address, ignoreCase = true)) return
-          if (settled.compareAndSet(false, true)) {
-            dropUuidReceiver(this)
-            promise.resolve(uuidExtra(intent) ?: cachedUuids(device))
-          }
+          try {
+            if (intent.action != BluetoothDevice.ACTION_UUID) return
+            val found = deviceExtra(intent) ?: return
+            if (!found.address.equals(address, ignoreCase = true)) return
+            if (settled.compareAndSet(false, true)) {
+              dropUuidReceiver(this)
+              val uuids = try {
+                uuidExtra(intent)
+              } catch (_: Exception) {
+                null
+              }
+              promise.resolve(uuids ?: cachedUuids(device))
+            }
+          } catch (_: Exception) {}
         }
       }
       try {
@@ -498,6 +519,12 @@ class BtClassicModule : Module() {
       }
       val id = "rfcomm-${nextId.getAndIncrement()}"
       sockets[id] = SocketEntry(socket)
+      // OnDestroy may have swept the sockets before this entry landed.
+      if (destroyed.get()) {
+        closeEntry(id, "local", null)
+        promise.reject("BT_CLASSIC_CANCELLED", null, null)
+        return
+      }
       promise.resolve(mapOf("socketId" to id, "address" to address))
     } catch (error: IOException) {
       watchdog.interrupt()
@@ -515,12 +542,19 @@ class BtClassicModule : Module() {
       settled.set(true)
       closeServer(serverId)
       promise.reject("BT_CLASSIC_PERMISSION", error.message, error)
+    } catch (error: Throwable) {
+      // Anything escaping a pool thread would kill the process.
+      watchdog.interrupt()
+      settled.set(true)
+      closeServer(serverId)
+      promise.reject("BT_CLASSIC_ACCEPT_FAILED", error.message, error)
     }
   }
 
   /** Idempotent; closing aborts a blocking accept() on another thread. */
   private fun closeServer(serverId: String) {
     val entry = servers.remove(serverId) ?: return
+    serverSlots.decrementAndGet()
     if (!entry.closed.compareAndSet(false, true)) return
     try {
       entry.server.close()
@@ -536,8 +570,10 @@ class BtClassicModule : Module() {
 
   @Suppress("DEPRECATION")
   private fun uuidExtra(intent: Intent): List<String>? {
+    // The typed overload is unreliable on API 33 (AndroidX IntentCompat only
+    // uses it from 34), so take the untyped one below that.
     val values: Array<out android.os.Parcelable>? =
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
         intent.getParcelableArrayExtra(BluetoothDevice.EXTRA_UUID, ParcelUuid::class.java)
       } else {
         intent.getParcelableArrayExtra(BluetoothDevice.EXTRA_UUID)

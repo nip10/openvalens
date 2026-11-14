@@ -651,6 +651,9 @@ export function isGarminDirectorySentinel(entry: GarminDirectoryEntry): boolean 
   );
 }
 
+/** FIT files have data type 128 (`FileTransferHandler`: `hasFitFiles |= fileDataType == 128`). */
+export const GARMIN_FIT_DATA_TYPE = 128;
+
 /** True when the entry is a directory (`0/0`). */
 export function isGarminDirectoryType(entry: GarminDirectoryEntry): boolean {
   return (
