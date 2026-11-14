@@ -57,8 +57,10 @@ export function quickActionKind(
   | "water-diary"
   | "supplement-intake"
   | "sleep-records"
-  | "workout-records" {
+  | "workout-records"
+  | "tracker-entries" {
   if (status !== "active") return "none";
+  if (source === "tracker") return "tracker-entries";
   if (source === "manual")
     return (rule.kind === "recurring" || rule.kind === "streak") && !unit
       ? "manual-completion"

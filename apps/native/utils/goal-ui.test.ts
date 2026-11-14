@@ -61,6 +61,9 @@ describe("native Goals presentation and safe actions", () => {
         target: { kind: "minimum", value: 100 },
       }),
     ).toBe("workout-records");
+    expect(goalActionKind("tracker", "active", { kind: "recurring", cadence: "daily" })).toBe(
+      "tracker-entries",
+    );
     expect(goalActionKind("manual", "paused", { kind: "recurring", cadence: "daily" })).toBe(
       "none",
     );
