@@ -230,13 +230,11 @@ for app functionality.
 
 PR #498 reads two more HealthKit types, each asked for only when the person
 links a tracker: Mindful Minutes (`HKCategoryTypeIdentifierMindfulSession`)
-and State of Mind (`HKStateOfMindTypeIdentifier`, iOS 18 and later). It
-changes `NSHealthShareUsageDescription` in `app.json` to "OpenValens reads
-your health data from Apple Health to keep your health record, and the
-trackers you link to Apple Health, up to date." App Review checks that the
-purpose string covers each type the app asks for. `[CONFIRM]` whether to name
-the new types, for example "…to keep your health record up to date, and to
-fill the trackers you link, such as mindful minutes and your daily mood." No
+and State of Mind (`HKStateOfMindTypeIdentifier`, iOS 18 and later). `NSHealthShareUsageDescription` in `app.json` names both types, since App
+Review checks that the purpose string covers each type the app asks for:
+"OpenValens reads your health data from Apple Health to keep your health
+record up to date, and to fill the trackers you link, such as mindful minutes
+and your daily mood." No
 App Privacy answer changes.
 
 Add to App Review Information › Notes for the 1.2.0 submission:
