@@ -497,11 +497,13 @@ describe("positioning (#445)", () => {
     const html = await readFile(join(outDir, "index.html"), "utf8");
     const headline = /<h2 id="devices-title">\s*([\s\S]*?)\s*<\/h2>/.exec(html)?.[1];
     expect(headline?.replace(/\s+/g, " ")).toBe(
-      "Works with Garmin, Huawei, Amazfit, Pebble and more, without their apps.",
+      "Works with Garmin, Huawei, Amazfit and more, without their apps.",
     );
     expect(headline).not.toMatch(/\d/);
     const brands = registeredBrands();
-    for (const brand of ["Garmin", "Huawei", "Amazfit", "Pebble"]) expect(brands).toContain(brand);
+    for (const brand of ["Garmin", "Huawei", "Amazfit"]) expect(brands).toContain(brand);
+    // Every Pebble model is Experimental, so Pebble is not a headline brand (owner, 2026-11-14).
+    expect(headline).not.toContain("Pebble");
     expect(html).toContain('href="/devices"');
   });
 
