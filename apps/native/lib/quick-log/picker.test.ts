@@ -178,7 +178,7 @@ describe("kindOpening", () => {
     expect(kindOpening(kind("drink:espresso"))).toBe("screen");
     expect(kind("drink:espresso").paths.native).toBe("/nutrition");
     expect(kindOpening(kind("pain"))).toBe("screen");
-    expect(kind("pain").paths.native).toBe("/body-map");
+    expect(kind("pain").paths.native).toBe("/body-map?layer=pain");
     expect(opensInPicker(kind("tracker:sauna-1"))).toBe(true);
     expect(opensInPicker(kind("lab_result"))).toBe(false);
   });
