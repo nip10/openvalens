@@ -216,6 +216,12 @@ simulation (`insight-rules-trackers.test.ts`), its yes/no trackers logged on a
 few days a week now take this path, which moves it from about one per 1,900
 days to about one per 1,300.
 
+A personal goal's insight follows its source's module (#500): water goals
+need Food & water, sleep goals Sleep, supplement goals Supplements and workout
+goals Activity. While that module is hidden the goal produces no insight in the
+app, by push or by email. Manual goals, older goals and custom-tracker goals
+belong to no module, like the custom-tracker change insights.
+
 ## Nutrition timing observations (#84)
 
 These optional in-app observations compare meal timestamps from completed
