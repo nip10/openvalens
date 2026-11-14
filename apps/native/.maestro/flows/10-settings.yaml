@@ -25,8 +25,10 @@ tags: [settings]
     env:
       SELECT: "language-select"
       OPTION: "language-pt-PT"
-- extendedWaitUntil:
-    visible: "Idioma da interface"
+# The label sits above the select; picking can leave it scrolled off the top.
+- scrollUntilVisible:
+    element: "Idioma da interface"
+    direction: UP
     timeout: 10000
 - takeScreenshot: 10-language-pt-PT
 # Settings is a drawer screen without the tab bar (#440).
@@ -44,8 +46,10 @@ tags: [settings]
     env:
       SELECT: "language-select"
       OPTION: "language-en"
-- extendedWaitUntil:
-    visible: "Interface language"
+# The label sits above the select; picking can leave it scrolled off the top.
+- scrollUntilVisible:
+    element: "Interface language"
+    direction: UP
     timeout: 10000
 
 # Units and formats: lab units in mmol/L, dates as in the UK, then back
