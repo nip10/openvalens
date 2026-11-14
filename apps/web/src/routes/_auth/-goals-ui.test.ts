@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { GoalDefinition } from "@openvalens/plans/goal-model";
 import type { GoalEvaluation } from "@openvalens/plans/goal-evaluation";
+import { trackerGoalProblem } from "@openvalens/plans/goal-tracker";
 import {
   canEditEvidenceSource,
   checkinCorrectionPayload,
@@ -91,6 +92,10 @@ describe("Goals presentation decisions", () => {
     expect(quickActionKind("manual", "active", { kind: "recurring", cadence: "daily" }, null)).toBe(
       "manual-completion",
     );
+    // Tracker goals are logged in the tracker, never as goal check-ins (#451).
+    expect(
+      quickActionKind("tracker", "active", { kind: "recurring", cadence: "daily" }, null),
+    ).toBe("tracker-entries");
   });
 
   test("the server lock controls source editing and older receipts fail closed", () => {
@@ -115,6 +120,28 @@ describe("Goals presentation decisions", () => {
       threshold: 1,
     });
     expect(rule).toEqual({ kind: "recurring", cadence: "daily" });
+  });
+
+  test("the editor's done-day rules are the ones yes/no and scale tracker goals accept (#451)", () => {
+    const base = {
+      source: "tracker" as const,
+      cadence: "daily" as const,
+      weekdays: [],
+      daysPerWeek: 3,
+      // A stale amount typed before choosing the tracker must not leak in.
+      comparator: { kind: "minimum" as const, value: 4 },
+      streakDays: 5,
+      windowDays: 7,
+      targetDate: "",
+      recurringMode: "completion" as const,
+      threshold: 4,
+    };
+    const streak = buildRule({ ...base, kind: "streak" });
+    const recurring = buildRule({ ...base, kind: "recurring" });
+    const goal = (rule: GoalDefinition["rule"]) => ({ rule, unit: null, milestones: [] });
+    expect(trackerGoalProblem(goal(streak), { type: "scale", unit: null })).toBeNull();
+    expect(trackerGoalProblem(goal(streak), { type: "yes_no", unit: null })).toBeNull();
+    expect(trackerGoalProblem(goal(recurring), { type: "yes_no", unit: null })).toBeNull();
   });
 
   test("corrections choose one representation and blank numeric values stay invalid", () => {

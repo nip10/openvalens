@@ -398,7 +398,7 @@ interface ReducedDay {
   count: number;
   versionId?: string;
 }
-/** Daily source semantics: water/sleep sum; workout max; manual uses explicit daily values/completion; supplement counts once per day. */
+/** Daily source semantics: water/sleep sum; workout max; manual uses explicit daily values/completion; supplement counts once per day; tracker evidence arrives already combined per day (`trackerGoalEvidence`), so the latest record is the day. */
 export function reduceGoalEvidence(
   goal: GoalDefinition,
   evidence: readonly GoalEvidence[],
@@ -429,7 +429,7 @@ export function reduceGoalEvidence(
     if (numeric.length) {
       if (goal.source === "workout") value = Math.max(...numeric);
       else if (goal.source === "supplement") value = Math.max(...numeric); // one daily credit regardless of doses
-      else if (goal.source === "manual") {
+      else if (goal.source === "manual" || goal.source === "tracker") {
         const latest = [...selected].sort(compareEvidenceOccurrence).at(-1);
         value =
           typeof latest?.value === "number" && Number.isFinite(latest.value) ? latest.value : null;

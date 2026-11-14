@@ -2,6 +2,7 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import type { I18n } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import type { GoalDetail } from "@openvalens/plans/personal-goals";
+import { trackerIdFromGoalMetric } from "@openvalens/plans/goal-tracker";
 import { Button } from "@openvalens/ui/components/button";
 import { Input } from "@openvalens/ui/components/input";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -400,6 +401,21 @@ function SourceAction({ goal }: { goal: GoalDetail }) {
         <Link className="text-signal underline" to="/workouts">{t`View workouts`}</Link>
       </p>
     );
+  if (goal.definition.source === "tracker") {
+    const trackerId = trackerIdFromGoalMetric(goal.definition.metric);
+    return (
+      <p className="mt-3 text-sm text-ink-3">
+        {t`Tracker entries count automatically, combined per day the way the tracker combines them.`}{" "}
+        {trackerId ? (
+          <Link
+            className="text-signal underline"
+            to="/trackers/$trackerId"
+            params={{ trackerId }}
+          >{t`Open the tracker`}</Link>
+        ) : null}
+      </p>
+    );
+  }
   return null;
 }
 
@@ -727,6 +743,7 @@ function sourceDescription(goal: GoalDetail, i18n: I18n) {
   if (source === "water") return i18n._(msg`Water diary · linked daily target`);
   if (source === "sleep") return i18n._(msg`Sleep imports · local wake dates`);
   if (source === "supplement") return i18n._(msg`Actual supplement intake`);
+  if (source === "tracker") return i18n._(msg`Custom tracker · the tracker's days`);
   return i18n._(msg`Matched exercise · actual lifts only`);
 }
 

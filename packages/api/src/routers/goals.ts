@@ -6,6 +6,7 @@ import {
   PersonalGoalConflictError,
   PersonalGoalNotFoundError,
   PersonalGoalValidationError,
+  GOAL_SOURCES,
   validateGoalDefinition,
   type GoalDefinition,
   type GoalDetail,
@@ -177,7 +178,7 @@ const goalDetailShape: z.ZodType<GoalDetail> = goalSummaryObject.extend({
   evidence: z.array(
     z.object({
       id: z.string(),
-      source: z.enum(["manual", "water", "supplement", "workout", "sleep"]),
+      source: z.enum(GOAL_SOURCES),
       metric: z.string(),
       occurredAt: z.string().optional(),
       dateOnly: z.string().optional(),
