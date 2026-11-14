@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 
+import { overlapsDeviceWorkout } from "@openvalens/activity/device-overlap";
 import { writeAuditLog } from "@openvalens/audit-security";
 import type { Database } from "@openvalens/db";
 import { aiAppDraft, aiAppEntry, aiAppGrant } from "@openvalens/db/schema/ai-apps";
@@ -112,9 +113,10 @@ import { weightInKg } from "./presenters/quick-log";
  *
  * Device data always wins and is never changed: a reading within ten minutes
  * of a device reading of the same metric (the blood pressure rule,
- * `@openvalens/vitals`), a night overlapping a device night (#440) and a
- * tracker entry within ten minutes of one imported from a phone platform are
- * possible duplicates.
+ * `@openvalens/vitals`), a night overlapping a device night (#440), a
+ * workout on the day of a device workout of about the same length
+ * (`@openvalens/activity/device-overlap`) and a tracker entry within ten
+ * minutes of one imported from a phone platform are possible duplicates.
  */
 
 const ML_PER: Record<WaterEntryInput["unit"], number> = { ml: 1, l: 1000, fl_oz: 29.5735295625 };
@@ -620,11 +622,18 @@ function workoutWriter(db: Database): AiDomainWriter<WorkoutEntryInput> {
             },
           ),
         );
+        const possibleDuplicate = await overlapsDeviceWorkout(db, {
+          organizationId: context.scope.organizationId,
+          userId: context.scope.userId,
+          date: entry.date,
+          timeZone: context.timeZone,
+          durationMinutes: entry.duration ?? null,
+        });
         return {
           kind: "workout",
           targetTable: "workout",
           targetIds: [saved.id],
-          possibleDuplicate: false,
+          possibleDuplicate,
         };
       } catch (error) {
         if (error instanceof WorkoutExerciseNotFoundError)

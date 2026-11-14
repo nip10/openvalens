@@ -1,8 +1,10 @@
 import type { Database } from "@openvalens/db";
+import { aiAppEntry } from "@openvalens/db/schema/ai-apps";
 import { healthEvent } from "@openvalens/db/schema/health-record";
 import { workout, workoutExercise, workoutSet } from "@openvalens/db/schema/plans";
-import { and, eq, gte, isNull, lte, sql } from "drizzle-orm";
+import { and, eq, gte, isNull, lte, notExists, sql } from "drizzle-orm";
 
+import { deviceWorkoutMinutes } from "./device-overlap";
 import type { ActivityIntensity, ActivitySession } from "./load";
 
 const INTENSITIES = new Set<string>(["light", "moderate", "vigorous"]);
@@ -12,7 +14,10 @@ const INTENSITIES = new Set<string>(["light", "moderate", "vigorous"]);
  * YYYY-MM-DD) for one workspace, as inputs for `computeWeeklyActivityLoad`.
  *
  * - Manual sessions: `workout` rows with their self-reported intensity,
- *   effort rating and strength volume (Σ reps × kg over weighted sets).
+ *   effort rating and strength volume (Σ reps × kg over weighted sets). A
+ *   workout an AI app wrote that matched a device workout when it was written
+ *   (`ai_app_entry.possible_duplicate`, #439) is left out, so the device
+ *   workout counts and the session is not counted twice.
  * - Device sessions: wearable `health_event` workouts that are not
  *   superseded. They carry a duration but no intensity or rating yet, so they
  *   only show up as minutes without an intensity in the coverage.
@@ -68,6 +73,19 @@ export async function listActivitySessions(
         eq(workout.userId, userId),
         gte(workout.date, range.from),
         lte(workout.date, range.to),
+        notExists(
+          db
+            .select({ id: aiAppEntry.id })
+            .from(aiAppEntry)
+            .where(
+              and(
+                eq(aiAppEntry.organizationId, workout.organizationId),
+                eq(aiAppEntry.targetTable, "workout"),
+                eq(aiAppEntry.possibleDuplicate, true),
+                sql`${workout.id} = any(${aiAppEntry.targetIds})`,
+              ),
+            ),
+        ),
       ),
     );
 
@@ -103,14 +121,12 @@ export async function listActivitySessions(
     strengthVolumeKg: row.volumeKg === null ? null : Number(row.volumeKg),
   }));
   for (const row of devices) {
-    const end = row.endAt ? Date.parse(row.endAt) : Number.NaN;
-    const minutes = Math.round((end - row.eventAt.getTime()) / 60_000);
     sessions.push({
       ref: `health_event:${row.id}`,
       date: row.eventAt.toISOString().slice(0, 10),
       source: `device:${row.dataSourceId ?? "unknown"}`,
       // Implausible or missing end times are unknown, never zero.
-      durationMinutes: Number.isFinite(minutes) && minutes > 0 && minutes <= 1440 ? minutes : null,
+      durationMinutes: deviceWorkoutMinutes(row.eventAt, row.endAt),
       intensity: null,
       intensityMethod: "none",
       effortRating: null,
