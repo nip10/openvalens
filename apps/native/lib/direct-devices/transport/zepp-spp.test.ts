@@ -102,6 +102,10 @@ function fakeWatch(
         ? []
         : [{ address: "aa:bb:cc:dd:ee:01", name: "Balance 3", type: "dual", bonded: true }],
     discover: async () => undefined,
+    fetchUuids: async () => [],
+    listen: async () => {
+      throw new Error("BT_CLASSIC_UNSUPPORTED");
+    },
     openRfcomm: async (args) => {
       opens.push(args);
       await options.openDelay;

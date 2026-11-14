@@ -1507,6 +1507,10 @@ test("a Zepp OS model upstream defaults to SPP syncs over RFCOMM on Android and 
         opened.push(args);
         return (await openRfcomm()) as never;
       },
+      fetchUuids: async () => [],
+      listen: async () => {
+        throw new Error("BT_CLASSIC_UNSUPPORTED");
+      },
     });
 
   // Android with the module: SPP first.
