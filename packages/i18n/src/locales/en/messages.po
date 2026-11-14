@@ -16720,6 +16720,10 @@ msgid "The Garmin watch did not open its data link. Keep it near the phone, rest
 msgstr "The Garmin watch did not open its data link. Keep it near the phone, restart it if this repeats, then sync again."
 
 #: apps/native/components/direct-device-settings.tsx
+msgid "The Garmin watch did not send its file list. Keep it near the phone, then sync again."
+msgstr "The Garmin watch did not send its file list. Keep it near the phone, then sync again."
+
+#: apps/native/components/direct-device-settings.tsx
 msgid "The Garmin watch offered a reliable link this app cannot use. Restart the watch, then sync again."
 msgstr "The Garmin watch offered a reliable link this app cannot use. Restart the watch, then sync again."
 

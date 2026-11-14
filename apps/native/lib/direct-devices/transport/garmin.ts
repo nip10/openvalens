@@ -20,6 +20,12 @@
  * watches expose (`6a4e2800-…`). Devices that only advertise the v0/v1 GFDI
  * services are refused with `GARMIN_ML_REQUIRED` rather than half-supported.
  *
+ * Models whose registry entry sets `newSyncProtocol` sync with the protobuf
+ * "new sync protocol" instead of the legacy directory: after the legacy
+ * directory download (upstream's "flush"), `GarminNewSyncDriver` lists files
+ * over `PROTOBUF_REQUEST`, and each file arrives as a zlib stream on its own
+ * `FILE_TRANSFER_*` ML/MLR service registration (`openTransfer` below).
+ *
  * MLR (Multi-Link Reliable, `MlrCommunicator.java`) is negotiated per service
  * registration: models whose registry entry says `mlr: "preferred"` register
  * GFDI with `reliable = 2`, and whenever the watch grants a reliable handle
@@ -39,7 +45,12 @@
 
 import type { Device } from "react-native-ble-plx";
 
-import { getGarminMlrMode, type GarminMlrMode, type GarminModelId } from "../models/garmin";
+import {
+  getGarminMlrMode,
+  usesGarminNewSyncProtocol,
+  type GarminMlrMode,
+  type GarminModelId,
+} from "../models/garmin";
 import {
   GarminMlrChannel,
   garminMlrRouteHandle,
@@ -61,6 +72,7 @@ import {
   buildGarminDeviceInformationReply,
   buildGarminDownloadRequest,
   buildGarminMlCloseAll,
+  buildGarminMlCloseService,
   buildGarminMlRegisterService,
   buildGarminSetFileFlags,
   buildGarminStatusPayload,
@@ -88,7 +100,14 @@ import {
   type GarminRecord,
   type GarminStatusMessage,
 } from "../protocol/garmin";
+import {
+  GARMIN_FILE_TRANSFER_SERVICES,
+  GarminTransferStream,
+  buildGarminTransferRequest,
+  parseGarminProtobufStatus,
+} from "../protocol/garmin-new-sync";
 import { NativeGarminLink, type GarminBleProfile } from "./garmin-link";
+import { GarminNewSyncDriver } from "./garmin-new-sync";
 
 /** Local watchdog for each request; upstream has no explicit timeout. */
 export const GARMIN_WATCHDOG_MS = 30_000;
@@ -179,6 +198,8 @@ export type GarminSessionOptions = Readonly<{
   modelId: GarminModelId;
   /** Overrides the registry's MLR preference for `modelId`. */
   mlr?: GarminMlrMode;
+  /** Overrides the registry's new-sync-protocol flag for `modelId`. */
+  newSyncProtocol?: boolean;
   onRecord: (record: GarminRecord) => void;
   onFailure?: (failure: GarminFailure) => void;
   timers?: GarminTimers;
@@ -239,6 +260,17 @@ type MlWaiter = {
 /** The registered GFDI handle, and its MLR channel when the grant was reliable. */
 type GfdiBinding = Readonly<{ handle: number; mlr: GarminMlrChannel | null }>;
 
+/** One new-sync file on its `FILE_TRANSFER_*` service registration. */
+type ServiceTransfer = {
+  service: number;
+  handle: number | null;
+  mlr: GarminMlrChannel | null;
+  stream: GarminTransferStream;
+  granted: Deferred<void>;
+  done: Deferred<Uint8Array>;
+  touch: () => void;
+};
+
 const EMPTY = new Uint8Array(0);
 
 /**
@@ -271,6 +303,12 @@ export class GarminSession {
   private reregistering = false;
   /** A failure that ends the session, e.g. GFDI could not be re-registered. */
   private fatal: Error | null = null;
+  /** The new-sync driver, for models that use the protobuf file sync. */
+  private readonly newSync: GarminNewSyncDriver | null;
+  /** The new-sync file in flight. */
+  private serviceTransfer: ServiceTransfer | null = null;
+  /** `FILE_TRANSFER_*` services registered and not yet closed by the watch. */
+  private readonly openTransferServices = new Set<number>();
   private readonly done: Promise<void>;
   private resolveDone!: () => void;
   private rejectDone!: (error: unknown) => void;
@@ -299,6 +337,23 @@ export class GarminSession {
     this.syncState = options.syncState ?? defaultGarminSyncStateStore;
     this.maxFiles = options.maxFiles ?? GARMIN_MAX_FILES_PER_SYNC;
     this.mlrPreferred = (options.mlr ?? getGarminMlrMode(options.modelId)) === "preferred";
+    this.newSync =
+      (options.newSyncProtocol ?? usesGarminNewSyncProtocol(options.modelId))
+        ? new GarminNewSyncDriver({
+            timers: this.timers,
+            watchdogMs: this.watchdogMs,
+            deviceId: options.deviceId,
+            keepOnDevice: this.keepOnDevice,
+            maxFiles: this.maxFiles,
+            maxFileBytes: GARMIN_MAX_FILE_BYTES,
+            syncState: this.syncState,
+            writeFrame: (frame) => this.writeFrame(frame),
+            openTransfer: (handle, maxBytes) => this.openTransfer(handle, maxBytes),
+            onRecord: (record) => this.options.onRecord(record),
+            onFailure: (failure) => this.options.onFailure?.(failure),
+            isClosed: () => this.closed,
+          })
+        : null;
     this.link =
       options.link ?? new NativeGarminLink(options.device, options.profile, options.manager);
     this.done = new Promise<void>((resolve, reject) => {
@@ -319,6 +374,7 @@ export class GarminSession {
           // A failed subscription means the link is gone (upstream's
           // `onConnectionStateChange`): stop MLR's timers.
           this.unbindGfdi();
+          this.endServiceTransfer(new Error("GARMIN_LINK_LOST"));
           this.options.onFailure?.(this.stage);
         },
       );
@@ -345,6 +401,7 @@ export class GarminSession {
     this.unsubscribe?.();
     this.unsubscribe = null;
     this.unbindGfdi();
+    this.endServiceTransfer(new Error("GARMIN_CLOSED"));
     this.failPending(new Error("GARMIN_CLOSED"));
     await this.link.close().catch(() => undefined);
     this.settleResolve();
@@ -372,6 +429,7 @@ export class GarminSession {
     } catch (error) {
       // The chain is over: no MLR channel may keep retransmitting after it.
       this.unbindGfdi();
+      this.endServiceTransfer(error instanceof Error ? error : new Error("GARMIN_SYNC_FAILED"));
       this.options.onFailure?.(this.stage);
       this.settleReject(error);
     }
@@ -518,6 +576,7 @@ export class GarminSession {
   }
 
   private async syncFiles(): Promise<void> {
+    if (this.newSync) return this.syncFilesNewProtocol(this.newSync);
     const directory = await this.downloadFile(0);
     const entries = parseGarminDirectory(directory);
     const rfcomm = this.options.onDirectoryWithoutFitFiles;
@@ -575,6 +634,177 @@ export class GarminSession {
         this.options.onFailure?.("fit");
       }
       await this.archive(entry);
+    }
+  }
+
+  /**
+   * New sync protocol: the legacy root directory first "so that the watch
+   * flushes the data" (`GarminSupport.java:716-717`; its entries are ignored,
+   * `FileTransferHandler.java:252-258`), then the protobuf file list. Unlike
+   * upstream, a failed flush does not block the list (INFERRED; see the note).
+   */
+  private async syncFilesNewProtocol(driver: GarminNewSyncDriver): Promise<void> {
+    try {
+      await this.downloadFile(0);
+    } catch (error) {
+      if (this.closed || this.fatal) throw error;
+    }
+    if (this.closed) return;
+    const result = await driver.sync();
+    if (result.stalled) this.stalled = true;
+  }
+
+  /**
+   * `CommunicatorV2.startTransfer` + `GarminSupport.downloadFileFromServiceV2`:
+   * register the first free `FILE_TRANSFER_*` service (reliable when MLR is
+   * in use), write `00 00 <handle> 00 00` on the grant, collect the stream,
+   * and resolve when the watch closes the handle. The same inactivity
+   * watchdog and overall cap as a legacy file apply.
+   */
+  private async openTransfer(transferHandle: number, maxBytes: number): Promise<Uint8Array> {
+    if (this.closed) throw new Error("GARMIN_CLOSED");
+    const service = GARMIN_FILE_TRANSFER_SERVICES.find(
+      (candidate) => !this.openTransferServices.has(candidate),
+    );
+    if (service === undefined) throw new Error("GARMIN_TRANSFER_SERVICE_BUSY");
+    let idle: unknown = null;
+    const transfer: ServiceTransfer = {
+      service,
+      handle: null,
+      mlr: null,
+      stream: new GarminTransferStream(maxBytes),
+      granted: deferred<void>(),
+      done: deferred<Uint8Array>(),
+      touch: () => {
+        if (idle !== null) this.timers.clearTimeout(idle);
+        idle = this.timers.setTimeout(
+          () => transfer.done.reject(new Error("GARMIN_TRANSFER_TIMEOUT")),
+          this.watchdogMs,
+        );
+      },
+    };
+    this.endServiceTransfer(new Error("GARMIN_TRANSFER_REPLACED"));
+    this.serviceTransfer = transfer;
+    this.openTransferServices.add(service);
+    const cap = this.timers.setTimeout(
+      () => transfer.done.reject(new Error("GARMIN_TRANSFER_TIMEOUT")),
+      GARMIN_TRANSFER_MAX_MS,
+    );
+    let finished = false;
+    try {
+      await this.link.writeRaw(
+        buildGarminMlRegisterService(service, this.mlrPreferred && !this.mlrFallback),
+        this.abort.signal,
+      );
+      await this.withWatchdog(
+        Promise.race([transfer.granted.promise, transfer.done.promise.then(() => undefined)]),
+        "GARMIN_TRANSFER_REGISTER_TIMEOUT",
+      );
+      const handle = transfer.handle!;
+      const request = buildGarminTransferRequest(transferHandle);
+      transfer.touch();
+      if (transfer.mlr) {
+        transfer.mlr.send(request);
+      } else {
+        // `MlServiceWriter.write`: one write, the handle byte first.
+        const packet = new Uint8Array(1 + request.length);
+        packet[0] = handle;
+        packet.set(request, 1);
+        await this.link.writePacket(packet, this.abort.signal);
+      }
+      const bytes = await transfer.done.promise;
+      finished = true;
+      return bytes;
+    } finally {
+      if (idle !== null) this.timers.clearTimeout(idle);
+      this.timers.clearTimeout(cap);
+      if (this.serviceTransfer === transfer) this.serviceTransfer = null;
+      transfer.mlr?.close();
+      if (!finished && transfer.handle !== null && !this.closed) {
+        // Give the handle back; its CLOSE_HANDLE_RESP frees the service id.
+        void this.link
+          .writeRaw(buildGarminMlCloseService(service, transfer.handle), this.abort.signal)
+          .catch(() => undefined);
+      }
+    }
+  }
+
+  /** Fails the in-flight new-sync transfer and stops its MLR channel. */
+  private endServiceTransfer(error: Error): void {
+    const transfer = this.serviceTransfer;
+    if (!transfer) return;
+    this.serviceTransfer = null;
+    transfer.mlr?.close();
+    transfer.granted.reject(error);
+    transfer.done.reject(error);
+  }
+
+  private acceptTransferBytes(transfer: ServiceTransfer, bytes: Uint8Array): void {
+    if (this.serviceTransfer !== transfer) return;
+    try {
+      transfer.stream.accept(bytes);
+    } catch (error) {
+      transfer.done.reject(error);
+      return;
+    }
+    transfer.touch();
+  }
+
+  /** `REGISTER_ML_RESP` for a `FILE_TRANSFER_*` service (`CommunicatorV2:356-431`). */
+  private onTransferGrant(message: GarminMlMessage): void {
+    const service = message.service!;
+    const transfer = this.serviceTransfer;
+    const granted = message.status === 0 && message.handle !== null;
+    if (!transfer || transfer.service !== service || transfer.handle !== null) {
+      // `CommunicatorV2:409-413`: a registration nobody waits for is closed.
+      if (granted) {
+        void this.link
+          .writeRaw(buildGarminMlCloseService(service, message.handle!), this.abort.signal)
+          .catch(() => undefined);
+      }
+      return;
+    }
+    if (!granted) {
+      this.openTransferServices.delete(service);
+      transfer.granted.reject(new Error("GARMIN_TRANSFER_REGISTER_FAILED"));
+      transfer.done.reject(new Error("GARMIN_TRANSFER_REGISTER_FAILED"));
+      return;
+    }
+    const handle = message.handle!;
+    const reliable = (message.reliable ?? 0) !== 0;
+    if (reliable && !isGarminMlrRoutableHandle(handle)) {
+      transfer.handle = handle; // so the cleanup gives it back
+      transfer.done.reject(new Error("GARMIN_MLR_HANDLE"));
+      return;
+    }
+    transfer.handle = handle;
+    transfer.mlr = reliable
+      ? new GarminMlrChannel({
+          handle,
+          maxPacketSize: this.link.maxWriteBytes,
+          timers: this.timers,
+          sendPacket: (packet) => {
+            void this.link.writePacket(packet, this.abort.signal).catch(() => undefined);
+          },
+          onData: (data) => this.acceptTransferBytes(transfer, data),
+        })
+      : null;
+    transfer.granted.resolve();
+  }
+
+  /** `CLOSE_HANDLE_RESP` for a `FILE_TRANSFER_*` service: the file is complete. */
+  private onTransferClosed(message: GarminMlMessage): void {
+    const service = message.service!;
+    this.openTransferServices.delete(service);
+    const transfer = this.serviceTransfer;
+    if (!transfer || transfer.service !== service || transfer.handle !== message.handle) return;
+    // Upstream closes the MLR communicator, then inflates what it holds
+    // (`CommunicatorV2:440-451`); MLR data still in retransmission is lost.
+    transfer.mlr?.close();
+    try {
+      transfer.done.resolve(transfer.stream.finish());
+    } catch (error) {
+      transfer.done.reject(error);
     }
   }
 
@@ -677,13 +907,23 @@ export class GarminSession {
       gfdi.mlr.receive(bytes);
       return;
     }
+    const transfer = this.serviceTransfer;
+    if ((first & 0x80) !== 0 && transfer?.mlr && garminMlrRouteHandle(first) === transfer.handle) {
+      transfer.mlr.receive(bytes);
+      return;
+    }
     if (first === 0) {
       const message = parseGarminMlMessage(bytes);
       if (message) this.handleMlManagement(message);
       return;
     }
-    // Plain ML data is accepted only on a plain ML GFDI registration; an MLR
-    // registration's data always carries the MLR header.
+    // Plain ML data is accepted only on a plain ML registration; an MLR
+    // registration's data always carries the MLR header. A new-sync transfer
+    // carries raw bytes, not COBS (`CommunicatorV2:230-235`).
+    if (transfer && !transfer.mlr && transfer.handle !== null && first === transfer.handle) {
+      this.acceptTransferBytes(transfer, bytes.subarray(1));
+      return;
+    }
     if (!gfdi || gfdi.mlr || first !== gfdi.handle) return;
     this.acceptGfdiBytes(bytes.subarray(1));
   }
@@ -695,7 +935,12 @@ export class GarminSession {
         this.resolveMlWaiter(message);
         return;
       case GARMIN_ML_REQUEST.REGISTER_ML_RESP:
-        if (message.service !== GARMIN_ML_SERVICE_GFDI || this.closed || this.fatal) return;
+        if (this.closed || this.fatal) return;
+        if (message.service !== null && GARMIN_FILE_TRANSFER_SERVICES.includes(message.service)) {
+          this.onTransferGrant(message);
+          return;
+        }
+        if (message.service !== GARMIN_ML_SERVICE_GFDI) return;
         // Upstream binds every grant, overwriting its handle maps
         // (`CommunicatorV2:372-430`). The ML fallback (ours) means a grant can
         // also be the late answer to a request already given up on, so:
@@ -723,6 +968,10 @@ export class GarminSession {
         this.resolveMlWaiter(message);
         return;
       case GARMIN_ML_REQUEST.CLOSE_HANDLE_RESP:
+        if (message.service !== null && GARMIN_FILE_TRANSFER_SERVICES.includes(message.service)) {
+          this.onTransferClosed(message);
+          return;
+        }
         // Upstream matches the service only; matching the handle as well keeps
         // a late close of a superseded registration from closing the current.
         if (
@@ -765,6 +1014,13 @@ export class GarminSession {
       return;
     }
     if (frame.messageType === GARMIN_MESSAGE.RESPONSE) {
+      if (this.newSync) {
+        const protobufStatus = parseGarminProtobufStatus(frame.payload);
+        if (protobufStatus) {
+          this.newSync.handleProtobufStatus(protobufStatus);
+          return;
+        }
+      }
       let status: GarminStatusMessage;
       try {
         status = parseGarminStatus(frame.payload);
@@ -898,6 +1154,8 @@ export class GarminSession {
           return;
         }
         this.classicAddress = parseGarminClassicAddress(frame.payload) ?? this.classicAddress;
+        // `MaxPacketSizeDeviceEvent` → `ProtocolBufferHandler.setMaxPacketSize`.
+        this.newSync?.setMaxPacketSize(info.maxPacketSize);
         void this.reply([
           this.status(type, GARMIN_STATUS.ACK),
           {
@@ -942,11 +1200,17 @@ export class GarminSession {
       case GARMIN_MESSAGE.MUSIC_CONTROL:
         void this.reply([this.status(type, GARMIN_STATUS.ACK)]);
         return;
+      case GARMIN_MESSAGE.PROTOBUF_REQUEST:
+      case GARMIN_MESSAGE.PROTOBUF_RESPONSE:
+        // New-sync models answer protobufs as `ProtocolBufferHandler` does;
+        // other models leave them unanswered, as below.
+        this.newSync?.handleProtobufMessage(frame);
+        return;
       // FIT_DEFINITION/FIT_DATA, NOTIFICATION_CONTROL/SUBSCRIPTION, PROTOBUF_*
-      // and MUSIC_CONTROL_CAPABILITIES have their own status formats upstream
-      // and imply follow-up work we do not do; they stay unanswered rather
-      // than get a status that claims otherwise. Unparsed types: nothing, as
-      // upstream (`UnhandledMessage`).
+      // (outside the new sync protocol) and MUSIC_CONTROL_CAPABILITIES have
+      // their own status formats upstream and imply follow-up work we do not
+      // do; they stay unanswered rather than get a status that claims
+      // otherwise. Unparsed types: nothing, as upstream (`UnhandledMessage`).
       default:
         return;
     }
@@ -995,6 +1259,7 @@ export class GarminSession {
 
   private failPending(error: Error): void {
     this.configured.resolve();
+    this.newSync?.fail(error);
     // No-op when GFDI is bound; otherwise wakes writes waiting for a handle.
     this.bound.reject(error);
     const status = this.statusWaiter;

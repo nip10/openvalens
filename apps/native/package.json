@@ -69,6 +69,7 @@
     "expo-system-ui": "~57.0.3",
     "expo-task-manager": "~57.0.21",
     "expo-web-browser": "~57.0.2",
+    "fflate": "0.8.2",
     "heroui-native": "^1.0.9",
     "lucide-react-native": "1.48.0",
     "react": "19.2.3",

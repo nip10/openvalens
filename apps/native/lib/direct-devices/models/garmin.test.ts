@@ -8,7 +8,13 @@
 
 import { expect, test } from "bun:test";
 
-import { GARMIN_MODELS, getGarminMlrMode, getGarminModel, matchGarminDeviceName } from "./garmin";
+import {
+  GARMIN_MODELS,
+  getGarminMlrMode,
+  getGarminModel,
+  matchGarminDeviceName,
+  usesGarminNewSyncProtocol,
+} from "./garmin";
 
 test("the registry contains the 190 catalog Garmin entries", () => {
   expect(GARMIN_MODELS).toHaveLength(190);
@@ -190,6 +196,12 @@ test("MLR is preferred exactly for the five upstream new-sync models", () => {
   ]);
   for (const model of preferred) expect(model.sync, model.id).toBe(true);
   expect(getGarminMlrMode("garmin_fenix_7")).toBe("off");
+  // The same five sync with the protobuf new sync protocol.
+  expect(GARMIN_MODELS.filter((model) => model.newSyncProtocol).map((model) => model.id)).toEqual(
+    GARMIN_MODELS.filter((model) => model.mlr === "preferred").map((model) => model.id),
+  );
+  expect(usesGarminNewSyncProtocol("garmin_venu_x1")).toBe(true);
+  expect(usesGarminNewSyncProtocol("garmin_fenix_7")).toBe(false);
   expect(GARMIN_MODELS.every((model) => model.mlr === undefined || model.mlr === "preferred")).toBe(
     true,
   );
