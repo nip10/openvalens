@@ -1,34 +1,59 @@
+import { createNutritionCoachConsent } from "@openvalens/nutrition";
 import {
+  goalRuleAt,
   parseGoalNumeric,
   trackerIdFromGoalMetric,
   type Goal,
   type GoalCheckin,
+  type GoalComparator,
+  type GoalDefinition,
+  type GoalRule,
+  type GoalSource,
+  type GoalSummary,
 } from "@openvalens/plans";
 import { tool } from "ai";
 import { z } from "zod";
 
-import { logToolExecuted, resolveToolAccess, type AiHealthToolContext } from "./access";
+import {
+  logToolExecuted,
+  resolveToolAccess,
+  type AiHealthToolContext,
+  type AiToolAccessGateGrant,
+} from "./access";
 import { round, shortText, unavailableReason } from "./format";
 
 /**
- * `goals` tool (Issue #13 plan, implemented in Issue #130).
+ * `goals` tool (Issue #13 plan, implemented in Issue #130), shared by the
+ * Coach and the MCP / REST tool API (#439).
  *
- * Lists the authenticated user's goals in the bound organization (`@openvalens/plans`) with their
- * recorded current and target values and check-in history counts. The tool
+ * Lists the authenticated user's goals in the bound organization
+ * (`@openvalens/plans`): the older free-form goals with their recorded current
+ * and target values and check-in counts, and the personal goals of every
+ * source (#500: manual, water, supplement, workout, sleep and custom
+ * trackers) with their rule, current value and days with a record. The tool
  * reports the recorded numbers and their difference; it does not judge
- * whether a goal is on track, because goal direction (gain vs reduce) is not
- * stored.
+ * whether a goal is on track.
+ *
+ * Each personal goal follows its source's own AI switch
+ * ({@link aiVisiblePersonalGoals}):
+ * - water, sleep, supplement and workout goals only while their module
+ *   (Food & water, Sleep, Supplements, Activity & workouts) is on;
+ * - water goals are nutrition records: the Coach needs the member's nutrition
+ *   consent with numbers on, and a connected AI app needs `nutrition:read`;
+ * - tracker goals only while that tracker's "Coach and connected AI apps can
+ *   read this" is on (#451), and for an AI app only with `trackers:read`;
+ * - manual goals have no module and follow the base goals access.
  *
  * Redaction: the goal title is included (it names the goal), capped in
- * length. Row ids, goal notes and check-in notes are never copied. A goal on
- * a custom tracker with "Coach and connected AI apps can read this" off is
- * never listed (#451; see {@link withoutAiHiddenTrackerGoals}).
+ * length. Row ids, metric ids (supplement, exercise or tracker), goal notes
+ * and check-in notes are never copied.
  */
 
 /** Cap on goals returned. */
 export const GOALS_MAX_ITEMS = 25;
 
 const GOAL_STATUSES = ["not_started", "in_progress", "achieved", "paused", "cancelled"] as const;
+type GoalStatus = (typeof GOAL_STATUSES)[number];
 
 export const goalsInput = z.strictObject({
   status: z.enum(GOAL_STATUSES).optional(),
@@ -37,6 +62,11 @@ export const goalsInput = z.strictObject({
 const goalRow = z.object({
   title: z.string(),
   category: z.string(),
+  /** Where a personal goal's days come from (#500); `null` for an older free-form goal. */
+  source: z.string().nullable(),
+  /** A personal goal's rule in plain words, such as "every day" or "streak of 30 days". */
+  rule: z.string().nullable(),
+  unit: z.string().nullable(),
   horizon: z.string().nullable(),
   status: z.string(),
   currentValue: z.string().nullable(),
@@ -44,6 +74,9 @@ const goalRow = z.object({
   targetDate: z.string().nullable(),
   /** `target - current` when both parse as numbers; sign only, no judgement. */
   remainingToTarget: z.number().nullable(),
+  /** A personal goal's current run of qualifying days; `null` for an older goal. */
+  currentStreak: z.number().nullable(),
+  /** Check-ins, or a personal goal's days with a record. */
   checkinCount: z.number(),
   latestCheckinDate: z.string().nullable(),
   latestCheckinValue: z.string().nullable(),
@@ -74,6 +107,11 @@ export const goalsOutput = z.discriminatedUnion("status", [
 export type GoalsInput = z.infer<typeof goalsInput>;
 export type GoalsOutput = z.infer<typeof goalsOutput>;
 
+/** One goal for {@link buildGoals}: an older free-form goal, or a personal goal (#500). */
+export type GoalsToolItem =
+  | { goal: Goal; checkins: readonly GoalCheckin[] }
+  | { personal: GoalSummary };
+
 function projectGoal(goal: Goal, checkins: readonly GoalCheckin[]): z.infer<typeof goalRow> {
   const current = parseGoalNumeric(goal.currentValue);
   const target = parseGoalNumeric(goal.targetValue);
@@ -82,46 +120,161 @@ function projectGoal(goal: Goal, checkins: readonly GoalCheckin[]): z.infer<type
   return {
     title: shortText(goal.title, 120) ?? "Untitled goal",
     category: shortText(goal.category) ?? "",
+    source: null,
+    rule: null,
+    unit: null,
     horizon: shortText(goal.horizon),
     status: shortText(goal.status) ?? "",
     currentValue: shortText(goal.currentValue),
     targetValue: shortText(goal.targetValue),
     targetDate: shortText(goal.targetDate),
     remainingToTarget: current !== null && target !== null ? round(target - current, 3) : null,
+    currentStreak: null,
     checkinCount: checkins.length,
     latestCheckinDate: latest?.date ?? null,
     latestCheckinValue: shortText(latest?.value),
   };
 }
 
-/** The tracker a goal is on (#451), or null for every other goal. */
-export function goalTrackerId(goal: Pick<Goal, "definition">): string | null {
-  const definition = goal.definition;
-  if (!definition || typeof definition !== "object" || Array.isArray(definition)) return null;
-  const { source, metric } = definition as { source?: unknown; metric?: unknown };
-  if (source !== "tracker") return null;
+/** A personal goal's status in the tool's (older) status vocabulary. */
+export function personalGoalStatus(
+  goal: Pick<GoalSummary, "definition" | "evaluation">,
+): GoalStatus {
+  if (goal.definition.status === "completed" || goal.evaluation.achieved) return "achieved";
+  if (goal.definition.status === "paused" || goal.evaluation.state === "paused") return "paused";
+  if (goal.evaluation.state === "not-started") return "not_started";
+  return "in_progress";
+}
+
+const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+function describeRule(rule: GoalRule): string {
+  switch (rule.kind) {
+    case "target":
+      return "one-time target";
+    case "average":
+      return `${rule.windowDays ?? 7}-day average`;
+    case "streak":
+      return `streak of ${rule.targetDays} days`;
+    case "recurring":
+      if (rule.cadence === "daily") return "every day";
+      if (rule.cadence === "any-days-per-week") return `${rule.daysPerWeek ?? 1} days a week`;
+      return `on ${(rule.weekdays ?? []).map((day) => WEEKDAYS[day % 7]).join(", ") || "set weekdays"}`;
+  }
+}
+
+const numberText = (value: number) => String(round(value, 3));
+
+function describeComparator(comparator: GoalComparator, unit: string | null): string {
+  const suffix = unit ? ` ${unit}` : "";
+  if (comparator.kind === "minimum") return `at least ${numberText(comparator.value)}${suffix}`;
+  if (comparator.kind === "maximum") return `at most ${numberText(comparator.value)}${suffix}`;
+  return `between ${numberText(comparator.minimum)} and ${numberText(comparator.maximum)}${suffix}`;
+}
+
+function projectPersonalGoal(goal: GoalSummary): z.infer<typeof goalRow> {
+  const { definition, evaluation } = goal;
+  const rule = goalRuleAt(definition, evaluation.asOf);
+  const unit = shortText(definition.unit);
+  const comparator = rule.kind === "recurring" ? (rule.completion ?? null) : rule.target;
+  const current = evaluation.currentValue;
+  const threshold = comparator && comparator.kind !== "range" ? comparator.value : null;
+  const recorded = evaluation.days.filter(
+    (day) => day.state === "qualifies" || day.state === "does-not-qualify",
+  );
+  const latest = recorded.at(-1);
+  return {
+    title: shortText(goal.title, 120) ?? "Untitled goal",
+    category: "personal",
+    source: definition.source,
+    rule: describeRule(rule),
+    unit,
+    horizon: null,
+    status: personalGoalStatus(goal),
+    currentValue: current === null ? null : numberText(current),
+    targetValue:
+      comparator === null
+        ? rule.kind === "recurring"
+          ? "done"
+          : null
+        : describeComparator(comparator, unit),
+    targetDate: rule.kind === "target" ? (rule.targetDate ?? null) : null,
+    remainingToTarget:
+      threshold !== null && current !== null ? round(threshold - current, 3) : null,
+    currentStreak: evaluation.currentStreak,
+    checkinCount: recorded.length,
+    latestCheckinDate: latest?.date ?? null,
+    latestCheckinValue: latest?.value == null ? null : numberText(latest.value),
+  };
+}
+
+/** The tracker a goal is on (#451), `""` for an unreadable tracker metric, or null for any other goal. */
+export function goalTrackerId(
+  definition: Pick<GoalDefinition, "source" | "metric">,
+): string | null {
+  if (definition.source !== "tracker") return null;
   // An unreadable tracker metric still names a tracker goal: keep it hidden.
-  return (typeof metric === "string" && trackerIdFromGoalMetric(metric)) || "";
+  return (
+    (typeof definition.metric === "string" && trackerIdFromGoalMetric(definition.metric)) || ""
+  );
 }
 
 /**
- * Drops goals on a tracker whose "Coach and connected AI apps can read this"
- * is off (#451), for the Coach and the MCP `goals` tool alike.
- * `readableTrackerIds` are the member's AI-readable trackers.
+ * The module each personal goal source belongs to (`wellness_profile`
+ * modules). Manual and tracker goals have none: manual goals follow the
+ * always-on goals, tracker goals their tracker's own AI switch.
  */
-export function withoutAiHiddenTrackerGoals<T extends Pick<Goal, "definition">>(
-  goals: readonly T[],
-  readableTrackerIds: ReadonlySet<string>,
-): T[] {
-  return goals.filter((goal) => {
-    const trackerId = goalTrackerId(goal);
-    return trackerId === null || readableTrackerIds.has(trackerId);
-  });
+export const GOAL_SOURCE_MODULES: Record<GoalSource, string | null> = {
+  manual: null,
+  water: "food",
+  supplement: "supplements",
+  workout: "activity",
+  sleep: "sleep",
+  tracker: null,
+};
+
+/** What the caller may read, for {@link aiVisiblePersonalGoals}. */
+export type PersonalGoalAiAccess = {
+  /** Modules switched on; `null` means the member never chose (every module on). */
+  enabledModules: ReadonlySet<string> | null;
+  /** Nutrition numbers may be read (Coach nutrition consent with numbers, or `nutrition:read`). */
+  nutrition: boolean;
+  /** The member's custom trackers the caller may read: AI switch on, and `trackers:read` for an app. */
+  readableTrackerIds: ReadonlySet<string>;
+};
+
+/** Whether one personal goal may reach the Coach or a connected AI app (#451, #500). */
+export function isPersonalGoalAiVisible(
+  definition: Pick<GoalDefinition, "source" | "metric">,
+  access: PersonalGoalAiAccess,
+): boolean {
+  if (!Object.hasOwn(GOAL_SOURCE_MODULES, definition.source)) return false;
+  const moduleId = GOAL_SOURCE_MODULES[definition.source];
+  if (moduleId !== null && access.enabledModules !== null && !access.enabledModules.has(moduleId))
+    return false;
+  if (definition.source === "water" && !access.nutrition) return false;
+  const trackerId = goalTrackerId(definition);
+  return trackerId === null || access.readableTrackerIds.has(trackerId);
+}
+
+/** Drops the personal goals the caller may not read (see {@link isPersonalGoalAiVisible}). */
+export function aiVisiblePersonalGoals<
+  T extends { definition: Pick<GoalDefinition, "source" | "metric"> },
+>(goals: readonly T[], access: PersonalGoalAiAccess): T[] {
+  return goals.filter((goal) => isPersonalGoalAiVisible(goal.definition, access));
+}
+
+function itemId(item: GoalsToolItem): number {
+  return "personal" in item ? item.personal.id : item.goal.id;
+}
+
+function itemStatus(item: GoalsToolItem): string {
+  return "personal" in item ? personalGoalStatus(item.personal) : item.goal.status;
 }
 
 /** Pure projection; `goals` is in repository order (newest first). */
 export function buildGoals(
-  goals: ReadonlyArray<{ goal: Goal; checkins: GoalCheckin[] }>,
+  goals: ReadonlyArray<GoalsToolItem>,
   input: GoalsInput,
   now: Date = new Date(),
 ): GoalsOutput {
@@ -131,10 +284,12 @@ export function buildGoals(
   }
 
   const countsByStatus: Record<string, number> = {};
-  for (const { goal } of goals)
-    countsByStatus[goal.status] = (countsByStatus[goal.status] ?? 0) + 1;
+  for (const item of goals) {
+    const status = itemStatus(item);
+    countsByStatus[status] = (countsByStatus[status] ?? 0) + 1;
+  }
   const matching = goals.filter(
-    ({ goal }) => input.status === undefined || goal.status === input.status,
+    (item) => input.status === undefined || itemStatus(item) === input.status,
   );
 
   return {
@@ -145,9 +300,33 @@ export function buildGoals(
     countsByStatus,
     goals: matching
       .slice(0, GOALS_MAX_ITEMS)
-      .map(({ goal, checkins }) => projectGoal(goal, checkins)),
+      .map((item) =>
+        "personal" in item
+          ? projectPersonalGoal(item.personal)
+          : projectGoal(item.goal, item.checkins),
+      ),
     generatedAt,
   };
+}
+
+/**
+ * Coach: the member's nutrition-context consent (#86) with numbers on. A
+ * connected AI app: its grant's `nutrition:read`. Fails closed.
+ */
+async function readsNutrition(
+  context: AiHealthToolContext,
+  gate: AiToolAccessGateGrant | null,
+): Promise<boolean> {
+  if (gate) return gate.nutrition === true;
+  try {
+    const consent = await createNutritionCoachConsent(context.db).require({
+      organizationId: context.organizationId,
+      userId: context.userId,
+    });
+    return consent.includeNumbers;
+  } catch {
+    return false;
+  }
 }
 
 /** Freshly reads the bound organization's goals and their check-ins. */
@@ -162,35 +341,56 @@ export async function executeGoals(
 
   const organizationId = context.organizationId;
   const userId = context.userId;
-  const listed = (await access.sources.listGoals(organizationId, userId)).filter(
-    (goal) => goal.deletedAt == null,
-  );
-  // Only the member's AI-readable trackers come back from this port, so a
-  // goal on a tracker with AI reading off (or another member's) drops out.
+  const scope = { organizationId, userId };
+  const [legacy, personal] = await Promise.all([
+    access.sources.listGoals(organizationId, userId),
+    access.sources.listPersonalGoals(scope),
+  ]);
+  const listed = legacy.filter((goal) => goal.deletedAt == null);
+
+  // Each source's switch is only read when a listed goal needs it.
+  const sources = new Set(personal.map((goal) => goal.definition.source));
+  const needsModules = [...sources].some((source) => GOAL_SOURCE_MODULES[source] != null);
+  const trackerGoals = personal.some((goal) => goalTrackerId(goal.definition) !== null);
   const today = access.now.toISOString().slice(0, 10);
-  const readableTrackerIds = listed.some((goal) => goalTrackerId(goal) !== null)
-    ? new Set(
-        (
-          await access.sources.listAiTrackers(
-            { organizationId, userId },
-            { from: today, to: today },
-          )
-        ).map((tracker) => tracker.id),
-      )
-    : new Set<string>();
-  const goals = withoutAiHiddenTrackerGoals(listed, readableTrackerIds);
-  const visible = goals.filter(
-    (goal) => input.status === undefined || goal.status === input.status,
+  const [modules, nutrition, readableTrackerIds] = await Promise.all([
+    needsModules ? access.sources.getEnabledModules({ userId }) : Promise.resolve(null),
+    sources.has("water") ? readsNutrition(context, access.gate) : Promise.resolve(false),
+    // Only the member's AI-readable trackers come back from this port, so a
+    // goal on a tracker with AI reading off (or another member's) drops out.
+    trackerGoals && (access.gate === null || access.gate.trackers === true)
+      ? access.sources
+          .listAiTrackers(scope, { from: today, to: today })
+          .then((trackers) => new Set(trackers.map((tracker) => tracker.id)))
+      : Promise.resolve(new Set<string>()),
+  ]);
+  const visiblePersonal = aiVisiblePersonalGoals(personal, {
+    enabledModules: modules === null ? null : new Set(modules),
+    nutrition,
+    readableTrackerIds,
+  });
+
+  // Both kinds share the goal table's ids, so newest first is id descending.
+  const ordered: GoalsToolItem[] = [
+    ...listed.map((goal) => ({ goal, checkins: [] })),
+    ...visiblePersonal.map((goal) => ({ personal: goal })),
+  ].sort((a, b) => itemId(b) - itemId(a));
+  const visibleIds = new Set(
+    ordered
+      .filter((item) => input.status === undefined || itemStatus(item) === input.status)
+      .slice(0, GOALS_MAX_ITEMS)
+      .map(itemId),
   );
-  const visibleIds = new Set(visible.slice(0, GOALS_MAX_ITEMS).map((goal) => goal.id));
-  // Check-ins are only read for the goals actually returned.
+  // Check-ins are only read for the older goals actually returned.
   const items = await Promise.all(
-    goals.map(async (goal) => ({
-      goal,
-      checkins: visibleIds.has(goal.id)
-        ? await access.sources.listGoalCheckins(organizationId, userId, goal.id)
-        : [],
-    })),
+    ordered.map(async (item): Promise<GoalsToolItem> =>
+      "personal" in item || !visibleIds.has(item.goal.id)
+        ? item
+        : {
+            goal: item.goal,
+            checkins: await access.sources.listGoalCheckins(organizationId, userId, item.goal.id),
+          },
+    ),
   );
   const result = buildGoals(items, input, access.now);
 
@@ -200,7 +400,12 @@ export async function executeGoals(
     "goals",
     result.status,
     result.status === "ok"
-      ? { totalCount: result.totalCount, matchingCount: result.matchingCount }
+      ? {
+          totalCount: result.totalCount,
+          matchingCount: result.matchingCount,
+          personalCount: visiblePersonal.length,
+          hiddenPersonalCount: personal.length - visiblePersonal.length,
+        }
       : {},
   );
   return result;
@@ -209,10 +414,12 @@ export async function executeGoals(
 export function createGoalsTool(context: AiHealthToolContext) {
   return tool({
     description:
-      "List the user's recorded goals: title, category, horizon, status, recorded current and " +
-      "target values, target date, the numeric difference to target when both are numbers, " +
-      "and check-in counts. Pass status to filter (not_started, in_progress, achieved, " +
-      "paused, cancelled).",
+      "List the user's goals: title, category, status, recorded current and target values, " +
+      "target date, the numeric difference to target when both are numbers, and check-in " +
+      "counts. Personal goals also give their source (manual, water, supplement, workout, " +
+      "sleep or a custom tracker), their rule in plain words, unit and current streak, and " +
+      "count the days with a record as check-ins. Pass status to filter (not_started, " +
+      "in_progress, achieved, paused, cancelled).",
     inputSchema: goalsInput,
     execute: async (input) => executeGoals(context, input),
   });

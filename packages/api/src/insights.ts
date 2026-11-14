@@ -9,9 +9,14 @@ import {
   pushDevice,
 } from "@openvalens/db/schema/insights";
 import { telegramAccount } from "@openvalens/db/schema/integrations";
-import { createGoalRepository, createPersonalGoalRepository } from "@openvalens/plans";
+import {
+  createGoalRepository,
+  createPersonalGoalRepository,
+  trackerIdFromGoalMetric,
+} from "@openvalens/plans";
 import { listSleepDailySummaries } from "@openvalens/sleep";
 import { listAiReadableTrackers, listAiTrackerDays } from "@openvalens/trackers";
+import { getPersonalSleepDailyEvidence } from "@openvalens/sleep/queries";
 import { and, count, eq } from "drizzle-orm";
 
 import {
@@ -43,13 +48,20 @@ import {
   type InsightEngineInput,
   type InsightEngineOutput,
   type InsightFeedbackRecord,
+  type InsightGoalInput,
 } from "./insight-rules";
-import { computeGoalProgress, type GoalWithHistory } from "./score-goal-progress";
+import {
+  computeGoalProgress,
+  type GoalWithHistory,
+  type PersonalGoalForProgress,
+} from "./score-goal-progress";
 import {
   filterInsightsByModules,
+  GOAL_SOURCE_MODULES,
   hasChosenModules,
   isModuleEnabled,
   METRIC_MODULES,
+  type PersonModule,
 } from "./presenters/modules";
 import { createWellnessProfileService } from "./wellness-profile";
 
@@ -223,12 +235,53 @@ async function loadGoals(db: Database, organizationId: string, userId: string) {
       ),
     })),
   );
-  // Goals on custom trackers (#451) count toward goal progress too. The
-  // personal-goal repository is owner-scoped, so only the member's own goals
-  // (on their own trackers) are read.
-  const trackerGoals = (
-    await createPersonalGoalRepository(db, organizationId, userId).list()
-  ).filter((goal) => goal.definition.source === "tracker");
+  // Personal goals of every source count toward goal progress too: manual,
+  // water, supplement, workout, sleep (#500) and custom trackers (#451). The
+  // repository is owner-scoped, so only the member's own goals are read. Sleep
+  // goals get their nights from the same evidence the goals screen uses.
+  const personalGoals = await createPersonalGoalRepository(db, organizationId, userId, (range) =>
+    getPersonalSleepDailyEvidence(db, { organizationId, userId, ...range }),
+  ).list();
+  // Tracker goals speak only for trackers with the insights/AI switch on, the
+  // same trackers the custom-tracker change insights read (#450).
+  const insightTrackerIds = personalGoals.some((goal) => goal.definition.source === "tracker")
+    ? new Set((await listAiReadableTrackers(db, { organizationId, userId })).map((row) => row.id))
+    : new Set<string>();
+  return insightGoalInput(entries, personalGoals, insightTrackerIds);
+}
+
+/** Whether a personal goal may produce goal insights: a tracker goal needs its tracker's switch on. */
+function goalSpeaksInInsights(
+  definition: PersonalGoalForProgress["definition"],
+  insightTrackerIds: ReadonlySet<string>,
+): boolean {
+  if (definition.source !== "tracker") return true;
+  // An unreadable tracker metric names no tracker: keep the goal silent.
+  const trackerId =
+    typeof definition.metric === "string" ? trackerIdFromGoalMetric(definition.metric) : null;
+  return trackerId !== null && insightTrackerIds.has(trackerId);
+}
+
+/**
+ * The goal input of the insight rules from the member's older goals and their
+ * personal goals (pure). Each personal goal carries its source's module, so a
+ * goal on a hidden module's data (a water goal with Food & water off) produces
+ * no insight on any channel (#500). A tracker goal produces no insight unless
+ * its tracker is in `insightTrackerIds` (insights/AI switch on, not archived),
+ * like the custom-tracker change insights (#450). Every goal still counts
+ * toward the goal-progress score and stays in its per-goal list.
+ */
+export function insightGoalInput(
+  entries: readonly GoalWithHistory[],
+  personalGoals: readonly PersonalGoalForProgress[],
+  insightTrackerIds: ReadonlySet<string>,
+): InsightGoalInput {
+  const silentGoalIds = personalGoals
+    .filter((goal) => !goalSpeaksInInsights(goal.definition, insightTrackerIds))
+    .map((goal) => goal.id);
+  const goalModules: Record<number, PersonModule | null> = {};
+  for (const goal of personalGoals)
+    goalModules[goal.id] = GOAL_SOURCE_MODULES[goal.definition.source];
   const latestCheckinDates: Record<number, string | null> = {};
   for (const entry of entries)
     latestCheckinDates[entry.goal.id] =
@@ -236,12 +289,19 @@ async function loadGoals(db: Database, organizationId: string, userId: string) {
         (latest, checkin) => (latest === null || checkin.date > latest ? checkin.date : latest),
         null,
       ) ?? null;
-  for (const goal of trackerGoals)
+  for (const goal of personalGoals)
     latestCheckinDates[goal.id] =
       goal.evaluation.days
         .filter((day) => day.state === "qualifies" || day.state === "does-not-qualify")
         .at(-1)?.date ?? null;
-  return { result: computeGoalProgress(entries, trackerGoals), latestCheckinDates };
+  // The score and its per-goal list cover every goal (the member sees them);
+  // the rules skip the silent goals when they make goal insights.
+  return {
+    result: computeGoalProgress(entries, personalGoals),
+    latestCheckinDates,
+    goalModules,
+    silentGoalIds,
+  };
 }
 
 // ─── preferences ───────────────────────────────────────────────

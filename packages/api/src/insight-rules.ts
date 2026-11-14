@@ -20,6 +20,7 @@ import {
   type KindChannels,
 } from "./insight-contract";
 import type { GoalProgressResult } from "./score-contract";
+import type { PersonModule } from "./wellness-profile-contract";
 
 /**
  * Issue #92 — the deterministic insight rules (`INSIGHT_ENGINE_VERSION`). Pure:
@@ -58,6 +59,17 @@ export type InsightGoalInput = {
   result: GoalProgressResult;
   /** Latest check-in date (YYYY-MM-DD) per goal id. */
   latestCheckinDates: Readonly<Record<number, string | null>>;
+  /**
+   * The module each personal goal's source belongs to, per goal id (#500).
+   * A goal missing here (an older goal) or mapped to null belongs to no module.
+   */
+  goalModules: Readonly<Record<number, PersonModule | null>>;
+  /**
+   * Goal ids that count toward the goal-progress score (and stay in
+   * `result.goals`, which the member sees) but produce no goal insight: a
+   * tracker goal whose tracker has the insights/AI switch off (#450, #500).
+   */
+  silentGoalIds: readonly number[];
 };
 
 /**
@@ -1258,13 +1270,15 @@ export function runInsightRules(input: InsightEngineInput): InsightEngineOutput 
 
   // Goal milestones.
   if (input.goals && input.goals.result.status === "available") {
+    const silentGoalIds = new Set(input.goals.silentGoalIds);
     for (const goal of input.goals.result.goals) {
-      if (goal.state !== "scored") continue;
+      if (goal.state !== "scored" || silentGoalIds.has(goal.goalId)) continue;
       const detail = (state: "reached" | "toward_target" | "away_from_target") =>
         ({
           type: "goal",
           goalId: goal.goalId,
           goalTitle: goal.title,
+          module: input.goals?.goalModules[goal.goalId] ?? null,
           state,
           progress: goal.progress,
           currentValue: goal.currentValue,
