@@ -1,5 +1,6 @@
 import type { LogKindIconKey } from "@openvalens/api/presenters/log-kinds";
 import {
+  CupSoda,
   Droplet,
   Dumbbell,
   Flame,
@@ -10,6 +11,7 @@ import {
   HeartPulse,
   type LucideIcon,
   Moon,
+  PersonStanding,
   Pill,
   Route,
   Ruler,
@@ -43,6 +45,8 @@ export const LOG_KIND_ICONS: Readonly<Record<LogKindIconKey, LucideIcon>> = Obje
   dumbbell: Dumbbell,
   pill: Pill,
   target: Target,
+  "person-standing": PersonStanding,
+  "cup-soda": CupSoda,
 });
 
 /** Custom trackers (#441) share the "signal" tone their own screens use. */
@@ -68,4 +72,6 @@ export const LOG_KIND_TONES: Readonly<Record<LogKindIconKey, Tone>> = Object.fre
   dumbbell: "steps",
   pill: "food",
   target: "weight",
+  "person-standing": "weight",
+  "cup-soda": "food",
 });

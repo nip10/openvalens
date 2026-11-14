@@ -26,6 +26,14 @@ function fakeApi(overrides: Partial<Record<string, unknown>> = {}) {
       log: mock(async () => ({ id: "entry-1" })),
       deleteEntry: mock(async () => ({})),
     },
+    nutritionDiary: {
+      logEntry: mock(async () => ({ created: true, entry: { id: 11, revision: 1 } })),
+      deleteEntry: mock(async () => ({})),
+    },
+    pain: {
+      log: mock(async () => [{ id: "pain-1" }]),
+      delete: mock(async () => ({ deleted: true })),
+    },
     ...overrides,
   };
   return api as unknown as PickerApi & typeof api;
@@ -162,6 +170,50 @@ describe("performPickerWrite", () => {
     expect(api.trackers.log).toHaveBeenCalledWith(input);
     await result.undo!();
     expect(api.trackers.deleteEntry).toHaveBeenCalledWith({ id: "entry-1" });
+  });
+
+  test("a drink preset (#443) is a diary entry; undo deletes it, a replay offers none", async () => {
+    const api = fakeApi();
+    const input = {
+      clientMutationId: "m-3",
+      localDate: "2026-11-13",
+      timeZone: "Europe/Lisbon",
+      slot: "breakfast" as const,
+      food: { kind: "catalog" as const, id: "fdc:171891" },
+      amount: 30,
+      unit: "g" as const,
+      method: "preset" as const,
+    };
+    const write = { type: "drink" as const, preset: "espresso" as const, volumeMl: 30, input };
+    const result = await performPickerWrite(write, api, fakeOffline());
+    expect(api.nutritionDiary.logEntry).toHaveBeenCalledWith(input);
+    await result.undo!();
+    expect(api.nutritionDiary.deleteEntry).toHaveBeenCalledWith(
+      expect.objectContaining({ entryId: 11, expectedRevision: 1 }),
+    );
+
+    const replay = fakeApi({
+      nutritionDiary: {
+        logEntry: mock(async () => ({ created: false, entry: { id: 11, revision: 1 } })),
+        deleteEntry: mock(),
+      },
+    });
+    expect((await performPickerWrite(write, replay, fakeOffline())).undo).toBeUndefined();
+  });
+
+  test("pain (#442) saves through pain.log and its undo deletes every entry made", async () => {
+    const api = fakeApi();
+    const input = {
+      regions: ["joint.knee_left"] as [string],
+      rating: 4,
+      type: null,
+      loggedAt: "2026-11-13T09:00:00.000Z",
+      timeZone: "Europe/Lisbon",
+    };
+    const result = await performPickerWrite({ type: "pain", input }, api, fakeOffline());
+    expect(api.pain.log).toHaveBeenCalledWith(input);
+    await result.undo!();
+    expect(api.pain.delete).toHaveBeenCalledWith({ id: "pain-1" });
   });
 
   test("only offline-type failures may wait on the device", () => {

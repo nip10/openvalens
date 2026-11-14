@@ -1,8 +1,10 @@
 /**
  * The mobile log picker's list (#440), as plain data: the screen draws it and
  * runs each row's action. Pure, so `bun test` checks it. The kinds come from
- * the one shared list (`availableLogKinds`, plus custom trackers through
- * `trackerLogKinds`), already filtered by what the member can log.
+ * the one shared list (`availableLogKinds`, plus drink presets through
+ * `drinkLogKinds` and custom trackers through `trackerLogKinds`), already
+ * filtered by what the member can log. Drinks and pain open their screen (the
+ * meal diary, the body map); a recent drink repeats at once.
  */
 import type { I18n } from "@lingui/core";
 import { msg } from "@lingui/core/macro";

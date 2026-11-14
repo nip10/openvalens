@@ -3,6 +3,7 @@ import { useLingui } from "@lingui/react/macro";
 import type { DueSupplement, RecentLogEntry } from "@openvalens/api/contracts/quick-log";
 import {
   availableLogKinds,
+  drinkLogKinds,
   LOG_KINDS,
   logKindPermissionCheck,
   type LogKind,
@@ -75,9 +76,10 @@ type PickerView =
 /**
  * The mobile log picker (#440), opened from the "+" tab: supplements due now
  * with one-tap "Taken", recent entries to repeat, then every kind the member
- * can log, from the one shared list plus their custom trackers. Simple kinds
- * save here at once with an undo; food, labs, workouts and the like open their
- * own screen. Turned-off features never appear. `?kind=<id>` opens one kind
+ * can log, from the one shared list plus drink presets (#443) and their custom
+ * trackers. Simple kinds save here at once with an undo; food, drinks, pain
+ * (#442, the body map), labs, workouts and the like open their own screen; a
+ * recent drink repeats at once as the same preset. Turned-off features never appear. `?kind=<id>` opens one kind
  * directly (for app-icon quick actions).
  */
 export default function QuickLogRoute() {
@@ -105,9 +107,19 @@ export default function QuickLogRoute() {
     ...orpc.privateBody.preference.queryOptions({ input: {} }),
     enabled: isEnabled("body"),
   });
+  // Pain (#442): the member's own opt-in. Fails closed: unknown or an error reads as off.
+  const pain = useQuery({
+    ...orpc.pain.preference.queryOptions({ input: {} }),
+    enabled: isEnabled("body"),
+  });
   const trackers = useQuery(
     orpc.trackers.list.queryOptions({ input: { timeZone, includeArchived: false } }),
   );
+  // Drink presets (#443), only the ones the server can log (FDC imported).
+  const drinkPresets = useQuery({
+    ...orpc.nutritionDrinks.presets.queryOptions({ input: {} }),
+    enabled: isEnabled("food"),
+  });
   const kinds = useMemo(
     () =>
       availableLogKinds<LogKind>(
@@ -116,16 +128,23 @@ export default function QuickLogRoute() {
           preferences: {
             plain_water: waterPreferences.data?.enabled === true,
             private_body: privateBody.data?.enabled === true,
+            pain: pain.data?.enabled === true,
           },
           can: logKindPermissionCheck(me.data?.role),
         },
-        [...LOG_KINDS, ...trackerLogKinds(trackers.data ?? [])],
+        [
+          ...LOG_KINDS,
+          ...drinkLogKinds(drinkPresets.data?.presets),
+          ...trackerLogKinds(trackers.data ?? []),
+        ],
       ),
     [
       enabled,
       waterPreferences.data?.enabled,
       privateBody.data?.enabled,
+      pain.data?.enabled,
       me.data?.role,
+      drinkPresets.data?.presets,
       trackers.data,
     ],
   );
@@ -169,6 +188,9 @@ export default function QuickLogRoute() {
       orpc.goals.key(),
       orpc.trackers.key(),
       orpc.quickLog.key(),
+      orpc.nutritionDiary.key(),
+      orpc.nutritionDrinks.key(),
+      orpc.pain.key(),
     ])
       void queryClient.invalidateQueries({ queryKey: key });
   };
