@@ -269,18 +269,16 @@ function goalSpeaksInInsights(
  * no insight on any channel (#500). A tracker goal produces no insight unless
  * its tracker is in `insightTrackerIds` (insights/AI switch on, not archived),
  * like the custom-tracker change insights (#450). Every goal still counts
- * toward the goal-progress score.
+ * toward the goal-progress score and stays in its per-goal list.
  */
 export function insightGoalInput(
   entries: readonly GoalWithHistory[],
   personalGoals: readonly PersonalGoalForProgress[],
   insightTrackerIds: ReadonlySet<string>,
 ): InsightGoalInput {
-  const silentGoalIds = new Set(
-    personalGoals
-      .filter((goal) => !goalSpeaksInInsights(goal.definition, insightTrackerIds))
-      .map((goal) => goal.id),
-  );
+  const silentGoalIds = personalGoals
+    .filter((goal) => !goalSpeaksInInsights(goal.definition, insightTrackerIds))
+    .map((goal) => goal.id);
   const goalModules: Record<number, PersonModule | null> = {};
   for (const goal of personalGoals)
     goalModules[goal.id] = GOAL_SOURCE_MODULES[goal.definition.source];
@@ -296,13 +294,13 @@ export function insightGoalInput(
       goal.evaluation.days
         .filter((day) => day.state === "qualifies" || day.state === "does-not-qualify")
         .at(-1)?.date ?? null;
-  // The score is computed over every goal; only the per-goal results the
-  // rules turn into insights leave the silent goals out.
-  const result = computeGoalProgress(entries, personalGoals);
+  // The score and its per-goal list cover every goal (the member sees them);
+  // the rules skip the silent goals when they make goal insights.
   return {
-    result: { ...result, goals: result.goals.filter((goal) => !silentGoalIds.has(goal.goalId)) },
+    result: computeGoalProgress(entries, personalGoals),
     latestCheckinDates,
     goalModules,
+    silentGoalIds,
   };
 }
 

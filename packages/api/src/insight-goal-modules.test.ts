@@ -168,12 +168,13 @@ describe("tracker goal insights follow the tracker's insights/AI switch (#450, #
     expect(goalInsightsByChannel([unreadable], null, SWITCH_ON)).toEqual(everywhere([]));
   });
 
-  test("the goal-progress score still counts a silent tracker goal", () => {
+  test("the goal-progress score and its goal list still include a silent tracker goal", () => {
     const off = insightGoalInput([], [reachedGoal(7, "tracker")], new Set());
     const on = insightGoalInput([], [reachedGoal(7, "tracker")], SWITCH_ON);
-    expect(off.result.goals).toEqual([]);
-    expect(on.result.goals.map((goal) => goal.goalId)).toEqual([7]);
+    expect(off.result.goals.map((goal) => goal.goalId)).toEqual([7]);
+    expect(off.result).toEqual(on.result);
     expect(off.result.score).toBe(100);
-    expect(off.result.coverage).toEqual(on.result.coverage);
+    expect(off.silentGoalIds).toEqual([7]);
+    expect(on.silentGoalIds).toEqual([]);
   });
 });
