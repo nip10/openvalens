@@ -1,0 +1,9 @@
+/* Generated from the Lingui catalogs by `bun run widget:strings`. Do not edit. */
+"widget_name" = "Registo rápido";
+"widget_description" = "Registe um copo de água, tome o próximo suplemento ou abra o registo com um toque.";
+"water" = "Água";
+"water_action" = "+1 copo";
+"supplement" = "Suplemento";
+"supplement_action" = "Tomado";
+"log" = "Registar…";
+"log_action" = "Tudo o resto";

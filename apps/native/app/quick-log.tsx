@@ -12,6 +12,7 @@ import {
   buildQuickLogWrite,
   hasQuickForm,
   quickFormDefaults,
+  quickLogWriteValue,
   recentEntryTitle,
   recentEntryValue,
   repeatRecentEntry,
@@ -35,6 +36,22 @@ import { LOG_KIND_ICONS, LOG_KIND_TONES } from "@/components/quick-log/log-kind-
 import { QuickForm, type SupplementOption } from "@/components/quick-log/quick-form";
 import { TrackerValueInput } from "@/components/trackers/tracker-value-input";
 import { authClient } from "@/lib/auth-client";
+import { HOME_WIDGET_COPY } from "@/lib/home-widget/copy";
+import {
+  glassOfWaterWrite,
+  homeWidgetAvailability,
+  nextDueSupplement,
+  parseHomeWidgetAction,
+  planHomeWidgetTap,
+} from "@/lib/home-widget/model";
+import {
+  createHomeWidgetWriteLog,
+  guardHomeWidgetTap,
+  HOME_WIDGET_NONCE_PARAM,
+  homeWidgetLinkVerified,
+  isOwnRecord,
+} from "@/lib/home-widget/link-guard";
+import { useHomeWidgetNonce } from "@/lib/home-widget/storage";
 import {
   discardQueuedSupplementIntake,
   enqueueMetricSample,
@@ -76,13 +93,42 @@ const COPY = {
   undoFailed: msg`Could not remove it. Open the screen to change it.`,
   failed: msg`Could not save. Try again.`,
   takeHint: msg`Logs the scheduled dose now. Long-press to change it.`,
+  widgetOff: msg({
+    message: "{what} is turned off, so nothing was logged.",
+    comment: "After a tap on the home-screen widget for a kind the member has turned off.",
+  }),
+  widgetNotOwn: msg({
+    message:
+      "The widget logs only to your own record, so nothing was logged here. Pick what to log, or switch to your own workspace.",
+    comment:
+      "After a tap on the home-screen widget while the active workspace belongs to someone else (one the member looks after).",
+  }),
+  widgetRepeat: msg({
+    message: "{what} was logged from the widget a moment ago, so this tap was ignored.",
+    comment: "After a second tap on the same home-screen widget button within a few seconds.",
+  }),
+  widgetConfirm: msg({
+    message: "From the home-screen widget. Nothing is saved until you tap Save.",
+    comment:
+      "Shown when a home-screen widget link opens the app with the entry ready to save, e.g. on iPhone.",
+  }),
   repeatHint: msg`Logs the same again, now.`,
 };
+
+/** Widget writes in this app process, for ignoring a quick repeat (#505). */
+const widgetWrites = createHomeWidgetWriteLog();
 
 type Tracker = Awaited<ReturnType<typeof client.trackers.list>>[number];
 
 type PickerView =
   | { type: "list" }
+  /** A widget link that is not known to be the widget's: the entry, saved with one tap (#505). */
+  | {
+      type: "widget_confirm";
+      kind: LogKind;
+      what: string;
+      entry: { type: "water" } | { type: "take"; item: DueSupplement };
+    }
   | { type: "form"; kind: LogKind; preset?: Record<string, string> }
   | { type: "tracker"; kind: LogKind; tracker: Tracker };
 
@@ -99,11 +145,19 @@ type PickerView =
  * parser: "500 ml" or "peso 82,4" previews the entry and saves through the
  * same write path (offline queue and undo included); a bare "82" lists the
  * kinds it could be and saves nothing until one is tapped.
+ *
+ * `?widget=<action>` is a tap on the home-screen widget (#449): water and
+ * "Taken" save at once, with Undo, the same as a tap here; "Log…" just
+ * opens the picker. Any app or page can open that link, so it only saves at
+ * once from the Android widget (its links carry this install's nonce), in
+ * the member's own workspace, and not twice within a few seconds; else the
+ * entry waits for one "Save" tap or nothing is written
+ * (`lib/home-widget/link-guard.ts`, #505).
  */
 export default function QuickLogRoute() {
   const { t, i18n } = useLingui();
   const router = useRouter();
-  const params = useLocalSearchParams<{ kind?: string }>();
+  const params = useLocalSearchParams<{ kind?: string; widget?: string; nonce?: string }>();
   const insets = useSafeAreaInsets();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -118,7 +172,9 @@ export default function QuickLogRoute() {
   const water = usePlainWaterOutbox();
 
   // What the member can log: modules, preferences and role.
-  const { kinds, trackers } = useLogKinds({ timeZone });
+  const { kinds, trackers, settled: kindsKnown } = useLogKinds({ timeZone });
+  // The role here: a widget tap writes only to the member's own record (#505).
+  const me = useQuery(orpc.sharing.me.queryOptions({ input: {} }));
   const has = (id: string) => kinds.some((kind) => kind.id === id);
   const canRecords = kinds.some((kind) => kind.permission.resource === "records");
 
@@ -332,6 +388,114 @@ export default function QuickLogRoute() {
     }
   };
 
+  // `?widget=<action>`: a tap on the home-screen widget, acted on once what the
+  // member can log is known (a kind turned off since the widget was drawn is not saved).
+  const widgetAction = parseHomeWidgetAction(params.widget);
+  const widgetHandled = useRef(false);
+  const kindsSettled = Boolean(session.data) && kindsKnown;
+  // A cached answer may be from before a dose was taken elsewhere: wait for the refetch.
+  const nextDue = due.isFetching ? undefined : nextDueSupplement(due.data, queuedIntakes, timeZone);
+  // #505: only the Android widget is given this install's nonce. iOS links never carry one.
+  const storedNonce = useHomeWidgetNonce(Platform.OS === "android");
+  const widgetVerified = homeWidgetLinkVerified(params[HOME_WIDGET_NONCE_PARAM], storedNonce);
+  const ownRecord = isOwnRecord(me);
+  const waterKind = kinds.find((kind) => kind.id === "water");
+  const glassOfWaterLabel = (write: ReturnType<typeof glassOfWaterWrite>) =>
+    waterKind ? `${i18n._(waterKind.label)} · ${quickLogWriteValue(write, waterKind, i18n)}` : "";
+  const saveGlassOfWater = () => {
+    if (!waterKind) return;
+    const write = glassOfWaterWrite({ timeZone, newId: newClientMutationId });
+    void save(write, glassOfWaterLabel(write), waterKind);
+  };
+  useEffect(() => {
+    if (!widgetAction) {
+      widgetHandled.current = false;
+      return;
+    }
+    if (widgetHandled.current || saving) return;
+    const plan = guardHomeWidgetTap(
+      planHomeWidgetTap(widgetAction, {
+        availability: kindsSettled ? homeWidgetAvailability(kinds) : null,
+        next: has("supplement_intake") ? nextDue : null,
+      }),
+      {
+        ownRecord,
+        verified: widgetVerified,
+        lastWriteAt: widgetAction === "log" ? undefined : widgetWrites.lastWriteAt(widgetAction),
+        now: Date.now(),
+      },
+    );
+    if (plan.type === "wait") return;
+    widgetHandled.current = true;
+    // The picker stays open: clear the action (and nonce) so the same tap again acts again.
+    const stay = () =>
+      router.setParams({ widget: undefined, [HOME_WIDGET_NONCE_PARAM]: undefined });
+    switch (plan.type) {
+      case "picker":
+        stay();
+        return;
+      case "off":
+        stay();
+        toast.show({
+          label: i18n._({
+            ...COPY.widgetOff,
+            values: { what: i18n._(HOME_WIDGET_COPY[plan.action]) },
+          }),
+        });
+        return;
+      case "not_own_record":
+        stay();
+        toast.show({ label: i18n._(COPY.widgetNotOwn) });
+        return;
+      case "repeat_ignored":
+        stay();
+        toast.show({
+          label: i18n._({
+            ...COPY.widgetRepeat,
+            values: { what: i18n._(HOME_WIDGET_COPY[plan.action]) },
+          }),
+        });
+        return;
+      case "confirm_water":
+        stay();
+        if (waterKind)
+          setView({
+            type: "widget_confirm",
+            kind: waterKind,
+            what: glassOfWaterLabel(glassOfWaterWrite({ timeZone, newId: () => "" })),
+            entry: { type: "water" },
+          });
+        return;
+      case "confirm_take":
+        stay();
+        if (supplementKind)
+          setView({
+            type: "widget_confirm",
+            kind: supplementKind,
+            what: `${plan.item.name} · ${plan.item.dose}`,
+            entry: { type: "take", item: plan.item },
+          });
+        return;
+      case "save_water":
+        widgetWrites.record("water", Date.now());
+        saveGlassOfWater();
+        return;
+      case "take":
+        widgetWrites.record("supplement", Date.now());
+        takeSupplement(plan.item);
+        return;
+      case "choose_supplement":
+        stay();
+        if (supplementKind)
+          openKind(
+            supplementKind,
+            plan.supplementId === null ? undefined : { supplement: String(plan.supplementId) },
+          );
+    }
+    // The handlers read the latest data; run once per tap.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [widgetAction, kindsSettled, kinds, nextDue, saving, ownRecord, widgetVerified]);
+
   // `?kind=<id>`: open that kind once it is known to be available.
   const opened = useRef(false);
   useEffect(() => {
@@ -460,6 +624,18 @@ export default function QuickLogRoute() {
             failed={failed}
             timeZone={timeZone}
             onSave={(write, what) => void save(write, what, view.kind)}
+          />
+        ) : view.type === "widget_confirm" ? (
+          <WidgetConfirmView
+            what={view.what}
+            saving={saving}
+            failed={failed}
+            onSave={() => {
+              if (saving) return;
+              const entry = view.entry;
+              if (entry.type === "water") saveGlassOfWater();
+              else takeSupplement(entry.item);
+            }}
           />
         ) : (
           <>
@@ -623,6 +799,37 @@ function QuickFormView({
         onSave(parsed.write, i18n._(kind.label));
       }}
     />
+  );
+}
+
+/** A widget link's entry, ready to save with one tap (#505: iOS, or a link without the nonce). */
+function WidgetConfirmView({
+  what,
+  saving,
+  failed,
+  onSave,
+}: {
+  what: string;
+  saving: boolean;
+  failed: boolean;
+  onSave: () => void;
+}) {
+  const { t, i18n } = useLingui();
+  return (
+    <View className="gap-5">
+      <Text className="font-sans text-lg font-semibold text-ink" testID="quick-log-widget-entry">
+        {what}
+      </Text>
+      <Text className="font-sans text-sm text-ink-3">{i18n._(COPY.widgetConfirm)}</Text>
+      {failed ? (
+        <Text accessibilityRole="alert" className="font-sans text-sm text-destructive">
+          {t`Could not save. Try again.`}
+        </Text>
+      ) : null}
+      <Button testID="quick-log-save" onPress={onSave} isDisabled={saving}>
+        <Button.Label>{saving ? t`Saving…` : t`Save`}</Button.Label>
+      </Button>
+    </View>
   );
 }
 

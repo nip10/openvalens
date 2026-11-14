@@ -224,7 +224,7 @@ export async function startStack(options: {
     const platform = options.platform ?? "ios";
     log(`warming the ${platform} bundle`);
     await fetch(
-      `http://localhost:${E2E.metroPort}/node_modules/expo-router/entry.bundle?platform=${platform}&dev=true&minify=false`,
+      `http://localhost:${E2E.metroPort}/index.bundle?platform=${platform}&dev=true&minify=false`,
     ).then((r) => r.arrayBuffer());
   }
   log("stack is up");
