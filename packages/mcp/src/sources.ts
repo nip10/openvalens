@@ -8,7 +8,7 @@ import { workout, workoutExercise } from "@openvalens/db/schema/plans";
 import { productSettings } from "@openvalens/db/schema/product-settings";
 import { customTracker, customTrackerEntry } from "@openvalens/db/schema/trackers";
 import { countsInDailyTotals } from "@openvalens/vitals/device-overlap";
-import { and, asc, between, desc, eq, ilike, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, between, desc, eq, ilike, inArray, isNull, or, sql } from "drizzle-orm";
 
 import type { Units } from "./format";
 
@@ -31,7 +31,7 @@ import type { Units } from "./format";
 export const MCP_SOURCE_TABLES = [
   // Range reads in this file
   "health_event", // only `event_type = 'sleep_session'`
-  "workout",
+  "workout", // only the member's own (and legacy unattributed) sessions
   "workout_exercise", // counted only
   "metric_sample", // only heart rate, resting heart rate and HRV
   "metric_definition",
@@ -263,6 +263,9 @@ export function createMcpDataSources(
         .where(
           and(
             eq(workout.organizationId, scope.organizationId),
+            // Private to their author, as on the app's own screens (`listWorkouts`):
+            // the member's own sessions plus legacy rows from before authorship.
+            or(eq(workout.userId, scope.userId), isNull(workout.userId)),
             between(sql`substring(${workout.date} from 1 for 10)`, range.from, range.to),
           ),
         )

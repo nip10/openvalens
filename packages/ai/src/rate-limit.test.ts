@@ -57,6 +57,29 @@ describe("InMemoryRateLimiter", () => {
     expect(limiter.check("k").allowed).toBe(true);
   });
 
+  test("charges a cost all or nothing, and waits for enough hits to age out", () => {
+    let now = 1_000;
+    const limiter = new InMemoryRateLimiter({ limitPerMinute: 5, now: () => now });
+
+    expect(limiter.check("k", 2).allowed).toBe(true);
+    now += 10_000;
+    expect(limiter.check("k", 2).allowed).toBe(true);
+    // One left: a cost of 3 is refused and records nothing.
+    const denied = limiter.check("k", 3);
+    expect(denied.allowed).toBe(false);
+    // Room for 3 once the first two hits (at 1s) age out.
+    expect(denied.retryAfterMs).toBe(50_000);
+    expect(limiter.check("k").allowed).toBe(true);
+    expect(limiter.check("k").allowed).toBe(false);
+  });
+
+  test("never allows a cost above the limit", () => {
+    const limiter = new InMemoryRateLimiter({ limitPerMinute: 2, now: () => 1_000 });
+    expect(limiter.check("k", 3)).toEqual({ allowed: false, retryAfterMs: 60_000 });
+    expect(limiter.check("k", 2).allowed).toBe(true);
+    expect(() => limiter.check("k", 0)).toThrow();
+  });
+
   test("rejects a non-positive limit", () => {
     expect(() => new InMemoryRateLimiter({ limitPerMinute: 0 })).toThrow();
   });

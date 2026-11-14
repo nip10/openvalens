@@ -29,7 +29,8 @@ import { AiWriteLimitError, type AiAppWrites } from "./writes";
  *    cookie session), re-checking revoke, expiry, ownership and the
  *    workspace switch;
  * 2. counts against 60 calls a minute per grant and 120 per member (env), and
- *    is answered `429` with `Retry-After` past either;
+ *    is answered `429` with `Retry-After` past either; each `tools/call` in a
+ *    JSON-RPC batch counts as one call;
  * 3. records one usage row per tool call: grant, tool, time, status and row
  *    count, never the arguments or results;
  * 4. for a write tool (M2), refuses it while the workspace is read-only and
@@ -138,20 +139,27 @@ function authFailure(reason: AiAppAuthFailure, challenge: Challenge): Response {
   );
 }
 
-/** A `tools/call` request's tool name, read from a clone of the body. */
-async function calledToolName(request: Request): Promise<string | null> {
-  if (request.method !== "POST") return null;
+/**
+ * The tool names of the `tools/call` requests in a POST body, read from a
+ * clone: one for a single message, one per call in a JSON-RPC batch. The SDK
+ * still negotiates 2025-03-26, the revision whose clients may send batches (up
+ * to 100 messages a POST), so a batch is charged per tool call, not refused.
+ */
+async function calledToolNames(request: Request): Promise<string[]> {
+  if (request.method !== "POST") return [];
+  let body: unknown;
   try {
-    const body = (await request.clone().json()) as {
-      method?: unknown;
-      params?: { name?: unknown };
-    } | null;
-    return body?.method === "tools/call" && typeof body.params?.name === "string"
-      ? body.params.name
-      : null;
+    body = await request.clone().json();
   } catch {
-    return null;
+    return [];
   }
+  const names: string[] = [];
+  for (const message of Array.isArray(body) ? body : [body]) {
+    const call = message as { method?: unknown; params?: { name?: unknown } } | null;
+    if (call?.method === "tools/call" && typeof call.params?.name === "string")
+      names.push(call.params.name);
+  }
+  return names;
 }
 
 type ToolOutcome =
@@ -193,7 +201,7 @@ export function createAiAppsHttp(options: AiAppsHttpOptions) {
       }
     : null;
 
-  async function authorize(
+  async function authenticate(
     request: Request,
     correlationId: string | undefined,
     transport: "mcp" | "rest",
@@ -207,12 +215,20 @@ export function createAiAppsHttp(options: AiAppsHttpOptions) {
       logger.info("ai_apps.request.refused", { correlationId, reason: auth.reason });
       return authFailure(auth.reason, transport === "mcp" ? mcpChallenge : null);
     }
-    const { principal } = auth;
+    return { principal: auth.principal };
+  }
+
+  /** Charges `cost` calls to the grant's and the member's per-minute budgets. */
+  function rateLimit(
+    principal: AiAppGrantPrincipal,
+    correlationId: string | undefined,
+    cost = 1,
+  ): Response | null {
     for (const [limiter, key] of [
       [grantLimiter, `grant:${principal.grantId}`],
       [memberLimiter, `member:${principal.userId}`],
     ] as const) {
-      const decision = limiter.check(key);
+      const decision = limiter.check(key, cost);
       if (!decision.allowed) {
         const retryAfter = Math.max(1, Math.ceil((decision.retryAfterMs ?? 60_000) / 1000));
         logger.info("ai_apps.request.rate_limited", {
@@ -230,7 +246,17 @@ export function createAiAppsHttp(options: AiAppsHttpOptions) {
         );
       }
     }
-    return { principal };
+    return null;
+  }
+
+  async function authorize(
+    request: Request,
+    correlationId: string | undefined,
+    transport: "mcp" | "rest",
+  ): Promise<Authorized | Response> {
+    const authorized = await authenticate(request, correlationId, transport);
+    if (authorized instanceof Response) return authorized;
+    return rateLimit(authorized.principal, correlationId) ?? authorized;
   }
 
   async function toolContext(
@@ -407,24 +433,59 @@ export function createAiAppsHttp(options: AiAppsHttpOptions) {
     },
   );
 
-  /** `/api/mcp`: authenticate, rate-limit, then hand the request to the SDK. */
+  /**
+   * `/api/mcp`: authenticate, rate-limit, then hand the request to the SDK.
+   * Every `tools/call` in a JSON-RPC batch costs one call of the per-minute
+   * budgets, as if it had been sent on its own.
+   */
   async function handleMcp(request: Request, correlationId?: string): Promise<Response> {
-    const authorized = await authorize(request, correlationId, "mcp");
+    const authorized = await authenticate(request, correlationId, "mcp");
     if (authorized instanceof Response) return authorized;
+    const called = await calledToolNames(request);
+    const { perGrantPerMinute, perMemberPerMinute } = options.config.rateLimits;
+    const maxCalls = Math.min(perGrantPerMinute, perMemberPerMinute);
+    // More calls than a whole minute's budget could never be served; say so
+    // instead of a Retry-After that would not help.
+    if (called.length > maxCalls) {
+      return json(400, {
+        jsonrpc: "2.0",
+        error: {
+          code: -32_600,
+          message: `A batch can hold at most ${maxCalls} tool calls. Send fewer per request.`,
+        },
+        id: null,
+      });
+    }
+    const limited = rateLimit(authorized.principal, correlationId, Math.max(1, called.length));
+    if (limited) return limited;
     // A call to a known tool this grant lacks the scope for is answered with
     // an HTTP 403 `insufficient_scope` challenge (MCP step-up), so the client
-    // can ask the member to approve the extra scope and retry.
-    const called = await calledToolName(request);
-    const calledTool = called ? availableTool(called) : undefined;
-    if (calledTool && !hasScope(authorized.principal.scopes, calledTool.scope)) {
-      await options.service.recordCall({
-        principal: authorized.principal,
-        tool: calledTool.name,
-        transport: "mcp",
-        status: "insufficient_scope",
-      });
-      const scopes = [...new Set([...authorized.principal.scopes, calledTool.scope])];
-      const description = `This connection does not have the ${calledTool.scope} scope needed by ${calledTool.name}.`;
+    // can ask the member to approve the extra scope and retry. One such call
+    // in a batch refuses the whole batch.
+    const missing = [
+      ...new Set(
+        called
+          .map((name) => availableTool(name))
+          .filter((tool) => tool !== undefined)
+          .filter((tool) => !hasScope(authorized.principal.scopes, tool.scope)),
+      ),
+    ];
+    if (missing.length > 0) {
+      for (const tool of missing)
+        await options.service.recordCall({
+          principal: authorized.principal,
+          tool: tool.name,
+          transport: "mcp",
+          status: "insufficient_scope",
+        });
+      const scopes = [
+        ...new Set([...authorized.principal.scopes, ...missing.map((tool) => tool.scope)]),
+      ];
+      const description = missing
+        .map(
+          (tool) => `This connection does not have the ${tool.scope} scope needed by ${tool.name}.`,
+        )
+        .join(" ");
       return json(
         403,
         { jsonrpc: "2.0", error: { code: -32_000, message: description }, id: null },

@@ -43,24 +43,31 @@ export class InMemoryRateLimiter {
   }
 
   /**
-   * Records a hit against `key` and reports whether it is allowed.
+   * Records `cost` hits (default 1) against `key` and reports whether they are
+   * allowed. All or nothing: a request that would cross the limit records none.
    *
    * A denied hit is **not** recorded, so a client that keeps retrying does not
-   * extend its own lockout.
+   * extend its own lockout. A cost above the limit is never allowed; its
+   * `retryAfterMs` is the full window.
    */
-  check(key: string): RateLimitDecision {
+  check(key: string, cost = 1): RateLimitDecision {
+    if (!Number.isInteger(cost) || cost < 1) {
+      throw new Error("InMemoryRateLimiter: cost must be a positive integer.");
+    }
     const now = this.now();
     const cutoff = now - this.windowMs;
     const recent = (this.hits.get(key) ?? []).filter((timestamp) => timestamp > cutoff);
 
-    if (recent.length >= this.limit) {
-      const oldest = recent[0] as number;
-      const retryAfterMs = Math.max(0, oldest + this.windowMs - now);
+    if (recent.length + cost > this.limit) {
       this.hits.set(key, recent);
+      if (cost > this.limit) return { allowed: false, retryAfterMs: this.windowMs };
+      // The hit whose expiry frees enough room for `cost` more.
+      const freeing = recent[recent.length + cost - this.limit - 1] as number;
+      const retryAfterMs = Math.max(0, freeing + this.windowMs - now);
       return { allowed: false, retryAfterMs };
     }
 
-    recent.push(now);
+    for (let index = 0; index < cost; index += 1) recent.push(now);
     this.hits.set(key, recent);
     return { allowed: true };
   }
