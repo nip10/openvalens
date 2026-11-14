@@ -21,6 +21,8 @@ export type AiAppGrantLike = {
   lastUsedAt: string | null;
   expiresAt: string | null;
   revokedAt: string | null;
+  /** Entries this grant wrote that are still recorded as its own (M2). */
+  entryCount?: number;
 };
 
 /** The shape `aiApps.recentActivity` returns per call. */
@@ -75,7 +77,30 @@ const SCOPES: Record<string, { title: MessageDescriptor; detail: MessageDescript
     title: msg`Pain log`,
     detail: msg`Your pain ratings by body region, only while "Coach and connected AI apps can read my pain log" is on.`,
   },
+  // Write scopes (M2): each lets the app add entries in one domain and delete
+  // the entries it added there, never anything else.
+  "water:write": {
+    title: msg`Add water`,
+    detail: msg`Log plain water you drank. The app can delete only the entries it added.`,
+  },
+  "body:write": {
+    title: msg`Add weight and body composition`,
+    detail: msg`Log weight, body fat, muscle, bone and body water. The app can delete only the entries it added.`,
+  },
+  "vitals:write": {
+    title: msg`Add vitals`,
+    detail: msg`Log blood pressure, heart rate, resting heart rate, blood oxygen and respiratory rate. The app can delete only the entries it added.`,
+  },
+  "supplements:write": {
+    title: msg`Add supplements taken`,
+    detail: msg`Log that you took one of your supplements. The app can delete only the entries it added.`,
+  },
 };
+
+/** Whether a scope lets the app add entries (M2) rather than read. */
+export function isAiAppWriteScope(scope: string): boolean {
+  return scope.endsWith(":write");
+}
 
 /** A scope's short name, or `null` for a scope this app does not know yet. */
 export function aiAppScopeTitle(scope: string): MessageDescriptor | null {
@@ -101,6 +126,8 @@ const CALL_STATUS: Record<string, MessageDescriptor> = {
   ok: msg({ message: "Answered", context: "ai app call" }),
   insufficient_scope: msg({ message: "Not allowed", context: "ai app call" }),
   invalid_input: msg({ message: "Bad request", context: "ai app call" }),
+  read_only: msg({ message: "Read-only", context: "ai app call" }),
+  limit_reached: msg({ message: "Daily limit reached", context: "ai app call" }),
   error: msg({ message: "Failed", context: "ai app call" }),
 };
 
@@ -112,7 +139,13 @@ export function aiAppCallStatusLabel(status: string): MessageDescriptor {
 /** Pill tone for a usage record's status. */
 export function aiAppCallTone(status: string): "good" | "warn" | "bad" {
   if (status === "ok") return "good";
-  if (status === "insufficient_scope" || status === "invalid_input") return "warn";
+  if (
+    status === "insufficient_scope" ||
+    status === "invalid_input" ||
+    status === "read_only" ||
+    status === "limit_reached"
+  )
+    return "warn";
   return "bad";
 }
 
@@ -139,6 +172,17 @@ export function splitGrants(
     active: ofKind.filter((grant) => grant.status === "active"),
     inactive: ofKind.filter((grant) => grant.status !== "active"),
   };
+}
+
+/** "via Claude": how entries an AI app wrote are labelled. */
+export const AI_APP_SOURCE_LABEL = msg({
+  message: "via {name}",
+  comment: "Source of an entry a connected AI app wrote; {name} is the app's or key's name.",
+});
+
+/** The timeline filter that shows only what one grant wrote. */
+export function aiAppTimelineSource(grantId: string): string {
+  return `ai_app:${grantId}`;
 }
 
 /** The Claude Code command that adds this server with a personal key. */

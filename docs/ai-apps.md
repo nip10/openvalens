@@ -1,8 +1,9 @@
 # Connected AI apps (MCP server and REST tool API)
 
 Members can point an AI app (claude.ai, ChatGPT, Claude Code, Claude Desktop,
-Cursor, a script or a local model) at their **own** records, read-only
-(Issue #439). Web connectors such as claude.ai and ChatGPT sign in with
+Cursor, a script or a local model) at their **own** records (Issue #439):
+reading them, and, with an opt-in write scope, adding entries (see
+[Writes](#writes)). Web connectors such as claude.ai and ChatGPT sign in with
 **OAuth 2.1**; local clients can use OAuth too, or a **personal API key**.
 
 ## Turning it on
@@ -17,7 +18,9 @@ With it off, `/api/mcp`, `/api/v1/tools/*`, the OAuth endpoints
 and readiness reports `mcp: off`. Rate limits:
 `MCP_RATE_LIMIT_PER_GRANT_PER_MINUTE` (60) and
 `MCP_RATE_LIMIT_PER_MEMBER_PER_MINUTE` (120), per server process, answered
-with `429` and `Retry-After`. See [configuration](self-hosting/configuration.md).
+with `429` and `Retry-After`. Write limits: `MCP_WRITE_ENTRIES_PER_CALL` (100)
+and `MCP_WRITE_ENTRIES_PER_DAY` (1,000 added per grant in any 24 hours). See
+[configuration](self-hosting/configuration.md).
 
 The workspace owner can turn **Members can connect AI apps** off (on by
 default). Existing keys and connections in that workspace stop on their next
@@ -35,8 +38,8 @@ default),
 and the `mcp-v1` consent. Revoking a grant, expiry, leaving the workspace,
 losing ownership or the owner's switch stops the next call. Cycle data and
 progress photos are never reachable (lint rule, allowlisted sources in
-`packages/mcp/src/sources.ts`, and an integration test). Write scopes are
-reserved and refused for now.
+`packages/mcp/src/sources.ts`, and an integration test). A grant may also hold
+write scopes (below), each off by default.
 
 Each call keeps a light usage record (grant, tool, time, status, row count;
 never arguments or results) for 90 days.
@@ -75,6 +78,59 @@ never arguments or results) for 90 days.
   apps), and the scopes, with sensitive ones unticked. Nothing is
   pre-approved. A new connection sends a security email.
 
+## Writes
+
+Each write scope covers one domain and is opt-in (unticked on the key form and
+the consent screen):
+
+| Scope               | Tools                                             | What                                                                   |
+| ------------------- | ------------------------------------------------- | ---------------------------------------------------------------------- |
+| `water:write`       | `water.log`, `water.delete`                       | Plain water (needs the member's plain-water logging on)                |
+| `body:write`        | `body.log`, `body.delete`                         | Weight, body fat, muscle mass, bone mass, body water                   |
+| `vitals:write`      | `vitals.log`, `vitals.delete`                     | Blood pressure (with pulse), heart rate, resting HR, SpO₂, respiration |
+| `supplements:write` | `supplements.logTaken`, `supplements.deleteTaken` | One of the member's own supplements taken, by name                     |
+
+A grant without the scope gets `403 insufficient_scope`; on `/api/mcp` the
+challenge names the scope so the app can ask for it (approving again updates
+the connection's scopes without reconnecting). `workouts:write`,
+`sleep:write`, `trackers:write`, `pain:write`, `food:write` and `labs:write`
+are reserved for the next milestones and refused for now.
+
+- **Same paths as the app.** Entries go through the domain write paths the
+  quick log uses (plain-water diary, `ingestMetricSample` with the manual-entry
+  ranges and the blood pressure rule, supplement intakes), as the member's own
+  manual entries. Values out of range, an unknown supplement, or a time in the
+  future fail the whole call before anything is written.
+- **Idempotent.** Every call needs a `mutationId`. Its receipt (`ai_app_write`)
+  works like the plain-water receipts (#83): a retry with the same id and
+  arguments returns the first result (`replayed: true`) and writes nothing; the
+  same id with other arguments is refused. Each entry also gets a key derived
+  from the grant, the id and its position, used as the domain's own mutation id
+  or dedupe hash, so a retry after a failure half-way through never duplicates
+  an entry.
+- **Source.** Every entry is recorded in `ai_app_entry` with the grant that
+  wrote it and shown as "via <app name>". On the timeline,
+  `timeline.list({ source: "ai_app:<grantId>" })` (or `/records/timeline?source=…`)
+  shows only one app's entries. Water and supplement intakes are not timeline
+  items yet; they carry the same tag in `ai_app_entry` and are counted and
+  deleted with the rest.
+- **Ownership.** `*.delete` deletes only entries the same grant wrote, by the
+  `entryId`s its log calls returned; any other id is answered `not_found` and
+  left alone. There is no edit tool: an app corrects an entry by deleting it and
+  logging it again. Revoking a grant keeps what it wrote;
+  `aiApps.deleteWrites` ("Delete everything this app wrote" on the web settings
+  page) deletes all of it through each domain's own delete.
+- **Device data wins.** An entry never overwrites or merges into a device
+  reading. A reading within ten minutes of a device reading of the same metric
+  is returned as `possibleDuplicate: true` (the typed-in blood pressure rule),
+  and daily vitals totals leave it out so the device reading counts.
+- **Limits.** At most 100 entries per call and 1,000 added per grant a day
+  (env, above); past the daily limit the call gets `429` with `Retry-After`.
+  On Cloud, a read-only workspace refuses write tools (`403 access_read_only`
+  on REST) while reads keep working.
+- **Never stored:** arguments and results stay out of the usage record; a
+  receipt keeps a SHA-256 fingerprint of the request and entry ids only.
+
 ## Endpoints
 
 | Path                                                              | What                                                      |
@@ -101,7 +157,8 @@ Tools: `healthSnapshot`, `labs`, `markerTrend`, `panelCompare`, `outOfRange`,
 `bodyComp`, `weightTrend`, `supplements`, `goals`, `timelineSummary`,
 `nutritionContext` (nutrition scope), `sleep.sessions`, `workouts.list`,
 `vitals.daily`, `weights.daily`, `labs.history`, `body.privateMeasurements`
-(private body scope) and `exercises.search`. Range reads cover at most 365 days
+(private body scope), `trackers.*` (trackers scope), `pain.entries` (pain
+scope), `exercises.search`, and the write tools above. Range reads cover at most 365 days
 and page with `nextCursor`. Times are ISO 8601 with the member's UTC offset;
 values keep their stored unit next to the member's preferred unit.
 
@@ -152,8 +209,9 @@ them.
 The web page (`/settings/ai-apps`, linked from the security emails) lists the
 member's **Connections** (OAuth) and **Personal keys** in the active
 workspace, with scopes, consent version, dates, each grant's recent activity
-and Revoke, and creates keys (shown once, with a ready-to-paste Claude Code
-command). Settings also carries the owner's **Members can connect AI apps**
+and Revoke, how many entries each one added (with "Show on timeline" and
+"Delete everything this app wrote"), and creates keys (shown once, with a
+ready-to-paste Claude Code command). Settings also carries the owner's **Members can connect AI apps**
 switch. The mobile app can view and revoke only. Both hide everything while
 `aiApps.status` reports `enabled: false`.
 

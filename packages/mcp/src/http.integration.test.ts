@@ -197,8 +197,11 @@ describe.skipIf(!url)("MCP server and REST tools against disposable PostgreSQL",
     expect(names).not.toContain("nutritionContext");
     expect(names).not.toContain("body.privateMeasurements");
 
+    // Every read tool; this server offers no writes (see the M2 writes suite).
     const full = await mcp(fullKey, "tools/list");
-    expect((full.body.result.tools as unknown[]).length).toBe(MCP_TOOLS.length);
+    expect((full.body.result.tools as unknown[]).length).toBe(
+      MCP_TOOLS.filter((tool) => !tool.write).length,
+    );
   });
 
   test("MCP tools/call returns recorded values with units and zoned times", async () => {
@@ -221,7 +224,7 @@ describe.skipIf(!url)("MCP server and REST tools against disposable PostgreSQL",
 
   test("REST answers every tool, and no response carries cycle data or photos", async () => {
     const bodies: string[] = [];
-    for (const tool of MCP_TOOLS) {
+    for (const tool of MCP_TOOLS.filter((entry) => !entry.write)) {
       const input =
         tool.name.includes(".") && tool.name !== "exercises.search" && tool.name !== "trackers.list"
           ? RANGE

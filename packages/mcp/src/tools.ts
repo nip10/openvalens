@@ -36,6 +36,8 @@ import {
 import type { AiAppGrantPrincipal } from "./grants";
 import { BASE_SCOPE, hasScope, type GrantableScope } from "./scopes";
 import type { McpDataSources, TrackerRow } from "./sources";
+import { WRITE_TOOLS } from "./write-tools";
+import type { AiAppWrites } from "./writes";
 
 /**
  * The read tools of the MCP server and the REST tool API (Issue #439, M1).
@@ -53,6 +55,8 @@ import type { McpDataSources, TrackerRow } from "./sources";
  * - The pain log with `pain:read` (#442): only while the member's pain log and
  *   its own AI switch are on; notes only with `notes:read`.
  * - `exercises.search`, for catalog ids.
+ * - The M2a write tools (`./write-tools`), each behind its domain's write
+ *   scope: water, weight and body composition, vitals, supplement taken.
  *
  * Results are the member's recorded values only, with no interpretation
  * beyond the flags the app already shows. Free-text notes appear only with
@@ -68,6 +72,8 @@ export type McpToolContext = {
   units: Units;
   logger: StructuredLogger;
   correlationId?: string;
+  /** The write foundation (M2); `null` when the server offers no write tools. */
+  writes?: AiAppWrites | null;
 };
 
 export type McpToolResult = { result: unknown; rowCount: number | null };
@@ -77,6 +83,8 @@ export type McpToolDefinition = {
   title: string;
   description: string;
   scope: GrantableScope;
+  /** Write tools (M2): `add` entries, or `delete` entries this grant wrote. Reads omit it. */
+  write?: "add" | "delete";
   input: z.ZodType<Record<string, unknown>>;
   run: (context: McpToolContext, input: Record<string, unknown>) => Promise<McpToolResult>;
 };
@@ -722,13 +730,22 @@ export const MCP_TOOLS: readonly McpToolDefinition[] = Object.freeze([
   trackersEntries,
   painEntriesTool,
   exercisesSearch,
+  ...WRITE_TOOLS,
 ]);
 
 export function findTool(name: string): McpToolDefinition | undefined {
   return MCP_TOOLS.find((tool) => tool.name === name);
 }
 
-/** The tools this grant may call: base tools plus those its opt-in scopes unlock. */
-export function toolsForScopes(scopes: readonly string[]): McpToolDefinition[] {
-  return MCP_TOOLS.filter((tool) => hasScope(scopes, tool.scope));
+/**
+ * The tools this grant may call: base tools plus those its opt-in and write
+ * scopes unlock. Write tools only when the server offers writing.
+ */
+export function toolsForScopes(
+  scopes: readonly string[],
+  options: { writes?: boolean } = {},
+): McpToolDefinition[] {
+  return MCP_TOOLS.filter(
+    (tool) => hasScope(scopes, tool.scope) && (!tool.write || options.writes === true),
+  );
 }

@@ -133,6 +133,12 @@ export const DATA_RIGHTS_REGISTRY: Readonly<Record<string, TableEntry>> = Object
   ai_app_grant: { kind: "user" },
   ai_app_key: { kind: "user", redact: ["key_hash"] },
   ai_app_call: { kind: "user" },
+  // AI app writes (#439, M2): the receipt of each write call (mutation id,
+  // tool, entry count and entry ids; the request fingerprint is redacted) and
+  // each entry an app wrote with the grant that wrote it. The member's own:
+  // exported, and erased with the account or the workspace.
+  ai_app_write: { kind: "user", redact: ["fingerprint"] },
+  ai_app_entry: { kind: "user" },
   // OAuth 2.1 for AI apps (#439, M1b), owned by Better Auth. The member's
   // consents and opaque tokens (each pointing at its `ai_app_grant`) are
   // theirs: exported with the token digests and the stored refresh response

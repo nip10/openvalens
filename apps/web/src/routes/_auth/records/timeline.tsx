@@ -10,7 +10,7 @@ import {
 import { Button } from "@openvalens/ui/components/button";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   Activity,
   ListChecks,
@@ -28,6 +28,7 @@ import {
   ScanLine,
   Sparkles,
 } from "lucide-react";
+import { z } from "zod";
 
 import {
   EmptyState,
@@ -42,6 +43,9 @@ import { friendlyDate } from "@/utils/friendly";
 import { orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute("/_auth/records/timeline")({
+  // `?source=ai_app:<grantId>` shows only what one connected AI app wrote
+  // (#439, M2; linked from Settings → Connected AI apps).
+  validateSearch: z.object({ source: z.string().min(1).max(200).optional() }),
   component: TimelinePage,
 });
 
@@ -65,9 +69,14 @@ const OTHER_DOMAIN = { icon: Sparkles, tone: "signal" } as const;
 function TimelinePage() {
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const { i18n } = useLingui();
+  const { source } = Route.useSearch();
   const query = useInfiniteQuery(
     orpc.timeline.list.infiniteOptions({
-      input: (cursor: string | undefined) => ({ limit: PAGE_SIZE, ...(cursor ? { cursor } : {}) }),
+      input: (cursor: string | undefined) => ({
+        limit: PAGE_SIZE,
+        ...(source ? { source } : {}),
+        ...(cursor ? { cursor } : {}),
+      }),
       initialPageParam: undefined,
       getNextPageParam: (page) => page.nextCursor ?? undefined,
     }),
@@ -78,6 +87,25 @@ function TimelinePage() {
   return (
     <Page>
       <PageHeader title={<Trans>Timeline</Trans>} />
+
+      {source ? (
+        <p
+          role="status"
+          className="flex flex-wrap items-center gap-3 rounded-2xl bg-paper-2 px-4 py-3 text-sm text-ink-2"
+        >
+          {source.startsWith("ai_app:") ? (
+            <Trans>Showing only entries a connected AI app added.</Trans>
+          ) : (
+            <Trans>Showing only entries from one source.</Trans>
+          )}
+          <Link
+            to="/records/timeline"
+            className="font-medium text-ink underline-offset-4 hover:underline"
+          >
+            <Trans>Show everything</Trans>
+          </Link>
+        </p>
+      ) : null}
 
       {query.isPending ? (
         <div className="grid gap-6">

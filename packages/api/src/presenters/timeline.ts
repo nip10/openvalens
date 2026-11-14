@@ -8,6 +8,7 @@ import type { I18n, MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import type { WearableProviderId } from "@openvalens/wearables";
 
+import { AI_APP_SOURCE_LABEL } from "./ai-apps";
 import { MANUAL_ENTRY_FIELDS } from "./manual-entry";
 import { painEntrySummary, painRegionText } from "./pain";
 import { formatSleepDuration } from "./sleep";
@@ -81,6 +82,9 @@ const PLATFORM_NAMES: Record<string, string> = {
  */
 export function sourceLabel(item: TimelineItemLike, i18n: I18n): string | null {
   for (const ref of item.sourceRefs) {
+    // #439 (M2) — an entry a connected AI app wrote: "via Claude".
+    if (ref.type === "ai_app")
+      return i18n._({ ...AI_APP_SOURCE_LABEL, values: { name: ref.label } });
     if (ref.provider === "manual" || ref.type === "manual")
       return i18n._(msg({ message: "Manual", context: "data source" }));
     const name = ref.provider ? PLATFORM_NAMES[ref.provider] : undefined;

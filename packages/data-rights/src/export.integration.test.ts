@@ -521,6 +521,10 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
     // #439 — personal API key digests never leave the server.
     expect(all).not.toContain("seed-key-hash-");
     expect(parse("ai_app_key")[0]).not.toHaveProperty("key_hash");
+    // #439 (M2) — write receipts keep their entry ids, never the fingerprint.
+    expect(all).not.toContain("seed-write-fingerprint-");
+    expect(parse("ai_app_write")[0]).not.toHaveProperty("fingerprint");
+    expect(parse("ai_app_entry")[0]).toHaveProperty("target_ids");
     // #439 (M1b) — OAuth token digests and the stored refresh response neither.
     expect(all).not.toContain("seed-access-hash-");
     expect(all).not.toContain("seed-refresh-hash-");
@@ -532,6 +536,7 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
       "account",
       "admission_grant",
       "ai_app_key",
+      "ai_app_write",
       "exercise_catalog_mutation",
       "goal_mutation",
       "insight_preference",

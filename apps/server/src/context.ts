@@ -7,6 +7,7 @@ import { ENV } from "./env.server";
 import {
   aiAppsMcpUrl,
   aiAppsService,
+  aiAppWrites,
   aiConfig,
   aiRateLimiter,
   aiUsageMeter,
@@ -138,6 +139,8 @@ export async function createContext({ context }: CreateContextOptions): Promise<
     aiApps: aiAppsService,
     // Issue #439 (M1b) — OAuth consent screen, or `null` while OAuth is off.
     aiAppsOAuth: mcpOAuthConsent,
+    // Issue #439 (M2) — AI app writes, or `null` when `MCP_ENABLED` is off.
+    aiAppWrites,
     aiAppsMcpUrl,
     webOrigin: admissionOriginFrom(ENV.CORS_ORIGIN),
     insightUnsubscribeKey: insightUnsubscribeKey ?? undefined,

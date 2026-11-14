@@ -272,6 +272,8 @@ describe("actual server schema sensitive coverage", () => {
           "MCP_ENABLED",
           "MCP_RATE_LIMIT_PER_GRANT_PER_MINUTE",
           "MCP_RATE_LIMIT_PER_MEMBER_PER_MINUTE",
+          "MCP_WRITE_ENTRIES_PER_CALL",
+          "MCP_WRITE_ENTRIES_PER_DAY",
           "NODE_ENV",
           "OIDC_CLIENT_ID",
           "OIDC_DISCOVERY_URL",

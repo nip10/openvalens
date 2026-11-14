@@ -42,6 +42,8 @@ export const AUDIT_EVENT_TYPES = [
   "AI_APP_CONSENT_GIVEN",
   "AI_APP_CONSENT_WITHDRAWN",
   "AI_APP_WORKSPACE_SETTING_CHANGED",
+  // M2: the member deleted everything one AI app wrote (counts only).
+  "AI_APP_WRITES_DELETED",
 ] as const;
 
 export const auditEventTypeSchema = z.enum(AUDIT_EVENT_TYPES);

@@ -8,7 +8,7 @@ import {
   hashPersonalKey,
   isPersonalKeyFormat,
 } from "./keys";
-import { normalizeScopes, RESERVED_SCOPES } from "./scopes";
+import { normalizeScopes, RESERVED_SCOPES, WRITE_SCOPES } from "./scopes";
 import { parseAiAppsSetting } from "./settings";
 
 describe("parseMcpConfig", () => {
@@ -41,6 +41,15 @@ describe("parseMcpConfig", () => {
     expect(
       parseMcpConfig({ MCP_RATE_LIMIT_PER_GRANT_PER_MINUTE: 0 }).rateLimits.perGrantPerMinute,
     ).toBe(60);
+  });
+
+  test("write limits default to 100 entries a call and 1,000 a day, and are env-configurable", () => {
+    expect(parseMcpConfig({}).writeLimits).toEqual({ entriesPerCall: 100, entriesPerDay: 1000 });
+    expect(
+      parseMcpConfig({ MCP_WRITE_ENTRIES_PER_CALL: "5", MCP_WRITE_ENTRIES_PER_DAY: 12 })
+        .writeLimits,
+    ).toEqual({ entriesPerCall: 5, entriesPerDay: 12 });
+    expect(parseMcpConfig({ MCP_WRITE_ENTRIES_PER_CALL: -1 }).writeLimits.entriesPerCall).toBe(100);
   });
 
   test("readiness status is value-free", () => {
@@ -86,6 +95,15 @@ describe("scopes", () => {
       ok: true,
       scopes: ["notes:read", "nutrition:read", "records:read"],
     });
+  });
+
+  test("grant the M2a write scopes, which are opt-in", () => {
+    expect(normalizeScopes([...WRITE_SCOPES])).toEqual({
+      ok: true,
+      scopes: ["body:write", "records:read", "supplements:write", "vitals:write", "water:write"],
+    });
+    expect(RESERVED_SCOPES).toContain("trackers:write");
+    for (const scope of WRITE_SCOPES) expect(RESERVED_SCOPES).not.toContain(scope as never);
   });
 
   test("refuse reserved and unknown scopes instead of dropping them", () => {

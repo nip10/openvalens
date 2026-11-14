@@ -8,9 +8,11 @@ import {
   AiAppGrantError,
   BASE_SCOPE,
   DEFAULT_PERSONAL_KEY_EXPIRY_DAYS,
+  GRANTABLE_SCOPES,
   MAX_ACTIVE_PERSONAL_KEYS,
   OPT_IN_SCOPES,
   PERSONAL_KEY_EXPIRY_DAYS,
+  WRITE_SCOPES,
   type AiAppsService,
 } from "@openvalens/mcp";
 import { z } from "zod";
@@ -44,6 +46,8 @@ const grantShape = z.object({
   lastUsedAt: z.string().nullable(),
   expiresAt: z.string().nullable(),
   revokedAt: z.string().nullable(),
+  /** Entries this grant wrote that are still recorded as its own (M2). */
+  entryCount: z.number().int().nonnegative(),
 });
 
 const statusOutput = z.object({
@@ -56,6 +60,10 @@ const statusOutput = z.object({
   blockedReason: z.enum(["NOT_OWNER", "WORKSPACE_DISABLED"]).nullable(),
   baseScope: z.string(),
   optInScopes: z.array(z.string()),
+  /** Opt-in write scopes (M2), one per domain; off by default. */
+  writeScopes: z.array(z.string()),
+  /** Most entries one write call may hold, and one grant may add a day. */
+  writeLimits: z.object({ entriesPerCall: z.number(), entriesPerDay: z.number() }).nullable(),
   expiryDays: z.array(z.number().nullable()),
   defaultExpiryDays: z.number().nullable(),
   maxActiveKeys: z.number(),
@@ -71,7 +79,7 @@ const createKeyInput = z
   .object({
     label: z.string().trim().min(1).max(80),
     /** Opt-in scopes to add to `records:read`. Reserved or unknown scopes fail. */
-    scopes: z.array(z.string().min(1).max(40)).max(10).default([]),
+    scopes: z.array(z.string().min(1).max(40)).max(20).default([]),
     expiresInDays: z
       .union([z.literal(30), z.literal(90), z.literal(365), z.null()])
       .default(DEFAULT_PERSONAL_KEY_EXPIRY_DAYS),
@@ -142,7 +150,7 @@ const oauthApproveInput = z
     /** A workspace the member owns; checked on the server. */
     organizationId: z.string().min(1).max(200),
     /** Scopes the member ticked; `records:read` is always added. */
-    scopes: z.array(z.string().min(1).max(40)).max(10).default([]),
+    scopes: z.array(z.string().min(1).max(40)).max(20).default([]),
     /** The AI-app consent text the member agreed to; must be the current one. */
     consentVersion: z.string().min(1).max(32),
   })
@@ -224,6 +232,13 @@ export const aiAppsRouter = {
         isOwner: context.authz.role === "owner",
         baseScope: BASE_SCOPE,
         optInScopes: [...OPT_IN_SCOPES],
+        writeScopes: [...WRITE_SCOPES],
+        writeLimits: context.aiAppWrites
+          ? {
+              entriesPerCall: context.aiAppWrites.limits.entriesPerCall,
+              entriesPerDay: context.aiAppWrites.limits.entriesPerDay,
+            }
+          : null,
         expiryDays: [...PERSONAL_KEY_EXPIRY_DAYS],
         defaultExpiryDays: DEFAULT_PERSONAL_KEY_EXPIRY_DAYS,
         maxActiveKeys: MAX_ACTIVE_PERSONAL_KEYS,
@@ -262,12 +277,19 @@ export const aiAppsRouter = {
     .use(validateInput(emptyInput))
     .input(emptyInput)
     .output(z.object({ grants: z.array(grantShape) }))
-    .handler(async ({ context }) => ({
-      grants: await requireService(context).listGrants({
+    .handler(async ({ context }) => {
+      const owner = {
         userId: context.authz.user.id,
         organizationId: context.authz.activeOrganizationId,
-      }),
-    })),
+      };
+      const [grants, counts] = await Promise.all([
+        requireService(context).listGrants(owner),
+        context.aiAppWrites ? context.aiAppWrites.entryCounts(owner) : new Map<string, number>(),
+      ]);
+      return {
+        grants: grants.map((grant) => ({ ...grant, entryCount: counts.get(grant.id) ?? 0 })),
+      };
+    }),
 
   /** Recent tool calls: grant, tool, time, status and row count only. */
   recentActivity: readProcedure
@@ -309,7 +331,7 @@ export const aiAppsRouter = {
       const service = requireService(context);
       const userId = trustedUserId(context);
       try {
-        return await service.createPersonalKey({
+        const created = await service.createPersonalKey({
           userId,
           organizationId: context.authz.activeOrganizationId,
           label: input.label,
@@ -318,6 +340,7 @@ export const aiAppsRouter = {
           consentVersion: input.consentVersion,
           correlationId: context.correlationId,
         });
+        return { key: created.key, grant: { ...created.grant, entryCount: 0 } };
       } catch (error) {
         throw toApiError(error);
       }
@@ -338,6 +361,32 @@ export const aiAppsRouter = {
       });
       if (!result.found) throw raiseApiError("NOT_FOUND", "This key or connection was not found.");
       return { revoked: result.revoked };
+    }),
+
+  /**
+   * "Delete everything this app wrote" (M2): deletes every entry one of the
+   * member's grants (revoked or not) wrote in this workspace, through each
+   * domain's own delete. Revoking a grant keeps its entries; this removes
+   * them. Allowed even while the workspace is read-only: it is the member's
+   * control over their own records.
+   */
+  deleteWrites: readProcedure
+    .use(validateInput(grantIdInput))
+    .input(grantIdInput)
+    .output(z.object({ deleted: z.number().int().nonnegative() }))
+    .handler(async ({ input, context }) => {
+      requireService(context);
+      if (!context.aiAppWrites) {
+        throw raiseApiError("NOT_FOUND", "Connected AI apps are not enabled on this server.");
+      }
+      const result = await context.aiAppWrites.deleteEverythingWritten({
+        userId: trustedUserId(context),
+        organizationId: context.authz.activeOrganizationId,
+        grantId: input.grantId,
+        correlationId: context.correlationId,
+      });
+      if (!result) throw raiseApiError("NOT_FOUND", "This key or connection was not found.");
+      return result;
     }),
 
   /** Workspace setting "Members can connect AI apps" (default on; owner only to change). */
@@ -396,7 +445,7 @@ export const aiAppsRouter = {
           const request = await consent.readRequest({
             oauthQuery: input.oauthQuery,
             sessionId: sessionIdOf(context),
-            grantableScopes: [BASE_SCOPE, ...OPT_IN_SCOPES],
+            grantableScopes: GRANTABLE_SCOPES,
           });
           const workspaces = await service.listConnectableWorkspaces(userId);
           return {
@@ -441,7 +490,7 @@ export const aiAppsRouter = {
           const request = await consent.readRequest({
             oauthQuery: input.oauthQuery,
             sessionId,
-            grantableScopes: [BASE_SCOPE, ...OPT_IN_SCOPES],
+            grantableScopes: GRANTABLE_SCOPES,
           });
           const offered = new Set(request.offeredScopes);
           const notOffered = input.scopes.filter((scope) => !offered.has(scope));

@@ -119,6 +119,9 @@ export async function seedEveryModule(db: Database, who: string): Promise<void> 
     `with grant_row as (insert into ai_app_grant (organization_id, user_id, kind, label, scopes, consent_version, consented_at) values ('${org}', '${user}', 'personal_key', 'Seeded key ${who}', '{records:read}', 'mcp-v1', now()) returning id),
           key_row as (insert into ai_app_key (grant_id, user_id, key_hash, display_prefix) select id, '${user}', 'seed-key-hash-${who}', 'ov_seed00' from grant_row)
        insert into ai_app_call (grant_id, user_id, tool, transport, status, row_count) select id, '${user}', 'labs', 'mcp', 'ok', 3 from grant_row`,
+    // AI app writes (#439, M2): one write receipt and the entry it made.
+    `with write_row as (insert into ai_app_write (grant_id, organization_id, user_id, mutation_id, tool, fingerprint, entry_count, status, outcome) select id, '${org}', '${user}', 'seed-mutation-${who}', 'water.log', 'seed-write-fingerprint-${who}', 1, 'done', '{"entries":[]}' from ai_app_grant where user_id = '${user}' and kind = 'personal_key' returning id, grant_id)
+       insert into ai_app_entry (grant_id, organization_id, user_id, write_id, item_index, kind, target_table, target_ids) select grant_id, '${org}', '${user}', id, 0, 'water', 'plain_water_entry', '{1}' from write_row`,
     // OAuth connection (#439, M1b): a client the member registered, an
     // `oauth` grant and the consent and token pair pointing at it.
     `insert into oauth_client (id, client_id, client_secret, user_id, name, redirect_uris, created_at) values ('oc-${who}', 'oauth-client-${who}', 'seed-client-secret-${who}', '${user}', 'Seeded app ${who}', '{https://app.example.test/callback}', now())`,

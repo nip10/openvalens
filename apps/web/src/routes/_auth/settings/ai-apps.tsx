@@ -1,5 +1,5 @@
 import { Trans, useLingui } from "@lingui/react/macro";
-import type { AiAppGrantLike } from "@openvalens/api/presenters/ai-apps";
+import { aiAppTimelineSource, type AiAppGrantLike } from "@openvalens/api/presenters/ai-apps";
 import { Button } from "@openvalens/ui/components/button";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -40,6 +40,7 @@ function AiAppsSettingsPage() {
   });
 
   const [confirmRevoke, setConfirmRevoke] = useState<AiAppGrantLike | null>(null);
+  const [confirmDeleteWrites, setConfirmDeleteWrites] = useState<AiAppGrantLike | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [draft, setDraft] = useState<AiAppKeyDraft | null>(null);
   const [created, setCreated] = useState<{ key: string; label: string } | null>(null);
@@ -53,6 +54,17 @@ function AiAppsSettingsPage() {
       onSettled: () => {
         setConfirmRevoke(null);
         void refresh();
+      },
+    }),
+  );
+  const deleteWrites = useMutation(
+    orpc.aiApps.deleteWrites.mutationOptions({
+      onMutate: () => setActionError(null),
+      onError: () => setActionError(t`Could not delete the entries. Try again.`),
+      onSettled: () => {
+        setConfirmDeleteWrites(null);
+        // The entries were in other screens too.
+        void queryClient.invalidateQueries();
       },
     }),
   );
@@ -138,6 +150,7 @@ function AiAppsSettingsPage() {
     <AiAppKeyForm
       baseScope={info.baseScope}
       optInScopes={info.optInScopes}
+      writeScopes={info.writeScopes}
       expiryDays={info.expiryDays}
       consentVersion={info.consentVersion}
       workspaceName={info.workspaceName}
@@ -184,6 +197,19 @@ function AiAppsSettingsPage() {
         }
         keyPanel={keyPanel}
         renderActivity={(grant) => <GrantActivity grantId={grant.id} />}
+        confirmDeleteWrites={confirmDeleteWrites}
+        onConfirmDeleteWritesChange={setConfirmDeleteWrites}
+        onDeleteWrites={(grant) => deleteWrites.mutate({ grantId: grant.id })}
+        deletingWritesId={deleteWrites.isPending ? (deleteWrites.variables?.grantId ?? null) : null}
+        renderTimelineLink={(grant) => (
+          <Link
+            to="/records/timeline"
+            search={{ source: aiAppTimelineSource(grant.id) }}
+            className="font-medium text-ink underline-offset-4 hover:underline"
+          >
+            <Trans>Show on timeline</Trans>
+          </Link>
+        )}
       />
     </Page>
   );

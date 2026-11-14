@@ -11,6 +11,7 @@ import type { Database } from "@openvalens/db";
 import type { EmailService } from "@openvalens/email";
 import type { StorageService } from "@openvalens/storage";
 import type { AiAppsService } from "@openvalens/mcp";
+import type { AiAppWrites } from "@openvalens/mcp/writes";
 import type { McpOAuthConsent } from "@openvalens/auth/mcp-oauth";
 import type { FoodLookupProvider } from "@openvalens/nutrition/food-lookup";
 import type { PushProvider } from "@openvalens/push";
@@ -289,6 +290,11 @@ export type Context = {
    * `aiApps.oauth.*` procedures answer `NOT_FOUND` without it.
    */
   aiAppsOAuth?: McpOAuthConsent | null;
+  /**
+   * Issue #439 (M2) — AI app writes: per-grant entry counts and "Delete
+   * everything this app wrote". `null`/absent while the MCP server is off.
+   */
+  aiAppWrites?: AiAppWrites | null;
   /**
    * Issue #439 — the public MCP endpoint (`<BETTER_AUTH_URL>/api/mcp`) shown
    * in the settings page's client commands, or `null`/absent while off.

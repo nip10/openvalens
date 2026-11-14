@@ -29,6 +29,8 @@ const STATUS: AiAppsStatus = {
   workspaceName: "Ada's records",
   mcpUrl: "https://health.example/api/mcp",
   oauthEnabled: true,
+  writeScopes: ["water:write", "body:write", "vitals:write", "supplements:write"],
+  writeLimits: { entriesPerCall: 100, entriesPerDay: 1000 },
 };
 
 function grant(overrides: Partial<AiAppGrantLike> = {}): AiAppGrantLike {
@@ -102,6 +104,35 @@ describe("AiAppsView", () => {
     expect(html).toInclude("Nutrition, Your records");
     expect(html).toInclude("mcp-v1");
     expect(html).toInclude('aria-label="Revoke Claude"');
+  });
+
+  test("a grant that can write lists what it may add, its entries and the delete action", () => {
+    const html = render(
+      <AiAppsView
+        {...viewProps({
+          grants: [grant({ scopes: ["records:read", "water:write"], entryCount: 3 })],
+          onConfirmDeleteWritesChange: () => {},
+          renderTimelineLink: () => <a href="/records/timeline">Show on timeline</a>,
+        })}
+      />,
+    );
+    expect(html).toInclude("Can add");
+    expect(html).toInclude("Add water");
+    expect(html).toInclude("Entries added");
+    expect(html).toInclude("Show on timeline");
+    expect(html).toInclude("Delete everything this app wrote");
+  });
+
+  test("a grant with no entries offers no delete action", () => {
+    const html = render(
+      <AiAppsView
+        {...viewProps({
+          grants: [grant({ scopes: ["records:read", "water:write"], entryCount: 0 })],
+          onConfirmDeleteWritesChange: () => {},
+        })}
+      />,
+    );
+    expect(html).not.toInclude("Delete everything this app wrote");
   });
 
   test("a key shows its prefix and expiry, never more of the key", () => {
@@ -234,6 +265,17 @@ describe("AiAppKeyForm", () => {
     }
     expect(html).not.toInclude(":write");
     expect(html).toInclude("Ada&#x27;s records");
+  });
+
+  test("write scopes are offered apart and start unticked", () => {
+    const html = render(
+      <AiAppKeyForm {...formProps({ writeScopes: ["water:write", "vitals:write"] })} />,
+    );
+    expect(html).toInclude("What the app may add");
+    for (const scope of ["water:write", "vitals:write"]) {
+      expect(inputOf(html, `data-scope="${scope}"`)).not.toContain("checked");
+      expect(inputOf(html, `data-scope="${scope}"`)).not.toContain('disabled=""');
+    }
   });
 
   test("expiry offers 30, 90, 365 days and never, with 90 chosen", () => {

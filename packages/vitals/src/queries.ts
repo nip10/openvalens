@@ -2,6 +2,7 @@ import type { Database } from "@openvalens/db";
 import { dataSource, metricDefinition, metricSample } from "@openvalens/db/schema/health-record";
 import { and, desc, eq, gte, inArray, isNull, sql } from "drizzle-orm";
 
+import { countsInDailyTotals } from "./device-overlap";
 import type { DailyVitalsSummary, VitalsSample } from "./types";
 
 const DAY_MS = 86_400_000;
@@ -17,7 +18,9 @@ const CODES = [
 /**
  * Daily summaries for the most recent `days` UTC calendar days (inclusive of
  * today). Days with no samples return nulls and a zero count. Only non
- * superseded rows are aggregated.
+ * superseded rows are aggregated, and device data wins: an AI-written reading
+ * with a device reading of the same metric within ten minutes is left out
+ * (#439, see `./device-overlap`).
  *
  * The query produces one row per (date, code) tuple so we can collapse the
  * heart-rate and HRV codes into a single day shape on the JS side.
@@ -54,6 +57,7 @@ export async function listDailyVitals(
         isNull(metricSample.supersededAt),
         gte(metricSample.sampledAt, since),
         inArray(metricDefinition.code, [...CODES]),
+        countsInDailyTotals(),
       ),
     )
     .groupBy(sql`date_trunc('day', ${metricSample.sampledAt})`, metricDefinition.code);

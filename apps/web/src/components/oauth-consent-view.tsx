@@ -1,4 +1,9 @@
 import { Trans, useLingui } from "@lingui/react/macro";
+import {
+  aiAppScopeDetail,
+  aiAppScopeTitle,
+  isAiAppWriteScope,
+} from "@openvalens/api/presenters/ai-apps";
 import type { AppRouterClient } from "@openvalens/api/routers/index";
 import { Badge } from "@openvalens/ui/components/badge";
 import { Button } from "@openvalens/ui/components/button";
@@ -39,7 +44,8 @@ export type OAuthConsentViewProps = {
  * scope is required and shown ticked; nutrition, private body measurements and
  * notes start unticked even when the app asked for them. The app's name is
  * its own claim and always labelled unverified, next to the host its client id
- * lives on and the host it will return to. Writing is not offered.
+ * lives on and the host it will return to. Write scopes (M2), one per domain,
+ * are listed apart and start unticked too.
  */
 export function OAuthConsentView(props: OAuthConsentViewProps) {
   const { t } = useLingui();
@@ -68,7 +74,9 @@ export function OAuthConsentView(props: OAuthConsentViewProps) {
     );
   }
 
-  const { client, scopes, workspaces, consentVersion } = props.request;
+  const { client, workspaces, consentVersion } = props.request;
+  const readScopes = props.request.scopes.filter((entry) => !isAiAppWriteScope(entry.scope));
+  const writeScopes = props.request.scopes.filter((entry) => isAiAppWriteScope(entry.scope));
   const appName = client.name ?? t`An unnamed app`;
   const allowedWorkspaces = workspaces.filter((workspace) => workspace.allowed);
   const canApprove =
@@ -156,7 +164,7 @@ export function OAuthConsentView(props: OAuthConsentViewProps) {
         <legend className="mb-1 font-medium">
           <Trans>What the app may read</Trans>
         </legend>
-        {scopes.map((entry) => (
+        {readScopes.map((entry) => (
           <ScopeRow
             key={entry.scope}
             scope={entry.scope}
@@ -167,11 +175,39 @@ export function OAuthConsentView(props: OAuthConsentViewProps) {
           />
         ))}
         <p className="px-3 text-sm text-ink-3">
-          <Trans>
-            The app cannot change your records. Cycle data and progress photos are never shared.
-          </Trans>
+          {writeScopes.length === 0 ? (
+            <Trans>
+              The app cannot change your records. Cycle data and progress photos are never shared.
+            </Trans>
+          ) : (
+            <Trans>Cycle data and progress photos are never shared.</Trans>
+          )}
         </p>
       </fieldset>
+
+      {writeScopes.length > 0 ? (
+        <fieldset className="grid gap-1">
+          <legend className="mb-1 font-medium">
+            <Trans>What the app may add</Trans>
+          </legend>
+          {writeScopes.map((entry) => (
+            <ScopeRow
+              key={entry.scope}
+              scope={entry.scope}
+              required={false}
+              requestedByApp={entry.requestedByApp}
+              checked={props.selectedScopes.includes(entry.scope)}
+              onChange={(selected) => props.onScopeChange(entry.scope, selected)}
+            />
+          ))}
+          <p className="px-3 text-sm text-ink-3">
+            <Trans>
+              Entries the app adds are labelled with its name and never change device data. The app
+              can delete only what it added; you can delete it all in Settings → Connected AI apps.
+            </Trans>
+          </p>
+        </fieldset>
+      ) : null}
 
       <section className="grid gap-2 rounded-xl bg-paper-2 p-4 text-sm text-ink-2">
         <p>
@@ -226,7 +262,7 @@ function ScopeRow(props: {
   checked: boolean;
   onChange: (selected: boolean) => void;
 }) {
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const id = useId();
   const labels: Record<string, { title: string; detail: string }> = {
     "records:read": {
@@ -254,7 +290,12 @@ function ScopeRow(props: {
       detail: t`Your pain ratings by body region, only while "Coach and connected AI apps can read my pain log" is on.`,
     },
   };
-  const label = labels[props.scope] ?? { title: props.scope, detail: "" };
+  const title = aiAppScopeTitle(props.scope);
+  const detail = aiAppScopeDetail(props.scope);
+  const label = labels[props.scope] ?? {
+    title: title ? i18n._(title) : props.scope,
+    detail: detail ? i18n._(detail) : "",
+  };
   return (
     <div className="flex min-h-10 items-start gap-3 rounded-xl px-3 py-2 hover:bg-paper-2">
       <input

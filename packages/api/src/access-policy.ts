@@ -77,6 +77,9 @@ export const PROCEDURE_ACCESS: Readonly<Record<string, ProcedureAccessClass>> = 
   "aiApps.recentActivity": R,
   "aiApps.createKey": W,
   "aiApps.revokeGrant": ALWAYS,
+  // Deleting what an AI app wrote is the member's control over their own
+  // records (#439, M2), like revoking: allowed while read-only.
+  "aiApps.deleteWrites": ALWAYS,
   "aiApps.workspaceSetting.get": R,
   "aiApps.workspaceSetting.set": ALWAYS,
   // OAuth consent screen (M1b): approving a connection creates a grant, like a
