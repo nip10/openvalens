@@ -215,3 +215,47 @@ export const customTrackerFeed = pgTable(
     ),
   }),
 );
+
+// ─── Deleted imports (Issue #506) ─────────────────────────────
+// One row per imported entry the member deleted, so the next sync does not
+// bring it back: Health Connect re-reads the last 7 days on every sync, and
+// HealthKit re-reads the full history after sign-out. Keyed like the entry's
+// source-record index. Unlinking a feed keeps these rows; deleting the
+// tracker, or the member leaving the workspace, cascades.
+
+export const customTrackerEntryTombstone = pgTable(
+  "custom_tracker_entry_tombstone",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    trackerId: uuid("tracker_id").notNull(),
+    organizationId: orgId(),
+    /** The tracker's owner, as on the entry. */
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    /** `health_connect` or `healthkit`. */
+    source: text("source").notNull(),
+    /** The platform record id the deleted entry was imported from. */
+    sourceRecordId: text("source_record_id").notNull(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => ({
+    customTrackerEntryTombstoneKey: uniqueIndex(
+      "custom_tracker_entry_tombstone_source_record_key",
+    ).on(table.organizationId, table.userId, table.trackerId, table.source, table.sourceRecordId),
+    customTrackerEntryTombstoneTrackerFk: foreignKey({
+      columns: [table.trackerId, table.organizationId, table.userId],
+      foreignColumns: [customTracker.id, customTracker.organizationId, customTracker.userId],
+      name: "custom_tracker_entry_tombstone_tracker_fk",
+    }).onDelete("cascade"),
+    customTrackerEntryTombstoneMemberFk: foreignKey({
+      columns: [table.organizationId, table.userId],
+      foreignColumns: [member.organizationId, member.userId],
+      name: "custom_tracker_entry_tombstone_org_user_member_fk",
+    }).onDelete("cascade"),
+    customTrackerEntryTombstoneSourceCheck: check(
+      "custom_tracker_entry_tombstone_source_check",
+      sql`${table.source} in ('health_connect', 'healthkit')`,
+    ),
+  }),
+);
