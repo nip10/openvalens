@@ -182,6 +182,9 @@ function fixture(
     ) => XiaomiHistoryTransport;
     onHistorySample?: (sample: import("./types").DirectDeviceHistorySample) => void;
     btClassicAdapter?: () => import("../../../modules/bt-classic").BtClassicAdapter;
+    runHelioHistory?: NonNullable<
+      NonNullable<Parameters<typeof createHelioSetupController>[0]>["runHelioHistory"]
+    >;
     createFossilSession?: NonNullable<
       NonNullable<Parameters<typeof createHelioSetupController>[0]>["createFossilSession"]
     >;
@@ -303,6 +306,7 @@ function fixture(
       })),
     createPebbleSession: options.createPebbleSession,
     createFossilSession: options.createFossilSession,
+    runHelioHistory: options.runHelioHistory,
     fossilCrypto: async () => {
       throw new Error("crypto unused in setup tests");
     },
@@ -1400,6 +1404,134 @@ test("a Bluetooth Classic Huawei watch syncs over RFCOMM only where the module i
     expect.objectContaining({ uuid: "82ff3820-8411-400c-b85a-55bdb32cf060", secure: true }),
   ]);
   await android.controller.dispose();
+});
+
+test("a Zepp OS model upstream defaults to SPP syncs over RFCOMM on Android and falls back to BLE", async () => {
+  const { ZeppSppLink } = await import("../transport/zepp-spp");
+  const { encodeZeppSppFrame, ZEPP_SPP_CMD, ZeppSppDeframer } =
+    await import("../protocol/zepp-spp");
+  const fetchOptions = {
+    authKey: new Uint8Array(16),
+    since: { version: 1 as const, nextMinuteUtc: new Date(0).toISOString(), offsetQuarterHours: 0 },
+    signal: new AbortController().signal,
+    onPhase: () => undefined,
+    async onPage() {},
+  };
+  const result = { pages: 0, minutes: 0, complete: true } as const;
+  const links: string[] = [];
+  const runHelioHistory = async (link: object) => {
+    links.push(link instanceof ZeppSppLink ? "spp" : "ble");
+    return result;
+  };
+  // A socket that answers the SPP handshake.
+  const sppSocket = () => {
+    let deliver: ((bytes: Uint8Array) => void) | undefined;
+    const parser = new ZeppSppDeframer();
+    let closes = 0;
+    return {
+      closes: () => closes,
+      socket: {
+        socketId: "rfcomm-1",
+        subscribe(onBytes: (bytes: Uint8Array) => void) {
+          deliver = onBytes;
+          return () => undefined;
+        },
+        async write(bytes: Uint8Array) {
+          for (const frame of parser.push(bytes))
+            queueMicrotask(() => {
+              if (frame.cmd === ZEPP_SPP_CMD.CHANNELS_GET) {
+                const uuid = (n: string) =>
+                  new TextEncoder().encode(`000000${n}-0000-3512-2118-0009af100700`);
+                deliver?.(
+                  encodeZeppSppFrame(
+                    ZEPP_SPP_CMD.CHANNELS_RET,
+                    0,
+                    Uint8Array.of(1, 2, 0, ...uuid("16"), 0, 1, 0, ...uuid("17"), 0, 2, 0),
+                  ),
+                );
+              } else if (frame.cmd === ZEPP_SPP_CMD.SESSION_START) {
+                deliver?.(
+                  encodeZeppSppFrame(
+                    ZEPP_SPP_CMD.SESSION_START_ACK,
+                    1,
+                    Uint8Array.of(...frame.payload, 1, 3, 247, 0),
+                  ),
+                );
+              }
+            });
+        },
+        async close() {
+          closes += 1;
+        },
+      },
+    };
+  };
+  const adapter = (openRfcomm: () => Promise<unknown>, opened: unknown[]) => () => ({
+    isSupported: () => true,
+    listBonded: async () => [],
+    discover: async () => undefined,
+    openRfcomm: async (args: unknown) => {
+      opened.push(args);
+      return (await openRfcomm()) as never;
+    },
+  });
+
+  // Android with the module: SPP first.
+  const opened: unknown[] = [];
+  const watch = sppSocket();
+  const android = fixture({
+    deviceName: "Amazfit Balance 3",
+    runHelioHistory: runHelioHistory as never,
+    btClassicAdapter: adapter(async () => watch.socket, opened),
+  });
+  await android.controller.startScan();
+  android.emit();
+  await android.controller.connect("local-id");
+  expect(android.controller.getSnapshot().connectedModelId).toBe("amazfit_balance_3");
+  expect(await android.controller.fetchSteps(fetchOptions)).toEqual(result);
+  expect(opened).toEqual([
+    expect.objectContaining({
+      address: "local-id",
+      uuid: "00000022-0000-3512-2118-0009af100700",
+      secure: true,
+    }),
+  ]);
+  expect(watch.closes()).toBe(1);
+  await android.controller.dispose();
+
+  // The RFCOMM connect fails: the same sync runs over BLE.
+  const refused = fixture({
+    deviceName: "Amazfit Balance 3",
+    runHelioHistory: runHelioHistory as never,
+    btClassicAdapter: adapter(async () => {
+      throw new Error("BT_CLASSIC_CONNECT_FAILED");
+    }, []),
+  });
+  await refused.controller.startScan();
+  refused.emit();
+  await refused.controller.connect("local-id");
+  expect(await refused.controller.fetchSteps(fetchOptions)).toEqual(result);
+  await refused.controller.dispose();
+
+  // iOS / no module, and a BLE-only model on Android: BLE, no RFCOMM attempt.
+  const neverOpened: unknown[] = [];
+  for (const [deviceName, btClassicAdapter] of [
+    ["Amazfit Balance 3", undefined],
+    ["Amazfit GTR 4", adapter(async () => watch.socket, neverOpened)],
+  ] as const) {
+    const f = fixture({
+      deviceName,
+      runHelioHistory: runHelioHistory as never,
+      btClassicAdapter,
+    });
+    await f.controller.startScan();
+    f.emit();
+    await f.controller.connect("local-id");
+    expect(await f.controller.fetchSteps(fetchOptions)).toEqual(result);
+    await f.controller.dispose();
+  }
+  expect(neverOpened).toEqual([]);
+  expect(links).toEqual(["spp", "ble", "ble", "ble"]);
 });
 
 test("a Huawei model without a Huawei service is rejected", async () => {

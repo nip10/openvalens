@@ -91,6 +91,14 @@ export type ZeppOsModel = Readonly<{
    * not a hardware-support claim.
    */
   transportValidated: boolean;
+  /**
+   * `"spp"`: upstream's coordinator returns `ConnectionType.BOTH`, so
+   * `ZeppOsCoordinator.createDeviceSupport` defaults it to `ZeppOsBtbrSupport`
+   * (Bluetooth Classic SPP). On Android we try SPP first and fall back to BLE,
+   * which the model also speaks; iOS always uses BLE. `"ble"`: BLE only.
+   * Not hardware-validated for any model.
+   */
+  transport: "ble" | "spp";
   /** Exact names from the coordinator's `getDeviceBluetoothNames()`. */
   bleNames: readonly string[];
   /** Upstream coordinator source files, relative to the app repo root. */
@@ -112,6 +120,7 @@ export const ZEPP_OS_MODELS: readonly ZeppOsModel[] = [
     featureLevel: "high",
     experimental: false,
     transportValidated: false,
+    transport: "ble",
     bleNames: ["Amazfit Active"],
     sourceFiles: [`${ZEPP_OS_ROOT}/watches/AmazfitActiveCoordinator.java`],
   },
@@ -122,6 +131,7 @@ export const ZEPP_OS_MODELS: readonly ZeppOsModel[] = [
     featureLevel: "high",
     experimental: false,
     transportValidated: false,
+    transport: "spp",
     // Three coordinators (NFC, Round, Square). The Square coordinator lists
     // four spellings of the same square/NFC family.
     bleNames: [
@@ -145,6 +155,7 @@ export const ZEPP_OS_MODELS: readonly ZeppOsModel[] = [
     featureLevel: "high",
     experimental: false,
     transportValidated: false,
+    transport: "spp",
     bleNames: ["Amazfit Active 3 Premium", "Active 3 Premium"],
     sourceFiles: [`${ZEPP_OS_ROOT}/watches/AmazfitActive3PremiumCoordinator.java`],
   },
@@ -155,6 +166,7 @@ export const ZEPP_OS_MODELS: readonly ZeppOsModel[] = [
     featureLevel: "unknown",
     experimental: true,
     transportValidated: false,
+    transport: "ble",
     bleNames: ["Amazfit Active Edge"],
     sourceFiles: [`${ZEPP_OS_ROOT}/watches/AmazfitActiveEdgeCoordinator.java`],
   },
@@ -165,6 +177,7 @@ export const ZEPP_OS_MODELS: readonly ZeppOsModel[] = [
     featureLevel: "high",
     experimental: false,
     transportValidated: false,
+    transport: "ble",
     bleNames: ["Amazfit Active Max", "Active Max"],
     sourceFiles: [`${ZEPP_OS_ROOT}/watches/AmazfitActiveMaxCoordinator.java`],
   },
@@ -175,6 +188,7 @@ export const ZEPP_OS_MODELS: readonly ZeppOsModel[] = [
     featureLevel: "high",
     experimental: false,
     transportValidated: false,
+    transport: "ble",
     bleNames: ["Amazfit Balance"],
     sourceFiles: [`${ZEPP_OS_ROOT}/watches/AmazfitBalanceCoordinator.java`],
   },
@@ -185,6 +199,7 @@ export const ZEPP_OS_MODELS: readonly ZeppOsModel[] = [
     featureLevel: "high",
     experimental: false,
     transportValidated: false,
+    transport: "ble",
     bleNames: ["Amazfit Balance 2"],
     sourceFiles: [`${ZEPP_OS_ROOT}/watches/AmazfitBalance2Coordinator.java`],
   },
@@ -195,6 +210,7 @@ export const ZEPP_OS_MODELS: readonly ZeppOsModel[] = [
     featureLevel: "high",
     experimental: false,
     transportValidated: false,
+    transport: "ble",
     bleNames: ["Amazfit Balance 2 XT"],
     sourceFiles: [`${ZEPP_OS_ROOT}/watches/AmazfitBalance2XTCoordinator.java`],
   },
@@ -205,6 +221,7 @@ export const ZEPP_OS_MODELS: readonly ZeppOsModel[] = [
     featureLevel: "high",
     experimental: false,
     transportValidated: false,
+    transport: "spp",
     bleNames: ["Amazfit Balance 3", "Balance 3"],
     sourceFiles: [`${ZEPP_OS_ROOT}/watches/AmazfitBalance3Coordinator.java`],
   },
@@ -215,6 +232,7 @@ export const ZEPP_OS_MODELS: readonly ZeppOsModel[] = [
     featureLevel: "unknown",
     experimental: true,
     transportValidated: false,
+    transport: "spp",
     bleNames: ["Amazfit Balance Ultra"],
     sourceFiles: [`${ZEPP_OS_ROOT}/watches/AmazfitBalanceUltraCoordinator.java`],
   },
@@ -225,6 +243,7 @@ export const ZEPP_OS_MODELS: readonly ZeppOsModel[] = [
     featureLevel: "high",
     experimental: false,
     transportValidated: false,
+    transport: "ble",
     bleNames: ["Amazfit Band 7"],
     sourceFiles: [`${ZEPP_OS_ROOT}/watches/AmazfitBand7Coordinator.java`],
   },
@@ -235,6 +254,7 @@ export const ZEPP_OS_MODELS: readonly ZeppOsModel[] = [
     featureLevel: "high",
     experimental: false,
     transportValidated: false,
+    transport: "ble",
     bleNames: ["Amazfit Bip 5"],
     sourceFiles: [`${ZEPP_OS_ROOT}/watches/AmazfitBip5Coordinator.java`],
   },
@@ -245,6 +265,7 @@ export const ZEPP_OS_MODELS: readonly ZeppOsModel[] = [
     featureLevel: "high",
     experimental: false,
     transportValidated: false,
+    transport: "ble",
     bleNames: ["Amazfit Bip 5 Unity"],
     sourceFiles: [`${ZEPP_OS_ROOT}/watches/AmazfitBip5UnityCoordinator.java`],
   },
@@ -255,6 +276,7 @@ export const ZEPP_OS_MODELS: readonly ZeppOsModel[] = [
     featureLevel: "high",
     experimental: false,
     transportValidated: false,
+    transport: "ble",
     bleNames: ["Amazfit Bip 6"],
     sourceFiles: [`${ZEPP_OS_ROOT}/watches/AmazfitBip6Coordinator.java`],
   },
@@ -265,6 +287,7 @@ export const ZEPP_OS_MODELS: readonly ZeppOsModel[] = [
     featureLevel: "high",
     experimental: false,
     transportValidated: false,
+    transport: "spp",
     // Upstream lists both capitalisations.
     bleNames: ["Amazfit Bip Max", "Amazfit BIP Max"],
     sourceFiles: [`${ZEPP_OS_ROOT}/watches/AmazfitBipMaxCoordinator.java`],
@@ -276,6 +299,7 @@ export const ZEPP_OS_MODELS: readonly ZeppOsModel[] = [
     featureLevel: "high",
     experimental: false,
     transportValidated: false,
+    transport: "ble",
     // Round (R) and Square (S) coordinators share one catalog model.
     bleNames: ["Amazfit Cheetah R", "Amazfit Cheetah S"],
     sourceFiles: [
@@ -290,6 +314,7 @@ export const ZEPP_OS_MODELS: readonly ZeppOsModel[] = [
     featureLevel: "unknown",
     experimental: true,
     transportValidated: false,
+    transport: "spp",
     bleNames: ["Amazfit Cheetah 2 Pro", "Cheetah 2 Pro"],
     sourceFiles: [`${ZEPP_OS_ROOT}/watches/AmazfitCheetah2ProCoordinator.java`],
   },
@@ -300,6 +325,7 @@ export const ZEPP_OS_MODELS: readonly ZeppOsModel[] = [
     featureLevel: "unknown",
     experimental: true,
     transportValidated: false,
+    transport: "spp",
     bleNames: ["Amazfit Cheetah 2 Ultra", "Cheetah 2 Ultra"],
     sourceFiles: [`${ZEPP_OS_ROOT}/watches/AmazfitCheetah2UltraCoordinator.java`],
   },
@@ -310,6 +336,7 @@ export const ZEPP_OS_MODELS: readonly ZeppOsModel[] = [
     featureLevel: "high",
     experimental: false,
     transportValidated: false,
+    transport: "ble",
     bleNames: ["Amazfit Cheetah Pro"],
     sourceFiles: [`${ZEPP_OS_ROOT}/watches/AmazfitCheetahProCoordinator.java`],
   },
@@ -320,6 +347,7 @@ export const ZEPP_OS_MODELS: readonly ZeppOsModel[] = [
     featureLevel: "high",
     experimental: false,
     transportValidated: false,
+    transport: "ble",
     bleNames: ["Amazfit Falcon"],
     sourceFiles: [`${ZEPP_OS_ROOT}/watches/AmazfitFalconCoordinator.java`],
   },
@@ -330,6 +358,7 @@ export const ZEPP_OS_MODELS: readonly ZeppOsModel[] = [
     featureLevel: "high",
     experimental: false,
     transportValidated: false,
+    transport: "ble",
     bleNames: ["Amazfit GTR 3"],
     sourceFiles: [`${ZEPP_OS_ROOT}/watches/AmazfitGTR3Coordinator.java`],
   },
@@ -340,6 +369,7 @@ export const ZEPP_OS_MODELS: readonly ZeppOsModel[] = [
     featureLevel: "high",
     experimental: false,
     transportValidated: false,
+    transport: "ble",
     bleNames: ["Amazfit GTR 3 Pro"],
     sourceFiles: [`${ZEPP_OS_ROOT}/watches/AmazfitGTR3ProCoordinator.java`],
   },
@@ -350,6 +380,7 @@ export const ZEPP_OS_MODELS: readonly ZeppOsModel[] = [
     featureLevel: "high",
     experimental: false,
     transportValidated: false,
+    transport: "ble",
     bleNames: ["Amazfit GTR 4", "Amazfit GTR 4 LE"],
     sourceFiles: [`${ZEPP_OS_ROOT}/watches/AmazfitGTR4Coordinator.java`],
   },
@@ -360,6 +391,7 @@ export const ZEPP_OS_MODELS: readonly ZeppOsModel[] = [
     featureLevel: "high",
     experimental: false,
     transportValidated: false,
+    transport: "ble",
     bleNames: ["Amazfit GTR Mini"],
     sourceFiles: [`${ZEPP_OS_ROOT}/watches/AmazfitGTRMiniCoordinator.java`],
   },
@@ -370,6 +402,7 @@ export const ZEPP_OS_MODELS: readonly ZeppOsModel[] = [
     featureLevel: "high",
     experimental: false,
     transportValidated: false,
+    transport: "ble",
     bleNames: ["Amazfit GTS 3"],
     sourceFiles: [`${ZEPP_OS_ROOT}/watches/AmazfitGTS3Coordinator.java`],
   },
@@ -380,6 +413,7 @@ export const ZEPP_OS_MODELS: readonly ZeppOsModel[] = [
     featureLevel: "high",
     experimental: false,
     transportValidated: false,
+    transport: "ble",
     bleNames: ["Amazfit GTS 4"],
     sourceFiles: [`${ZEPP_OS_ROOT}/watches/AmazfitGTS4Coordinator.java`],
   },
@@ -390,6 +424,7 @@ export const ZEPP_OS_MODELS: readonly ZeppOsModel[] = [
     featureLevel: "high",
     experimental: false,
     transportValidated: false,
+    transport: "ble",
     bleNames: ["Amazfit GTS 4 Mini"],
     sourceFiles: [`${ZEPP_OS_ROOT}/watches/AmazfitGTS4MiniCoordinator.java`],
   },
@@ -400,6 +435,7 @@ export const ZEPP_OS_MODELS: readonly ZeppOsModel[] = [
     featureLevel: "high",
     experimental: false,
     transportValidated: false,
+    transport: "ble",
     bleNames: ["Amazfit GTS 4 mini New"],
     sourceFiles: [`${ZEPP_OS_ROOT}/watches/AmazfitGTS4MiniNewCoordinator.java`],
   },
@@ -410,6 +446,7 @@ export const ZEPP_OS_MODELS: readonly ZeppOsModel[] = [
     featureLevel: "most",
     experimental: true,
     transportValidated: false,
+    transport: "ble",
     bleNames: ["Amazfit Helio Ring"],
     sourceFiles: [`${ZEPP_OS_ROOT}/rings/AmazfitHelioRingCoordinator.java`],
   },
@@ -421,6 +458,7 @@ export const ZEPP_OS_MODELS: readonly ZeppOsModel[] = [
     experimental: true,
     // The only model whose transport/auth/history path is validated at source level.
     transportValidated: true,
+    transport: "ble",
     // Upstream notes this model advertises no MAC suffix.
     bleNames: ["Amazfit Helio Strap"],
     sourceFiles: [`${ZEPP_OS_ROOT}/straps/AmazfitHelioStrapCoordinator.java`],
@@ -432,6 +470,7 @@ export const ZEPP_OS_MODELS: readonly ZeppOsModel[] = [
     featureLevel: "high",
     experimental: false,
     transportValidated: false,
+    transport: "ble",
     bleNames: ["Amazfit T-Rex 2"],
     sourceFiles: [`${ZEPP_OS_ROOT}/watches/AmazfitTRex2Coordinator.java`],
   },
@@ -442,6 +481,7 @@ export const ZEPP_OS_MODELS: readonly ZeppOsModel[] = [
     featureLevel: "unknown",
     experimental: true,
     transportValidated: false,
+    transport: "ble",
     bleNames: ["Amazfit T-Rex 3"],
     sourceFiles: [`${ZEPP_OS_ROOT}/watches/AmazfitTRex3Coordinator.java`],
   },
@@ -452,6 +492,7 @@ export const ZEPP_OS_MODELS: readonly ZeppOsModel[] = [
     featureLevel: "high",
     experimental: false,
     transportValidated: false,
+    transport: "ble",
     // 44 mm and 48 mm coordinators share one catalog model.
     bleNames: ["T-Rex 3 Pro (44mm)", "T-Rex 3 Pro (48mm)"],
     sourceFiles: [
@@ -466,6 +507,7 @@ export const ZEPP_OS_MODELS: readonly ZeppOsModel[] = [
     featureLevel: "high",
     experimental: false,
     transportValidated: false,
+    transport: "ble",
     bleNames: ["Amazfit T-Rex Ultra"],
     sourceFiles: [`${ZEPP_OS_ROOT}/watches/AmazfitTRexUltraCoordinator.java`],
   },
@@ -476,6 +518,7 @@ export const ZEPP_OS_MODELS: readonly ZeppOsModel[] = [
     featureLevel: "unknown",
     experimental: true,
     transportValidated: false,
+    transport: "ble",
     bleNames: ["Amazfit T-Rex Ultra 2", "T-Rex Ultra 2"],
     sourceFiles: [`${ZEPP_OS_ROOT}/watches/AmazfitTRexUltra2Coordinator.java`],
   },
@@ -486,6 +529,7 @@ export const ZEPP_OS_MODELS: readonly ZeppOsModel[] = [
     featureLevel: "high",
     experimental: false,
     transportValidated: false,
+    transport: "ble",
     bleNames: ["Xiaomi Smart Band 7"],
     sourceFiles: [`${ZEPP_OS_ROOT}/watches/MiBand7Coordinator.java`],
   },
