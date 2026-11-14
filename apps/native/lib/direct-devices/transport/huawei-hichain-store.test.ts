@@ -58,3 +58,27 @@ test("purging removes every watch's id and token, and the index", async () => {
   await purgeSecureHuaweiHiChainStore(() => secure);
   expect([...items.keys()]).toEqual(["unrelated.key"]);
 });
+
+test("the Honor PAKE seed and watch identity persist, clear and purge", async () => {
+  const { items, secure } = fakeSecure();
+  const store = createSecureHuaweiHiChainStore(() => secure);
+  const seed = Uint8Array.from({ length: 32 }, (_, index) => index);
+  const peer = { authId: Uint8Array.of(0x48, 0x49), authPk: new Uint8Array(32).fill(9) };
+  store.setPakeSeed("watch-5", seed);
+  store.setPakePeer("watch-5", peer);
+  const reopened = createSecureHuaweiHiChainStore(() => secure);
+  expect(reopened.getPakeSeed("watch-5")).toEqual(seed);
+  expect(reopened.getPakePeer("watch-5")).toEqual(peer);
+  // A wrong-length seed or key reads as absent.
+  items.set("huawei.hichain.bad.pakeSeed", "0102");
+  items.set("huawei.hichain.bad.pakePeerId", "01");
+  items.set("huawei.hichain.bad.pakePeerPk", "0102");
+  expect(reopened.getPakeSeed("bad")).toBeNull();
+  expect(reopened.getPakePeer("bad")).toBeNull();
+  // Clearing the watch identity keeps our seed.
+  reopened.clearPakePeer("watch-5");
+  expect(reopened.getPakePeer("watch-5")).toBeNull();
+  expect(reopened.getPakeSeed("watch-5")).toEqual(seed);
+  await purgeSecureHuaweiHiChainStore(() => secure);
+  expect([...items.keys()].filter((key) => key.includes("watch-5"))).toEqual([]);
+});

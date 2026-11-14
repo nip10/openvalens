@@ -27,6 +27,7 @@
     "@kingstinct/react-native-healthkit": "^16.0.0",
     "@lingui/core": "6.9.1",
     "@lingui/react": "6.9.1",
+    "@noble/curves": "2.4.0",
     "@openvalens/api": "workspace:*",
     "@openvalens/health-record": "workspace:*",
     "@openvalens/i18n": "workspace:*",

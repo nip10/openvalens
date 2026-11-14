@@ -131,7 +131,7 @@ test("a sync bonds, connects securely to the model's UUID and runs a BR session,
   expect(bt.calls.at(-1)).toEqual(["close"]);
 });
 
-test("crypt-off models run in the clear; Honor PAKE models are refused before connecting", async () => {
+test("crypt-off models run in the clear; Honor PAKE models connect with the PAKE path", async () => {
   const session = fakeSession();
   await runHuaweiBrSync({
     model: getHuaweiModel("honor_watch_4")!,
@@ -144,20 +144,20 @@ test("crypt-off models run in the clear; Honor PAKE models are refused before co
     createSession: session.create,
   });
   expect(session.seen[0]?.transactionsCrypted).toBe(false);
+  expect(session.seen[0]?.honorPake).toBe(false);
 
-  const bt = fakeBtClassic();
-  await expect(
-    runHuaweiBrSync({
-      model: getHuaweiModel("honor_watch_5")!,
-      bleAddress: BLE,
-      deviceId: "d",
-      btClassic: bt.adapter,
-      bond: fakeBond().bond,
-      onRecord: () => undefined,
-      signal: new AbortController().signal,
-    }),
-  ).rejects.toThrow("HUAWEI_AUTH_UNSUPPORTED:honor_pake");
-  expect(bt.calls).toEqual([]);
+  const pake = fakeSession();
+  await runHuaweiBrSync({
+    model: getHuaweiModel("honor_watch_5")!,
+    bleAddress: BLE,
+    deviceId: "d",
+    btClassic: fakeBtClassic().adapter,
+    bond: fakeBond().bond,
+    onRecord: () => undefined,
+    signal: new AbortController().signal,
+    createSession: pake.create,
+  });
+  expect(pake.seen[0]).toMatchObject({ honorPake: true, transactionsCrypted: false });
 });
 
 test("the first failed connect after bonding is retried once; the socket closes even on failure", async () => {

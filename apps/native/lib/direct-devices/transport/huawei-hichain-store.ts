@@ -1,6 +1,7 @@
 /**
- * Durable HiChain identity for Huawei/Honor watches: our per-watch id and the
- * bind's auth token, in the OS keystore (`expo-secure-store`). Without it every
+ * Durable HiChain identity for Huawei/Honor watches: our per-watch id, the
+ * bind's auth token and, for Honor PAKE watches, our Ed25519 seed and the
+ * watch's identity, in the OS keystore (`expo-secure-store`). Without it every
  * app restart would need a new bind, i.e. a new confirmation on the watch.
  *
  * AGPL-3.0-or-later (same as upstream Gadgetbridge).
@@ -18,7 +19,9 @@ export type SecureKeyValue = Readonly<{
 
 /** SecureStore keys allow `[A-Za-z0-9._-]`. */
 const safeId = (deviceId: string) => deviceId.replace(/[^A-Za-z0-9._-]/g, "_");
-const keyFor = (deviceId: string, field: "androidId" | "authToken") =>
+/** Every field the store writes per watch (the purge deletes each). */
+const FIELDS = ["androidId", "authToken", "pakeSeed", "pakePeerId", "pakePeerPk"] as const;
+const keyFor = (deviceId: string, field: (typeof FIELDS)[number]) =>
   `huawei.hichain.${safeId(deviceId)}.${field}`;
 /** The keystore cannot list keys, so the store keeps the ids it wrote, for purging. */
 const INDEX_KEY = "huawei.hichain.index";
@@ -46,7 +49,7 @@ export async function purgeSecureHuaweiHiChainStore(
   const ids = readIndex(secure);
   await Promise.all(
     ids.flatMap((id) =>
-      [`huawei.hichain.${id}.androidId`, `huawei.hichain.${id}.authToken`].map((key) =>
+      FIELDS.map((field) => `huawei.hichain.${id}.${field}`).map((key) =>
         secure.deleteItemAsync(key).catch(() => undefined),
       ),
     ),
@@ -78,7 +81,41 @@ export function createSecureHuaweiHiChainStore(
     secure().setItem(key, value);
     cache.set(key, value);
   };
+  const readBytes = (key: string) => {
+    const value = read(key);
+    if (!value) return null;
+    try {
+      return huaweiUnhex(value);
+    } catch {
+      return null;
+    }
+  };
+  const remove = (key: string) => {
+    cache.set(key, null);
+    void secure()
+      .deleteItemAsync(key)
+      .catch(() => undefined);
+  };
   return {
+    getPakeSeed: (deviceId) => {
+      const seed = readBytes(keyFor(deviceId, "pakeSeed"));
+      return seed?.length === 32 ? seed : null;
+    },
+    setPakeSeed: (deviceId, seed) =>
+      write(deviceId, keyFor(deviceId, "pakeSeed"), huaweiHexUpper(seed)),
+    getPakePeer: (deviceId) => {
+      const authId = readBytes(keyFor(deviceId, "pakePeerId"));
+      const authPk = readBytes(keyFor(deviceId, "pakePeerPk"));
+      return authId && authPk?.length === 32 ? { authId, authPk } : null;
+    },
+    setPakePeer: (deviceId, peer) => {
+      write(deviceId, keyFor(deviceId, "pakePeerId"), huaweiHexUpper(peer.authId));
+      write(deviceId, keyFor(deviceId, "pakePeerPk"), huaweiHexUpper(peer.authPk));
+    },
+    clearPakePeer: (deviceId) => {
+      remove(keyFor(deviceId, "pakePeerId"));
+      remove(keyFor(deviceId, "pakePeerPk"));
+    },
     getAndroidId: (deviceId) => {
       const value = read(keyFor(deviceId, "androidId"));
       return value && /^[0-9A-F]{32}$/.test(value) ? value : null;

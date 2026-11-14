@@ -317,7 +317,7 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
     zepp_os_shared: t`Shared Zepp OS transport (per-minute steps, heart rate and sleep; older models' sleep is estimated from activity minutes); not validated for this model. Not hardware-verified.`,
     xiaomi_shared: t`Shared Xiaomi protobuf transport; not device-validated for this model. Not hardware-verified.`,
     huawei_history_sync: t`History sync on connection for exact-minute steps, heart rate and sleep (BLE models only); not hardware-verified.`,
-    huawei_connection_only: t`Syncs over Bluetooth Classic on Android; the first sync asks you to confirm pairing on the watch. Honor Watch 5, 5 Pro and 6 are not supported yet. Connection checks only on iPhone. Not hardware-verified.`,
+    huawei_connection_only: t`Syncs over Bluetooth Classic on Android; the first sync may ask you to confirm pairing on the watch. Connection checks only on iPhone. Not hardware-verified.`,
     garmin_history_sync: t`FIT file sync on connection for exact-minute steps, heart rate and sleep; not hardware-verified.`,
     garmin_connection_only: t`Connection checks only; this model carries no health-monitoring FIT files. Not hardware-verified.`,
     garmin_edge_rfcomm_sync: t`Syncs recorded rides on Android, over Bluetooth Classic when the device lists no files over Bluetooth LE. Connection checks only on iPhone. Not hardware-verified.`,
@@ -690,6 +690,7 @@ const GARMIN_ERROR_COPY: Record<string, MessageDescriptor> = {
 
 const huaweiPairingFailed = msg`Pairing with the watch failed. Restart the watch, then sync again.`;
 const huaweiRejected = msg`The watch rejected pairing. If it is paired with the Huawei Health app or another phone, unpair it there first, then sync again.`;
+const honorRejected = msg`The watch rejected pairing. If it is paired with the Honor Health app or another phone, unpair it there first, then sync again.`;
 const huaweiClassicOnly = msg`This Huawei/Honor model syncs over Bluetooth Classic, which works on Android only.`;
 
 /** Huawei/Honor failures by error code (localized; the rest fall back to `friendlyError`). */
@@ -698,7 +699,10 @@ const HUAWEI_ERROR_COPY: Partial<Record<string, MessageDescriptor>> = {
   HUAWEI_BR_UNSUPPORTED: huaweiClassicOnly,
   HUAWEI_BR_PAIRING_FAILED: msg`Pairing with the watch did not finish. Accept the pairing prompt on the phone and the watch, then sync again.`,
   HUAWEI_DEVICE_STATUS_UNSUPPORTED: msg`The watch reported a state this app cannot handle yet (it may need setting up in the Huawei Health app first).`,
-  HUAWEI_AUTH_UNSUPPORTED: msg`This Honor watch (Watch 5, 5 Pro or 6) needs a pairing mode that is not supported yet.`,
+  HUAWEI_PAKE_REBIND_REQUIRED: msg`The watch no longer recognises this phone. Sync again to pair it again.`,
+  HUAWEI_PAKE_REJECTED: honorRejected,
+  HUAWEI_PAKE_FAILED: honorRejected,
+  HUAWEI_PAKE_PROTOCOL: huaweiPairingFailed,
   HUAWEI_HICHAIN_CONFIRM_TIMEOUT: msg`The watch did not confirm pairing in time. Unlock it, keep it near the phone, sync again and tap Confirm on the watch.`,
   HUAWEI_HICHAIN_AUTH_TIMEOUT: msg`The watch did not answer the pairing check. Keep it unlocked and near the phone, then sync again.`,
   HUAWEI_HICHAIN_REJECTED: huaweiRejected,

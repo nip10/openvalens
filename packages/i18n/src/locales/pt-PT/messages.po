@@ -16441,8 +16441,8 @@ msgid "Syncing…"
 msgstr "A sincronizar…"
 
 #: apps/native/components/direct-device-settings.tsx
-msgid "Syncs over Bluetooth Classic on Android; the first sync asks you to confirm pairing on the watch. Honor Watch 5, 5 Pro and 6 are not supported yet. Connection checks only on iPhone. Not hardware-verified."
-msgstr "Sincroniza por Bluetooth Clássico no Android; a primeira sincronização pede-lhe que confirme o emparelhamento no relógio. Os Honor Watch 5, 5 Pro e 6 ainda não são suportados. No iPhone apenas verifica a ligação. Não verificado em hardware."
+msgid "Syncs over Bluetooth Classic on Android; the first sync may ask you to confirm pairing on the watch. Connection checks only on iPhone. Not hardware-verified."
+msgstr "Sincroniza por Bluetooth Clássico no Android; a primeira sincronização pode pedir-lhe que confirme o emparelhamento no relógio. No iPhone, apenas verificações de ligação. Não verificado em hardware."
 
 #: apps/native/components/direct-device-settings.tsx
 msgid "Syncs recorded rides on Android, over Bluetooth Classic when the device lists no files over Bluetooth LE. Connection checks only on iPhone. Not hardware-verified."
@@ -17090,8 +17090,16 @@ msgid "The watch did not confirm pairing in time. Unlock it, keep it near the ph
 msgstr "O relógio não confirmou o emparelhamento a tempo. Desbloqueie-o, mantenha-o perto do telemóvel, sincronize novamente e toque em Confirmar no relógio."
 
 #: apps/native/components/direct-device-settings.tsx
+msgid "The watch no longer recognises this phone. Sync again to pair it again."
+msgstr "O relógio já não reconhece este telemóvel. Sincronize novamente para voltar a emparelhá-lo."
+
+#: apps/native/components/direct-device-settings.tsx
 msgid "The watch no longer recognises this phone. Sync again to pair: you will confirm on the watch."
 msgstr "O relógio já não reconhece este telemóvel. Sincronize novamente para emparelhar: vai confirmar no relógio."
+
+#: apps/native/components/direct-device-settings.tsx
+msgid "The watch rejected pairing. If it is paired with the Honor Health app or another phone, unpair it there first, then sync again."
+msgstr "O relógio rejeitou o emparelhamento. Se estiver emparelhado com a app Honor Health ou com outro telemóvel, desemparelhe-o primeiro aí e sincronize novamente."
 
 #: apps/native/components/direct-device-settings.tsx
 msgid "The watch rejected pairing. If it is paired with the Huawei Health app or another phone, unpair it there first, then sync again."
@@ -17311,10 +17319,6 @@ msgstr "Este relógio Garmin usa um protocolo Bluetooth mais antigo que a sincro
 #: apps/web/src/routes/_auth/goals.$goalId.tsx
 msgid "This goal was replaced."
 msgstr "Esta meta foi substituída."
-
-#: apps/native/components/direct-device-settings.tsx
-msgid "This Honor watch (Watch 5, 5 Pro or 6) needs a pairing mode that is not supported yet."
-msgstr "Este relógio Honor (Watch 5, 5 Pro ou 6) precisa de um modo de emparelhamento que ainda não é suportado."
 
 #: apps/native/components/direct-device-settings.tsx
 msgid "This Huawei/Honor model syncs over Bluetooth Classic, which works on Android only; here it supports connection checks only."

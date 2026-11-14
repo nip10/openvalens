@@ -136,7 +136,7 @@ export type HuaweiModel = Readonly<{
   sdpUuid: string | null;
   /** Upstream `isTransactionCrypted()`; false for eight BR models. */
   transactionsCrypted: boolean;
-  /** True when upstream `supportsHiChainPake()`: Honor PAKE/STS, not implemented. */
+  /** True when upstream `supportsHiChainPake()`: Honor PAKE/STS (`transport/huawei-pake.ts`). */
   honorPake: boolean;
 }>;
 
