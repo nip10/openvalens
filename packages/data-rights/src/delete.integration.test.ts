@@ -588,6 +588,109 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
     }
   });
 
+  describe("owner erasure and another member's weigh-ins (#509)", () => {
+    const ORG = "weigh-org";
+    const OWNER = "weigh-owner";
+    const MEMBER = "weigh-member";
+    const owned = { userId: OWNER, organizationIds: [ORG] };
+    // Member-private weight and body-composition tables.
+    const WEIGHT_TABLES = [
+      "weight_event",
+      "daily_weight",
+      "daily_weight_override",
+      "body_comp_event",
+      "weight_checkin",
+      "metric_sample",
+      "private_body_measurement",
+    ] as const;
+    const memberRow: Record<(typeof WEIGHT_TABLES)[number], string> = {
+      weight_event: `insert into weight_event (organization_id, user_id, source, measured_at, date, weight_kg, created_at)
+        values ('${ORG}', '${MEMBER}', 'manual', '2026-11-02T07:00:00Z', '2026-11-02', 61, '2026-11-02')`,
+      daily_weight: `insert into daily_weight (organization_id, user_id, date, source, weight_kg, created_at, updated_at)
+        values ('${ORG}', '${MEMBER}', '2026-11-02', 'manual', 61, '2026-11-02', '2026-11-02')`,
+      daily_weight_override: `insert into daily_weight_override (organization_id, user_id, date, weight_kg, created_at)
+        values ('${ORG}', '${MEMBER}', '2026-11-03', 60.5, '2026-11-03')`,
+      body_comp_event: `insert into body_comp_event (organization_id, user_id, source, measured_at, date, body_fat_pct, created_at)
+        values ('${ORG}', '${MEMBER}', 'scale', '2026-11-02T07:00:00Z', '2026-11-02', 24, '2026-11-02')`,
+      weight_checkin: `insert into weight_checkin (organization_id, user_id, date, weight_kg, created_at)
+        values ('${ORG}', '${MEMBER}', '2026-11-02', 61, '2026-11-02')`,
+      metric_sample: `insert into metric_sample (organization_id, user_id, metric_definition_id, sampled_at, dedupe_hash, numeric_value)
+        select '${ORG}', '${MEMBER}', id, '2026-11-02T07:00:00Z', 'weigh-member-sample', 61
+        from metric_definition where organization_id = '${ORG}' and code = 'weight'`,
+      private_body_measurement: `insert into private_body_measurement (organization_id, user_id, kind, value, unit, measured_at)
+        values ('${ORG}', '${MEMBER}', 'weight', 61, 'kg', '2026-11-02T07:00:00Z')`,
+    };
+    const memberCount = (table: string) =>
+      count(table, sql`organization_id = ${ORG} and user_id = ${MEMBER}`);
+    const removeMemberRows = async (tables: readonly string[]) => {
+      for (const table of tables)
+        await db.execute(
+          sql`delete from ${sql.identifier(table)} where organization_id = ${ORG} and user_id = ${MEMBER}`,
+        );
+    };
+
+    beforeAll(async () => {
+      await db.execute(
+        sql.raw(`
+        insert into "user" (id, email) values
+          ('${OWNER}', 'weigh-owner@example.test'), ('${MEMBER}', 'weigh-member@example.test');
+        insert into organization (id, name, slug) values ('${ORG}', 'Shared scale', '${ORG}');
+        insert into member (id, organization_id, user_id, role) values
+          ('weigh-owner-member', '${ORG}', '${OWNER}', 'owner'),
+          ('weigh-other-member', '${ORG}', '${MEMBER}', 'collaborator');
+        insert into metric_definition (organization_id, code, display_name) values ('${ORG}', 'weight', 'Weight');
+        insert into weight_event (organization_id, user_id, source, measured_at, date, weight_kg, created_at)
+          values ('${ORG}', '${OWNER}', 'manual', '2026-11-01T07:00:00Z', '2026-11-01', 80, '2026-11-01');
+        insert into weight_checkin (organization_id, user_id, date, weight_kg, created_at) values
+          ('${ORG}', '${OWNER}', '2026-11-01', 80, '2026-11-01'), ('${ORG}', null, '2026-10-01', 79, '2026-10-01');
+        insert into metric_sample (organization_id, user_id, metric_definition_id, sampled_at, dedupe_hash, numeric_value)
+          select '${ORG}', u, id, '2026-11-01T07:00:00Z', 'weigh-' || coalesce(u, 'legacy'), 80
+          from metric_definition, unnest(array['${OWNER}', null]) u
+          where organization_id = '${ORG}' and code = 'weight';
+      `),
+      );
+    });
+
+    test("refuses while the member has weigh-ins, and keeps every row", async () => {
+      for (const table of WEIGHT_TABLES) await db.execute(sql.raw(memberRow[table]));
+      try {
+        await expect(deleteSubjectData(db, owned)).rejects.toMatchObject({ code: "CONFLICT" });
+        for (const table of WEIGHT_TABLES) expect(await memberCount(table)).toBe(1);
+        // The owner's own and legacy rows are untouched too: nothing was erased.
+        expect(await count("weight_checkin", sql`organization_id = ${ORG}`)).toBe(3);
+        expect(await count("metric_sample", sql`organization_id = ${ORG}`)).toBe(3);
+        expect(await count("organization", sql`id = ${ORG}`)).toBe(1);
+        expect(await count("user", sql`id = ${OWNER}`)).toBe(1);
+      } finally {
+        await removeMemberRows([...WEIGHT_TABLES].reverse());
+      }
+    });
+
+    for (const table of WEIGHT_TABLES)
+      test(`refuses for one ${table} row of the member's`, async () => {
+        await db.execute(sql.raw(memberRow[table]));
+        try {
+          await expect(deleteSubjectData(db, owned)).rejects.toMatchObject({ code: "CONFLICT" });
+          expect(await memberCount(table)).toBe(1);
+        } finally {
+          await removeMemberRows([table]);
+        }
+      });
+
+    test("erases own and legacy rows with the workspace once the member has none", async () => {
+      const erased = await deleteSubjectData(db, owned);
+      expect(erased.rowCounts.weight_event).toBe(1);
+      expect(erased.rowCounts.weight_checkin).toBe(2);
+      expect(erased.rowCounts.metric_sample).toBe(2);
+      for (const table of WEIGHT_TABLES)
+        expect(await count(table, sql`organization_id = ${ORG}`)).toBe(0);
+      expect(await count("organization", sql`id = ${ORG}`)).toBe(0);
+      expect(await count("user", sql`id = ${OWNER}`)).toBe(0);
+      expect(await count("user", sql`id = ${MEMBER}`)).toBe(1);
+      await db.execute(sql`delete from "user" where id = ${MEMBER}`);
+    });
+  });
+
   test("photo uploader across memberships is blocked before account erasure", async () => {
     await db.execute(
       sql`insert into "user" (id, email) values ('photo-subject', 'photo@example.test')`,

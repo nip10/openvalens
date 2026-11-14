@@ -67,6 +67,15 @@ records:
   sign-in link) and typing `DELETE`.
 - It is blocked while a workspace they own has another owner; that owner must
   be removed, or the workspace transferred, first.
+- It is refused (`CONFLICT`) while a workspace they own holds another member's
+  private records: workouts and routines, personal goals, supplement intakes,
+  sleep nights, weigh-ins and body composition (`weight_event`,
+  `daily_weight`, `daily_weight_override`, `body_comp_event`,
+  `weight_checkin`, attributed `metric_sample` rows) or private body
+  measurements. Deleting the workspace would destroy that member's records,
+  so nothing is erased until they are removed. Legacy rows saved before
+  authors were recorded (no `user_id`) belong to the workspace and are erased
+  with it.
 - Deletion runs in one database transaction. An erasure-ledger row keeps the
   deleted ids and row counts, without the data itself, so the deletion can be
   repeated after a restore.

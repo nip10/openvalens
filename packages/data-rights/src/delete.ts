@@ -180,9 +180,10 @@ async function eraseInTransaction(
 ): Promise<DeletionReport> {
   const orgIds = [...subject.organizationIds];
   // Container erasure must not cascade another member's private goal,
-  // evidence, or training data.
+  // evidence, training, sleep, weigh-in or body-composition data (#509).
   // The owner must resolve these records through the separately authorized
-  // ownership flow before their organization can be removed.
+  // ownership flow before their organization can be removed. Legacy rows with
+  // no author belong to the workspace and are erased with it.
   if (orgIds.length) {
     const foreignPrivateTraining = await tx.execute(sql`select 1 from (
       select 1 from workout where ${inList("organization_id", orgIds)} and user_id is not null and user_id <> ${subject.userId}
@@ -215,6 +216,20 @@ async function eraseInTransaction(
       select 1 from supplement_intake where ${inList("organization_id", orgIds)} and user_id <> ${subject.userId}
       union all
       select 1 from health_event where ${inList("organization_id", orgIds)} and user_id is not null and user_id <> ${subject.userId}
+      union all
+      select 1 from metric_sample where ${inList("organization_id", orgIds)} and user_id is not null and user_id <> ${subject.userId}
+      union all
+      select 1 from weight_checkin where ${inList("organization_id", orgIds)} and user_id is not null and user_id <> ${subject.userId}
+      union all
+      select 1 from weight_event where ${inList("organization_id", orgIds)} and user_id <> ${subject.userId}
+      union all
+      select 1 from daily_weight where ${inList("organization_id", orgIds)} and user_id <> ${subject.userId}
+      union all
+      select 1 from daily_weight_override where ${inList("organization_id", orgIds)} and user_id <> ${subject.userId}
+      union all
+      select 1 from body_comp_event where ${inList("organization_id", orgIds)} and user_id <> ${subject.userId}
+      union all
+      select 1 from private_body_measurement where ${inList("organization_id", orgIds)} and user_id <> ${subject.userId}
     ) private_training limit 1`);
     if (foreignPrivateTraining.rows.length) throw new SelfErasureError("CONFLICT");
   }
@@ -490,8 +505,8 @@ export async function deleteSelfSubjectData(
  * the same transaction, that the account is still due (the owner may have
  * subscribed again); `false` erases nothing and answers `skipped`. The same
  * refusals apply as for self-service erasure: a workspace with another owner,
- * other people's private training data, unfinished photo cleanup, or stored
- * objects while storage is off.
+ * other people's private training, sleep or weight data, unfinished photo
+ * cleanup, or stored objects while storage is off.
  */
 export async function deleteAccountForRetention(
   db: Database,

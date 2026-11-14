@@ -276,17 +276,19 @@ export function rowFilter(table: string, subject: DataRightsSubject): SQL {
  */
 export function deletionRowFilter(table: string, subject: DataRightsSubject): SQL {
   const orgIds = [...subject.organizationIds];
-  // #509: the subject's own weigh-ins wherever they are a member, plus every
-  // row in an erased container (unchanged container erasure).
+  // #509: weigh-ins and body composition follow workouts. The subject's own
+  // wherever they are a member, plus legacy rows with no author in an erased
+  // container. Another member's rows are never erased: owner erasure refuses
+  // (`CONFLICT`) while they exist (see `eraseInTransaction`).
   if (
     table === "weight_event" ||
     table === "daily_weight" ||
     table === "daily_weight_override" ||
-    table === "body_comp_event" ||
-    table === "weight_checkin" ||
-    table === "metric_sample"
+    table === "body_comp_event"
   )
-    return sql`user_id = ${subject.userId} or ${inList("organization_id", orgIds)}`;
+    return sql`user_id = ${subject.userId}`;
+  if (table === "weight_checkin" || table === "metric_sample")
+    return sql`user_id = ${subject.userId} or (user_id is null and ${inList("organization_id", orgIds)})`;
   if (table === "calendar_event") return inList("organization_id", orgIds);
   if (table === "workout")
     return sql`user_id = ${subject.userId} or (user_id is null and ${inList("organization_id", orgIds)})`;
