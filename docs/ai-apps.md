@@ -83,24 +83,48 @@ never arguments or results) for 90 days.
 Each write scope covers one domain and is opt-in (unticked on the key form and
 the consent screen):
 
-| Scope               | Tools                                             | What                                                                   |
-| ------------------- | ------------------------------------------------- | ---------------------------------------------------------------------- |
-| `water:write`       | `water.log`, `water.delete`                       | Plain water (needs the member's plain-water logging on)                |
-| `body:write`        | `body.log`, `body.delete`                         | Weight, body fat, muscle mass, bone mass, body water                   |
-| `vitals:write`      | `vitals.log`, `vitals.delete`                     | Blood pressure (with pulse), heart rate, resting HR, SpO₂, respiration |
-| `supplements:write` | `supplements.logTaken`, `supplements.deleteTaken` | One of the member's own supplements taken, by name                     |
+| Scope               | Tools                                             | What                                                                              |
+| ------------------- | ------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `water:write`       | `water.log`, `water.delete`                       | Plain water (needs the member's plain-water logging on)                           |
+| `body:write`        | `body.log`, `body.delete`                         | Weight, body fat, muscle mass, bone mass, body water                              |
+| `vitals:write`      | `vitals.log`, `vitals.delete`                     | Blood pressure (with pulse), heart rate, resting HR, SpO₂, respiration            |
+| `supplements:write` | `supplements.logTaken`, `supplements.deleteTaken` | One of the member's own supplements taken, by name                                |
+| `workouts:write`    | `workouts.log`, `workouts.delete`                 | A workout session: type, duration, effort, catalog exercises with their sets      |
+| `sleep:write`       | `sleep.log`, `sleep.delete`                       | A night of sleep (bedtime, wake time, optional quality 1–5)                       |
+| `trackers:write`    | `trackers.log`, `trackers.delete`                 | Entries in the member's own custom trackers whose AI switch is on                 |
+| `pain:write`        | `pain.log`, `pain.delete`                         | Pain ratings, one entry per body region (needs the pain log and its AI switch on) |
 
 A grant without the scope gets `403 insufficient_scope`; on `/api/mcp` the
 challenge names the scope so the app can ask for it (approving again updates
-the connection's scopes without reconnecting). `workouts:write`,
-`sleep:write`, `trackers:write`, `pain:write`, `food:write` and `labs:write`
-are reserved for the next milestones and refused for now.
+the connection's scopes without reconnecting). `food:write` and `labs:write`
+are reserved for M2c (food drafts through #73 and lab drafts through the
+lab-extraction review screen, both confirmed in the app) and refused for now.
 
 - **Same paths as the app.** Entries go through the domain write paths the
-  quick log uses (plain-water diary, `ingestMetricSample` with the manual-entry
-  ranges and the blood pressure rule, supplement intakes), as the member's own
-  manual entries. Values out of range, an unknown supplement, or a time in the
-  future fail the whole call before anything is written.
+  quick log and the app's own forms use (plain-water diary,
+  `ingestMetricSample` with the manual-entry ranges and the blood pressure
+  rule, supplement intakes, the workout repository, manual sleep nights, the
+  tracker and pain services), as the member's own manual entries. Values out
+  of range, an unknown supplement or tracker, or a time in the future fail
+  the whole call before anything is written.
+- **Workouts** take catalog exercise ids from `exercises.search` (the member's
+  own custom exercises are listed there too); a session with only a type, a
+  duration and an effort rating is fine. A session with an exercise that is
+  not in the catalog is refused with what to do instead; saving it as a draft
+  the member confirms comes with M2c.
+- **Sleep** is saved as a manual night (`entryMode: "manual"`, #440), with the
+  app's own sleep form rules (10 minutes to 24 hours, not ending in the
+  future). A night that overlaps a device night is `possibleDuplicate: true`,
+  and the device night counts in the totals.
+- **Trackers** take a `trackerId` from `trackers.list`: only the member's own
+  trackers with "Coach and connected AI apps can read this" on, never a shared
+  tracker someone else owns. The value follows the tracker's kind (a number,
+  1–5, true or false, or minutes for a duration). An entry within ten minutes
+  of one imported from Apple Health or Health Connect in the same tracker is a
+  possible duplicate.
+- **Pain** is refused unless the member turned the pain log on and "Coach and
+  connected AI apps can read my pain log" is on (#442); the pain service checks
+  both again inside the write.
 - **Idempotent.** Every call needs a `mutationId`. Its receipt (`ai_app_write`)
   works like the plain-water receipts (#83): a retry with the same id and
   arguments returns the first result (`replayed: true`) and writes nothing; the
@@ -111,19 +135,21 @@ are reserved for the next milestones and refused for now.
 - **Source.** Every entry is recorded in `ai_app_entry` with the grant that
   wrote it and shown as "via <app name>". On the timeline,
   `timeline.list({ source: "ai_app:<grantId>" })` (or `/records/timeline?source=…`)
-  shows only one app's entries. Water and supplement intakes are not timeline
-  items yet; they carry the same tag in `ai_app_entry` and are counted and
-  deleted with the rest.
+  shows only one app's entries: readings, sleep nights, tracker entries and
+  pain entries. Water, supplement intakes and workouts are not timeline items
+  yet; they carry the same tag in `ai_app_entry` and are counted and deleted
+  with the rest.
 - **Ownership.** `*.delete` deletes only entries the same grant wrote, by the
   `entryId`s its log calls returned; any other id is answered `not_found` and
   left alone. There is no edit tool: an app corrects an entry by deleting it and
   logging it again. Revoking a grant keeps what it wrote;
   `aiApps.deleteWrites` ("Delete everything this app wrote" on the web settings
   page) deletes all of it through each domain's own delete.
-- **Device data wins.** An entry never overwrites or merges into a device
-  reading. A reading within ten minutes of a device reading of the same metric
-  is returned as `possibleDuplicate: true` (the typed-in blood pressure rule),
-  and daily vitals totals leave it out so the device reading counts.
+- **Device data wins.** An entry never overwrites or merges into device data.
+  A reading within ten minutes of a device reading of the same metric is
+  returned as `possibleDuplicate: true` (the typed-in blood pressure rule), and
+  daily vitals totals leave it out so the device reading counts; the same goes
+  for a night overlapping a device night.
 - **Limits.** At most 100 entries per call and 1,000 added per grant a day
   (env, above); past the daily limit the call gets `429` with `Retry-After`.
   On Cloud, a read-only workspace refuses write tools (`403 access_read_only`

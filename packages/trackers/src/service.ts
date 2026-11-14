@@ -504,6 +504,12 @@ export function createTrackerService(input: { db: Database; now?: () => Date }) 
       });
     },
 
+    /**
+     * Logs one entry. `options` is for a connected AI app (#439, M2b): `aiApp`
+     * accepts only the viewer's own tracker with its AI switch on, and `entryId`
+     * makes a retry a no-op (an existing entry with that id, in the same
+     * tracker, is returned instead of writing again).
+     */
     async log(
       viewer: TrackerViewer,
       input: {
@@ -513,17 +519,24 @@ export function createTrackerService(input: { db: Database; now?: () => Date }) 
         timeZone: string;
         note?: string | null;
       },
+      options: { aiApp?: boolean; entryId?: string } = {},
     ): Promise<TrackerEntryView> {
       const tracker = await visible(viewer, input.trackerId);
       if (tracker.archivedAt) throw new TrackerError("ARCHIVED", "Restore this tracker to log it.");
       if (!canLogInto(tracker, viewer))
         throw new TrackerError("FORBIDDEN", "You cannot add entries to this tracker.");
+      if (options.aiApp && (tracker.userId !== viewer.userId || !tracker.aiVisible))
+        throw new TrackerError(
+          "FORBIDDEN",
+          "AI apps can log only into the member's own trackers that they let AI apps read.",
+        );
       checkValue(tracker.type as TrackerType, input.value);
       const loggedAt = input.loggedAt ? new Date(input.loggedAt) : now();
       checkLoggedAt(loggedAt, now());
       const [entry] = await db
         .insert(customTrackerEntry)
         .values({
+          ...(options.entryId ? { id: options.entryId } : {}),
           trackerId: tracker.id,
           organizationId: tracker.organizationId,
           userId: tracker.userId,
@@ -534,9 +547,25 @@ export function createTrackerService(input: { db: Database; now?: () => Date }) 
           note: input.note?.trim() ? input.note.trim() : null,
           source: "manual",
         })
+        .onConflictDoNothing({ target: customTrackerEntry.id })
         .returning();
+      let saved = entry;
+      if (!saved && options.entryId) {
+        // A retry: the entry is already there. Only ever the same tracker's.
+        [saved] = await db
+          .select()
+          .from(customTrackerEntry)
+          .where(
+            and(
+              eq(customTrackerEntry.id, options.entryId),
+              eq(customTrackerEntry.trackerId, tracker.id),
+              eq(customTrackerEntry.organizationId, tracker.organizationId),
+            ),
+          );
+        if (!saved) throw new TrackerError("INVALID", "This entry id is already taken.");
+      }
       const loggedBy = await names([viewer.userId]);
-      return entryView(entry!, tracker, viewer, loggedBy.get(viewer.userId) ?? null);
+      return entryView(saved!, tracker, viewer, loggedBy.get(viewer.userId) ?? null);
     },
 
     async updateEntry(

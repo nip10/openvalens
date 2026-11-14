@@ -1976,6 +1976,10 @@ msgstr "Add reading"
 msgid "Add set"
 msgstr "Add set"
 
+#: packages/api/src/presenters/ai-apps.ts
+msgid "Add sleep"
+msgstr "Add sleep"
+
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
 msgid "Add supplement"
@@ -1993,6 +1997,10 @@ msgstr "Add the first exercise to start logging sets."
 msgid "Add them up"
 msgstr "Add them up"
 
+#: packages/api/src/presenters/ai-apps.ts
+msgid "Add to custom trackers"
+msgstr "Add to custom trackers"
+
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 msgid "Add to favourites"
 msgstr "Add to favourites"
@@ -2000,6 +2008,10 @@ msgstr "Add to favourites"
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 msgid "Add to favourites: {name}"
 msgstr "Add to favourites: {name}"
+
+#: packages/api/src/presenters/ai-apps.ts
+msgid "Add to pain log"
+msgstr "Add to pain log"
 
 #: apps/native/components/exercise-detail.tsx
 msgid "Add to routine"
@@ -2027,6 +2039,10 @@ msgstr "Add weight"
 #: packages/api/src/presenters/ai-apps.ts
 msgid "Add weight and body composition"
 msgstr "Add weight and body composition"
+
+#: packages/api/src/presenters/ai-apps.ts
+msgid "Add workouts"
+msgstr "Add workouts"
 
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "Add your adult answer in your profile to use this."
@@ -9703,6 +9719,10 @@ msgstr "Log dose"
 msgid "Log doses actually taken. Schedules are reminders, not proof. Goals count the day once, while every dose stays recorded."
 msgstr "Log doses actually taken. Schedules are reminders, not proof. Goals count the day once, while every dose stays recorded."
 
+#: packages/api/src/presenters/ai-apps.ts
+msgid "Log entries in your own trackers that have \"Coach and connected AI apps can read this\" on. The app can delete only the entries it added."
+msgstr "Log entries in your own trackers that have \"Coach and connected AI apps can read this\" on. The app can delete only the entries it added."
+
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 msgid "Log food ({amount})"
 msgstr "Log food ({amount})"
@@ -9711,6 +9731,10 @@ msgstr "Log food ({amount})"
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
 msgid "Log meals most days"
 msgstr "Log meals most days"
+
+#: packages/api/src/presenters/ai-apps.ts
+msgid "Log nights of sleep, like your own sleep entries. A device night always counts first. The app can delete only the nights it added."
+msgstr "Log nights of sleep, like your own sleep entries. A device night always counts first. The app can delete only the nights it added."
 
 #: apps/native/app/(drawer)/goals/[goalId].tsx
 #: apps/web/src/routes/_auth/goals.$goalId.tsx
@@ -9724,6 +9748,10 @@ msgstr "Log or go to"
 #: apps/web/src/components/pain/pain-panel.tsx
 msgid "Log pain"
 msgstr "Log pain"
+
+#: packages/api/src/presenters/ai-apps.ts
+msgid "Log pain ratings by body region, only while \"Coach and connected AI apps can read my pain log\" is on. The app can delete only the entries it added."
+msgstr "Log pain ratings by body region, only while \"Coach and connected AI apps can read my pain log\" is on. The app can delete only the entries it added."
 
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/native/components/training-home.tsx
@@ -9773,6 +9801,10 @@ msgstr "Log water"
 #: packages/api/src/presenters/ai-apps.ts
 msgid "Log weight, body fat, muscle, bone and body water. The app can delete only the entries it added."
 msgstr "Log weight, body fat, muscle, bone and body water. The app can delete only the entries it added."
+
+#: packages/api/src/presenters/ai-apps.ts
+msgid "Log workout sessions with exercises from the exercise catalog. The app can delete only the workouts it added."
+msgstr "Log workout sessions with exercises from the exercise catalog. The app can delete only the workouts it added."
 
 #: apps/native/components/onboarding/first-log.tsx
 #: apps/web/src/components/onboarding/setup-steps.tsx

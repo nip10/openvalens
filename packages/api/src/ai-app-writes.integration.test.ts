@@ -11,22 +11,31 @@ import { parseMcpConfig } from "@openvalens/mcp/config";
 import { AI_APP_CONSENT_VERSION, createAiAppsService } from "@openvalens/mcp/grants";
 import { createAiAppsHttp } from "@openvalens/mcp/http";
 import { createMcpDataSources } from "@openvalens/mcp/sources";
-import { createAiAppWrites, type McpWriteTargets } from "@openvalens/mcp/writes";
+import {
+  createAiAppWrites,
+  type AiDomainWriter,
+  type McpWriteTargets,
+} from "@openvalens/mcp/writes";
 import { createPlainWaterDiary } from "@openvalens/nutrition";
+import { createPainService } from "@openvalens/pain";
+import { insertManualSleepSession, listManualSleepSessions } from "@openvalens/sleep";
 import { listDailyVitals, listRecentBloodPressureReadings } from "@openvalens/vitals";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 
 import { createAiAppWriteTargets } from "./ai-app-writes";
 
 /**
- * Issue #439 (M2a) — AI app writes end to end against a disposable
+ * Issue #439 (M2a, M2b) — AI app writes end to end against a disposable
  * PostgreSQL, through the REST tool API and the MCP server with the app's own
  * domain write paths: write scope gating, retries that never duplicate (also
  * after a failure half-way through), ownership (an app deletes only what its
  * own grant wrote), "Delete everything this app wrote", the per-call and
  * per-day limits, the read-only refusal, device overlap marked as a possible
  * duplicate with device data winning the daily totals, and the "via <app>"
- * source tag on the timeline. Synthetic data only.
+ * source tag on the timeline. M2b adds workouts (catalog exercises only),
+ * sleep (a night overlapping a device night is a possible duplicate), custom
+ * trackers (only the member's own with the AI switch on) and the pain log
+ * (only while it and its AI switch are on). Synthetic data only.
  */
 
 const url = process.env.AI_APP_WRITES_TEST_DATABASE_URL;
@@ -520,6 +529,642 @@ describe.skipIf(!url)("AI app writes against disposable PostgreSQL", () => {
     expect(refused.status).toBe(403);
     expect(refused.body.error).toBe("access_read_only");
     expect((await rest("weights.daily", {}, writeKey, readOnly)).status).toBe(200);
+  });
+
+  // ─── M2b: workouts, sleep, custom trackers, pain ────────────
+
+  const M2B_WRITES = ["workouts:write", "sleep:write", "trackers:write", "pain:write"];
+  type Principal = Parameters<ReturnType<typeof createAiAppWrites>["log"]>[0]["principal"];
+
+  /** The day `days` ago (UTC), so a session never lands in the member's future. */
+  function daysAgo(days: number): string {
+    return new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10);
+  }
+
+  async function m2bSetup() {
+    if (m2b) return m2b;
+    const [catalog] = (
+      await db.execute(
+        sql`insert into exercise (source, external_id, name, source_record_url, snapshot_version, snapshot_at)
+            values ('wger', 'w-m2b-bench', 'Bench press', 'https://wger.de/exercise/m2b', 'v1', now())
+            returning id`,
+      )
+    ).rows as Array<{ id: number }>;
+    // A device night yesterday, synced by a watch (not typed in).
+    const deviceStart = new Date(Date.now() - 30 * 3_600_000).toISOString();
+    const deviceEnd = new Date(Date.now() - 22 * 3_600_000).toISOString();
+    await db.execute(
+      sql`insert into health_event (organization_id, user_id, event_type, event_at, payload_json, dedupe_hash)
+          values (${ORG}, ${USER}, 'sleep_session', ${deviceStart}::timestamptz,
+            ${JSON.stringify({ endAt: deviceEnd, sourceApp: "watch" })}::jsonb, 'device-night-m2b')`,
+    );
+    const trackers = (
+      await db.execute(
+        sql`insert into custom_tracker (organization_id, user_id, name, icon, type, unit, aggregation, ai_visible)
+            values (${ORG}, ${USER}, 'Dead hangs', 'timer', 'number', 'reps', 'sum', true),
+                   (${ORG}, ${USER}, 'Sauna', 'flame', 'duration', null, 'sum', true),
+                   (${ORG}, ${USER}, 'Mood', 'smile', 'scale', null, 'average', false)
+            returning id, name`,
+      )
+    ).rows as Array<{ id: string; name: string }>;
+    const trackerId = (name: string) => trackers.find((row) => row.name === name)!.id;
+    // An entry Health Connect imported into "Dead hangs" an hour ago.
+    const platformAt = minutesAgo(60);
+    await db.execute(
+      sql`insert into custom_tracker_entry (tracker_id, organization_id, user_id, logged_by_user_id, value, logged_at, local_date, source, source_record_id)
+          values (${trackerId("Dead hangs")}, ${ORG}, ${USER}, ${USER}, 3, ${platformAt}::timestamptz, ${platformAt.slice(0, 10)}, 'health_connect', 'hc-m2b-1')`,
+    );
+    const created = await key(M2B_WRITES, "Claude M2b");
+    const other = await key(M2B_WRITES, "Other M2b app");
+    const auth = (await service.authenticate(`Bearer ${created.key}`)) as {
+      ok: true;
+      principal: Principal;
+    };
+    m2b = {
+      exerciseId: Number(catalog!.id),
+      deviceStart,
+      deviceEnd,
+      platformAt,
+      deadHangs: trackerId("Dead hangs"),
+      sauna: trackerId("Sauna"),
+      mood: trackerId("Mood"),
+      key: created.key,
+      grantId: created.grant.id,
+      otherKey: other.key,
+      principal: auth.principal,
+    };
+    return m2b;
+  }
+  let m2b: {
+    exerciseId: number;
+    deviceStart: string;
+    deviceEnd: string;
+    platformAt: string;
+    deadHangs: string;
+    sauna: string;
+    mood: string;
+    key: string;
+    grantId: string;
+    otherKey: string;
+    principal: Principal;
+  } | null = null;
+
+  async function setPain(enabled: boolean, aiVisible: boolean) {
+    await db.execute(
+      sql`insert into pain_preference (user_id, enabled, ai_visible) values (${USER}, ${enabled}, ${aiVisible})
+          on conflict (user_id) do update set enabled = excluded.enabled, ai_visible = excluded.ai_visible`,
+    );
+  }
+
+  async function countRows(table: "workout" | "sleep" | "tracker" | "pain") {
+    const query =
+      table === "workout"
+        ? sql`select count(*)::int as n from workout where organization_id = ${ORG} and user_id = ${USER}`
+        : table === "sleep"
+          ? sql`select count(*)::int as n from health_event where organization_id = ${ORG} and event_type = 'sleep_session' and payload_json ->> 'entryMode' = 'manual'`
+          : table === "tracker"
+            ? sql`select count(*)::int as n from custom_tracker_entry where organization_id = ${ORG} and source = 'manual'`
+            : sql`select count(*)::int as n from pain_entry where organization_id = ${ORG}`;
+    const [row] = (await db.execute(query)).rows as Array<{ n: number }>;
+    return Number(row?.n ?? 0);
+  }
+
+  test("M2b write tools need their own write scope", async () => {
+    const setup = await m2bSetup();
+    const cases: Array<[string, string, unknown]> = [
+      [
+        "workouts.log",
+        "workouts:write",
+        [{ date: daysAgo(1), type: "running", durationMinutes: 30 }],
+      ],
+      ["sleep.log", "sleep:write", [{ startAt: minutesAgo(600), endAt: minutesAgo(120) }]],
+      [
+        "trackers.log",
+        "trackers:write",
+        [{ at: minutesAgo(5), trackerId: setup.sauna, value: 10 }],
+      ],
+      ["pain.log", "pain:write", [{ at: minutesAgo(5), region: "joint.knee_left", rating: 3 }]],
+    ];
+    const before = await Promise.all(
+      (["workout", "sleep", "tracker", "pain"] as const).map(countRows),
+    );
+    for (const [tool, scope, entries] of cases) {
+      // The M2a grant has water, body, vitals and supplements only.
+      const refused = await rest(tool, { mutationId: `m-scope-${tool}`, entries }, writeKey);
+      expect(refused.status).toBe(403);
+      expect(refused.body.error).toBe("insufficient_scope");
+      expect(refused.body.scope).toBe(scope);
+    }
+    expect(
+      await Promise.all((["workout", "sleep", "tracker", "pain"] as const).map(countRows)),
+    ).toEqual(before);
+    const names = (
+      (await mcp(setup.key, "tools/list")).body.result.tools as Array<{ name: string }>
+    ).map((tool) => tool.name);
+    expect(names).toEqual(
+      expect.arrayContaining([
+        "workouts.log",
+        "workouts.delete",
+        "sleep.log",
+        "sleep.delete",
+        "trackers.log",
+        "trackers.delete",
+        "pain.log",
+        "pain.delete",
+      ]),
+    );
+    expect(names).not.toContain("water.log");
+  });
+
+  test("workouts: catalog exercises only, a bare session is fine, a retry never duplicates", async () => {
+    const setup = await m2bSetup();
+    const before = await countRows("workout");
+    const body = {
+      mutationId: "m-workout-1",
+      entries: [
+        { date: daysAgo(1), type: "running", durationMinutes: 35, effort: 6 },
+        {
+          date: daysAgo(1),
+          type: "weights",
+          durationMinutes: 50,
+          intensity: "vigorous",
+          exercises: [
+            {
+              exerciseId: setup.exerciseId,
+              sets: [
+                { reps: 5, weight: 225, unit: "lb" },
+                { reps: 5, weight: 100 },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const first = await rest("workouts.log", body, setup.key);
+    expect(first.status).toBe(200);
+    expect(first.body.result.source).toBe("via Claude M2b");
+    expect(first.body.result.entries.map((entry: { kind: string }) => entry.kind)).toEqual([
+      "workout",
+      "workout",
+    ]);
+    const again = await rest("workouts.log", body, setup.key);
+    expect(again.body.result.replayed).toBe(true);
+    expect(again.body.result.entries).toEqual(first.body.result.entries);
+    expect(await countRows("workout")).toBe(before + 2);
+    const [strength] = (
+      await db.execute(
+        sql`select w.effort_rating, we.name, we.exercise_id, array_agg(ws.weight_kg order by ws.sort_order) as weights
+            from workout w join workout_exercise we on we.workout_id = w.id join workout_set ws on ws.exercise_id = we.id
+            where w.organization_id = ${ORG} and w.type = 'weights' group by w.id, we.id`,
+      )
+    ).rows as Array<{ name: string; exercise_id: number; weights: number[] }>;
+    expect(strength?.name).toBe("Bench press");
+    expect(strength?.exercise_id).toBe(setup.exerciseId);
+    expect(strength?.weights.map((value) => Math.round(value))).toEqual([102, 100]);
+
+    // An exercise that is not in the catalog is refused (a draft is M2c), and nothing is written.
+    for (const [index, exercise] of [
+      { name: "Banded face pulls" },
+      { exerciseId: 987_654_321 },
+    ].entries()) {
+      const refused = await rest(
+        "workouts.log",
+        {
+          mutationId: `m-workout-custom-${index}`,
+          entries: [{ date: daysAgo(1), type: "weights", exercises: [exercise] }],
+        },
+        setup.key,
+      );
+      expect(refused.status).toBe(400);
+      expect(refused.body.error_description).toContain("exercises.search");
+      expect(refused.body.error_description).toContain("not available yet");
+    }
+    const future = await rest(
+      "workouts.log",
+      { mutationId: "m-workout-future", entries: [{ date: daysAgo(-3), type: "running" }] },
+      setup.key,
+    );
+    expect(future.status).toBe(400);
+    expect(await countRows("workout")).toBe(before + 2);
+  });
+
+  test("sleep: a night overlapping a device night is a possible duplicate; the device night stays", async () => {
+    const setup = await m2bSetup();
+    const before = await countRows("sleep");
+    const body = {
+      mutationId: "m-sleep-1",
+      entries: [
+        // Overlaps the device night.
+        {
+          startAt: new Date(Date.parse(setup.deviceStart) + 3_600_000).toISOString(),
+          endAt: new Date(Date.parse(setup.deviceEnd) - 3_600_000).toISOString(),
+          quality: 4,
+        },
+        // Two nights earlier: no device night.
+        {
+          startAt: new Date(Date.now() - 54 * 3_600_000).toISOString(),
+          endAt: new Date(Date.now() - 47 * 3_600_000).toISOString(),
+        },
+      ],
+    };
+    const first = await rest("sleep.log", body, setup.key);
+    expect(first.status).toBe(200);
+    const [overlapping, clear] = first.body.result.entries;
+    expect(overlapping.possibleDuplicate).toBe(true);
+    expect(clear.possibleDuplicate).toBe(false);
+    expect((await rest("sleep.log", body, setup.key)).body.result.replayed).toBe(true);
+    expect(await countRows("sleep")).toBe(before + 2);
+    // The app's own manual-sleep list flags it the same way, and the device night is untouched.
+    const nights = await listManualSleepSessions(db, {
+      organizationId: ORG,
+      userId: USER,
+      days: 7,
+    });
+    expect(nights.filter((night) => night.possibleDuplicate)).toHaveLength(1);
+    expect(nights.find((night) => night.quality === 4)?.possibleDuplicate).toBe(true);
+    const [device] = (
+      await db.execute(
+        sql`select payload_json from health_event where dedupe_hash = 'device-night-m2b'`,
+      )
+    ).rows as Array<{ payload_json: Record<string, unknown> }>;
+    expect(device?.payload_json).toEqual({ endAt: setup.deviceEnd, sourceApp: "watch" });
+
+    const invalid = await rest(
+      "sleep.log",
+      {
+        mutationId: "m-sleep-bad",
+        entries: [{ startAt: minutesAgo(60), endAt: minutesAgo(65) }],
+      },
+      setup.key,
+    );
+    expect(invalid.status).toBe(400);
+    expect(invalid.body.error_description).toContain("wake time must be after the bedtime");
+  });
+
+  test("trackers: only the member's own trackers with the AI switch on", async () => {
+    const setup = await m2bSetup();
+    const before = await countRows("tracker");
+    const body = {
+      mutationId: "m-tracker-1",
+      entries: [
+        // Five minutes after the Health Connect entry: a possible duplicate.
+        {
+          at: new Date(Date.parse(setup.platformAt) + 5 * 60_000).toISOString(),
+          trackerId: setup.deadHangs,
+          value: 4,
+        },
+        { at: minutesAgo(30), trackerId: setup.sauna, value: 15, note: "after the run" },
+      ],
+    };
+    const first = await rest("trackers.log", body, setup.key);
+    expect(first.status).toBe(200);
+    expect(first.body.result.entries.map((entry: any) => entry.possibleDuplicate)).toEqual([
+      true,
+      false,
+    ]);
+    expect((await rest("trackers.log", body, setup.key)).body.result.replayed).toBe(true);
+    expect(await countRows("tracker")).toBe(before + 2);
+    const [sauna] = (
+      await db.execute(
+        sql`select value, logged_by_user_id from custom_tracker_entry where tracker_id = ${setup.sauna}`,
+      )
+    ).rows as Array<{ value: number; logged_by_user_id: string }>;
+    // Minutes in, seconds stored, logged as the member.
+    expect(sauna).toEqual({ value: 900, logged_by_user_id: USER });
+
+    // "Mood" has the AI switch off: refused, as if it did not exist.
+    const switchedOff = await rest(
+      "trackers.log",
+      {
+        mutationId: "m-tracker-off",
+        entries: [{ at: minutesAgo(5), trackerId: setup.mood, value: 3 }],
+      },
+      setup.key,
+    );
+    expect(switchedOff.status).toBe(400);
+    expect(switchedOff.body.error_description).toContain("not one of the member's trackers");
+    expect(switchedOff.body.error_description).not.toContain("Mood");
+    // Turning a tracker's switch off in the app refuses it from then on.
+    await db.execute(sql`update custom_tracker set ai_visible = false where id = ${setup.sauna}`);
+    const flipped = await rest(
+      "trackers.log",
+      {
+        mutationId: "m-tracker-flip",
+        entries: [{ at: minutesAgo(5), trackerId: setup.sauna, value: 5 }],
+      },
+      setup.key,
+    );
+    expect(flipped.status).toBe(400);
+    await db.execute(sql`update custom_tracker set ai_visible = true where id = ${setup.sauna}`);
+    const wrongKind = await rest(
+      "trackers.log",
+      {
+        mutationId: "m-tracker-kind",
+        entries: [{ at: minutesAgo(5), trackerId: setup.sauna, value: true }],
+      },
+      setup.key,
+    );
+    expect(wrongKind.status).toBe(400);
+    expect(await countRows("tracker")).toBe(before + 2);
+  });
+
+  test("pain: refused while the pain log or its AI switch is off; one entry per region", async () => {
+    const setup = await m2bSetup();
+    const entries = [
+      { at: minutesAgo(20), region: "joint.knee_left", rating: 4, type: "ache" },
+      { at: minutesAgo(20), region: "front.thigh_left", rating: 2 },
+    ];
+    const off = await rest("pain.log", { mutationId: "m-pain-off", entries }, setup.key);
+    expect(off.status).toBe(400);
+    expect(off.body.error_description).toContain("pain log is off");
+    await setPain(true, false);
+    const aiOff = await rest("pain.log", { mutationId: "m-pain-ai-off", entries }, setup.key);
+    expect(aiOff.status).toBe(400);
+    expect(aiOff.body.error_description).toContain(
+      "Coach and connected AI apps can read my pain log",
+    );
+    await setPain(true, true);
+    const ok = await rest("pain.log", { mutationId: "m-pain-1", entries }, setup.key);
+    expect(ok.status).toBe(200);
+    expect(ok.body.result.entries).toHaveLength(2);
+    expect(
+      (await rest("pain.log", { mutationId: "m-pain-1", entries }, setup.key)).body.result.replayed,
+    ).toBe(true);
+    expect(await countRows("pain")).toBe(2);
+    const regions = (
+      await db.execute(
+        sql`select region, rating, type from pain_entry where organization_id = ${ORG} order by region`,
+      )
+    ).rows;
+    expect(regions).toEqual([
+      { region: "front.thigh_left", rating: 2, type: null },
+      { region: "joint.knee_left", rating: 4, type: "ache" },
+    ]);
+    // Turned off again in the app: refused from then on.
+    await setPain(true, false);
+    const flipped = await rest(
+      "pain.log",
+      {
+        mutationId: "m-pain-flip",
+        entries: [{ at: minutesAgo(5), region: "joint.neck", rating: 1 }],
+      },
+      setup.key,
+    );
+    expect(flipped.status).toBe(400);
+    expect(await countRows("pain")).toBe(2);
+    await setPain(true, true);
+  });
+
+  test("M2b: a retry after a failure half-way through writes each entry once", async () => {
+    const setup = await m2bSetup();
+    await setPain(true, true);
+    const cases = [
+      {
+        domain: "workouts" as const,
+        tool: "workouts.log",
+        count: "workout" as const,
+        entries: [
+          { date: daysAgo(2), type: "cycling" as const, durationMinutes: 40 },
+          { date: daysAgo(2), type: "swimming" as const, durationMinutes: 20 },
+        ],
+      },
+      {
+        domain: "sleep" as const,
+        tool: "sleep.log",
+        count: "sleep" as const,
+        entries: [
+          {
+            startAt: new Date(Date.now() - 80 * 3_600_000).toISOString(),
+            endAt: new Date(Date.now() - 72 * 3_600_000).toISOString(),
+          },
+          {
+            startAt: new Date(Date.now() - 104 * 3_600_000).toISOString(),
+            endAt: new Date(Date.now() - 96 * 3_600_000).toISOString(),
+          },
+        ],
+      },
+      {
+        domain: "trackers" as const,
+        tool: "trackers.log",
+        count: "tracker" as const,
+        entries: [
+          { at: minutesAgo(200), trackerId: setup.sauna, value: 12 },
+          { at: minutesAgo(190), trackerId: setup.sauna, value: 8 },
+        ],
+      },
+      {
+        domain: "pain" as const,
+        tool: "pain.log",
+        count: "pain" as const,
+        entries: [
+          { at: minutesAgo(200), region: "joint.shoulder_left", rating: 5 },
+          { at: minutesAgo(190), region: "joint.shoulder_right", rating: 3 },
+        ],
+      },
+    ];
+    for (const item of cases) {
+      let failOnce = true;
+      const writer = targets[item.domain] as AiDomainWriter<unknown>;
+      const flakyWriter: AiDomainWriter<unknown> = {
+        prepare: writer.prepare,
+        write: async (context, prepared) => {
+          const written = await writer.write(context, prepared);
+          if (failOnce) {
+            // The first entry is written; the call dies before recording it.
+            failOnce = false;
+            throw new Error("simulated crash");
+          }
+          return written;
+        },
+      };
+      const flaky = { ...targets, [item.domain]: flakyWriter } as McpWriteTargets;
+      const flakyWrites = createAiAppWrites({ db, targets: flaky, limits: writes.limits });
+      const before = await countRows(item.count);
+      const input = {
+        principal: setup.principal,
+        domain: item.domain,
+        tool: item.tool,
+        mutationId: `m-crash-${item.domain}`,
+        entries: item.entries,
+        timeZone: "UTC",
+      };
+      await expect(flakyWrites.log(input)).rejects.toThrow("simulated crash");
+      const resumed = await flakyWrites.log(input);
+      expect(resumed.entries).toHaveLength(2);
+      expect(await countRows(item.count)).toBe(before + 2);
+    }
+  });
+
+  test("M2b: an app deletes only its own entries, in the same domain", async () => {
+    const setup = await m2bSetup();
+    await setPain(true, true);
+    const logged = {
+      workout: await rest(
+        "workouts.log",
+        {
+          mutationId: "m-own-workout",
+          entries: [{ date: daysAgo(3), type: "tennis", durationMinutes: 60 }],
+        },
+        setup.key,
+      ),
+      sleep: await rest(
+        "sleep.log",
+        {
+          mutationId: "m-own-sleep",
+          entries: [
+            {
+              startAt: new Date(Date.now() - 128 * 3_600_000).toISOString(),
+              endAt: new Date(Date.now() - 120 * 3_600_000).toISOString(),
+            },
+          ],
+        },
+        setup.key,
+      ),
+      tracker: await rest(
+        "trackers.log",
+        {
+          mutationId: "m-own-tracker",
+          entries: [{ at: minutesAgo(300), trackerId: setup.deadHangs, value: 2 }],
+        },
+        setup.key,
+      ),
+      pain: await rest(
+        "pain.log",
+        {
+          mutationId: "m-own-pain",
+          entries: [{ at: minutesAgo(300), region: "joint.neck", rating: 2 }],
+        },
+        setup.key,
+      ),
+    };
+    const ids = Object.fromEntries(
+      Object.entries(logged).map(([name, response]) => {
+        expect(response.status).toBe(200);
+        return [name, response.body.result.entries[0].entryId as string];
+      }),
+    ) as Record<keyof typeof logged, string>;
+    // The member's own entries, typed in the app.
+    const memberNight = await insertManualSleepSession(db, {
+      organizationId: ORG,
+      userId: USER,
+      startAt: new Date(Date.now() - 152 * 3_600_000).toISOString(),
+      endAt: new Date(Date.now() - 144 * 3_600_000).toISOString(),
+      quality: null,
+      dedupeHash: "member-night-m2b",
+    });
+    const [memberPain] = await createPainService({ db }).log(SCOPE, {
+      regions: ["joint.hip_left"],
+      rating: 6,
+      loggedAt: minutesAgo(400),
+      timeZone: "UTC",
+    });
+    const deletes: Array<[string, keyof typeof logged, string]> = [
+      ["workouts.delete", "workout", "workout"],
+      ["sleep.delete", "sleep", "sleep"],
+      ["trackers.delete", "tracker", "tracker"],
+      ["pain.delete", "pain", "pain"],
+    ];
+    const counts = async () =>
+      Promise.all((["workout", "sleep", "tracker", "pain"] as const).map(countRows));
+    const before = await counts();
+    for (const [tool, entry] of deletes) {
+      // Another app with the same scopes gets not_found, and so does the wrong domain.
+      const byOther = await rest(
+        tool,
+        { mutationId: `m-del-other-${tool}`, entryIds: [ids[entry]] },
+        setup.otherKey,
+      );
+      expect(byOther.body.result.entries).toEqual([{ entryId: ids[entry], status: "not_found" }]);
+      const wrong = deletes.find(([, other]) => other !== entry)![0];
+      const wrongDomain = await rest(
+        wrong,
+        { mutationId: `m-del-wrong-${tool}`, entryIds: [ids[entry]] },
+        setup.key,
+      );
+      expect(wrongDomain.body.result.entries[0].status).toBe("not_found");
+    }
+    expect(await counts()).toEqual(before);
+    for (const [tool, entry] of deletes) {
+      const deleted = await rest(
+        tool,
+        { mutationId: `m-del-own-${tool}`, entryIds: [ids[entry]] },
+        setup.key,
+      );
+      expect(deleted.body.result.entries).toEqual([{ entryId: ids[entry], status: "deleted" }]);
+    }
+    expect(await counts()).toEqual(before.map((count) => count - 1));
+    // The member's own night and pain entry stay; so does the device night.
+    const nights = await listManualSleepSessions(db, {
+      organizationId: ORG,
+      userId: USER,
+      days: 10,
+    });
+    expect(nights.some((night) => night.id === memberNight.id)).toBe(true);
+    const pains = (await db.execute(sql`select id from pain_entry where id = ${memberPain!.id}`))
+      .rows;
+    expect(pains).toHaveLength(1);
+    expect(
+      (await db.execute(sql`select id from health_event where dedupe_hash = 'device-night-m2b'`))
+        .rows,
+    ).toHaveLength(1);
+  });
+
+  test("M2b entries are tagged with the app on the timeline, and delete everything removes them", async () => {
+    const setup = await m2bSetup();
+    const page = await createHealthRecordRepository(db).listTimeline(
+      ORG,
+      { source: `ai_app:${setup.grantId}`, limit: 200 },
+      [],
+      { userId: USER },
+    );
+    const tables = new Set(page.items.map((item) => item.id.split(":")[0]));
+    expect(tables).toEqual(new Set(["health_event", "custom_tracker_entry", "pain_entry"]));
+    for (const item of page.items)
+      expect(item.sourceRefs[0]).toEqual({
+        type: "ai_app",
+        label: "Claude M2b",
+        id: `ai_app:${setup.grantId}`,
+        provider: "ai_app",
+      });
+    // The member's own entries carry no AI tag.
+    const all = await createHealthRecordRepository(db).listTimeline(ORG, { limit: 500 }, [], {
+      userId: USER,
+    });
+    const memberPain = all.items.find(
+      (item) => item.id.startsWith("pain_entry:") && item.canonical?.region === "joint.hip_left",
+    );
+    expect(memberPain?.sourceRefs.some((ref) => ref.type === "ai_app")).toBe(false);
+
+    const owned = await db.select().from(aiAppEntry).where(eq(aiAppEntry.grantId, setup.grantId));
+    expect(new Set(owned.map((row) => row.targetTable))).toEqual(
+      new Set(["workout", "health_event", "custom_tracker_entry", "pain_entry"]),
+    );
+    const before = {
+      workout: await countRows("workout"),
+      sleep: await countRows("sleep"),
+      tracker: await countRows("tracker"),
+      pain: await countRows("pain"),
+    };
+    const result = await writes.deleteEverythingWritten({
+      userId: USER,
+      organizationId: ORG,
+      grantId: setup.grantId,
+    });
+    expect(result?.deleted).toBe(owned.length);
+    const by = (table: string) => owned.filter((row) => row.targetTable === table).length;
+    expect(await countRows("workout")).toBe(before.workout - by("workout"));
+    expect(await countRows("sleep")).toBe(before.sleep - by("health_event"));
+    expect(await countRows("tracker")).toBe(before.tracker - by("custom_tracker_entry"));
+    expect(await countRows("pain")).toBe(before.pain - by("pain_entry"));
+    // The member's own pain entry and night, and the device night, stay.
+    expect(await countRows("pain")).toBe(1);
+    expect(
+      (
+        await db.execute(
+          sql`select id from health_event where dedupe_hash in ('device-night-m2b', 'member-night-m2b')`,
+        )
+      ).rows,
+    ).toHaveLength(2);
   });
 
   test("revoking keeps the entries; delete everything this app wrote removes only them", async () => {

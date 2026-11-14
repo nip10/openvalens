@@ -1,7 +1,7 @@
 import type { Database } from "@openvalens/db";
 import { painEntry, painPreference } from "@openvalens/db/schema/pain";
 import { workout } from "@openvalens/db/schema/plans";
-import { and, asc, between, count, desc, eq, max } from "drizzle-orm";
+import { and, asc, between, count, desc, eq, inArray, max } from "drizzle-orm";
 
 import {
   addDays,
@@ -145,25 +145,44 @@ export function createPainService(options: { db: Database; now?: () => Date }) {
       return next;
     },
 
-    /** One entry per region. Refused while the pain log is off. */
-    async log(scope: PainScope, input: PainLogInput): Promise<PainEntry[]> {
+    /**
+     * One entry per region. Refused while the pain log is off.
+     *
+     * `options` is for a connected AI app (#439, M2b): `aiApp` also needs the
+     * pain AI switch on (re-checked inside the write), and `ids` (one per
+     * region) make a retry a no-op: an entry that already has its id is
+     * returned instead of written again.
+     */
+    async log(
+      scope: PainScope,
+      input: PainLogInput,
+      options: { aiApp?: boolean; ids?: readonly string[] } = {},
+    ): Promise<PainEntry[]> {
       const at = input.loggedAt ? new Date(input.loggedAt) : now();
       if (at.getTime() > now().getTime() + FUTURE_SKEW_MS)
         throw new PainError("INVALID", "The time cannot be in the future.");
+      if (options.ids && options.ids.length !== input.regions.length)
+        throw new PainError("INVALID", "Give one id per region.");
       const localDate = localDateIn(at, input.timeZone);
       const note = input.note?.trim() ? input.note.trim() : null;
       return db.transaction(async (tx) => {
         // Re-checked inside the write so turning it off mid-request stores nothing.
         const [preference] = await tx
-          .select({ enabled: painPreference.enabled })
+          .select({ enabled: painPreference.enabled, aiVisible: painPreference.aiVisible })
           .from(painPreference)
           .where(eq(painPreference.userId, scope.userId))
           .for("share");
         if (!preference?.enabled) throw new PainError("DISABLED", "Turn on the pain log first.");
+        if (options.aiApp && !preference.aiVisible)
+          throw new PainError(
+            "DISABLED",
+            'The member has not let AI apps use their pain log ("Coach and connected AI apps can read my pain log" is off).',
+          );
         const rows = await tx
           .insert(painEntry)
           .values(
-            input.regions.map((region) => ({
+            input.regions.map((region, index) => ({
+              ...(options.ids ? { id: options.ids[index] } : {}),
               organizationId: scope.organizationId,
               userId: scope.userId,
               region,
@@ -174,8 +193,20 @@ export function createPainService(options: { db: Database; now?: () => Date }) {
               note,
             })),
           )
+          .onConflictDoNothing({ target: painEntry.id })
           .returning(entryColumns);
-        return rows.map(toEntry);
+        if (!options.ids || rows.length === input.regions.length) return rows.map(toEntry);
+        // A retry: the missing ones are already there, and only ever the member's own.
+        const existing = await tx
+          .select(entryColumns)
+          .from(painEntry)
+          .where(and(own(scope), inArray(painEntry.id, [...options.ids])));
+        const byId = new Map(existing.map((row) => [row.id, row]));
+        return options.ids.map((id) => {
+          const row = byId.get(id);
+          if (!row) throw new PainError("INVALID", "This entry id is already taken.");
+          return toEntry(row);
+        });
       });
     },
 

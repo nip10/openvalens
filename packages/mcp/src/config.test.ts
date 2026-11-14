@@ -97,12 +97,23 @@ describe("scopes", () => {
     });
   });
 
-  test("grant the M2a write scopes, which are opt-in", () => {
+  test("grant the M2a and M2b write scopes, which are opt-in", () => {
     expect(normalizeScopes([...WRITE_SCOPES])).toEqual({
       ok: true,
-      scopes: ["body:write", "records:read", "supplements:write", "vitals:write", "water:write"],
+      scopes: [
+        "body:write",
+        "pain:write",
+        "records:read",
+        "sleep:write",
+        "supplements:write",
+        "trackers:write",
+        "vitals:write",
+        "water:write",
+        "workouts:write",
+      ],
     });
-    expect(RESERVED_SCOPES).toContain("trackers:write");
+    // Food and lab drafts (M2c) stay reserved.
+    expect([...RESERVED_SCOPES]).toEqual(["food:write", "labs:write"]);
     for (const scope of WRITE_SCOPES) expect(RESERVED_SCOPES).not.toContain(scope as never);
   });
 

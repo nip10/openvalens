@@ -45,6 +45,10 @@ function sessionOf(row: { id: number; eventAt: Date; payloadJson: unknown }): Sl
 /**
  * Inserts one manual night. The dedupe hash makes a retry or double-tap a
  * no-op: `created` is `false` and the existing row is returned.
+ *
+ * `aiApp` (#439, M2b) tags a night a connected AI app wrote for the member:
+ * the grant and the app's name, shown on the timeline as "via <app>". Only
+ * the server sets it.
  */
 export async function insertManualSleepSession(
   db: Database,
@@ -55,6 +59,7 @@ export async function insertManualSleepSession(
     endAt: string;
     quality: number | null;
     dedupeHash: string;
+    aiApp?: { grantId: string; label: string };
   },
 ): Promise<{ id: number; created: boolean }> {
   const [inserted] = await db
@@ -70,6 +75,9 @@ export async function insertManualSleepSession(
         entryMode: MANUAL_SLEEP_ENTRY_MODE,
         sourceApp: MANUAL_SLEEP_SOURCE_APP,
         ...(input.quality === null ? {} : { quality: input.quality }),
+        ...(input.aiApp
+          ? { aiApp: { grantId: input.aiApp.grantId, label: input.aiApp.label } }
+          : {}),
       },
       sourceEventId: null,
       dedupeHash: input.dedupeHash,
@@ -94,10 +102,11 @@ export async function insertManualSleepSession(
 /**
  * Deletes one of the member's own manual nights. Device sessions and other
  * members' rows are never touched. Returns whether a row was removed.
+ * `aiAppGrantId` (#439) limits it to a night that AI app grant wrote.
  */
 export async function deleteManualSleepSession(
   db: Database,
-  input: { organizationId: string; userId: string; id: number },
+  input: { organizationId: string; userId: string; id: number; aiAppGrantId?: string },
 ): Promise<boolean> {
   const removed = await db
     .delete(healthEvent)
@@ -108,6 +117,9 @@ export async function deleteManualSleepSession(
         eq(healthEvent.userId, input.userId),
         eq(healthEvent.eventType, "sleep_session"),
         sql`${healthEvent.payloadJson} ->> 'entryMode' = ${MANUAL_SLEEP_ENTRY_MODE}`,
+        ...(input.aiAppGrantId
+          ? [sql`${healthEvent.payloadJson} -> 'aiApp' ->> 'grantId' = ${input.aiAppGrantId}`]
+          : []),
       ),
     )
     .returning({ id: healthEvent.id });

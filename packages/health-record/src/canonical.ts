@@ -163,8 +163,9 @@ function common(
   // #439 (M2) — a reading a connected AI app wrote for the member: tagged with
   // the grant ("via <app>"); filter the timeline with `source=ai_app:<grantId>`.
   const aiApp = bag(p.aiApp);
+  // It leads the refs, so the apps name the app first (a manual night also carries "manual").
   if (!source && typeof aiApp.grantId === "string" && typeof aiApp.label === "string")
-    sourceRefs.push({
+    sourceRefs.unshift({
       type: "ai_app",
       label: aiApp.label,
       id: `ai_app:${aiApp.grantId}`,

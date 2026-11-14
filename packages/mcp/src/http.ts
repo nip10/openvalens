@@ -47,7 +47,7 @@ export const MCP_SERVER_INSTRUCTIONS = [
   "Every tool returns the member's recorded values as stored, with units, ISO 8601 times with the member's UTC offset and days in the member's time zone. Results are facts only, with no interpretation beyond the flags the app already shows.",
   "OpenValens is a personal record-keeping and wellness tool. It is not a medical device and does not give medical advice, diagnosis or treatment. Do not present its data as a diagnosis; encourage the member to talk to a qualified health professional about medical questions.",
   "Cycle data and progress photos are never available through this server.",
-  "With a write scope the member granted, tools can add the member's own entries (water, weight and body composition, vitals, a supplement taken) and delete entries this app added. Only write what the member asked you to record, give every write a new mutationId, and reuse it only to retry that same write. Entries are labelled with this app's name and never change a device reading.",
+  "With a write scope the member granted, tools can add the member's own entries (water, weight and body composition, vitals, a supplement taken, workouts, sleep, custom trackers, pain ratings) and delete entries this app added. Only write what the member asked you to record, give every write a new mutationId, and reuse it only to retry that same write. Entries are labelled with this app's name and never change device data.",
 ].join("\n\n");
 
 export type AiAppsHttpOptions = {
