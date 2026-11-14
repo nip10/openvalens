@@ -4,6 +4,7 @@ import { calendarEvent } from "@openvalens/db/schema/plans";
 import { PgDialect } from "drizzle-orm/pg-core";
 
 import {
+  calendarEventVisibleTo,
   createCalendarRepository,
   filterEventsByType,
   groupEventsByDate,
@@ -290,6 +291,7 @@ describe("calendar — repository", () => {
     const rows = await createCalendarRepository(state.db).listEvents("org-1", {
       from: "2026-03-01",
       to: "2026-03-31",
+      viewerUserId: "user-1",
     });
     expect(rows).toHaveLength(1);
     expect(rows[0]!.type).toBe("workout");
@@ -326,6 +328,7 @@ describe("calendar — repository", () => {
     const rows = await createCalendarRepository(state.db).listEvents("org-1", {
       from: "2026-03-01",
       to: "2026-03-31",
+      viewerUserId: "user-1",
       types: ["weight"],
     });
     expect(rows.map((r) => r.id)).toEqual([2]);
@@ -351,7 +354,23 @@ describe("calendar — repository", () => {
 
   test("deleteEvent returns null when the row is missing", async () => {
     const state = fakeDb([]);
-    const result = await createCalendarRepository(state.db).deleteEvent("org-1", 999);
+    const result = await createCalendarRepository(state.db).deleteEvent("org-1", 999, "user-1");
     expect(result).toBeNull();
+  });
+});
+
+describe("calendarEventVisibleTo (#509)", () => {
+  const dialect = new PgDialect();
+
+  test("hides a weigh-in day event whose check-in belongs to another member", () => {
+    const query = dialect.sqlToQuery(calendarEventVisibleTo("user-a"));
+    expect(query.sql).toContain(`"calendar_event"."type" = 'weight'`);
+    expect(query.sql).toContain(`"checkin"."user_id" is not null`);
+    expect(query.sql).toContain(`"checkin"."user_id" is distinct from $1`);
+    expect(query.params).toEqual(["user-a"]);
+  });
+
+  test("with no member, every attributed weigh-in event is hidden", () => {
+    expect(dialect.sqlToQuery(calendarEventVisibleTo(null)).params).toEqual([null]);
   });
 });

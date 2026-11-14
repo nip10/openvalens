@@ -1,4 +1,5 @@
 import type { Database } from "@openvalens/db";
+import { ownOrUnattributed } from "@openvalens/db/member-private";
 import { metricDefinition, metricSample } from "@openvalens/db/schema/health-record";
 import { and, eq, gte, inArray, isNotNull, isNull, lte, sql, type SQL } from "drizzle-orm";
 
@@ -13,10 +14,20 @@ import { BLOOD_PRESSURE_DUPLICATE_WINDOW_MS } from "./blood-pressure";
  */
 export const MANUAL_DUPLICATE_WINDOW_MS = BLOOD_PRESSURE_DUPLICATE_WINDOW_MS;
 
-/** Whether a device (data-source) sample of one of these metrics sits within the window of `at`. */
+/**
+ * Whether a device (data-source) sample of one of these metrics sits within the
+ * window of `at`. A weigh-in or body-composition reading is the member's own
+ * (#509): only their device readings, or legacy ones with no author, count.
+ */
 export async function hasDeviceReadingNear(
   db: Database,
-  input: { organizationId: string; codes: readonly string[]; at: Date; windowMs?: number },
+  input: {
+    organizationId: string;
+    userId: string;
+    codes: readonly string[];
+    at: Date;
+    windowMs?: number;
+  },
 ): Promise<boolean> {
   const windowMs = input.windowMs ?? MANUAL_DUPLICATE_WINDOW_MS;
   const rows = await db
@@ -32,6 +43,7 @@ export async function hasDeviceReadingNear(
     .where(
       and(
         eq(metricSample.organizationId, input.organizationId),
+        ownOrUnattributed(metricSample.userId, input.userId),
         inArray(metricDefinition.code, [...input.codes]),
         isNotNull(metricSample.dataSourceId),
         isNull(metricSample.supersededAt),
@@ -58,6 +70,7 @@ export function countsInDailyTotals(): SQL {
         and "device_sample"."metric_definition_id" = ${metricSample.metricDefinitionId}
         and "device_sample"."data_source_id" is not null
         and "device_sample"."superseded_at" is null
+        and ("device_sample"."user_id" is null or "device_sample"."user_id" = ${metricSample.userId})
         and "device_sample"."sampled_at" between ${metricSample.sampledAt} - make_interval(secs => ${seconds})
           and ${metricSample.sampledAt} + make_interval(secs => ${seconds})
     )

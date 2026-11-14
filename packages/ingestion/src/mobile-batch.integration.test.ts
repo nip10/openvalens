@@ -1016,6 +1016,8 @@ describe.skipIf(!url)("mobile ingest batch on disposable PostgreSQL", () => {
         `dd:v1:${SCALE_DEVICE}:weight_measurement:scale-1:bone_mass`,
       ].sort(),
     );
+    // Weigh-ins and body composition belong to the device owner (#509).
+    expect([...new Set(samples.map((sample) => sample.userId))]).toEqual(["u1"]);
     const definitions = await db.select().from(metricDefinition);
     expect(definitions.map((definition) => definition.code).sort()).toEqual(
       ["weight", "body_fat", "muscle_mass", "body_water", "bone_mass"].sort(),

@@ -129,7 +129,12 @@ export const bodyRouter = {
     .input(readInput)
     .output(z.array(checkin))
     .handler(async ({ input, context }) =>
-      listLegacyCheckins(context.db, context.authz.activeOrganizationId, input.limit ?? 5),
+      listLegacyCheckins(
+        context.db,
+        context.authz.activeOrganizationId,
+        context.authz.user.id,
+        input.limit ?? 5,
+      ),
     ),
 
   dailyWeights: permissionedProcedure({ resource: "weight", action: "read" })
@@ -242,7 +247,7 @@ export const bodyRouter = {
     }),
 
   /**
-   * Org-scoped `weight_event` history. Orders by `measuredAt desc` so a user
+   * The member's own `weight_event` history (#509). Orders by `measuredAt desc` so a user
    * sees ingested samples newest-first regardless of their `weight_event.id`.
    */
   listWeightHistory: permissionedProcedure({ resource: "weight", action: "read" })
@@ -252,6 +257,7 @@ export const bodyRouter = {
     .handler(async ({ input, context }) =>
       createAutoReconciliationService(context.db).listWeightHistory(
         context.authz.activeOrganizationId,
+        context.authz.user.id,
         input.limit ?? 10,
       ),
     ),
@@ -287,14 +293,18 @@ export const bodyRouter = {
     .input(z.object({}).optional())
     .output(checkin.nullable())
     .handler(async ({ context }) =>
-      getLatestWeight(context.db, context.authz.activeOrganizationId),
+      getLatestWeight(context.db, context.authz.activeOrganizationId, context.authz.user.id),
     ),
 
   getLatestCanonicalWeight: permissionedProcedure({ resource: "weight", action: "read" })
     .input(z.object({}).optional())
     .output(latestCanonical.nullable())
     .handler(async ({ context }) =>
-      getLatestCanonicalWeight(context.db, context.authz.activeOrganizationId),
+      getLatestCanonicalWeight(
+        context.db,
+        context.authz.activeOrganizationId,
+        context.authz.user.id,
+      ),
     ),
 
   getBodyCompositionTimeline: permissionedProcedure({ resource: "weight", action: "read" })
@@ -302,6 +312,11 @@ export const bodyRouter = {
     .input(dailyInput)
     .output(compositionTimeline)
     .handler(async ({ input, context }) =>
-      getBodyCompositionTimeline(context.db, context.authz.activeOrganizationId, input.limit ?? 90),
+      getBodyCompositionTimeline(
+        context.db,
+        context.authz.activeOrganizationId,
+        context.authz.user.id,
+        input.limit ?? 90,
+      ),
     ),
 };

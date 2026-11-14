@@ -265,6 +265,13 @@ export const metricSample = pgTable(
     organizationId: text("organization_id")
       .notNull()
       .references(() => organization.id, { onDelete: "cascade" }),
+    /**
+     * The member a weigh-in, body-composition or sleep reading belongs to
+     * (#509, `MEMBER_PRIVATE_METRIC_CODES`): set on write from the member who
+     * typed it in or the device owner. Other metrics and historical readings
+     * with no known author stay null and are shared with the workspace.
+     */
+    userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
     dataSourceId: integer("data_source_id").references(() => dataSource.id, {
       onDelete: "set null",
     }),
@@ -287,6 +294,16 @@ export const metricSample = pgTable(
   },
   (table) => ({
     metricSampleOrgIdx: index("metric_sample_organization_id_idx").on(table.organizationId),
+    metricSampleOwnerTimeIdx: index("metric_sample_org_user_sampled_at_idx").on(
+      table.organizationId,
+      table.userId,
+      table.sampledAt,
+    ),
+    metricSampleOwnerMemberFk: foreignKey({
+      columns: [table.organizationId, table.userId],
+      foreignColumns: [member.organizationId, member.userId],
+      name: "metric_sample_org_user_member_fk",
+    }).onDelete("cascade"),
     metricSampleOrgExternalIdx: index("metric_sample_organization_id_external_sample_id_idx").on(
       table.organizationId,
       table.externalSampleId,

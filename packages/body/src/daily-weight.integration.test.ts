@@ -20,7 +20,7 @@ integration(
     // Only isolated disposable databases are allowed by the runner; this test does
     // not execute migrations or touch shared application databases.
     await db.execute(
-      sql`CREATE TABLE weight_checkin (id serial PRIMARY KEY, organization_id text NOT NULL, date text NOT NULL, weight_kg real NOT NULL, body_fat_pct real, notes text, created_at text NOT NULL DEFAULT 'now')`,
+      sql`CREATE TABLE weight_checkin (id serial PRIMARY KEY, organization_id text NOT NULL, user_id text, date text NOT NULL, weight_kg real NOT NULL, body_fat_pct real, notes text, created_at text NOT NULL DEFAULT 'now')`,
     );
     await db.execute(
       sql`CREATE TABLE calendar_event (id serial PRIMARY KEY, organization_id text NOT NULL, date text NOT NULL, type text NOT NULL, category text, title text NOT NULL CHECK (title NOT LIKE '%999%'), reference_table text, reference_id integer)`,
@@ -53,6 +53,8 @@ integration(
     expect(failed.rows[0]).toMatchObject({ count: 0 });
     const created = await service.writeManualWeight(input);
     expect(created.organizationId).toBe("test-org");
+    // The check-in records its member (#509).
+    expect(created.userId).toBe("test-user");
     const counts = await db.execute(
       sql`SELECT (SELECT count(*) FROM weight_checkin)::int AS checkins, (SELECT count(*) FROM calendar_event)::int AS calendar, (SELECT count(*) FROM weight_event)::int AS events, (SELECT count(*) FROM daily_weight_override)::int AS overrides, (SELECT count(*) FROM daily_weight)::int AS daily`,
     );

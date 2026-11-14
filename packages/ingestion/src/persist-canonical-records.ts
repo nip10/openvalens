@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import type { Database } from "@openvalens/db";
+import { isMemberPrivateMetric } from "@openvalens/db/member-private";
 import { healthEvent, metricDefinition, metricSample } from "@openvalens/db/schema/health-record";
 import {
   buildIngestDefinitionRow,
@@ -167,6 +168,8 @@ export async function persistCanonicalRecords(
     dataSourceId: number | null;
     ingestionBatchId: number | null;
     provider: "health_connect";
+    /** The connection's member, for the readings that belong to one (#509). */
+    ownerUserId?: string | null;
     records: unknown[];
   },
 ): Promise<PersistCanonicalRecordsResult> {
@@ -222,6 +225,8 @@ export async function persistCanonicalIntents(
         .insert(metricSample)
         .values({
           organizationId: input.organizationId,
+          // Weigh-ins, body composition and sleep belong to the device owner (#509).
+          userId: isMemberPrivateMetric(intent.canonicalType) ? (input.ownerUserId ?? null) : null,
           metricDefinitionId: await metricDefinitionId(
             tx,
             input.organizationId,

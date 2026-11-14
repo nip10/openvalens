@@ -335,7 +335,8 @@ describe("sleep oRPC write boundary", () => {
       sourceEventId: null,
       dedupeHash: "hash-1",
     });
-    expect(state.inserts[0]?.payload).not.toHaveProperty("userId");
+    // The night belongs to the member who saved it (#509).
+    expect(state.inserts[0]?.payload).toMatchObject({ userId: "user-1" });
     expect(state.inserts[1]?.payload).toMatchObject({
       organizationId: "org-1",
       actorUserId: "user-1",

@@ -1,4 +1,5 @@
 import type { Database } from "@openvalens/db";
+import { ownOrUnattributed } from "@openvalens/db/member-private";
 import { healthEvent } from "@openvalens/db/schema/health-record";
 import { and, desc, eq, gte, isNull, lte } from "drizzle-orm";
 
@@ -138,13 +139,15 @@ export function buildSleepDailySummariesFromEventRows(rows: SleepEventRow[]): Sl
 }
 
 /**
- * Org-scoped `health_event` sleep-session read. Default 30-day cutoff is
+ * The member's `health_event` sleep-session read (own and legacy unattributed
+ * nights, #509). Default 30-day cutoff is
  * clamped at the procedure boundary (`sleep.summary` accepts `days` between
  * 7 and 365).
  */
 export async function getSleepSummary(
   db: Database,
   organizationId: string,
+  userId: string | null,
   days = 30,
 ): Promise<SleepWindowSummary> {
   const cutoff = new Date(Date.now() - days * DAY_MS);
@@ -160,6 +163,7 @@ export async function getSleepSummary(
     .where(
       and(
         eq(healthEvent.organizationId, organizationId),
+        ownOrUnattributed(healthEvent.userId, userId),
         eq(healthEvent.eventType, "sleep_session"),
         isNull(healthEvent.supersededAt),
         gte(healthEvent.eventAt, cutoff),
@@ -173,7 +177,8 @@ export async function getSleepSummary(
 }
 
 /**
- * Org-scoped `health_event` sleep-session read bounded by an explicit
+ * The member's `health_event` sleep-session read (own and legacy unattributed
+ * nights, #509) bounded by an explicit
  * `[startDate, endDate]` window. The SQL window is widened by one day on the
  * low end so a sleep session that *ended* on `startDate` is still surfaced
  * (sessions can straddle midnight); the daily summary then filters down to
@@ -182,6 +187,7 @@ export async function getSleepSummary(
 export async function getSleepSummaryForRange(
   db: Database,
   organizationId: string,
+  userId: string | null,
   startDate: string,
   endDate: string,
 ): Promise<SleepWindowSummary> {
@@ -199,6 +205,7 @@ export async function getSleepSummaryForRange(
     .where(
       and(
         eq(healthEvent.organizationId, organizationId),
+        ownOrUnattributed(healthEvent.userId, userId),
         eq(healthEvent.eventType, "sleep_session"),
         isNull(healthEvent.supersededAt),
         gte(healthEvent.eventAt, new Date(queryStart)),
@@ -211,12 +218,14 @@ export async function getSleepSummaryForRange(
 }
 
 /**
- * Org-scoped `health_event` sleep-session read returning the full daily
+ * The member's `health_event` sleep-session read (own and legacy unattributed
+ * nights, #509) returning the full daily
  * summary list (no date-window filtering). Used by `sleep.listDailySummaries`.
  */
 export async function listSleepDailySummaries(
   db: Database,
   organizationId: string,
+  userId: string | null,
   days = 90,
 ): Promise<SleepDailySummary[]> {
   const cutoff = new Date(Date.now() - days * DAY_MS);
@@ -231,6 +240,7 @@ export async function listSleepDailySummaries(
     .where(
       and(
         eq(healthEvent.organizationId, organizationId),
+        ownOrUnattributed(healthEvent.userId, userId),
         eq(healthEvent.eventType, "sleep_session"),
         isNull(healthEvent.supersededAt),
         gte(healthEvent.eventAt, cutoff),

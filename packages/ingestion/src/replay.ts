@@ -5,6 +5,7 @@ import {
   ingestionJob,
   ingestionRawArtifact,
 } from "@openvalens/db/schema/health-record";
+import { providerConnection } from "@openvalens/db/schema/ingestion";
 import { and, desc, eq } from "drizzle-orm";
 
 import { parseMobileIngestionEnvelope } from "./health-connect";
@@ -178,11 +179,26 @@ export async function runReplayJob(
         sourceRawArtifactId: metadata.sourceRawArtifactId,
       });
 
+    // Sleep nights and weigh-ins belong to the connection's member, as on a
+    // live sync (#509); a connection with no member leaves them unattributed.
+    const [owner] = job.providerConnectionId
+      ? await tx
+          .select({ userId: providerConnection.userId })
+          .from(providerConnection)
+          .where(
+            and(
+              eq(providerConnection.id, job.providerConnectionId),
+              eq(providerConnection.organizationId, input.organizationId),
+            ),
+          )
+          .limit(1)
+      : [];
     const persisted = await persistCanonicalRecords(tx, {
       organizationId: input.organizationId,
       dataSourceId: batch!.dataSourceId,
       ingestionBatchId: batchId,
       provider: "health_connect",
+      ownerUserId: owner?.userId ?? null,
       records: envelope.records,
     });
     const acceptedCount = persisted.metricSampleCount + persisted.healthEventCount;

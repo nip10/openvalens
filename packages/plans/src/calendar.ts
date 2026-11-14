@@ -1,6 +1,6 @@
 import type { Database } from "@openvalens/db";
 import { calendarEvent } from "@openvalens/db/schema/plans";
-import { and, asc, desc, eq, gte, lte } from "drizzle-orm";
+import { and, asc, desc, eq, gte, lte, sql, type SQL } from "drizzle-orm";
 
 /**
  * Calendar — public type surface + repository (Issue #23).
@@ -116,17 +116,41 @@ export function filterEventsByType(
 
 // ─── repository ────────────────────────────────────────────────
 
+/**
+ * Weigh-ins are private per member (#509). The weight form writes a
+ * `type='weight'` day event ("Weight: 72 kg") next to its check-in; it shows
+ * only for the member who logged it, or for everyone when the check-in has no
+ * author (saved before authors were recorded). With no member, only those.
+ */
+export function calendarEventVisibleTo(userId: string | null | undefined): SQL {
+  return sql`not (${calendarEvent.type} = 'weight'
+    and ${calendarEvent.referenceTable} = 'weight_checkin'
+    and exists (select 1 from "weight_checkin" "checkin"
+      where "checkin"."organization_id" = ${calendarEvent.organizationId}
+        and "checkin"."id" = ${calendarEvent.referenceId}
+        and "checkin"."user_id" is not null
+        and "checkin"."user_id" is distinct from ${userId ?? null}))`;
+}
+
 export type CalendarRepository = ReturnType<typeof createCalendarRepository>;
 
 export function createCalendarRepository(db: Database) {
   return {
     async listEvents(
       organizationId: string,
-      params: { from: string; to: string; types?: ReadonlyArray<string>; limit?: number },
+      params: {
+        from: string;
+        to: string;
+        types?: ReadonlyArray<string>;
+        limit?: number;
+        /** The reading member: another member's weigh-in events are left out (#509). */
+        viewerUserId: string | null;
+      },
     ): Promise<CalendarEvent[]> {
       const limit = Math.min(Math.max(params.limit ?? 200, 1), 500);
       const baseWhere = and(
         eq(calendarEvent.organizationId, organizationId),
+        calendarEventVisibleTo(params.viewerUserId),
         gte(calendarEvent.date, params.from),
         lte(calendarEvent.date, params.to),
       );
@@ -142,11 +166,21 @@ export function createCalendarRepository(db: Database) {
       return filterEventsByType(rows, types);
     },
 
-    async getEvent(organizationId: string, id: number): Promise<CalendarEvent | null> {
+    async getEvent(
+      organizationId: string,
+      id: number,
+      viewerUserId: string | null,
+    ): Promise<CalendarEvent | null> {
       const rows = (await db
         .select()
         .from(calendarEvent)
-        .where(and(eq(calendarEvent.organizationId, organizationId), eq(calendarEvent.id, id)))
+        .where(
+          and(
+            eq(calendarEvent.organizationId, organizationId),
+            eq(calendarEvent.id, id),
+            calendarEventVisibleTo(viewerUserId),
+          ),
+        )
         .limit(1)) as CalendarEvent[];
       return rows[0] ?? null;
     },
@@ -171,8 +205,12 @@ export function createCalendarRepository(db: Database) {
       return { id: row.id };
     },
 
-    async deleteEvent(organizationId: string, id: number): Promise<{ id: number } | null> {
-      const existing = await this.getEvent(organizationId, id);
+    async deleteEvent(
+      organizationId: string,
+      id: number,
+      viewerUserId: string | null,
+    ): Promise<{ id: number } | null> {
+      const existing = await this.getEvent(organizationId, id, viewerUserId);
       if (!existing) return null;
       await db
         .delete(calendarEvent)

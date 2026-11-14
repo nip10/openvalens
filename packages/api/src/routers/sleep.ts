@@ -181,7 +181,12 @@ export const sleepRouter = {
     .input(summaryInput)
     .output(windowSummaryShape)
     .handler(async ({ input, context }) =>
-      getSleepSummary(context.db, context.authz.activeOrganizationId, input.days ?? 30),
+      getSleepSummary(
+        context.db,
+        context.authz.activeOrganizationId,
+        context.authz.user.id,
+        input.days ?? 30,
+      ),
     ),
 
   /**
@@ -193,7 +198,12 @@ export const sleepRouter = {
     .input(listDailyInput)
     .output(z.array(dailySummaryShape))
     .handler(async ({ input, context }) =>
-      listSleepDailySummaries(context.db, context.authz.activeOrganizationId, input.days ?? 90),
+      listSleepDailySummaries(
+        context.db,
+        context.authz.activeOrganizationId,
+        context.authz.user.id,
+        input.days ?? 90,
+      ),
     ),
 
   /**
@@ -233,6 +243,7 @@ export const sleepRouter = {
         .insert(healthEvent)
         .values({
           organizationId,
+          userId: authz.user.id,
           eventType: "sleep_session",
           eventAt: new Date(input.eventAt),
           title: input.title ?? null,
@@ -257,7 +268,7 @@ export const sleepRouter = {
       // Re-derive the window so the caller sees the post-ingest state. The
       // window is bounded to the last 30 days (matches `sleep.summary`'s
       // default) — long windows are not a useful shape here.
-      const window = await getSleepSummary(db, organizationId, 30);
+      const window = await getSleepSummary(db, organizationId, authz.user.id, 30);
 
       return {
         eventId: row.id,
@@ -289,7 +300,7 @@ export const sleepRouter = {
         startAt: checked.window.startAt,
         endAt: checked.window.endAt,
         quality: input.quality ?? null,
-        dedupeHash: manualSleepDedupeHash(checked.window),
+        dedupeHash: manualSleepDedupeHash(userId, checked.window),
       });
       if (created)
         await writeAuditLog({
@@ -304,6 +315,7 @@ export const sleepRouter = {
         });
       const possibleDuplicate = await overlapsDeviceSleep(context.db, {
         organizationId,
+        userId,
         startAt: checked.window.startAt,
         endAt: checked.window.endAt,
       });

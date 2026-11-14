@@ -18,6 +18,16 @@ ownership is scoped to that one workspace and never confers instance
 administrator authority.
 _Avoid_: Organization owner, account owner, org admin
 
+**Member-private record**:
+A record that belongs to the member who logged or synced it, even in a shared
+workspace. For workouts, sleep nights, weigh-ins and body composition (#509)
+every read (screens, Coach, AI apps, insights, timeline, exports) returns the
+member's own rows plus legacy rows saved before authors were recorded, which
+have none and stay visible to the workspace. No role, not even the workspace
+owner's, reads another member's. Other device readings (heart rate, steps) and
+imported reports (labs, DEXA) have no author and belong to the workspace.
+_Avoid_: Personal data (every health record is), hidden record
+
 **Food catalog**:
 An instance-wide, read-only mirror of one public food database (USDA FoodData
 Central or Open Food Facts), kept in its own table with its own license and

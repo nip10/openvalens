@@ -267,6 +267,26 @@ describe.skipIf(!url)("score over HTTP against disposable PostgreSQL", () => {
     expect(denied.status).toBe(403);
   });
 
+  test("readiness: another member's attributed sleep is theirs only; legacy sleep is shared (#509)", async () => {
+    const sleepState = async (user: string) => {
+      const { body } = await call<ReadinessResult>("score/readiness", {}, user);
+      return body.components.find((part) => part.input === "sleep")?.state;
+    };
+    // The nights above have no author: both members of org-a see them.
+    expect(await sleepState("user-v")).toBe("used");
+    await db.execute(
+      sql`update health_event set user_id = 'user-a' where organization_id = 'org-a' and event_type = 'sleep_session'`,
+    );
+    try {
+      expect(await sleepState("user-a")).toBe("used");
+      expect(await sleepState("user-v")).not.toBe("used");
+    } finally {
+      await db.execute(
+        sql`update health_event set user_id = null where organization_id = 'org-a' and event_type = 'sleep_session'`,
+      );
+    }
+  });
+
   test("readiness: another workspace sees none of org-a's records", async () => {
     const { status, body } = await call<ReadinessResult>("score/readiness", {}, "user-b");
     expect(status).toBe(200);

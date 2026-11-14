@@ -150,7 +150,7 @@ export async function loadInsightEngineInput(
 ): Promise<InsightEngineInput> {
   const { organizationId, userId } = scope;
   const [sleep, rhr, steps, weights, goals, trackers] = await Promise.all([
-    listSleepDailySummaries(db, organizationId, INSIGHT_HISTORY_DAYS),
+    listSleepDailySummaries(db, organizationId, userId, INSIGHT_HISTORY_DAYS),
     listDailyMetricBySource(db, organizationId, "resting_heart_rate", INSIGHT_HISTORY_DAYS),
     listDailyMetricBySource(db, organizationId, "steps", INSIGHT_HISTORY_DAYS),
     access.weight

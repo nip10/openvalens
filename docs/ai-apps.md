@@ -201,7 +201,9 @@ the connection's scopes without reconnecting). No scope is reserved any more.
   A reading within ten minutes of a device reading of the same metric is
   returned as `possibleDuplicate: true` (the typed-in blood pressure rule), and
   daily vitals totals leave it out so the device reading counts; the same goes
-  for a night overlapping a device night.
+  for a night overlapping a device night. For weigh-ins, body composition and
+  sleep only the member's own device data (or legacy data with no author)
+  counts: another member's scale or watch never makes an entry a duplicate.
 - **Limits.** At most 100 entries per call and 1,000 added per grant a day
   (env, above); past the daily limit the call gets `429` with `Retry-After`.
   On Cloud, a read-only workspace refuses write tools (`403 access_read_only`
@@ -236,9 +238,13 @@ Tools: `healthSnapshot`, `labs`, `markerTrend`, `panelCompare`, `outOfRange`,
 `nutritionContext` (nutrition scope), `sleep.sessions`, `workouts.list`,
 `vitals.daily`, `weights.daily`, `labs.history`, `body.privateMeasurements`
 (private body scope), `trackers.*` (trackers scope), `pain.entries` (pain
-scope), `exercises.search`, and the write tools above. `workouts.list` holds
-the member's own sessions and legacy ones with no author, never another
-member's, as on the app's own screens. Range reads cover at most 365 days
+scope), `exercises.search`, and the write tools above. Workouts, sleep and
+weigh-ins are private to the member, as on the app's own screens (#509):
+`workouts.list` and `sleep.sessions` hold the member's own sessions and nights
+and legacy ones with no author, never another member's; `weights.daily`,
+`weightTrend`, `bodyComp` and the sleep and weight in `healthSnapshot` and
+`timelineSummary` read only the member's own weigh-ins and body composition
+(plus legacy check-ins and readings with no author). Range reads cover at most 365 days
 and page with `nextCursor`. Times are ISO 8601 with the member's UTC offset;
 values keep their stored unit next to the member's preferred unit.
 

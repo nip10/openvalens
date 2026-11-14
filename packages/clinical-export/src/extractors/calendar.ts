@@ -3,7 +3,8 @@
 // active tenant into a single CSV row shape with deterministic ordering.
 import type { Database } from "@openvalens/db";
 import { calendarEvent, scheduledEvent } from "@openvalens/db/schema/plans";
-import { desc, eq } from "drizzle-orm";
+import { calendarEventVisibleTo } from "@openvalens/plans";
+import { and, desc, eq } from "drizzle-orm";
 import type { ExportPayloadDataByDomain } from "../types";
 import type { ExportPayloadScope } from "../build-payload";
 
@@ -15,7 +16,13 @@ export async function extractCalendar(
     db
       .select()
       .from(calendarEvent)
-      .where(eq(calendarEvent.organizationId, scope.organizationId))
+      .where(
+        and(
+          eq(calendarEvent.organizationId, scope.organizationId),
+          // Another member's weigh-in day events stay out (#509).
+          calendarEventVisibleTo(scope.userId),
+        ),
+      )
       .orderBy(desc(calendarEvent.date), desc(calendarEvent.id)),
     db
       .select()

@@ -4,10 +4,10 @@
  * Verbatim port of `anchovy/apps/web/src/lib/v2/sleep/types.ts` so the AI coach
  * surface (#13) and any future web/native consumers share one shape.
  *
- * The domain model is org-scoped: `health_event` rows with `eventType =
- * "sleep_session"` carry no per-user id (the OpenValens schema intentionally
- * keeps sleep sessions org-scoped until #18 follow-ups land a `user_id` column).
- * Callers that want per-user slicing must filter post-query.
+ * Sleep is private per member (#509), like workouts: `health_event` rows with
+ * `eventType = "sleep_session"` carry the member who logged or synced them in
+ * `user_id`, and every read returns the member's own nights plus legacy nights
+ * with no author.
  */
 
 export type SleepConfidence = "high" | "medium" | "low";

@@ -30,12 +30,12 @@ import type { Units } from "./format";
 /** Every table a tool may read, by SQL name. Reviewed: extend deliberately. */
 export const MCP_SOURCE_TABLES = [
   // Range reads in this file
-  "health_event", // only `event_type = 'sleep_session'`
+  "health_event", // only `event_type = 'sleep_session'`, the member's own (and legacy unattributed)
   "workout", // only the member's own (and legacy unattributed) sessions
   "workout_exercise", // counted only
   "metric_sample", // only heart rate, resting heart rate and HRV
   "metric_definition",
-  "daily_weight",
+  "daily_weight", // only the member's own
   "blood_panel",
   "blood_marker",
   "private_body_measurement", // only with `private_body:read`
@@ -236,6 +236,8 @@ export function createMcpDataSources(
         .where(
           and(
             eq(healthEvent.organizationId, scope.organizationId),
+            // The member's own nights and legacy ones with no author (#509).
+            or(eq(healthEvent.userId, scope.userId), isNull(healthEvent.userId)),
             eq(healthEvent.eventType, "sleep_session"),
             isNull(healthEvent.supersededAt),
             sql`${day} between ${range.from} and ${range.to}`,

@@ -1,4 +1,5 @@
 import type { Database } from "@openvalens/db";
+import { ownOrUnattributed } from "@openvalens/db/member-private";
 import { healthEvent } from "@openvalens/db/schema/health-record";
 import { and, desc, eq, gte, isNull, lt, sql } from "drizzle-orm";
 
@@ -85,12 +86,15 @@ export async function insertManualSleepSession(
     .onConflictDoNothing({ target: [healthEvent.organizationId, healthEvent.dedupeHash] })
     .returning({ id: healthEvent.id });
   if (inserted) return { id: inserted.id, created: true };
+  // A retry finds the member's own row only; the dedupe hash names the member,
+  // so another member's night never answers for this one (#509).
   const [existing] = await db
     .select({ id: healthEvent.id })
     .from(healthEvent)
     .where(
       and(
         eq(healthEvent.organizationId, input.organizationId),
+        eq(healthEvent.userId, input.userId),
         eq(healthEvent.dedupeHash, input.dedupeHash),
       ),
     )
@@ -126,10 +130,13 @@ export async function deleteManualSleepSession(
   return removed.length > 0;
 }
 
-/** Whether a device session in the workspace overlaps `[startAt, endAt)`. */
+/**
+ * Whether one of the member's device sessions (or a legacy one with no author)
+ * overlaps `[startAt, endAt)`. Another member's nights never count (#509).
+ */
 export async function overlapsDeviceSleep(
   db: Database,
-  input: { organizationId: string; startAt: string; endAt: string },
+  input: { organizationId: string; userId: string; startAt: string; endAt: string },
 ): Promise<boolean> {
   const start = new Date(input.startAt);
   const end = new Date(input.endAt);
@@ -143,6 +150,7 @@ export async function overlapsDeviceSleep(
     .where(
       and(
         eq(healthEvent.organizationId, input.organizationId),
+        ownOrUnattributed(healthEvent.userId, input.userId),
         eq(healthEvent.eventType, "sleep_session"),
         isNull(healthEvent.supersededAt),
         gte(healthEvent.eventAt, new Date(start.getTime() - DAY_MS)),
@@ -160,7 +168,7 @@ export async function overlapsDeviceSleep(
 
 /**
  * The member's manual nights of the last `days` days, newest first, each
- * flagged when it overlaps a device session in the workspace.
+ * flagged when it overlaps one of their device sessions (or a legacy one).
  */
 export async function listManualSleepSessions(
   db: Database,
@@ -179,6 +187,7 @@ export async function listManualSleepSessions(
     .where(
       and(
         eq(healthEvent.organizationId, input.organizationId),
+        ownOrUnattributed(healthEvent.userId, input.userId),
         eq(healthEvent.eventType, "sleep_session"),
         isNull(healthEvent.supersededAt),
         gte(healthEvent.eventAt, cutoff),

@@ -377,13 +377,15 @@ describe("createAutoReconciliationService (Drizzle-backed)", () => {
     });
   });
 
-  test("listWeightHistory scopes by organizationId", async () => {
+  test("listWeightHistory scopes by organizationId and the member (#509)", async () => {
     const state = fakeDb();
     state.setResults(weightEvent, [
       { id: 901, weightKg: 83.9, measuredAt: "2026-03-07T08:15:00.000Z" },
     ]);
     const service = createAutoReconciliationService(state.db);
-    const rows = (await service.listWeightHistory("org-1", 25)) as Array<Record<string, unknown>>;
+    const rows = (await service.listWeightHistory("org-1", "user-1", 25)) as Array<
+      Record<string, unknown>
+    >;
     expect(rows).toEqual([{ id: 901, weightKg: 83.9, measuredAt: "2026-03-07T08:15:00.000Z" }]);
 
     const select = state.calls.find(
@@ -393,5 +395,7 @@ describe("createAutoReconciliationService (Drizzle-backed)", () => {
     expect(select).toBeDefined();
     expect(select?.params).toContain("org-1");
     expect(select?.sql).toContain("organization_id");
+    expect(select?.params).toContain("user-1");
+    expect(select?.sql).toContain("user_id");
   });
 });

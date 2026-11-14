@@ -1,4 +1,5 @@
 import type { Database } from "@openvalens/db";
+import { isMemberPrivateMetric, ownOrUnattributed } from "@openvalens/db/member-private";
 import {
   dataSource,
   healthEvent,
@@ -196,13 +197,20 @@ export function createHealthRecordRepository(db: Database) {
    * `viewer` is the member filter (#441): custom tracker entries appear only
    * for a viewer, for their own trackers and other members' shared ones.
    * Callers without a member (Coach, jobs) pass none and get no tracker rows.
+   *
+   * Sleep nights and weigh-ins are private to their member (#509): attributed
+   * `health_event` and `metric_sample` rows appear only for that member (the
+   * viewer, or `memberUserId` for the Coach, which passes no viewer); rows with
+   * no author are shared with the workspace. With neither, only those appear.
    */
   async function listTimeline(
     organizationId: string,
     filters: TimelineFilters = {},
     excludedIds: readonly string[] = [],
     viewer: TimelineViewer | null = null,
+    options: { memberUserId?: string | null } = {},
   ) {
+    const memberUserId = viewer?.userId ?? options.memberUserId ?? null;
     const { fromIso, toIso } = normalizeTimelineDateRange(filters);
     const sourceFields = {
       id: dataSource.id,
@@ -234,6 +242,7 @@ export function createHealthRecordRepository(db: Database) {
         .where(
           and(
             eq(healthEvent.organizationId, organizationId),
+            ownOrUnattributed(healthEvent.userId, memberUserId),
             isNull(healthEvent.supersededAt),
             ...(fromIso ? [gte(healthEvent.eventAt, new Date(fromIso))] : []),
             ...(toIso ? [lte(healthEvent.eventAt, new Date(toIso))] : []),
@@ -270,6 +279,7 @@ export function createHealthRecordRepository(db: Database) {
         .where(
           and(
             eq(metricSample.organizationId, organizationId),
+            ownOrUnattributed(metricSample.userId, memberUserId),
             isNull(metricSample.supersededAt),
             ...(fromIso ? [gte(metricSample.sampledAt, new Date(fromIso))] : []),
             ...(toIso ? [lte(metricSample.sampledAt, new Date(toIso))] : []),
@@ -344,7 +354,13 @@ export function createHealthRecordRepository(db: Database) {
     // a database mutation diff. No deleted/updated claims without history.
     async listChangesSinceReview(
       organizationId: string,
-      options: { limit?: number; now?: Date; viewer?: TimelineViewer | null } = {},
+      options: {
+        limit?: number;
+        now?: Date;
+        viewer?: TimelineViewer | null;
+        /** The member whose private nights and weigh-ins appear (#509) without a viewer. */
+        memberUserId?: string | null;
+      } = {},
     ) {
       const [review] = await db
         .select({ id: weeklyReview.id, weekStart: weeklyReview.weekStart })
@@ -361,6 +377,7 @@ export function createHealthRecordRepository(db: Database) {
         { from, limit },
         review ? [`weekly_review:${review.id}`] : [],
         options.viewer ?? null,
+        { memberUserId: options.memberUserId ?? null },
       );
       return {
         since: {
@@ -746,6 +763,8 @@ export function createHealthRecordRepository(db: Database) {
         .insert(metricSample)
         .values({
           organizationId: materialised.organizationId,
+          // A weigh-in, body-composition or sleep reading is the member's own (#509).
+          userId: isMemberPrivateMetric(resolved.canonicalMetricCode) ? input.userId : null,
           metricDefinitionId: materialised.metricDefinitionId,
           dataSourceId: materialised.dataSourceId,
           sampledAt: materialised.sampledAt,
