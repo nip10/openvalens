@@ -113,7 +113,9 @@ sleep nights and custom trackers. 0.2.0 counted tracker goals only; 0.3.0
 adds the other five sources. Only the member's own goals are read (the
 personal-goal repository is owner-scoped), and a sleep goal's nights come
 from the same evidence as the goals screen. The score counts a goal whatever
-the member's module choice: goals are always on, as goal insights are.
+the member's module choice (goals are always on). Goal insights do follow the
+source's module: a water goal names no insight while Food & water is hidden
+(see `docs/insight-rules.md`).
 
 The goal's own evaluation of its days gives a current value and a target,
 under the rule in force on the evaluation date (an edited goal is measured

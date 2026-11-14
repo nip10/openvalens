@@ -18,6 +18,7 @@ import {
   type KindChannels,
 } from "./insight-contract";
 import type { GoalProgressResult } from "./score-contract";
+import type { PersonModule } from "./wellness-profile-contract";
 
 /**
  * Issue #92 — the deterministic insight rules (`insights-0.1.0`). Pure: the
@@ -56,6 +57,11 @@ export type InsightGoalInput = {
   result: GoalProgressResult;
   /** Latest check-in date (YYYY-MM-DD) per goal id. */
   latestCheckinDates: Readonly<Record<number, string | null>>;
+  /**
+   * The module each personal goal's source belongs to, per goal id (#500).
+   * A goal missing here (an older goal) or mapped to null belongs to no module.
+   */
+  goalModules: Readonly<Record<number, PersonModule | null>>;
 };
 
 export type InsightEngineInput = {
@@ -716,6 +722,7 @@ export function runInsightRules(input: InsightEngineInput): InsightEngineOutput 
           type: "goal",
           goalId: goal.goalId,
           goalTitle: goal.title,
+          module: input.goals?.goalModules[goal.goalId] ?? null,
           state,
           progress: goal.progress,
           currentValue: goal.currentValue,

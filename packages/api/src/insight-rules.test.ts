@@ -275,7 +275,7 @@ describe("goal, data-quality and streak insights", () => {
     const output = runInsightRules({
       asOf: AS_OF,
       series: {},
-      goals: { result, latestCheckinDates: { 1: "2026-10-12" } },
+      goals: { result, latestCheckinDates: { 1: "2026-10-12" }, goalModules: {} },
     });
     const milestone = output.insights.find((insight) => insight.kind === "goal_milestone");
     expect(milestone?.id).toBe("goal.toward_target:1:2026-10-12");
@@ -292,7 +292,7 @@ describe("goal, data-quality and streak insights", () => {
     const output = runInsightRules({
       asOf: AS_OF,
       series: {},
-      goals: { result, latestCheckinDates: { 1: "2026-08-12" } },
+      goals: { result, latestCheckinDates: { 1: "2026-08-12" }, goalModules: {} },
     });
     expect(output.insights).toEqual([]);
   });

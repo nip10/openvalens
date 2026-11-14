@@ -67,6 +67,12 @@ Weight comes from the canonical daily weight, which carries no device id, so
 weight baselines are not segmented by source. Nutrition insights belong to #86;
 labs and HRV rules are not part of v1.
 
+A personal goal's insight follows its source's module (#500): water goals
+need Food & water, sleep goals Sleep, supplement goals Supplements and workout
+goals Activity. While that module is hidden the goal produces no insight in the
+app, by push or by email. Manual goals, older goals and custom-tracker goals
+belong to no module, like the custom-tracker change insights.
+
 ## Nutrition timing observations (#84)
 
 These optional in-app observations compare meal timestamps from completed

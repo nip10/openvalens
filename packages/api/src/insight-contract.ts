@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { PERSON_MODULES } from "./wellness-profile-contract";
+
 /**
  * Issue #92 — insights core. Wire contract only (pure: no DB, no domain
  * packages) so web and native import it safely.
@@ -151,6 +153,12 @@ export const goalDetailSchema = z.object({
   type: z.literal("goal"),
   goalId: z.number().int(),
   goalTitle: z.string(),
+  /**
+   * The module the goal's source belongs to (water → food, sleep → sleep, …;
+   * #500). Null or absent: no module (manual, tracker and older goals). The
+   * insight is dropped on every channel while that module is hidden.
+   */
+  module: z.enum(PERSON_MODULES).nullable().optional(),
   state: z.enum(["reached", "toward_target", "away_from_target"]),
   /** 0–1 share of the way from the start to the target. */
   progress: z.number().nullable(),

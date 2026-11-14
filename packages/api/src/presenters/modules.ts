@@ -1,5 +1,6 @@
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
+import type { GoalSource } from "@openvalens/plans/goal-model";
 
 import type { Insight, InsightMetric } from "../insight-contract";
 import {
@@ -176,15 +177,32 @@ export const METRIC_MODULES: Record<InsightMetric, PersonModule> = {
 };
 
 /**
+ * The module each personal goal source belongs to (#500). A goal on a hidden
+ * module's data produces no insight, the same rule the Coach goals tool
+ * applies (`GOAL_SOURCE_MODULES` in `@openvalens/ai/tools/goals`, kept equal by
+ * a test). Manual goals follow the always-on goals; tracker goals belong to no
+ * module, like custom-tracker insights (#450).
+ */
+export const GOAL_SOURCE_MODULES: Record<GoalSource, PersonModule | null> = {
+  manual: null,
+  water: "food",
+  supplement: "supplements",
+  workout: "activity",
+  sleep: "sleep",
+  tracker: null,
+};
+
+/**
  * The modules an insight belongs to; it is shown only when all of them are on.
- * Goal insights belong to the always-on goals, so they have none. The
- * cross-module nutrition observations need food and the module they describe.
+ * A goal insight belongs to its goal's source module (water → food, …), or to
+ * none for manual, tracker and older goals. The cross-module nutrition
+ * observations need food and the module they describe.
  */
 export function insightModules(insight: Pick<Insight, "detail">): PersonModule[] {
   const detail = insight.detail;
   switch (detail.type) {
     case "goal":
-      return [];
+      return detail.module ? [detail.module] : [];
     case "meals_and_workouts":
       return ["food", "activity"];
     case "meals_near_sleep":

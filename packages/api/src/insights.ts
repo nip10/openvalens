@@ -40,13 +40,20 @@ import {
   type InsightEngineInput,
   type InsightEngineOutput,
   type InsightFeedbackRecord,
+  type InsightGoalInput,
 } from "./insight-rules";
-import { computeGoalProgress, type GoalWithHistory } from "./score-goal-progress";
+import {
+  computeGoalProgress,
+  type GoalWithHistory,
+  type PersonalGoalForProgress,
+} from "./score-goal-progress";
 import {
   filterInsightsByModules,
+  GOAL_SOURCE_MODULES,
   hasChosenModules,
   isModuleEnabled,
   METRIC_MODULES,
+  type PersonModule,
 } from "./presenters/modules";
 import { createWellnessProfileService } from "./wellness-profile";
 
@@ -195,6 +202,22 @@ async function loadGoals(db: Database, organizationId: string, userId: string) {
   const personalGoals = await createPersonalGoalRepository(db, organizationId, userId, (range) =>
     getPersonalSleepDailyEvidence(db, { organizationId, userId, ...range }),
   ).list();
+  return insightGoalInput(entries, personalGoals);
+}
+
+/**
+ * The goal input of the insight rules from the member's older goals and their
+ * personal goals (pure). Each personal goal carries its source's module, so a
+ * goal on a hidden module's data (a water goal with Food & water off) produces
+ * no insight on any channel (#500).
+ */
+export function insightGoalInput(
+  entries: readonly GoalWithHistory[],
+  personalGoals: readonly PersonalGoalForProgress[],
+): InsightGoalInput {
+  const goalModules: Record<number, PersonModule | null> = {};
+  for (const goal of personalGoals)
+    goalModules[goal.id] = GOAL_SOURCE_MODULES[goal.definition.source];
   const latestCheckinDates: Record<number, string | null> = {};
   for (const entry of entries)
     latestCheckinDates[entry.goal.id] =
@@ -207,7 +230,7 @@ async function loadGoals(db: Database, organizationId: string, userId: string) {
       goal.evaluation.days
         .filter((day) => day.state === "qualifies" || day.state === "does-not-qualify")
         .at(-1)?.date ?? null;
-  return { result: computeGoalProgress(entries, personalGoals), latestCheckinDates };
+  return { result: computeGoalProgress(entries, personalGoals), latestCheckinDates, goalModules };
 }
 
 // ─── preferences ───────────────────────────────────────────────
