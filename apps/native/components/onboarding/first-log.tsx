@@ -19,7 +19,11 @@ import { Pressable, Text, View } from "react-native";
 
 import { Sheet, ToneIcon, type Tone } from "@/components/bloom";
 import { QuickForm } from "@/components/quick-log/quick-form";
-import { enqueueMetricSample } from "@/lib/offline/sync";
+import {
+  discardQueuedSupplementIntake,
+  enqueueMetricSample,
+  enqueueSupplementIntake,
+} from "@/lib/offline/sync";
 import { usePlainWaterOutbox } from "@/lib/plain-water/sync";
 import { performPickerWrite, type PickerOffline } from "@/lib/quick-log/perform-write";
 import { client, orpc } from "@/utils/orpc";
@@ -88,6 +92,8 @@ export function FirstLogStep({
     enqueueMetric: enqueueMetricSample,
     enqueueWater: (input) => waterOutbox.enqueue({ kind: "add", input })?.id ?? null,
     discardWater: (id) => waterOutbox.discard(id),
+    enqueueSupplement: enqueueSupplementIntake,
+    discardSupplement: discardQueuedSupplementIntake,
   };
 
   const open = async (next: LogKind<FirstLogKindId>) => {
