@@ -299,6 +299,9 @@ type Registration = Readonly<{
   ignore?: boolean;
   /** After granting, close GFDI unsolicited instead of starting GFDI. */
   closeAfterGrant?: boolean;
+  /** Raw notifications sent just before / after the grant. */
+  before?: Uint8Array;
+  after?: Uint8Array;
 }>;
 
 /** The watch's side of one MLR registration: in-order receive, instant ACKs. */
@@ -443,7 +446,9 @@ class FakeGarminServer implements GarminSessionLink {
       response[12] = status;
       response[13] = handle;
       response[14] = reliable;
+      if (override.before) this.listener?.(override.before);
       this.listener?.(response);
+      if (override.after) this.listener?.(override.after);
       if (status !== 0) return;
       this.handle = handle;
       this.mlr =
@@ -803,8 +808,9 @@ test("MLR reassembles a frame split over 3 packets and two frames sharing one", 
   const immediate = ackOnly(f.server.packets).slice(acksBefore);
   await tick(40);
   const acks = ackOnly(f.server.packets).slice(acksBefore);
-  expect(acks.length).toBeGreaterThan(immediate.length);
-  expect(reqNumOf(acks.at(-1)!)).toBe(peer.nextSeq);
+  expect(immediate).toEqual([]);
+  expect(acks).toHaveLength(1);
+  expect(reqNumOf(acks[0]!)).toBe(peer.nextSeq);
   await f.session.whenDone();
   const replies = framesFromPackets(f.server.packets).filter(
     (frame) => frame.messageType === GARMIN_MESSAGE.RESPONSE,
@@ -1006,6 +1012,94 @@ test("close() stops the MLR channel's retransmissions", async () => {
   await f.session.close();
   await tick(1_100);
   expect(f.server.packets.length).toBe(before);
+});
+
+/** A REGISTER_ML_RESP for GFDI from the watch, as raw notification bytes. */
+function grant(handle: number, reliable: number): Uint8Array {
+  const out = new Uint8Array(15);
+  out[1] = GARMIN_ML_REQUEST.REGISTER_ML_RESP;
+  writeUint32(out, 2, 2);
+  out[10] = 1;
+  out[13] = handle;
+  out[14] = reliable;
+  return out;
+}
+
+test("a late reliable grant during the ML fallback does not win", async () => {
+  // The reliable request times out; its answer arrives just before the
+  // fallback's plain grant.
+  const f = fixture({
+    reliable: null,
+    mlr: "preferred",
+    watchdogMs: 40,
+    registrations: [{ ignore: true }, { before: grant(0x86, 1) }],
+  });
+  f.session.start();
+  await f.session.whenDone();
+  expect(requested(f.server.raw)).toEqual([2, 0]);
+  expect(f.server.packets).toEqual([]);
+  expect(f.server.mlWrites).toBeGreaterThan(0);
+  expect(f.server.downloads).toEqual([0, 1, 2, 4, 3]);
+  expect(f.failures).toEqual([]);
+});
+
+test("a grant nobody asked for does not replace a live registration", async () => {
+  const f = fixture({ registrations: [{ after: grant(0x86, 1) }] });
+  f.session.start();
+  await f.session.whenDone();
+  expect(f.server.packets).toEqual([]);
+  expect(f.server.downloads).toEqual([0, 1, 2, 4, 3]);
+});
+
+test("an out-of-order MLR packet is dropped and the expected ACK goes out at once", async () => {
+  const f = fixture({
+    reliable: null,
+    mlr: "preferred",
+    handshake: false,
+    configurationWaitMs: 60_000,
+  });
+  f.session.start();
+  await tick(10);
+  const peer = f.server.mlr!;
+  const frame = encodeGarminCobs(
+    encodeGarminGfdiFrame({
+      messageType: GARMIN_MESSAGE.BATTERY_STATUS,
+      payload: Uint8Array.of(0, 0, 80),
+    }),
+  );
+  const send = (seq: number, data: Uint8Array) =>
+    f.server.notify(encodeGarminMlrPacket(peer.handle, peer.expected, seq, data));
+  const half = Math.floor(frame.length / 2);
+  send(0, frame.subarray(0, 4));
+  send(2, frame.subarray(half)); // seq 1 lost
+  await tick(0);
+  expect(ackOnly(f.server.packets).map(reqNumOf)).toEqual([1]);
+  // The watch goes back to seq 1 and resends.
+  send(1, frame.subarray(4, half));
+  send(2, frame.subarray(half));
+  await tick(5);
+  const replies = framesFromPackets(f.server.packets).filter(
+    (reply) => reply.messageType === GARMIN_MESSAGE.RESPONSE,
+  );
+  expect(replies.map(typeOf)).toEqual(["status:5023:0"]);
+  await f.session.close();
+});
+
+test("a malformed COBS frame does not hold back the valid frame behind it", async () => {
+  const f = fixture({ handshake: false, configurationWaitMs: 60_000 });
+  f.session.start();
+  await tick(10);
+  const valid = encodeGarminCobs(
+    encodeGarminGfdiFrame({
+      messageType: GARMIN_MESSAGE.BATTERY_STATUS,
+      payload: Uint8Array.of(0, 0, 80),
+    }),
+  );
+  // `00 05 01 00`: the code byte claims 4 data bytes, only 1 follows.
+  f.server.notify(Uint8Array.of(5, 0x00, 0x05, 0x01, 0x00, ...valid));
+  await tick(5);
+  expect(f.server.gfdi.map(typeOf)).toEqual(["status:5023:0"]);
+  await f.session.close();
 });
 
 test("an unacknowledged MLR packet is retransmitted after 1 s", async () => {
