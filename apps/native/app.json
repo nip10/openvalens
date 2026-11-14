@@ -78,6 +78,7 @@
       ],
       "expo-background-task",
       "expo-sharing",
+      "expo-quick-actions",
       "@react-native-community/datetimepicker",
       [
         "@kingstinct/react-native-healthkit",

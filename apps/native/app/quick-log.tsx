@@ -1,16 +1,16 @@
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import type { DueSupplement, RecentLogEntry } from "@openvalens/api/contracts/quick-log";
-import {
-  availableLogKinds,
-  drinkLogKinds,
-  LOG_KINDS,
-  logKindPermissionCheck,
-  type LogKind,
-} from "@openvalens/api/presenters/log-kinds";
+import type { LogKind } from "@openvalens/api/presenters/log-kinds";
 import { deviceTimeZone, newClientMutationId } from "@openvalens/api/presenters/nutrition-diary";
 import {
+  parseOneLiner,
+  type OneLinerEntry,
+  type OneLinerSupplement,
+} from "@openvalens/api/presenters/one-liner";
+import {
   buildQuickLogWrite,
+  hasQuickForm,
   quickFormDefaults,
   recentEntryTitle,
   recentEntryValue,
@@ -20,14 +20,13 @@ import {
   formatTrackerValue,
   parseTrackerInput,
   trackerIdFromLogKind,
-  trackerLogKinds,
 } from "@openvalens/api/presenters/trackers";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { type Href, Redirect, Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Button, cn, useToast } from "heroui-native";
 import { ArrowLeft, Settings2, X } from "lucide-react-native";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Platform, Pressable, Text, View } from "react-native";
+import { Platform, Pressable, Text, TextInput, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -36,7 +35,6 @@ import { LOG_KIND_ICONS, LOG_KIND_TONES } from "@/components/quick-log/log-kind-
 import { QuickForm, type SupplementOption } from "@/components/quick-log/quick-form";
 import { TrackerValueInput } from "@/components/trackers/tracker-value-input";
 import { authClient } from "@/lib/auth-client";
-import { useModules } from "@/lib/modules/use-modules";
 import {
   discardQueuedSupplementIntake,
   enqueueMetricSample,
@@ -45,7 +43,6 @@ import {
   useQueuedSupplementIntakes,
 } from "@/lib/offline/sync";
 import { usePlainWaterOutbox } from "@/lib/plain-water/sync";
-import { WATER_PREFERENCES_CACHE_KEY } from "@/lib/plain-water/view";
 import {
   performPickerWrite,
   type PickerOffline,
@@ -53,11 +50,16 @@ import {
 } from "@/lib/quick-log/perform-write";
 import {
   buildPickerSections,
+  buildTypedSection,
   dueWithQueuedIntakes,
   kindOpening,
+  PICKER_COPY,
   type PickerItem,
+  typedSubmitItem,
 } from "@/lib/quick-log/picker";
+import { useLogKinds } from "@/lib/quick-log/use-log-kinds";
 import { client, orpc } from "@/utils/orpc";
+import { useThemeColor } from "@/utils/theme";
 
 /** How long the undo toast stays (#440: about 6 s). */
 export const UNDO_TOAST_MS = 6_000;
@@ -91,7 +93,12 @@ type PickerView =
  * trackers. Simple kinds save here at once with an undo; food, drinks, pain
  * (#442, the body map), labs, workouts and the like open their own screen; a
  * recent drink repeats at once as the same preset. Turned-off features never appear. `?kind=<id>` opens one kind
- * directly (for app-icon quick actions).
+ * directly (the app-icon quick actions, components/quick-log/quick-actions-sync).
+ *
+ * The text field on top takes typed one-liners, read by the web palette's
+ * parser: "500 ml" or "peso 82,4" previews the entry and saves through the
+ * same write path (offline queue and undo included); a bare "82" lists the
+ * kinds it could be and saves nothing until one is tapped.
  */
 export default function QuickLogRoute() {
   const { t, i18n } = useLingui();
@@ -105,60 +112,13 @@ export default function QuickLogRoute() {
   const [view, setView] = useState<PickerView>({ type: "list" });
   const [saving, setSaving] = useState(false);
   const [failed, setFailed] = useState(false);
+  // A typed one-liner (#440): "500 ml", "peso 82,4", "bp 120/80".
+  const [typed, setTyped] = useState("");
+  const placeholderColor = useThemeColor("ink-3");
   const water = usePlainWaterOutbox();
 
   // What the member can log: modules, preferences and role.
-  const { enabled, isEnabled } = useModules();
-  const me = useQuery(orpc.sharing.me.queryOptions({ input: {} }));
-  const waterPreferences = useCacheFirst(
-    WATER_PREFERENCES_CACHE_KEY,
-    orpc.plainWater.getPreferences.queryOptions({ input: {} }),
-  );
-  const privateBody = useQuery({
-    ...orpc.privateBody.preference.queryOptions({ input: {} }),
-    enabled: isEnabled("body"),
-  });
-  // Pain (#442): the member's own opt-in. Fails closed: unknown or an error reads as off.
-  const pain = useQuery({
-    ...orpc.pain.preference.queryOptions({ input: {} }),
-    enabled: isEnabled("body"),
-  });
-  const trackers = useQuery(
-    orpc.trackers.list.queryOptions({ input: { timeZone, includeArchived: false } }),
-  );
-  // Drink presets (#443), only the ones the server can log (FDC imported).
-  const drinkPresets = useQuery({
-    ...orpc.nutritionDrinks.presets.queryOptions({ input: {} }),
-    enabled: isEnabled("food"),
-  });
-  const kinds = useMemo(
-    () =>
-      availableLogKinds<LogKind>(
-        {
-          enabledModules: [...enabled],
-          preferences: {
-            plain_water: waterPreferences.data?.enabled === true,
-            private_body: privateBody.data?.enabled === true,
-            pain: pain.data?.enabled === true,
-          },
-          can: logKindPermissionCheck(me.data?.role),
-        },
-        [
-          ...LOG_KINDS,
-          ...drinkLogKinds(drinkPresets.data?.presets),
-          ...trackerLogKinds(trackers.data ?? []),
-        ],
-      ),
-    [
-      enabled,
-      waterPreferences.data?.enabled,
-      privateBody.data?.enabled,
-      pain.data?.enabled,
-      me.data?.role,
-      drinkPresets.data?.presets,
-      trackers.data,
-    ],
-  );
+  const { kinds, trackers } = useLogKinds({ timeZone });
   const has = (id: string) => kinds.some((kind) => kind.id === id);
   const canRecords = kinds.some((kind) => kind.permission.resource === "records");
 
@@ -322,10 +282,42 @@ export default function QuickLogRoute() {
     );
   };
 
+  /** A one-liner that cannot save as typed: its quick form with the values, or its screen. */
+  const openTyped = (entry: OneLinerEntry) => {
+    if (hasQuickForm(entry.kind)) {
+      setFailed(false);
+      setView({ type: "form", kind: entry.kind, preset: entry.values });
+      return;
+    }
+    // Pain opens the body map's pain layer at the region named (#442).
+    if (entry.kind.id === "pain" && entry.values.region) {
+      goTo(`/body-map?layer=pain&region=${encodeURIComponent(entry.values.region)}` as Href);
+      return;
+    }
+    openKind(entry.kind);
+  };
+
   const choose = (item: PickerItem) => {
     if (saving) return;
     const action = item.action;
     switch (action.type) {
+      case "typed":
+        if (action.preview.write)
+          void save(
+            action.preview.write,
+            `${action.preview.title} · ${action.preview.value}`,
+            action.entry.kind,
+          );
+        else openTyped(action.entry);
+        return;
+      case "typed_workout": {
+        const workout = kinds.find((kind) => kind.id === "workout");
+        if (workout) openKind(workout);
+        return;
+      }
+      case "typed_food":
+        router.replace({ pathname: "/log-food", params: { food: action.text } });
+        return;
       case "take":
         takeSupplement(action.item);
         return;
@@ -355,7 +347,7 @@ export default function QuickLogRoute() {
 
   if (!session.isPending && !session.data) return <Redirect href="/" />;
 
-  const sections = buildPickerSections(
+  const listed = buildPickerSections(
     {
       kinds,
       recents: recents.data?.entries ?? [],
@@ -363,6 +355,30 @@ export default function QuickLogRoute() {
     },
     i18n,
   );
+  // What the member typed, read by the same parser as the web palette.
+  const oneLinerSupplements: OneLinerSupplement[] = supplementOptions ?? [];
+  const oneLiner = parseOneLiner(typed, {
+    kinds,
+    trackers: trackers.data ?? [],
+    supplements: oneLinerSupplements,
+    locale: i18n.locale,
+    weightUnit,
+    kindCounts: recents.data?.kindCounts,
+    // Typed food opens the food search with the text (see buildTypedSection).
+    foodDrafts: false,
+  });
+  const typedSection = buildTypedSection(oneLiner, i18n, {
+    timeZone,
+    newId: newClientMutationId,
+    locale: i18n.locale,
+    weightUnit,
+    supplements: oneLinerSupplements,
+  });
+  const sections = typedSection ? [typedSection, ...listed] : listed;
+  const submitTyped = () => {
+    const item = typedSubmitItem(oneLiner, typedSection);
+    if (item) choose(item);
+  };
   const heading = view.type === "list" ? i18n._(COPY.title) : i18n._(view.kind.label);
 
   return (
@@ -446,39 +462,55 @@ export default function QuickLogRoute() {
             onSave={(write, what) => void save(write, what, view.kind)}
           />
         ) : (
-          sections.map((section) => (
-            <View key={section.id} className="gap-1">
-              <Text
-                className="px-1 pb-1 font-sans text-[13px] font-semibold text-ink-3"
-                accessibilityRole="header"
-              >
-                {section.heading}
-              </Text>
-              {section.items.map((item) => (
-                <PickerRow
-                  key={item.id}
-                  item={item}
-                  disabled={saving}
-                  accessibilityHint={
-                    item.action.type === "take"
-                      ? i18n._(COPY.takeHint)
-                      : item.action.type === "repeat"
-                        ? i18n._(COPY.repeatHint)
+          <>
+            <TextInput
+              testID="quick-log-type"
+              value={typed}
+              onChangeText={setTyped}
+              onSubmitEditing={submitTyped}
+              returnKeyType="done"
+              placeholder={i18n._(PICKER_COPY.typePlaceholder)}
+              placeholderTextColor={placeholderColor}
+              accessibilityLabel={i18n._(PICKER_COPY.typeLabel)}
+              autoCapitalize="none"
+              autoCorrect={false}
+              editable={!saving}
+              className="min-h-11 rounded-xl border border-rule-2 bg-sheet px-3 font-sans text-base text-ink"
+            />
+            {sections.map((section) => (
+              <View key={section.id} className="gap-1">
+                <Text
+                  className="px-1 pb-1 font-sans text-[13px] font-semibold text-ink-3"
+                  accessibilityRole="header"
+                >
+                  {section.heading}
+                </Text>
+                {section.items.map((item) => (
+                  <PickerRow
+                    key={item.id}
+                    item={item}
+                    disabled={saving}
+                    accessibilityHint={
+                      item.action.type === "take"
+                        ? i18n._(COPY.takeHint)
+                        : item.action.type === "repeat"
+                          ? i18n._(COPY.repeatHint)
+                          : undefined
+                    }
+                    onPress={() => choose(item)}
+                    onLongPress={
+                      item.action.type === "take" && supplementKind
+                        ? () => {
+                            const due = item.action as { item: DueSupplement };
+                            openKind(supplementKind, { supplement: String(due.item.supplementId) });
+                          }
                         : undefined
-                  }
-                  onPress={() => choose(item)}
-                  onLongPress={
-                    item.action.type === "take" && supplementKind
-                      ? () => {
-                          const due = item.action as { item: DueSupplement };
-                          openKind(supplementKind, { supplement: String(due.item.supplementId) });
-                        }
-                      : undefined
-                  }
-                />
-              ))}
-            </View>
-          ))
+                    }
+                  />
+                ))}
+              </View>
+            ))}
+          </>
         )}
         {view.type === "list" && saving ? (
           <Text className="px-1 font-sans text-sm text-ink-3">{t`Saving…`}</Text>
