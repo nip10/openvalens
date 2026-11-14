@@ -17,7 +17,7 @@ import { z } from "zod";
  * hold a health value.
  */
 
-export const INSIGHT_ENGINE_VERSION = "insights-0.2.0";
+export const INSIGHT_ENGINE_VERSION = "insights-0.3.0";
 
 /** The v1 kinds; each can be toggled per channel. */
 export const INSIGHT_KINDS = [
@@ -44,7 +44,8 @@ export const INSIGHT_METRICS = ["sleep_duration", "resting_heart_rate", "steps",
 export type InsightMetric = (typeof INSIGHT_METRICS)[number];
 
 /** Coarse subject, the only thing a lock-screen notification may name (and only when allowed). */
-export const INSIGHT_TOPICS = ["sleep", "heart", "activity", "body", "goals"] as const;
+/** `trackers` (#450) never names the tracker: its name can be private. */
+export const INSIGHT_TOPICS = ["sleep", "heart", "activity", "body", "goals", "trackers"] as const;
 export type InsightTopic = (typeof INSIGHT_TOPICS)[number];
 
 export const METRIC_TOPICS: Record<InsightMetric, InsightTopic> = {
@@ -59,6 +60,8 @@ export const INSIGHT_RULE_IDS = [
   "change.resting_heart_rate",
   "change.steps",
   "change.weight_trend",
+  // #450 the member's own custom trackers (number, duration, yes/no).
+  "change.tracker",
   "goal.reached",
   "goal.toward_target",
   "goal.away_from_target",
@@ -77,6 +80,7 @@ export const INSIGHT_RULE_KINDS: Record<InsightRuleId, InsightKind> = {
   "change.resting_heart_rate": "change",
   "change.steps": "change",
   "change.weight_trend": "change",
+  "change.tracker": "change",
   "goal.reached": "goal_milestone",
   "goal.toward_target": "goal_milestone",
   "goal.away_from_target": "goal_milestone",
@@ -94,6 +98,7 @@ export const INSIGHT_RULE_VERSIONS: Record<InsightRuleId, string> = {
   "change.resting_heart_rate": "1",
   "change.steps": "1",
   "change.weight_trend": "1",
+  "change.tracker": "1",
   "goal.reached": "2",
   "goal.toward_target": "2",
   "goal.away_from_target": "2",
@@ -130,6 +135,42 @@ export const changeDetailSchema = z.object({
   /** recent − baseline, in `unit`. */
   difference: z.number(),
   /** The smallest difference this rule reports today, in `unit`. */
+  threshold: z.number(),
+  certainty: z.enum(INSIGHT_CERTAINTIES),
+});
+
+/**
+ * #450 — the tracker types the change rule reads. 1–5 scales (mood, energy,
+ * stress) are left out entirely: a change in a self-rating must not read like
+ * screening.
+ */
+export const INSIGHT_TRACKER_TYPES = ["number", "duration", "yes_no"] as const;
+export type InsightTrackerType = (typeof INSIGHT_TRACKER_TYPES)[number];
+
+/**
+ * A change in one of the member's own custom trackers (#450). Values are in
+ * the tracker's own terms: `number` in its free-text `unit`, `duration` in
+ * seconds, and `yes_no` in yes days per 7 days (the recent value is the count
+ * of yes days in the last 7 days; the usual is the baseline's share of yes
+ * days times 7).
+ */
+export const trackerChangeDetailSchema = z.object({
+  type: z.literal("tracker_change"),
+  trackerId: z.string(),
+  trackerName: z.string(),
+  trackerType: z.enum(INSIGHT_TRACKER_TYPES),
+  /** The free-text unit of a `number` tracker; null for the other types. */
+  unit: z.string().nullable(),
+  /** Decimal places the member chose for a `number` tracker. */
+  decimals: z.number().int(),
+  direction: z.enum(["higher", "lower"]),
+  recentValue: z.number(),
+  recentDays: z.number().int(),
+  recentWindowDays: z.number().int(),
+  baselineValue: z.number(),
+  baselineDays: z.number().int(),
+  baselineWindowDays: z.number().int(),
+  difference: z.number(),
   threshold: z.number(),
   certainty: z.enum(INSIGHT_CERTAINTIES),
 });
@@ -226,6 +267,7 @@ export const activityEnergyContextDetailSchema = z.object({
 
 export const insightDetailSchema = z.discriminatedUnion("type", [
   changeDetailSchema,
+  trackerChangeDetailSchema,
   trendDetailSchema,
   goalDetailSchema,
   recordingGapDetailSchema,

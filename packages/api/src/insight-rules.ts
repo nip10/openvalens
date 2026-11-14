@@ -2,6 +2,7 @@ import {
   INSIGHT_ENGINE_VERSION,
   INSIGHT_RULE_KINDS,
   INSIGHT_RULE_VERSIONS,
+  INSIGHT_TRACKER_TYPES,
   MAX_INSIGHT_FACTORS,
   METRIC_TOPICS,
   type Insight,
@@ -14,14 +15,15 @@ import {
   type InsightReadinessState,
   type InsightRuleId,
   type InsightRuleReadiness,
+  type InsightTrackerType,
   type InsightUnit,
   type KindChannels,
 } from "./insight-contract";
 import type { GoalProgressResult } from "./score-contract";
 
 /**
- * Issue #92 — the deterministic insight rules (`insights-0.1.0`). Pure: the
- * same series, goals and `asOf` always give the same insights.
+ * Issue #92 — the deterministic insight rules (`INSIGHT_ENGINE_VERSION`). Pure:
+ * the same series, trackers, goals and `asOf` always give the same insights.
  *
  * Every rule compares the person with their own usual, never with other
  * people. A change must clear four gates before it is described (see
@@ -58,11 +60,31 @@ export type InsightGoalInput = {
   latestCheckinDates: Readonly<Record<number, string | null>>;
 };
 
+/**
+ * One of the member's own custom trackers (#450), with one value per logged
+ * day already combined by the tracker's own aggregation (sum, average, last,
+ * or yes-if-any for yes/no). Days without an entry are absent.
+ */
+export type InsightTrackerInput = {
+  id: string;
+  name: string;
+  /** Any tracker type; the rule reads only `INSIGHT_TRACKER_TYPES`. */
+  type: string;
+  /** The free-text unit of a `number` tracker. */
+  unit: string | null;
+  decimals: number;
+  /** "Coach and connected AI apps can read this"; off means no insight. */
+  aiVisible: boolean;
+  days: readonly { date: string; value: number }[];
+};
+
 export type InsightEngineInput = {
   /** YYYY-MM-DD. */
   asOf: string;
   /** Daily series per measure. A missing key means the viewer cannot read it. */
   series: Partial<Record<InsightMetric, readonly InsightDay[]>>;
+  /** The viewer's own trackers (#450). Omitted or empty: no tracker insights. */
+  trackers?: readonly InsightTrackerInput[];
   goals: InsightGoalInput | null;
 };
 
@@ -75,6 +97,27 @@ export type InsightEngineOutput = {
 };
 
 // ─── parameters ────────────────────────────────────────────────
+
+/** The window, floor and noise parameters `compareWindows` reads. */
+export type WindowParams = {
+  recentWindowDays: number;
+  recentMinDays: number;
+  baselineWindowDays: number;
+  baselineMinDays: number;
+  /** Minimum practical size, in the series' unit. */
+  floorAbsolute: number;
+  /** Minimum practical size as a share of |baseline| (0 = none). */
+  floorRelative: number;
+  /** Multiplier on the standard error of (recent mean − baseline). */
+  noiseMultiplier: number;
+  /** Recent days that must sit past the baseline by half the threshold or more. */
+  persistenceMinDays: number;
+  /**
+   * The baseline's centre: its median (default), or its mean for a yes/no
+   * series, whose median is always just yes or no.
+   */
+  center?: "median" | "mean";
+};
 
 export type ChangeRule = {
   ruleId: InsightRuleId;
@@ -164,8 +207,50 @@ export const WEIGHT_TREND_RULE = {
   minSlopeT: 3,
 };
 
+/**
+ * #450 — the change rule for the member's own custom trackers. The windows,
+ * gates, k, persistence and confirmation are the built-in ones. Differences:
+ *
+ * - The window ends yesterday for every tracker: today's total is partial.
+ * - The floor is relative, because units are the member's own: at least 20% of
+ *   |baseline median|, and at least one display step (one unit at the
+ *   tracker's decimals), one minute for durations, or one yes day a week.
+ * - Yes/no: every day from the first logged day counts, a day with no entry
+ *   as "no" (many yes/no trackers are logged only on yes days); the usual is
+ *   the baseline's share of yes days, and at least one day in the recent
+ *   window must have an entry, so a tracker the member stopped using stays
+ *   silent.
+ * - No source segmentation and no co-occurring factors either way.
+ */
+export const TRACKER_CHANGE_RULE = {
+  ruleId: "change.tracker" as const,
+  recentWindowDays: 7,
+  recentEndOffset: 1,
+  recentMinDays: 5,
+  baselineWindowDays: 28,
+  baselineMinDays: 14,
+  floorRelative: 0.2,
+  /** Seconds. */
+  durationFloor: 60,
+  /** Yes days per day: one a week. */
+  yesNoFloor: 1 / 7,
+  noiseMultiplier: 3.5,
+  persistenceMinDays: 4,
+  sustainedDays: 2,
+  /** Yes/no: days with an entry (yes or no) needed in the recent window. */
+  yesNoRecentLoggedMinDays: 1,
+};
+
 /** Change insights shown at once; the rest are counted as suppressed. */
 export const CHANGE_INSIGHT_CAP = 2;
+
+/**
+ * #450 — tracker changes share the change cap with the built-in measures, in
+ * the same strongest-first order, but may fill at most this share of it
+ * (rounded up: 1 of 2 in the app, 2 of 4 in the weekly email). Someone with
+ * many trackers still sees a sleep, heart-rate, steps or weight change.
+ */
+export const TRACKER_CHANGE_CAP_SHARE = 0.5;
 
 /** A strength at or above this (|difference| / threshold) is described as clear. */
 export const CLEAR_STRENGTH = 1.5;
@@ -316,7 +401,7 @@ type Comparison = {
 };
 
 function compareWindows(
-  rule: ChangeRule,
+  rule: WindowParams,
   values: ReadonlyMap<string, number>,
   end: string,
 ): Comparison | null {
@@ -326,10 +411,10 @@ function compareWindows(
   const recent = valuesBetween(values, recentFrom, end);
   const baseline = valuesBetween(values, baselineFrom, baselineTo);
   if (recent.length < rule.recentMinDays || baseline.length < rule.baselineMinDays) return null;
-  const center = median(baseline);
+  const center = rule.center === "mean" ? mean(baseline) : median(baseline);
   const recentMean = mean(recent);
   const difference = recentMean - center;
-  const floor = Math.max(rule.floorAbsolute, rule.floorRelative * center);
+  const floor = Math.max(rule.floorAbsolute, rule.floorRelative * Math.abs(center));
   const noise =
     rule.noiseMultiplier * sampleSd(baseline) * Math.sqrt(1 / recent.length + 1 / baseline.length);
   const threshold = Math.max(floor, noise);
@@ -353,7 +438,7 @@ function compareWindows(
 
 /** Direction in which the rule fires for a window ending on `end`, or null. */
 function crossesOn(
-  rule: ChangeRule,
+  rule: WindowParams,
   values: ReadonlyMap<string, number>,
   end: string,
 ): "higher" | "lower" | null {
@@ -447,6 +532,156 @@ export function evaluateChangeRule(
           baselineWindowDays: rule.baselineWindowDays,
           difference: round(difference),
           threshold: round(threshold),
+          certainty,
+        }
+      : null,
+  };
+}
+
+// ─── custom trackers (#450) ────────────────────────────────────
+
+const TRACKER_TYPES_READ: readonly string[] = INSIGHT_TRACKER_TYPES;
+
+/**
+ * Whether the tracker change rule reads a tracker: the insights/AI switch is
+ * on and it is a number, duration or yes/no tracker. 1–5 scales never are.
+ */
+export function isInsightTracker(
+  tracker: Pick<InsightTrackerInput, "type" | "aiVisible">,
+): tracker is Pick<InsightTrackerInput, "aiVisible"> & { type: InsightTrackerType } {
+  return tracker.aiVisible && TRACKER_TYPES_READ.includes(tracker.type);
+}
+
+function trackerWindowParams(type: InsightTrackerType, decimals: number): WindowParams {
+  const rule = TRACKER_CHANGE_RULE;
+  const floorAbsolute =
+    type === "duration"
+      ? rule.durationFloor
+      : type === "yes_no"
+        ? rule.yesNoFloor
+        : 10 ** -Math.max(0, Math.min(2, Math.round(decimals)));
+  return {
+    recentWindowDays: rule.recentWindowDays,
+    recentMinDays: rule.recentMinDays,
+    baselineWindowDays: rule.baselineWindowDays,
+    baselineMinDays: rule.baselineMinDays,
+    floorAbsolute,
+    floorRelative: rule.floorRelative,
+    noiseMultiplier: rule.noiseMultiplier,
+    persistenceMinDays: rule.persistenceMinDays,
+    center: type === "yes_no" ? "mean" : "median",
+  };
+}
+
+/**
+ * The daily series the rule compares. Number and duration trackers: the
+ * logged days only, each with the tracker's own day value (zero and negative
+ * numbers included). Yes/no: every day from the first logged day to `end`,
+ * 1 for a yes day and 0 for a "no" or a day with no entry.
+ */
+export function trackerDailySeries(
+  type: InsightTrackerType,
+  days: InsightTrackerInput["days"],
+  end: string,
+): Map<string, number> {
+  const logged = days
+    .filter((day) => Number.isFinite(day.value) && day.date <= end)
+    .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  if (type !== "yes_no") return new Map(logged.map((day) => [day.date, day.value]));
+  const values = new Map<string, number>();
+  const first = logged[0]?.date;
+  if (!first) return values;
+  const yes = new Set(logged.filter((day) => day.value > 0).map((day) => day.date));
+  for (let date = first; date <= end; date = addDays(date, 1))
+    values.set(date, yes.has(date) ? 1 : 0);
+  return values;
+}
+
+export type TrackerChangeEvaluation = {
+  trackerId: string;
+  /** The same states as the built-in rules; trackers report none of them. */
+  state: InsightReadinessState;
+  strength: number | null;
+  direction: "higher" | "lower" | null;
+  fired: boolean;
+  detail: Extract<InsightDetail, { type: "tracker_change" }> | null;
+  windowEnd: string;
+};
+
+/** Evaluates the tracker change rule for one tracker. Exported for tests. */
+export function evaluateTrackerChange(
+  tracker: InsightTrackerInput,
+  asOf: string,
+): TrackerChangeEvaluation | null {
+  if (!isInsightTracker(tracker)) return null;
+  const type = tracker.type;
+  const rule = TRACKER_CHANGE_RULE;
+  const params = trackerWindowParams(type, tracker.decimals);
+  const end = addDays(asOf, -rule.recentEndOffset);
+  const recentFrom = addDays(end, -(rule.recentWindowDays - 1));
+  const baselineTo = addDays(recentFrom, -1);
+  const baselineFrom = addDays(baselineTo, -(rule.baselineWindowDays - 1));
+  const values = trackerDailySeries(type, tracker.days, end);
+  const recent = valuesBetween(values, recentFrom, end);
+  const baseline = valuesBetween(values, baselineFrom, baselineTo);
+  const recentLogged = tracker.days.filter(
+    (day) => day.date >= recentFrom && day.date <= end,
+  ).length;
+
+  const state: InsightReadinessState =
+    baseline.length < rule.baselineMinDays
+      ? "building_baseline"
+      : recent.length < rule.recentMinDays ||
+          (type === "yes_no" && recentLogged < rule.yesNoRecentLoggedMinDays)
+        ? "no_recent_data"
+        : "ready";
+  const base: TrackerChangeEvaluation = {
+    trackerId: tracker.id,
+    state,
+    strength: null,
+    direction: null,
+    fired: false,
+    detail: null,
+    windowEnd: end,
+  };
+  const comparison = state === "ready" ? compareWindows(params, values, end) : null;
+  if (!comparison) return base;
+
+  const { center, recentMean, difference, threshold, strength, onChangedSide } = comparison;
+  const direction = difference > 0 ? "higher" : "lower";
+  const firesToday = strength >= 1 && onChangedSide >= rule.persistenceMinDays;
+  let sustained = firesToday;
+  for (let back = 1; sustained && back < rule.sustainedDays; back += 1) {
+    sustained = crossesOn(params, values, addDays(end, -back)) === direction;
+  }
+  const fired = firesToday && sustained;
+  const certainty: InsightCertainty =
+    strength >= CLEAR_STRENGTH && recent.length >= rule.recentWindowDays - 1 ? "clear" : "modest";
+  // Yes/no is described in yes days per 7 days: the recent count of yes days
+  // against the usual share of yes days times 7.
+  const scale = type === "yes_no" ? rule.recentWindowDays : 1;
+  return {
+    ...base,
+    strength,
+    direction,
+    fired,
+    detail: fired
+      ? {
+          type: "tracker_change",
+          trackerId: tracker.id,
+          trackerName: tracker.name,
+          trackerType: type,
+          unit: type === "number" ? tracker.unit : null,
+          decimals: tracker.decimals,
+          direction,
+          recentValue: round(recentMean * scale, 2),
+          recentDays: recent.length,
+          recentWindowDays: rule.recentWindowDays,
+          baselineValue: round(center * scale, 2),
+          baselineDays: baseline.length,
+          baselineWindowDays: rule.baselineWindowDays,
+          difference: round(difference * scale, 2),
+          threshold: round(threshold * scale, 2),
           certainty,
         }
       : null,
@@ -588,11 +823,13 @@ function makeInsight(
   const topic =
     detail.type === "goal"
       ? "goals"
-      : "metric" in detail
-        ? METRIC_TOPICS[detail.metric]
-        : detail.type === "meals_near_sleep"
-          ? "sleep"
-          : "activity";
+      : detail.type === "tracker_change"
+        ? "trackers"
+        : "metric" in detail
+          ? METRIC_TOPICS[detail.metric]
+          : detail.type === "meals_near_sleep"
+            ? "sleep"
+            : "activity";
   return {
     id: `${ruleId}:${windowKey}`,
     ruleId,
@@ -705,6 +942,23 @@ export function runInsightRules(input: InsightEngineInput): InsightEngineOutput 
       .slice(0, MAX_INSIGHT_FACTORS)
       .map(([metric, move]) => ({ metric, direction: move.direction }));
     changes.push({ strength: pending.strength, insight: { ...pending.build(), factors } });
+  }
+
+  // #450 custom trackers: the member's own, with the insights/AI switch on.
+  // No readiness rows (a tracker stays silent until it has enough data) and no
+  // co-occurring factors in either direction.
+  for (const tracker of input.trackers ?? []) {
+    const evaluation = evaluateTrackerChange(tracker, asOf);
+    if (!evaluation?.fired || !evaluation.detail) continue;
+    changes.push({
+      strength: evaluation.strength!,
+      insight: makeInsight(
+        TRACKER_CHANGE_RULE.ruleId,
+        `${tracker.id}:${isoWeek(evaluation.windowEnd)}`,
+        evaluation.windowEnd,
+        evaluation.detail,
+      ),
+    });
   }
 
   // Goal milestones.
@@ -860,10 +1114,12 @@ export function selectInsights(
       .map((entry) => entry.ruleId),
   );
   const cap = options.changeCap ?? CHANGE_INSIGHT_CAP;
+  const trackerCap = Math.ceil(cap * TRACKER_CHANGE_CAP_SHARE);
   const visible: Insight[] = [];
   let hiddenCount = 0;
   let suppressedChanges = 0;
   let changes = 0;
+  let trackerChanges = 0;
   for (const insight of insights) {
     if (
       !options.channels[insight.kind][options.channel] ||
@@ -874,11 +1130,13 @@ export function selectInsights(
       continue;
     }
     if (insight.kind === "change") {
-      if (changes >= cap) {
+      const tracker = insight.ruleId === TRACKER_CHANGE_RULE.ruleId;
+      if (changes >= cap || (tracker && trackerChanges >= trackerCap)) {
         suppressedChanges += 1;
         continue;
       }
       changes += 1;
+      if (tracker) trackerChanges += 1;
     }
     visible.push(insight);
   }

@@ -18,6 +18,10 @@ msgstr "—"
 msgid "“{name}” is not in the exercise catalog. Choose one, or add it as your own."
 msgstr "“{name}” não está no catálogo de exercícios. Escolha um ou adicione-o como seu."
 
+#: packages/api/src/presenters/insights.ts
+msgid "“{name}” was yes on {recentYes} of the last {recentWindowDays} days, compared with your usual of about {usual, plural, one {# day} other {# days}} a week."
+msgstr "“{name}” foi registado como sim em {recentYes} dos últimos {recentWindowDays} dias, em comparação com o seu habitual de cerca de {usual, plural, one {# dia} other {# dias}} por semana."
+
 #: apps/native/components/ai-app-drafts.tsx
 msgid "“{name}” will be saved as {chosenName}"
 msgstr "“{name}” será guardado como {chosenName}"
@@ -991,6 +995,14 @@ msgstr "{name}, ilustração em {0} imagens"
 #: apps/web/src/routes/_auth/body-map.tsx
 msgid "{name}: {count} sets"
 msgstr "{name}: {count} séries"
+
+#: packages/api/src/presenters/insights.ts
+msgid "{name}: {direction, select, higher {higher than your usual} other {lower than your usual}}"
+msgstr "{name}: {direction, select, higher {acima do seu habitual} other {abaixo do seu habitual}}"
+
+#: packages/api/src/presenters/insights.ts
+msgid "{name}: {direction, select, higher {yes on more days than your usual} other {yes on fewer days than your usual}}"
+msgstr "{name}: {direction, select, higher {sim em mais dias do que o seu habitual} other {sim em menos dias do que o seu habitual}}"
 
 #: packages/api/src/presenters/nutrition-templates.ts
 msgid "{name}: energy {energy}; protein {protein}"
@@ -2946,6 +2958,10 @@ msgstr "Com base em {recentDays} dos últimos {recentWindowDays} dias, em compar
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Based on an experimental estimate that has not been validated."
 msgstr "Baseado numa estimativa experimental que não foi validada."
+
+#: packages/api/src/presenters/insights.ts
+msgid "Based on the last {recentWindowDays} days, compared with {baselineDays, plural, one {# day} other {# days}} in the {baselineWindowDays} days before. A day with no entry counts as no."
+msgstr "Com base nos últimos {recentWindowDays} dias, em comparação com {baselineDays, plural, one {# dia} other {# dias}} nos {baselineWindowDays} dias anteriores. Um dia sem registo conta como não."
 
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Based on your expenditure estimate ({kcal} kcal a day) and your goal: {goal}."
@@ -8899,6 +8915,11 @@ msgstr "As perspetivas aparecem sempre na aplicação. As notificações push e 
 #: packages/api/src/presenters/insights.ts
 msgid "Insights are for adults 18 and over, based on your profile answer."
 msgstr "As perspetivas são para adultos com 18 anos ou mais, com base na resposta do seu perfil."
+
+#: apps/native/components/trackers/tracker-editor.tsx
+#: apps/web/src/components/trackers/tracker-editor.tsx
+msgid "Insights can also describe changes in it. Notes are never shared with the Coach."
+msgstr "As perspetivas também podem descrever alterações neste acompanhamento. As notas nunca são partilhadas com o Coach."
 
 #. safety
 #: packages/api/src/presenters/insights.ts
@@ -18174,6 +18195,11 @@ msgstr "Nome do acompanhamento"
 msgid "Tracker saved."
 msgstr "Acompanhamento guardado."
 
+#: packages/api/src/presenters/insights.ts
+msgctxt "insight topic"
+msgid "trackers"
+msgstr "acompanhamentos"
+
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/trackers.tsx
 #: apps/web/src/components/header.tsx
@@ -19663,6 +19689,10 @@ msgstr "Tem uma nova perspetiva"
 msgid "You have a new sleep insight"
 msgstr "Tem uma nova perspetiva sobre sono"
 
+#: packages/api/src/presenters/insights.ts
+msgid "You have a new tracker insight"
+msgstr "Tem uma nova perspetiva sobre acompanhamentos"
+
 #: packages/api/src/presenters/preventive-care.ts
 msgid "You have a reminder"
 msgstr "Tem um lembrete"
@@ -19774,6 +19804,10 @@ msgstr "A sua conta {name} usa um endereço de email diferente desta conta."
 #: packages/api/src/presenters/insights.ts
 msgid "Your 7-day average {metric, select, sleep_duration {sleep} resting_heart_rate {resting heart rate} steps {step count} other {weight}} was {recent}, {difference} {direction, select, higher {higher} other {lower}} than your usual of {usual}."
 msgstr "A sua média de {metric, select, sleep_duration {sono} resting_heart_rate {frequência cardíaca em repouso} steps {passos} other {peso}} nos últimos 7 dias foi de {recent}, {difference} {direction, select, higher {acima} other {abaixo}} do seu habitual de {usual}."
+
+#: packages/api/src/presenters/insights.ts
+msgid "Your 7-day average for “{name}” was {recentText}, {difference} {direction, select, higher {higher} other {lower}} than your usual of {usualText}."
+msgstr "A sua média de “{name}” nos últimos 7 dias foi de {recentText}, {difference} {direction, select, higher {acima} other {abaixo}} do seu habitual de {usualText}."
 
 #: apps/web/src/components/billing-plan-view.tsx
 msgid "Your access"

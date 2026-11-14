@@ -177,13 +177,15 @@ export const METRIC_MODULES: Record<InsightMetric, PersonModule> = {
 
 /**
  * The modules an insight belongs to; it is shown only when all of them are on.
- * Goal insights belong to the always-on goals, so they have none. The
+ * Goal and custom-tracker insights belong to no module, so they have none. The
  * cross-module nutrition observations need food and the module they describe.
  */
 export function insightModules(insight: Pick<Insight, "detail">): PersonModule[] {
   const detail = insight.detail;
   switch (detail.type) {
     case "goal":
+    // #450 custom trackers are not part of a module.
+    case "tracker_change":
       return [];
     case "meals_and_workouts":
       return ["food", "activity"];
