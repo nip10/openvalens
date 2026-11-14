@@ -55,7 +55,22 @@ export class ProvenanceReferenceError extends Error {
 }
 export type HealthRecordRepository = ReturnType<typeof createHealthRecordRepository>;
 /** The member reading the timeline; decides which custom tracker entries appear (#441). */
-export type TimelineViewer = { userId: string };
+export type TimelineViewer = {
+  userId: string;
+  /**
+   * #493 — the member's own diaries. Each one is left out unless set: the API
+   * sets them from the member's modules, permissions and hide-numbers mode.
+   */
+  water?: { hideNumbers: boolean } | null;
+  supplementIntakes?: boolean;
+  workouts?: boolean;
+  /** #493 — the Activity module is off: workouts from devices leave the timeline too. */
+  activityHidden?: boolean;
+};
+/** A workout a phone or wearable synced (a health event), not a logged session. */
+function isWorkoutEvent(item: { canonical: Record<string, unknown> }): boolean {
+  return item.canonical.type === "workout";
+}
 type MaintenanceDb = Pick<Database, "select" | "delete" | "execute">;
 type PruneInput = {
   organizationId: string;
@@ -263,6 +278,9 @@ export function createHealthRecordRepository(db: Database) {
       db.select().from(provenanceLink).where(eq(provenanceLink.organizationId, organizationId)),
       createDomainTimelineReader(db).read(organizationId, {
         viewerUserId: viewer?.userId ?? null,
+        water: viewer?.water ?? null,
+        supplementIntakes: viewer?.supplementIntakes === true,
+        workouts: viewer?.workouts === true,
         ...(fromIso ? { fromIso } : {}),
         ...(toIso ? { toIso } : {}),
       }),
@@ -285,7 +303,11 @@ export function createHealthRecordRepository(db: Database) {
     }
     const excluded = new Set(excludedIds);
     return buildTimelinePage(
-      [...items, ...buildDomainTimelineItems(domainRows)].filter((item) => !excluded.has(item.id)),
+      [...items, ...buildDomainTimelineItems(domainRows)].filter(
+        (item) =>
+          !excluded.has(item.id) &&
+          !(viewer?.activityHidden && item.id.startsWith("health_event:") && isWorkoutEvent(item)),
+      ),
       filters,
     );
   }

@@ -14,6 +14,8 @@ export const CANONICAL_TIMELINE_DOMAINS = [
   "custom",
   /** Pain log (#442): visible only to the member who logged it. */
   "pain",
+  /** Plain water (#493): visible only to the member who logged it. */
+  "water",
   "unknown",
 ] as const;
 export type CanonicalTimelineDomain = (typeof CANONICAL_TIMELINE_DOMAINS)[number];

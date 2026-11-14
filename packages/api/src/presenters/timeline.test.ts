@@ -206,4 +206,104 @@ describe("timeline presenter", () => {
     expect(timelineTitle(review, englishI18n)).toBe("Weekly review");
     expect(timelineSummary(review, englishI18n)).toBe("Felt good");
   });
+
+  const aiRef = { type: "ai_app", label: "Claude", provider: "ai_app" };
+  const manualRef = { type: "source_record", label: "x:1", provider: "manual" };
+
+  test("water entries read as plain water and their amount, or Hidden in hide-numbers mode (#493)", () => {
+    const water = item("plain_water_entry:1", "2026-10-01T08:00:00.000Z", {
+      kind: "event",
+      domain: "water",
+      title: "Plain water",
+      summary: "250 ml",
+      sourceRefs: [manualRef],
+      canonical: { table: "plain_water_entry", quantityMl: 250, hidden: false },
+    });
+    expect(timelineTitle(water, englishI18n)).toBe("Plain water");
+    expect(timelineSummary(water, englishI18n)).toBe("250 ml");
+    expect(inEnglish(domainLabel("water"))).toBe("Water");
+    expect(sourceLabel(water, englishI18n)).toBe("Manual");
+    const viaApp = { ...water, sourceRefs: [aiRef, manualRef] };
+    expect(sourceLabel(viaApp, englishI18n)).toBe("via Claude");
+
+    const hidden = {
+      ...water,
+      summary: "Plain water",
+      canonical: { table: "plain_water_entry", quantityMl: null, hidden: true },
+    };
+    expect(timelineSummary(hidden, englishI18n)).toBe("Hidden");
+    // A stray amount on an item marked hidden is never shown.
+    const stray = { ...hidden, canonical: { ...hidden.canonical, quantityMl: 250 } };
+    expect(timelineSummary(stray, englishI18n)).toBe("Hidden");
+    expect(timelineTitle(water, portugueseI18n)).not.toBe("Plain water");
+  });
+
+  test("supplement intakes read as the supplement's name and the dose (#493)", () => {
+    const intake = item("supplement_intake:3", "2026-10-01T08:00:00.000Z", {
+      kind: "event",
+      domain: "meds_supplements",
+      title: "Magnesium",
+      summary: "1 cap",
+      sourceRefs: [aiRef, manualRef],
+      canonical: {
+        table: "supplement_intake",
+        supplementName: "Magnesium",
+        dose: "1 cap",
+        note: null,
+      },
+    });
+    expect(timelineTitle(intake, englishI18n)).toBe("Magnesium");
+    expect(timelineSummary(intake, englishI18n)).toBe("1 cap");
+    expect(sourceLabel(intake, englishI18n)).toBe("via Claude");
+    const noted = { ...intake, canonical: { ...intake.canonical, note: "With dinner" } };
+    expect(timelineSummary(noted, englishI18n)).toBe("1 cap · With dinner");
+  });
+
+  test("workout sessions read as their type, length and exercises, on their day without a time (#493)", () => {
+    const session = item("workout:4", "2026-10-01T12:00:00.000Z", {
+      kind: "event",
+      domain: "activity",
+      title: "Workout",
+      summary: "running, 45 min",
+      sourceRefs: [manualRef],
+      canonical: {
+        table: "workout",
+        workoutType: "running",
+        durationMinutes: 45,
+        exerciseCount: null,
+        localDate: "2026-10-01",
+        dateOnly: true,
+      },
+    });
+    expect(timelineTitle(session, englishI18n)).toBe("Run");
+    expect(timelineTitle(session, portugueseI18n)).not.toBe("Run");
+    expect(timelineSummary(session, englishI18n)).toBe("45 min");
+    const strength = {
+      ...session,
+      canonical: { ...session.canonical, workoutType: "weights", exerciseCount: 3 },
+    };
+    expect(timelineTitle(strength, englishI18n)).toBe("Strength");
+    expect(timelineSummary(strength, englishI18n)).toBe("45 min, 3 exercises");
+    const bare = {
+      ...session,
+      canonical: { ...session.canonical, durationMinutes: null, exerciseCount: null },
+    };
+    expect(timelineSummary(bare, englishI18n)).toBe("Workout logged");
+
+    // Midday UTC is the next morning in Kiritimati (UTC+14): the session stays on its day.
+    const groups = groupTimelineByDay(
+      [item("a", "2026-10-02T09:00:00.000Z"), session, item("b", "2026-10-01T08:00:00.000Z")],
+      "Pacific/Kiritimati",
+    );
+    expect(groups.map((g) => [g.day, g.items.map((i) => [i.id, i.time])])).toEqual([
+      ["2026-10-02", [["a", "23:00"]]],
+      [
+        "2026-10-01",
+        [
+          ["workout:4", ""],
+          ["b", "22:00"],
+        ],
+      ],
+    ]);
+  });
 });

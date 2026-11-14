@@ -126,7 +126,7 @@ export function decodeCursor(cursor: string): { at: string; id: string } | null 
     !Number.isFinite(Date.parse(match[1] ?? "")) ||
     new Date(match[1] ?? "").toISOString() !== match[1] ||
     !(
-      /^(health_event|metric_sample|consultation|imaging_study|cardiac_exam|weekly_review|insight|scheduled_event|daily_reminder):[1-9]\d*$/.test(
+      /^(health_event|metric_sample|consultation|imaging_study|cardiac_exam|weekly_review|insight|scheduled_event|daily_reminder|plain_water_entry|supplement_intake|workout):[1-9]\d*$/.test(
         match[2] ?? "",
       ) ||
       // Rows keyed by uuid: custom tracker entries (#441) and pain entries (#442).

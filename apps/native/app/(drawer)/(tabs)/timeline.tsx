@@ -14,6 +14,7 @@ import {
   ListChecks,
   PersonStanding,
   CalendarDays,
+  Droplet,
   FlaskConical,
   Footprints,
   HeartPulse,
@@ -58,6 +59,7 @@ const DOMAIN_ICON: Record<string, { icon: LucideIcon; tone: Tone }> = {
   cardiac: { icon: Activity, tone: "heart" },
   custom: { icon: ListChecks, tone: "signal" },
   pain: { icon: PersonStanding, tone: "weight" },
+  water: { icon: Droplet, tone: "water" },
 };
 const OTHER_DOMAIN = { icon: Sparkles, tone: "signal" } as const;
 
@@ -152,6 +154,7 @@ export default function TimelineScreen() {
           const look = DOMAIN_ICON[item.domain] ?? OTHER_DOMAIN;
           return (
             <ListCard
+              testID={`timeline-item-${item.id}`}
               icon={look.icon}
               tone={look.tone}
               title={timelineTitle(item, i18n)}

@@ -482,6 +482,58 @@ describe.skipIf(!url)("AI app writes against disposable PostgreSQL", () => {
     expect(unknown.body.error_description).toContain("Supplement writes");
   });
 
+  test("water entries and supplement intakes show on the timeline via the app (#493)", async () => {
+    const viewer = { userId: USER, water: { hideNumbers: false }, supplementIntakes: true };
+    const page = await createHealthRecordRepository(db).listTimeline(
+      ORG,
+      { source: `ai_app:${writeGrantId}`, limit: 200 },
+      [],
+      viewer,
+    );
+    const tables = new Set(page.items.map((item) => item.id.split(":")[0]));
+    expect(tables).toEqual(new Set(["metric_sample", "plain_water_entry", "supplement_intake"]));
+    for (const item of page.items)
+      if (!item.id.startsWith("metric_sample:"))
+        expect(item.sourceRefs[0]).toEqual({
+          type: "ai_app",
+          label: "Claude",
+          id: `ai_app:${writeGrantId}`,
+          provider: "ai_app",
+        });
+    const water = page.items.filter((item) => item.domain === "water");
+    expect(water.map((item) => item.canonical.quantityMl).sort()).toEqual([111, 222, 250, 500]);
+    const intake = page.items.find((item) => item.id.startsWith("supplement_intake:"));
+    expect(intake).toMatchObject({ domain: "meds_supplements", summary: "1 cap" });
+
+    // The member's own water entry reads as typed in, not via the app.
+    const all = await createHealthRecordRepository(db).listTimeline(
+      ORG,
+      { domain: "water", limit: 200 },
+      [],
+      viewer,
+    );
+    const own = all.items.find((item) => item.canonical.quantityMl === 444);
+    expect(own?.sourceRefs).toEqual([
+      expect.objectContaining({ type: "source_record", provider: "manual" }),
+    ]);
+    // Hide-numbers mode drops every amount; without the diaries set, none show.
+    const hidden = await createHealthRecordRepository(db).listTimeline(
+      ORG,
+      { domain: "water", limit: 200 },
+      [],
+      { ...viewer, water: { hideNumbers: true } },
+    );
+    expect(hidden.items).toHaveLength(all.items.length);
+    expect(JSON.stringify(hidden.items)).not.toMatch(/"quantityMl":\d/);
+    expect(
+      (
+        await createHealthRecordRepository(db).listTimeline(ORG, { limit: 500 }, [], {
+          userId: USER,
+        })
+      ).items.filter((item) => /^(plain_water_entry|supplement_intake):/.test(item.id)),
+    ).toEqual([]);
+  });
+
   test("per-call and per-day limits", async () => {
     const limited = httpFor({ writes: writesFor({ entriesPerCall: 3, entriesPerDay: 5 }) });
     const { key: limitedKey } = await key(["water:write"], "Limited");
@@ -1121,10 +1173,13 @@ describe.skipIf(!url)("AI app writes against disposable PostgreSQL", () => {
       ORG,
       { source: `ai_app:${setup.grantId}`, limit: 200 },
       [],
-      { userId: USER },
+      // #493: logged workouts join the timeline too.
+      { userId: USER, workouts: true },
     );
     const tables = new Set(page.items.map((item) => item.id.split(":")[0]));
-    expect(tables).toEqual(new Set(["health_event", "custom_tracker_entry", "pain_entry"]));
+    expect(tables).toEqual(
+      new Set(["health_event", "custom_tracker_entry", "pain_entry", "workout"]),
+    );
     for (const item of page.items)
       expect(item.sourceRefs[0]).toEqual({
         type: "ai_app",

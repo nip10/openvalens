@@ -295,7 +295,14 @@ describe.skipIf(!url)("pain log over RPC and PostgreSQL", () => {
     expect(page.body.nextCursor).toMatch(/\|pain_entry:/);
     const next = await call("timeline/list", { cursor: page.body.nextCursor });
     expect(next.status).toBe(200);
-    expect(next.body.items).toHaveLength(1);
+    expect(next.body.items.filter((item: any) => item.domain === "pain")).toHaveLength(1);
+    // The member's own logged sessions follow (#493); another member's game does not.
+    expect(
+      next.body.items
+        .filter((item: any) => item.id.startsWith("workout:"))
+        .map((item: any) => item.canonical.workoutType)
+        .sort(),
+    ).toEqual(["cycling", "running"]);
 
     const exported = await exportSubjectData(db, { userId: "user-a", organizationIds: ["org-a"] });
     const entries = exported.files.find((file) => file.path === "entities/pain_entry.json");

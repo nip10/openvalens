@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
+import { createAppI18n } from "@openvalens/i18n";
 import { englishI18n, inEnglish } from "@openvalens/i18n/testing";
 
 import type { NutrientKey, NutrientTotal } from "../contracts/nutrition-diary";
@@ -22,6 +23,9 @@ import {
   formatWaterGoal,
   formatWaterSubtotal,
 } from "./plain-water";
+import { timelineSummary, timelineTitle } from "./timeline";
+
+const portugueseI18n = createAppI18n("pt-PT");
 
 /**
  * Hide-numbers leak check (#88). Every text presenter that renders intake,
@@ -118,6 +122,25 @@ describe("hide-numbers mode (#88)", () => {
         true,
       ),
     ).toBeNull();
+  });
+
+  test("plain water on the timeline is withheld (#493)", () => {
+    // The server drops the amount; the presenter withholds anything marked hidden.
+    const water = {
+      id: "plain_water_entry:1",
+      at: "2026-10-01T08:00:00.000Z",
+      kind: "event",
+      domain: "water",
+      title: "Plain water",
+      summary: "Plain water",
+      severity: "none",
+      sourceRefs: [{ type: "source_record", label: "plain_water_entry:1", provider: "manual" }],
+      canonical: { table: "plain_water_entry", quantityMl: 250, hidden: true },
+    };
+    for (const i18n of [englishI18n, portugueseI18n]) {
+      expectNoNumbers(timelineSummary(water, i18n));
+      expectNoNumbers(timelineTitle(water, i18n));
+    }
   });
 
   test("the same values are shown when the mode is off", () => {

@@ -974,6 +974,11 @@ msgstr "{minutes, plural, one {Por segurança, esta ligação expira dentro de #
 msgid "{minutes} active minutes"
 msgstr "{minutes} minutos ativos"
 
+#. A workout's length in minutes.
+#: packages/api/src/presenters/timeline.ts
+msgid "{minutes} min"
+msgstr "{minutes} min"
+
 #: packages/api/src/presenters/activity-load.ts
 msgid "{minutes} min without an intensity are not counted."
 msgstr "{minutes} min sem intensidade não são contados."
@@ -13078,6 +13083,7 @@ msgid "Pick your modules"
 msgstr "Escolha os seus módulos"
 
 #: packages/api/src/presenters/plain-water.ts
+#: packages/api/src/presenters/timeline.ts
 msgid "Plain water"
 msgstr "Água simples"
 
@@ -16675,6 +16681,7 @@ msgstr "As sugestões nunca ficam abaixo de 1200 kcal por dia, do mínimo do seu
 #: apps/web/src/routes/_auth/-goal-editor.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
 #: packages/api/src/presenters/log-kinds.ts
+#: packages/api/src/presenters/timeline.ts
 msgid "Supplement"
 msgstr "Suplemento"
 
@@ -16860,6 +16867,7 @@ msgstr "Tirar fotografia"
 
 #: apps/native/lib/quick-log/picker.ts
 #: apps/web/src/components/quick-log/palette-sections.ts
+#: packages/api/src/presenters/timeline.ts
 msgctxt "supplement"
 msgid "Taken"
 msgstr "Tomado"
@@ -19135,6 +19143,7 @@ msgstr "Relógios, anéis, balanças e contas de wearables"
 
 #: packages/api/src/presenters/log-kinds.ts
 #: packages/api/src/presenters/onboarding.ts
+#: packages/api/src/presenters/timeline.ts
 msgid "Water"
 msgstr "Água"
 
@@ -19505,6 +19514,10 @@ msgstr "Treino em curso"
 #: apps/web/src/routes/_auth/-goal-editor.tsx
 msgid "Workout lift"
 msgstr "Levantamento no treino"
+
+#: packages/api/src/presenters/timeline.ts
+msgid "Workout logged"
+msgstr "Treino registado"
 
 #: apps/web/src/components/workout-routines.tsx
 msgid "Workout routines"

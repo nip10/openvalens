@@ -12,9 +12,14 @@ import {
   CANONICAL_TIMELINE_SEVERITIES,
   CANONICAL_TIMELINE_CONFIDENCES,
   CANONICAL_TIMELINE_REVIEW_STATES,
+  type TimelineViewer,
 } from "@openvalens/health-record";
+import { readNutritionTargetSettings } from "@openvalens/nutrition";
 import { z } from "zod";
+import type { Context } from "../context";
 import { permissionedProcedure, raiseApiError, validateInput } from "../index";
+import { isModuleEnabled, type PersonModule } from "../presenters/modules";
+import { readWellnessProfile } from "../wellness-profile";
 
 /**
  * Timeline oRPC surface (Issue #17 — bounded read-side).
@@ -104,7 +109,7 @@ async function requireTimelineAuthz(
  * The member filter for custom trackers (#441): the session's own member, or
  * none for an impersonated or untrusted session (no tracker entries then).
  */
-function timelineViewer(context: {
+function trustedViewer(context: {
   session: unknown;
   authz: { user: { id: string } };
 }): { userId: string } | null {
@@ -114,6 +119,64 @@ function timelineViewer(context: {
   } catch {
     return null;
   }
+}
+
+/**
+ * #493 — which of the member's own diaries join the timeline. Each follows its
+ * module (a module the member turned off hides its items) and the read
+ * permission its own screen needs. Plain water follows hide-numbers mode
+ * (#88): its amounts are dropped. Hide-numbers covers food and water values
+ * only, so doses and session lengths stay, as on their own screens.
+ */
+export function timelineDiaries(input: {
+  profile: { enabledModules: readonly PersonModule[] | null } | null;
+  hideNumbers: boolean;
+  canReadSupplements: boolean;
+  canReadWorkouts: boolean;
+}): Omit<TimelineViewer, "userId"> {
+  const activity = isModuleEnabled(input.profile, "activity");
+  return {
+    water: isModuleEnabled(input.profile, "food") ? { hideNumbers: input.hideNumbers } : null,
+    supplementIntakes: input.canReadSupplements && isModuleEnabled(input.profile, "supplements"),
+    workouts: input.canReadWorkouts && activity,
+    activityHidden: !activity,
+  };
+}
+
+async function canRead(context: Context, resource: "supplements" | "workout") {
+  return requirePermission(
+    { req: { raw: { headers: context.honoContext.req.raw.headers } } },
+    { resource, action: "read" },
+  ).then(
+    () => true,
+    () => false,
+  );
+}
+
+/** The trusted viewer (#441) with their diaries (#493); null for anyone else. */
+async function timelineViewer(
+  context: Context & { authz: { user: { id: string }; activeOrganizationId: string } },
+): Promise<TimelineViewer | null> {
+  const viewer = trustedViewer(context);
+  if (!viewer) return null;
+  const [profile, settings, canReadSupplements, canReadWorkouts] = await Promise.all([
+    readWellnessProfile(context.db, viewer.userId),
+    readNutritionTargetSettings(context.db, {
+      organizationId: context.authz.activeOrganizationId,
+      userId: viewer.userId,
+    }),
+    canRead(context, "supplements"),
+    canRead(context, "workout"),
+  ]);
+  return {
+    ...viewer,
+    ...timelineDiaries({
+      profile,
+      hideNumbers: settings.hideNumbers,
+      canReadSupplements,
+      canReadWorkouts,
+    }),
+  };
 }
 
 const metricDefinitionReadSchema = z.strictObject({
@@ -180,21 +243,21 @@ export const timelineRouter = {
   list: permissionedProcedure({ resource: "records", action: "read" })
     .use(validateInput(timelineFiltersSchema))
     .input(timelineFiltersSchema)
-    .handler(({ context, input }) =>
+    .handler(async ({ context, input }) =>
       createHealthRecordRepository(context.db).listTimeline(
         context.authz.activeOrganizationId,
         input,
         [],
-        timelineViewer(context),
+        await timelineViewer(context),
       ),
     ),
   changesSinceReview: permissionedProcedure({ resource: "records", action: "read" })
     .use(validateInput(changesSchema))
     .input(changesSchema)
-    .handler(({ context, input }) =>
+    .handler(async ({ context, input }) =>
       createHealthRecordRepository(context.db).listChangesSinceReview(
         context.authz.activeOrganizationId,
-        { ...input, viewer: timelineViewer(context) },
+        { ...input, viewer: await timelineViewer(context) },
       ),
     ),
   listMetrics: permissionedProcedure({ resource: "records", action: "read" })
