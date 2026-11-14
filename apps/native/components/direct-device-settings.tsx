@@ -41,6 +41,10 @@ import { getXiaomiModel } from "@/lib/direct-devices/models/xiaomi";
 import type { XiaomiModel, XiaomiModelId } from "@/lib/direct-devices/models/xiaomi";
 import { getZeppOsModel } from "@/lib/direct-devices/models/zepp-os";
 import type { ZeppOsModel, ZeppOsModelId } from "@/lib/direct-devices/models/zepp-os";
+import {
+  detectBluetoothLeHardware,
+  isDirectBluetoothUnavailable,
+} from "@/lib/direct-devices/setup/bluetooth-availability";
 import type { DirectDeviceFamily } from "@/lib/direct-devices/setup/types";
 import { describeDeviceSupport } from "@/lib/direct-devices/support-status";
 import type { OpenValensDeviceSupport } from "@/lib/direct-devices/support-status";
@@ -180,6 +184,12 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
   const { t, i18n } = useLingui();
   const [authKey, setAuthKey] = useState("");
   const [working, setWorking] = useState(false);
+  // Read once: a phone without BLE hardware (#524) never starts a scan.
+  const [hasBluetoothLe] = useState(() => detectBluetoothLeHardware());
+  const bluetoothUnavailable = isDirectBluetoothUnavailable({
+    hasBluetoothLe,
+    bluetooth: snapshot.bluetooth,
+  });
   // Fossil keys are parsed the upstream way (spaces and any "0x" allowed).
   const validKey =
     snapshot.connectedFamily === "fossil_hr"
@@ -470,8 +480,13 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
             trailing={<Text className="font-sans text-sm text-signal">{t`Connect`}</Text>}
           />
         ))}
+        {bluetoothUnavailable ? (
+          <Text accessibilityLiveRegion="polite" className="font-sans text-sm text-ink-2">
+            {t`Bluetooth isn't available on this device.`}
+          </Text>
+        ) : null}
         <View className="flex-row flex-wrap gap-2">
-          {snapshot.phase === "scanning" ? (
+          {bluetoothUnavailable ? null : snapshot.phase === "scanning" ? (
             <Button
               variant="outline"
               onPress={() => controller && run(() => controller.stopScan(), true)}
@@ -658,7 +673,7 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
             {t`Confirm the pairing on your watch now. You have 30 seconds.`}
           </Text>
         ) : null}
-        {snapshot.errorCode ? (
+        {snapshot.errorCode && snapshot.errorCode !== "BLUETOOTH_UNSUPPORTED" ? (
           <Text className="font-sans text-sm text-destructive">
             {Object.hasOwn(GARMIN_ERROR_COPY, snapshot.errorCode)
               ? i18n._(GARMIN_ERROR_COPY[snapshot.errorCode]!)

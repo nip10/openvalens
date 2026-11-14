@@ -1,6 +1,10 @@
 import { expect, test } from "bun:test";
 
-import { createBtClassicAdapter, type NativeBtClassicModule } from "../../../modules/bt-classic";
+import {
+  createBtClassicAdapter,
+  hasBluetoothLeHardware,
+  type NativeBtClassicModule,
+} from "../../../modules/bt-classic";
 
 type Listener = (payload: Record<string, unknown>) => void;
 
@@ -65,6 +69,31 @@ test("unsupported off Android or without the native module", async () => {
   await expect(
     missing.openRfcomm({ address: "AA:BB:CC:DD:EE:01", uuid: "x", timeoutMs: 1 }),
   ).rejects.toThrow("BT_CLASSIC_UNSUPPORTED");
+});
+
+test("the BLE hardware check asks Android's package manager, and assumes BLE elsewhere (#524)", () => {
+  const android = () => true;
+  expect(
+    hasBluetoothLeHardware(() => fakeNative({ hasBluetoothLe: () => false }).native, android),
+  ).toBe(false);
+  expect(
+    hasBluetoothLeHardware(() => fakeNative({ hasBluetoothLe: () => true }).native, android),
+  ).toBe(true);
+  // A native module without the check (an older build) falls back to "has an adapter".
+  expect(
+    hasBluetoothLeHardware(() => fakeNative({ isAvailable: () => false }).native, android),
+  ).toBe(false);
+  // No native module: the radio's own state decides.
+  expect(hasBluetoothLeHardware(() => null, android)).toBe(true);
+  // Every supported iPhone has BLE; the native module is not even loaded.
+  expect(
+    hasBluetoothLeHardware(
+      () => {
+        throw new Error("not loaded on iOS");
+      },
+      () => false,
+    ),
+  ).toBe(true);
 });
 
 test("bonded devices are normalised and malformed rows dropped", async () => {

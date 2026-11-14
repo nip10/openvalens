@@ -554,6 +554,36 @@ test("Android 12 denial prevents scanning; legacy Android requests location only
   await legacy.controller.dispose();
 });
 
+test("a phone without BLE hardware reports unsupported before any permission prompt or radio (#524)", async () => {
+  const permissionRequests: string[][] = [];
+  const controller = createHelioSetupController({
+    runtime: () => ({
+      platform: "android",
+      version: 34,
+      granted: "granted",
+      requestPermissions: async (requested) => {
+        permissionRequests.push(requested);
+        return {};
+      },
+      hasBluetoothLe: () => false,
+    }),
+    loadRadio: () => {
+      throw new Error("react-native-ble-plx must not start without BLE hardware");
+    },
+  });
+  await controller.startScan();
+  expect(permissionRequests).toEqual([]);
+  expect(controller.getSnapshot()).toMatchObject({
+    phase: "error",
+    bluetooth: "unsupported",
+    errorCode: "BLUETOOTH_UNSUPPORTED",
+  });
+  // Not stuck busy: a retry reports the same, still without the radio.
+  await controller.startScan();
+  expect(controller.getSnapshot().errorCode).toBe("BLUETOOTH_UNSUPPORTED");
+  await controller.dispose();
+});
+
 test("unknown Bluetooth state waits for PoweredOn and repeated scan timeout removes subscriptions", async () => {
   const f = fixture({ initialState: "Unknown" as State, scanTimeoutMs: 5 });
   const scanning = f.controller.startScan();
