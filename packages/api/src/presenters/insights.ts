@@ -15,6 +15,7 @@ import type {
   InsightsResult,
 } from "../insight-contract";
 import { formatKg } from "./body";
+import { formatTrackerValue } from "./trackers";
 import type { ProductDisplaySettings } from "./product-formatting";
 
 /**
@@ -157,6 +158,7 @@ export const INSIGHT_TOPIC_LABELS: Record<InsightTopic, MessageDescriptor> = {
   activity: msg({ message: "activity", context: "insight topic" }),
   body: msg({ message: "body", context: "insight topic" }),
   goals: msg({ message: "goals", context: "insight topic" }),
+  trackers: msg({ message: "trackers", context: "insight topic" }),
 };
 
 export const INSIGHT_READINESS_LABELS: Record<InsightReadinessState, MessageDescriptor> = {
@@ -313,6 +315,59 @@ export function insightView(
       coverageText = i18n._(
         msg`Based on ${recentDays} of the last ${recentWindowDays} days, compared with ${plural(baselineDays, { one: "# day", other: "# days" })} in the ${baselineWindowDays} days before.`,
       );
+      break;
+    }
+    case "tracker_change": {
+      // #450: the member's own tracker, by its name, in its own unit. Neutral
+      // wording only: a tracker has no good or bad direction, even with a goal.
+      const { direction, recentDays, recentWindowDays, baselineDays, baselineWindowDays } = detail;
+      const name = detail.trackerName;
+      if (detail.trackerType === "yes_no") {
+        const recentYes = Math.round(detail.recentValue);
+        const usual = Math.round(detail.baselineValue * 10) / 10;
+        title = i18n._(
+          msg`${name}: ${select(direction, {
+            higher: "yes on more days than your usual",
+            other: "yes on fewer days than your usual",
+          })}`,
+        );
+        body = i18n._(
+          msg`“${name}” was yes on ${recentYes} of the last ${recentWindowDays} days, compared with your usual of about ${plural(usual, { one: "# day", other: "# days" })} a week.`,
+        );
+        coverageText = i18n._(
+          msg`Based on the last ${recentWindowDays} days, compared with ${plural(baselineDays, { one: "# day", other: "# days" })} in the ${baselineWindowDays} days before. A day with no entry counts as no.`,
+        );
+      } else {
+        const shape = {
+          type: detail.trackerType,
+          unit: detail.unit,
+          // Averages of whole numbers keep one decimal, so "3.4" is not shown as "3".
+          decimals: Math.max(1, detail.decimals),
+        };
+        const recent = formatTrackerValue(i18n, shape, Math.abs(detail.recentValue));
+        const usual = formatTrackerValue(i18n, shape, Math.abs(detail.baselineValue));
+        const difference = formatTrackerValue(i18n, shape, Math.abs(detail.difference));
+        const recentSign = detail.recentValue < 0 ? "−" : "";
+        const usualSign = detail.baselineValue < 0 ? "−" : "";
+        const recentText = `${recentSign}${recent}`;
+        const usualText = `${usualSign}${usual}`;
+        title = i18n._(
+          msg`${name}: ${select(direction, {
+            higher: "higher than your usual",
+            other: "lower than your usual",
+          })}`,
+        );
+        body = i18n._(
+          msg`Your 7-day average for “${name}” was ${recentText}, ${difference} ${select(direction, { higher: "higher", other: "lower" })} than your usual of ${usualText}.`,
+        );
+        coverageText = i18n._(
+          msg`Based on ${recentDays} of the last ${recentWindowDays} days, compared with ${plural(baselineDays, { one: "# day", other: "# days" })} in the ${baselineWindowDays} days before.`,
+        );
+      }
+      certaintyText =
+        detail.certainty === "clear"
+          ? i18n._(msg`This is clearly larger than your usual day-to-day variation.`)
+          : i18n._(msg`This is only a little larger than your usual day-to-day variation.`);
       break;
     }
     case "trend": {
@@ -559,6 +614,8 @@ export const INSIGHT_PUSH_TOPIC_BODIES: Record<InsightTopic, MessageDescriptor> 
   activity: msg`You have a new activity insight`,
   body: msg`You have a new body insight`,
   goals: msg`You have a new goals insight`,
+  // Never the tracker's name: it can be private.
+  trackers: msg`You have a new tracker insight`,
 };
 
 export type InsightPushContent = {

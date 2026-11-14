@@ -11,6 +11,7 @@ import {
 import { telegramAccount } from "@openvalens/db/schema/integrations";
 import { createGoalRepository } from "@openvalens/plans";
 import { listSleepDailySummaries } from "@openvalens/sleep";
+import { listAiReadableTrackers, listAiTrackerDays } from "@openvalens/trackers";
 import { and, count, eq } from "drizzle-orm";
 
 import {
@@ -31,11 +32,14 @@ import {
   type PushOfferState,
 } from "./insight-contract";
 import {
+  addDays,
   CHANGE_INSIGHT_CAP,
   defaultKindChannels,
+  isInsightTracker,
   runInsightRules,
   selectInsights,
   type InsightDay,
+  type InsightTrackerInput,
   type InsightEngineInput,
   type InsightEngineOutput,
   type InsightFeedbackRecord,
@@ -145,7 +149,7 @@ export async function loadInsightEngineInput(
   asOf: string,
 ): Promise<InsightEngineInput> {
   const { organizationId, userId } = scope;
-  const [sleep, rhr, steps, weights, goals] = await Promise.all([
+  const [sleep, rhr, steps, weights, goals, trackers] = await Promise.all([
     listSleepDailySummaries(db, organizationId, INSIGHT_HISTORY_DAYS),
     listDailyMetricBySource(db, organizationId, "resting_heart_rate", INSIGHT_HISTORY_DAYS),
     listDailyMetricBySource(db, organizationId, "steps", INSIGHT_HISTORY_DAYS),
@@ -153,6 +157,7 @@ export async function loadInsightEngineInput(
       ? listCanonicalDailyWeights(db, organizationId, userId, INSIGHT_HISTORY_DAYS)
       : Promise.resolve(null),
     access.goals ? loadGoals(db, organizationId, userId) : Promise.resolve(null),
+    loadInsightTrackers(db, scope, asOf),
   ]);
   return {
     asOf,
@@ -170,8 +175,38 @@ export async function loadInsightEngineInput(
         ? { weight: weights.map((row) => ({ date: row.date, value: row.weightKg, source: null })) }
         : {}),
     },
+    trackers,
     goals,
   };
+}
+
+/**
+ * #450 — the viewer's own custom trackers with "Coach and connected AI apps
+ * can read this" on (never another member's shared tracker, never an archived
+ * one), with one combined value per logged day. 1–5 scales are not loaded.
+ */
+export async function loadInsightTrackers(
+  db: Database,
+  scope: InsightScope,
+  asOf: string,
+): Promise<InsightTrackerInput[]> {
+  const rows = (await listAiReadableTrackers(db, scope)).filter((row) =>
+    isInsightTracker({ type: row.type, aiVisible: true }),
+  );
+  if (rows.length === 0) return [];
+  const days = await listAiTrackerDays(db, scope, rows, {
+    from: addDays(asOf, -(INSIGHT_HISTORY_DAYS - 1)),
+    to: asOf,
+  });
+  return rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    type: row.type,
+    unit: row.unit,
+    decimals: row.decimals,
+    aiVisible: true,
+    days: (days.get(row.id) ?? []).map((day) => ({ date: day.date, value: day.value })),
+  }));
 }
 
 async function loadGoals(db: Database, organizationId: string, userId: string) {

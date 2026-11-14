@@ -265,7 +265,11 @@ export function TrackerEditor({
         <SwitchRow
           testID="tracker-ai-switch"
           label={t`Coach and connected AI apps can read this`}
-          hint={t`Notes are never shared with the Coach.`}
+          hint={
+            draft.type === "scale"
+              ? t`Notes are never shared with the Coach.`
+              : t`Insights can also describe changes in it. Notes are never shared with the Coach.`
+          }
           value={draft.aiVisible}
           onChange={(value) => set("aiVisible", value)}
         />

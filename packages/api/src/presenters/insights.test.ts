@@ -110,8 +110,52 @@ const change = (
     certainty,
   }) as const;
 
+/** #450 custom-tracker changes, in each type the rule reads. */
+const trackerChange = (
+  trackerType: "number" | "duration" | "yes_no",
+  direction: "higher" | "lower",
+  certainty: "clear" | "modest",
+) =>
+  ({
+    type: "tracker_change",
+    trackerId: "00000000-0000-4000-8000-000000000001",
+    trackerName:
+      trackerType === "number" ? "Push-ups" : trackerType === "duration" ? "Sauna" : "Flossed",
+    trackerType,
+    unit: trackerType === "number" ? "reps" : null,
+    decimals: 0,
+    direction,
+    recentValue:
+      trackerType === "number"
+        ? 42.4
+        : trackerType === "duration"
+          ? 1500
+          : direction === "higher"
+            ? 6
+            : 1,
+    recentDays: trackerType === "yes_no" ? 7 : 6,
+    recentWindowDays: 7,
+    baselineValue:
+      trackerType === "number"
+        ? 30
+        : trackerType === "duration"
+          ? 900
+          : direction === "higher"
+            ? 2.5
+            : 4.5,
+    baselineDays: 26,
+    baselineWindowDays: 28,
+    difference: trackerType === "number" ? 12.4 : trackerType === "duration" ? 600 : 3.5,
+    threshold: 5,
+    certainty,
+  }) as const;
+
 function everyInsight(): Insight[] {
   const out: Insight[] = [];
+  for (const trackerType of ["number", "duration", "yes_no"] as const)
+    for (const direction of ["higher", "lower"] as const)
+      for (const certainty of ["clear", "modest"] as const)
+        out.push(make("change.tracker", trackerChange(trackerType, direction, certainty)));
   for (const metric of ["sleep_duration", "resting_heart_rate", "steps"] as const)
     for (const direction of ["higher", "lower"] as const)
       for (const certainty of ["clear", "modest"] as const)
@@ -252,6 +296,56 @@ describe("insight templates (copy lint)", () => {
     );
   });
 
+  test("a tracker change names the tracker and uses its own unit (#450)", () => {
+    const view = insightView(
+      englishI18n,
+      make("change.tracker", trackerChange("number", "higher", "clear")),
+    );
+    expect(view.title).toBe("Push-ups: higher than your usual");
+    expect(view.body).toBe(
+      "Your 7-day average for “Push-ups” was 42.4 reps, 12.4 reps higher than your usual of 30 reps.",
+    );
+    expect(view.coverageText).toBe(
+      "Based on 6 of the last 7 days, compared with 26 days in the 28 days before.",
+    );
+    expect(view.certaintyText).toContain("usual day-to-day variation");
+    expect(view.factorsText).toBeNull();
+    expect(view.ruleText).toBe("Rule change.tracker v1");
+  });
+
+  test("a duration tracker change is formatted as durations", () => {
+    const view = insightView(
+      englishI18n,
+      make("change.tracker", trackerChange("duration", "lower", "modest")),
+    );
+    expect(view.title).toBe("Sauna: lower than your usual");
+    expect(view.body).toBe(
+      "Your 7-day average for “Sauna” was 25 min, 10 min lower than your usual of 15 min.",
+    );
+  });
+
+  test("a yes/no tracker change counts yes days", () => {
+    const higher = insightView(
+      englishI18n,
+      make("change.tracker", trackerChange("yes_no", "higher", "clear")),
+    );
+    expect(higher.title).toBe("Flossed: yes on more days than your usual");
+    expect(higher.body).toBe(
+      "“Flossed” was yes on 6 of the last 7 days, compared with your usual of about 2.5 days a week.",
+    );
+    expect(higher.coverageText).toBe(
+      "Based on the last 7 days, compared with 26 days in the 28 days before. A day with no entry counts as no.",
+    );
+    const once = insightView(
+      englishI18n,
+      make("change.tracker", {
+        ...trackerChange("yes_no", "higher", "clear"),
+        baselineValue: 1,
+      }),
+    );
+    expect(once.body).toContain("your usual of about 1 day a week");
+  });
+
   test("weight respects imperial display settings", () => {
     const view = insightView(
       englishI18n,
@@ -283,6 +377,7 @@ describe("insight templates in pt-PT (#231)", () => {
       (
         [
           "change",
+          "tracker_change",
           "trend",
           "goal",
           "recording_gap",
@@ -296,6 +391,7 @@ describe("insight templates in pt-PT (#231)", () => {
     );
     expect(titles).toEqual({
       change: "Sono acima do seu habitual",
+      tracker_change: "Push-ups: acima do seu habitual",
       trend: "Peso em tendência de subida",
       goal: "Alvo atingido: Walk 10k steps",
       recording_gap: "Sem registos de sono desde 11 Oct",

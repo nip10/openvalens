@@ -17,7 +17,8 @@ insights. Insights never advise, diagnose, predict risk or describe a cause. A
 copy lint (`presenters/insights.test.ts`) renders every template and fails on
 advice, diagnostic, risk, judging and causal wording.
 
-Engine version: `insights-0.1.0`. Each rule carries its own version
+Engine version: `insights-0.3.0` (`INSIGHT_ENGINE_VERSION`; 0.3.0 added the
+custom-tracker rule, #450). Each rule carries its own version
 (`INSIGHT_RULE_VERSIONS`); changing a parameter or template bumps it.
 
 ## Evidence and limits
@@ -50,22 +51,87 @@ says "different from your usual", never "meaningful for your health".
 
 ## Rules
 
-| Rule id                      | Kind           | Parameters                                                                                                                                                                 | Window key (dedupe)                |
-| ---------------------------- | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
-| `change.sleep_duration`      | change         | Minutes asleep per wake date. Floor 30 min. Window ends today.                                                                                                             | ISO week of the window end         |
-| `change.resting_heart_rate`  | change         | Daily mean resting heart rate. Floor 3 bpm. Window ends today.                                                                                                             | ISO week                           |
-| `change.steps`               | change         | Daily steps from the dominant source. Floor max(1,000 steps, 20% of the baseline). Window ends yesterday (today is partial).                                               | ISO week                           |
-| `change.weight_trend`        | change         | Least-squares trend of canonical daily weight over 28 days; ≥ 8 weigh-ins spanning ≥ 21 days; fitted change ≥ max(0.5 kg, 1.5% of the mean) and slope ≥ 3 standard errors. | ISO week                           |
-| `goal.reached`               | goal_milestone | A counted goal (#95) whose latest value reached its target.                                                                                                                | goal id                            |
-| `goal.toward_target`         | goal_milestone | The latest check-in (within 14 days) moved toward the target.                                                                                                              | goal id + check-in date            |
-| `goal.away_from_target`      | goal_milestone | The latest check-in (within 14 days) moved away from the target.                                                                                                           | goal id + check-in date            |
-| `data_quality.recording_gap` | data_quality   | Sleep, resting heart rate or steps had ≥ 10 days with data in the 28 before the gap and nothing for 3–30 days.                                                             | measure + last recorded date       |
-| `data_quality.source_change` | data_quality   | A change rule is rebuilding its baseline after a new device or app.                                                                                                        | measure + first date of the source |
-| `streak.recording`           | streak         | Consecutive days with sleep, steps or weight ending today or yesterday; milestones 7, 14, 30, 60, 90 days. `computeRecordingStreak` is the shared contract for #90.        | measure + streak start + milestone |
+| Rule id                      | Kind           | Parameters                                                                                                                                                                                                                  | Window key (dedupe)                |
+| ---------------------------- | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| `change.sleep_duration`      | change         | Minutes asleep per wake date. Floor 30 min. Window ends today.                                                                                                                                                              | ISO week of the window end         |
+| `change.resting_heart_rate`  | change         | Daily mean resting heart rate. Floor 3 bpm. Window ends today.                                                                                                                                                              | ISO week                           |
+| `change.steps`               | change         | Daily steps from the dominant source. Floor max(1,000 steps, 20% of the baseline). Window ends yesterday (today is partial).                                                                                                | ISO week                           |
+| `change.weight_trend`        | change         | Least-squares trend of canonical daily weight over 28 days; ≥ 8 weigh-ins spanning ≥ 21 days; fitted change ≥ max(0.5 kg, 1.5% of the mean) and slope ≥ 3 standard errors.                                                  | ISO week                           |
+| `change.tracker`             | change         | One of your own custom trackers (number, duration or yes/no; never a 1–5 scale) with the insights/AI switch on. The shared gates with a relative floor; window ends yesterday. See [Custom trackers](#custom-trackers-450). | tracker id + ISO week              |
+| `goal.reached`               | goal_milestone | A counted goal (#95) whose latest value reached its target.                                                                                                                                                                 | goal id                            |
+| `goal.toward_target`         | goal_milestone | The latest check-in (within 14 days) moved toward the target.                                                                                                                                                               | goal id + check-in date            |
+| `goal.away_from_target`      | goal_milestone | The latest check-in (within 14 days) moved away from the target.                                                                                                                                                            | goal id + check-in date            |
+| `data_quality.recording_gap` | data_quality   | Sleep, resting heart rate or steps had ≥ 10 days with data in the 28 before the gap and nothing for 3–30 days.                                                                                                              | measure + last recorded date       |
+| `data_quality.source_change` | data_quality   | A change rule is rebuilding its baseline after a new device or app.                                                                                                                                                         | measure + first date of the source |
+| `streak.recording`           | streak         | Consecutive days with sleep, steps or weight ending today or yesterday; milestones 7, 14, 30, 60, 90 days. `computeRecordingStreak` is the shared contract for #90.                                                         | measure + streak start + milestone |
 
 Weight comes from the canonical daily weight, which carries no device id, so
 weight baselines are not segmented by source. Nutrition insights belong to #86;
 labs and HRV rules are not part of v1.
+
+## Custom trackers (#450)
+
+`change.tracker` describes a change in one of the member's own custom trackers
+(#441), e.g. "Sauna: higher than your usual". It uses the shared gates above
+(the last 7 days against the 28 before, at least 14 baseline days and 5 of the
+last 7, k = 3.5, 4 days of persistence, 2-day confirmation, same certainty
+wording). A day's value is the tracker's own day aggregation (number: sum,
+average or last; duration: sum; yes/no: yes if any entry says yes).
+
+**Which trackers.** Only the viewer's own trackers, not archived, with "Coach
+and connected AI apps can read this" on (the tracker editor says that insights
+use it too). Another member's shared tracker is never read. 1–5 scales (mood,
+energy, stress) are left out entirely, so nothing reads like screening. There
+is no good or bad direction, even when the tracker has a goal or target:
+the copy only says higher, lower, more or fewer yes days than your usual.
+
+**Noise floor for user-defined units.** The built-in rules use absolute floors
+in known units. A tracker's unit is the member's own, so the floor is relative:
+
+`threshold = max(k × SD × √(1/n_recent + 1/n_baseline), 20% × |baseline median|, step)`
+
+where `step` is the smallest difference worth naming in the tracker's terms:
+one display step for numbers (1 at 0 decimals, 0.1 at 1, 0.01 at 2), one
+minute for durations, and one yes day a week for yes/no. The step only matters
+when the usual is zero or tiny; otherwise the 20% (as for steps) or the
+person's own variation decides.
+
+**Number and duration series.** Logged days only, so the 14 and 5-of-7 gates
+count days with an entry. Zero and negative numbers are values, not gaps.
+Durations are stored and compared in seconds and shown as durations
+("25 min"). A tracker logged on only a few days a week (sauna twice a week)
+stays silent: it never reaches the 5-of-7 gate.
+
+**Yes/no series.** Many yes/no trackers are logged only on yes days, so the
+series is 1 for a yes day and 0 for every other day (an explicit "no" or no
+entry), from the first logged day to the window end. The gates then count days
+since the first entry. The median of a yes/no day is always just yes or no, so
+the usual is the baseline's **share** of yes days (its mean) instead of its
+median; the copy shows it as yes days a week ("yes on 6 of the last 7 days,
+compared with your usual of about 2.5 days a week"), and says that a day with
+no entry counts as no. At least one day of the recent window must have an
+entry, so a tracker the member stopped using stays silent rather than reading
+as "fewer yes days".
+
+**Other differences from the built-in rules.**
+
+- The window ends yesterday for every tracker: today's total is partial.
+- No readiness rows: a tracker stays silent until it has enough data.
+- No source segmentation (entries are mostly manual) and no co-occurring
+  factors either way: a tracker change lists none, and is never listed as a
+  factor of a built-in change.
+- Topic `trackers`: a push that may name its topic says only "You have a new
+  tracker insight", never the tracker's name.
+- No module: tracker insights are not hidden by the module switches.
+- "Not useful" mutes the whole rule, so every tracker's change insights, for
+  30 days, like any other rule; dismissing hides one tracker's insight for
+  that week.
+
+**False alarms.** `insight-rules-trackers.test.ts` simulates 40 people with
+three stable trackers each (a noisy count with unlogged days, a duration and a
+yes/no with a steady share logged only on yes days) and requires at most one
+change insight per tracker per 300 days. The current parameters give about one
+per 1,900 days.
 
 ## Nutrition timing observations (#84)
 
@@ -84,7 +150,11 @@ permissions and hide-numbers settings.
 ## Budget, dismissal and mutes
 
 - **Change cap:** at most 2 change insights are shown at once (4 in the weekly
-  email); the rest are counted as held back.
+  email); the rest are counted as held back. Tracker changes (#450) share the
+  cap with the built-in measures, in the same strongest-first order, but fill
+  at most half of it (1 in the app, 2 in the email), so someone with many
+  trackers still sees a sleep, heart-rate, steps or weight change. Tracker
+  changes over their share are counted as held back too.
 - **False-alarm budget:** `insight-rules.test.ts` simulates 60 people with
   stable but noisy, autocorrelated data (with weekday cycles and missing days)
   for 110 evaluated days and requires at most one change insight per person per

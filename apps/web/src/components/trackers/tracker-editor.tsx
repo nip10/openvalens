@@ -266,7 +266,15 @@ export function TrackerEditor({
           checked={draft.aiVisible}
           onChange={(checked) => set("aiVisible", checked)}
           label={<Trans>Coach and connected AI apps can read this</Trans>}
-          hint={<Trans>Notes are never shared with the Coach.</Trans>}
+          hint={
+            draft.type === "scale" ? (
+              <Trans>Notes are never shared with the Coach.</Trans>
+            ) : (
+              <Trans>
+                Insights can also describe changes in it. Notes are never shared with the Coach.
+              </Trans>
+            )
+          }
         />
       </div>
     </div>
