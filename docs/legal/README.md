@@ -1,8 +1,9 @@
 # Legal documents for OpenValens Cloud
 
-> **Status (2026-11-02):** the terms are published on openvalens.com as
-> version `2026-10-29` and the privacy policy as version `2026-11-02` (adds
-> opt-in PostHog usage analytics); the subprocessors list was last updated on
+> **Status (2026-11-14):** the terms are published on openvalens.com as
+> version `2026-10-29` and the privacy policy as version `2026-11-14` (adds
+> the 1.2.0 changes: tracker phone feeds, member-private records in shared
+> workspaces, connected AI apps); the subprocessors list was last updated on
 > 2 November 2026. The published pages
 > (`apps/site/src/*.html`) are the source of truth and `privacy.md` and
 > `subprocessors.md` are generated copies. Still open: the company's NIPC
@@ -40,7 +41,7 @@ settings exactly:
 | Document         | Server setting                                    | Draft label        | Published label |
 | ---------------- | ------------------------------------------------- | ------------------ | --------------- |
 | Terms of Service | `LEGAL_TERMS_VERSION` (and `LEGAL_TERMS_URL`)     | `draft-2026-10-29` | `2026-10-29`    |
-| Privacy policy   | `LEGAL_PRIVACY_VERSION` (and `LEGAL_PRIVACY_URL`) | `draft-2026-10-29` | `2026-11-02`    |
+| Privacy policy   | `LEGAL_PRIVACY_VERSION` (and `LEGAL_PRIVACY_URL`) | `draft-2026-10-29` | `2026-11-14`    |
 
 The health-data consent (#322) has no page of its own: its wording lives in
 the app (sign-up form, the re-consent prompt on web and mobile, invitation
@@ -67,7 +68,13 @@ change by email or in the app, as section 14 of the policy promises.
 
 Privacy versions: `2026-10-29` (first published); `2026-11-02` (opt-in
 PostHog usage analytics in Cloud: what is sent, consent, retention, PostHog as
-a subprocessor).
+a subprocessor); `2026-11-14` (OpenValens 1.2.0: mindfulness sessions and
+State of Mind daily moods read for a tracker the person links, pain and custom
+trackers in the health data, workouts, sleep, weigh-ins and body composition
+private to their member in a shared workspace, account deletion refused while
+an owned workspace holds another member's own entries, and connected AI apps:
+what is kept, consent, the app as an independent controller, 90-day usage
+records).
 
 The subprocessors list and the DPA have their own "Last updated" dates but no
 server setting. A new version is needed whenever a change is material (a new
