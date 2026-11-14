@@ -236,6 +236,7 @@ function NutritionTargetsPage() {
                 hideNumbers={!overview.isSuccess || hideNumbers}
                 scope={scope}
                 targetsQueryKey={overviewKey}
+                height={{ cm: data.settings.heightCm, revision: data.settings.revision }}
               />
 
               <Section

@@ -377,8 +377,8 @@ const OUTCOME_COPY: Record<Exclude<HealthPermissionOutcome, "granted">, ReturnTy
 /**
  * Screen 3 on the phone (and the "Connect your data" item): ask Apple Health
  * or Health Connect for the modules' data types, read only, then "Connect a
- * watch or ring", which opens the existing Bluetooth and wearable-account
- * screens in Settings.
+ * watch or ring", which opens the device catalog (Settings › Devices):
+ * Bluetooth devices and wearable accounts on one screen.
  */
 export function ConnectStep({ flow, nav }: StepProps) {
   const { t, i18n } = useLingui();
@@ -454,24 +454,14 @@ export function ConnectStep({ flow, nav }: StepProps) {
         </Sheet>
       </Section>
       <Section icon={Watch} tone="sleep" title={t`Connect a watch or ring`}>
-        <View className="gap-3">
-          <ListCard
-            icon={Bluetooth}
-            tone="sleep"
-            title={t`A watch or ring nearby`}
-            subtitle={t`Paired over Bluetooth, in Settings.`}
-            onPress={() => router.push("/settings")}
-            testID="onboarding-connect-bluetooth"
-          />
-          <ListCard
-            icon={Watch}
-            tone="sleep"
-            title={t`A wearable account`}
-            subtitle={t`Oura, WHOOP, Polar, Withings`}
-            onPress={() => router.push("/settings/devices")}
-            testID="onboarding-connect-wearable"
-          />
-        </View>
+        <ListCard
+          icon={Bluetooth}
+          tone="sleep"
+          title={t`Choose your device`}
+          subtitle={t`Nearby over Bluetooth, or a wearable account such as Oura, WHOOP, Polar or Withings.`}
+          onPress={() => router.push("/settings/devices")}
+          testID="onboarding-connect-device"
+        />
       </Section>
     </StepFrame>
   );

@@ -32,12 +32,12 @@ tags: [onboarding]
     id: "first-log-weight"
 - extendedWaitUntil:
     visible:
-      id: "first-log-weight-value"
+      id: "quick-log-weight-value"
     timeout: 10000
 - waitForAnimationToEnd:
     timeout: 2000
 - tapOn:
-    id: "first-log-weight-value"
+    id: "quick-log-weight-value"
 - inputText: "70"
 - runFlow: ../subflows/hide-keyboard.yaml
 - takeScreenshot: 03-onboarding-3-first-log-weight
@@ -46,10 +46,8 @@ tags: [onboarding]
 # 3. Connect your data: the phone's health app, then a watch or ring
 - extendedWaitUntil:
     visible:
-      id: "onboarding-connect-wearable"
+      id: "onboarding-connect-device"
     timeout: 15000
-- assertVisible:
-    id: "onboarding-connect-bluetooth"
 - takeScreenshot: 03-onboarding-4-connect
 - runFlow: ../subflows/onboarding-continue.yaml
 

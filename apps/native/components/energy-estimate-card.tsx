@@ -1,32 +1,41 @@
 import {
+  asksForHeight,
   ENERGY_ESTIMATE_COPY,
+  HEIGHT_PROMPT_COPY,
+  parseHeightAnswer,
   presentEnergyEstimate,
   presentProposal,
 } from "@openvalens/api/presenters/energy-estimate";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import { AccessibilityInfo, Pressable, Text, View } from "react-native";
-import { Button } from "heroui-native";
+import { AccessibilityInfo, Pressable, Text, TextInput, View } from "react-native";
+import { Button, cn } from "heroui-native";
 import { Gauge, Sparkles, Square, SquareCheck } from "lucide-react-native";
 
 import { deviceTimeZone, localDateIn } from "@openvalens/api/presenters/nutrition-diary";
 import { Icon, Section } from "@/components/bloom";
+import { DecimalHint } from "@/components/decimal-hint";
 import { orpc } from "@/utils/orpc";
+import { useThemeColor } from "@/utils/theme";
 
 export function EnergyEstimateCard({
   scope,
   hideNumbers,
   preferenceKnown,
   safetyOff,
+  height,
 }: {
   scope: string | null;
   hideNumbers: boolean;
   preferenceKnown: boolean;
   safetyOff: boolean;
+  /** The saved height and the settings revision, so a suggestion can ask for height in place (#444). */
+  height?: { cm: number | null; revision: number };
 }) {
   const queryClient = useQueryClient();
   const { t, i18n } = useLingui();
+  const [askHeight, setAskHeight] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
   const [status, setStatus] = useState("");
   const activeScope = useRef(scope);
@@ -63,6 +72,7 @@ export function EnergyEstimateCard({
   useEffect(() => {
     setConfirmed(false);
     setStatus("");
+    setAskHeight(false);
   }, [scope, hideNumbers]);
   const refresh = () => {
     if (scope !== activeScope.current) return;
@@ -76,6 +86,29 @@ export function EnergyEstimateCard({
     refresh();
   };
   const today = () => localDateIn(deviceTimeZone());
+  /** `savedHeightCm`: a height just saved, before the settings refetch lands. */
+  const askForSuggestion = (savedHeightCm?: number) =>
+    ask.mutate(
+      { to: today() },
+      {
+        onSuccess: (result) => {
+          if (scope !== activeScope.current) return;
+          // A missing height is asked for right here instead of in onboarding (#444).
+          const wantsHeight = asksForHeight(result, savedHeightCm ?? height?.cm);
+          setAskHeight(wantsHeight);
+          if (wantsHeight) {
+            setStatus("");
+            refresh();
+          } else if (result.outcome === "declined") finish(result.note);
+          else {
+            setStatus(t`Suggestion is ready for your review.`);
+            refresh();
+          }
+        },
+        onError: () =>
+          finish(t`Could not confirm whether a suggestion was created. Refresh to check.`),
+      },
+    );
   const description = estimate.data?.status === "no_estimate" ? estimate.data.reasonNotes : [];
 
   return (
@@ -220,33 +253,112 @@ export function EnergyEstimateCard({
           variant="outline"
           className="self-start"
           isDisabled={!display || ask.isPending}
-          onPress={() =>
-            ask.mutate(
-              { to: today() },
-              {
-                onSuccess: (result) => {
-                  if (scope !== activeScope.current) return;
-                  if (result.outcome === "declined") finish(result.note);
-                  else {
-                    setStatus(t`Suggestion is ready for your review.`);
-                    refresh();
-                  }
-                },
-                onError: () =>
-                  finish(t`Could not confirm whether a suggestion was created. Refresh to check.`),
-              },
-            )
-          }
+          onPress={() => askForSuggestion()}
         >
           <Icon icon={Sparkles} size={16} color="ink-2" />
           <Button.Label>{i18n._(ENERGY_ESTIMATE_COPY.ask)}</Button.Label>
         </Button>
       )}
+      {authorized && !pending && askHeight && height?.cm === null ? (
+        <HeightPrompt
+          revision={height.revision}
+          onSaved={(cm) => {
+            setAskHeight(false);
+            refresh();
+            askForSuggestion(cm);
+          }}
+          onConflict={refresh}
+        />
+      ) : null}
       {status ? (
         <Text accessibilityLiveRegion="polite" className="font-sans text-sm text-ink-2">
           {status}
         </Text>
       ) : null}
     </Section>
+  );
+}
+
+/**
+ * Asks for the member's height in place when a reduction suggestion needs it
+ * (#444), saves it to the nutrition settings, then the card asks again.
+ */
+function HeightPrompt({
+  revision,
+  onSaved,
+  onConflict,
+}: {
+  revision: number;
+  onSaved: (heightCm: number) => void;
+  onConflict: () => void;
+}) {
+  const { i18n } = useLingui();
+  const placeholderColor = useThemeColor("ink-3");
+  const [text, setText] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const save = useMutation(orpc.nutritionTargets.updateSettings.mutationOptions());
+  const submit = () => {
+    const parsed = parseHeightAnswer(text, i18n.locale);
+    if (!parsed.ok) {
+      setError(i18n._(parsed.error));
+      return;
+    }
+    setError(null);
+    save.mutate(
+      { expectedRevision: revision, heightCm: parsed.value },
+      {
+        onSuccess: (result) => {
+          if (result.outcome === "updated") {
+            onSaved(parsed.value);
+            return;
+          }
+          setError(i18n._(HEIGHT_PROMPT_COPY.conflict));
+          onConflict();
+        },
+        onError: () => setError(i18n._(HEIGHT_PROMPT_COPY.failed)),
+      },
+    );
+  };
+  const label = i18n._(HEIGHT_PROMPT_COPY.label);
+  return (
+    <View className="gap-2 rounded-2xl bg-food-soft px-4 py-3">
+      <Text className="font-display text-base font-medium text-ink" accessibilityRole="header">
+        {i18n._(HEIGHT_PROMPT_COPY.title)}
+      </Text>
+      <Text className="font-sans text-sm text-ink-2">{i18n._(HEIGHT_PROMPT_COPY.body)}</Text>
+      <Text className="font-sans text-sm font-medium text-ink-2">{label}</Text>
+      <TextInput
+        testID="energy-height-input"
+        accessibilityLabel={label}
+        value={text}
+        onChangeText={setText}
+        keyboardType="decimal-pad"
+        returnKeyType="done"
+        onSubmitEditing={submit}
+        placeholder="100–250"
+        placeholderTextColor={placeholderColor}
+        className={cn(
+          "min-h-11 max-w-48 rounded-xl border border-rule-2 bg-sheet px-3 font-sans text-base text-ink",
+          error && "border-destructive",
+        )}
+        style={{ fontVariant: ["tabular-nums"] }}
+      />
+      <DecimalHint value={text} />
+      {error ? (
+        <Text accessibilityRole="alert" className="font-sans text-sm text-destructive">
+          {error}
+        </Text>
+      ) : null}
+      <Button
+        testID="energy-height-save"
+        variant="outline"
+        size="sm"
+        className="self-start"
+        onPress={submit}
+        isDisabled={save.isPending}
+      >
+        <Button.Label>{i18n._(HEIGHT_PROMPT_COPY.save)}</Button.Label>
+      </Button>
+    </View>
   );
 }

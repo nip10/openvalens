@@ -1,12 +1,17 @@
 import {
+  asksForHeight,
   ENERGY_ESTIMATE_COPY,
+  HEIGHT_PROMPT_COPY,
+  parseHeightAnswer,
   presentEnergyEstimate,
   presentProposal,
 } from "@openvalens/api/presenters/energy-estimate";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Button } from "@openvalens/ui/components/button";
+import { Input } from "@openvalens/ui/components/input";
+import { Label } from "@openvalens/ui/components/label";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useId, useState } from "react";
+import { type FormEvent, useEffect, useId, useState } from "react";
 import { deviceTimeZone, localDateIn } from "@openvalens/api/presenters/nutrition-diary";
 import { inlineButtonClass } from "@/components/food-classes";
 import { Gauge, Sparkles } from "lucide-react";
@@ -17,15 +22,19 @@ export function EnergyEstimateCard({
   hideNumbers,
   scope,
   targetsQueryKey,
+  height,
 }: {
   hideNumbers: boolean;
   scope: string | null;
   targetsQueryKey: readonly unknown[];
+  /** The saved height and the settings revision, so a suggestion can ask for height in place (#444). */
+  height?: { cm: number | null; revision: number };
 }) {
   const qc = useQueryClient();
   const { t, i18n } = useLingui();
   const [confirm, setConfirm] = useState(false);
   const [message, setMessage] = useState("");
+  const [askHeight, setAskHeight] = useState(false);
   const id = useId();
   const authorized = scope !== null;
   const date = localDateIn(deviceTimeZone());
@@ -77,7 +86,26 @@ export function EnergyEstimateCard({
   useEffect(() => {
     setConfirm(false);
     setMessage("");
+    setAskHeight(false);
   }, [pending?.id, hideNumbers, scope]);
+  /** `savedHeightCm`: a height just saved, before the settings refetch lands. */
+  const askForSuggestion = (savedHeightCm?: number) =>
+    ask.mutate(
+      { to: localDateIn(deviceTimeZone()) },
+      {
+        onSuccess: (result) => {
+          // A missing height is asked for right here instead of in onboarding (#444).
+          const wantsHeight = asksForHeight(result, savedHeightCm ?? height?.cm);
+          setAskHeight(wantsHeight);
+          if (result.outcome === "declined") setMessage(wantsHeight ? "" : result.note);
+          refresh();
+        },
+        onError: () => {
+          setMessage(t`Could not confirm whether a suggestion was created. Refresh to check.`);
+          refresh();
+        },
+      },
+    );
   const declined = (result: { outcome: string; note?: string }, success: string) => {
     setMessage(
       result.outcome === "declined"
@@ -216,28 +244,23 @@ export function EnergyEstimateCard({
             variant="outline"
             className="w-fit"
             disabled={!presented || ask.isPending}
-            onClick={() =>
-              ask.mutate(
-                { to: localDateIn(deviceTimeZone()) },
-                {
-                  onSuccess: (result) => {
-                    if (result.outcome === "declined") setMessage(result.note);
-                    refresh();
-                  },
-                  onError: () => {
-                    setMessage(
-                      t`Could not confirm whether a suggestion was created. Refresh to check.`,
-                    );
-                    refresh();
-                  },
-                },
-              )
-            }
+            onClick={() => askForSuggestion()}
           >
             <Sparkles aria-hidden="true" />
             {i18n._(ENERGY_ESTIMATE_COPY.ask)}
           </Button>
         )}
+        {authorized && !pending && askHeight && height?.cm === null ? (
+          <HeightPrompt
+            revision={height.revision}
+            onSaved={(cm) => {
+              setAskHeight(false);
+              void qc.invalidateQueries({ queryKey: targetsQueryKey });
+              askForSuggestion(cm);
+            }}
+            onConflict={() => void qc.invalidateQueries({ queryKey: targetsQueryKey })}
+          />
+        ) : null}
         {message && (
           <p role="status" aria-live="polite" className="text-ink-2">
             {message}
@@ -245,5 +268,79 @@ export function EnergyEstimateCard({
         )}
       </div>
     </Section>
+  );
+}
+
+/**
+ * Asks for the member's height in place when a reduction suggestion needs it
+ * (#444), saves it to the nutrition settings, then the card asks again.
+ */
+function HeightPrompt({
+  revision,
+  onSaved,
+  onConflict,
+}: {
+  revision: number;
+  onSaved: (heightCm: number) => void;
+  onConflict: () => void;
+}) {
+  const { i18n } = useLingui();
+  const id = useId();
+  const [text, setText] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const save = useMutation(orpc.nutritionTargets.updateSettings.mutationOptions());
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    const parsed = parseHeightAnswer(text, i18n.locale);
+    if (!parsed.ok) {
+      setError(i18n._(parsed.error));
+      return;
+    }
+    setError(null);
+    save.mutate(
+      { expectedRevision: revision, heightCm: parsed.value },
+      {
+        onSuccess: (result) => {
+          if (result.outcome === "updated") {
+            onSaved(parsed.value);
+            return;
+          }
+          setError(i18n._(HEIGHT_PROMPT_COPY.conflict));
+          onConflict();
+        },
+        onError: () => setError(i18n._(HEIGHT_PROMPT_COPY.failed)),
+      },
+    );
+  };
+  return (
+    <form
+      onSubmit={submit}
+      aria-labelledby={`${id}-title`}
+      className="grid gap-2 rounded-2xl bg-food-soft px-4 py-3"
+    >
+      <p id={`${id}-title`} className="font-display font-medium text-ink">
+        {i18n._(HEIGHT_PROMPT_COPY.title)}
+      </p>
+      <p>{i18n._(HEIGHT_PROMPT_COPY.body)}</p>
+      <div className="grid gap-1.5">
+        <Label htmlFor={id}>{i18n._(HEIGHT_PROMPT_COPY.label)}</Label>
+        <Input
+          id={id}
+          inputMode="decimal"
+          className="sm:max-w-48"
+          value={text}
+          aria-invalid={error ? true : undefined}
+          onChange={(event) => setText(event.target.value)}
+        />
+      </div>
+      {error ? (
+        <p role="alert" className="text-destructive">
+          {error}
+        </p>
+      ) : null}
+      <Button type="submit" variant="outline" className="w-fit" disabled={save.isPending}>
+        {i18n._(HEIGHT_PROMPT_COPY.save)}
+      </Button>
+    </form>
   );
 }

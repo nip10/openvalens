@@ -299,6 +299,7 @@ export default function NutritionTargetsScreen() {
               hideNumbers={hideNumbers}
               preferenceKnown={overview.isSuccess}
               safetyOff={data.safety.energyTargets === "off"}
+              height={{ cm: data.settings.heightCm, revision: data.settings.revision }}
             />
 
             <Section

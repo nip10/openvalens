@@ -1,8 +1,9 @@
-import type { I18n } from "@lingui/core";
+import type { I18n, MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 
 import type { EnergyEstimateOutput, EnergyProposalWire } from "../contracts/energy-estimate";
 import type { WeightTrendOutput } from "../contracts/weight-trend";
+import { parseHeight } from "./nutrition-targets";
 
 export const ENERGY_ESTIMATE_COPY = Object.freeze({
   title: msg`Energy estimate`,
@@ -17,6 +18,48 @@ export const ENERGY_ESTIMATE_COPY = Object.freeze({
   unavailable: msg`An estimate is not available yet.`,
   error: msg`Could not load the estimate. Try again.`,
 });
+
+// ─── Asking for height in context (#444) ───────────────────────
+
+/**
+ * A reduction suggestion needs the member's height. Onboarding no longer asks
+ * for it, so the energy estimate asks right there, the moment it is needed.
+ */
+export const HEIGHT_PROMPT_COPY = Object.freeze({
+  title: msg`Add your height`,
+  body: msg`A suggestion to eat less needs your height, so it can stay within safe limits. It is saved in your nutrition settings.`,
+  label: msg`Height (cm)`,
+  save: msg`Save and ask again`,
+  required: msg`Enter your height in cm.`,
+  conflict: msg`Your nutrition settings changed somewhere else. Try again.`,
+  failed: msg`Could not save your height. Try again.`,
+});
+
+/**
+ * Whether a declined "Ask for a suggestion" should ask for the member's
+ * height in place: only when height is what is missing. A missing weight is
+ * explained by the decline note instead. An unknown height (still loading)
+ * does not ask.
+ */
+export function asksForHeight(
+  result: { outcome: string; reason?: string },
+  heightCm: number | null | undefined,
+): boolean {
+  return (
+    result.outcome === "declined" && result.reason === "needs_body_details" && heightCm === null
+  );
+}
+
+/** The height prompt's answer: 100–250 cm; unlike the settings field, it can't be left blank. */
+export function parseHeightAnswer(
+  raw: string,
+  locale?: string,
+): { ok: true; value: number } | { ok: false; error: MessageDescriptor } {
+  const parsed = parseHeight(raw, locale);
+  if (!parsed.ok) return parsed;
+  if (parsed.value === null) return { ok: false, error: HEIGHT_PROMPT_COPY.required };
+  return { ok: true, value: parsed.value };
+}
 
 const fmt = (n: number, locale: string) => Math.round(n).toLocaleString(locale);
 function perDay(n: number, i18n: I18n): string {

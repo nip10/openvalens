@@ -3,6 +3,9 @@ import { englishI18n } from "@openvalens/i18n/testing";
 
 import type { EnergyEstimateOutput, EnergyProposalWire } from "../contracts/energy-estimate";
 import {
+  asksForHeight,
+  HEIGHT_PROMPT_COPY,
+  parseHeightAnswer,
   presentEnergyEstimate,
   presentProposal,
   presentTrendEstimate,
@@ -164,5 +167,27 @@ describe("Food tab trend card (#395)", () => {
       presentTrendWeight({ ...trend, status: "insufficient_data" }, false, englishI18n),
     ).toBeNull();
     expect(presentTrendWeight(trend, true, englishI18n)).toBeNull();
+  });
+});
+
+describe("asking for height in context (#444)", () => {
+  const declined = { outcome: "declined", reason: "needs_body_details", note: "…" };
+
+  test("asks only when the decline is about body details and no height is saved", () => {
+    expect(asksForHeight(declined, null)).toBe(true);
+    // Height is saved: the missing piece is a recent weight, which the note explains.
+    expect(asksForHeight(declined, 172)).toBe(false);
+    // Settings still loading: don't ask yet.
+    expect(asksForHeight(declined, undefined)).toBe(false);
+    expect(asksForHeight({ ...declined, reason: "recently_changed" }, null)).toBe(false);
+    expect(asksForHeight({ outcome: "proposed" }, null)).toBe(false);
+  });
+
+  test("the answer is required and within the settings range", () => {
+    expect(parseHeightAnswer("172")).toEqual({ ok: true, value: 172 });
+    expect(parseHeightAnswer("172,5", "pt-PT")).toEqual({ ok: true, value: 172.5 });
+    expect(parseHeightAnswer("  ")).toEqual({ ok: false, error: HEIGHT_PROMPT_COPY.required });
+    expect(parseHeightAnswer("90").ok).toBe(false);
+    expect(parseHeightAnswer("abc").ok).toBe(false);
   });
 });

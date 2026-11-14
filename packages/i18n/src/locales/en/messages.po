@@ -1612,13 +1612,13 @@ msgstr "A short card on the Cockpit with the highlights of the new version."
 msgid "A short card on Today with the highlights of the new version."
 msgstr "A short card on Today with the highlights of the new version."
 
-#: apps/native/components/onboarding/steps.tsx
-msgid "A watch or ring nearby"
-msgstr "A watch or ring nearby"
+#: packages/api/src/presenters/energy-estimate.ts
+msgid "A suggestion to eat less needs your height, so it can stay within safe limits. It is saved in your nutrition settings."
+msgstr "A suggestion to eat less needs your height, so it can stay within safe limits. It is saved in your nutrition settings."
 
-#: apps/native/components/onboarding/steps.tsx
-msgid "A wearable account"
-msgstr "A wearable account"
+#: apps/native/app/(drawer)/settings/devices.tsx
+msgid "A watch, ring or scale nearby over Bluetooth, or a wearable account such as Oura or WHOOP."
+msgstr "A watch, ring or scale nearby over Bluetooth, or a wearable account such as Oura or WHOOP."
 
 #: apps/native/app/(drawer)/invitations.tsx
 #: apps/web/src/components/my-invitations-view.tsx
@@ -2112,6 +2112,10 @@ msgstr "Add your birth year and your sex for reference tables in your profile to
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "Add your birth year in your profile to use this."
 msgstr "Add your birth year in your profile to use this."
+
+#: packages/api/src/presenters/energy-estimate.ts
+msgid "Add your height"
+msgstr "Add your height"
 
 #. placeholder {0}: new Date(binding.connectedAt).toLocaleDateString()
 #: apps/native/components/direct-device-settings.tsx
@@ -3498,7 +3502,6 @@ msgstr "Check the email and token, then try again."
 msgid "Check the highlighted fields."
 msgstr "Check the highlighted fields."
 
-#: apps/native/components/onboarding/first-log.tsx
 #: apps/native/components/quick-log/quick-form.tsx
 #: apps/web/src/components/quick-log/quick-form.tsx
 msgid "Check the highlighted values."
@@ -3829,6 +3832,10 @@ msgstr "Choose which kinds of insight appear in each channel."
 msgid "Choose which recipe to continue with."
 msgstr "Choose which recipe to continue with."
 
+#: apps/native/components/onboarding/steps.tsx
+msgid "Choose your device"
+msgstr "Choose your device"
+
 #: packages/api/src/presenters/preventive-care.ts
 msgid "Choose your region in your profile to see guidance from public-health authorities there. Without a region, no list is shown."
 msgstr "Choose your region in your profile to see guidance from public-health authorities there. Without a region, no list is shown."
@@ -3939,10 +3946,6 @@ msgstr "Closed"
 #: packages/api/src/presenters/insights.ts
 msgid "Closer to your target: {goalTitle}"
 msgstr "Closer to your target: {goalTitle}"
-
-#: apps/native/app/(drawer)/settings.tsx
-msgid "Cloud wearable connections"
-msgstr "Cloud wearable connections"
 
 #. Unit symbol; keep as is.
 #: packages/api/src/presenters/timeline.ts
@@ -5305,6 +5308,10 @@ msgstr "Could not save your choice."
 msgid "Could not save your feedback."
 msgstr "Could not save your feedback."
 
+#: packages/api/src/presenters/energy-estimate.ts
+msgid "Could not save your height. Try again."
+msgstr "Could not save your height. Try again."
+
 #: apps/native/components/whats-new-settings.tsx
 #: apps/web/src/components/whats-new-section.tsx
 msgid "Could not save your setting. Try again."
@@ -5368,7 +5375,6 @@ msgstr "Could not save. Retry the same dose."
 #: apps/native/app/(drawer)/goals/[goalId].tsx
 #: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/native/app/quick-log.tsx
-#: apps/native/components/onboarding/first-log.tsx
 #: apps/native/components/quick-log/quick-form.tsx
 #: apps/native/components/trackers/tracker-log-form.tsx
 #: apps/web/src/components/quick-log/quick-form.tsx
@@ -7052,6 +7058,10 @@ msgstr "Enter to log"
 msgid "Enter values from the label. Leave anything you do not know blank; it is shown as unknown, not zero."
 msgstr "Enter values from the label. Leave anything you do not know blank; it is shown as unknown, not zero."
 
+#: packages/api/src/presenters/energy-estimate.ts
+msgid "Enter your height in cm."
+msgstr "Enter your height in cm."
+
 #: apps/native/components/server-choice.tsx
 msgid "Enter your server's address"
 msgstr "Enter your server's address"
@@ -8206,6 +8216,10 @@ msgstr "Height"
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Height (cm, optional)"
 msgstr "Height (cm, optional)"
+
+#: packages/api/src/presenters/energy-estimate.ts
+msgid "Height (cm)"
+msgstr "Height (cm)"
 
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Height must be between 100 and 250 cm, or left blank."
@@ -10802,6 +10816,10 @@ msgstr "Navigate the app"
 msgid "Nearby device"
 msgstr "Nearby device"
 
+#: apps/native/components/onboarding/steps.tsx
+msgid "Nearby over Bluetooth, or a wearable account such as Oura, WHOOP, Polar or Withings."
+msgstr "Nearby over Bluetooth, or a wearable account such as Oura, WHOOP, Polar or Withings."
+
 #: apps/native/app/(drawer)/private-measurements.tsx
 #: apps/web/src/routes/_auth/private-measurements.tsx
 #: packages/api/src/presenters/pain-entry.ts
@@ -12466,7 +12484,6 @@ msgstr "OpenValens shows public information from these authorities. They have no
 msgid "Optimal"
 msgstr "Optimal"
 
-#: apps/native/components/onboarding/first-log.tsx
 #: apps/native/components/quick-log/quick-form.tsx
 #: apps/web/src/components/quick-log/quick-form.tsx
 msgid "optional"
@@ -12576,10 +12593,6 @@ msgstr "Other version: {otherName}, deleted. Your change: {change}."
 msgid "Other version: deleted. Your change: {mineAmount}, {mineSlot}."
 msgstr "Other version: deleted. Your change: {mineAmount}, {mineSlot}."
 
-#: apps/native/components/onboarding/steps.tsx
-msgid "Oura, WHOOP, Polar, Withings"
-msgstr "Oura, WHOOP, Polar, Withings"
-
 #: packages/api/src/presenters/score.ts
 msgid "out of 100"
 msgstr "out of 100"
@@ -12657,10 +12670,6 @@ msgstr "Pain log settings"
 #: packages/api/src/presenters/timeline.ts
 msgid "Pain: {region}"
 msgstr "Pain: {region}"
-
-#: apps/native/components/onboarding/steps.tsx
-msgid "Paired over Bluetooth, in Settings."
-msgstr "Paired over Bluetooth, in Settings."
 
 #: apps/native/components/direct-device-settings.tsx
 msgid "Pairing with the watch did not finish. Accept the pairing prompt on the phone and the watch, then sync again."
@@ -14766,6 +14775,10 @@ msgstr "Save a binding for this watch to sync its Pebble health history."
 #: apps/native/components/training-home.tsx
 msgid "Save a routine to start it here in one tap."
 msgstr "Save a routine to start it here in one tap."
+
+#: packages/api/src/presenters/energy-estimate.ts
+msgid "Save and ask again"
+msgstr "Save and ask again"
 
 #: apps/native/components/workout-routines.tsx
 msgid "Save as a routine"
@@ -18482,7 +18495,6 @@ msgstr "Unit (text)"
 msgid "Unit choices are unavailable for this saved entry. Its existing unit will be kept."
 msgstr "Unit choices are unavailable for this saved entry. Its existing unit will be kept."
 
-#: apps/native/components/onboarding/first-log.tsx
 #: apps/native/components/quick-log/quick-form.tsx
 #: apps/web/src/components/quick-log/quick-form.tsx
 msgid "Unit for {label}"
@@ -19017,6 +19029,10 @@ msgstr "Wake time must be after bedtime."
 msgid "Walk 8,000 steps a day"
 msgstr "Walk 8,000 steps a day"
 
+#: apps/native/app/(drawer)/settings.tsx
+msgid "Watches, rings, scales and wearable accounts"
+msgstr "Watches, rings, scales and wearable accounts"
+
 #: packages/api/src/presenters/log-kinds.ts
 #: packages/api/src/presenters/onboarding.ts
 msgid "Water"
@@ -19107,6 +19123,7 @@ msgstr "We'll email you a link to finish. No password needed."
 msgid "We'll email you a link to sign in. No password needed."
 msgstr "We'll email you a link to sign in. No password needed."
 
+#: apps/native/app/(drawer)/settings/devices.tsx
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
 msgid "Wearable accounts"
 msgstr "Wearable accounts"
@@ -19924,6 +19941,10 @@ msgstr "Your new key: {0}"
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Your next check-in is not open yet."
 msgstr "Your next check-in is not open yet."
+
+#: packages/api/src/presenters/energy-estimate.ts
+msgid "Your nutrition settings changed somewhere else. Try again."
+msgstr "Your nutrition settings changed somewhere else. Try again."
 
 #: packages/email/src/templates/billing.tsx
 msgid "Your OpenValens Cloud access ended some time ago. As our privacy policy explains, accounts that stay inactive are deleted."

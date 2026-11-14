@@ -100,7 +100,7 @@ name: Screenshot tour
 - runFlow: ../subflows/onboarding-continue.yaml
 - extendedWaitUntil:
     visible:
-      id: "onboarding-connect-wearable"
+      id: "onboarding-connect-device"
     timeout: 15000
 - takeScreenshot: ${PREFIX}-onboarding-4-connect
 - runFlow: ../subflows/onboarding-continue.yaml
