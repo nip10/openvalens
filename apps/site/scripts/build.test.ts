@@ -484,13 +484,52 @@ describe("positioning (#445)", () => {
     ]);
   });
 
-  test("labs copy keeps and compares results; AI copy names a local model, not connected apps", async () => {
+  test("labs copy keeps and compares results; AI copy names a local model", async () => {
     const text = await pageText();
     expect(text).toContain("Keep and compare your lab results");
     expect(text).toContain("what changed in them");
     expect(text).toContain("including a model on your own machine");
-    // Connected AI apps (MCP, #439) are not claimed until they ship.
-    expect(text).not.toMatch(/\bMCP\b|Model Context Protocol|connected AI app/i);
+  });
+
+  test("connected AI apps (#439, shipped in v1.2.0) are claimed as reading and adding to your records", async () => {
+    const html = await readFile(join(outDir, "index.html"), "utf8");
+    const pillar = /<h3>Your own AI<\/h3>([\s\S]*?)<\/li>/.exec(html)?.[1] ?? "";
+    const text = pillar
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    // The clients the help pages cover, and MCP for the rest.
+    for (const client of ["claude.ai", "ChatGPT", "Claude Code", "MCP client"]) {
+      expect(text).toContain(client);
+    }
+    // Reads by default; adds only with a write scope, and food goes in as a draft.
+    expect(text).toContain(
+      "It reads your records and, if you allow it, adds entries, such as meal drafts you confirm.",
+    );
+    // Opt-in, scoped, revocable; cycle data and progress photos are never readable.
+    expect(text).toContain(
+      "Each connection is opt-in: you choose what it may read and add, and you can revoke it at any time.",
+    );
+    expect(text).toContain("Cycle data and progress photos are never shared.");
+    expect(text).toContain("Once an AI app has your data, its own terms apply.");
+    // The link goes to the member help pages the app links to (AI_APPS_HELP_BASE_URL).
+    expect(pillar).toContain(
+      'href="https://github.com/nip10/openvalens/blob/main/docs/help/ai-apps/README.md"',
+    );
+    // Reading and adding to records, never a health claim about what the app does.
+    expect(text).not.toMatch(/analy[sz]e your health|insights? into your health|health advice/i);
+  });
+
+  test("the AI apps help link matches the app's AI_APPS_HELP_BASE_URL", async () => {
+    // Read as text: the presenter imports Lingui macros the site build has no use for.
+    const presenter = await readFile(
+      join(import.meta.dir, "../../../packages/api/src/presenters/ai-apps.ts"),
+      "utf8",
+    );
+    const base = /AI_APPS_HELP_BASE_URL =\s*"([^"]+)"/.exec(presenter)?.[1];
+    expect(base).toBeDefined();
+    const html = await readFile(join(outDir, "index.html"), "utf8");
+    expect(html).toContain(`href="${base}/README.md"`);
   });
 
   test("the devices headline names brands, not a count, and every brand is in the allowlist", async () => {

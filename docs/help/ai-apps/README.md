@@ -3,8 +3,9 @@
 You can let an AI app, such as Claude, ChatGPT, Cursor or a model running on
 your own computer, read your OpenValens records so it can answer questions
 about your sleep, training, labs and other measures. The app reads only
-**your own records in one workspace**, and only what you allow. It cannot
-change anything.
+**your own records in one workspace**, and only what you allow. It changes
+nothing unless you also let it add entries, and then it can delete only the
+entries it added.
 
 Open **Settings → Connected AI apps** in the OpenValens web app to see what is
 connected, make a personal key, read each app's recent activity and revoke
