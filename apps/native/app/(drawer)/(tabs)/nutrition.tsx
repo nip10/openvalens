@@ -108,6 +108,7 @@ import {
 } from "react-native";
 
 import { BarcodeScanner } from "@/components/barcode-scanner";
+import { DecimalHint } from "@/components/decimal-hint";
 import {
   Details,
   ErrorState,
@@ -1468,7 +1469,7 @@ function EntryCard({
         (row.change.op.kind === "log" && row.change.op.input.food.kind === "manual"
           ? row.change.op.input.food.food.nutrients
           : cachedCandidate?.nutrientsPerBasis));
-  const draftValue = parseDecimal(draft);
+  const draftValue = parseDecimal(draft, i18n.locale);
   const editorNutrients =
     basis && perBasis && draftValue !== null
       ? previewNutrients(
@@ -1505,7 +1506,7 @@ function EntryCard({
       generation !== liveGeneration.current
     )
       return;
-    const value = parseDecimal(draft);
+    const value = parseDecimal(draft, i18n.locale);
     if (amount === null || value === null || value <= 0) return;
     const ticket = outbox.beginWrite();
     const ref =
@@ -1890,7 +1891,6 @@ export function AddFood({
   const dismissalState = useRef<FoodLoggerDismissal | null>(null);
   if (dismissalState.current === null) dismissalState.current = new FoodLoggerDismissal();
   const [amount, setAmount] = useState("100");
-  const amountValue = parseDecimal(amount) ?? Number.NaN;
   const [unit, setUnit] = useState<AmountUnit>("g");
   const [quick, setQuick] = useState<QuickAddFields>(EMPTY_QUICK);
   /** Set while the quick-add form is a manual draft started from a barcode. */
@@ -1904,6 +1904,7 @@ export function AddFood({
   const lifecycle = useAddFoodSaveLifecycle(contextKey);
   const { editable } = lifecycle;
   const { t, i18n } = useLingui();
+  const amountValue = parseDecimal(amount, i18n.locale) ?? Number.NaN;
   const placeholder = usePlaceholderColor();
 
   // Cached foods stay searchable offline: filtering is local.
@@ -2028,7 +2029,7 @@ export function AddFood({
     };
   }, [i18n, lifecycle.controller]);
 
-  const parsed = parseQuickAdd(quick);
+  const parsed = parseQuickAdd(quick, i18n.locale);
   const basis =
     mode !== "quick"
       ? chosen?.basis
@@ -2646,6 +2647,7 @@ export function AddFood({
                     />
                   ))}
                 </View>
+                {canEditLoggerInput(hideNumbers) ? <DecimalHint value={amount} /> : null}
 
                 {mode === "quick" ? (
                   <Pressable

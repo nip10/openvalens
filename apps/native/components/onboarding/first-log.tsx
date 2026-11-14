@@ -39,6 +39,7 @@ import { useMemo, useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
 
 import { Sheet, ToneIcon, type Tone } from "@/components/bloom";
+import { DecimalHint } from "@/components/decimal-hint";
 import { enqueueMetricSample } from "@/lib/offline/sync";
 import { client, orpc } from "@/utils/orpc";
 import { useThemeColor } from "@/utils/theme";
@@ -191,6 +192,7 @@ function FirstLogForm({
               <Text className="font-sans text-base text-ink-3">{symbol}</Text>
             ) : null}
           </View>
+          <DecimalHint value={values[field.id]} />
           {units.length > 1 && field.unit ? (
             <View
               className="flex-row flex-wrap gap-2"

@@ -17,6 +17,7 @@ import { CalendarDays, Plus, Scale, TrendingDown, TrendingUp } from "lucide-reac
 import { RefreshControl, Text, TextInput, View } from "react-native";
 import { useState } from "react";
 
+import { DecimalHint } from "@/components/decimal-hint";
 import {
   Details,
   EmptyState,
@@ -63,7 +64,7 @@ function AddWeightForm({ onSaved }: { onSaved: () => void }) {
     }),
   );
 
-  const numeric = parseManualEntryValue(field, value);
+  const numeric = parseManualEntryValue(field, value, i18n.locale);
   const submit = () => {
     if (numeric === null) return;
     save.mutate({
@@ -90,6 +91,7 @@ function AddWeightForm({ onSaved }: { onSaved: () => void }) {
             className={INPUT_CLASS}
             placeholderTextColor={placeholder}
           />
+          <DecimalHint value={value} />
         </View>
         <View className={stacked ? "gap-2" : "flex-1 gap-2"}>
           <Text className="font-sans text-sm font-medium text-ink-2">{t`Observed at`}</Text>

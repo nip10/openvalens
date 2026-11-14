@@ -135,6 +135,11 @@ describe("Goals presentation decisions", () => {
     }
   });
 
+  test("a number input's three-decimal value is a decimal for every member (#455)", () => {
+    expect(parseManualAmount("1.250")).toBe(1.25);
+    expect(checkinCorrectionPayload("1.250", false, false)).toEqual({ value: 1.25 });
+  });
+
   test("replacement navigation carries the newly created goal id", () => {
     expect(goalDetailParams(42)).toEqual({ goalId: "42" });
   });

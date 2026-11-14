@@ -590,6 +590,22 @@ describe("parsing", () => {
     expect(parseWaterGoal("1,5", "l")).toEqual({ ok: true, personalGoalMl: 1500 });
   });
 
+  test("the member's locale reads a three-decimal amount; a two-way amount says why (#455)", () => {
+    expect(parseWaterAmount("1,250", "l", "pt-PT")).toMatchObject({ ok: true, quantityMl: 1250 });
+    expect(parseWaterAmount("1.250", "l", "en")).toMatchObject({ ok: true, quantityMl: 1250 });
+    const amount = parseWaterAmount("1,250", "l", "en");
+    if (amount.ok) throw new Error("expected a refusal");
+    expect(inEnglish(amount.error)).toBe(
+      "“1,250” could mean 1250 or 1.25. Type 1250 or 1.25, whichever you mean.",
+    );
+    expect(parseWaterGoal("2,500", "l", "pt-PT")).toEqual({ ok: true, personalGoalMl: 2500 });
+    const goal = parseWaterGoal("2.500", "l", "pt-PT");
+    if (goal.ok) throw new Error("expected a refusal");
+    expect(inEnglish(goal.error)).toBe(
+      "“2.500” could mean 2500 or 2,5. Type 2500 or 2,5, whichever you mean.",
+    );
+  });
+
   test("refuses an amount past the technical storage limit", () => {
     expect(parseWaterAmount("10000", "l")).toEqual({
       ok: false,

@@ -16,6 +16,7 @@ import {
 import { useState } from "react";
 import { Alert, Pressable, Text, TextInput, View } from "react-native";
 
+import { DecimalHint } from "@/components/decimal-hint";
 import {
   EmptyState,
   ErrorState,
@@ -194,7 +195,13 @@ function PrivateMeasurementsForSubject({ subject }: { subject: PrivateSubject })
     },
   });
 
-  const payload = makeMeasurementPayload({ kind, unit, value, measuredAtLocal: measuredAt });
+  const payload = makeMeasurementPayload({
+    kind,
+    unit,
+    value,
+    measuredAtLocal: measuredAt,
+    locale: i18n.locale,
+  });
   if (screen.access === "loading") {
     return (
       <Container>
@@ -335,6 +342,7 @@ function PrivateMeasurementsForSubject({ subject }: { subject: PrivateSubject })
                       className={INPUT_CLASS}
                       placeholderTextColor={placeholder}
                     />
+                    <DecimalHint value={value} />
                   </View>
                   <View className="gap-2">
                     <Text className="font-sans text-sm font-medium text-ink-2">{t`Unit`}</Text>

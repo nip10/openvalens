@@ -10,6 +10,7 @@ import { Check, Plus, Target, Trash2 } from "lucide-react-native";
 import { useState } from "react";
 import { Alert, Pressable, RefreshControl, Text, TextInput, View } from "react-native";
 
+import { DecimalHint } from "@/components/decimal-hint";
 import {
   EmptyState,
   ErrorState,
@@ -269,7 +270,7 @@ function GoalTodayCard({
 }
 
 function Action({ goal, onRefresh }: { goal: GoalSummary; onRefresh: () => void }) {
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const [value, setValue] = useState("");
   const save = useMutation(
     orpc.goals.createCheckin.mutationOptions({
@@ -341,13 +342,14 @@ function Action({ goal, onRefresh }: { goal: GoalSummary; onRefresh: () => void 
         variant="outline"
         isDisabled={!value.trim() || save.isPending}
         onPress={() => {
-          const amount = parseManualGoalValue(value);
+          const amount = parseManualGoalValue(value, i18n.locale);
           if (amount !== null)
             save.mutate({ goalId: goal.id, date, value: amount, clientMutationId: mutationId() });
         }}
       >
         <Button.Label>{save.isPending ? t`Saving…` : t`Log today`}</Button.Label>
       </Button>
+      <DecimalHint value={value} />
       {save.isError ? (
         <Text accessibilityRole="alert" className="text-xs text-destructive">
           {save.error.message ?? t`Could not save. Try again.`}

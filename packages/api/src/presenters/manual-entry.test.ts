@@ -97,6 +97,14 @@ describe("manual-entry presenter", () => {
     expect(parseManualEntryValue(weight, "abc")).toBeNull();
   });
 
+  test("parseManualEntryValue: reads a three-decimal value in the member's locale (#455)", () => {
+    const distance = MANUAL_ENTRY_FIELDS.distance;
+    expect(parseManualEntryValue(distance, "1,250", "pt-PT")).toBe(1.25);
+    expect(parseManualEntryValue(distance, "1.250", "en")).toBe(1.25);
+    expect(parseManualEntryValue(distance, "1,250", "en")).toBeNull();
+    expect(parseManualEntryValue(distance, "1,250")).toBeNull();
+  });
+
   test("parseManualEntryValue: rounds to 3 decimal places", () => {
     expect(parseManualEntryValue(MANUAL_ENTRY_FIELDS.weight, "72.4567")).toBe(72.457);
     expect(parseManualEntryValue(MANUAL_ENTRY_FIELDS.heart_rate, "72.4567")).toBe(72.457);

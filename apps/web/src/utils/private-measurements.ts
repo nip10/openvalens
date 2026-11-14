@@ -1,4 +1,4 @@
-import { parseDecimal } from "@openvalens/i18n/numbers";
+import { parseNumberInputValue } from "@openvalens/i18n/numbers";
 
 export const PRIVATE_MEASUREMENT_KINDS = [
   "weight",
@@ -50,7 +50,8 @@ export function makePrivateMeasurementPayload(input: {
   value: string;
   measuredAtLocal: string;
 }) {
-  const value = parseDecimal(input.value) ?? Number.NaN;
+  // The value comes from an `<input type="number">`, which always uses "." (#455).
+  const value = parseNumberInputValue(input.value) ?? Number.NaN;
   const measuredAt = new Date(input.measuredAtLocal);
   const localParts = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(input.measuredAtLocal);
   const validLocalTime = Boolean(

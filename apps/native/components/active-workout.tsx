@@ -27,6 +27,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { progressionWhy } from "@openvalens/api/presenters/workout-progression";
+import { parseDecimal } from "@openvalens/i18n/numbers";
 
 import { Sheet } from "@/components/bloom";
 import { DateField } from "@/components/date-field";
@@ -162,8 +163,13 @@ function SetRow({
         onChangeText={(v) => {
           setWeightText(v);
           if (!v.trim()) onChange({ ...set, weightKg: null });
-          else if (/^\d*[.,]?\d*$/.test(v) && v !== "." && v !== ",")
-            onChange({ ...set, weightKg: weightToKg(Number(v.replace(",", ".")), units) });
+          else {
+            // The shared parser with the member's locale (#455): "82,5" and
+            // "82.5" are 82.5; "1,250" is refused in English, not read as 1.25.
+            const weight = parseDecimal(v, i18n.locale);
+            if (weight !== null && weight >= 0)
+              onChange({ ...set, weightKg: weightToKg(weight, units) });
+          }
         }}
         placeholder={i18n._(
           units === "metric"

@@ -46,7 +46,7 @@ function ExerciseFields({
   units: "metric" | "imperial";
   onChange: (next: Partial<EditorExercise>) => void;
 }) {
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const [weightText, setWeightText] = useState(
     exercise.targetWeightKg == null
       ? ""
@@ -100,7 +100,7 @@ function ExerciseFields({
           setWeightText(value);
           if (value === "") onChange({ targetWeightKg: null });
           else {
-            const weight = parseDecimal(value);
+            const weight = parseDecimal(value, i18n.locale);
             if (weight !== null && weight >= 0)
               onChange({ targetWeightKg: weightToKg(weight, units) });
           }
@@ -152,7 +152,7 @@ function ExerciseFields({
             value={incrementText}
             onChangeText={(value) => {
               setIncrementText(value);
-              const increment = parseDecimal(value);
+              const increment = parseDecimal(value, i18n.locale);
               if (increment === null || increment < 0) return;
               const incrementKg = weightToKg(increment, units);
               const progression = exercise.progression;

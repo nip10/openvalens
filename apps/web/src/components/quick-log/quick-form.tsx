@@ -15,6 +15,7 @@ import { TRACKER_LIMITS } from "@openvalens/trackers/model";
 import { ArrowLeft } from "lucide-react";
 import { useEffect, useRef } from "react";
 
+import { DecimalHint } from "@/components/decimal-hint";
 import { ToneIcon } from "@/components/page";
 
 import { LOG_KIND_ICONS, LOG_KIND_TONES } from "./log-kind-icons";
@@ -112,6 +113,7 @@ export function QuickForm({
               <span className="text-sm text-ink-3">{symbol}</span>
             ) : null}
           </div>
+          <DecimalHint value={values[field.id]} />
         </div>
       );
     }

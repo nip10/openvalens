@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
+import { DecimalHint } from "@/components/decimal-hint";
 import { controlLinkClass, textLinkClass } from "@/components/food-classes";
 import { Page, PageHeader, Section, StatusPill, ToneIcon } from "@/components/page";
 import { client } from "@/utils/orpc";
@@ -67,6 +68,8 @@ function FoodDraftPage() {
   const [useAi, setUseAi] = useState(false);
   const [aiAgreed, setAiAgreed] = useState(false);
   const [candidates, setCandidates] = useState<FoodDraftCandidateWire[] | null>(null);
+  // What the member typed in each quantity, so "8," stays while they type (#455).
+  const [quantityText, setQuantityText] = useState<Record<string, string>>({});
   const [source, setSource] = useState<"text" | "photo">("text");
   const [message, setMessage] = useState<MessageDescriptor | null>(null);
   const [photo, setPhoto] = useState<File | null>(null);
@@ -91,6 +94,7 @@ function FoodDraftPage() {
       setAiAgreed(false);
       setSource("text");
       setCandidates(result.status === "ready" ? result.candidates : null);
+      setQuantityText({});
       setMessage(FOOD_DRAFT_COPY.status[result.status]);
     },
     onError: () => setMessage(DRAFT_FAILED),
@@ -109,6 +113,7 @@ function FoodDraftPage() {
       setPhotoAgreed(false);
       setSource("photo");
       setCandidates(result.status === "ready" ? result.candidates : null);
+      setQuantityText({});
       setPhotoMessage(PHOTO_DRAFT_COPY.status[result.status]);
     },
     onError: (error) => setPhotoMessage(isPayloadTooLarge(error) ? PHOTO_TOO_LARGE : DRAFT_FAILED),
@@ -313,9 +318,11 @@ function FoodDraftPage() {
                     <Input
                       id={`${item.id}-quantity`}
                       inputMode="decimal"
-                      value={item.quantity ?? ""}
+                      value={quantityText[item.id] ?? item.quantity ?? ""}
                       onChange={(event) => {
-                        const value = parseDecimal(event.target.value);
+                        const text = event.target.value;
+                        setQuantityText((current) => ({ ...current, [item.id]: text }));
+                        const value = parseDecimal(text, i18n.locale);
                         const quantity = value !== null && value > 0 ? value : null;
                         edit(item.id, {
                           quantity,
@@ -327,6 +334,7 @@ function FoodDraftPage() {
                         });
                       }}
                     />
+                    <DecimalHint value={quantityText[item.id]} />
                   </div>
                   <div className="grid gap-1.5">
                     <Label htmlFor={`${item.id}-unit`} className="text-sm font-medium text-ink-3">

@@ -108,6 +108,8 @@ describe("private measurement presenters", () => {
     // #448: a decimal comma is a decimal; mixed separators are refused.
     expect(makePrivateMeasurementPayload({ ...base, value: "62,5" })?.value).toBe(62.5);
     expect(makePrivateMeasurementPayload({ ...base, value: "1.062,5" })).toBeNull();
+    // #455: a number input always reports "1.250" with a point, so it is 1.25.
+    expect(makePrivateMeasurementPayload({ ...base, value: "1.250" })?.value).toBe(1.25);
   });
 
   test("delete failure remains attached to its row for visible recovery", () => {

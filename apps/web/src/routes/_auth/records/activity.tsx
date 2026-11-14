@@ -44,6 +44,7 @@ import { useState } from "react";
 import { BarChart3, Flame, Footprints, Plus, Route as RouteIcon } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
+import { DecimalHint } from "@/components/decimal-hint";
 import {
   Details,
   EmptyState,
@@ -88,7 +89,7 @@ function AddReadingForm({ onSaved }: { onSaved: () => void }) {
     }),
   );
 
-  const numeric = parseManualEntryValue(field, value);
+  const numeric = parseManualEntryValue(field, value, i18n.locale);
   const submit = () => {
     if (numeric === null) return;
     save.mutate({
@@ -136,6 +137,7 @@ function AddReadingForm({ onSaved }: { onSaved: () => void }) {
             onChange={(event) => setValue(event.target.value)}
             placeholder={`${field.min}–${field.max}`}
           />
+          <DecimalHint value={value} />
         </div>
         <div className="grid gap-2">
           <Label className="text-sm font-medium">

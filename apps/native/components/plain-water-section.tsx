@@ -457,7 +457,7 @@ function PlainWaterDayPanel({
   };
 
   const submitAdd = () => {
-    const parsed = parseWaterAmount(amount, addUnit);
+    const parsed = parseWaterAmount(amount, addUnit, i18n.locale);
     if (!parsed.ok) {
       fail(setFormError, parsed.error);
       return;
@@ -488,7 +488,7 @@ function PlainWaterDayPanel({
   const submitEdit = () => {
     if (!editing) return;
     let patch: { quantity?: number; unit?: WaterUnit; observedAt?: string; timeZone?: string } = {};
-    const amountPatch = waterEditAmountPatch(editing);
+    const amountPatch = waterEditAmountPatch(editing, i18n.locale);
     if (!amountPatch.ok) {
       fail(setFormError, amountPatch.error);
       return;

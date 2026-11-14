@@ -18,6 +18,7 @@ import { FlaskConical, Plus, TestTube } from "lucide-react-native";
 import { useState } from "react";
 import { RefreshControl, Text, TextInput, View } from "react-native";
 
+import { DecimalHint } from "@/components/decimal-hint";
 import {
   EmptyState,
   ErrorState,
@@ -39,7 +40,7 @@ import { ModuleHiddenNote } from "@/components/module-hidden-note";
 
 function AddReadingForm({ markerCode, onSaved }: { markerCode: string; onSaved: () => void }) {
   const [value, setValue] = useState("");
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const placeholderColor = useThemeColor("ink-3");
   const [observedAt, setObservedAt] = useState(defaultObservedAt());
 
@@ -55,7 +56,7 @@ function AddReadingForm({ markerCode, onSaved }: { markerCode: string; onSaved: 
   );
 
   const field = { min: 0, max: 100_000 } as const;
-  const numeric = parseManualEntryValue(field, value);
+  const numeric = parseManualEntryValue(field, value, i18n.locale);
 
   const submit = () => {
     if (numeric === null) return;
@@ -83,6 +84,7 @@ function AddReadingForm({ markerCode, onSaved }: { markerCode: string; onSaved: 
               className="min-h-11 rounded-xl border border-rule-2 bg-paper-2 px-3 font-sans text-base text-ink"
               placeholderTextColor={placeholderColor}
             />
+            <DecimalHint value={value} />
           </View>
           <View className="flex-1 gap-2">
             <Text className="font-sans text-sm text-ink-3">{t`Observed at`}</Text>

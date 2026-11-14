@@ -60,8 +60,10 @@ export function makeMeasurementPayload(input: {
   unit: string;
   value: string;
   measuredAtLocal: string;
+  /** The member's, so "1,250" is 1.25 in pt-PT (#455). */
+  locale?: string;
 }) {
-  const value = parseDecimal(input.value) ?? Number.NaN;
+  const value = parseDecimal(input.value, input.locale) ?? Number.NaN;
   const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(input.measuredAtLocal);
   const date = new Date(input.measuredAtLocal);
   const validTime = Boolean(

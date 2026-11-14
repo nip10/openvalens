@@ -199,7 +199,7 @@ function PlainWaterDayViewState({
 
   const submitAdd = async () => {
     if (addGeneration === null) return;
-    const parsed = parseWaterAmount(amount, addUnit);
+    const parsed = parseWaterAmount(amount, addUnit, i18n.locale);
     if (!parsed.ok) return setAddError(i18n._(parsed.error));
     const instant = waterDateInstant(localDate, clock, timeZone);
     if (!instant.ok)
@@ -227,7 +227,7 @@ function PlainWaterDayViewState({
   const submitEdit = async () => {
     if (!editing || editGeneration === null) return;
     const timeChanged = editing.clock !== editing.originalClock;
-    const amountPatch = waterEditAmountPatch(editing);
+    const amountPatch = waterEditAmountPatch(editing, i18n.locale);
     if (!amountPatch.ok) return setEditError(i18n._(amountPatch.error));
     let patch: { quantity?: number; unit?: WaterUnit; observedAt?: string; timeZone?: string } =
       amountPatch.patch;

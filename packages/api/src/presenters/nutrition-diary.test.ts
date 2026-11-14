@@ -315,6 +315,24 @@ describe("portion preview", () => {
     ).toMatchObject({ ok: false });
   });
 
+  test("quick add: the member's locale reads a three-decimal amount; a two-way one says why (#455)", () => {
+    const quick = (fatG: string, locale: string) =>
+      parseQuickAdd(
+        { name: "Oats", basisAmount: "100", basisUnit: "g", nutrients: { fatG } },
+        locale,
+      );
+    expect(quick("1,250", "pt-PT")).toMatchObject({
+      ok: true,
+      food: { nutrients: { fatG: 1.25 } },
+    });
+    expect(quick("1.250", "en")).toMatchObject({ ok: true, food: { nutrients: { fatG: 1.25 } } });
+    const refused = quick("2,000", "en");
+    if (refused.ok) throw new Error("expected a refusal");
+    expect(inEnglish(refused.error)).toBe(
+      "“2,000” could mean 2000 or 2. Type 2000 or 2, whichever you mean.",
+    );
+  });
+
   test("quick add: a decimal comma is a decimal (#448)", () => {
     const quick = (value: string) =>
       parseQuickAdd({

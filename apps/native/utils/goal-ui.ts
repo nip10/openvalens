@@ -18,13 +18,15 @@ export function goalDetailRouteParams(goalId: number) {
   return { pathname: "/goals/[goalId]" as const, params: { goalId: String(goalId) } };
 }
 
+/** `locale` is the member's, so "1,250" is 1.25 in pt-PT (#455). */
 export function checkinCorrectionPayload(
   value: string,
   completionOnly: boolean,
   completed: boolean,
+  locale?: string,
 ) {
   if (completionOnly) return { completed };
-  const parsed = parseDecimal(value);
+  const parsed = parseDecimal(value, locale);
   return parsed === null ? null : { value: parsed };
 }
 
@@ -63,6 +65,7 @@ export function goalRuleLabel(rule: GoalDefinition["rule"]): string {
   return `${rule.daysPerWeek} days per Monday–Sunday week`;
 }
 
-export function parseManualGoalValue(value: string): number | null {
-  return parseDecimal(value);
+/** `locale` is the member's, so "1,250" is 1.25 in pt-PT (#455). */
+export function parseManualGoalValue(value: string, locale?: string): number | null {
+  return parseDecimal(value, locale);
 }

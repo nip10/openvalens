@@ -36,6 +36,7 @@ import { useState } from "react";
 import { CalendarDays, Plus, Scale, TrendingDown, TrendingUp } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
+import { DecimalHint } from "@/components/decimal-hint";
 import {
   Details,
   EmptyState,
@@ -97,7 +98,7 @@ function AddWeightForm({ onSaved }: { onSaved: () => void }) {
     }),
   );
 
-  const numeric = parseManualEntryValue(field, value);
+  const numeric = parseManualEntryValue(field, value, i18n.locale);
   const submit = () => {
     if (numeric === null) return;
     save.mutate({
@@ -121,6 +122,7 @@ function AddWeightForm({ onSaved }: { onSaved: () => void }) {
             onChange={(event) => setValue(event.target.value)}
             placeholder={`${field.min}–${field.max}`}
           />
+          <DecimalHint value={value} />
         </div>
         <div className="grid gap-2">
           <Label className="text-sm font-medium">

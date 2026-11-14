@@ -216,12 +216,35 @@ describe("forms", () => {
     ).toBe(false);
   });
 
+  test("target form: the member's locale reads a three-decimal value; a two-way value says why (#455)", () => {
+    const energy = (min: string, max: string, locale?: string) =>
+      parseTargetForm("energyKcal", { min, max, effectiveFrom: "2026-10-01" }, locale);
+    expect(energy("1,250", "", "pt-PT")).toMatchObject({ ok: true, input: { minAmount: 1.25 } });
+    expect(energy("1.250", "", "en")).toMatchObject({ ok: true, input: { minAmount: 1.25 } });
+    const refused = energy("2,000", "", "en");
+    expect(refused.ok).toBe(false);
+    if (!refused.ok)
+      expect(inEnglish(refused.error)).toBe(
+        "“2,000” could mean 2000 or 2. Type 2000 or 2, whichever you mean.",
+      );
+    const refusedMax = energy("1800", "2.500", "pt-PT");
+    if (refusedMax.ok) throw new Error("expected a refusal");
+    expect(inEnglish(refusedMax.error)).toBe(
+      "“2.500” could mean 2500 or 2,5. Type 2500 or 2,5, whichever you mean.",
+    );
+    // Other invalid text keeps its own message.
+    const negative = energy("-3", "", "en");
+    if (negative.ok) throw new Error("expected a refusal");
+    expect(inEnglish(negative.error)).toBe("Energy targets must be 0 or more, or left blank.");
+  });
+
   test("height: blank clears, out of range is refused", () => {
     expect(parseHeight("")).toEqual({ ok: true, value: null });
     expect(parseHeight("172.5")).toEqual({ ok: true, value: 172.5 });
     expect(parseHeight("72").ok).toBe(false);
     expect(parseHeight("172,5")).toEqual({ ok: true, value: 172.5 });
     expect(parseHeight("1.72,5").ok).toBe(false);
+    expect(parseHeight("172,5", "en")).toEqual({ ok: true, value: 172.5 });
   });
 
   test("removing an eating-disorder answer is detected for the separate confirmation", () => {
