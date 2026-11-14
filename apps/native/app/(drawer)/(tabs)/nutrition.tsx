@@ -68,6 +68,7 @@ import { type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState }
 import {
   Apple,
   Bookmark,
+  Bot,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -142,6 +143,14 @@ import { DIARY_CACHE_PREFIX, useDiaryOutbox, type DiaryOutbox } from "@/lib/nutr
 import { completeAddFoodCreation, useAddFoodSaveLifecycle } from "@/lib/nutrition/save-intent";
 import { FoodLoggerDismissal } from "@/lib/nutrition/logger-dismissal";
 import { FoodLoggerCapture } from "@/components/food-logger-capture";
+import {
+  AiAppFoodDraftReview,
+  AiAppFoodDrafts,
+  useAiAppDraftActions,
+  useAiAppDrafts,
+  type AiAppFoodDraft,
+} from "@/components/ai-app-drafts";
+import { aiFoodDraftHref } from "@/utils/ai-app-food-draft";
 import type { FoodDraftCandidateWire } from "@openvalens/api/contracts/nutrition-food-drafts";
 import { canEditLoggerInput, visibleLoggerInput } from "@/lib/nutrition/logger-input";
 import { readCache, writeCache } from "@/lib/offline/cache";
@@ -669,6 +678,9 @@ export default function NutritionScreen() {
           {attention.map((item) => (
             <AttentionCard key={item.id} item={item} outbox={outbox} hideNumbers={hideNumbers} />
           ))}
+
+          {/* Meal drafts a connected AI app made, waiting for the member (#439, M2c). */}
+          <AiAppFoodDrafts onReview={(draft) => router.push(aiFoodDraftHref(draft, timeZone))} />
 
           {undo ? (
             <Sheet className="flex-row items-center justify-between gap-3 p-4">
@@ -1852,7 +1864,7 @@ export type AddFoodLoggerProps = {
   outbox: DiaryOutbox;
   hideNumbers: boolean;
   initialMeal: MealSlot;
-  initialMode?: "choose" | "describe" | "templates" | "barcode";
+  initialMode?: "choose" | "describe" | "templates" | "barcode" | "app";
   /** When the food was eaten, picked on the timeline (#393); omitted = when it is logged. */
   consumedAt?: string;
   recipeImportEnabled?: boolean;
@@ -1861,6 +1873,8 @@ export type AddFoodLoggerProps = {
   })[];
   voiceDraftsEnabled?: boolean;
   photoDraftsEnabled?: boolean;
+  /** A meal draft a connected AI app made (#439, M2c), reviewed in the "From app" tab. */
+  aiDraftId?: string;
   onClose: () => void;
 };
 
@@ -1879,11 +1893,12 @@ export function AddFood({
   seedIngredients,
   voiceDraftsEnabled = false,
   photoDraftsEnabled = false,
+  aiDraftId,
   onClose,
 }: AddFoodLoggerProps) {
   const [mode, setMode] = useState<
-    "choose" | "barcode" | "quick" | "describe" | "photo" | "templates"
-  >(initialMode);
+    "choose" | "barcode" | "quick" | "describe" | "photo" | "templates" | "app"
+  >(aiDraftId ? initialMode : initialMode === "app" ? "choose" : initialMode);
   const [slot, setSlot] = useState<MealSlot>(initialMeal);
   const [query, setQuery] = useState(initialQuery);
   const [chosen, setChosen] = useState<FoodCandidate | null>(null);
@@ -1900,7 +1915,20 @@ export function AddFood({
   const [captureItems, setCaptureItems] = useState<FoodDraftCandidateWire[]>([]);
   const [activeCaptureId, setActiveCaptureId] = useState<string | null>(null);
   const [completedCaptureIds, setCompletedCaptureIds] = useState<string[]>([]);
-  const [captureReturnMode, setCaptureReturnMode] = useState<"describe" | "photo">("describe");
+  const [captureReturnMode, setCaptureReturnMode] = useState<"describe" | "photo" | "app">(
+    aiDraftId ? "app" : "describe",
+  );
+  // A meal draft from a connected AI app (#439, M2c): its items are the capture items.
+  const aiDrafts = useAiAppDrafts("food", Boolean(aiDraftId));
+  const aiDraft: AiAppFoodDraft | null =
+    aiDrafts.drafts.find((draft) => draft.id === aiDraftId) ?? null;
+  const aiDraftActions = useAiAppDraftActions();
+  const loadedAiDraft = useRef<string | null>(null);
+  useEffect(() => {
+    if (!aiDraft || loadedAiDraft.current === aiDraft.id) return;
+    loadedAiDraft.current = aiDraft.id;
+    setCaptureItems(aiDraft.payload.items);
+  }, [aiDraft]);
   const lifecycle = useAddFoodSaveLifecycle(contextKey);
   const { editable } = lifecycle;
   const { t, i18n } = useLingui();
@@ -1950,7 +1978,7 @@ export function AddFood({
   const switchMode = (next: typeof mode) => {
     if (!lifecycle.canMutate()) return;
     setMode(next);
-    if (next === "describe" || next === "photo") setCaptureReturnMode(next);
+    if (next === "describe" || next === "photo" || next === "app") setCaptureReturnMode(next);
     setChosen(null);
     if (next !== "quick") setDraftNote(null);
   };
@@ -2264,6 +2292,36 @@ export function AddFood({
     return;
   };
 
+  /** The items of a described meal, a photo or an AI app's meal draft, each matched in Search. */
+  const captureList = () =>
+    captureItems.map((item, index) => {
+      const done = completedCaptureIds.includes(item.id);
+      return (
+        <Sheet key={item.id} className="flex-row flex-wrap items-center gap-2 p-3">
+          <View className="min-w-0 flex-1 gap-1">
+            <Text className="font-sans text-sm font-semibold text-ink">{item.foodText}</Text>
+            <Text className="font-sans text-xs text-ink-3">
+              {hideNumbers ? i18n._(HIDDEN_VALUE) : (item.quantityText ?? t`No quantity`)}
+              {item.unitText ? ` · ${item.unitText}` : ""}
+            </Text>
+          </View>
+          {done ? (
+            <Text className="font-sans text-sm text-ink-3">{t`Done`}</Text>
+          ) : (
+            <Button
+              className="min-h-11"
+              variant="outline"
+              testID={`capture-item-match-${index + 1}`}
+              isDisabled={!editable}
+              onPress={() => selectCaptureItem(item)}
+            >
+              <Button.Label>{t`Match food and review`}</Button.Label>
+            </Button>
+          )}
+        </Sheet>
+      );
+    });
+
   return (
     <KeyboardAvoidingView
       className="flex-1 bg-background"
@@ -2319,6 +2377,17 @@ export function AddFood({
                   : []),
                 ...(photoDraftsEnabled
                   ? [{ value: "photo" as const, icon: ScanBarcode, label: t`Photo` }]
+                  : []),
+                ...(aiDraftId
+                  ? [
+                      {
+                        value: "app" as const,
+                        icon: Bot,
+                        label: t({ message: "From app", context: "add food mode" }),
+                        accessibilityLabel: t`Meal draft from a connected AI app`,
+                        testID: "add-food-mode-app",
+                      },
+                    ]
                   : []),
               ]}
             />
@@ -2476,37 +2545,26 @@ export function AddFood({
                     setCaptureItems(items);
                   }}
                 />
-                {captureItems.map((item) => {
-                  const done = completedCaptureIds.includes(item.id);
-                  return (
-                    <Sheet key={item.id} className="flex-row flex-wrap items-center gap-2 p-3">
-                      <View className="min-w-0 flex-1 gap-1">
-                        <Text className="font-sans text-sm font-semibold text-ink">
-                          {item.foodText}
-                        </Text>
-                        <Text className="font-sans text-xs text-ink-3">
-                          {hideNumbers
-                            ? i18n._(HIDDEN_VALUE)
-                            : (item.quantityText ?? t`No quantity`)}
-                          {item.unitText ? ` · ${item.unitText}` : ""}
-                        </Text>
-                      </View>
-                      {done ? (
-                        <Text className="font-sans text-sm text-ink-3">{t`Done`}</Text>
-                      ) : (
-                        <Button
-                          className="min-h-11"
-                          variant="outline"
-                          isDisabled={!editable}
-                          onPress={() => selectCaptureItem(item)}
-                        >
-                          <Button.Label>{t`Match food and review`}</Button.Label>
-                        </Button>
-                      )}
-                    </Sheet>
-                  );
-                })}
+                {captureList()}
               </View>
+            ) : mode === "app" && aiDraftId ? (
+              <AiAppFoodDraftReview
+                draftId={aiDraftId}
+                draft={aiDraft}
+                isPending={aiDrafts.isPending}
+                actions={aiDraftActions}
+                renderItems={captureList}
+                onClosed={(outcome) => {
+                  // The draft is dealt with: closing must not also announce "nothing saved".
+                  dismissalState.current!.markSaved();
+                  close();
+                  announce(
+                    outcome === "done"
+                      ? t`Draft done. The foods you logged are in your meal diary.`
+                      : t`Draft discarded.`,
+                  );
+                }}
+              />
             ) : (
               <View className="gap-2">
                 {draftNote ? (

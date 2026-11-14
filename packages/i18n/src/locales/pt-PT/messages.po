@@ -13,9 +13,14 @@ msgstr ""
 msgid "—"
 msgstr "—"
 
+#: apps/native/components/ai-app-drafts.tsx
 #: apps/web/src/components/ai-app-drafts.tsx
 msgid "“{name}” is not in the exercise catalog. Choose one, or add it as your own."
 msgstr "“{name}” não está no catálogo de exercícios. Escolha um ou adicione-o como seu."
+
+#: apps/native/components/ai-app-drafts.tsx
+msgid "“{name}” will be saved as {chosenName}"
+msgstr "“{name}” será guardado como {chosenName}"
 
 #: apps/web/src/components/ai-app-drafts.tsx
 msgid "“{name}” will be saved as <0>{chosenName}</0>"
@@ -158,6 +163,7 @@ msgstr "{0, plural, one {# sessão} other {# sessões}}, {1}"
 
 #. placeholder {0}: counts.sets
 #. placeholder {0}: item.sets.length
+#: apps/native/components/ai-app-drafts.tsx
 #: apps/native/components/workout-session.tsx
 #: apps/web/src/components/ai-app-drafts.tsx
 msgid "{0, plural, one {# set} other {# sets}}"
@@ -921,6 +927,7 @@ msgstr "{luteal}: {0} a {1}"
 msgid "{luteal}: {from} to {to}"
 msgstr "{luteal}: {from} a {to}"
 
+#: apps/native/components/ai-app-drafts.tsx
 #: apps/web/src/components/ai-app-drafts.tsx
 msgid "{marker}, from {app}"
 msgstr "{marker}, de {app}"
@@ -1198,6 +1205,7 @@ msgstr "{type}, {minutes} min, no mesmo dia"
 msgid "{type}, 2 days before"
 msgstr "{type}, 2 dias antes"
 
+#: apps/native/components/ai-app-drafts.tsx
 #: apps/web/src/components/ai-app-drafts.tsx
 msgid "{type}, from {app}"
 msgstr "{type}, de {app}"
@@ -1465,14 +1473,17 @@ msgstr "Está a ser enviada uma alteração. Nada foi removido. Tente novamente 
 msgid "A change is being sent right now. Nothing was removed. Try again when it finishes."
 msgstr "Está a ser enviada uma alteração. Nada foi removido. Tente novamente quando terminar."
 
+#: apps/native/components/ai-app-drafts.tsx
 #: apps/web/src/components/ai-app-drafts.tsx
 msgid "A connected AI app made these from what you told it. Review one to match each item to a food and log it in your meal diary; nothing is logged until you do."
 msgstr "Uma aplicação de IA ligada fez estes rascunhos a partir do que lhe disse. Reveja um para associar cada item a um alimento e registá-lo no diário de refeições; nada é registado até o fazer."
 
+#: apps/native/components/ai-app-drafts.tsx
 #: apps/web/src/components/ai-app-drafts.tsx
 msgid "A connected AI app sent these results. Check each one against the report before you save it; nothing is in your labs until you do."
 msgstr "Uma aplicação de IA ligada enviou estes resultados. Confira cada um com o relatório antes de o guardar; nada fica nas suas análises até o fazer."
 
+#: apps/native/components/ai-app-drafts.tsx
 #: apps/web/src/components/ai-app-drafts.tsx
 msgid "A connected AI app sent these workouts with an exercise that is not in the catalog. Choose a catalog exercise or add it as your own, then save; nothing is in your workouts until you do."
 msgstr "Uma aplicação de IA ligada enviou estes treinos com um exercício que não está no catálogo. Escolha um exercício do catálogo ou adicione-o como seu e guarde; nada fica nos seus treinos até o fazer."
@@ -1855,6 +1866,7 @@ msgstr "Adicionar"
 msgid "Add “{0}” as a custom exercise"
 msgstr "Adicionar “{0}” como exercício personalizado"
 
+#: apps/native/components/ai-app-drafts.tsx
 #: apps/web/src/components/ai-app-drafts.tsx
 msgid "Add “{name}” as my own exercise"
 msgstr "Adicionar “{name}” como exercício meu"
@@ -3379,6 +3391,7 @@ msgstr "Os intervalos de passos por hora do Casio sincronizam automaticamente en
 msgid "Catalog exercise"
 msgstr "Exercício do catálogo"
 
+#: apps/native/components/ai-app-drafts.tsx
 #: apps/web/src/components/ai-app-drafts.tsx
 msgid "Catalog exercises"
 msgstr "Exercícios do catálogo"
@@ -3392,6 +3405,7 @@ msgid "Catalog search is unavailable. You can still add an exercise by name."
 msgstr "A pesquisa no catálogo não está disponível. Ainda pode adicionar um exercício pelo nome."
 
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
+#: apps/native/components/ai-app-drafts.tsx
 #: apps/web/src/components/ai-app-drafts.tsx
 msgid "Change"
 msgstr "Alterar"
@@ -4534,6 +4548,7 @@ msgstr "Não foi possível aceitar o convite."
 msgid "Could not activate your workspace. Please try again."
 msgstr "Não foi possível ativar o seu espaço de trabalho. Tente novamente."
 
+#: apps/native/components/ai-app-drafts.tsx
 #: apps/web/src/components/ai-app-drafts.tsx
 msgid "Could not add the exercise. Try again."
 msgstr "Não foi possível adicionar o exercício. Tente novamente."
@@ -6321,6 +6336,7 @@ msgid "Disabled"
 msgstr "Desativado"
 
 #: apps/native/components/active-workout.tsx
+#: apps/native/components/ai-app-drafts.tsx
 #: apps/native/components/workout-session.tsx
 #: apps/web/src/components/ai-app-drafts.tsx
 msgid "Discard"
@@ -6341,6 +6357,7 @@ msgstr "Descartar e continuar"
 msgid "Discard change"
 msgstr "Descartar alteração"
 
+#: apps/native/components/ai-app-drafts.tsx
 #: apps/native/components/recipe-draft-editor.tsx
 #: apps/web/src/components/recipe-draft-editor.tsx
 #: apps/web/src/routes/_auth/food-draft.tsx
@@ -6558,10 +6575,15 @@ msgstr "A transferir…"
 msgid "Draft cleared. Nothing was saved."
 msgstr "Rascunho limpo. Nada foi guardado."
 
+#: apps/native/app/(drawer)/(tabs)/nutrition.tsx
+msgid "Draft discarded."
+msgstr "Rascunho descartado."
+
 #: apps/web/src/routes/_auth/food-draft.tsx
 msgid "Draft discarded. Nothing was saved."
 msgstr "Rascunho descartado. Nada foi guardado."
 
+#: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 #: apps/web/src/routes/_auth/food-draft.tsx
 msgid "Draft done. The foods you logged are in your meal diary."
 msgstr "Rascunho concluído. Os alimentos que registou estão no diário de refeições."
@@ -7817,6 +7839,11 @@ msgstr "A partir de um dispositivo ou aplicação"
 #: apps/web/src/routes/_auth/food-draft.tsx
 msgid "From a photo"
 msgstr "A partir de uma fotografia"
+
+#: apps/native/app/(drawer)/(tabs)/nutrition.tsx
+msgctxt "add food mode"
+msgid "From app"
+msgstr "Da app"
 
 #: apps/native/app/server.tsx
 msgid "From the link"
@@ -9772,6 +9799,7 @@ msgstr "A carregar o seu espaço de trabalho…"
 #: apps/native/app/(drawer)/micronutrients.tsx
 #: apps/native/app/(drawer)/nutrition-targets.tsx
 #: apps/native/app/(drawer)/settings.tsx
+#: apps/native/components/ai-app-drafts.tsx
 #: apps/native/components/ai-section.tsx
 #: apps/native/components/insights-section.tsx
 #: apps/native/components/nutrition-trend-card.tsx
@@ -9874,6 +9902,7 @@ msgstr "Registar dose"
 msgid "Log doses actually taken. Schedules are reminders, not proof. Goals count the day once, while every dose stays recorded."
 msgstr "Registe as doses realmente tomadas. Os horários são lembretes, não comprovativos. As metas contam cada dia uma vez, mas todas as doses ficam registadas."
 
+#: apps/native/components/ai-app-drafts.tsx
 #: apps/web/src/routes/_auth/food-draft.tsx
 msgid "Log each food in your meal diary, then mark the draft done. It stays here until you do."
 msgstr "Registe cada alimento no diário de refeições e depois marque o rascunho como concluído. Fica aqui até o fazer."
@@ -10239,6 +10268,7 @@ msgstr "Marcar como feito diariamente"
 msgid "Mark done today"
 msgstr "Marcar como feito hoje"
 
+#: apps/native/components/ai-app-drafts.tsx
 #: apps/web/src/routes/_auth/food-draft.tsx
 msgid "Mark draft done"
 msgstr "Marcar rascunho como concluído"
@@ -10334,6 +10364,7 @@ msgid "May help slightly"
 msgstr "Pode ajudar ligeiramente"
 
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
+#: apps/native/components/ai-app-drafts.tsx
 #: apps/web/src/components/ai-app-drafts.tsx
 #: apps/web/src/routes/_auth/nutrition.tsx
 msgid "Meal"
@@ -10353,10 +10384,16 @@ msgstr "Diário de refeições"
 msgid "Meal diary, water, nutrients"
 msgstr "Diário de refeições, água, nutrientes"
 
+#: apps/native/components/ai-app-drafts.tsx
 #: apps/web/src/components/ai-app-drafts.tsx
 msgid "Meal draft from {app}"
 msgstr "Rascunho de refeição de {app}"
 
+#: apps/native/app/(drawer)/(tabs)/nutrition.tsx
+msgid "Meal draft from a connected AI app"
+msgstr "Rascunho de refeição de uma app de IA ligada"
+
+#: apps/native/components/ai-app-drafts.tsx
 #: apps/web/src/components/ai-app-drafts.tsx
 msgid "Meal drafts waiting for your review"
 msgstr "Rascunhos de refeições à espera da sua revisão"
@@ -14355,6 +14392,7 @@ msgstr "Tentar carregar treinos"
 msgid "Returns you to:"
 msgstr "Regressa a:"
 
+#: apps/native/components/ai-app-drafts.tsx
 #: apps/web/src/components/ai-app-drafts.tsx
 msgid "Review"
 msgstr "Rever"
@@ -14903,11 +14941,13 @@ msgstr "Guardar em {slotLabel}"
 msgid "Save to my foods for next time"
 msgstr "Guardar nos meus alimentos para a próxima vez"
 
+#: apps/native/components/ai-app-drafts.tsx
 #: apps/web/src/components/ai-app-drafts.tsx
 msgid "Save to my labs"
 msgstr "Guardar nas minhas análises"
 
 #: apps/native/components/active-workout.tsx
+#: apps/native/components/ai-app-drafts.tsx
 #: apps/web/src/components/ai-app-drafts.tsx
 #: apps/web/src/components/workout-session-editor.tsx
 msgid "Save workout"
@@ -15196,6 +15236,7 @@ msgstr "Pesquisar alimentos, adiciona a {0}"
 msgid "Search foods, logs at {0}"
 msgstr "Pesquisar alimentos, regista às {0}"
 
+#: apps/native/components/ai-app-drafts.tsx
 #: apps/web/src/components/ai-app-drafts.tsx
 msgid "Search the catalog"
 msgstr "Pesquisar no catálogo"
@@ -17543,6 +17584,10 @@ msgstr "Este dispositivo não corresponde à associação guardada selecionada. 
 msgid "This device's access was revoked. Reconnect from the web app."
 msgstr "O acesso deste dispositivo foi revogado. Volte a ligar a partir da aplicação web."
 
+#: apps/native/components/ai-app-drafts.tsx
+msgid "This draft was already reviewed or discarded."
+msgstr "Este rascunho já foi revisto ou descartado."
+
 #: apps/web/src/components/admission-form.tsx
 msgid "This email may already belong to an account. Send a sign-in link to <0>{email}</0>, then return to this tab and enter the token again."
 msgstr "Este email pode já pertencer a uma conta. Envie uma ligação de início de sessão para <0>{email}</0>; depois volte a este separador e introduza novamente o token."
@@ -18996,6 +19041,7 @@ msgstr "Cintura"
 msgid "Waiting for a record."
 msgstr "À espera de um registo."
 
+#: apps/native/components/ai-app-drafts.tsx
 #: apps/web/src/components/ai-app-drafts.tsx
 msgid "Waiting for your review"
 msgstr "À espera da sua revisão"

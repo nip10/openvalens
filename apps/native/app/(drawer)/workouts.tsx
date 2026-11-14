@@ -46,6 +46,7 @@ import { friendlyDate } from "@/utils/friendly";
 import { orpc } from "@/utils/orpc";
 import { useThemeColor } from "@/utils/theme";
 import { ModuleHiddenNote } from "@/components/module-hidden-note";
+import { AiAppWorkoutDrafts } from "@/components/ai-app-drafts";
 import { WorkoutSession } from "@/components/workout-session";
 import { SessionCard, TrainingStart, TrainingWeek } from "@/components/training-home";
 import { toggleEffort } from "@/utils/activity-load-screen";
@@ -406,6 +407,9 @@ export default function WorkoutsScreen() {
       <Page>
         <ModuleHiddenNote module="activity" />
         {header}
+
+        {/* Workouts a connected AI app sent with a non-catalog exercise (#439, M2c). */}
+        <AiAppWorkoutDrafts onSaved={reloadWorkouts} />
 
         <WorkoutSession />
         {session.draft ? null : (

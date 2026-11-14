@@ -62,7 +62,9 @@ carries no nutrient value. Unlike the drafts above, it is stored
 (`ai_app_draft`) until the member deals with it: "Describe a meal" lists it
 with "via <app name>", "Review" opens it in the same review and logging steps,
 and the member marks it done or discards it. Nothing is in the meal diary
-until the member logs each food there.
+until the member logs each food there. On mobile, the food diary lists it and
+"Review" opens Add food's "From app" tab, which logs on the day, in the meal
+and at the time the app sent.
 
 # Food drafts from a meal photo (#71)
 
