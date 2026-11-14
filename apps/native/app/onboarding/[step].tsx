@@ -1,6 +1,4 @@
 import { useLingui } from "@lingui/react/macro";
-import { wellnessProfileQueryKey } from "@openvalens/api/presenters/wellness-profile";
-import { useQueryClient } from "@tanstack/react-query";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
 import { useEffect, useRef } from "react";
 
@@ -23,7 +21,6 @@ import {
   nextRoute,
   previousRoute,
 } from "@/lib/onboarding/steps";
-import { client } from "@/utils/orpc";
 
 /**
  * Onboarding (#444) — one screen of the first run: before you start (age
@@ -35,20 +32,18 @@ export default function OnboardingStepScreen() {
   const requested = isOnboardingRoute(params.step) ? params.step : "start";
   const flow = useOnboardingProfile();
   const consent = useHealthConsentStatus(flow.userId);
-  const queryClient = useQueryClient();
   const { t } = useLingui();
   const { snapshot, userId } = flow;
 
   // Opening the first run marks it as seen, so it opens by itself only once.
+  // It goes through the flow's writes, so Continue waits for it.
   const marked = useRef(false);
+  const { markStarted } = flow;
   useEffect(() => {
     if (marked.current || !snapshot || snapshot.setupStatus !== null) return;
     marked.current = true;
-    void client.profile
-      .update({ expectedRevision: snapshot.revision, setupStatus: "in_progress" })
-      .then((next) => queryClient.setQueryData(wellnessProfileQueryKey(userId), next))
-      .catch(() => undefined);
-  }, [snapshot, queryClient, userId]);
+    markStarted();
+  }, [snapshot, markStarted]);
 
   if (!userId) return <Redirect href="/" />;
   if (flow.profile.isPending || consent.isLoading) return <OnboardingLoading />;

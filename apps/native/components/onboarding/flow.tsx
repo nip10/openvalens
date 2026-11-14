@@ -10,14 +10,11 @@ import {
   describeProfileSaveError,
   wellnessProfileQueryKey,
 } from "@openvalens/api/presenters/wellness-profile";
-import type {
-  WellnessProfileSnapshot,
-  WellnessProfileUpdateInput,
-} from "@openvalens/api/wellness-profile-contract";
+import type { WellnessProfileSnapshot } from "@openvalens/api/wellness-profile-contract";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { Button } from "heroui-native";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { KeyboardStickyView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -26,6 +23,7 @@ import { ErrorState, Meter, Page, PageHeader, Sheet } from "@/components/bloom";
 import { Container } from "@/components/container";
 import { authClient } from "@/lib/auth-client";
 import type { HealthConsentStatus } from "@/lib/health-consent";
+import { createProfileWriter, type ProfilePatch } from "@/lib/onboarding/profile-writes";
 import type { OnboardingRoute } from "@/lib/onboarding/steps";
 import { useServer } from "@/lib/server/server-url";
 import { client, orpc } from "@/utils/orpc";
@@ -71,7 +69,7 @@ export function useHealthConsentStatus(userId: string) {
 /**
  * What every onboarding screen shares: the profile snapshot and saving a
  * partial update with `expectedRevision` (setup marked in progress on the
- * first save).
+ * first save). Writes go one at a time (see lib/onboarding/profile-writes).
  */
 export function useOnboardingProfile() {
   const queryClient = useQueryClient();
@@ -84,29 +82,25 @@ export function useOnboardingProfile() {
     retry: 1,
   });
   const [error, setError] = useState<MessageDescriptor | null>(null);
+  const writer = useMemo(
+    () =>
+      createProfileWriter({
+        queryClient,
+        userId,
+        update: (input) => client.profile.update(input),
+      }),
+    [queryClient, userId],
+  );
 
   const update = useMutation({
-    mutationFn: (input: WellnessProfileUpdateInput) => client.profile.update(input),
-    onSuccess: (next) => queryClient.setQueryData(wellnessProfileQueryKey(userId), next),
+    mutationFn: (patch: ProfilePatch) => writer.save(patch),
   });
 
   /** Saves a patch (without `expectedRevision`); `false` when it failed (the error shows). */
-  const save = async (
-    patch: Omit<WellnessProfileUpdateInput, "expectedRevision">,
-  ): Promise<WellnessProfileSnapshot | false> => {
-    const snapshot = queryClient.getQueryData<WellnessProfileSnapshot>(
-      wellnessProfileQueryKey(userId),
-    );
-    if (!snapshot) return false;
+  const save = async (patch: ProfilePatch): Promise<WellnessProfileSnapshot | false> => {
     setError(null);
     try {
-      return await update.mutateAsync({
-        ...patch,
-        ...(snapshot.setupStatus === null && patch.setupStatus === undefined
-          ? { setupStatus: "in_progress" as const }
-          : {}),
-        expectedRevision: snapshot.revision,
-      });
+      return (await update.mutateAsync(patch)) ?? false;
     } catch (failure) {
       const described = describeProfileSaveError(failure);
       if (described.kind === "conflict") void profile.refetch();
@@ -115,11 +109,17 @@ export function useOnboardingProfile() {
     }
   };
 
+  /** Marks the first run as seen (once); a failure is left for the next save to show. */
+  const markStarted = () => {
+    void writer.markStarted().catch(() => undefined);
+  };
+
   return {
     userId,
     profile,
     snapshot: profile.data,
     save,
+    markStarted,
     saving: update.isPending,
     error,
     setError,
