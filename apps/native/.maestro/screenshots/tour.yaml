@@ -6,7 +6,7 @@
 # 1. Signed in as the demo account: set the language, then every tab, drawer
 #    screen and sub-screen.
 # 2. Signed out: the sign-in screen and the server choice.
-# 3. A new Cloud account: each onboarding step.
+# 3. A new Cloud account: the three first-run screens and a setup item.
 appId: com.openvalens.app
 name: Screenshot tour
 ---
@@ -82,55 +82,47 @@ name: Screenshot tour
     visible:
       id: "onboarding-continue"
     timeout: 30000
-- takeScreenshot: ${PREFIX}-onboarding-1-welcome
-- tapOn:
-    id: "onboarding-continue"
-- extendedWaitUntil:
-    visible:
-      id: "chip-eligibility-adult"
-    timeout: 15000
+- takeScreenshot: ${PREFIX}-onboarding-1-start
 - tapOn:
     id: "chip-eligibility-adult"
-- takeScreenshot: ${PREFIX}-onboarding-2-age
 - runFlow: ../subflows/onboarding-continue.yaml
 - extendedWaitUntil:
     visible:
-      id: "onboarding-module-sleep"
+      id: "first-log-weight"
     timeout: 15000
-- takeScreenshot: ${PREFIX}-onboarding-3-modules
-- runFlow: ../subflows/onboarding-continue.yaml
-- waitForAnimationToEnd:
-    timeout: 3000
+- takeScreenshot: ${PREFIX}-onboarding-2-first-log
 - tapOn:
-    id: "onboarding-source-manual"
-    optional: true
-- takeScreenshot: ${PREFIX}-onboarding-4-data
-- runFlow: ../subflows/onboarding-continue.yaml
+    id: "first-log-sleep"
 - waitForAnimationToEnd:
     timeout: 3000
-- takeScreenshot: ${PREFIX}-onboarding-5-basics
-- tapOn:
-    id: "select-region"
-- waitForAnimationToEnd:
-    timeout: 2000
-- takeScreenshot: ${PREFIX}-onboarding-5-basics-region
-- tapOn:
-    id: "select-region-declined"
+- runFlow: ../subflows/hide-keyboard.yaml
+- takeScreenshot: ${PREFIX}-onboarding-3-first-log-sleep
 - runFlow: ../subflows/onboarding-continue.yaml
-- waitForAnimationToEnd:
-    timeout: 3000
-- takeScreenshot: ${PREFIX}-onboarding-6-goal
-- runFlow: ../subflows/onboarding-continue.yaml
-- waitForAnimationToEnd:
-    timeout: 3000
-- takeScreenshot: ${PREFIX}-onboarding-7-privacy
-- runFlow: ../subflows/onboarding-continue.yaml
-- waitForAnimationToEnd:
-    timeout: 3000
-- takeScreenshot: ${PREFIX}-onboarding-8-today
+- extendedWaitUntil:
+    visible:
+      id: "onboarding-connect-wearable"
+    timeout: 15000
+- takeScreenshot: ${PREFIX}-onboarding-4-connect
 - runFlow: ../subflows/onboarding-continue.yaml
 - extendedWaitUntil:
     visible:
       id: "tab-cockpit"
     timeout: 20000
-- takeScreenshot: ${PREFIX}-onboarding-9-cockpit-new-account
+- extendedWaitUntil:
+    visible:
+      id: "finish-setup"
+    timeout: 20000
+- takeScreenshot: ${PREFIX}-onboarding-5-cockpit-new-account
+- tapOn:
+    id: "finish-setup-modules"
+- extendedWaitUntil:
+    visible:
+      id: "onboarding-module-sleep"
+    timeout: 15000
+- takeScreenshot: ${PREFIX}-onboarding-6-modules
+- tapOn:
+    id: "onboarding-back"
+- extendedWaitUntil:
+    visible:
+      id: "finish-setup"
+    timeout: 15000

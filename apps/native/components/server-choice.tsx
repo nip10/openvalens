@@ -1,7 +1,8 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Button, Input, Label, Spinner, TextField } from "heroui-native";
-import { Cloud, Server } from "lucide-react-native";
-import { useRef, useState } from "react";
+import * as Linking from "expo-linking";
+import { Cloud, Link2, Server } from "lucide-react-native";
+import { useEffect, useRef, useState } from "react";
 import { Text, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 
@@ -13,6 +14,13 @@ import {
   serverLabel,
   type AddressProblem,
 } from "@/lib/server/server-address";
+import {
+  noteLinkOffered,
+  parseServerLink,
+  serverLinkAddress,
+  linkedServer,
+  rememberLinkedServer,
+} from "@/lib/server/server-link";
 import { probeServer, type ServerProblem } from "@/lib/server/server-meta";
 import { allowsLocalHttp } from "@/lib/server/server-url";
 import { switchServer } from "@/lib/server/switch-server";
@@ -63,14 +71,20 @@ export function useServerProblemCopy(): (problem: ServerProblem, url: string) =>
  * behind "Use my own server", the address of a server the person (or their
  * organization) runs. A typed address is checked against the server before it
  * is saved.
+ *
+ * #444 — a server link (`openvalens://server?url=…`, the web's "Get the phone
+ * app" QR code) only fills in the address and says where it came from: the
+ * person still checks it and taps Connect.
  */
 export function ServerChoice() {
   const { t } = useLingui();
   const problemCopy = useServerProblemCopy();
-  const [address, setAddress] = useState("");
+  // A link's address, carried over when the person left another server for it.
+  const [linked, setLinked] = useState<string | null>(linkedServer);
+  const [address, setAddress] = useState(linked ?? "");
   const [error, setError] = useState<ProblemCopy | null>(null);
   const [busy, setBusy] = useState<"cloud" | "own" | null>(null);
-  const [showOwn, setShowOwn] = useState(false);
+  const [showOwn, setShowOwn] = useState(linked !== null);
   const inFlight = useRef(false);
   const cloudHost = serverLabel(CLOUD_SERVER_URL);
 
@@ -106,6 +120,27 @@ export function ServerChoice() {
       setBusy(null);
     }
   };
+
+  // A server link that opened (or reopens) the app fills in its address, for the person to confirm.
+  useEffect(() => {
+    // Shown now; a later visit to the server choice starts empty again.
+    rememberLinkedServer(null);
+    const offer = (url: string | null) => {
+      const raw = serverLinkAddress(url);
+      const parsed = parseServerLink(url, { allowLocalHttp: allowsLocalHttp() });
+      if (raw === null || parsed === null) return;
+      noteLinkOffered(raw);
+      setLinked(raw);
+      setAddress(parsed.ok ? parsed.url : raw);
+      setShowOwn(true);
+      setError(null);
+    };
+    void Linking.getInitialURL()
+      .then(offer)
+      .catch(() => undefined);
+    const subscription = Linking.addEventListener("url", ({ url }) => offer(url));
+    return () => subscription.remove();
+  }, []);
 
   const chooseCloud = () => run("cloud", () => switchServer(CLOUD_SERVER_URL));
 
@@ -201,6 +236,19 @@ export function ServerChoice() {
                   </Text>
                 </View>
               </View>
+              {linked ? (
+                <View
+                  className="flex-row items-start gap-3 rounded-2xl bg-paper-2 p-3"
+                  testID="server-link-note"
+                >
+                  <ToneIcon icon={Link2} tone="signal" size="sm" />
+                  <Text className="min-w-0 flex-1 font-sans text-sm leading-relaxed text-ink-2">
+                    <Trans>
+                      Filled in from a link. Check that this is your server, then tap Connect.
+                    </Trans>
+                  </Text>
+                </View>
+              ) : null}
               <TextField isInvalid={!!error}>
                 {/* heroui's Label takes a plain string; a <Trans> element is not one. */}
                 <Label>{t`Server address`}</Label>
@@ -216,7 +264,7 @@ export function ServerChoice() {
                   autoCapitalize="none"
                   autoCorrect={false}
                   autoComplete="url"
-                  autoFocus
+                  autoFocus={!linked}
                   textContentType="URL"
                   returnKeyType="go"
                   onSubmitEditing={() => void connect()}

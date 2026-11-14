@@ -1,83 +1,69 @@
-# 3. Onboarding (the new Cloud account from flow 02): age check, choose
-# modules, how data arrives, basics, a goal, privacy, then the dashboard.
+# 3. Onboarding (the new Cloud account from flow 02), three screens (#444):
+# before you start (the age check; this server asks no health-data consent),
+# a first entry (a weight), connect (nothing connected here), then Today with
+# the "Finish setting up" card.
 appId: com.openvalens.app
 name: 03 Onboarding
 tags: [onboarding]
 ---
+# 1. Before you start: the only screen that can't be skipped
 - extendedWaitUntil:
-    visible: "Welcome to OpenValens"
+    visible:
+      id: "chip-eligibility-adult"
     timeout: 30000
-- takeScreenshot: 03-onboarding-1-welcome
+- assertNotVisible:
+    id: "onboarding-skip"
+- takeScreenshot: 03-onboarding-1-start
 - tapOn:
-    id: "onboarding-continue"
-
-# Age check: the only question that can't be skipped
-- extendedWaitUntil:
-    visible: "Are you 18 or older\\?"
-    timeout: 15000
-- tapOn: "Yes, I'm 18 or older"
-- takeScreenshot: 03-onboarding-2-age
+    id: "chip-eligibility-adult"
 - runFlow: ../subflows/onboarding-continue.yaml
 
-# Modules
+# 2. Your first entry: a weight, through the quick-log fields
 - extendedWaitUntil:
-    visible: "What brings you here\\?"
+    visible:
+      id: "first-log-weight"
     timeout: 15000
-- tapOn: "Sleep and recovery"
-- tapOn: "Activity and fitness"
-- tapOn: "Nutrition"
-- tapOn: "Body goals"
-- takeScreenshot: 03-onboarding-3-modules
-- scrollUntilVisible:
-    element:
-      id: "onboarding-module-food"
 - assertVisible:
-    id: "onboarding-module-food"
-- runFlow: ../subflows/onboarding-continue.yaml
-
-# How data arrives: typed in (no phone health permission prompt here)
-- extendedWaitUntil:
-    visible: "How will your data arrive\\?"
-    timeout: 15000
+    id: "first-log-water"
+- assertVisible:
+    id: "first-log-sleep"
+- takeScreenshot: 03-onboarding-2-first-log
 - tapOn:
-    id: "onboarding-source-manual"
-- takeScreenshot: 03-onboarding-4-data
+    id: "first-log-weight"
+- extendedWaitUntil:
+    visible:
+      id: "first-log-weight-value"
+    timeout: 10000
+- waitForAnimationToEnd:
+    timeout: 2000
+- tapOn:
+    id: "first-log-weight-value"
+- inputText: "70"
+- runFlow: ../subflows/hide-keyboard.yaml
+- takeScreenshot: 03-onboarding-3-first-log-weight
 - runFlow: ../subflows/onboarding-continue.yaml
 
-# Basics
+# 3. Connect your data: the phone's health app, then a watch or ring
 - extendedWaitUntil:
-    visible: "A few basics"
+    visible:
+      id: "onboarding-connect-wearable"
     timeout: 15000
-- takeScreenshot: 03-onboarding-5-basics
+- assertVisible:
+    id: "onboarding-connect-bluetooth"
+- takeScreenshot: 03-onboarding-4-connect
 - runFlow: ../subflows/onboarding-continue.yaml
 
-# One goal
-- extendedWaitUntil:
-    visible: "One goal.*"
-    timeout: 15000
-- tapOn: "For example: walk most days"
-- inputText: "Walk most days"
-- pressKey: Enter
-- takeScreenshot: 03-onboarding-6-goal
-- runFlow: ../subflows/onboarding-continue.yaml
-
-# Privacy choices: all off unless turned on
-- extendedWaitUntil:
-    visible: "Your privacy choices"
-    timeout: 15000
-- takeScreenshot: 03-onboarding-7-privacy
-- runFlow: ../subflows/onboarding-continue.yaml
-
-# Done
-- extendedWaitUntil:
-    visible: "You're all set"
-    timeout: 15000
-- takeScreenshot: 03-onboarding-8-today
-- scrollUntilVisible:
-    element: "Open my dashboard"
-- tapOn: "Open my dashboard"
+# Today, with the rest of setup as one card
 - extendedWaitUntil:
     visible:
       id: "tab-cockpit"
     timeout: 20000
-- assertNotVisible: "Welcome to OpenValens"
+- extendedWaitUntil:
+    visible:
+      id: "finish-setup"
+    timeout: 20000
+- assertVisible:
+    id: "finish-setup-modules"
+- takeScreenshot: 03-onboarding-5-today
+- assertNotVisible:
+    id: "chip-eligibility-adult"

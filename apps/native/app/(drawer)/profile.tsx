@@ -62,6 +62,7 @@ import {
   ToneIcon,
 } from "@/components/bloom";
 import { Container } from "@/components/container";
+import { SetupCardSetting } from "@/components/finish-setup-card";
 import { authClient } from "@/lib/auth-client";
 import { client, orpc } from "@/utils/orpc";
 import {
@@ -239,7 +240,9 @@ function ProfileEditor({
             </>
           }
           actions={
-            snapshot.setupStatus !== "completed" ? (
+            // Once the first run is over (or the card dismissed), Today's card and the
+            // row below take over (#444).
+            snapshot.setupStatus === null || snapshot.setupStatus === "in_progress" ? (
               <>
                 <Button variant="outline" onPress={() => void finish("skipped")}>
                   <Button.Label>
@@ -255,6 +258,8 @@ function ProfileEditor({
             ) : undefined
           }
         />
+
+        <SetupCardSetting />
 
         <Sheet className="gap-3">
           <View className="flex-row items-center gap-3">

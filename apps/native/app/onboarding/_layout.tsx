@@ -1,6 +1,6 @@
 import { Stack } from "expo-router";
 
-/** Onboarding stage 3 — the first-run flow, one step per screen (see lib/onboarding/steps). */
+/** Onboarding (#444) — the first run and the "Finish setting up" items, one screen each (see lib/onboarding/steps). */
 export default function OnboardingLayout() {
   return <Stack screenOptions={{ headerShown: false }} />;
 }

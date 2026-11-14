@@ -32,11 +32,11 @@ import { router } from "expo-router";
 import { Button, cn } from "heroui-native";
 import {
   Bell,
+  Bluetooth,
   Check,
   CircleAlert,
   Info,
   Mail,
-  PenLine,
   Server,
   ShieldCheck,
   Smartphone,
@@ -45,13 +45,12 @@ import {
   Watch,
   type LucideIcon,
 } from "lucide-react-native";
-import { type ReactNode, useState } from "react";
-import { Platform, Pressable, Switch, Text, TextInput, View } from "react-native";
+import { type ReactNode, useEffect, useState } from "react";
+import { Linking, Platform, Pressable, Switch, Text, TextInput, View } from "react-native";
 
 import { AiSection } from "@/components/ai-section";
 import { AnalyticsConsentSection } from "@/components/analytics-consent-section";
 import {
-  BloomMark,
   Icon,
   ListCard,
   Prose,
@@ -68,29 +67,38 @@ import {
   ChoiceSelect,
   QuestionLabel,
 } from "@/components/wellness-profile-fields";
-import { requestHealthAccess, rememberSyncModules } from "@/lib/health-sync";
+import { needsHealthConsent } from "@/lib/health-consent";
+import { getHealthAccess, rememberSyncModules, requestHealthAccess } from "@/lib/health-sync";
 import { MODULE_ICON_COMPONENTS } from "@/lib/modules/icons";
 import {
-  DATA_SOURCES,
   healthPermissionOutcome,
   healthPermissionsForChoice,
   initialModuleChoice,
-  inputMethodForSources,
   modulesAfterFocusChange,
-  sourcesForInputMethod,
-  type DataSource,
   type HealthPermissionOutcome,
-  type OnboardingRoute,
 } from "@/lib/onboarding/steps";
 import { describePushRegistration, enablePushOnThisPhone } from "@/lib/push-notifications";
 import { client, orpc } from "@/utils/orpc";
 import { useThemeColor } from "@/utils/theme";
 import { adminAccessQueryOptions } from "@/utils/admin-settings";
 
-import { leaveOnboarding, StepFrame, useOnboardingFlow } from "./flow";
+import {
+  StepFrame,
+  useHealthConsentStatus,
+  type OnboardingProfileFlow,
+  type StepNav,
+} from "./flow";
 
-type Flow = ReturnType<typeof useOnboardingFlow>;
-type StepProps = { flow: Flow & { snapshot: WellnessProfileSnapshot } };
+/**
+ * Onboarding (#444) — the screens behind the first run and the "Finish
+ * setting up" items. Each is usable on its own: the first run strings
+ * screen 1 (`StartStep`), the first log and `ConnectStep` together, and each
+ * card item opens one with Save and Back.
+ */
+export type StepProps = {
+  flow: OnboardingProfileFlow & { snapshot: WellnessProfileSnapshot };
+  nav: StepNav;
+};
 
 /** A choice as a card: its icon in its tint, a label, one line, and a tick when on. */
 function OptionCard({
@@ -156,7 +164,7 @@ function Note({ icon = Info, children }: { icon?: LucideIcon; children: ReactNod
 
 // ─── Server checklist (instance admins) ────────────────────────
 
-export function ServerStep({ flow }: StepProps) {
+export function ServerStep({ nav }: Pick<StepProps, "nav">) {
   const { t } = useLingui();
   const readiness = useQuery(orpc.health.readiness.queryOptions({ input: {} }));
   const checks = readiness.data?.checks;
@@ -175,7 +183,7 @@ export function ServerStep({ flow }: StepProps) {
       description={
         <Trans>You run this OpenValens server. A few things to check, then your own setup.</Trans>
       }
-      onContinue={flow.goNext}
+      onContinue={nav.onDone}
       continueLabel={t`Continue to my setup`}
     >
       <View className="gap-3">
@@ -240,66 +248,58 @@ export function useIsInstanceAdmin(userId: string): { loaded: boolean; isAdmin: 
   };
 }
 
-// ─── 1. Welcome ────────────────────────────────────────────────
+// ─── 1. Before you start: age check and health-data consent ────
 
-export function WelcomeStep({ flow }: StepProps) {
+/**
+ * Screen 1: the age check and, when this server asks for it, the
+ * health-data consent. The only screen without Skip.
+ */
+export function StartStep({ flow, nav }: StepProps) {
   const { t } = useLingui();
-  const start = async () => {
-    if (flow.snapshot.setupStatus === null && !(await flow.save({ setupStatus: "in_progress" })))
-      return;
-    flow.goNext();
-  };
-  const notNow = async () => {
-    if (await flow.save({ setupStatus: "skipped" })) leaveOnboarding();
-  };
-  return (
-    <StepFrame
-      step="welcome"
-      title={<Trans>Welcome to OpenValens</Trans>}
-      onContinue={() => void start()}
-      continueLabel={t`Let's start`}
-      busy={flow.saving}
-      error={flow.error}
-      extraActions={
-        <Button variant="ghost" onPress={() => void notNow()} isDisabled={flow.saving}>
-          <Button.Label>{t`Not now`}</Button.Label>
-        </Button>
-      }
-    >
-      <View className="items-start gap-4">
-        <BloomMark size={52} />
-        <Prose>
-          <Trans>
-            Your private health record. A few quick questions so the app shows what matters to you.
-            It takes about 2 minutes, and you can change everything later.
-          </Trans>
-        </Prose>
-      </View>
-    </StepFrame>
-  );
-}
-
-// ─── 2. Age check (required) ───────────────────────────────────
-
-export function AgeStep({ flow }: StepProps) {
+  const queryClient = useQueryClient();
+  const consent = useHealthConsentStatus(flow.userId);
   const [draft, setDraft] = useState<WellnessProfileDraft>(() => draftFromSnapshot(flow.snapshot));
+  const [agreed, setAgreed] = useState(false);
+  const [consentFailed, setConsentFailed] = useState(false);
   const answered = draft.answers.eligibility.state !== "unknown";
   const adult = isAdultConfirmed(draft.answers);
+  const consentNeeded = needsHealthConsent(consent.data);
+  const version = consent.data?.currentVersion ?? null;
+  const privacyUrl = consent.data?.privacyUrl ?? null;
+  useEffect(() => setAgreed(false), [version]);
+
+  const accept = useMutation({
+    mutationFn: (v: string) =>
+      client.healthConsent.accept({ acceptedHealthDataConsent: true, version: v }),
+    onSuccess: (next) => queryClient.setQueryData(consent.queryKey, next),
+  });
 
   const next = async () => {
+    setConsentFailed(false);
+    if (consentNeeded && version) {
+      try {
+        await accept.mutateAsync(version);
+      } catch {
+        setAgreed(false);
+        setConsentFailed(true);
+        void queryClient.invalidateQueries({ queryKey: consent.queryKey });
+        return;
+      }
+    }
     if (!answersEqual(draft.answers.eligibility, flow.snapshot.eligibility)) {
       if (!(await flow.save({ eligibility: draft.answers.eligibility }))) return;
     }
-    flow.goNext();
+    nav.onDone();
   };
 
   return (
     <StepFrame
-      step="age"
-      title={<Trans>Are you 18 or older?</Trans>}
+      step={nav.step}
+      title={<Trans>Before you start</Trans>}
       description={
         <Trans>
-          OpenValens personalisation is for adults. This is the only question you can't skip.
+          A quick check, then you're in. OpenValens is for personal record-keeping and general
+          wellness.
         </Trans>
       }
       info={
@@ -309,24 +309,178 @@ export function AgeStep({ flow }: StepProps) {
         </>
       }
       onContinue={() => void next()}
-      continueDisabled={!answered}
-      busy={flow.saving}
+      continueDisabled={!answered || (consentNeeded && !agreed)}
+      busy={flow.saving || accept.isPending}
       error={flow.error}
-      onBack={flow.goBack}
+      onBack={nav.onBack}
     >
+      <QuestionLabel>
+        <Trans>Are you 18 or older?</Trans>
+      </QuestionLabel>
       <Chips field="eligibility" draft={draft} onChange={setDraft} layout="rows" />
       {answered && !adult ? (
         <Note>
           <Trans>You can still keep a record, but personal guidance and references stay off.</Trans>
         </Note>
       ) : null}
+      {consentNeeded && version ? (
+        <Sheet className="gap-3 border border-signal/30 p-4">
+          <View className="gap-1">
+            <Text className="font-display text-lg font-semibold text-ink">
+              {t`Health data consent`}
+            </Text>
+            <Text className="font-sans text-sm leading-relaxed text-ink-2">
+              {t`I consent to OpenValens processing my health data to provide the service. This includes any birth year and sex I add to my profile, used to place me in a broad age band and to choose age- and sex-specific guidance and reference ranges.`}{" "}
+              {privacyUrl ? (
+                <Text
+                  accessibilityRole="link"
+                  className="font-semibold text-signal underline"
+                  onPress={() => void Linking.openURL(privacyUrl)}
+                >
+                  {t`Read the privacy policy`}
+                </Text>
+              ) : null}
+            </Text>
+            <Text className="font-sans text-xs text-ink-3">{t`Consent version: ${version}`}</Text>
+          </View>
+          <CheckboxToggle
+            label={t`I agree to this health data processing.`}
+            checked={agreed}
+            onPress={() => setAgreed((value) => !value)}
+          />
+          {consentFailed ? (
+            <Text accessibilityLiveRegion="polite" className="font-sans text-sm text-destructive">
+              {t`Consent could not be saved. The version may have changed; review it and try again.`}
+            </Text>
+          ) : null}
+        </Sheet>
+      ) : null}
     </StepFrame>
   );
 }
 
-// ─── 3. Pick your modules ──────────────────────────────────────
+// ─── 3. Connect: the phone's health app, then a watch or ring ──
 
-export function ModulesStep({ flow }: StepProps) {
+const PHONE_PLATFORM =
+  Platform.OS === "ios"
+    ? ("ios" as const)
+    : Platform.OS === "android"
+      ? ("android" as const)
+      : null;
+
+const OUTCOME_COPY: Record<Exclude<HealthPermissionOutcome, "granted">, ReturnType<typeof msg>> = {
+  nothing_to_ask: msg`None of your modules read from your phone's health app, so nothing was asked.`,
+  denied: msg`No access was given. That's fine: you can connect later in Settings › Health data.`,
+  unavailable: msg`Your phone's health app isn't available here. You can type things in, or connect later in Settings › Health data.`,
+};
+
+/**
+ * Screen 3 on the phone (and the "Connect your data" item): ask Apple Health
+ * or Health Connect for the modules' data types, read only, then "Connect a
+ * watch or ring", which opens the existing Bluetooth and wearable-account
+ * screens in Settings.
+ */
+export function ConnectStep({ flow, nav }: StepProps) {
+  const { t, i18n } = useLingui();
+  const queryClient = useQueryClient();
+  const access = useQuery({ queryKey: ["health-sync", "access"], queryFn: getHealthAccess });
+  const [outcome, setOutcome] = useState<HealthPermissionOutcome | null>(null);
+  const sourceName = Platform.OS === "ios" ? "Apple Health" : "Health Connect";
+  const on = [...enabledModuleSet(flow.snapshot)];
+  const asked = PHONE_PLATFORM ? healthPermissionsForChoice(PHONE_PLATFORM, on) : [];
+  const healthModules = on.filter(
+    (module) => PHONE_PLATFORM && healthPermissionsForChoice(PHONE_PLATFORM, [module]).length > 0,
+  );
+  const granted = (access.data?.grantedTypes.length ?? 0) > 0;
+  const unavailable = !PHONE_PLATFORM || access.data?.available === false;
+
+  const ask = useMutation({
+    // Only the modules' data types, read only (see lib/health-sync/permissions).
+    mutationFn: () => requestHealthAccess(flow.snapshot),
+    onSuccess: (result) => {
+      queryClient.setQueryData(["health-sync", "access"], result);
+      setOutcome(healthPermissionOutcome(asked, result));
+    },
+    onError: () => setOutcome("unavailable"),
+  });
+
+  return (
+    <StepFrame
+      step={nav.step}
+      title={<Trans>Connect your data</Trans>}
+      description={
+        <Trans>Bring in what your phone and devices already record. You can do this later.</Trans>
+      }
+      continueLabel={nav.doneLabel ?? t`Done`}
+      onContinue={nav.onDone}
+      busy={flow.saving}
+      error={flow.error}
+      onBack={nav.onBack}
+    >
+      <Section icon={Smartphone} tone="water" title={sourceName}>
+        <Sheet className="gap-3">
+          {asked.length === 0 ? (
+            <Text className="font-sans text-sm leading-relaxed text-ink-2">
+              {i18n._(OUTCOME_COPY.nothing_to_ask)}
+            </Text>
+          ) : (
+            <Text className="font-sans text-sm leading-relaxed text-ink-2">
+              <Trans>
+                We'll ask {sourceName} only for:{" "}
+                {healthModules.map((module) => i18n._(MODULE_LABELS[module])).join(", ")}. Read
+                only; OpenValens never writes to it.
+              </Trans>
+            </Text>
+          )}
+          {granted ? (
+            <StatusPill tone="good">{t`Connected`}</StatusPill>
+          ) : unavailable ? (
+            <Note icon={CircleAlert}>{i18n._(OUTCOME_COPY.unavailable)}</Note>
+          ) : asked.length > 0 ? (
+            <Button
+              variant="outline"
+              className="self-start"
+              onPress={() => ask.mutate()}
+              isDisabled={ask.isPending}
+              testID="onboarding-connect-health"
+            >
+              <Icon icon={ShieldCheck} size={16} color="ink-2" />
+              <Button.Label>{t`Connect ${sourceName}`}</Button.Label>
+            </Button>
+          ) : null}
+          {outcome && outcome !== "granted" && outcome !== "nothing_to_ask" ? (
+            <Note icon={CircleAlert}>{i18n._(OUTCOME_COPY[outcome])}</Note>
+          ) : null}
+        </Sheet>
+      </Section>
+      <Section icon={Watch} tone="sleep" title={t`Connect a watch or ring`}>
+        <View className="gap-3">
+          <ListCard
+            icon={Bluetooth}
+            tone="sleep"
+            title={t`A watch or ring nearby`}
+            subtitle={t`Paired over Bluetooth, in Settings.`}
+            onPress={() => router.push("/settings")}
+            testID="onboarding-connect-bluetooth"
+          />
+          <ListCard
+            icon={Watch}
+            tone="sleep"
+            title={t`A wearable account`}
+            subtitle={t`Oura, WHOOP, Polar, Withings`}
+            onPress={() => router.push("/settings/devices")}
+            testID="onboarding-connect-wearable"
+          />
+        </View>
+      </Section>
+    </StepFrame>
+  );
+}
+
+// ─── "Finish setting up" items ─────────────────────────────────
+
+/** Focus areas and the module cards; the cards follow the focus until touched. */
+export function ModulesStep({ flow, nav }: StepProps) {
   const { t, i18n } = useLingui();
   const [draft, setDraft] = useState<WellnessProfileDraft>(() => draftFromSnapshot(flow.snapshot));
   const [modules, setModules] = useState<PersonModule[]>(() => initialModuleChoice(flow.snapshot));
@@ -353,19 +507,19 @@ export function ModulesStep({ flow }: StepProps) {
     });
     if (!saved) return;
     void rememberSyncModules(saved.enabledModules);
-    flow.goNext();
+    nav.onDone();
   };
 
   return (
     <StepFrame
-      step="modules"
+      step={nav.step}
       title={<Trans>What brings you here?</Trans>}
       description={<Trans>Pick any. We'll switch on the matching parts of the app.</Trans>}
+      continueLabel={nav.doneLabel ?? t`Save`}
       onContinue={() => void next()}
       busy={flow.saving}
       error={flow.error}
-      onSkip={flow.goNext}
-      onBack={flow.goBack}
+      onBack={nav.onBack}
     >
       <Chips field="focus" draft={draft} onChange={changeFocus} />
       <Section
@@ -392,160 +546,8 @@ export function ModulesStep({ flow }: StepProps) {
   );
 }
 
-// ─── 4. How data arrives ───────────────────────────────────────
-
-const PHONE_PLATFORM =
-  Platform.OS === "ios"
-    ? ("ios" as const)
-    : Platform.OS === "android"
-      ? ("android" as const)
-      : null;
-
-const OUTCOME_COPY: Record<Exclude<HealthPermissionOutcome, "granted">, ReturnType<typeof msg>> = {
-  nothing_to_ask: msg`None of your modules read from your phone's health app, so nothing was asked.`,
-  denied: msg`No access was given. That's fine: you can connect later in Settings › Health data.`,
-  unavailable: msg`Your phone's health app isn't available here. You can type things in, or connect later in Settings › Health data.`,
-};
-
-export function DataStep({ flow }: StepProps) {
-  const { t, i18n } = useLingui();
-  const queryClient = useQueryClient();
-  const [sources, setSources] = useState<Set<DataSource>>(() =>
-    sourcesForInputMethod(flow.snapshot.inputMethod),
-  );
-  const [outcome, setOutcome] = useState<HealthPermissionOutcome | null>(null);
-  const [asking, setAsking] = useState(false);
-  const sourceName = Platform.OS === "ios" ? "Apple Health" : "Health Connect";
-  const on = [...enabledModuleSet(flow.snapshot)];
-  const healthModules = on.filter(
-    (module) => PHONE_PLATFORM && healthPermissionsForChoice(PHONE_PLATFORM, [module]).length > 0,
-  );
-  const options = DATA_SOURCES.filter((source) => source !== "phone" || PHONE_PLATFORM);
-
-  const toggle = (source: DataSource) => {
-    setOutcome(null);
-    setSources((current) => {
-      const next = new Set(current);
-      if (next.has(source)) next.delete(source);
-      else next.add(source);
-      return next;
-    });
-  };
-
-  const askHealth = async (): Promise<HealthPermissionOutcome> => {
-    if (!PHONE_PLATFORM) return "unavailable";
-    const asked = healthPermissionsForChoice(PHONE_PLATFORM, on);
-    if (asked.length === 0) return "nothing_to_ask";
-    setAsking(true);
-    try {
-      // Only the chosen modules' data types (see lib/health-sync/permissions).
-      const access = await requestHealthAccess(flow.snapshot);
-      queryClient.setQueryData(["health-sync", "access"], access);
-      return healthPermissionOutcome(asked, access);
-    } catch {
-      return "unavailable";
-    } finally {
-      setAsking(false);
-    }
-  };
-
-  const next = async () => {
-    const method = inputMethodForSources(sources);
-    if (method && !answersEqual({ state: "recorded", value: method }, flow.snapshot.inputMethod)) {
-      if (!(await flow.save({ inputMethod: { state: "recorded", value: method } }))) return;
-    }
-    // Ask once; after a refusal the note explains and Continue moves on.
-    if (sources.has("phone") && outcome === null) {
-      const result = await askHealth();
-      setOutcome(result);
-      if (result !== "granted") return;
-    }
-    flow.goNext();
-  };
-
-  return (
-    <StepFrame
-      step="data"
-      title={<Trans>How will your data arrive?</Trans>}
-      description={<Trans>Pick all that apply.</Trans>}
-      info={
-        <>
-          <Prose>{WELLNESS_FIELD_COPY.inputMethod.purpose}</Prose>
-          <Prose>{WELLNESS_FIELD_COPY.inputMethod.limits}</Prose>
-        </>
-      }
-      onContinue={() => void next()}
-      busy={flow.saving || asking}
-      error={flow.error}
-      onSkip={flow.goNext}
-      onBack={flow.goBack}
-    >
-      <View className="gap-2.5">
-        {options.map((source) => {
-          const copy = {
-            phone: {
-              icon: Smartphone,
-              tone: "water" as const,
-              label: t`My phone's health app`,
-              description: sourceName,
-            },
-            wearable: {
-              icon: Watch,
-              tone: "sleep" as const,
-              label: t`A wearable account`,
-              description: t`Oura, WHOOP, Polar, Withings`,
-            },
-            manual: {
-              icon: PenLine,
-              tone: "steps" as const,
-              label: t`I'll type things in`,
-              description: t`Meals, weights, readings`,
-            },
-          }[source];
-          return (
-            <OptionCard
-              key={source}
-              {...copy}
-              selected={sources.has(source)}
-              onPress={() => toggle(source)}
-              testID={`onboarding-source-${source}`}
-            />
-          );
-        })}
-      </View>
-      {sources.has("phone") ? (
-        <Note icon={ShieldCheck}>
-          {healthModules.length > 0 ? (
-            <Trans>
-              We'll ask {sourceName} only for:{" "}
-              {healthModules.map((module) => i18n._(MODULE_LABELS[module])).join(", ")}. Read only;
-              OpenValens never writes to it.
-            </Trans>
-          ) : (
-            i18n._(OUTCOME_COPY.nothing_to_ask)
-          )}
-        </Note>
-      ) : null}
-      {outcome && outcome !== "granted" && outcome !== "nothing_to_ask" ? (
-        <Note icon={CircleAlert}>{i18n._(OUTCOME_COPY[outcome])}</Note>
-      ) : null}
-      {sources.has("wearable") ? (
-        <Button
-          variant="outline"
-          className="self-start"
-          onPress={() => router.push("/settings/devices")}
-        >
-          <Icon icon={Watch} size={16} color="ink-2" />
-          <Button.Label>{t`Connect a wearable`}</Button.Label>
-        </Button>
-      ) : null}
-    </StepFrame>
-  );
-}
-
-// ─── 5. A few basics ───────────────────────────────────────────
-
-export function BasicsStep({ flow }: StepProps) {
+/** Region, and birth year and sex for adults. */
+export function BasicsStep({ flow, nav }: StepProps) {
   const { t, i18n } = useLingui();
   const [draft, setDraft] = useState<WellnessProfileDraft>(() => draftFromSnapshot(flow.snapshot));
   const [birthYearText, setBirthYearText] = useState(
@@ -561,12 +563,12 @@ export function BasicsStep({ flow }: StepProps) {
     };
     const { expectedRevision: _revision, ...changes } = patch;
     if (Object.keys(changes).length > 0 && !(await flow.save(changes))) return;
-    flow.goNext();
+    nav.onDone();
   };
 
   return (
     <StepFrame
-      step="basics"
+      step={nav.step}
       title={<Trans>A few basics</Trans>}
       description={
         <Trans>
@@ -574,12 +576,12 @@ export function BasicsStep({ flow }: StepProps) {
           optional.
         </Trans>
       }
+      continueLabel={nav.doneLabel ?? t`Save`}
       onContinue={() => void next()}
       continueDisabled={!parsedYear.ok}
       busy={flow.saving}
       error={flow.error}
-      onSkip={flow.goNext}
-      onBack={flow.goBack}
+      onBack={nav.onBack}
     >
       <Sheet className="gap-3">
         <QuestionLabel
@@ -696,8 +698,6 @@ export function BasicsStep({ flow }: StepProps) {
   );
 }
 
-// ─── 6. One goal (optional) ────────────────────────────────────
-
 const GOAL_SUGGESTIONS = [
   msg`Sleep 7–9 hours most nights`,
   msg`Walk 8,000 steps a day`,
@@ -705,7 +705,8 @@ const GOAL_SUGGESTIONS = [
   msg`Log meals most days`,
 ];
 
-export function GoalStep({ flow }: StepProps) {
+/** One goal in the person's own words, saved to Goals. */
+export function GoalStep({ flow, nav }: StepProps) {
   const { t, i18n } = useLingui();
   const queryClient = useQueryClient();
   const [title, setTitle] = useState("");
@@ -730,12 +731,12 @@ export function GoalStep({ flow }: StepProps) {
         return;
       }
     }
-    flow.goNext();
+    nav.onDone();
   };
 
   return (
     <StepFrame
-      step="goal"
+      step={nav.step}
       title={<Trans>One goal</Trans>}
       description={<Trans>Something to work toward, in your own words.</Trans>}
       info={
@@ -746,11 +747,11 @@ export function GoalStep({ flow }: StepProps) {
           </Trans>
         </Prose>
       }
+      continueLabel={nav.doneLabel ?? t`Save`}
       onContinue={() => void next()}
       busy={add.isPending}
       error={add.isError ? msg`Could not save.` : null}
-      onSkip={flow.goNext}
-      onBack={flow.goBack}
+      onBack={nav.onBack}
     >
       <View className="gap-2.5">
         {GOAL_SUGGESTIONS.map((suggestion) => {
@@ -782,8 +783,6 @@ export function GoalStep({ flow }: StepProps) {
     </StepFrame>
   );
 }
-
-// ─── 7. Privacy choices ────────────────────────────────────────
 
 /** Reminders and notifications: the same switches and copy as Settings › Insight notifications. */
 function ReminderChoices() {
@@ -881,17 +880,19 @@ function ReminderChoices() {
   );
 }
 
-export function PrivacyStep({ flow }: StepProps) {
+/** AI, reminders and usage analytics: the existing switches, all off by default. */
+export function PrivacyStep({ nav }: Pick<StepProps, "nav">) {
+  const { t } = useLingui();
   return (
     <StepFrame
-      step="privacy"
+      step={nav.step}
       title={<Trans>Your privacy choices</Trans>}
       description={
         <Trans>All off unless you turn them on. Your records stay on your server either way.</Trans>
       }
-      onContinue={flow.goNext}
-      onSkip={flow.goNext}
-      onBack={flow.goBack}
+      continueLabel={nav.doneLabel ?? t`Done`}
+      onContinue={nav.onDone}
+      onBack={nav.onBack}
     >
       <AiSection />
       <ReminderChoices />
@@ -899,84 +900,3 @@ export function PrivacyStep({ flow }: StepProps) {
     </StepFrame>
   );
 }
-
-// ─── 8. Your Today ─────────────────────────────────────────────
-
-export function TodayStep({ flow }: StepProps) {
-  const { t, i18n } = useLingui();
-  const modules = PERSON_MODULES.filter((module) => enabledModuleSet(flow.snapshot).has(module));
-
-  const finish = async () => {
-    if (flow.snapshot.setupStatus !== "completed") {
-      if (!(await flow.save({ setupStatus: "completed" }))) return;
-    }
-    void flow.local.markVisited("today");
-    leaveOnboarding();
-  };
-
-  return (
-    <StepFrame
-      step="today"
-      title={<Trans>You're all set</Trans>}
-      description={
-        <Trans>
-          Here's your Today with the modules you picked. Change them any time in Settings › Modules.
-        </Trans>
-      }
-      onContinue={() => void finish()}
-      continueLabel={t`Open my dashboard`}
-      busy={flow.saving}
-      error={flow.error}
-      onBack={flow.goBack}
-    >
-      {modules.length > 0 ? (
-        <View className="flex-row flex-wrap gap-3" accessibilityLabel={t`Preview of your Today`}>
-          {modules.map((module) => (
-            <View key={module} style={{ width: "47%" }}>
-              <Sheet className="gap-3 p-4">
-                <View className="flex-row items-center justify-between gap-2">
-                  <Text
-                    className="shrink font-sans text-[15px] font-semibold leading-5 text-ink-2"
-                    numberOfLines={2}
-                  >
-                    {i18n._(MODULE_LABELS[module])}
-                  </Text>
-                  <ToneIcon
-                    icon={MODULE_ICON_COMPONENTS[MODULE_ICONS[module]]}
-                    tone={MODULE_TONES[module]}
-                    size="sm"
-                  />
-                </View>
-                <Text className="font-sans text-sm text-ink-3">
-                  {i18n._(MODULE_DESCRIPTIONS[module])}
-                </Text>
-              </Sheet>
-            </View>
-          ))}
-        </View>
-      ) : (
-        <Note>
-          <Trans>
-            No modules picked. Your Today shows the timeline and scores, and you can add a module
-            any time in Settings › Modules.
-          </Trans>
-        </Note>
-      )}
-      <StatusPill tone="neutral">
-        <Trans>Always there: Timeline, Scores, Sharing and Settings</Trans>
-      </StatusPill>
-    </StepFrame>
-  );
-}
-
-export const STEP_SCREENS: Record<OnboardingRoute, (props: StepProps) => ReactNode> = {
-  server: ServerStep,
-  welcome: WelcomeStep,
-  age: AgeStep,
-  modules: ModulesStep,
-  data: DataStep,
-  basics: BasicsStep,
-  goal: GoalStep,
-  privacy: PrivacyStep,
-  today: TodayStep,
-};
