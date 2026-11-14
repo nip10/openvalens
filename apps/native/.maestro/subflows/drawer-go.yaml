@@ -2,9 +2,14 @@
 # A full-screen modal (Add food) has no drawer button: leave it first.
 appId: com.openvalens.app
 ---
+# Let a screen change finish first: mid-transition the menu button can be
+# missing for a moment, and the steps below would then act on the wrong screen.
+- waitForAnimationToEnd:
+    timeout: 3000
 - runFlow:
     when:
-      notVisible: "Show navigation menu"
+      visible:
+        id: "add-food-cancel"
     commands:
       - runFlow: close-add-food.yaml
 - runFlow:
