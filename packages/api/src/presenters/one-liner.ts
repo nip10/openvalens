@@ -1,6 +1,8 @@
 /**
  * Typed one-liners for quick logging (#440d): "500 ml", "peso 82,4",
- * "bp 120/80 62", "slept 7h30", "took magnesium", "sauna 20 min at 8". Rules
+ * "bp 120/80 62", "slept 7h30", "took magnesium", "sauna 20 min at 8",
+ * drink presets ("espresso", "beer 330", "wine glass", "café", "imperial",
+ * #443) and pain ("pain left knee 4", "dor joelho esquerdo 4", #442). Rules
  * only, no AI, so it works offline too. Pure TypeScript — safe for the app
  * bundles; the web palette uses it now and the mobile picker can later.
  *
@@ -15,9 +17,11 @@
 import type { I18n } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { parseDecimal } from "@openvalens/i18n/numbers";
+import type { DrinkPresetKey } from "@openvalens/nutrition/drinks";
+import type { PainType } from "@openvalens/pain/model";
 import { parseDuration } from "@openvalens/trackers/model";
 
-import type { BuiltInLogKindId, LogKind } from "./log-kinds";
+import { drinkLogKindId, type BuiltInLogKindId, type LogKind } from "./log-kinds";
 import { defaultObservedAt } from "./manual-entry";
 import { defaultManualSleepWindow } from "./manual-sleep";
 import {
@@ -369,6 +373,233 @@ function parseSleep(
   };
 }
 
+/** Splits "330ml" into "330 ml" and "joelho4" into "joelho 4"; hyphens read as spaces. */
+function wordsOf(folded: string): string[] {
+  return folded
+    .replace(/-/g, " ")
+    .replace(/(\d)([a-z])/g, "$1 $2")
+    .replace(/([a-z])(\d)/g, "$1 $2")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+}
+
+// ─── Drinks (#443) ───────────────────────────────────────────────
+
+type DrinkWord = { key: DrinkPresetKey; volumeMl?: number };
+
+const drinkWords = (key: DrinkPresetKey, words: readonly string[], volumeMl?: number) =>
+  words.map((word) => [word, { key, volumeMl }] as const);
+
+/**
+ * Drink names, folded (no accents), in English and pt-PT. A volume here is
+ * the name's own: an "imperial" (Lisbon) or a "fino" (Porto) is a 200 ml
+ * draught beer, a "caneca" 500 ml. Otherwise the preset's volume applies.
+ */
+const DRINK_WORDS: ReadonlyMap<string, DrinkWord> = new Map<string, DrinkWord>([
+  ...drinkWords("espresso", [
+    "espresso",
+    "expresso",
+    "cafe",
+    "cafe expresso",
+    "cafe espresso",
+    "bica",
+    "cimbalino",
+  ]),
+  ...drinkWords("filter_coffee", [
+    "coffee",
+    "filter coffee",
+    "mug of coffee",
+    "mug of filter coffee",
+    "cup of coffee",
+    "cafe de filtro",
+    "cafe filtrado",
+    "caneca de cafe",
+  ]),
+  ...drinkWords("tea", ["tea", "black tea", "cup of tea", "cha", "cha preto", "chavena de cha"]),
+  ...drinkWords("cola", ["cola", "coke", "coca cola", "refrigerante de cola"]),
+  ...drinkWords("energy_drink", ["energy drink", "bebida energetica", "energetica", "energetico"]),
+  ...drinkWords("beer", ["beer", "cerveja", "lata de cerveja", "garrafa de cerveja"]),
+  ...drinkWords("beer", ["imperial", "fino"], 200),
+  ...drinkWords("beer", ["caneca", "caneca de cerveja"], 500),
+  ...drinkWords("wine", [
+    "wine",
+    "wine glass",
+    "glass of wine",
+    "red wine",
+    "white wine",
+    "glass of red",
+    "glass of white",
+    "glass of red wine",
+    "glass of white wine",
+    "vinho",
+    "copo de vinho",
+    "copo de vinho tinto",
+    "copo de vinho branco",
+    "vinho tinto",
+    "vinho branco",
+    "copo de tinto",
+    "copo de branco",
+  ]),
+  ...drinkWords("spirits", [
+    "spirits",
+    "shot",
+    "shot of spirits",
+    "vodka",
+    "gin",
+    "rum",
+    "whisky",
+    "whiskey",
+    "tequila",
+    "brandy",
+    "aguardente",
+    "bagaco",
+  ]),
+]);
+
+const DRINK_UNITS: Readonly<Record<string, string>> = { ml: "ml", cl: "cl", l: "l" };
+const LEADING_ARTICLES = new Set(["a", "an", "one", "um", "uma"]);
+
+/**
+ * "espresso", "beer 330", "beer 33 cl", "wine glass", "imperial": the
+ * preset and the volume as typed (`""` for the preset's own).
+ */
+function readDrink(folded: string): { key: DrinkPresetKey; volume: string; unit: string } | null {
+  const words = wordsOf(folded);
+  const numbers = words.flatMap((word, index) => (NUMBER.test(word) ? [index] : []));
+  if (numbers.length > 1) return null;
+  let volume = "";
+  let unit = "ml";
+  const rest = [...words];
+  if (numbers.length === 1) {
+    const index = numbers[0]!;
+    volume = words[index]!;
+    const typedUnit = DRINK_UNITS[words[index + 1] ?? ""];
+    rest.splice(index, typedUnit ? 2 : 1);
+    if (typedUnit) unit = typedUnit;
+  }
+  if (rest.length > 1 && LEADING_ARTICLES.has(rest[0]!)) rest.shift();
+  const word = DRINK_WORDS.get(rest.join(" "));
+  if (!word) return null;
+  if (!volume && word.volumeMl !== undefined) volume = String(word.volumeMl);
+  return { key: word.key, volume, unit };
+}
+
+// ─── Pain (#442) ─────────────────────────────────────────────────
+
+const PAIN_WORDS = new Set(["pain", "sore", "hurts", "hurt", "dor", "dores", "doi"]);
+/** Small words between the pain word, the part and the rating ("dor no joelho"). */
+const PAIN_FILLER = new Set(
+  "in on my the of no na nos nas do da dos das de em o a os as meu minha".split(" "),
+);
+const PAIN_SIDES: ReadonlyMap<string, "left" | "right"> = new Map([
+  ...(["left", "l", "esquerdo", "esquerda", "esq"] as const).map((w) => [w, "left"] as const),
+  ...(["right", "r", "direito", "direita", "dir"] as const).map((w) => [w, "right"] as const),
+]);
+const PAIN_TYPE_WORDS: ReadonlyMap<string, PainType> = new Map<string, PainType>([
+  ...["ache", "aching", "achy", "dull", "surda", "moinha"].map((w) => [w, "ache"] as const),
+  ...["sharp", "stabbing", "aguda", "agudo", "pontada"].map((w) => [w, "sharp"] as const),
+  ...["burning", "ardor", "ardencia", "arder"].map((w) => [w, "burning"] as const),
+  ...["throbbing", "pulsing", "latejante", "latejar"].map((w) => [w, "throbbing"] as const),
+  ...["stiff", "stiffness", "rigidez", "rigido", "rigida"].map((w) => [w, "stiffness"] as const),
+  ...["tingling", "tingly", "formigueiro", "formigamento"].map((w) => [w, "tingling"] as const),
+]);
+
+type PainPart = { id: string } | { left: string; right: string };
+const single = (id: string): PainPart => ({ id });
+const sided = (base: string): PainPart => ({ left: `${base}_left`, right: `${base}_right` });
+
+/**
+ * Body parts, folded, in English and pt-PT, without filler words ("back of
+ * thigh" is read as "back thigh"). Front or back follows where the part is
+ * usually felt; the preview names the region before anything is saved.
+ */
+const PAIN_PARTS: ReadonlyMap<string, PainPart> = new Map(
+  (
+    [
+      [["neck", "pescoco", "cervical"], single("joint.neck")],
+      [["jaw", "maxilar", "mandibula"], sided("joint.jaw")],
+      [["elbow", "cotovelo"], sided("joint.elbow")],
+      [["wrist", "hand", "wrist and hand", "pulso", "punho", "mao"], sided("joint.wrist_hand")],
+      [["hip", "anca"], sided("joint.hip")],
+      [["knee", "joelho"], sided("joint.knee")],
+      [["ankle", "foot", "ankle and foot", "tornozelo", "pe"], sided("joint.ankle_foot")],
+      [["head", "cabeca"], single("front.head")],
+      [["shoulder", "ombro"], sided("front.shoulder")],
+      [["chest", "peito"], sided("front.chest")],
+      [["upper arm", "arm", "biceps", "braco"], sided("front.biceps")],
+      [["forearm", "antebraco"], sided("front.forearm")],
+      [["abdomen", "abs", "barriga", "abdominal"], sided("front.abs")],
+      [["thigh", "quad", "quadriceps", "coxa"], sided("front.thigh")],
+      [["shin", "lower leg", "canela"], sided("front.shin")],
+      [["traps", "trapezius", "trapezio"], single("back.traps")],
+      [["upper back", "parte superior costas"], sided("back.upper_back")],
+      [
+        ["lower back", "low back", "back", "lombar", "zona lombar", "fundo costas", "costas"],
+        sided("back.lower_back"),
+      ],
+      [["triceps"], sided("back.triceps")],
+      [["glute", "buttock", "gluteo", "nadega"], sided("back.glutes")],
+      [["hamstring", "back thigh", "posterior coxa", "isquiotibial"], sided("back.hamstrings")],
+      [["calf", "calves", "gemeo", "barriga perna"], sided("back.calf")],
+    ] as const
+  ).flatMap(([words, part]) => words.map((word) => [word, part] as const)),
+);
+
+function painPartOf(phrase: string): PainPart | null {
+  const exact = PAIN_PARTS.get(phrase);
+  if (exact) return exact;
+  // "knees", "joelhos", "ombros": the last word in the plural.
+  return phrase.endsWith("s") ? (PAIN_PARTS.get(phrase.slice(0, -1)) ?? null) : null;
+}
+
+type PainLine = { regions: string[]; rating: string; type: PainType | null };
+
+/**
+ * "pain left knee 4", "dor joelho esquerdo 4", "sharp pain right shoulder
+ * 6/10", "dor de cabeça 3": the region (both sides when no side is named),
+ * the rating as typed and an optional type. Null without a pain word, or
+ * with words that name no body part.
+ */
+function readPain(folded: string): PainLine | null {
+  const text = ` ${folded} `
+    .replace(/(\d)\s*\/\s*10(?=\s)/g, "$1")
+    .replace(/(\d)\s+(?:out of|of|de|em)\s+10(?=\s)/g, "$1")
+    .replace(/\spins and needles(?=\s)/g, " tingling");
+  const words = wordsOf(text);
+  if (!words.some((word) => PAIN_WORDS.has(word))) return null;
+  let rating = "";
+  let type: PainType | null = null;
+  let side: "left" | "right" | null = null;
+  const part: string[] = [];
+  for (const word of words) {
+    if (PAIN_WORDS.has(word) || PAIN_FILLER.has(word)) continue;
+    if (NUMBER.test(word)) {
+      if (rating) return null;
+      rating = word;
+      continue;
+    }
+    const named = PAIN_TYPE_WORDS.get(word);
+    if (named) {
+      if (type && type !== named) return null;
+      type = named;
+      continue;
+    }
+    const sideWord = PAIN_SIDES.get(word);
+    if (sideWord) {
+      if (side && side !== sideWord) return null;
+      side = sideWord;
+      continue;
+    }
+    part.push(word);
+  }
+  if (part.length === 0) return { regions: [], rating, type };
+  const found = painPartOf(part.join(" "));
+  if (!found) return null;
+  if ("id" in found) return { regions: [found.id], rating, type };
+  return { regions: side ? [found[side]] : [found.left, found.right], rating, type };
+}
+
 /** Everything but workouts and food, after the time words are taken out. */
 function parseRest(
   time: TimeWords,
@@ -429,6 +660,34 @@ function parseRest(
       },
     };
   }
+
+  // Pain (#442), only when the member turned the pain log on.
+  const painKind = kindOf("pain");
+  const pain = painKind ? readPain(folded) : null;
+  if (pain && painKind) {
+    const entryFor = (region: string): OneLinerEntry => ({
+      kind: painKind,
+      values: withTime({ region, rating: pain.rating, type: pain.type ?? "" }),
+      at,
+    });
+    // "pain knee 4": the same rating for the left or the right knee.
+    if (pain.regions.length === 2 && pain.rating)
+      return { type: "choices", number: pain.rating, entries: pain.regions.map(entryFor) };
+    return { type: "entry", entry: entryFor(pain.regions.length === 1 ? pain.regions[0]! : "") };
+  }
+
+  // Drink presets (#443), only those the server can log now.
+  const drink = readDrink(folded);
+  const drinkKind = drink ? kindOf(drinkLogKindId(drink.key)) : undefined;
+  if (drink && drinkKind)
+    return {
+      type: "entry",
+      entry: {
+        kind: drinkKind,
+        values: withTime({ volume: drink.volume, [unitKey("volume")]: drink.unit }),
+        at,
+      },
+    };
 
   // One number with a kind word and/or a unit: "500 ml", "water 500", "hr 62", "82,4 kg".
   const tokens = folded

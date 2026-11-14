@@ -12,6 +12,7 @@ import {
   buildRecentLogEntries,
   countRecentKinds,
   DEFAULT_RECENTS_LIMIT,
+  loadRecentDrinkRows,
   loadRecentIntakeRows,
   loadRecentMetricRows,
   loadRecentWaterRows,
@@ -26,9 +27,10 @@ import {
 export const quickLogRouter = {
   /**
    * The member's last distinct typed-in entries (metrics, blood pressure,
-   * water, supplement intakes), newest first, to repeat with the time set to
-   * now. Supplement intakes are left out when the role cannot read
-   * supplements; water when the member hides nutrition numbers.
+   * water, supplement intakes, drink presets), newest first, to repeat with
+   * the time set to now. Supplement intakes are left out when the role cannot
+   * read supplements; water and drinks when the member hides nutrition
+   * numbers.
    */
   recents: permissionedProcedure({ resource: "records", action: "read" })
     .use(validateInput(quickLogRecentsInput))
@@ -51,8 +53,13 @@ export const quickLogRouter = {
         readNutritionTargetSettings(context.db, owner),
         canReadSupplements ? loadRecentIntakeRows(context.db, owner) : Promise.resolve([]),
       ]);
-      const water = settings.hideNumbers ? [] : await loadRecentWaterRows(context.db, owner);
-      const sources = { metrics, water, intakes };
+      const [water, drinks] = settings.hideNumbers
+        ? [[], []]
+        : await Promise.all([
+            loadRecentWaterRows(context.db, owner),
+            loadRecentDrinkRows(context.db, owner),
+          ]);
+      const sources = { metrics, water, intakes, drinks };
       return {
         entries: buildRecentLogEntries(sources, input?.limit ?? DEFAULT_RECENTS_LIMIT),
         kindCounts: countRecentKinds(sources),

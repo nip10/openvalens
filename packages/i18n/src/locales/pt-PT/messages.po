@@ -506,6 +506,8 @@ msgid "{amount} kg over {days} days, from {weighIns} weigh-ins"
 msgstr "{amount} kg em {days} dias, a partir de {weighIns} pesagens"
 
 #. Keep ml as is.
+#. Keep ml as is.
+#: apps/web/src/components/quick-log/palette-sections.ts
 #: packages/api/src/presenters/quick-log.ts
 msgid "{amount} ml"
 msgstr "{amount} ml"
@@ -1054,7 +1056,7 @@ msgstr "{rated} de {0, plural, one {# sessão avaliada} other {# sessões avalia
 msgid "{ratedWithDuration, plural, one {From # rated session.} other {From # rated sessions.}}"
 msgstr "{ratedWithDuration, plural, one {Com base em # sessão avaliada.} other {Com base em # sessões avaliadas.}}"
 
-#: packages/api/src/presenters/pain.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "{rating} of {max}"
 msgstr "{rating} em {max}"
 
@@ -1700,7 +1702,7 @@ msgstr "A configuração da conta falhou"
 msgid "Accounts are shown by their opaque id only. Usage counts tokens and estimated cost, never what anyone wrote. See docs/ai-providers.md, section Monthly usage cap."
 msgstr "As contas aparecem apenas pelo seu identificador opaco. A utilização conta tokens e o custo estimado, nunca o que alguém escreveu. Consulte docs/ai-providers.md, secção Monthly usage cap."
 
-#: packages/api/src/presenters/pain.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgctxt "pain type"
 msgid "Ache"
 msgstr "Dor surda"
@@ -3060,7 +3062,7 @@ msgstr "Crie um plano reutilizável. As sugestões de progressão são opcionais
 msgid "Building your usual"
 msgstr "A estabelecer o seu habitual"
 
-#: packages/api/src/presenters/pain.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgctxt "pain type"
 msgid "Burning"
 msgstr "Ardor"
@@ -7886,10 +7888,12 @@ msgid "Have a sign-in code?"
 msgstr "Tem um código de início de sessão?"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Head (back)"
 msgstr "Cabeça (costas)"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Head (front)"
 msgstr "Cabeça (frente)"
 
@@ -8097,6 +8101,7 @@ msgid "Hip"
 msgstr "Anca"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Hips (front)"
 msgstr "Ancas (frente)"
 
@@ -9171,90 +9176,106 @@ msgid "Leave blank for bodyweight or unspecified."
 msgstr "Deixe em branco para peso corporal ou se não especificado."
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Left abdomen (front)"
 msgstr "Abdómen esquerdo (frente)"
 
-#: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Left ankle and foot"
 msgstr "Tornozelo e pé esquerdos"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Left back of thigh (back)"
 msgstr "Parte de trás da coxa esquerda (costas)"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Left calf (back)"
 msgstr "Gémeo esquerdo (costas)"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Left chest (front)"
 msgstr "Peito esquerdo (frente)"
 
-#: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Left elbow"
 msgstr "Cotovelo esquerdo"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Left forearm (back)"
 msgstr "Antebraço esquerdo (costas)"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Left forearm (front)"
 msgstr "Antebraço esquerdo (frente)"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Left glute (back)"
 msgstr "Glúteo esquerdo (costas)"
 
-#: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Left hip"
 msgstr "Anca esquerda"
 
-#: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Left jaw"
 msgstr "Maxilar esquerdo"
 
-#: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Left knee"
 msgstr "Joelho esquerdo"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Left lower back (back)"
 msgstr "Lombar esquerda (costas)"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Left lower leg (front)"
 msgstr "Perna esquerda (frente)"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Left shoulder (back)"
 msgstr "Ombro esquerdo (costas)"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Left shoulder (front)"
 msgstr "Ombro esquerdo (frente)"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Left side (front)"
 msgstr "Lado esquerdo (frente)"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Left thigh (front)"
 msgstr "Coxa esquerda (frente)"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Left upper arm (back)"
 msgstr "Braço esquerdo (costas)"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Left upper arm (front)"
 msgstr "Braço esquerdo (frente)"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Left upper back (back)"
 msgstr "Parte superior esquerda das costas (costas)"
 
-#: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Left wrist and hand"
 msgstr "Pulso e mão esquerdos"
 
@@ -10245,6 +10266,7 @@ msgid "Missing data is unknown, not zero. Dates follow this goal’s timezone an
 msgstr "A ausência de dados é desconhecida, não é zero. As datas seguem o fuso horário e a hora de fecho desta meta."
 
 #. Unit symbol; keep as is.
+#. Unit symbol; keep as is.
 #: packages/api/src/presenters/log-kinds.ts
 msgid "ml"
 msgstr "ml"
@@ -10491,7 +10513,7 @@ msgstr "Dispositivo próximo"
 
 #: apps/native/app/(drawer)/private-measurements.tsx
 #: apps/web/src/routes/_auth/private-measurements.tsx
-#: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Neck"
 msgstr "Pescoço"
 
@@ -12321,6 +12343,7 @@ msgid "Page Not Found"
 msgstr "Página não encontrada"
 
 #: apps/web/src/routes/_auth/body-map.tsx
+#: packages/api/src/presenters/log-kinds.ts
 #: packages/api/src/presenters/timeline.ts
 msgid "Pain"
 msgstr "Dor"
@@ -13231,6 +13254,7 @@ msgstr "Avalie a sua própria energia, de 1 a 5."
 msgid "Rate your mood yourself, from 1 to 5."
 msgstr "Avalie o seu próprio humor, de 1 a 5."
 
+#: packages/api/src/presenters/log-kinds.ts
 #: packages/api/src/presenters/pain.ts
 msgid "Rating from 0 to 10"
 msgstr "Classificação de 0 a 10"
@@ -14125,90 +14149,106 @@ msgid "Revoking…"
 msgstr "A revogar…"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Right abdomen (front)"
 msgstr "Abdómen direito (frente)"
 
-#: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Right ankle and foot"
 msgstr "Tornozelo e pé direitos"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Right back of thigh (back)"
 msgstr "Parte de trás da coxa direita (costas)"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Right calf (back)"
 msgstr "Gémeo direito (costas)"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Right chest (front)"
 msgstr "Peito direito (frente)"
 
-#: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Right elbow"
 msgstr "Cotovelo direito"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Right forearm (back)"
 msgstr "Antebraço direito (costas)"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Right forearm (front)"
 msgstr "Antebraço direito (frente)"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Right glute (back)"
 msgstr "Glúteo direito (costas)"
 
-#: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Right hip"
 msgstr "Anca direita"
 
-#: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Right jaw"
 msgstr "Maxilar direito"
 
-#: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Right knee"
 msgstr "Joelho direito"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Right lower back (back)"
 msgstr "Lombar direita (costas)"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Right lower leg (front)"
 msgstr "Perna direita (frente)"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Right shoulder (back)"
 msgstr "Ombro direito (costas)"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Right shoulder (front)"
 msgstr "Ombro direito (frente)"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Right side (front)"
 msgstr "Lado direito (frente)"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Right thigh (front)"
 msgstr "Coxa direita (frente)"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Right upper arm (back)"
 msgstr "Braço direito (costas)"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Right upper arm (front)"
 msgstr "Braço direito (frente)"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Right upper back (back)"
 msgstr "Parte superior direita das costas (costas)"
 
-#: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Right wrist and hand"
 msgstr "Pulso e mão direitos"
 
@@ -15264,7 +15304,7 @@ msgstr "A partilha está desligada, a menos que a ative expressamente."
 msgid "Sharing is on."
 msgstr "A partilha está ligada."
 
-#: packages/api/src/presenters/pain.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgctxt "pain type"
 msgid "Sharp"
 msgstr "Aguda"
@@ -15986,7 +16026,7 @@ msgstr "Passos: nenhum registado nos últimos 7 dias."
 msgid "Steps: the published step tables used hip-worn monitors, and wrist or phone counts are not comparable with them. See active minutes against the WHO range instead."
 msgstr "Passos: as tabelas de passos publicadas usaram monitores à cintura, e as contagens de pulso ou telemóvel não são comparáveis. Veja antes os minutos ativos face ao intervalo da OMS."
 
-#: packages/api/src/presenters/pain.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgctxt "pain type"
 msgid "Stiffness"
 msgstr "Rigidez"
@@ -17386,7 +17426,7 @@ msgstr "Não foi possível abrir este treino. Tente novamente."
 msgid "This workspace's OpenValens Cloud access has ended. Its records are still here, and you can export them."
 msgstr "O acesso deste espaço de trabalho ao OpenValens Cloud terminou. Os registos continuam aqui e pode exportá-los."
 
-#: packages/api/src/presenters/pain.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgctxt "pain type"
 msgid "Throbbing"
 msgstr "Latejante"
@@ -17433,7 +17473,7 @@ msgctxt "diary view"
 msgid "Timeline"
 msgstr "Cronologia"
 
-#: packages/api/src/presenters/pain.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgctxt "pain type"
 msgid "Tingling"
 msgstr "Formigueiro"
@@ -17856,6 +17896,7 @@ msgid "Type"
 msgstr "Tipo"
 
 #: apps/web/src/components/pain/pain-panel.tsx
+#: packages/api/src/presenters/log-kinds.ts
 msgid "Type (optional)"
 msgstr "Tipo (opcional)"
 
@@ -18118,6 +18159,7 @@ msgid "Upper arm"
 msgstr "Braço"
 
 #: packages/api/src/presenters/body-map.ts
+#: packages/api/src/presenters/pain-entry.ts
 msgid "Upper back and neck (back)"
 msgstr "Parte superior das costas e pescoço (costas)"
 
@@ -18792,6 +18834,7 @@ msgid "When taken"
 msgstr "Quando foi tomada"
 
 #: apps/web/src/components/pain/pain-panel.tsx
+#: packages/api/src/presenters/log-kinds.ts
 msgid "Where"
 msgstr "Onde"
 

@@ -1,6 +1,11 @@
 import type { Database } from "@openvalens/db";
 import { metricDefinition, metricSample } from "@openvalens/db/schema/health-record";
-import { plainWaterEntry } from "@openvalens/db/schema/nutrition";
+import {
+  nutritionFoodSnapshot,
+  nutritionMealEntry,
+  plainWaterEntry,
+} from "@openvalens/db/schema/nutrition";
+import { DRINK_PRESETS, ML_PER_FL_OZ } from "@openvalens/nutrition/drinks";
 import { supplement, supplementIntake, supplementSchedule } from "@openvalens/db/schema/plans";
 import {
   isPlanItemDue,
@@ -24,8 +29,9 @@ import {
  *
  * Recents are the member's own typed-in entries only: metric samples with no
  * data source stamped with their user id (weight, heart rate, steps, …, and
- * blood pressure pairs), plain water and supplement intakes. Device data is
- * never offered as a "recent".
+ * blood pressure pairs), plain water, supplement intakes and drink presets
+ * (#443: diary entries saved with the `preset` method). Device data is never
+ * offered as a "recent".
  */
 
 /** How far back recents look (keeps the metric scan on recent rows). */
@@ -44,6 +50,8 @@ export type RecentIntakeRow = {
   supplementName: string;
   dose: string;
 };
+/** A diary entry saved from a drink preset: its FDC food id and grams. */
+export type RecentDrinkRow = { at: Date; fdcId: string; amountG: number };
 
 const isMetricKind = (code: string): code is RecentMetricKind =>
   (RECENT_METRIC_KINDS as readonly string[]).includes(code);
@@ -67,6 +75,7 @@ export function recentEntryKey(entry: RecentLogEntry): string {
     case "supplement_intake":
       return `supplement|${entry.supplementId}|${entry.dose.trim().toLowerCase()}`;
     default:
+      if ("preset" in entry) return `${entry.kind}|${entry.volumeMl}`;
       return `${entry.kind}|${entry.value}`;
   }
 }
@@ -75,7 +84,16 @@ export type RecentSources = {
   metrics: readonly RecentMetricRow[];
   water: readonly RecentWaterRow[];
   intakes: readonly RecentIntakeRow[];
+  /** Optional so callers without drinks need not pass it. */
+  drinks?: readonly RecentDrinkRow[];
 };
+
+const PRESET_BY_FDC_ID = new Map(DRINK_PRESETS.map((preset) => [String(preset.fdcId), preset]));
+
+/** The volume a preset entry's grams stand for, with the preset's own fl oz weight. */
+export function drinkVolumeMl(grams: number, gramsPerFlOz: number): number {
+  return Math.round((grams * ML_PER_FL_OZ) / gramsPerFlOz);
+}
 
 /**
  * Pure: merges the three sources into the last `limit` distinct entries,
@@ -165,6 +183,16 @@ function mergeRecentEntries(sources: RecentSources): RecentLogEntry[] {
       supplementName: row.supplementName,
       dose: row.dose,
     });
+  for (const row of sources.drinks ?? []) {
+    const preset = PRESET_BY_FDC_ID.get(row.fdcId);
+    if (!preset) continue;
+    entries.push({
+      kind: `drink:${preset.key}`,
+      at: row.at.toISOString(),
+      preset: preset.key,
+      volumeMl: drinkVolumeMl(row.amountG, preset.gramsPerFlOz),
+    });
+  }
 
   entries.sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
   return entries;
@@ -243,6 +271,50 @@ export async function loadRecentIntakeRows(db: Database, owner: Owner): Promise<
     )
     .orderBy(desc(supplementIntake.occurredAt), desc(supplementIntake.id))
     .limit(20);
+}
+
+/**
+ * The member's own drink presets (#443): live diary entries saved with the
+ * `preset` method from an FDC food, still in grams. An entry whose amount was
+ * changed to another unit is left out.
+ */
+export async function loadRecentDrinkRows(db: Database, owner: Owner): Promise<RecentDrinkRow[]> {
+  const rows = await db
+    .select({
+      consumedAt: nutritionMealEntry.consumedAt,
+      createdAt: nutritionMealEntry.createdAt,
+      fdcId: nutritionFoodSnapshot.sourceFoodId,
+      amountG: nutritionMealEntry.amount,
+    })
+    .from(nutritionMealEntry)
+    .innerJoin(
+      nutritionFoodSnapshot,
+      and(
+        eq(nutritionFoodSnapshot.organizationId, nutritionMealEntry.organizationId),
+        eq(nutritionFoodSnapshot.id, nutritionMealEntry.snapshotId),
+      ),
+    )
+    .where(
+      and(
+        eq(nutritionMealEntry.organizationId, owner.organizationId),
+        eq(nutritionMealEntry.userId, owner.userId),
+        eq(nutritionMealEntry.method, "preset"),
+        eq(nutritionMealEntry.unit, "g"),
+        isNull(nutritionMealEntry.deletedAt),
+        eq(nutritionFoodSnapshot.source, "fdc"),
+        inArray(
+          nutritionFoodSnapshot.sourceFoodId,
+          DRINK_PRESETS.map((preset) => String(preset.fdcId)),
+        ),
+      ),
+    )
+    .orderBy(desc(nutritionMealEntry.createdAt), desc(nutritionMealEntry.id))
+    .limit(20);
+  return rows.flatMap((row) =>
+    row.fdcId === null
+      ? []
+      : [{ at: row.consumedAt ?? row.createdAt, fdcId: row.fdcId, amountG: row.amountG }],
+  );
 }
 
 // ─── Supplements due now ─────────────────────────────────────────

@@ -9,17 +9,22 @@
  * checks, and which feature setting must be on for it to appear.
  *
  * `availableLogKinds(context)` is the single filter: a kind shows only when the
- * member can write it and has the feature turned on. Later additions (custom
- * trackers, pain, drink presets) pass their own kinds through the same filter
- * via the `kinds` argument, so there is one rule for every surface.
+ * member can write it and has the feature turned on. Custom trackers (#441)
+ * and drink presets (#443, {@link drinkLogKinds}) pass their own kinds
+ * through the same filter via the `kinds` argument, so there is one rule for
+ * every surface. Pain (#442) is a built-in kind behind the member's own
+ * pain-log opt-in.
  */
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import type { Action, Resource } from "@openvalens/auth/access/permissions";
 import type { TrackerIcon } from "@openvalens/trackers/model";
 import { isRole, ROLE_PERMISSION_PRESETS } from "@openvalens/auth/access/roles";
+import { DRINK_PRESETS, type DrinkPresetKey } from "@openvalens/nutrition/drinks";
+import { PAIN_RATING_MAX, PAIN_RATING_MIN } from "@openvalens/pain/model";
 
 import type { PersonModule } from "../wellness-profile-contract";
+import { DRINK_PRESET_LABELS } from "./drinks";
 import { MANUAL_ENTRY_FIELDS, type ManualEntryField } from "./manual-entry";
 import { SLEEP_QUALITY_MAX, SLEEP_QUALITY_MIN } from "./manual-sleep";
 
@@ -35,6 +40,7 @@ export const BUILT_IN_LOG_KIND_IDS = [
   "sleep",
   "lab_result",
   "private_measurement",
+  "pain",
   "food",
   "water",
   "workout",
@@ -54,7 +60,7 @@ export type LogSaveBehaviour = "at_once" | "draft";
 export type LogKindPermission = { resource: Resource; action: Extract<Action, "write"> };
 
 /** A member preference that must be on, on top of the module. */
-export type LogKindPreference = "plain_water" | "private_body";
+export type LogKindPreference = "plain_water" | "private_body" | "pain";
 
 /** What must be turned on for the kind to appear. */
 export type LogKindGate = {
@@ -80,6 +86,8 @@ export type LogKindIconKey =
   | "dumbbell"
   | "pill"
   | "target"
+  | "person-standing"
+  | "cup-soda"
   // Custom tracker icons (#441).
   | TrackerIcon;
 
@@ -96,8 +104,18 @@ export type LogFieldType =
   | "duration"
   | "text";
 
-/** Where a `choice` field's options come from (the member's own data). */
-export type LogChoiceSource = "lab_marker" | "private_measurement" | "supplement" | "goal";
+/**
+ * Where a `choice` field's options come from: the member's own data, or a
+ * fixed list (`pain_region`: the body map's regions and joint spots;
+ * `pain_type`: ache, sharp, …).
+ */
+export type LogChoiceSource =
+  | "lab_marker"
+  | "private_measurement"
+  | "supplement"
+  | "goal"
+  | "pain_region"
+  | "pain_type";
 
 export type LogUnit = {
   /** Stored unit code (`mmHg`, `bpm`, `kg`, `ml`, …). */
@@ -308,6 +326,44 @@ export const LOG_KINDS: readonly LogKind<BuiltInLogKindId>[] = Object.freeze([
     paths: { web: "/private-measurements", native: "/private-measurements" },
   },
   {
+    // Pain (#442): only for a member who turned the pain log on; the server
+    // also checks that the session is the member's own. The picker opens the
+    // body map's pain layer to tap a region; a one-liner saves at once.
+    id: "pain",
+    label: msg`Pain`,
+    icon: "person-standing",
+    save: "at_once",
+    permission: RECORDS_WRITE,
+    gate: { module: "body", preference: "pain" },
+    fields: [
+      {
+        id: "region",
+        label: msg`Where`,
+        type: "choice",
+        required: true,
+        choiceSource: "pain_region",
+      },
+      {
+        id: "rating",
+        label: msg`Rating from 0 to 10`,
+        type: "rating",
+        required: true,
+        min: PAIN_RATING_MIN,
+        max: PAIN_RATING_MAX,
+        step: 1,
+      },
+      {
+        id: "type",
+        label: msg`Type (optional)`,
+        type: "choice",
+        required: false,
+        choiceSource: "pain_type",
+      },
+      observedAt,
+    ],
+    paths: { web: "/body-map", native: "/body-map" },
+  },
+  {
     id: "food",
     label: msg`Food`,
     icon: "utensils",
@@ -434,4 +490,72 @@ export function availableLogKinds<K extends LogKind>(
 
 export function findLogKind(id: string): LogKind<BuiltInLogKindId> | undefined {
   return LOG_KINDS.find((kind) => kind.id === id);
+}
+
+// ─── Drink presets (#443) ────────────────────────────────────────
+
+export type DrinkLogKindId = `drink:${DrinkPresetKey}`;
+
+const DRINK_KIND_PREFIX = "drink:";
+
+/** Largest drink volume a quick log accepts, in ml. */
+export const DRINK_MAX_ML = 2_000;
+
+export function drinkLogKindId(key: DrinkPresetKey): DrinkLogKindId {
+  return `${DRINK_KIND_PREFIX}${key}`;
+}
+
+/** The preset key of a `drink:<key>` kind id, or null for any other kind. */
+export function drinkPresetKeyOfLogKind(kindId: string): DrinkPresetKey | null {
+  if (!kindId.startsWith(DRINK_KIND_PREFIX)) return null;
+  const key = kindId.slice(DRINK_KIND_PREFIX.length);
+  return DRINK_PRESETS.some((preset) => preset.key === key) ? (key as DrinkPresetKey) : null;
+}
+
+/**
+ * One drink preset as a log kind. It saves at once as a catalog food in the
+ * current meal slot (`nutritionDiary.logEntry`, method `preset`), with the
+ * preset's volume unless another is typed ("beer 500"). Gated on the food
+ * module, like food itself.
+ */
+export function drinkLogKind(key: DrinkPresetKey): LogKind<DrinkLogKindId> {
+  return {
+    id: drinkLogKindId(key),
+    label: DRINK_PRESET_LABELS[key],
+    icon: "cup-soda",
+    save: "at_once",
+    permission: RECORDS_WRITE,
+    gate: { module: "food" },
+    fields: [
+      {
+        id: "volume",
+        label: msg`Amount`,
+        type: "number",
+        required: false,
+        unit: unit("ml", msg({ message: "ml", comment: "Unit symbol; keep as is." })),
+        acceptedUnits: ["ml", "cl", "l"],
+        min: 1,
+        max: DRINK_MAX_ML,
+        step: 1,
+      },
+      observedAt,
+    ],
+    paths: { web: "/nutrition", native: "/nutrition" },
+  };
+}
+
+/**
+ * The drink presets the server can log now (`nutritionDrinks.presets`, the
+ * `available` ones: the FDC catalog is imported), as log kinds in preset
+ * order. Pass them to {@link availableLogKinds} with the built-ins.
+ */
+export function drinkLogKinds(
+  presets: readonly { key: DrinkPresetKey; available: boolean }[] | null | undefined,
+): LogKind<DrinkLogKindId>[] {
+  const ready = new Set(
+    (presets ?? []).filter((entry) => entry.available).map((entry) => entry.key),
+  );
+  return DRINK_PRESETS.filter((preset) => ready.has(preset.key)).map((preset) =>
+    drinkLogKind(preset.key),
+  );
 }

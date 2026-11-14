@@ -10,6 +10,8 @@ export type QuickLogApi = {
   plainWater: Pick<AppRouterClient["plainWater"], "add" | "delete">;
   supplementIntake: Pick<AppRouterClient["supplementIntake"], "create" | "delete">;
   trackers: Pick<AppRouterClient["trackers"], "log" | "deleteEntry">;
+  nutritionDiary: Pick<AppRouterClient["nutritionDiary"], "logEntry" | "deleteEntry">;
+  pain: Pick<AppRouterClient["pain"], "log" | "delete">;
 };
 
 export type QuickLogResult = {
@@ -88,6 +90,31 @@ export async function performQuickLogWrite(
         queued: false,
         undo: async () => {
           await api.trackers.deleteEntry({ id: saved.id });
+        },
+      };
+    }
+    case "drink": {
+      // A drink preset (#443) is a diary entry; a replay of one already saved is not undone.
+      const saved = await api.nutritionDiary.logEntry(write.input);
+      if (!saved.created) return { queued: false };
+      return {
+        queued: false,
+        undo: async () => {
+          await api.nutritionDiary.deleteEntry({
+            clientMutationId: newClientMutationId(),
+            entryId: saved.entry.id,
+            expectedRevision: saved.entry.revision,
+          });
+        },
+      };
+    }
+    case "pain": {
+      // The member's own pain log (#442): one entry per region.
+      const created = await api.pain.log(write.input);
+      return {
+        queued: false,
+        undo: async () => {
+          for (const entry of created) await api.pain.delete({ id: entry.id });
         },
       };
     }
