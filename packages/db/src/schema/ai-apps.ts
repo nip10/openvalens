@@ -224,8 +224,10 @@ export const aiAppWrite = pgTable(
  * night (`health_event`). UUID-keyed domains (custom tracker entries and pain
  * entries, M2b) use `target_uuids` instead. `possible_duplicate` is set when
  * device data of the same kind overlapped at write time (a reading within ten
- * minutes, a device night, a platform-imported tracker entry); nothing is
- * merged or overwritten, and device data wins in daily totals.
+ * minutes, a device night, a device workout that day of about the same
+ * length, a platform-imported tracker entry); nothing is merged or
+ * overwritten, and device data wins in daily totals (a flagged workout is left
+ * out of the activity load).
  */
 export const aiAppEntry = pgTable(
   "ai_app_entry",

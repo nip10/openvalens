@@ -1,5 +1,6 @@
 import { readdir } from "node:fs/promises";
 import { beforeAll, describe, expect, test } from "bun:test";
+import { listActivitySessions } from "@openvalens/activity";
 import { seedAccount } from "@openvalens/data-rights/testing";
 import { createDb, sql } from "@openvalens/db";
 import { aiAppCall, aiAppDraft, aiAppEntry, aiAppWrite } from "@openvalens/db/schema/ai-apps";
@@ -37,8 +38,9 @@ import {
  * own grant wrote), "Delete everything this app wrote", the per-call and
  * per-day limits, the read-only refusal, device overlap marked as a possible
  * duplicate with device data winning the daily totals, and the "via <app>"
- * source tag on the timeline. M2b adds workouts (catalog exercises only),
- * sleep (a night overlapping a device night is a possible duplicate), custom
+ * source tag on the timeline. M2b adds workouts (catalog exercises only; a
+ * session on the day of a device workout of about the same length is a
+ * possible duplicate, left out of the activity load), sleep (a night overlapping a device night is a possible duplicate), custom
  * trackers (only the member's own with the AI switch on) and the pain log
  * (only while it and its AI switch are on). M2c adds drafts the member
  * confirms: meal drafts and lab results (a known marker in one of its units,
@@ -808,6 +810,115 @@ describe.skipIf(!url)("AI app writes against disposable PostgreSQL", () => {
     );
     expect(future.status).toBe(400);
     expect(await countRows("workout")).toBe(before + 2);
+  });
+
+  test("workouts: a session matching a device workout is a possible duplicate; the device workout counts", async () => {
+    const setup = await m2bSetup();
+    const PARTNER = `user-${WHO}-partner`;
+    await db.execute(
+      sql`insert into "user" (id, email) values (${PARTNER}, ${`${PARTNER}@example.test`})`,
+    );
+    await db.execute(
+      sql`insert into member (id, organization_id, user_id, role) values (${`m-${PARTNER}`}, ${ORG}, ${PARTNER}, 'member')`,
+    );
+    const noon = (days: number) => `${daysAgo(days)}T12:00:00.000Z`;
+    const plus = (at: string, minutes: number) =>
+      new Date(Date.parse(at) + minutes * 60_000).toISOString();
+    const device = (
+      hash: string,
+      userId: string | null,
+      at: string,
+      endAt: string | null,
+      superseded = false,
+    ) =>
+      db.execute(
+        sql`insert into health_event (organization_id, user_id, event_type, event_at, payload_json, dedupe_hash, superseded_at)
+            values (${ORG}, ${userId}, 'workout', ${at}::timestamptz,
+              ${JSON.stringify(endAt ? { endAt, sourceApp: "watch" } : { sourceApp: "watch" })}::jsonb,
+              ${hash}, ${superseded ? new Date().toISOString() : null}::timestamptz)`,
+      );
+    // The member's own watch run, 45 minutes.
+    await device("device-workout-own", USER, noon(6), plus(noon(6), 45));
+    // A legacy import with no author and no end time.
+    await device("device-workout-legacy", null, noon(7), null);
+    // Another member's watch, and a workout the source replaced.
+    await device("device-workout-partner", PARTNER, noon(8), plus(noon(8), 30));
+    await device("device-workout-superseded", USER, noon(9), plus(noon(9), 30), true);
+
+    const body = {
+      mutationId: "m-workout-overlap",
+      entries: [
+        // About as long as the device run on the same day.
+        { date: daysAgo(6), type: "running", durationMinutes: 50 },
+        // Same day, much longer: another session.
+        { date: daysAgo(6), type: "weights", durationMinutes: 120 },
+        // Same day, no duration: the day is enough.
+        { date: daysAgo(6), type: "cycling" },
+        // A legacy workout with no length matches any length that day.
+        { date: daysAgo(7), type: "other", durationMinutes: 20 },
+        // Another member's workout, a superseded one, and a day with none.
+        { date: daysAgo(8), type: "running", durationMinutes: 30 },
+        { date: daysAgo(9), type: "running", durationMinutes: 30 },
+        { date: daysAgo(10), type: "running", durationMinutes: 30 },
+      ],
+    };
+    const logged = await rest("workouts.log", body, setup.key);
+    expect(logged.status).toBe(200);
+    const entries = logged.body.result.entries as Array<{
+      entryId: string;
+      possibleDuplicate: boolean;
+    }>;
+    expect(entries.map((entry) => entry.possibleDuplicate)).toEqual([
+      true,
+      false,
+      true,
+      true,
+      false,
+      false,
+      false,
+    ]);
+    const replay = await rest("workouts.log", body, setup.key);
+    expect(replay.body.result.replayed).toBe(true);
+    expect(replay.body.result.entries).toEqual(entries);
+
+    // The flag is kept on the entry; every workout is saved and the device ones are untouched.
+    const rows = await db
+      .select({
+        id: aiAppEntry.id,
+        targetIds: aiAppEntry.targetIds,
+        possibleDuplicate: aiAppEntry.possibleDuplicate,
+      })
+      .from(aiAppEntry)
+      .where(
+        inArray(
+          aiAppEntry.id,
+          entries.map((entry) => entry.entryId),
+        ),
+      );
+    const byEntry = new Map(rows.map((row) => [row.id, row]));
+    const workoutIds = entries.map((entry) => byEntry.get(entry.entryId)!.targetIds[0]!);
+    expect(entries.map((entry) => byEntry.get(entry.entryId)!.possibleDuplicate)).toEqual(
+      entries.map((entry) => entry.possibleDuplicate),
+    );
+    const [devices] = (
+      await db.execute(
+        sql`select count(*)::int as n from health_event where organization_id = ${ORG} and event_type = 'workout'`,
+      )
+    ).rows as Array<{ n: number }>;
+    expect(Number(devices?.n)).toBe(4);
+
+    // The weekly activity load counts the device workout, not the flagged session too.
+    const sessions = await listActivitySessions(db, ORG, USER, {
+      from: daysAgo(10),
+      to: daysAgo(6),
+    });
+    const refs = new Set(sessions.map((session) => session.ref));
+    entries.forEach((entry, index) => {
+      expect(refs.has(`workout:${workoutIds[index]}`)).toBe(!entry.possibleDuplicate);
+    });
+    expect(
+      sessions.filter((session) => session.date === daysAgo(6) && session.source !== "manual"),
+    ).toHaveLength(1);
   });
 
   test("sleep: a night overlapping a device night is a possible duplicate; the device night stays", async () => {

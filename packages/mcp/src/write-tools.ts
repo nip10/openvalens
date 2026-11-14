@@ -296,7 +296,8 @@ export const WRITE_TOOLS: readonly McpToolDefinition[] = Object.freeze([
     scope: "workouts:write",
     description:
       "Adds workout sessions the member did, one entry per session. A session with only a type, a duration and an effort rating is fine. Give each exercise's exerciseId from `exercises.search` (the member's own custom exercises are there too) and optional sets (reps, weight in kg or lb, RPE). A session with an exercise `exercises.search` does not find, given by name only, is not saved at once: it becomes a draft (status pending_review) the member reviews in the app, mapping that exercise to a catalog one or adding it as their own. An exerciseId the catalog does not have is refused.",
-    overlapNote: "",
+    overlapNote:
+      "A session on the day of a device or imported workout of about the same length (within 15 minutes or a quarter of the longer one; any length when either has none) is marked possibleDuplicate; the device workout counts in the activity load.",
     entry: z.strictObject({
       date: isoDay,
       type: z.enum(WORKOUT_ENTRY_TYPES).describe('Use "other" when none fits.'),

@@ -114,7 +114,17 @@ the connection's scopes without reconnecting). No scope is reserved any more.
   own custom exercises are listed there too); a session with only a type, a
   duration and an effort rating is fine. A session with an exercise given by
   name only (not in the catalog) is a draft: see below. An `exerciseId` the
-  workspace cannot see is refused.
+  workspace cannot see is refused. A workout has a day and an optional
+  duration but no time of day, so it is `possibleDuplicate: true` when a
+  device or imported workout (a `health_event` of type `workout` that is not
+  superseded) of the same member, or a legacy one with no author, starts on
+  the same day in the member's time zone and, when both durations are known,
+  lasts about as long: within 15 minutes or a quarter of the longer one,
+  whichever is more. With a duration missing on either side, the same day is
+  enough. The workout type is not compared (platform workout types do not map
+  one to one onto the app's). A flagged workout is left out of the weekly
+  activity load so the device workout counts. A workout the member saves from
+  a draft is their own reviewed entry and is not flagged.
 - **Sleep** is saved as a manual night (`entryMode: "manual"`, #440), with the
   app's own sleep form rules (10 minutes to 24 hours, not ending in the
   future). A night that overlaps a device night is `possibleDuplicate: true`,
@@ -201,8 +211,9 @@ the connection's scopes without reconnecting). No scope is reserved any more.
   A reading within ten minutes of a device reading of the same metric is
   returned as `possibleDuplicate: true` (the typed-in blood pressure rule), and
   daily vitals totals leave it out so the device reading counts; the same goes
-  for a night overlapping a device night. For weigh-ins, body composition and
-  sleep only the member's own device data (or legacy data with no author)
+  for a night overlapping a device night and a workout matching a device
+  workout (see Workouts above). For weigh-ins, body composition, sleep and
+  workouts only the member's own device data (or legacy data with no author)
   counts: another member's scale or watch never makes an entry a duplicate.
 - **Limits.** At most 100 entries per call and 1,000 added per grant a day
   (env, above); past the daily limit the call gets `429` with `Retry-After`.
