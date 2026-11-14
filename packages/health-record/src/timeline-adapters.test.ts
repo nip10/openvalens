@@ -310,4 +310,96 @@ describe("anchor domain timeline adapters", () => {
       "insight:2",
     ]);
   });
+  test("water, supplement intakes and workouts are member items with their source (#493)", () => {
+    const tag = { grantId: "11111111-1111-4111-8111-111111111111", label: "Claude" };
+    const items = buildDomainTimelineItems({
+      waterEntries: [
+        { id: 1, observedAt: "2026-10-01T08:00:00.000Z", timeZone: "UTC", quantityMl: 250 },
+        {
+          id: 2,
+          observedAt: "2026-10-01T09:00:00.000Z",
+          timeZone: "UTC",
+          quantityMl: null,
+          aiApp: tag,
+        },
+      ],
+      supplementIntakes: [
+        {
+          id: 3,
+          supplementId: 9,
+          supplementName: "Magnesium",
+          occurredAt: "2026-10-01T10:00:00.000Z",
+          timeZone: "Europe/Lisbon",
+          dose: "1 cap",
+          aiApp: tag,
+        },
+      ],
+      workouts: [
+        { id: 4, date: "2026-10-01", type: "running", duration: 45, exerciseCount: 0 },
+        { id: 5, date: "2026-10-02", type: "weights", exerciseCount: 3, aiApp: tag },
+      ],
+    });
+    expect(items.map(({ id, domain }) => [id, domain])).toEqual([
+      ["plain_water_entry:1", "water"],
+      ["plain_water_entry:2", "water"],
+      ["supplement_intake:3", "meds_supplements"],
+      ["workout:4", "activity"],
+      ["workout:5", "activity"],
+    ]);
+    const [water, hiddenWater, intake, run, strength] = items;
+    expect(water?.summary).toBe("250 ml");
+    expect(water?.sourceRefs).toEqual([
+      { type: "source_record", label: "plain_water_entry:1", id: 1, provider: "manual" },
+    ]);
+    // Hide-numbers mode: no amount anywhere in the item.
+    expect(hiddenWater?.canonical).toMatchObject({ quantityMl: null, hidden: true });
+    expect(JSON.stringify(hiddenWater)).not.toMatch(/250/);
+    expect(hiddenWater?.summary).toBe("Plain water");
+    // A connected AI app's entry leads with "via <app>", filterable by grant.
+    expect(hiddenWater?.sourceRefs[0]).toEqual({
+      type: "ai_app",
+      label: "Claude",
+      id: `ai_app:${tag.grantId}`,
+      provider: "ai_app",
+    });
+    expect(intake).toMatchObject({
+      title: "Magnesium",
+      summary: "1 cap",
+      at: "2026-10-01T10:00:00.000Z",
+      canonical: { table: "supplement_intake", supplementName: "Magnesium", dose: "1 cap" },
+    });
+    expect(intake?.sourceRefs.map((ref) => ref.type)).toEqual(["ai_app", "source_record"]);
+    // A session has a day but no time: midday UTC, grouped by its own day.
+    expect(run).toMatchObject({
+      at: "2026-10-01T12:00:00.000Z",
+      summary: "running, 45 min",
+      canonical: {
+        table: "workout",
+        workoutType: "running",
+        durationMinutes: 45,
+        localDate: "2026-10-01",
+        dateOnly: true,
+      },
+    });
+    expect(strength?.canonical).toMatchObject({ exerciseCount: 3, durationMinutes: null });
+    expect(
+      buildTimelinePage(items, { source: `ai_app:${tag.grantId}` }).items.map((i) => i.id),
+    ).toEqual(["workout:5", "supplement_intake:3", "plain_water_entry:2"]);
+    expect(buildTimelinePage(items, { domain: "water" }).items).toHaveLength(2);
+    // Cursors page past every new kind.
+    let cursor: string | undefined;
+    const ids: string[] = [];
+    for (let index = 0; index < items.length; index++) {
+      const page = buildTimelinePage(items, { limit: 1, cursor });
+      ids.push(...page.items.map((item) => item.id));
+      cursor = page.nextCursor ?? undefined;
+    }
+    expect(ids).toEqual([
+      "workout:5",
+      "workout:4",
+      "supplement_intake:3",
+      "plain_water_entry:2",
+      "plain_water_entry:1",
+    ]);
+  });
 });

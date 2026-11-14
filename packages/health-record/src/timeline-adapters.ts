@@ -90,9 +90,55 @@ export type PainEntryTimelineRow = {
   /** Written by a connected AI app (#439, M2b). */
   aiApp?: AiAppTag | null;
 };
+/**
+ * A plain-water entry (#493), already limited to the viewer's own entries
+ * while the water card is on. `quantityMl` is null in hide-numbers mode: the
+ * reader drops the amount before it reaches the item.
+ */
+export type WaterEntryTimelineRow = {
+  id: number;
+  observedAt: string;
+  timeZone: string;
+  quantityMl: number | null;
+  /** Written by a connected AI app (#439, M2a). */
+  aiApp?: AiAppTag | null;
+};
+/** A supplement the member took (#493), already limited to the viewer's own intakes. */
+export type SupplementIntakeTimelineRow = {
+  id: number;
+  supplementId: number;
+  supplementName: string;
+  occurredAt: string;
+  timeZone: string;
+  dose: string;
+  note?: string | null;
+  /** Written by a connected AI app (#439, M2a). */
+  aiApp?: AiAppTag | null;
+};
+/**
+ * A logged workout session (#493): the viewer's own, plus workspace sessions
+ * saved before workouts had an owner (as on the workouts screen). Device
+ * workouts are health events and reach the timeline on their own.
+ */
+export type WorkoutTimelineRow = {
+  id: number;
+  /** The session's calendar day, `YYYY-MM-DD`; a session has no time of day. */
+  date: string;
+  type: string;
+  duration?: number | null;
+  intensity?: string | null;
+  effortRating?: number | null;
+  /** Exercises in the session; null for a session saved before workouts had an owner. */
+  exerciseCount?: number | null;
+  /** Written by a connected AI app (#439, M2b). */
+  aiApp?: AiAppTag | null;
+};
 export type DomainTimelineRows = {
   trackerEntries?: CustomTrackerEntryTimelineRow[];
   painEntries?: PainEntryTimelineRow[];
+  waterEntries?: WaterEntryTimelineRow[];
+  supplementIntakes?: SupplementIntakeTimelineRow[];
+  workouts?: WorkoutTimelineRow[];
   consultations?: ConsultationTimelineRow[];
   imagingStudies?: ImagingStudyTimelineRow[];
   cardiacExams?: CardiacExamTimelineRow[];
@@ -224,10 +270,116 @@ function painItem(row: PainEntryTimelineRow): TimelineEvent {
   };
 }
 
+/** Typed in by the member (the quick log, the water card, the workouts screen). */
+function memberRefs(
+  table: string,
+  id: number,
+  tag: AiAppTag | null | undefined,
+): TimelineEvent["sourceRefs"] {
+  return [
+    ...aiAppRefs(tag),
+    { type: "source_record", label: `${table}:${id}`, id, provider: "manual" },
+  ];
+}
+
+/**
+ * Plain water (#493). One item per entry, like every other kind: the timeline
+ * groups nothing. The apps show the amount in the member's language, or
+ * "Hidden" in hide-numbers mode; a hidden amount never reaches the item.
+ */
+function waterItem(row: WaterEntryTimelineRow): TimelineEvent {
+  const quantityMl =
+    typeof row.quantityMl === "number" && Number.isFinite(row.quantityMl) ? row.quantityMl : null;
+  return {
+    kind: "event",
+    id: `plain_water_entry:${row.id}`,
+    at: toIso(row.observedAt),
+    domain: "water",
+    title: "Plain water",
+    summary: quantityMl === null ? "Plain water" : `${roundForDisplay(quantityMl, 0)} ml`,
+    severity: "none",
+    confidence: "high",
+    reviewState: "unreviewed",
+    sourceRefs: memberRefs("plain_water_entry", row.id, row.aiApp),
+    provenanceRefs: [],
+    relatedRefs: [],
+    canonical: {
+      table: "plain_water_entry",
+      quantityMl,
+      hidden: quantityMl === null,
+      timeZone: row.timeZone,
+    },
+  };
+}
+
+/** A supplement intake (#493): the supplement's name and the dose taken. */
+function supplementIntakeItem(row: SupplementIntakeTimelineRow): TimelineEvent {
+  return {
+    kind: "event",
+    id: `supplement_intake:${row.id}`,
+    at: toIso(row.occurredAt),
+    domain: "meds_supplements",
+    title: row.supplementName,
+    summary: row.dose,
+    severity: "none",
+    confidence: "high",
+    reviewState: "unreviewed",
+    sourceRefs: memberRefs("supplement_intake", row.id, row.aiApp),
+    provenanceRefs: [],
+    relatedRefs: [],
+    canonical: {
+      table: "supplement_intake",
+      supplementId: row.supplementId,
+      supplementName: row.supplementName,
+      dose: row.dose,
+      note: row.note ?? null,
+      timeZone: row.timeZone,
+    },
+  };
+}
+
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * A workout session (#493). It has a day but no time of day, so it sits at
+ * midday UTC (the same calendar day in nearly every time zone) and carries
+ * `localDate`, which the apps group by instead of the instant.
+ */
+function workoutItem(row: WorkoutTimelineRow): TimelineEvent {
+  const dateOnly = DATE_ONLY.test(row.date);
+  const duration = row.duration && row.duration > 0 ? row.duration : null;
+  return {
+    kind: "event",
+    id: `workout:${row.id}`,
+    at: toIso(dateOnly ? `${row.date}T12:00:00.000Z` : row.date),
+    domain: "activity",
+    title: "Workout",
+    summary: duration ? `${row.type}, ${duration} min` : row.type,
+    severity: "none",
+    confidence: "high",
+    reviewState: "unreviewed",
+    sourceRefs: memberRefs("workout", row.id, row.aiApp),
+    provenanceRefs: [],
+    relatedRefs: [],
+    canonical: {
+      table: "workout",
+      workoutType: row.type,
+      durationMinutes: duration,
+      intensity: row.intensity ?? null,
+      effortRating: row.effortRating ?? null,
+      exerciseCount: row.exerciseCount ?? null,
+      ...(dateOnly ? { localDate: row.date, dateOnly: true } : {}),
+    },
+  };
+}
+
 export function buildDomainTimelineItems(rows: DomainTimelineRows): TimelineEvent[] {
   return [
     ...(rows.trackerEntries ?? []).map(customTrackerItem),
     ...(rows.painEntries ?? []).map(painItem),
+    ...(rows.waterEntries ?? []).map(waterItem),
+    ...(rows.supplementIntakes ?? []).map(supplementIntakeItem),
+    ...(rows.workouts ?? []).map(workoutItem),
     ...(rows.consultations ?? []).map((row) =>
       item({
         id: `consultation:${row.id}`,

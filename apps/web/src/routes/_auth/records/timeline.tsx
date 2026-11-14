@@ -16,6 +16,7 @@ import {
   ListChecks,
   PersonStanding,
   CalendarDays,
+  Droplet,
   Footprints,
   FlaskConical,
   HeartPulse,
@@ -63,6 +64,7 @@ const DOMAIN_ICON: Record<string, { icon: LucideIcon; tone: Tone }> = {
   cardiac: { icon: Activity, tone: "heart" },
   custom: { icon: ListChecks, tone: "signal" },
   pain: { icon: PersonStanding, tone: "weight" },
+  water: { icon: Droplet, tone: "water" },
 };
 const OTHER_DOMAIN = { icon: Sparkles, tone: "signal" } as const;
 
@@ -170,7 +172,10 @@ function TimelinePage() {
                           {source ? ` · ${source}` : ""}
                         </p>
                       </div>
-                      <span className="num shrink-0 pt-0.5 text-sm text-ink-3">{item.time}</span>
+                      {/* A workout session has a day but no time of day (#493). */}
+                      {item.time ? (
+                        <span className="num shrink-0 pt-0.5 text-sm text-ink-3">{item.time}</span>
+                      ) : null}
                     </li>
                   );
                 })}

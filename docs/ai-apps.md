@@ -182,10 +182,11 @@ the connection's scopes without reconnecting). No scope is reserved any more.
 - **Source.** Every entry (and every draft) is recorded in `ai_app_entry`
   with the grant that wrote it and shown as "via <app name>". On the timeline,
   `timeline.list({ source: "ai_app:<grantId>" })` (or `/records/timeline?source=…`)
-  shows only one app's entries: readings, sleep nights, tracker entries and
-  pain entries. Water, supplement intakes and workouts are not timeline items
-  yet; they carry the same tag in `ai_app_entry` and are counted and deleted
-  with the rest. The quick log's "recent entries" are the member's own only,
+  shows only one app's entries: readings, sleep nights, tracker entries, pain
+  entries, water entries, supplement intakes and workouts (#493). Water,
+  intakes and workouts appear only for the member who logged them, while their
+  module is on; water also needs the water card on, and hide-numbers mode
+  drops its amounts. The quick log's "recent entries" are the member's own only,
   so nothing an app wrote is offered there to repeat.
 - **Ownership.** `*.delete` deletes only entries the same grant wrote, by the
   `entryId`s its log calls returned; any other id is answered `not_found` and

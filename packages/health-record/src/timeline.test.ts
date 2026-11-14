@@ -75,3 +75,9 @@ test("malformed cursor is rejected rather than silently restarting", () => {
   expect(decodeCursor(`${event.at}|foreign:1`)).toBeNull();
   expect(() => buildTimelinePage([event], { cursor: "invalid" })).toThrow();
 });
+test("cursors accept water, supplement intakes and workouts by id (#493)", () => {
+  for (const table of ["plain_water_entry", "supplement_intake", "workout"])
+    expect(decodeCursor(`${event.at}|${table}:12`)).toEqual({ at: event.at, id: `${table}:12` });
+  expect(decodeCursor(`${event.at}|workout:0`)).toBeNull();
+  expect(decodeCursor(`${event.at}|plain_water_entry:abc`)).toBeNull();
+});

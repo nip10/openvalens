@@ -10,9 +10,12 @@ import type { WearableProviderId } from "@openvalens/wearables";
 
 import { AI_APP_SOURCE_LABEL } from "./ai-apps";
 import { MANUAL_ENTRY_FIELDS } from "./manual-entry";
+import { HIDDEN_VALUE } from "./nutrition-targets";
 import { painEntrySummary, painRegionText } from "./pain";
+import { formatWaterAmount } from "./plain-water";
 import { formatSleepDuration } from "./sleep";
 import { formatTrackerValue } from "./trackers";
+import { workoutExerciseCountLabel, workoutTypeLabel } from "./workouts";
 
 export type TimelineItemLike = {
   id: string;
@@ -47,6 +50,7 @@ const DOMAIN_LABELS: Record<string, MessageDescriptor> = {
   cardiac: msg`Cardiac`,
   custom: msg`Trackers`,
   pain: msg`Pain`,
+  water: msg`Water`,
 };
 
 export function domainLabel(domain: string): MessageDescriptor {
@@ -172,6 +176,43 @@ function painEntry(item: TimelineItemLike) {
   return { region, rating, type: text(canonical.type), note: text(canonical.note) };
 }
 
+/**
+ * A plain-water entry (#493). `quantityMl` is null in hide-numbers mode: the
+ * server drops the amount, and the summary reads "Hidden".
+ */
+function waterEntry(item: TimelineItemLike) {
+  const canonical = item.canonical;
+  if (canonical?.table !== "plain_water_entry") return null;
+  const quantityMl = canonical.quantityMl;
+  if (canonical.hidden !== false || typeof quantityMl !== "number" || !Number.isFinite(quantityMl))
+    return { hidden: true, quantityMl: null } as const;
+  return { hidden: false, quantityMl } as const;
+}
+
+/** A supplement intake (#493): the supplement's name as the member saved it, and the dose. */
+function supplementIntake(item: TimelineItemLike) {
+  const canonical = item.canonical;
+  if (canonical?.table !== "supplement_intake") return null;
+  return {
+    name: text(canonical.supplementName),
+    dose: text(canonical.dose),
+    note: text(canonical.note),
+  };
+}
+
+/** A logged workout session (#493): its type, length and exercises. */
+function workoutSession(item: TimelineItemLike) {
+  const canonical = item.canonical;
+  if (canonical?.table !== "workout") return null;
+  const minutes = canonical.durationMinutes;
+  const exercises = canonical.exerciseCount;
+  return {
+    type: text(canonical.workoutType) ?? "other",
+    minutes: typeof minutes === "number" && minutes > 0 ? Math.round(minutes) : null,
+    exercises: typeof exercises === "number" && exercises > 0 ? exercises : null,
+  };
+}
+
 function eventType(item: TimelineItemLike): string | null {
   return item.kind === "event" ? text(item.canonical?.type) : null;
 }
@@ -185,6 +226,11 @@ export function timelineTitle(item: TimelineItemLike, i18n: I18n): string {
     const region = painRegionText(pain.region, i18n);
     return i18n._(msg`Pain: ${region}`);
   }
+  if (waterEntry(item)) return i18n._(msg`Plain water`);
+  const intake = supplementIntake(item);
+  if (intake) return intake.name ?? i18n._(msg`Supplement`);
+  const session = workoutSession(item);
+  if (session) return i18n._(workoutTypeLabel(session.type));
   const type = eventType(item);
   if (type === "sleep_session") return i18n._(msg`Sleep`);
   if (type === "workout") return text(item.canonical?.title) ?? i18n._(msg`Workout`);
@@ -207,6 +253,27 @@ export function timelineSummary(item: TimelineItemLike, i18n: I18n): string {
   if (pain) {
     const value = painEntrySummary(pain, i18n);
     return pain.note ? `${value} · ${pain.note}` : value;
+  }
+  const water = waterEntry(item);
+  if (water)
+    return water.hidden
+      ? i18n._(HIDDEN_VALUE)
+      : formatWaterAmount(water.quantityMl, "ml", false, i18n);
+  const intake = supplementIntake(item);
+  if (intake) {
+    const dose = intake.dose ?? i18n._(msg({ message: "Taken", context: "supplement" }));
+    return intake.note ? `${dose} · ${intake.note}` : dose;
+  }
+  const session = workoutSession(item);
+  if (session) {
+    const minutes = session.minutes;
+    const parts = [
+      minutes
+        ? i18n._(msg({ message: `${minutes} min`, comment: "A workout's length in minutes." }))
+        : null,
+      session.exercises ? i18n._(workoutExerciseCountLabel(session.exercises)) : null,
+    ].filter((part): part is string => part !== null);
+    return parts.length ? parts.join(", ") : i18n._(msg`Workout logged`);
   }
   if (item.kind === "metric" && item.canonical) {
     const value = item.canonical.value;
@@ -249,6 +316,19 @@ function localParts(iso: string, timeZone: string) {
   };
 }
 
+/**
+ * A record with a calendar day but no time of day (a logged workout session,
+ * #493) stays on its own day in every time zone, and shows no time.
+ */
+function dateOnlyDay(item: TimelineItemLike): string | null {
+  const day = item.canonical?.localDate;
+  return item.canonical?.dateOnly === true &&
+    typeof day === "string" &&
+    /^\d{4}-\d{2}-\d{2}$/.test(day)
+    ? day
+    : null;
+}
+
 /** Groups newest-first items into local days, preserving the server's order. */
 export function groupTimelineByDay<T extends TimelineItemLike>(
   items: readonly T[],
@@ -256,9 +336,11 @@ export function groupTimelineByDay<T extends TimelineItemLike>(
 ): TimelineDayGroup<T>[] {
   const groups: TimelineDayGroup<T>[] = [];
   for (const item of items) {
-    const { day, time } = localParts(item.at, timeZone);
-    const last = groups.at(-1);
-    if (last?.day === day) last.items.push({ ...item, time });
+    const dateOnly = dateOnlyDay(item);
+    const { day, time } = dateOnly ? { day: dateOnly, time: "" } : localParts(item.at, timeZone);
+    // A date-only record can sort just outside its day near the date line.
+    const last = groups.at(-1)?.day === day ? groups.at(-1) : groups.find((g) => g.day === day);
+    if (last) last.items.push({ ...item, time });
     else groups.push({ day, items: [{ ...item, time }] });
   }
   return groups;

@@ -974,6 +974,11 @@ msgstr "{minutes, plural, one {For your security, this link expires in # minute.
 msgid "{minutes} active minutes"
 msgstr "{minutes} active minutes"
 
+#. A workout's length in minutes.
+#: packages/api/src/presenters/timeline.ts
+msgid "{minutes} min"
+msgstr "{minutes} min"
+
 #: packages/api/src/presenters/activity-load.ts
 msgid "{minutes} min without an intensity are not counted."
 msgstr "{minutes} min without an intensity are not counted."
@@ -13078,6 +13083,7 @@ msgid "Pick your modules"
 msgstr "Pick your modules"
 
 #: packages/api/src/presenters/plain-water.ts
+#: packages/api/src/presenters/timeline.ts
 msgid "Plain water"
 msgstr "Plain water"
 
@@ -16675,6 +16681,7 @@ msgstr "Suggestions never go below 1,200 kcal a day, your profile's minimum or y
 #: apps/web/src/routes/_auth/-goal-editor.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
 #: packages/api/src/presenters/log-kinds.ts
+#: packages/api/src/presenters/timeline.ts
 msgid "Supplement"
 msgstr "Supplement"
 
@@ -16860,6 +16867,7 @@ msgstr "Take photo"
 
 #: apps/native/lib/quick-log/picker.ts
 #: apps/web/src/components/quick-log/palette-sections.ts
+#: packages/api/src/presenters/timeline.ts
 msgctxt "supplement"
 msgid "Taken"
 msgstr "Taken"
@@ -19135,6 +19143,7 @@ msgstr "Watches, rings, scales and wearable accounts"
 
 #: packages/api/src/presenters/log-kinds.ts
 #: packages/api/src/presenters/onboarding.ts
+#: packages/api/src/presenters/timeline.ts
 msgid "Water"
 msgstr "Water"
 
@@ -19505,6 +19514,10 @@ msgstr "Workout in progress"
 #: apps/web/src/routes/_auth/-goal-editor.tsx
 msgid "Workout lift"
 msgstr "Workout lift"
+
+#: packages/api/src/presenters/timeline.ts
+msgid "Workout logged"
+msgstr "Workout logged"
 
 #: apps/web/src/components/workout-routines.tsx
 msgid "Workout routines"

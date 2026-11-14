@@ -444,3 +444,42 @@ test("upsert validation failure surfaces as NOT_FOUND without audit", async () =
   ).rejects.toMatchObject({ code: "NOT_FOUND" });
   expect(audit).not.toHaveBeenCalled();
 });
+
+test("the member's diaries follow their modules, permissions and hide-numbers mode (#493)", async () => {
+  const { timelineDiaries } = await import("./timeline");
+  const all = { canReadSupplements: true, canReadWorkouts: true, hideNumbers: false };
+  // Not chosen yet: every module reads as on.
+  expect(timelineDiaries({ ...all, profile: { enabledModules: null } })).toEqual({
+    water: { hideNumbers: false },
+    supplementIntakes: true,
+    workouts: true,
+    activityHidden: false,
+  });
+  // A module turned off hides its items; Activity takes device workouts with it.
+  expect(timelineDiaries({ ...all, profile: { enabledModules: ["sleep"] } })).toEqual({
+    water: null,
+    supplementIntakes: false,
+    workouts: false,
+    activityHidden: true,
+  });
+  expect(
+    timelineDiaries({ ...all, hideNumbers: true, profile: { enabledModules: ["food"] } }).water,
+  ).toEqual({ hideNumbers: true });
+  // The read permission each diary's own screen needs.
+  expect(
+    timelineDiaries({
+      ...all,
+      canReadSupplements: false,
+      canReadWorkouts: false,
+      profile: null,
+    }),
+  ).toMatchObject({ supplementIntakes: false, workouts: false, activityHidden: false });
+});
+
+test("cursors page past water entries, supplement intakes and workouts (#493)", async () => {
+  for (const table of ["plain_water_entry", "supplement_intake", "workout"]) {
+    const cursor = `2026-09-29T12:00:00.000Z|${table}:3`;
+    await timelineRouter.list.callable({ context: context() })({ cursor, limit: 1 });
+    expect(list.mock.calls.at(-1)).toEqual(["org-a", { cursor, limit: 1 }, [], null]);
+  }
+});
