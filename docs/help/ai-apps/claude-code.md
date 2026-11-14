@@ -23,7 +23,8 @@ Commands checked against Anthropic's
 2. In Claude Code, run `/mcp`, choose `openvalens` and follow the steps in
    your browser. (From a terminal, `claude mcp login openvalens` does the same.)
 3. On the OpenValens consent screen choose the workspace, tick any extra
-   records you want to share, tick the consent and select **Allow access**.
+   records you want to share, tick "I want to send this health data to …" and
+   select **Connect**.
 
 Signing in needs the server address to be HTTPS (or `localhost`). If the
 settings page says signing in from an app is not available, use a key.

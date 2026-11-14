@@ -566,6 +566,11 @@ msgstr "{amount} passos"
 msgid "{amount} today"
 msgstr "{amount} hoje"
 
+#. safety
+#: packages/api/src/presenters/ai-apps.ts
+msgid "{app} is a third-party app, which can be an AI service. OpenValens doesn't run it and has no agreement with it. Once it has your data, its own terms and privacy policy apply, which may let it store your data or use it to train models."
+msgstr "{app} é uma aplicação de terceiros, que pode ser um serviço de IA. A OpenValens não a gere e não tem nenhum acordo com ela. Depois de receber os seus dados, aplicam-se os termos e a política de privacidade dessa aplicação, que podem permitir-lhe guardar os seus dados ou usá-los para treinar modelos."
+
 #: apps/native/app/(drawer)/settings.tsx
 msgid "{appVersion} (build {build})"
 msgstr "{appVersion} (compilação {build})"
@@ -2452,10 +2457,6 @@ msgstr "Todas as séries atingiram {0} repetições na última vez; adicione {in
 msgid "All trackers"
 msgstr "Todos os acompanhamentos"
 
-#: apps/web/src/components/oauth-consent-view.tsx
-msgid "Allow access"
-msgstr "Permitir acesso"
-
 #: apps/native/components/trackers/tracker-phone-feed.tsx
 msgid "Allow access in {storeName} to import from this phone."
 msgstr "Permita o acesso no {storeName} para importar deste telemóvel."
@@ -4269,6 +4270,7 @@ msgstr "Confirme o seu email para criar a sua conta OpenValens."
 #: apps/native/components/health-sync-settings.tsx
 #: apps/native/components/server-choice.tsx
 #: apps/native/components/sign-in-methods.tsx
+#: apps/web/src/components/oauth-consent-view.tsx
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
 #: apps/web/src/components/sign-in-methods-section.tsx
 #: apps/web/src/components/wearable-devices-view.tsx
@@ -4349,6 +4351,11 @@ msgstr "Aplicações de IA ligadas"
 msgid "Connected AI apps are not available on this server"
 msgstr "As aplicações de IA ligadas não estão disponíveis neste servidor"
 
+#. safety
+#: packages/api/src/presenters/ai-apps.ts
+msgid "Connected apps are third-party apps, which can be AI services. OpenValens doesn't run them and has no agreement with them. Once an app has your data, its own terms and privacy policy apply, which may let it store your data or use it to train models."
+msgstr "As aplicações ligadas são aplicações de terceiros, que podem ser serviços de IA. A OpenValens não as gere e não tem nenhum acordo com elas. Depois de uma aplicação receber os seus dados, aplicam-se os termos e a política de privacidade dessa aplicação, que podem permitir-lhe guardar os seus dados ou usá-los para treinar modelos."
+
 #: apps/native/components/direct-device-settings.tsx
 msgid "Connected device"
 msgstr "Dispositivo ligado"
@@ -4424,6 +4431,11 @@ msgstr "Consentimento"
 #: apps/native/app/(drawer)/settings/ai-apps.tsx
 msgid "Consent {0} · created {1} · last used {2}"
 msgstr "Consentimento {0} · criada {1} · último uso {2}"
+
+#. safety
+#: apps/web/src/components/ai-app-disclosure.tsx
+msgid "Consent {consentVersion}"
+msgstr "Consentimento {consentVersion}"
 
 #: apps/native/components/health-data-consent-prompt.tsx
 #: apps/native/components/onboarding/steps.tsx
@@ -6581,6 +6593,11 @@ msgstr "Desligar e manter registos"
 #: apps/web/src/routes/index.tsx
 msgid "Disconnected"
 msgstr "Desligado"
+
+#. safety
+#: packages/api/src/presenters/ai-apps.ts
+msgid "Disconnecting stops new reads at once but doesn't delete what the app already has."
+msgstr "Desligar impede de imediato novas leituras, mas não apaga o que a aplicação já tem."
 
 #: apps/native/app/(drawer)/settings/telegram.tsx
 #: apps/web/src/routes/_auth/settings/telegram.tsx
@@ -8774,17 +8791,6 @@ msgid "I agree to send this photo now"
 msgstr "Concordo em enviar esta fotografia agora"
 
 #. safety
-#. placeholder {0}: props.consentVersion
-#: apps/web/src/components/ai-app-key-form.tsx
-msgid "I agree to share the records chosen above with the app I use this key in (consent {0})."
-msgstr "Concordo em partilhar os registos escolhidos acima com a aplicação em que usar esta chave (consentimento {0})."
-
-#. safety
-#: apps/web/src/components/oauth-consent-view.tsx
-msgid "I agree to share the records chosen above with this app (consent {consentVersion})."
-msgstr "Aceito partilhar com esta aplicação os registos escolhidos acima (consentimento {consentVersion})."
-
-#. safety
 #. safety
 #: apps/native/app/(drawer)/cycle.tsx
 #: apps/web/src/routes/_auth/cycle.tsx
@@ -8857,6 +8863,16 @@ msgstr "Compreendo que o email vai conter os meus valores e não é privado"
 #: apps/web/src/routes/_auth/cycle.tsx
 msgid "I use hormonal contraception or have no natural cycle (turns estimates off)"
 msgstr "Uso contraceção hormonal ou não tenho ciclo natural (desliga as estimativas)"
+
+#. safety
+#: packages/api/src/presenters/ai-apps.ts
+msgid "I want to send this health data to {app}"
+msgstr "Quero enviar estes dados de saúde para {app}"
+
+#. safety
+#: packages/api/src/presenters/ai-apps.ts
+msgid "I want to send this health data to the app I use this key in"
+msgstr "Quero enviar estes dados de saúde para a aplicação em que usar esta chave"
 
 #: packages/api/src/presenters/wellness-profile.ts
 msgid "I'll enter things myself"
@@ -9502,12 +9518,12 @@ msgid "Labs & clinical"
 msgstr "Análises e registos clínicos"
 
 #: packages/api/src/presenters/ai-apps.ts
-msgid "Labs, sleep, workouts, vitals, weight and body composition, supplements and goals. Always included."
-msgstr "Análises, sono, treinos, sinais vitais, peso e composição corporal, suplementos e objetivos. Sempre incluído."
+msgid "Labs, sleep, workouts, steps, vitals, weight and body composition, supplements and goals, including what your phone syncs from Apple Health or Health Connect. Always included."
+msgstr "Análises, sono, treinos, passos, sinais vitais, peso e composição corporal, suplementos e objetivos, incluindo o que o seu telemóvel sincroniza do Apple Health ou do Health Connect. Sempre incluído."
 
 #: apps/web/src/components/oauth-consent-view.tsx
-msgid "Labs, sleep, workouts, vitals, weight and body composition, supplements and goals. Required."
-msgstr "Análises, sono, treinos, sinais vitais, peso e composição corporal, suplementos e objetivos. Obrigatório."
+msgid "Labs, sleep, workouts, steps, vitals, weight and body composition, supplements and goals, including what your phone syncs from Apple Health or Health Connect. Required."
+msgstr "Análises, sono, treinos, passos, sinais vitais, peso e composição corporal, suplementos e objetivos, incluindo o que o seu telemóvel sincroniza do Apple Health ou do Health Connect. Obrigatório."
 
 #: apps/native/components/language-section.tsx
 #: apps/web/src/components/language-section.tsx
@@ -16007,6 +16023,11 @@ msgstr "Partilhado por {ownerName}."
 msgid "Shared in this workspace"
 msgstr "Partilhados neste espaço de trabalho"
 
+#. safety
+#: packages/api/src/presenters/ai-apps.ts
+msgid "Shared only so the app can help you with your own health and fitness. Never used for advertising and never sold."
+msgstr "Partilhados apenas para que a aplicação lhe preste ajuda com a sua própria saúde e forma física. Nunca são usados para publicidade nem vendidos."
+
 #: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 msgid "Shared with this workspace."
@@ -17428,6 +17449,11 @@ msgstr "A aplicação deixa de ler os seus registos no próximo pedido. O que j�
 msgid "The app stops reading your records on its next request. What it already read stays with the app. This can't be undone; you can connect again later."
 msgstr "A aplicação deixa de ler os seus registos no próximo pedido. O que já leu fica com a aplicação. Isto não pode ser anulado; pode voltar a ligar mais tarde."
 
+#. safety
+#: packages/api/src/presenters/ai-apps.ts
+msgid "The app you use this key in is a third-party app, which can be an AI service. OpenValens doesn't run it and has no agreement with it. Once it has your data, its own terms and privacy policy apply, which may let it store your data or use it to train models."
+msgstr "A aplicação em que usar esta chave é uma aplicação de terceiros, que pode ser um serviço de IA. A OpenValens não a gere e não tem nenhum acordo com ela. Depois de receber os seus dados, aplicam-se os termos e a política de privacidade dessa aplicação, que podem permitir-lhe guardar os seus dados ou usá-los para treinar modelos."
+
 #: apps/native/components/goal-editor.tsx
 msgid "The average window must be at least one day."
 msgstr "O período da média tem de ser de pelo menos um dia."
@@ -18034,6 +18060,21 @@ msgstr "Este modelo Huawei/Honor sincroniza por Bluetooth Clássico, que só fun
 msgid "This Huawei/Honor model syncs over Bluetooth Classic, which works on Android only."
 msgstr "Este modelo Huawei/Honor sincroniza por Bluetooth Clássico, que só funciona no Android."
 
+#. safety
+#: packages/api/src/presenters/ai-apps.ts
+msgid "This includes data synced from Apple Health or Health Connect: mindfulness and daily mood."
+msgstr "Isto inclui dados sincronizados do Apple Health ou do Health Connect: atenção plena e humor diário."
+
+#. safety
+#: packages/api/src/presenters/ai-apps.ts
+msgid "This includes data synced from Apple Health or Health Connect: steps, heart rate, sleep, weight, body composition and workouts."
+msgstr "Isto inclui dados sincronizados do Apple Health ou do Health Connect: passos, frequência cardíaca, sono, peso, composição corporal e treinos."
+
+#. safety
+#: packages/api/src/presenters/ai-apps.ts
+msgid "This includes data synced from Apple Health or Health Connect: steps, heart rate, sleep, weight, body composition, workouts, mindfulness and daily mood."
+msgstr "Isto inclui dados sincronizados do Apple Health ou do Health Connect: passos, frequência cardíaca, sono, peso, composição corporal, treinos, atenção plena e humor diário."
+
 #: apps/web/src/routes/setup.tsx
 msgid "This instance has already been set up. If you have an account, sign in below."
 msgstr "Esta instância já foi configurada. Se tiver uma conta, inicie sessão abaixo."
@@ -18146,14 +18187,14 @@ msgid "This is only available after you confirm you are 18 or older."
 msgstr "Isto só está disponível depois de confirmar que tem 18 anos ou mais."
 
 #. safety
-#: apps/web/src/components/oauth-consent-view.tsx
-msgid "This is separate from Coach AI consent. You can revoke the connection at any time in Settings → Connected AI apps; revoking stops it on its next request."
-msgstr "Isto é independente do consentimento da IA do Coach. Pode revogar a ligação a qualquer momento em Definições → Aplicações de IA ligadas; ao revogar, a ligação deixa de funcionar no pedido seguinte."
+#: apps/web/src/components/ai-app-disclosure.tsx
+msgid "This is separate from Coach AI consent. You can disconnect at any time in Settings → Connected AI apps, on the web or in the mobile app."
+msgstr "Isto é independente do consentimento da IA do Coach. Pode desligar a qualquer momento em Definições → Aplicações de IA ligadas, na web ou na aplicação móvel."
 
 #. safety
-#: apps/web/src/components/ai-app-key-form.tsx
-msgid "This is separate from Coach AI consent. You can revoke the key at any time on this page; revoking stops it on its next request."
-msgstr "Isto é independente do consentimento da IA do Coach. Pode revogar a chave a qualquer momento nesta página; ao revogar, deixa de funcionar no próximo pedido."
+#: apps/web/src/components/ai-app-disclosure.tsx
+msgid "This is separate from Coach AI consent. You can revoke the key at any time on this page or in the mobile app."
+msgstr "Isto é independente do consentimento da IA do Coach. Pode revogar a chave a qualquer momento nesta página ou na aplicação móvel."
 
 #: packages/api/src/presenters/preventive-care.ts
 msgid "This item is being reviewed against its source. Its details and reminders are paused until that check is done."
@@ -18593,8 +18634,8 @@ msgstr "Os acompanhamentos são privados, a menos que partilhe um com este espa�
 
 #: apps/web/src/components/oauth-consent-view.tsx
 #: packages/api/src/presenters/ai-apps.ts
-msgid "Trackers you made, except those with \"Coach and connected AI apps can read this\" off."
-msgstr "Os acompanhamentos que criou, exceto os que têm desligado \"O Coach e as apps de IA ligadas podem ler isto\"."
+msgid "Trackers you made, including mindful minutes and daily mood synced from Apple Health or Health Connect, except those with \"Coach and connected AI apps can read this\" off."
+msgstr "Os acompanhamentos que criou, incluindo os minutos de atenção plena e o humor diário sincronizados do Apple Health ou do Health Connect, exceto os que têm desligado \"O Coach e as apps de IA ligadas podem ler isto\"."
 
 #: apps/native/app/(drawer)/goals.tsx
 #: apps/web/src/routes/_auth/goals.index.tsx
@@ -19780,6 +19821,11 @@ msgstr "O que a aplicação pode adicionar"
 msgid "What the app may read"
 msgstr "O que a aplicação pode ler"
 
+#. safety
+#: packages/api/src/presenters/ai-apps.ts
+msgid "What they read includes data synced from Apple Health or Health Connect: steps, heart rate, sleep, weight, body composition, workouts, mindfulness and daily mood."
+msgstr "O que leem inclui dados sincronizados do Apple Health ou do Health Connect: passos, frequência cardíaca, sono, peso, composição corporal, treinos, atenção plena e humor diário."
+
 #: packages/api/src/presenters/insights.ts
 msgid "What to include"
 msgstr "O que incluir"
@@ -19799,16 +19845,6 @@ msgstr "Novidades"
 #: apps/web/src/components/whats-new-card-view.tsx
 msgid "What's new in {shortVersion}"
 msgstr "Novidades da versão {shortVersion}"
-
-#. safety
-#: apps/web/src/components/oauth-consent-view.tsx
-msgid "Whatever this connection reads goes to {appName}, under that app's own terms and privacy policy. OpenValens cannot control what the app does with it."
-msgstr "Tudo o que esta ligação ler é enviado para {appName}, nos termos e na política de privacidade dessa aplicação. O OpenValens não controla o que a aplicação faz com esses dados."
-
-#. safety
-#: apps/web/src/components/ai-app-key-form.tsx
-msgid "Whatever this key reads goes to the app you give it to, under that app's own terms and privacy policy. OpenValens cannot control what the app does with it."
-msgstr "Tudo o que esta chave ler vai para a aplicação a que a der, ao abrigo dos termos e da política de privacidade dessa aplicação. A OpenValens não consegue controlar o que a aplicação faz com isso."
 
 #: apps/native/components/pain/pain-panel.tsx
 #: apps/web/src/components/ai-apps-view.tsx

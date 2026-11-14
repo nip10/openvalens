@@ -20,7 +20,7 @@ import {
  * {@link withConsentReference} so the consent and the authorization code carry
  * the `ai_app_grant` the member just approved.
  *
- * The grant itself (workspace, scopes, `mcp-v1`, audit, security email) is the
+ * The grant itself (workspace, scopes, `mcp-v2`, audit, security email) is the
  * AI-apps service's job; this module only speaks OAuth.
  */
 

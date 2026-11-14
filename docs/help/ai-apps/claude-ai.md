@@ -33,7 +33,7 @@ in November 2026; if a label has moved, follow those pages.
 6. Your browser opens OpenValens. Sign in if asked, then on the consent screen
    check the app's name and address, choose the workspace, tick any extra
    records you want to share (nutrition, private body measurements, notes),
-   tick the consent and select **Allow access**.
+   tick "I want to send this health data to …" and select **Connect**.
 
 You get a security email from OpenValens. The connection now shows under
 **Connections** in Settings → Connected AI apps.

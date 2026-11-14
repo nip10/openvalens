@@ -11,6 +11,7 @@ import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { ShieldAlert } from "lucide-react";
 import { useId } from "react";
 
+import { AiAppDisclosure } from "@/components/ai-app-disclosure";
 import { ToneIcon } from "@/components/page";
 import { SETTINGS_SELECT } from "@/components/settings-rows";
 
@@ -50,7 +51,6 @@ export type OAuthConsentViewProps = {
 export function OAuthConsentView(props: OAuthConsentViewProps) {
   const { t } = useLingui();
   const workspaceId = useId();
-  const agreeId = useId();
 
   if (props.status === "pending") {
     return (
@@ -79,6 +79,10 @@ export function OAuthConsentView(props: OAuthConsentViewProps) {
   const writeScopes = props.request.scopes.filter((entry) => isAiAppWriteScope(entry.scope));
   const appName = client.name ?? t`An unnamed app`;
   const allowedWorkspaces = workspaces.filter((workspace) => workspace.allowed);
+  // Every read scope the connection would hold: required ones plus those ticked.
+  const grantedReadScopes = readScopes
+    .filter((entry) => entry.required || props.selectedScopes.includes(entry.scope))
+    .map((entry) => entry.scope);
   const canApprove =
     allowedWorkspaces.some((workspace) => workspace.organizationId === props.organizationId) &&
     props.agreed &&
@@ -209,34 +213,15 @@ export function OAuthConsentView(props: OAuthConsentViewProps) {
         </fieldset>
       ) : null}
 
-      <section className="grid gap-2 rounded-xl bg-paper-2 p-4 text-sm text-ink-2">
-        <p>
-          <Trans comment="safety">
-            Whatever this connection reads goes to {appName}, under that app's own terms and privacy
-            policy. OpenValens cannot control what the app does with it.
-          </Trans>
-        </p>
-        <p>
-          <Trans comment="safety">
-            This is separate from Coach AI consent. You can revoke the connection at any time in
-            Settings → Connected AI apps; revoking stops it on its next request.
-          </Trans>
-        </p>
-        <label htmlFor={agreeId} className="flex items-start gap-3 pt-1">
-          <input
-            id={agreeId}
-            type="checkbox"
-            checked={props.agreed}
-            onChange={(event) => props.onAgreedChange(event.target.checked)}
-            className="mt-1 size-4 shrink-0 accent-primary"
-          />
-          <span>
-            <Trans comment="safety">
-              I agree to share the records chosen above with this app (consent {consentVersion}).
-            </Trans>
-          </span>
-        </label>
-      </section>
+      <AiAppDisclosure
+        appName={appName}
+        scopes={grantedReadScopes}
+        kind="connection"
+        consentVersion={consentVersion}
+        agreed={props.agreed}
+        onAgreedChange={props.onAgreedChange}
+        checkboxTestId="oauth-consent"
+      />
 
       <div className="flex flex-wrap justify-end gap-2">
         <Button
@@ -247,8 +232,8 @@ export function OAuthConsentView(props: OAuthConsentViewProps) {
         >
           <Trans>Deny</Trans>
         </Button>
-        <Button type="submit" disabled={!canApprove}>
-          <Trans>Allow access</Trans>
+        <Button type="submit" disabled={!canApprove} data-testid="oauth-connect">
+          <Trans>Connect</Trans>
         </Button>
       </div>
     </form>
@@ -267,7 +252,7 @@ function ScopeRow(props: {
   const labels: Record<string, { title: string; detail: string }> = {
     "records:read": {
       title: t`Your records`,
-      detail: t`Labs, sleep, workouts, vitals, weight and body composition, supplements and goals. Required.`,
+      detail: t`Labs, sleep, workouts, steps, vitals, weight and body composition, supplements and goals, including what your phone syncs from Apple Health or Health Connect. Required.`,
     },
     "nutrition:read": {
       title: t`Nutrition`,
@@ -283,7 +268,7 @@ function ScopeRow(props: {
     },
     "trackers:read": {
       title: t`Custom trackers`,
-      detail: t`Trackers you made, except those with "Coach and connected AI apps can read this" off.`,
+      detail: t`Trackers you made, including mindful minutes and daily mood synced from Apple Health or Health Connect, except those with "Coach and connected AI apps can read this" off.`,
     },
     "pain:read": {
       title: t`Pain log`,

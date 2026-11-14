@@ -84,7 +84,7 @@
       [
         "@kingstinct/react-native-healthkit",
         {
-          "NSHealthShareUsageDescription": "OpenValens reads your health data from Apple Health to keep your health record up to date, and to fill the trackers you link, such as mindful minutes and your daily mood.",
+          "NSHealthShareUsageDescription": "OpenValens reads your health data from Apple Health to keep your health record up to date, and to fill the trackers you link, such as mindful minutes and your daily mood. It's shared with another app only if you connect one yourself.",
           "NSHealthUpdateUsageDescription": "OpenValens only reads from Apple Health and never writes or changes your health data.",
           "background": true
         }

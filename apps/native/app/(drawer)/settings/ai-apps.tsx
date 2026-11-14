@@ -1,5 +1,6 @@
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import {
+  AI_APP_DISCLOSURE,
   aiAppCallStatusLabel,
   aiAppCallTone,
   aiAppGrantStatusLabel,
@@ -9,7 +10,7 @@ import {
 } from "@openvalens/api/presenters/ai-apps";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "heroui-native";
-import { Bot, KeyRound, Link2, MonitorSmartphone } from "lucide-react-native";
+import { Bot, KeyRound, Link2, MonitorSmartphone, ShieldAlert } from "lucide-react-native";
 import { useState, type ReactNode } from "react";
 import { Alert, RefreshControl, Text, View } from "react-native";
 
@@ -132,6 +133,8 @@ export default function AiAppsSettingsScreen() {
               </Text>
             </Sheet>
 
+            <AiAppsDisclosure />
+
             <Section title={<Trans>Connections</Trans>} icon={Link2} tone="signal">
               <GrantList
                 active={connections.active}
@@ -166,6 +169,39 @@ export default function AiAppsSettingsScreen() {
         )}
       </Page>
     </Container>
+  );
+}
+
+/**
+ * Issue #518 — the prominent disclosure (Google Play User Data policy, Apple
+ * 5.1.2(i)) shown above the list in normal use, never behind a menu: apps are
+ * third parties that can be AI services, under their own terms; what they read
+ * includes Apple Health / Health Connect data; never ads or sale; revoking
+ * stops new reads but does not delete what the app has.
+ */
+function AiAppsDisclosure() {
+  const { i18n } = useLingui();
+  return (
+    <Sheet className="flex-row items-start gap-3 p-4" testID="ai-apps-disclosure">
+      <ToneIcon icon={ShieldAlert} tone="signal" size="sm" />
+      <View className="flex-1 gap-2">
+        <Text className="font-sans text-sm leading-relaxed text-ink-2">
+          {i18n._(AI_APP_DISCLOSURE.thirdPartyAny)}
+        </Text>
+        <Text
+          className="font-sans text-sm leading-relaxed text-ink-2"
+          testID="ai-apps-disclosure-platform-data"
+        >
+          {i18n._(AI_APP_DISCLOSURE.platformDataAny)}
+        </Text>
+        <Text className="font-sans text-sm leading-relaxed text-ink-2">
+          {i18n._(AI_APP_DISCLOSURE.purpose)}
+        </Text>
+        <Text className="font-sans text-sm leading-relaxed text-ink-2">
+          {i18n._(AI_APP_DISCLOSURE.disconnect)}
+        </Text>
+      </View>
+    </Sheet>
   );
 }
 

@@ -96,7 +96,7 @@ describe.skipIf(!url)("AI-app grants against disposable PostgreSQL", () => {
     expect(created.grant).toMatchObject({
       kind: "personal_key",
       scopes: ["nutrition:read", "records:read"],
-      consentVersion: "mcp-v1",
+      consentVersion: "mcp-v2",
       status: "active",
       displayPrefix: created.key.slice(0, 9),
       clientIdHost: null,
@@ -255,6 +255,21 @@ describe.skipIf(!url)("AI-app grants against disposable PostgreSQL", () => {
     await expectCode(createKey({ scopes: ["labs:delete"] }), "INVALID_SCOPE");
     await expectCode(createKey({ scopes: ["cycle:read"] }), "INVALID_SCOPE");
     await expectCode(createKey({ consentVersion: "v1" }), "CONSENT_REQUIRED");
+    // The consent before the #518 disclosure is no longer enough for a new key.
+    await expectCode(createKey({ consentVersion: "mcp-v1" }), "CONSENT_REQUIRED");
+  });
+
+  test("a key given the earlier consent (mcp-v1) keeps working", async () => {
+    const created = await createKey({ label: "Before #518" });
+    await db
+      .update(aiAppGrant)
+      .set({ consentVersion: "mcp-v1" })
+      .where(eq(aiAppGrant.id, created.grant.id));
+    const auth = await service.authenticate(`Bearer ${created.key}`);
+    expect(auth.ok).toBe(true);
+    const listed = await service.listGrants({ userId: OWNER, organizationId: ORG });
+    expect(listed.find((grant) => grant.id === created.grant.id)?.consentVersion).toBe("mcp-v1");
+    await service.revokeGrant({ userId: OWNER, organizationId: ORG, grantId: created.grant.id });
   });
 
   test("a member holds at most ten active personal keys", async () => {

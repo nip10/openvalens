@@ -32,7 +32,7 @@ import { parseAiAppsSetting, readAiAppsSetting, writeAiAppsSetting } from "./set
  * Connected AI apps: grants and personal API keys (Issue #439).
  *
  * A grant lets one AI app read **one member's own records in one workspace**,
- * with a fixed scope list and the AI-app consent (`mcp-v1`). It is separate
+ * with a fixed scope list and the AI-app consent (`mcp-v2`). It is separate
  * from Coach AI consent in both directions: neither the workspace Coach switch
  * nor the member's Coach consent is read or written here.
  *
@@ -56,7 +56,19 @@ import { parseAiAppsSetting, readAiAppsSetting, writeAiAppsSetting } from "./set
  * carries.
  */
 
-export const AI_APP_CONSENT_VERSION = "mcp-v1";
+/**
+ * The AI-app consent a new key or connection must agree to, recorded on the
+ * grant. `mcp-v2` (Issue #518) added the store-rule disclosure: third party,
+ * possibly an AI service, under its own terms; which Apple Health / Health
+ * Connect data the scopes reach; only for the member's own health and fitness,
+ * never ads or sale; disconnecting does not delete what the app already has.
+ *
+ * Grants keep the version they were given with. Calls never compare it, so an
+ * `mcp-v1` grant keeps working; only creating a key or approving a connection
+ * (including approving an existing one again) needs the current version, and
+ * re-approving moves that grant to it.
+ */
+export const AI_APP_CONSENT_VERSION = "mcp-v2";
 
 /** Usage rows older than this are purged. */
 export const AI_APP_CALL_RETENTION_DAYS = 90;
@@ -867,7 +879,12 @@ export function createAiAppsService(options: AiAppsServiceOptions) {
     if (existing) {
       const [updated] = await db
         .update(aiAppGrant)
-        .set({ scopes: scopes.scopes, consentedAt: at, label })
+        .set({
+          scopes: scopes.scopes,
+          consentVersion: AI_APP_CONSENT_VERSION,
+          consentedAt: at,
+          label,
+        })
         .where(eq(aiAppGrant.id, existing.id))
         .returning();
       if (!updated) throw new Error("ai_app_grant update returned no row");
@@ -901,6 +918,7 @@ export function createAiAppsService(options: AiAppsServiceOptions) {
           .update(aiAppGrant)
           .set({
             scopes: existing.scopes,
+            consentVersion: existing.consentVersion,
             consentedAt: existing.consentedAt,
             label: existing.label,
           })
