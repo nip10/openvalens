@@ -84,6 +84,47 @@ describe("app.config.ts", () => {
     expect(config.plugins?.length).toBe(base.plugins?.length);
   });
 
+  test("Android release builds run R8 with optimisation and our keep rules (#522)", () => {
+    const r8 = require("./plugins/android-r8") as {
+      useOptimizeRules: (gradle: string) => string;
+      withRulesBlock: (contents: string, rules: string) => string;
+    };
+    expect(base.plugins).toContain("./plugins/android-r8");
+    expect(
+      base.plugins?.find((p) => Array.isArray(p) && p[0] === "expo-build-properties"),
+    ).toMatchObject([
+      "expo-build-properties",
+      {
+        android: { enableMinifyInReleaseBuilds: true, enableShrinkResourcesInReleaseBuilds: true },
+      },
+    ]);
+
+    const gradle =
+      'proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"';
+    const optimized =
+      'proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"';
+    expect(r8.useOptimizeRules(gradle)).toBe(optimized);
+    expect(r8.useOptimizeRules(optimized)).toBe(optimized);
+    expect(() => r8.useOptimizeRules("proguardFiles 'custom.pro'")).toThrow(/android-r8/);
+
+    // A second prebuild replaces the block instead of adding another one.
+    const once = r8.withRulesBlock("# template\n", "-keep class a.** { *; }\n");
+    const twice = r8.withRulesBlock(once, "-keep class b.** { *; }");
+    expect(twice).toBe(
+      "# template\n\n# @generated begin openvalens-android-r8\n-keep class b.** { *; }\n# @generated end openvalens-android-r8\n",
+    );
+
+    const rules = readFileSync(
+      join(import.meta.dir, "plugins/android-r8/proguard-rules.pro"),
+      "utf8",
+    );
+    expect(rules).toContain(
+      "-keep class * implements expo.modules.apploader.HeadlessAppLoader { <init>(); }",
+    );
+    expect(rules).toContain("-keep class com.bleplx.** { *; }");
+    expect(rules).toContain("-keep class com.reactnativeandroidwidget.** { *; }");
+  });
+
   test("the home-screen widget (#449) is home screen only and shares nothing with a widget process", () => {
     // No App Group (or keychain group) for the app or the iOS widget target.
     expect(base.ios?.entitlements).toBeUndefined();
