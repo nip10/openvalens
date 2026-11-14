@@ -56,6 +56,9 @@ export type DailyReminderTimelineRow = BaseRow & {
   label: string;
   status: string;
 };
+/** The connected AI app that wrote an entry (#439): its grant and the app's name. */
+export type AiAppTag = { grantId: string; label: string };
+
 /** A custom tracker entry (#441), already filtered to what the viewer may see. */
 export type CustomTrackerEntryTimelineRow = {
   id: string;
@@ -72,6 +75,8 @@ export type CustomTrackerEntryTimelineRow = {
   trackerDecimals: number;
   trackerIcon: string;
   viewerOwnsTracker: boolean;
+  /** Written by a connected AI app (#439, M2b). */
+  aiApp?: AiAppTag | null;
 };
 /** A pain entry (#442), already limited to the viewer's own entries. */
 export type PainEntryTimelineRow = {
@@ -82,6 +87,8 @@ export type PainEntryTimelineRow = {
   loggedAt: string;
   localDate: string;
   note?: string | null;
+  /** Written by a connected AI app (#439, M2b). */
+  aiApp?: AiAppTag | null;
 };
 export type DomainTimelineRows = {
   trackerEntries?: CustomTrackerEntryTimelineRow[];
@@ -141,6 +148,15 @@ function customTrackerSummary(row: CustomTrackerEntryTimelineRow): string {
   }
 }
 
+/**
+ * #439 — an entry a connected AI app wrote leads with its "via <app>" source,
+ * filterable with `source=ai_app:<grantId>` (the same ref metric samples carry).
+ */
+function aiAppRefs(tag: AiAppTag | null | undefined): TimelineEvent["sourceRefs"] {
+  if (!tag || typeof tag.grantId !== "string" || typeof tag.label !== "string") return [];
+  return [{ type: "ai_app", label: tag.label, id: `ai_app:${tag.grantId}`, provider: "ai_app" }];
+}
+
 function customTrackerItem(row: CustomTrackerEntryTimelineRow): TimelineEvent {
   return {
     kind: "event",
@@ -153,6 +169,7 @@ function customTrackerItem(row: CustomTrackerEntryTimelineRow): TimelineEvent {
     confidence: "high",
     reviewState: "unreviewed",
     sourceRefs: [
+      ...aiAppRefs(row.aiApp),
       {
         type: "source_record",
         label: `custom_tracker_entry:${row.id}`,
@@ -191,6 +208,7 @@ function painItem(row: PainEntryTimelineRow): TimelineEvent {
     confidence: "high",
     reviewState: "unreviewed",
     sourceRefs: [
+      ...aiAppRefs(row.aiApp),
       { type: "source_record", label: `pain_entry:${row.id}`, id: row.id, provider: "manual" },
     ],
     provenanceRefs: [],

@@ -1,9 +1,11 @@
 import { createHash } from "node:crypto";
 
 import type { Database } from "@openvalens/db";
+import { exercise } from "@openvalens/db/schema/exercises";
 import { metricSample } from "@openvalens/db/schema/health-record";
 import { plainWaterEntry } from "@openvalens/db/schema/nutrition";
-import { supplementIntake } from "@openvalens/db/schema/plans";
+import { supplementIntake, workout } from "@openvalens/db/schema/plans";
+import { customTracker, customTrackerEntry } from "@openvalens/db/schema/trackers";
 import { createHealthRecordRepository } from "@openvalens/health-record";
 import { ToolInputError } from "@openvalens/mcp/format";
 import type {
@@ -13,29 +15,57 @@ import type {
   AiWrittenEntry,
   BodyEntryInput,
   McpWriteTargets,
+  PainEntryInput,
+  SleepEntryInput,
   SupplementEntryInput,
+  TrackerEntryInput,
   VitalEntryInput,
   WaterEntryInput,
+  WorkoutEntryInput,
 } from "@openvalens/mcp/writes";
 import { createPlainWaterDiary, NutritionError } from "@openvalens/nutrition";
+import { createPainService, PainError, readPainPreference, type PainType } from "@openvalens/pain";
 import {
   createPlansRepository,
   createSupplementIntakeRepository,
+  createWorkoutRepository,
+  isWorkoutType,
+  MAX_EXERCISES_PER_WORKOUT,
+  MAX_SETS_PER_EXERCISE,
   SupplementIntakeConflictError,
   SupplementIntakeNotFoundError,
   SupplementIntakeValidationError,
   validateSupplementIntakePayload,
+  WorkoutExerciseNotFoundError,
+  WorkoutMutationConflictError,
+  WorkoutNotFoundError,
+  WorkoutVersionConflictError,
+  type UpsertWorkoutExerciseInput,
+  type UpsertWorkoutInput,
 } from "@openvalens/plans";
+import {
+  deleteManualSleepSession,
+  insertManualSleepSession,
+  overlapsDeviceSleep,
+} from "@openvalens/sleep";
+import {
+  createTrackerService,
+  localDateIn,
+  TrackerError,
+  trackerValueProblem,
+  type TrackerType,
+} from "@openvalens/trackers";
 import { hasDeviceReadingNear } from "@openvalens/vitals/device-overlap";
-import { and, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, between, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
 
 import { findLogKind } from "./presenters/log-kinds";
 import { MANUAL_ENTRY_FIELDS, parseBloodPressure } from "./presenters/manual-entry";
+import { checkManualSleepWindow, type ManualSleepError } from "./presenters/manual-sleep";
 import { weightInKg } from "./presenters/quick-log";
 
 /**
- * Issue #439 (M2a) — the domain write paths behind the AI write tools, the
- * same ones the quick log and the app's own forms use:
+ * Issue #439 (M2a, M2b) — the domain write paths behind the AI write tools,
+ * the same ones the quick log and the app's own forms use:
  *
  * - water: the plain-water diary (`plainWater.add` / `delete`), with its own
  *   receipts (#83) keyed by a client mutation id derived from the entry key;
@@ -46,11 +76,27 @@ import { weightInKg } from "./presenters/quick-log";
  *   `ingestedByUserId`) tagged with the grant (`aiApp`), and its dedupe hash
  *   comes from the entry key, so a retry finds it instead of writing again;
  * - a supplement taken: the supplement intake repository (`supplementIntake.create`),
- *   with its receipts keyed by a UUID derived from the entry key.
+ *   with its receipts keyed by a UUID derived from the entry key;
+ * - a workout (M2b): the workout repository's `upsertWorkout` (what
+ *   `plans.workouts.upsertWorkout` runs), with its receipts keyed by a UUID
+ *   derived from the entry key. Exercises must be catalog exercises the
+ *   workspace can see; one that is not in the catalog is refused (a draft the
+ *   member confirms is M2c);
+ * - a night of sleep (M2b): a manual night (`sleep.logManualSession`'s
+ *   `insertManualSleepSession`, #440) with a dedupe hash from the entry key
+ *   and the grant tag in its payload;
+ * - a custom tracker entry (M2b, #441): the tracker service's `log`, only into
+ *   the member's own trackers with the AI switch on, with an entry id derived
+ *   from the entry key;
+ * - a pain entry (M2b, #442): the pain service's `log`, one entry per region,
+ *   only while the pain log and its AI switch are on, with an entry id derived
+ *   from the entry key.
  *
- * A reading within ten minutes of a device reading of the same metric is a
- * possible duplicate (the blood pressure rule, `@openvalens/vitals`); nothing
- * is merged and device data wins in the daily totals.
+ * Device data always wins and is never changed: a reading within ten minutes
+ * of a device reading of the same metric (the blood pressure rule,
+ * `@openvalens/vitals`), a night overlapping a device night (#440) and a
+ * tracker entry within ten minutes of one imported from a phone platform are
+ * possible duplicates.
  */
 
 const ML_PER: Record<WaterEntryInput["unit"], number> = { ml: 1, l: 1000, fl_oz: 29.5735295625 };
@@ -411,11 +457,383 @@ function supplementWriter(db: Database): AiDomainWriter<SupplementEntryInput> {
   };
 }
 
+// ─── Workouts (M2b) ───────────────────────────────────────────
+
+const MAX_SET_WEIGHT_KG = 1_000;
+
+type PreparedWorkout = Omit<UpsertWorkoutInput, "clientMutationId" | "userId">;
+
+/** Today's calendar day in a time zone, falling back to UTC for an unknown zone. */
+function todayIn(now: Date, timeZone: string): string {
+  try {
+    return localDateIn(now, timeZone);
+  } catch {
+    return now.toISOString().slice(0, 10);
+  }
+}
+
+const NOT_IN_CATALOG =
+  "Only catalog exercises can be saved for now. Find the exercise with exercises.search and pass its exerciseId (the member's own custom exercises are listed there too), log the session without that exercise, or ask the member to add it in the app. Saving an exercise that is not in the catalog as a draft for the member to confirm is not available yet.";
+
+function workoutWriter(db: Database): AiDomainWriter<WorkoutEntryInput> {
+  const repository = createWorkoutRepository(db);
+  return {
+    async prepare(context, entries) {
+      const ids = [
+        ...new Set(
+          entries.flatMap((entry) =>
+            (entry.exercises ?? []).flatMap((item) =>
+              item.exerciseId === undefined ? [] : [item.exerciseId],
+            ),
+          ),
+        ),
+      ];
+      const catalog = ids.length
+        ? await db
+            .select({ id: exercise.id, name: exercise.name })
+            .from(exercise)
+            .where(
+              and(
+                inArray(exercise.id, ids),
+                or(
+                  isNull(exercise.organizationId),
+                  eq(exercise.organizationId, context.scope.organizationId),
+                ),
+              ),
+            )
+        : [];
+      const names = new Map(catalog.map((row) => [row.id, row.name]));
+      const today = todayIn(context.now, context.timeZone);
+      return entries.map((entry, index): PreparedWorkout => {
+        const day = Date.parse(`${entry.date}T00:00:00Z`);
+        if (!Number.isFinite(day) || new Date(day).toISOString().slice(0, 10) !== entry.date)
+          badEntry(index, "`date` is not a valid day (YYYY-MM-DD).");
+        if (entry.date > today) badEntry(index, "`date` is in the future.");
+        if (day < context.now.getTime() - MAX_PAST_DAYS * 86_400_000)
+          badEntry(
+            index,
+            "`date` is more than ten years ago; use the app's import screens for history.",
+          );
+        if (!isWorkoutType(entry.type)) badEntry(index, `"${entry.type}" is not a workout type.`);
+        const exercises = entry.exercises ?? [];
+        if (exercises.length > MAX_EXERCISES_PER_WORKOUT)
+          badEntry(index, `A workout has at most ${MAX_EXERCISES_PER_WORKOUT} exercises.`);
+        const prepared = exercises.map((item, position): UpsertWorkoutExerciseInput => {
+          const label = item.name ? ` ("${item.name}")` : "";
+          if (item.exerciseId === undefined)
+            badEntry(index, `exercise ${position}${label} has no exerciseId. ${NOT_IN_CATALOG}`);
+          const name = names.get(item.exerciseId);
+          if (name === undefined)
+            badEntry(
+              index,
+              `exercise ${position}${label}: ${item.exerciseId} is not a catalog exercise id. ${NOT_IN_CATALOG}`,
+            );
+          const sets = item.sets ?? [];
+          if (sets.length > MAX_SETS_PER_EXERCISE)
+            badEntry(index, `An exercise has at most ${MAX_SETS_PER_EXERCISE} sets.`);
+          return {
+            name,
+            exerciseId: item.exerciseId,
+            notes: null,
+            sets: sets.map((set) => {
+              const weightKg =
+                set.weight === undefined ? null : round3(weightInKg(set.weight, set.unit ?? "kg"));
+              if (weightKg !== null && weightKg > MAX_SET_WEIGHT_KG)
+                badEntry(index, `A set's weight must be at most ${MAX_SET_WEIGHT_KG} kg.`);
+              return { reps: set.reps, weightKg, rpe: set.rpe ?? null, notes: null };
+            }),
+          };
+        });
+        return {
+          date: entry.date,
+          type: entry.type,
+          duration: entry.durationMinutes ?? null,
+          notes: entry.notes ?? null,
+          intensity: entry.intensity ?? null,
+          effortRating: entry.effort ?? null,
+          exercises: prepared,
+        };
+      });
+    },
+    async write(context, prepared) {
+      const entry = prepared as PreparedWorkout;
+      try {
+        const saved = await db.transaction((tx) =>
+          repository.upsertWorkout(
+            tx as Parameters<typeof repository.upsertWorkout>[0],
+            context.scope.organizationId,
+            {
+              ...entry,
+              userId: context.scope.userId,
+              clientMutationId: domainMutationUuid(context.entryKey, "workout.create"),
+            },
+          ),
+        );
+        return {
+          kind: "workout",
+          targetTable: "workout",
+          targetIds: [saved.id],
+          possibleDuplicate: false,
+        };
+      } catch (error) {
+        if (error instanceof WorkoutExerciseNotFoundError)
+          throw new ToolInputError(`An exercise is not in the catalog. ${NOT_IN_CATALOG}`);
+        throw error;
+      }
+    },
+  };
+}
+
+// ─── Sleep (M2b) ──────────────────────────────────────────────
+
+type PreparedSleep = { startAt: string; endAt: string; quality: number | null };
+
+const SLEEP_ERRORS: Record<ManualSleepError, string> = {
+  invalid: "give a bedtime and a wake time.",
+  order: "the wake time must be after the bedtime.",
+  too_short: "a night needs at least 10 minutes.",
+  too_long: "a night can be at most 24 hours.",
+  future: "the wake time is in the future.",
+};
+
+function sleepWriter(db: Database): AiDomainWriter<SleepEntryInput> {
+  return {
+    async prepare(context, entries) {
+      return entries.map((entry, index): PreparedSleep => {
+        instantOf(index, entry.startAt, context.now);
+        // The app's own sleep form rule (#440).
+        const checked = checkManualSleepWindow(entry.startAt, entry.endAt, context.now);
+        if (!checked.ok) badEntry(index, `Sleep window: ${SLEEP_ERRORS[checked.error]}`);
+        return {
+          startAt: checked.window.startAt,
+          endAt: checked.window.endAt,
+          quality: entry.quality ?? null,
+        };
+      });
+    },
+    async write(context, prepared) {
+      const entry = prepared as PreparedSleep;
+      const { id } = await insertManualSleepSession(db, {
+        organizationId: context.scope.organizationId,
+        userId: context.scope.userId,
+        startAt: entry.startAt,
+        endAt: entry.endAt,
+        quality: entry.quality,
+        dedupeHash: domainMutationId(context.entryKey, "sleep.manual"),
+        aiApp: context.source,
+      });
+      const possibleDuplicate = await overlapsDeviceSleep(db, {
+        organizationId: context.scope.organizationId,
+        startAt: entry.startAt,
+        endAt: entry.endAt,
+      });
+      return {
+        kind: "sleep_session",
+        targetTable: "health_event",
+        targetIds: [id],
+        possibleDuplicate,
+      };
+    },
+  };
+}
+
+// ─── Custom trackers (M2b, #441) ──────────────────────────────
+
+type PreparedTrackerEntry = {
+  trackerId: string;
+  value: number;
+  loggedAt: string;
+  note: string | null;
+};
+
+/** A tracker entry within this much of a platform-imported one is a possible duplicate. */
+const TRACKER_OVERLAP_MS = 10 * 60_000;
+
+function trackerValue(
+  index: number,
+  tracker: { name: string; type: string },
+  value: number | boolean,
+): number {
+  const type = tracker.type as TrackerType;
+  let stored: number;
+  if (type === "yes_no") {
+    if (typeof value === "boolean") stored = value ? 1 : 0;
+    else stored = value;
+  } else if (typeof value === "boolean") {
+    return badEntry(index, `"${tracker.name}" takes a number, not true or false.`);
+  } else if (type === "duration") {
+    // Minutes, as `trackers.entries` reads them back; stored in seconds.
+    stored = Math.round(value * 60);
+  } else stored = value;
+  const problem = trackerValueProblem(type, stored);
+  if (problem) {
+    const hint =
+      type === "yes_no"
+        ? "Give true or false."
+        : type === "scale"
+          ? "Give a whole number from 1 to 5."
+          : type === "duration"
+            ? "Give the minutes, more than 0 and at most 1440."
+            : problem;
+    badEntry(index, `"${tracker.name}": ${hint}`);
+  }
+  return stored;
+}
+
+function trackerWriter(db: Database): AiDomainWriter<TrackerEntryInput> {
+  const service = createTrackerService({ db });
+  return {
+    async prepare(context, entries) {
+      // Only the member's own trackers with the AI switch on, not archived: the same
+      // trackers `trackers.list` shows this app.
+      const own = await db
+        .select({ id: customTracker.id, name: customTracker.name, type: customTracker.type })
+        .from(customTracker)
+        .where(
+          and(
+            eq(customTracker.organizationId, context.scope.organizationId),
+            eq(customTracker.userId, context.scope.userId),
+            eq(customTracker.aiVisible, true),
+            isNull(customTracker.archivedAt),
+          ),
+        );
+      const byId = new Map(own.map((row) => [row.id, row]));
+      const listed = own
+        .slice(0, 30)
+        .map((row) => `${row.name} (${row.id})`)
+        .join(", ");
+      return entries.map((entry, index): PreparedTrackerEntry => {
+        const tracker = byId.get(entry.trackerId);
+        if (!tracker)
+          badEntry(
+            index,
+            own.length
+              ? `${entry.trackerId} is not one of the member's trackers that AI apps can use. Their trackers: ${listed}.`
+              : "The member has no trackers that AI apps can use. They can add one, or turn on its AI switch, in the app.",
+          );
+        return {
+          trackerId: tracker.id,
+          value: trackerValue(index, tracker, entry.value),
+          loggedAt: instantOf(index, entry.at, context.now).toISOString(),
+          note: entry.note?.trim() || null,
+        };
+      });
+    },
+    async write(context, prepared) {
+      const entry = prepared as PreparedTrackerEntry;
+      let saved;
+      try {
+        saved = await service.log(
+          { ...context.scope, canWrite: true },
+          {
+            trackerId: entry.trackerId,
+            value: entry.value,
+            loggedAt: entry.loggedAt,
+            timeZone: context.timeZone,
+            note: entry.note,
+          },
+          { aiApp: true, entryId: domainMutationUuid(context.entryKey, "tracker_entry") },
+        );
+      } catch (error) {
+        if (error instanceof TrackerError) throw new ToolInputError(error.message);
+        throw error;
+      }
+      const at = new Date(entry.loggedAt).getTime();
+      const [platform] = await db
+        .select({ id: customTrackerEntry.id })
+        .from(customTrackerEntry)
+        .where(
+          and(
+            eq(customTrackerEntry.organizationId, context.scope.organizationId),
+            eq(customTrackerEntry.trackerId, entry.trackerId),
+            ne(customTrackerEntry.source, "manual"),
+            between(
+              customTrackerEntry.loggedAt,
+              new Date(at - TRACKER_OVERLAP_MS),
+              new Date(at + TRACKER_OVERLAP_MS),
+            ),
+          ),
+        )
+        .limit(1);
+      return {
+        kind: "tracker_entry",
+        targetTable: "custom_tracker_entry",
+        targetIds: [],
+        targetUuids: [saved.id],
+        possibleDuplicate: platform !== undefined,
+      };
+    },
+  };
+}
+
+// ─── Pain log (M2b, #442) ─────────────────────────────────────
+
+type PreparedPain = {
+  region: string;
+  rating: number;
+  type: PainType | null;
+  loggedAt: string;
+  note: string | null;
+};
+
+const PAIN_OFF = "The member's pain log is off. They can turn it on in the app; nothing was saved.";
+const PAIN_AI_OFF =
+  'The member has not let AI apps use their pain log: "Coach and connected AI apps can read my pain log" is off. They can turn it on in the app; nothing was saved.';
+
+function painWriter(db: Database): AiDomainWriter<PainEntryInput> {
+  const service = createPainService({ db });
+  return {
+    async prepare(context, entries) {
+      const preference = await readPainPreference(db, context.scope.userId);
+      if (!preference.enabled) throw new ToolInputError(PAIN_OFF);
+      if (!preference.aiVisible) throw new ToolInputError(PAIN_AI_OFF);
+      return entries.map((entry, index): PreparedPain => ({
+        region: entry.region,
+        rating: entry.rating,
+        type: (entry.type as PainType | undefined) ?? null,
+        loggedAt: instantOf(index, entry.at, context.now).toISOString(),
+        note: entry.note?.trim() || null,
+      }));
+    },
+    async write(context, prepared) {
+      const entry = prepared as PreparedPain;
+      try {
+        // One entry per region, through the pain service; it re-checks both switches.
+        const [saved] = await service.log(
+          context.scope,
+          {
+            regions: [entry.region],
+            rating: entry.rating,
+            type: entry.type,
+            loggedAt: entry.loggedAt,
+            timeZone: context.timeZone,
+            note: entry.note,
+          },
+          { aiApp: true, ids: [domainMutationUuid(context.entryKey, "pain_entry")] },
+        );
+        return {
+          kind: "pain_entry",
+          targetTable: "pain_entry",
+          targetIds: [],
+          targetUuids: [saved!.id],
+          possibleDuplicate: false,
+        };
+      } catch (error) {
+        if (error instanceof PainError) throw new ToolInputError(error.message);
+        throw error;
+      }
+    },
+  };
+}
+
 // ─── Delete ───────────────────────────────────────────────────
 
 /** The domain write paths for AI app writes, bound to one database. */
 export function createAiAppWriteTargets(db: Database): McpWriteTargets {
   const diary = createPlainWaterDiary(db);
+  const workouts = createWorkoutRepository(db);
+  const trackers = createTrackerService({ db });
+  const pain = createPainService({ db });
 
   const remove: McpWriteTargets["remove"] = async (context, entry) => {
     const { scope } = context;
@@ -506,6 +924,80 @@ export function createAiAppWriteTargets(db: Database): McpWriteTargets {
         deleted += rows.length;
         break;
       }
+      case "workout": {
+        for (const id of entry.targetIds) {
+          for (let attempt = 0; attempt < 3; attempt += 1) {
+            const [current] = await db
+              .select({ version: workout.version })
+              .from(workout)
+              .where(
+                and(
+                  eq(workout.id, id),
+                  eq(workout.organizationId, scope.organizationId),
+                  eq(workout.userId, scope.userId),
+                ),
+              )
+              .limit(1);
+            if (!current) break;
+            try {
+              await db.transaction((tx) =>
+                workouts.mutateWorkout(tx, {
+                  organizationId: scope.organizationId,
+                  userId: scope.userId,
+                  clientMutationId: domainMutationUuid(
+                    context.entryKey,
+                    `workout.delete:${id}:${current.version}`,
+                  ),
+                  expectedScope: `${scope.userId}:${scope.organizationId}`,
+                  operation: "delete",
+                  id,
+                  expectedVersion: current.version,
+                }),
+              );
+              deleted += 1;
+              break;
+            } catch (error) {
+              if (error instanceof WorkoutNotFoundError) break;
+              if (
+                error instanceof WorkoutVersionConflictError ||
+                error instanceof WorkoutMutationConflictError
+              )
+                continue;
+              throw error;
+            }
+          }
+        }
+        break;
+      }
+      case "health_event": {
+        // Only a manual night this very grant wrote: never a device night.
+        for (const id of entry.targetIds)
+          if (
+            await deleteManualSleepSession(db, {
+              organizationId: scope.organizationId,
+              userId: scope.userId,
+              id,
+              aiAppGrantId: context.source.grantId,
+            })
+          )
+            deleted += 1;
+        break;
+      }
+      case "custom_tracker_entry": {
+        for (const id of entry.targetUuids) {
+          try {
+            await trackers.deleteEntry({ ...scope, canWrite: true }, id);
+            deleted += 1;
+          } catch (error) {
+            if (!(error instanceof TrackerError)) throw error;
+          }
+        }
+        break;
+      }
+      case "pain_entry": {
+        for (const id of entry.targetUuids) if (await pain.delete(scope, id)) deleted += 1;
+        break;
+      }
     }
     return deleted > 0 ? "deleted" : "gone";
   };
@@ -515,6 +1007,10 @@ export function createAiAppWriteTargets(db: Database): McpWriteTargets {
     body: metricWriter<BodyEntryInput>(db, prepareBody),
     vitals: metricWriter<VitalEntryInput>(db, prepareVital),
     supplements: supplementWriter(db),
+    workouts: workoutWriter(db),
+    sleep: sleepWriter(db),
+    trackers: trackerWriter(db),
+    pain: painWriter(db),
     remove,
   };
 }

@@ -220,9 +220,12 @@ export const aiAppWrite = pgTable(
  *
  * `target_ids` are the domain rows of the entry: one water entry or supplement
  * intake, or the metric samples of one reading (a blood pressure reading is
- * its systolic, diastolic and pulse samples). `possible_duplicate` is set
- * when a device reading of the same kind sat within ten minutes at write time;
- * nothing is merged or overwritten, and device data wins in daily totals.
+ * its systolic, diastolic and pulse samples), one workout, or one manual sleep
+ * night (`health_event`). UUID-keyed domains (custom tracker entries and pain
+ * entries, M2b) use `target_uuids` instead. `possible_duplicate` is set when
+ * device data of the same kind overlapped at write time (a reading within ten
+ * minutes, a device night, a platform-imported tracker entry); nothing is
+ * merged or overwritten, and device data wins in daily totals.
  */
 export const aiAppEntry = pgTable(
   "ai_app_entry",
@@ -240,10 +243,15 @@ export const aiAppEntry = pgTable(
       .references(() => aiAppWrite.id, { onDelete: "cascade" }),
     /** Position of the entry in its call. */
     itemIndex: integer("item_index").notNull(),
-    /** `water`, `weight`, `blood_pressure`, `supplement_intake`, … */
+    /** `water`, `weight`, `blood_pressure`, `supplement_intake`, `workout`, … */
     kind: text("kind").notNull(),
     targetTable: text("target_table").notNull(),
     targetIds: integer("target_ids").array().notNull(),
+    /** Domain rows keyed by UUID (tracker and pain entries); empty for the others. */
+    targetUuids: uuid("target_uuids")
+      .array()
+      .notNull()
+      .default(sql`'{}'::uuid[]`),
     possibleDuplicate: boolean("possible_duplicate").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
   },
@@ -263,7 +271,7 @@ export const aiAppEntry = pgTable(
     ),
     aiAppEntryTargetTableCheck: check(
       "ai_app_entry_target_table_check",
-      sql`${table.targetTable} in ('metric_sample', 'plain_water_entry', 'supplement_intake')`,
+      sql`${table.targetTable} in ('metric_sample', 'plain_water_entry', 'supplement_intake', 'workout', 'health_event', 'custom_tracker_entry', 'pain_entry')`,
     ),
   }),
 );

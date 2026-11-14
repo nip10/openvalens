@@ -11,7 +11,8 @@ import { ToolInputError } from "./format";
 import type { AiAppGrantPrincipal } from "./grants";
 
 /**
- * AI app writes (Issue #439, M2a): the foundation every write tool runs on.
+ * AI app writes (Issue #439, M2a, extended in M2b): the foundation every write
+ * tool runs on.
  *
  * - **Idempotency.** Every write call carries a `mutationId`. Its receipt
  *   (`ai_app_write`, keyed by grant and mutation id) follows the plain-water
@@ -46,15 +47,38 @@ export type AiWriteScope = { organizationId: string; userId: string };
 /** Who wrote an entry: the grant, and the app's name as the member sees it. */
 export type AiWriteSource = { grantId: string; label: string };
 
-export type AiWriteTargetTable = "metric_sample" | "plain_water_entry" | "supplement_intake";
+export type AiWriteTargetTable =
+  | "metric_sample"
+  | "plain_water_entry"
+  | "supplement_intake"
+  // M2b
+  | "workout"
+  | "health_event"
+  | "custom_tracker_entry"
+  | "pain_entry";
 
 /** The domain rows one entry made. */
 export type AiWrittenEntry = {
   kind: string;
   targetTable: AiWriteTargetTable;
+  /** Integer-keyed rows (metric samples, water, intakes, workouts, sleep nights). */
   targetIds: number[];
-  /** A device reading of the same kind is within ten minutes; both are kept. */
+  /** UUID-keyed rows (custom tracker entries, pain entries). */
+  targetUuids?: string[];
+  /**
+   * Device data of the same kind overlaps (a reading within ten minutes, a
+   * device night, a tracker entry imported from a phone platform); both are
+   * kept and the device data counts.
+   */
   possibleDuplicate: boolean;
+};
+
+/** The domain rows of one recorded entry, as `remove` gets them. */
+export type AiWrittenTarget = {
+  kind: string;
+  targetTable: AiWriteTargetTable;
+  targetIds: readonly number[];
+  targetUuids: readonly string[];
 };
 
 /** What a domain writer gets for one entry. */
@@ -126,12 +150,74 @@ export type VitalEntryInput = {
 
 export type SupplementEntryInput = { at: string; supplement: string; dose?: string };
 
+// ─── M2b ──────────────────────────────────────────────────────
+
+/** The app's workout types (`@openvalens/plans` `WORKOUT_TYPES`). */
+export const WORKOUT_ENTRY_TYPES = [
+  "weights",
+  "running",
+  "cycling",
+  "swimming",
+  "tennis",
+  "other",
+] as const;
+/** Talk-test intensity (#99). */
+export const WORKOUT_ENTRY_INTENSITIES = ["light", "moderate", "vigorous"] as const;
+
+export type WorkoutSetEntryInput = {
+  reps: number;
+  weight?: number;
+  /** Unit of `weight`, default kg. */
+  unit?: "kg" | "lb";
+  rpe?: number;
+};
+export type WorkoutExerciseEntryInput = {
+  /** A catalog id from `exercises.search`. Missing means not in the catalog: refused (M2c). */
+  exerciseId?: number;
+  /** Only to name an exercise that is not in the catalog, which is refused for now. */
+  name?: string;
+  sets?: WorkoutSetEntryInput[];
+};
+export type WorkoutEntryInput = {
+  /** The session's day in the member's time zone (YYYY-MM-DD). */
+  date: string;
+  type: (typeof WORKOUT_ENTRY_TYPES)[number];
+  durationMinutes?: number;
+  intensity?: (typeof WORKOUT_ENTRY_INTENSITIES)[number];
+  /** Session effort, CR-10 (0-10). */
+  effort?: number;
+  notes?: string;
+  exercises?: WorkoutExerciseEntryInput[];
+};
+
+export type SleepEntryInput = { startAt: string; endAt: string; quality?: number };
+
+export type TrackerEntryInput = {
+  at: string;
+  trackerId: string;
+  /** number: the value; scale: 1-5; yes_no: true or false; duration: minutes. */
+  value: number | boolean;
+  note?: string;
+};
+
+export type PainEntryInput = {
+  at: string;
+  region: string;
+  rating: number;
+  type?: string;
+  note?: string;
+};
+
 /** The domain write paths, injected by the server (the app's own quick-log paths). */
 export type McpWriteTargets = {
   water: AiDomainWriter<WaterEntryInput>;
   body: AiDomainWriter<BodyEntryInput>;
   vitals: AiDomainWriter<VitalEntryInput>;
   supplements: AiDomainWriter<SupplementEntryInput>;
+  workouts: AiDomainWriter<WorkoutEntryInput>;
+  sleep: AiDomainWriter<SleepEntryInput>;
+  trackers: AiDomainWriter<TrackerEntryInput>;
+  pain: AiDomainWriter<PainEntryInput>;
   /**
    * Deletes the domain rows of one entry an AI app wrote. `gone` when they
    * were already deleted (by the member, or an earlier retry).
@@ -143,11 +229,19 @@ export type McpWriteTargets = {
       correlationId?: string;
       source: AiWriteSource;
     },
-    entry: { kind: string; targetTable: AiWriteTargetTable; targetIds: readonly number[] },
+    entry: AiWrittenTarget,
   ) => Promise<"deleted" | "gone">;
 };
 
-export type AiWriteDomain = "water" | "body" | "vitals" | "supplements";
+export type AiWriteDomain =
+  | "water"
+  | "body"
+  | "vitals"
+  | "supplements"
+  | "workouts"
+  | "sleep"
+  | "trackers"
+  | "pain";
 
 /** The entry kinds each write domain (and so each write scope) covers. */
 export const WRITE_DOMAIN_KINDS: Record<AiWriteDomain, readonly string[]> = {
@@ -155,6 +249,10 @@ export const WRITE_DOMAIN_KINDS: Record<AiWriteDomain, readonly string[]> = {
   body: BODY_ENTRY_KINDS,
   vitals: VITAL_ENTRY_KINDS,
   supplements: ["supplement_intake"],
+  workouts: ["workout"],
+  sleep: ["sleep_session"],
+  trackers: ["tracker_entry"],
+  pain: ["pain_entry"],
 };
 
 /** Too many entries for one grant today. */
@@ -368,6 +466,7 @@ export function createAiAppWrites(options: AiAppWritesOptions) {
         kind: input.written.kind,
         targetTable: input.written.targetTable,
         targetIds: [...input.written.targetIds],
+        targetUuids: [...(input.written.targetUuids ?? [])],
         possibleDuplicate: input.written.possibleDuplicate,
         createdAt: now(),
       })
@@ -399,10 +498,14 @@ export function createAiAppWrites(options: AiAppWritesOptions) {
   async function audit(
     principal: AiAppGrantPrincipal,
     eventType: "RECORD_CREATED" | "RECORD_DELETED",
-    entry: { targetTable: string; targetIds: readonly number[] },
+    entry: {
+      targetTable: string;
+      targetIds: readonly number[];
+      targetUuids?: readonly string[];
+    },
     correlationId: string | undefined,
   ) {
-    for (const id of entry.targetIds) {
+    for (const id of [...entry.targetIds, ...(entry.targetUuids ?? [])]) {
       await writeAuditLog({
         db,
         organizationId: principal.organizationId,
@@ -521,6 +624,7 @@ export function createAiAppWrites(options: AiAppWritesOptions) {
           kind: row.kind,
           targetTable: row.targetTable as AiWriteTargetTable,
           targetIds: row.targetIds,
+          targetUuids: row.targetUuids,
         },
       );
       if (outcome === "deleted") {
@@ -528,7 +632,7 @@ export function createAiAppWrites(options: AiAppWritesOptions) {
         await audit(
           principal as AiAppGrantPrincipal,
           "RECORD_DELETED",
-          { targetTable: row.targetTable, targetIds: row.targetIds },
+          { targetTable: row.targetTable, targetIds: row.targetIds, targetUuids: row.targetUuids },
           correlationId,
         );
       }

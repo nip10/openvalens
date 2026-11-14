@@ -95,6 +95,22 @@ const SCOPES: Record<string, { title: MessageDescriptor; detail: MessageDescript
     title: msg`Add supplements taken`,
     detail: msg`Log that you took one of your supplements. The app can delete only the entries it added.`,
   },
+  "workouts:write": {
+    title: msg`Add workouts`,
+    detail: msg`Log workout sessions with exercises from the exercise catalog. The app can delete only the workouts it added.`,
+  },
+  "sleep:write": {
+    title: msg`Add sleep`,
+    detail: msg`Log nights of sleep, like your own sleep entries. A device night always counts first. The app can delete only the nights it added.`,
+  },
+  "trackers:write": {
+    title: msg`Add to custom trackers`,
+    detail: msg`Log entries in your own trackers that have "Coach and connected AI apps can read this" on. The app can delete only the entries it added.`,
+  },
+  "pain:write": {
+    title: msg`Add to pain log`,
+    detail: msg`Log pain ratings by body region, only while "Coach and connected AI apps can read my pain log" is on. The app can delete only the entries it added.`,
+  },
 };
 
 /** Whether a scope lets the app add entries (M2) rather than read. */

@@ -55,8 +55,9 @@ import type { AiAppWrites } from "./writes";
  * - The pain log with `pain:read` (#442): only while the member's pain log and
  *   its own AI switch are on; notes only with `notes:read`.
  * - `exercises.search`, for catalog ids.
- * - The M2a write tools (`./write-tools`), each behind its domain's write
- *   scope: water, weight and body composition, vitals, supplement taken.
+ * - The write tools (`./write-tools`), each behind its domain's write
+ *   scope: water, weight and body composition, vitals, supplement taken
+ *   (M2a); workouts, sleep, custom trackers and pain (M2b).
  *
  * Results are the member's recorded values only, with no interpretation
  * beyond the flags the app already shows. Free-text notes appear only with

@@ -33,9 +33,9 @@ export const OPT_IN_SCOPES = [
 ] as const;
 
 /**
- * Write scopes that can be granted today (M2a, the save-at-once domains).
- * Each one covers adding entries in its domain and deleting entries this
- * grant wrote there.
+ * Write scopes that can be granted today (M2a and M2b, the save-at-once
+ * domains). Each one covers adding entries in its domain and deleting entries
+ * this grant wrote there.
  */
 export const WRITE_SCOPES = [
   "water:write",
@@ -45,6 +45,14 @@ export const WRITE_SCOPES = [
   "vitals:write",
   // A supplement taken (an intake of one of the member's own supplements).
   "supplements:write",
+  // A workout session: catalog exercises only (M2b).
+  "workouts:write",
+  // A night of sleep, saved as a manual night; device nights win (M2b).
+  "sleep:write",
+  // Entries in the member's own custom trackers whose AI switch is on (#441, M2b).
+  "trackers:write",
+  // Pain log entries, only while the pain log and its AI switch are on (#442, M2b).
+  "pain:write",
 ] as const;
 
 export type WriteScope = (typeof WRITE_SCOPES)[number];
@@ -55,18 +63,10 @@ export const GRANTABLE_SCOPES = [BASE_SCOPE, ...OPT_IN_SCOPES, ...WRITE_SCOPES] 
 export type GrantableScope = (typeof GRANTABLE_SCOPES)[number];
 
 /**
- * Names held back for later milestones so nothing else takes them: the rest of
- * the per-domain write scopes (M2b workouts, sleep, trackers and pain; M2c
- * food and lab drafts).
+ * Names held back for later milestones so nothing else takes them: the M2c
+ * draft scopes (food drafts and lab drafts the member confirms in the app).
  */
-export const RESERVED_SCOPES = [
-  "workouts:write",
-  "sleep:write",
-  "food:write",
-  "labs:write",
-  "trackers:write",
-  "pain:write",
-] as const;
+export const RESERVED_SCOPES = ["food:write", "labs:write"] as const;
 
 export type ReservedScope = (typeof RESERVED_SCOPES)[number];
 

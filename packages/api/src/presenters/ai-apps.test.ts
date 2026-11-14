@@ -38,7 +38,8 @@ describe("ai apps presenter", () => {
   test("every grantable scope has a label", () => {
     for (const scope of GRANTABLE_SCOPES) expect(aiAppScopeTitle(scope)).not.toBeNull();
     expect(aiAppScopeTitle("water:write")).not.toBeNull();
-    expect(aiAppScopeTitle("workouts:write")).toBeNull();
+    expect(aiAppScopeTitle("workouts:write")).not.toBeNull();
+    expect(aiAppScopeTitle("food:write")).toBeNull();
     expect(isAiAppWriteScope("water:write")).toBe(true);
     expect(isAiAppWriteScope("records:read")).toBe(false);
   });

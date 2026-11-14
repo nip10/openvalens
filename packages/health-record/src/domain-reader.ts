@@ -1,12 +1,22 @@
 import type { Database } from "@openvalens/db";
+import { aiAppEntry, aiAppGrant } from "@openvalens/db/schema/ai-apps";
 import { consultation, imagingStudy, cardiacExam } from "@openvalens/db/schema/clinical";
 import { insight } from "@openvalens/db/schema/coach";
 import { painEntry, painPreference } from "@openvalens/db/schema/pain";
 import { scheduledEvent, weeklyReview } from "@openvalens/db/schema/plans";
 import { dailyReminder } from "@openvalens/db/schema/integrations";
 import { customTracker, customTrackerEntry } from "@openvalens/db/schema/trackers";
-import { and, eq, gte, lte, or } from "drizzle-orm";
-import type { DomainTimelineRows } from "./timeline-adapters";
+import { and, eq, gte, lte, or, sql, type AnyColumn } from "drizzle-orm";
+import type { AiAppTag, DomainTimelineRows } from "./timeline-adapters";
+
+/**
+ * #439 (M2b) — the connected AI app that wrote a UUID-keyed entry (a tracker
+ * or pain entry), from its `ai_app_entry` row: the grant and the app's name,
+ * or null for an entry the member logged.
+ */
+function aiAppTagOf(table: "custom_tracker_entry" | "pain_entry", id: AnyColumn, org: AnyColumn) {
+  return sql<AiAppTag | null>`(select json_build_object('grantId', ${aiAppEntry.grantId}, 'label', ${aiAppGrant.label}) from ${aiAppEntry} inner join ${aiAppGrant} on ${aiAppGrant.id} = ${aiAppEntry.grantId} where ${aiAppEntry.organizationId} = ${org} and ${aiAppEntry.targetTable} = ${table} and ${id} = any(${aiAppEntry.targetUuids}) limit 1)`;
+}
 
 /** Internal domain projection boundary, called only after the API records:read guard.
  * It queries no global catalogs and accepts no user-supplied authority. Text
@@ -137,6 +147,11 @@ export function createDomainTimelineReader(db: Database): DomainTimelineReader {
                 note: customTrackerEntry.note,
                 source: customTrackerEntry.source,
                 loggedByUserId: customTrackerEntry.loggedByUserId,
+                aiApp: aiAppTagOf(
+                  "custom_tracker_entry",
+                  customTrackerEntry.id,
+                  customTrackerEntry.organizationId,
+                ),
                 trackerName: customTracker.name,
                 trackerType: customTracker.type,
                 trackerUnit: customTracker.unit,
@@ -177,6 +192,7 @@ export function createDomainTimelineReader(db: Database): DomainTimelineReader {
                 loggedAt: painEntry.loggedAt,
                 localDate: painEntry.localDate,
                 note: painEntry.note,
+                aiApp: aiAppTagOf("pain_entry", painEntry.id, painEntry.organizationId),
               })
               .from(painEntry)
               .innerJoin(
