@@ -5,6 +5,8 @@ import { dirname, join } from "node:path";
 
 import {
   isReleaseVersion,
+  README_CURRENT_VERSION,
+  README_FILE,
   readVersions,
   setVersion,
   stampDocs,
@@ -91,6 +93,21 @@ describe("release version (#306)", () => {
     expect(pages.length).toBeGreaterThan(5);
     for (const page of pages)
       expect(readFileSync(page, "utf8")).toMatch(/\*\*Applies to:\*\* OpenValens \d+\.\d+\.\d+/);
+  });
+
+  test("stampDocs moves the README's current version", () => {
+    const dir = copyRepo();
+    const readme = "# OpenValens\n\n> **Status.** The current version is 0.1.0.\n\nSince 0.1.0.\n";
+    writeFileSync(join(dir, README_FILE), readme);
+    expect(stampDocs(dir, "1.0.0")).toEqual([README_FILE]);
+    expect(readFileSync(join(dir, README_FILE), "utf8")).toBe(
+      readme.replace("is 0.1.0", "is 1.0.0"),
+    );
+  });
+
+  test("the README states the root package.json version", () => {
+    const readme = readFileSync(join(repo, README_FILE), "utf8");
+    expect(README_CURRENT_VERSION.exec(readme)?.[2]).toBe(readVersions(repo).root!);
   });
 
   test("setVersion refuses a tag or a pre-release", () => {

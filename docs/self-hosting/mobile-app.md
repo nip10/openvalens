@@ -200,5 +200,5 @@ available ([Licensing and trademark](licensing.md)).
 The server check was tested against the server's route and the app's parsing
 in unit tests. Connecting the published store app to a self-hosted instance,
 OIDC sign-in on the phone, and push from a self-hosted server to the store app
-have not been verified on a device for 0.9.0; the store apps are not published
-yet (#306).
+have not been verified on a device yet. The Android app is on Google Play; the
+iPhone app is in App Store review.

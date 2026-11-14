@@ -42,8 +42,8 @@ bun run release:version X.Y.Z
 ```
 
 This sets `package.json`, `apps/native/app.json` and `SERVER_VERSION`, and the
-**Applies to** line of every page in `docs/self-hosting` and `docs/reference`.
-It lists those pages: read the ones the release changed and update what no
+**Applies to** line of every page in `docs/self-hosting` and `docs/reference`,
+and "The current version is" in the root `README.md`. It lists those files: read the ones the release changed and update what no
 longer holds. `bun run release:version --check` (or `--check vX.Y.Z`) checks
 that everything agrees.
 

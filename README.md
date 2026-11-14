@@ -8,9 +8,13 @@ export it on a server you control. "Open" means open source (AGPL-3.0); it
 never means your records are public. An instance has no public sign-up, and
 every workspace is invite-only.
 
-> **Beta.** The current version is 0.9.0, the first tagged release
-> ([Releases](https://github.com/nip10/openvalens/releases)). Version 1.0.0
-> comes with the public store launch.
+> **Status.** The current version is 1.2.0
+> ([Releases](https://github.com/nip10/openvalens/releases)). Self-hosting is
+> one supported install; [OpenValens Cloud](https://app.openvalens.com) is the
+> hosted service, with sign-up on the web. The Android app is on
+> [Google Play](https://play.google.com/store/apps/details?id=com.openvalens.app);
+> the iPhone app is in App Store review. The store app connects to Cloud or to
+> your own instance.
 
 ![The OpenValens dashboard: sleep, steps, heart rate and weight tiles over a 90-day weight chart](apps/site/src/screenshots/dashboard.webp)
 
@@ -50,7 +54,9 @@ records), never a real person's data (see [Landing site](#landing-site))._
   (Anthropic or any OpenAI-compatible endpoint, including a local model) and
   you consent, it can summarise your own records (the Coach screen). It is not medical advice and
   can be wrong ([AI providers](docs/ai-providers.md)).
-- A mobile app (`apps/native`) that you build for your own instance.
+- A mobile app (`apps/native`) that connects to Cloud or to your own instance
+  ([mobile app](docs/self-hosting/mobile-app.md)); building your own is
+  optional.
 
 ## What it does not do (yet)
 
@@ -60,9 +66,10 @@ records), never a real person's data (see [Landing site](#landing-site))._
   stay on the host unless you configure the off-site copy to an S3-compatible
   bucket, and keeping the backup key off the server is up to you
   ([Backups](docs/self-hosting/backup.md)).
-- Cloud hosting and public sign-up are not live yet; self-hosting is available.
 - No published container images; the install builds from source (#129).
-- Mobile apps are not published in the stores yet; wearable vendor connections are available but need provider configuration.
+- The iPhone app is not in the App Store yet (it is in review); the Android
+  app is on Google Play.
+- Wearable vendor connections are available but need provider configuration.
 
 **Intended purpose.** OpenValens is a personal record-keeping and
 general-wellness app. It helps you store, organise and view your own
@@ -92,7 +99,7 @@ it.
 ```bash
 git clone https://github.com/nip10/openvalens.git
 cd openvalens
-git checkout v1.0.1          # the newest release tag
+git checkout "$(git tag -l 'v*' --sort=-v:refname | head -n 1)"  # the newest release tag
 deploy/setup.sh install
 ```
 
@@ -104,8 +111,8 @@ install guide covers the rest.
 
 ### Self-hosting
 
-Run your own instance with the supported Docker Compose install. The guides
-apply to OpenValens 0.9.0 (beta):
+Run your own instance with the supported Docker Compose install. Each guide
+states the version it applies to:
 
 - [Overview](docs/self-hosting/README.md) — start here; lists what is not covered yet
 - [Install](docs/self-hosting/install.md)
