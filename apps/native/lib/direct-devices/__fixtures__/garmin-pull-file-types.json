@@ -1,0 +1,192 @@
+{
+  "schemaVersion": 1,
+  "reference": {
+    "sourceUrl": "https://codeberg.org/Freeyourgadget/Gadgetbridge/raw/commit/8976702fc3d00e6008c91fe994668cb4027f7bc2/app/src/main/java/nodomain/freeyourgadget/gadgetbridge/service/devices/garmin/FileType.java",
+    "revision": "8976702fc3d00e6008c91fe994668cb4027f7bc2",
+    "lines": "63-140, 164-217",
+    "note": "Every FileType.FILETYPE with pull = true, the types upstream downloads by default. decoded = OpenValens downloads and decodes it; every other type stays on the watch. Reasons: docs/research/notes/Garmin MLR transport/garmin-new-sync-protocol.md section 10."
+  },
+  "types": [
+    {
+      "name": "ACTIVITY",
+      "dataType": 128,
+      "subType": 4,
+      "typeName": "FIT_TYPE_4",
+      "decoded": true
+    },
+    { "name": "WEIGHT", "dataType": 128, "subType": 9, "typeName": "FIT_TYPE_9", "decoded": false },
+    {
+      "name": "MONITOR_A",
+      "dataType": 128,
+      "subType": 15,
+      "typeName": "FIT_TYPE_15",
+      "decoded": true
+    },
+    {
+      "name": "MONITOR_DAILY",
+      "dataType": 128,
+      "subType": 28,
+      "typeName": "FIT_TYPE_28",
+      "decoded": true
+    },
+    {
+      "name": "MONITOR",
+      "dataType": 128,
+      "subType": 32,
+      "typeName": "FIT_TYPE_32",
+      "decoded": true
+    },
+    {
+      "name": "SEGMENT_LIST",
+      "dataType": 128,
+      "subType": 35,
+      "typeName": "FIT_TYPE_35",
+      "decoded": false
+    },
+    {
+      "name": "SCORE",
+      "dataType": 128,
+      "subType": 38,
+      "typeName": "FIT_TYPE_38",
+      "decoded": false
+    },
+    {
+      "name": "CHANGELOG",
+      "dataType": 128,
+      "subType": 41,
+      "typeName": "FIT_TYPE_41",
+      "decoded": false
+    },
+    {
+      "name": "METRICS",
+      "dataType": 128,
+      "subType": 44,
+      "typeName": "FIT_TYPE_44",
+      "decoded": false
+    },
+    { "name": "SLEEP", "dataType": 128, "subType": 49, "typeName": "FIT_TYPE_49", "decoded": true },
+    {
+      "name": "USER_BEHAVIOR_LOG",
+      "dataType": 128,
+      "subType": 52,
+      "typeName": "FIT_TYPE_52",
+      "decoded": false
+    },
+    {
+      "name": "SPORTS_BACKUP",
+      "dataType": 128,
+      "subType": 57,
+      "typeName": "FIT_TYPE_57",
+      "decoded": false
+    },
+    {
+      "name": "DEVICE_58",
+      "dataType": 128,
+      "subType": 58,
+      "typeName": "FIT_TYPE_58",
+      "decoded": false
+    },
+    { "name": "ECG", "dataType": 128, "subType": 61, "typeName": "FIT_TYPE_61", "decoded": false },
+    {
+      "name": "FIT_TYPE_66",
+      "dataType": 128,
+      "subType": 66,
+      "typeName": "FIT_TYPE_66",
+      "decoded": false
+    },
+    {
+      "name": "HRV_STATUS",
+      "dataType": 128,
+      "subType": 68,
+      "typeName": "FIT_TYPE_68",
+      "decoded": true
+    },
+    { "name": "HSA", "dataType": 128, "subType": 70, "typeName": "FIT_TYPE_70", "decoded": false },
+    {
+      "name": "COM_ACT",
+      "dataType": 128,
+      "subType": 71,
+      "typeName": "FIT_TYPE_71",
+      "decoded": false
+    },
+    {
+      "name": "FBT_BACKUP",
+      "dataType": 128,
+      "subType": 72,
+      "typeName": "FIT_TYPE_72",
+      "decoded": false
+    },
+    {
+      "name": "SKIN_TEMP",
+      "dataType": 128,
+      "subType": 73,
+      "typeName": "FIT_TYPE_73",
+      "decoded": false
+    },
+    {
+      "name": "FBT_PTD_BACKUP",
+      "dataType": 128,
+      "subType": 74,
+      "typeName": "FIT_TYPE_74",
+      "decoded": false
+    },
+    {
+      "name": "SCHEDULE",
+      "dataType": 128,
+      "subType": 77,
+      "typeName": "FIT_TYPE_77",
+      "decoded": false
+    },
+    {
+      "name": "SLP_DISR",
+      "dataType": 128,
+      "subType": 79,
+      "typeName": "FIT_TYPE_79",
+      "decoded": false
+    },
+    {
+      "name": "AREA_COURSES",
+      "dataType": 128,
+      "subType": 82,
+      "typeName": "FIT_TYPE_82",
+      "decoded": false
+    },
+    {
+      "name": "ERROR_SHUTDOWN_REPORTS",
+      "dataType": 255,
+      "subType": 245,
+      "typeName": "ErrorShutdownReports",
+      "decoded": false
+    },
+    {
+      "name": "IQ_ERROR_REPORTS",
+      "dataType": 255,
+      "subType": 244,
+      "typeName": "IQErrorReports",
+      "decoded": false
+    },
+    {
+      "name": "GOLF_SCORECARD",
+      "dataType": 255,
+      "subType": 246,
+      "typeName": "GOLF_SCORECARD",
+      "decoded": false
+    },
+    {
+      "name": "ULF_LOGS",
+      "dataType": 255,
+      "subType": 247,
+      "typeName": "ULFLogs",
+      "decoded": false
+    },
+    { "name": "KPI", "dataType": 255, "subType": 248, "typeName": "KPI", "decoded": false },
+    { "name": "ACTIVITY_GCPD", "typeName": "ACTIVITY_GCPD", "decoded": false },
+    { "name": "BACKUP_PRIMARY", "typeName": "BACKUP_PRIMARY", "decoded": false },
+    { "name": "BACKUP_SUPPLEMENTARY", "typeName": "BACKUP_SUPPLEMENTARY", "decoded": false },
+    { "name": "BLELogs", "typeName": "BLELogs", "decoded": false },
+    { "name": "FitnessHistory", "typeName": "FitnessHistory", "decoded": false },
+    { "name": "GPSData", "typeName": "GPSData", "decoded": false },
+    { "name": "RAMDump", "typeName": "RAMDump", "decoded": false },
+    { "name": "WELLNESS_TYPE_1", "typeName": "WELLNESS_TYPE_1", "decoded": false }
+  ]
+}

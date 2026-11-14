@@ -11,6 +11,7 @@
 import { expect, test } from "bun:test";
 import { zlibSync } from "fflate";
 
+import pullTypes from "../__fixtures__/garmin-pull-file-types.json";
 import {
   GARMIN_PROTOBUF_MAX_BYTES,
   GARMIN_PROTOBUF_MAX_PENDING,
@@ -324,6 +325,21 @@ test("selection keeps the health FIT types, resolving names like upstream", () =
   expect(
     decodeGarminItemReference(selectGarminSyncItems([items[2]!])[0]!.request).dataType,
   ).toEqual({ format: undefined, gdxmlString: "FIT_TYPE_49", gdxmlStringKey: undefined });
+});
+
+test("of upstream's default-pulled types, only the six decoded ones are pulled", () => {
+  // Every `FileType.FILETYPE` with `pull = true`; the rest stay on the watch,
+  // unflagged (spec §10).
+  const items = pullTypes.types.map((type, index) =>
+    decodeGarminItemReference(item({ uid: uuid(index + 1, index + 1), name: type.typeName })),
+  );
+  expect(selectGarminSyncItems(items).map((entry) => entry.typeName)).toEqual(
+    pullTypes.types.filter((type) => type.decoded).map((type) => type.typeName),
+  );
+  // DEVICE_XML (format set, key 3) is not a pull type and is not pulled either.
+  expect(selectGarminSyncItems([decodeGarminItemReference(item({ format: 0, key: 3 }))])).toEqual(
+    [],
+  );
 });
 
 // ---------------------------------------------------------------------------

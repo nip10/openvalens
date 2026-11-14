@@ -8,6 +8,8 @@
 
 import { describe, expect, test } from "bun:test";
 
+import pullTypes from "../__fixtures__/garmin-pull-file-types.json";
+
 import {
   decodeGarminHrv,
   decodeGarminRespiration,
@@ -287,6 +289,23 @@ test("directory records decode the 16-byte little-endian layout", () => {
   expect(isGarminHealthFile(sentinel)).toBe(false);
 
   expect(() => parseGarminDirectory(new Uint8Array(15))).toThrow("GARMIN_DIRECTORY_LENGTH");
+});
+
+test("the legacy directory download keeps the same six of upstream's pull types", () => {
+  // Spec: garmin-new-sync-protocol.md §10. Name-only types never appear in a
+  // legacy directory, which lists data type and subtype.
+  const numbered = pullTypes.types.filter(
+    (type): type is typeof type & { dataType: number; subType: number } =>
+      "dataType" in type && "subType" in type,
+  );
+  for (const type of numbered) {
+    const record = new Uint8Array(16);
+    record[0] = 1;
+    record[2] = type.dataType;
+    record[3] = type.subType;
+    const entry = parseGarminDirectory(record)[0]!;
+    expect([type.name, isGarminHealthFile(entry)]).toEqual([type.name, type.decoded]);
+  }
 });
 
 test("a download request matches the upstream writer layout", () => {
