@@ -10,6 +10,7 @@ export * from "./supplement-intake";
 export * from "./personal-goals";
 export * from "./goal-model";
 export * from "./goal-evaluation";
+export * from "./goal-tracker";
 export * from "./calendar";
 export * from "./workout-routines";
 export * from "./workout-history";

@@ -5,6 +5,14 @@ import type {
   GoalRule,
   GoalComparator,
 } from "@openvalens/plans/goal-model";
+import {
+  trackerGoalMeasuresValue,
+  trackerGoalMetric,
+  trackerGoalRuleKinds,
+  trackerGoalUnit,
+  trackerIdFromGoalMetric,
+} from "@openvalens/plans/goal-tracker";
+import type { TrackerType } from "@openvalens/trackers/model";
 import { Button } from "@openvalens/ui/components/button";
 import { Input } from "@openvalens/ui/components/input";
 import { Label } from "@openvalens/ui/components/label";
@@ -118,6 +126,25 @@ export function GoalEditor({
   const [milestoneDate, setMilestoneDate] = useState("");
 
   const supplements = useQuery(orpc.plans.listSupplements.queryOptions({ input: {} }));
+  // Goals can use the member's own trackers only (#451).
+  const trackers = useQuery({
+    ...orpc.trackers.list.queryOptions({
+      input: { timeZone: deviceZone(), includeArchived: true },
+    }),
+    enabled: source === "tracker",
+  });
+  const ownTrackers = (trackers.data ?? []).filter((tracker) => tracker.canEdit);
+  const selectedTracker = ownTrackers.find(
+    (tracker) => tracker.id === trackerIdFromGoalMetric(metric),
+  );
+  const trackerType: TrackerType | null =
+    source === "tracker" ? (selectedTracker?.type ?? null) : null;
+  const allowedKinds: readonly GoalKind[] = trackerType
+    ? trackerGoalRuleKinds(trackerType)
+    : ["target", "recurring", "average", "streak"];
+  /** Yes/no and 1-5 scale goals count done days: no amounts, no milestones. */
+  const countsDoneDays = trackerType !== null && !trackerGoalMeasuresValue(trackerType);
+  const trackerUnit = source === "tracker" ? unit : "";
   const catalogInput = {
     query: exerciseQuery.trim() || undefined,
     language: Intl.DateTimeFormat().resolvedOptions().locale.slice(0, 16) || "en",
@@ -167,6 +194,7 @@ export function GoalEditor({
     title: t`Enter a name for this goal.`,
     value: t`Enter a goal value.`,
     selection: t`Choose a supplement or catalog exercise.`,
+    tracker: t`Choose one of your trackers.`,
     target: t`Enter a valid target value.`,
     range: t`The range maximum must be at least the minimum.`,
     water: t`The daily water amount must be greater than zero.`,
@@ -215,9 +243,10 @@ export function GoalEditor({
       rule,
       startDate,
       timeZone,
-      dayCutoff: cutoff || null,
+      // Tracker goals follow the tracker's own calendar days.
+      dayCutoff: source === "tracker" ? null : cutoff || null,
       status: initial?.definition.status ?? "active",
-      milestones,
+      milestones: countsDoneDays ? [] : milestones,
     };
     if (initial) {
       update.mutate({
@@ -268,12 +297,48 @@ export function GoalEditor({
             <SelectItem value="sleep">{t`Sleep records`}</SelectItem>
             <SelectItem value="supplement">{t`Supplement intake`}</SelectItem>
             <SelectItem value="workout">{t`Workout lift`}</SelectItem>
+            <SelectItem value="tracker">{t`One of my trackers`}</SelectItem>
           </SelectContent>
         </Select>
         {sourceIsLocked ? (
           <p className="text-xs text-ink-3">{t`Evidence source stays fixed. Create a replacement goal to change it.`}</p>
         ) : null}
       </Field>
+      {source === "tracker" ? (
+        <Field label={t`Tracker`}>
+          <Select
+            disabled={!canChangeSource}
+            value={trackerIdFromGoalMetric(metric) ?? ""}
+            onValueChange={chooseTracker}
+          >
+            <SelectTrigger aria-label={t`Tracker`}>
+              <SelectValue placeholder={t`Choose a tracker`} />
+            </SelectTrigger>
+            <SelectContent>
+              {ownTrackers
+                .filter((tracker) => !tracker.archivedAt || tracker.id === selectedTracker?.id)
+                .map((tracker) => (
+                  <SelectItem key={tracker.id} value={tracker.id}>
+                    {tracker.name}
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+          {trackers.isError ? (
+            <p
+              role="alert"
+              className="text-sm text-destructive"
+            >{t`Could not load your trackers. Try again.`}</p>
+          ) : trackers.isSuccess && ownTrackers.length === 0 ? (
+            <p className="text-xs text-ink-3">{t`You have no trackers yet. Create one on the Trackers page first.`}</p>
+          ) : trackers.isSuccess && trackerIdFromGoalMetric(metric) && !selectedTracker ? (
+            <p className="text-xs text-ink-3">{t`This tracker was deleted. The goal keeps its history.`}</p>
+          ) : null}
+          {trackerType ? (
+            <p className="text-xs text-ink-3">{trackerRuleHint(trackerType)}</p>
+          ) : null}
+        </Field>
+      ) : null}
       {source === "manual" ? (
         <>
           <Field label={t`Metric name`}>
@@ -366,10 +431,18 @@ export function GoalEditor({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="target">{t`One-time target`}</SelectItem>
-            <SelectItem value="recurring">{t`Repeat on a schedule`}</SelectItem>
-            <SelectItem value="average">{t`Rolling average`}</SelectItem>
-            <SelectItem value="streak">{t`Consecutive days`}</SelectItem>
+            {allowedKinds.includes("target") ? (
+              <SelectItem value="target">{t`One-time target`}</SelectItem>
+            ) : null}
+            {allowedKinds.includes("recurring") ? (
+              <SelectItem value="recurring">{t`Repeat on a schedule`}</SelectItem>
+            ) : null}
+            {allowedKinds.includes("average") ? (
+              <SelectItem value="average">{t`Rolling average`}</SelectItem>
+            ) : null}
+            {allowedKinds.includes("streak") ? (
+              <SelectItem value="streak">{t`Consecutive days`}</SelectItem>
+            ) : null}
           </SelectContent>
         </Select>
         {source === "water" ? (
@@ -378,27 +451,35 @@ export function GoalEditor({
       </Field>
       {kind === "recurring" ? (
         <>
-          <Field label={t`Daily tracking`}>
-            <Select
-              value={recurringMode}
-              onValueChange={(value) => {
-                const next = value as "amount" | "completion";
-                setRecurringMode(next);
-                if (next === "completion") setUnit("");
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="amount">{t`Record an amount`}</SelectItem>
-                <SelectItem value="completion">{t`Mark done`}</SelectItem>
-              </SelectContent>
-            </Select>
-          </Field>
+          {source === "tracker" ? null : (
+            <Field label={t`Daily tracking`}>
+              <Select
+                value={recurringMode}
+                onValueChange={(value) => {
+                  const next = value as "amount" | "completion";
+                  setRecurringMode(next);
+                  if (next === "completion") setUnit("");
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="amount">{t`Record an amount`}</SelectItem>
+                  <SelectItem value="completion">{t`Mark done`}</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
+          )}
           {recurringMode === "amount" ? (
             <ComparatorFields
-              label={source === "water" ? t`Daily water target (ml)` : t`Daily amount`}
+              label={
+                source === "water"
+                  ? t`Daily water target (ml)`
+                  : trackerUnit
+                    ? t`Daily amount (${trackerUnit})`
+                    : t`Daily amount`
+              }
               comparison={comparison}
               setComparison={setComparison}
               lower={lower}
@@ -444,7 +525,15 @@ export function GoalEditor({
       {kind === "target" || kind === "average" ? (
         <>
           <ComparatorFields
-            label={kind === "average" ? t`Average target` : t`Target value`}
+            label={
+              kind === "average"
+                ? trackerUnit
+                  ? t`Average target (${trackerUnit})`
+                  : t`Average target`
+                : trackerUnit
+                  ? t`Target value (${trackerUnit})`
+                  : t`Target value`
+            }
             comparison={comparison}
             setComparison={setComparison}
             lower={lower}
@@ -474,27 +563,29 @@ export function GoalEditor({
       ) : null}
       {kind === "streak" ? (
         <>
-          <Field label={t`Streak evidence`}>
-            <Select
-              value={recurringMode}
-              onValueChange={(value) => {
-                const next = value as "amount" | "completion";
-                setRecurringMode(next);
-                if (next === "completion") setUnit("");
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="amount">{t`Compare a daily amount`}</SelectItem>
-                <SelectItem value="completion">{t`Mark done each day`}</SelectItem>
-              </SelectContent>
-            </Select>
-          </Field>
+          {source === "tracker" ? null : (
+            <Field label={t`Streak evidence`}>
+              <Select
+                value={recurringMode}
+                onValueChange={(value) => {
+                  const next = value as "amount" | "completion";
+                  setRecurringMode(next);
+                  if (next === "completion") setUnit("");
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="amount">{t`Compare a daily amount`}</SelectItem>
+                  <SelectItem value="completion">{t`Mark done each day`}</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
+          )}
           {recurringMode === "amount" ? (
             <ComparatorFields
-              label={t`Daily amount needed`}
+              label={trackerUnit ? t`Daily amount needed (${trackerUnit})` : t`Daily amount needed`}
               comparison={comparison}
               setComparison={setComparison}
               lower={lower}
@@ -523,9 +614,11 @@ export function GoalEditor({
       <Field label={t`Goal timezone`}>
         <Input value={timeZone} onChange={(event) => setTimeZone(event.target.value)} />
       </Field>
-      <Field label={t`Daily cutoff (optional)`}>
-        <Input type="time" value={cutoff} onChange={(event) => setCutoff(event.target.value)} />
-      </Field>
+      {source === "tracker" ? null : (
+        <Field label={t`Daily cutoff (optional)`}>
+          <Input type="time" value={cutoff} onChange={(event) => setCutoff(event.target.value)} />
+        </Field>
+      )}
       <div className="sm:col-span-2 rounded-2xl bg-muted p-3 text-sm text-ink-3">
         <Clock3 className="mr-2 inline size-4" />
         <Trans>
@@ -533,44 +626,48 @@ export function GoalEditor({
           schedule edits start next Monday.
         </Trans>
       </div>
-      <section className="grid gap-3 sm:col-span-2" aria-labelledby="milestones-heading">
-        <h3 id="milestones-heading" className="font-semibold text-ink">{t`Milestones`}</h3>
-        {milestones.map((milestone) => (
-          <MilestoneEditor
-            key={milestone.id}
-            milestone={milestone}
-            unit={unit}
-            onChange={(next) =>
-              setMilestones((current) => current.map((item) => (item.id === next.id ? next : item)))
-            }
-            onRemove={() =>
-              setMilestones((current) => current.filter((item) => item.id !== milestone.id))
-            }
-          />
-        ))}
-        <div className="flex flex-wrap items-end gap-2">
-          <Field label={t`Checkpoint value`}>
-            <Input
-              type="number"
-              step="any"
-              value={milestoneValue}
-              onChange={(event) => setMilestoneValue(event.target.value)}
+      {countsDoneDays ? null : (
+        <section className="grid gap-3 sm:col-span-2" aria-labelledby="milestones-heading">
+          <h3 id="milestones-heading" className="font-semibold text-ink">{t`Milestones`}</h3>
+          {milestones.map((milestone) => (
+            <MilestoneEditor
+              key={milestone.id}
+              milestone={milestone}
+              unit={unit}
+              onChange={(next) =>
+                setMilestones((current) =>
+                  current.map((item) => (item.id === next.id ? next : item)),
+                )
+              }
+              onRemove={() =>
+                setMilestones((current) => current.filter((item) => item.id !== milestone.id))
+              }
             />
-          </Field>
-          <Field label={t`Checkpoint date`}>
-            <Input
-              type="date"
-              value={milestoneDate}
-              onChange={(event) => setMilestoneDate(event.target.value)}
-            />
-          </Field>
-          <Button type="button" variant="outline" onClick={addMilestone}>
-            <Plus className="mr-1 size-4" />
-            {t`Add milestone`}
-          </Button>
-        </div>
-        <p className="text-xs text-ink-3">{t`Milestones are value-and-date checkpoints on this same goal, not separate phases.`}</p>
-      </section>
+          ))}
+          <div className="flex flex-wrap items-end gap-2">
+            <Field label={t`Checkpoint value`}>
+              <Input
+                type="number"
+                step="any"
+                value={milestoneValue}
+                onChange={(event) => setMilestoneValue(event.target.value)}
+              />
+            </Field>
+            <Field label={t`Checkpoint date`}>
+              <Input
+                type="date"
+                value={milestoneDate}
+                onChange={(event) => setMilestoneDate(event.target.value)}
+              />
+            </Field>
+            <Button type="button" variant="outline" onClick={addMilestone}>
+              <Plus className="mr-1 size-4" />
+              {t`Add milestone`}
+            </Button>
+          </div>
+          <p className="text-xs text-ink-3">{t`Milestones are value-and-date checkpoints on this same goal, not separate phases.`}</p>
+        </section>
+      )}
       {validationError ? (
         <p role="alert" className="text-sm text-destructive sm:col-span-2">
           {validationError}
@@ -604,6 +701,35 @@ export function GoalEditor({
     if (next === "sleep") setUnit("h");
     if (next === "supplement") setRecurringMode("completion");
     if (next === "workout") setUnit("kg");
+    if (next === "tracker") {
+      setMetric("");
+      setUnit("");
+    }
+  }
+
+  /** Picks a tracker and keeps only the rules its type allows (#451). */
+  function chooseTracker(trackerId: string) {
+    const tracker = ownTrackers.find((item) => item.id === trackerId);
+    if (!tracker) return;
+    setMetric(trackerGoalMetric(tracker.id));
+    setUnit(trackerGoalUnit(tracker) ?? "");
+    const kinds = trackerGoalRuleKinds(tracker.type);
+    if (!kinds.includes(kind)) setKind(kinds[0]!);
+    if (trackerGoalMeasuresValue(tracker.type)) {
+      setRecurringMode("amount");
+    } else {
+      setRecurringMode("completion");
+      setComparison("minimum");
+      setLower("1");
+    }
+  }
+
+  function trackerRuleHint(type: TrackerType): string {
+    if (type === "scale")
+      return t`A 1–5 rating goal is a streak of days you logged it. It never sets a target for the rating itself.`;
+    if (type === "yes_no") return t`Counts the days with a yes.`;
+    if (type === "duration") return t`Durations are compared in minutes per day.`;
+    return t`Several entries in a day are combined the way this tracker combines them.`;
   }
 }
 
@@ -664,6 +790,7 @@ function validateEditor(input: {
   | "title"
   | "value"
   | "selection"
+  | "tracker"
   | "target"
   | "range"
   | "water"
@@ -677,6 +804,7 @@ function validateEditor(input: {
   | "milestone"
   | null {
   if (!input.title.trim()) return "title";
+  if (input.source === "tracker" && !trackerIdFromGoalMetric(input.metric)) return "tracker";
   if (!(input.kind === "recurring" && input.recurringMode === "completion") && !input.lower.trim())
     return "value";
   if (
