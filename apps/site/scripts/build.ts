@@ -20,6 +20,7 @@ import {
   RELEASES_DIR,
   type ReleaseNotes,
 } from "../../../scripts/release-notes";
+import { renderDeviceFamilies, renderDeviceSummary } from "./devices";
 
 export const SITE_SRC = join(import.meta.dir, "..", "src");
 export const SITE_URL = "https://openvalens.com";
@@ -46,6 +47,10 @@ const SIGNUP_PLACEHOLDER = "__CLOUD_SIGNUP_URL__";
 
 /** Fills `__CHANGELOG_ENTRIES__` in `changelog.html` (Issue #446). */
 const CHANGELOG_PLACEHOLDER = "__CHANGELOG_ENTRIES__";
+
+/** Fill `devices.html` from the direct-device allowlist and statuses (Issue #445). */
+const DEVICE_SUMMARY_PLACEHOLDER = "__DEVICE_SUMMARY__";
+const DEVICE_FAMILIES_PLACEHOLDER = "__DEVICE_FAMILIES__";
 
 const MONTHS = [
   "January",
@@ -304,8 +309,9 @@ export async function auditSite(dir: string): Promise<Finding[]> {
 }
 
 /**
- * Copies `src/` to `outDir`, fills in the CSP, the sign-up URL and the
- * changelog (from `docs/releases`), and writes `changelog.xml` and `_headers`.
+ * Copies `src/` to `outDir`, fills in the CSP, the sign-up URL, the changelog
+ * (from `docs/releases`) and the supported devices (from
+ * `packages/health-record`), and writes `changelog.xml` and `_headers`.
  */
 export async function buildSite(
   outDir: string,
@@ -313,6 +319,9 @@ export async function buildSite(
   releasesDir = RELEASES_DIR,
 ): Promise<void> {
   const releases = readAllReleaseNotes(releasesDir);
+  const changelog = renderChangelogEntries(releases);
+  const deviceSummary = renderDeviceSummary();
+  const deviceFamilies = renderDeviceFamilies();
   await rm(outDir, { recursive: true, force: true });
   await mkdir(outDir, { recursive: true });
   await cp(srcDir, outDir, { recursive: true });
@@ -326,7 +335,9 @@ export async function buildSite(
       html
         .replaceAll(CSP_PLACEHOLDER, SITE_CSP)
         .replaceAll(SIGNUP_PLACEHOLDER, CLOUD_SIGNUP_URL)
-        .replaceAll(CHANGELOG_PLACEHOLDER, renderChangelogEntries(releases)),
+        .replaceAll(CHANGELOG_PLACEHOLDER, changelog)
+        .replaceAll(DEVICE_SUMMARY_PLACEHOLDER, deviceSummary)
+        .replaceAll(DEVICE_FAMILIES_PLACEHOLDER, deviceFamilies),
     );
   }
   await writeFile(join(outDir, "changelog.xml"), renderChangelogFeed(releases));

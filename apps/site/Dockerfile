@@ -8,6 +8,9 @@ COPY apps/site ./apps/site
 # The changelog (/changelog, /changelog.xml) is built from the release notes (#446).
 COPY docs/releases ./docs/releases
 COPY scripts/release-notes.ts ./scripts/release-notes.ts
+# The supported-devices page (/devices) is built from the allowlist and statuses (#445).
+COPY packages/health-record/src/direct-device-models.ts packages/health-record/src/device-support-status.ts packages/health-record/src/device-catalog.ts ./packages/health-record/src/
+COPY packages/health-record/src/device-catalog/gadgetbridge-catalog.json packages/health-record/src/device-catalog/types.ts ./packages/health-record/src/device-catalog/
 RUN cd apps/site && bun scripts/build.ts dist \
   && awk '/^  [A-Za-z-]+: /{ line=$0; sub(/^  /, "", line); i=index(line, ": "); name=substr(line, 1, i-1); v=substr(line, i+2); gsub(/"/, "\\\"", v); printf "add_header %s \"%s\" always;\n", name, v }' dist/_headers > /app/security-headers.conf \
   && rm dist/_headers
