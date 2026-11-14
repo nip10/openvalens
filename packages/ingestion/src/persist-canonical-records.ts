@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import type { Database } from "@openvalens/db";
-import { isMemberPrivateMetric } from "@openvalens/db/member-private";
+import { isMemberPrivateEvent, isMemberPrivateMetric } from "@openvalens/db/member-private";
 import { healthEvent, metricDefinition, metricSample } from "@openvalens/db/schema/health-record";
 import {
   buildIngestDefinitionRow,
@@ -287,7 +287,10 @@ export async function persistCanonicalIntents(
       .insert(healthEvent)
       .values({
         organizationId: input.organizationId,
-        userId: intent.canonicalType === "sleep_session" ? (input.ownerUserId ?? null) : null,
+        // Sleep nights and device workouts belong to the connection's member.
+        // Only sleep carries the owner in its dedupe hash: adding it for
+        // workouts would duplicate every stored workout on the next re-sync.
+        userId: isMemberPrivateEvent(intent.canonicalType) ? (input.ownerUserId ?? null) : null,
         dataSourceId: input.dataSourceId,
         ingestionBatchId: input.ingestionBatchId,
         eventType: intent.canonicalType,

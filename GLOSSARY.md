@@ -20,8 +20,9 @@ _Avoid_: Organization owner, account owner, org admin
 
 **Member-private record**:
 A record that belongs to the member who logged or synced it, even in a shared
-workspace. For workouts, sleep nights, weigh-ins and body composition (#509)
-every read (screens, Coach, AI apps, insights, timeline, exports) returns the
+workspace. For workouts (logged or synced from a device), sleep nights,
+weigh-ins and body composition (#509) every read (screens, activity load,
+Coach, AI apps, insights, timeline, exports) returns the
 member's own rows plus legacy rows saved before authors were recorded, which
 have none and stay visible to the workspace. No role, not even the workspace
 owner's, reads another member's, and the owner's account erasure is refused

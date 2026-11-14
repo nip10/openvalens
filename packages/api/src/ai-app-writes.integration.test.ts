@@ -289,12 +289,25 @@ describe.skipIf(!url)("AI app writes against disposable PostgreSQL", () => {
     expect(reused.body.error_description).toContain("already used");
     expect(await liveWater()).toHaveLength(2);
 
-    // Receipts hold entry ids and a fingerprint only: never the values.
+    // Receipts hold entry ids and a fingerprint only: never the values. The
+    // outcome is compared field by field: a random entry id can contain "250".
     const [receipt] = await db
       .select()
       .from(aiAppWrite)
       .where(eq(aiAppWrite.mutationId, "m-water-1"));
-    expect(JSON.stringify(receipt?.outcome)).not.toContain("250");
+    expect(receipt?.outcome).toEqual({
+      replayed: false,
+      source: "via Claude",
+      entries: first.body.result.entries,
+    });
+    for (const entry of (receipt!.outcome as { entries: object[] }).entries)
+      expect(Object.keys(entry).sort()).toEqual([
+        "entryId",
+        "index",
+        "kind",
+        "possibleDuplicate",
+        "status",
+      ]);
     expect(receipt?.fingerprint).toMatch(/^[0-9a-f]{64}$/);
     // Usage records never hold arguments or results.
     const calls = await db.select().from(aiAppCall).where(eq(aiAppCall.tool, "water.log"));
@@ -919,6 +932,11 @@ describe.skipIf(!url)("AI app writes against disposable PostgreSQL", () => {
     expect(
       sessions.filter((session) => session.date === daysAgo(6) && session.source !== "manual"),
     ).toHaveLength(1);
+    // Device workouts are private per member: the member's own and the legacy
+    // one count; the partner's watch workout and the superseded one never do.
+    expect(
+      sessions.filter((session) => session.source !== "manual").map((session) => session.date),
+    ).toEqual([daysAgo(7), daysAgo(6)]);
   });
 
   test("sleep: a night overlapping a device night is a possible duplicate; the device night stays", async () => {

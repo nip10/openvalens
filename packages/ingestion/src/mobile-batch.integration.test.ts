@@ -845,7 +845,12 @@ describe.skipIf(!url)("mobile ingest batch on disposable PostgreSQL", () => {
     expect(definitions.find((definition) => definition.code === "hrv_rmssd")?.unit).toBe("ms");
     const events = await db.select().from(healthEvent);
     expect(events).toHaveLength(1);
-    expect(events[0]).toMatchObject({ eventType: "workout", payloadJson: { activity: "running" } });
+    // The workout belongs to the device owner, like a sleep night.
+    expect(events[0]).toMatchObject({
+      eventType: "workout",
+      userId: "u1",
+      payloadJson: { activity: "running" },
+    });
 
     // SpO₂ and respiration: one canonical sample per reading.
     for (const [recordType, samples] of [

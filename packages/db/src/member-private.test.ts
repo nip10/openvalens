@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { PgDialect } from "drizzle-orm/pg-core";
 
-import { isMemberPrivateMetric, ownOrUnattributed } from "./member-private";
+import { isMemberPrivateEvent, isMemberPrivateMetric, ownOrUnattributed } from "./member-private";
 import { healthEvent } from "./schema/health-record";
 
 const dialect = new PgDialect();
@@ -34,5 +34,17 @@ describe("isMemberPrivateMetric", () => {
   test("other metrics stay with the workspace", () => {
     for (const code of ["heart_rate", "resting_heart_rate", "steps", "height", "blood_marker"])
       expect(isMemberPrivateMetric(code)).toBe(false);
+  });
+});
+
+describe("isMemberPrivateEvent", () => {
+  test("sleep nights and device workouts belong to their member", () => {
+    expect(isMemberPrivateEvent("sleep_session")).toBe(true);
+    expect(isMemberPrivateEvent("workout")).toBe(true);
+  });
+
+  test("other events stay with the workspace", () => {
+    for (const type of ["mindfulness_session", "menstruation_period", "medication"])
+      expect(isMemberPrivateEvent(type)).toBe(false);
   });
 });

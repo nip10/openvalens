@@ -338,7 +338,8 @@ describe.skipIf(!url)("water, supplement intakes and workouts on the timeline", 
     const items = await diaries();
     const water = items.find((item) => item.domain === "water")!;
     expect(water.canonical).toMatchObject({ quantityMl: null, hidden: true });
-    expect(JSON.stringify(water)).not.toContain("250");
+    // 250 as a value of its own: a timestamp ending in .250Z must not trip it.
+    expect(JSON.stringify(water)).not.toMatch(/(?<![.\d])250(?!\d)/);
     expect(timelineSummary(water, englishI18n)).toBe("Hidden");
     // Hide-numbers covers food and water only: the dose and session stay.
     const intake = items.find((item) => item.domain === "meds_supplements")!;

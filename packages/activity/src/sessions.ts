@@ -2,6 +2,7 @@ import type { Database } from "@openvalens/db";
 import { aiAppEntry } from "@openvalens/db/schema/ai-apps";
 import { healthEvent } from "@openvalens/db/schema/health-record";
 import { workout, workoutExercise, workoutSet } from "@openvalens/db/schema/plans";
+import { ownOrUnattributed } from "@openvalens/db/member-private";
 import { and, eq, gte, isNull, lte, notExists, sql } from "drizzle-orm";
 
 import { deviceWorkoutMinutes } from "./device-overlap";
@@ -11,7 +12,7 @@ const INTENSITIES = new Set<string>(["light", "moderate", "vigorous"]);
 
 /**
  * Issue #99 — every activity session dated `from`..`to` (inclusive,
- * YYYY-MM-DD) for one workspace, as inputs for `computeWeeklyActivityLoad`.
+ * YYYY-MM-DD) for one member of a workspace, as inputs for `computeWeeklyActivityLoad`.
  *
  * - Manual sessions: `workout` rows with their self-reported intensity,
  *   effort rating and strength volume (Σ reps × kg over weighted sets). A
@@ -22,8 +23,13 @@ const INTENSITIES = new Set<string>(["light", "moderate", "vigorous"]);
  *   superseded. They carry a duration but no intensity or rating yet, so they
  *   only show up as minutes without an intensity in the coverage.
  *
+ * Both are member-private (the workout rule, #509): the member's own sessions,
+ * plus device workouts synced before authors were recorded, which have none.
+ * Another member's sessions never count, whatever the role.
+ *
  * Every read is keyed by `organizationId`, which the caller takes from the
- * trusted authz context. Nothing is logged.
+ * trusted authz context, and by the reading member's `userId`. Nothing is
+ * logged.
  */
 export async function listActivitySessions(
   db: Database,
@@ -102,6 +108,7 @@ export async function listActivitySessions(
     .where(
       and(
         eq(healthEvent.organizationId, organizationId),
+        ownOrUnattributed(healthEvent.userId, userId),
         eq(healthEvent.eventType, "workout"),
         isNull(healthEvent.supersededAt),
         gte(healthEvent.eventAt, fromTime),

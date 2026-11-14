@@ -47,9 +47,13 @@ async function migrate(db: Database): Promise<void> {
   }
 }
 
-/** A owns org-a (V views it, N has no access); B owns org-b; U declared under 18. */
+/**
+ * A owns org-a (C is a member, V views it, N has no access); B owns org-b; U
+ * declared under 18.
+ */
 const MEMBERS: Record<string, { org: string; role: string; denied?: boolean }> = {
   "user-a": { org: "org-a", role: "owner" },
+  "user-c": { org: "org-a", role: "member" },
   "user-v": { org: "org-a", role: "viewer" },
   "user-n": { org: "org-a", role: "viewer", denied: true },
   "user-b": { org: "org-b", role: "owner" },
@@ -241,6 +245,37 @@ describe.skipIf(!url)("activity load over HTTP against disposable PostgreSQL", (
         supersededAt: new Date(),
       },
     ]);
+    // Device workouts are private per member (#509): C's watch this week, and
+    // one each for A and C two months ago. A's load must never count C's.
+    await db.insert(healthEvent).values([
+      {
+        organizationId: "org-a",
+        userId: "user-c",
+        eventType: "workout",
+        eventAt: at(1, 12),
+        title: "Synthetic partner ride",
+        payloadJson: { endAt: at(1, 12).toISOString().replace("T12:00", "T12:50") },
+        dedupeHash: "wearable-c",
+      },
+      {
+        organizationId: "org-a",
+        userId: "user-a",
+        eventType: "workout",
+        eventAt: at(60, 8),
+        title: "Synthetic old run",
+        payloadJson: { endAt: at(60, 8).toISOString().replace("T08:00", "T08:25") },
+        dedupeHash: "wearable-a-old",
+      },
+      {
+        organizationId: "org-a",
+        userId: "user-c",
+        eventType: "workout",
+        eventAt: at(60, 9),
+        title: "Synthetic old partner run",
+        payloadJson: { endAt: at(60, 9).toISOString().replace("T09:00", "T09:35") },
+        dedupeHash: "wearable-c-old",
+      },
+    ]);
     // org-b: a heavy week that must never leak into org-a.
     await seedWorkout("org-b", 1, { duration: 300, intensity: "vigorous", effortRating: 10 });
   });
@@ -363,6 +398,33 @@ describe.skipIf(!url)("activity load over HTTP against disposable PostgreSQL", (
     const device = sessions.filter((s) => s.source.startsWith("device:"));
     expect(device).toHaveLength(1);
     expect(device[0]).toMatchObject({ durationMinutes: 40, intensity: null, effortRating: null });
+  });
+
+  test("device workouts are private per member: own and legacy ones count, another member's never", async () => {
+    const deviceMinutes = async (userId: string, from: number, to: number) =>
+      (await listActivitySessions(db, "org-a", userId, { from: dateOf(from), to: dateOf(to) }))
+        .filter((s) => s.source.startsWith("device:"))
+        .map((s) => s.durationMinutes)
+        .sort();
+    // This week: the legacy walk (no author) counts for both; C's ride only for C.
+    expect(await deviceMinutes("user-a", 6, 0)).toEqual([40]);
+    expect(await deviceMinutes("user-c", 6, 0)).toEqual([40, 50]);
+    // Two months ago: each member's own attributed workout only.
+    expect(await deviceMinutes("user-a", 61, 59)).toEqual([25]);
+    expect(await deviceMinutes("user-c", 61, 59)).toEqual([35]);
+    // A viewer has no device workouts of their own: only the legacy walk.
+    expect(await deviceMinutes("user-v", 6, 0)).toEqual([40]);
+
+    // Over HTTP, C's load holds C's ride and the legacy walk, and none of A's workouts.
+    const partner = await call<ActivityLoadResult>("activity/weeklyLoad", {}, "user-c");
+    expect(partner.status).toBe(200);
+    expect(partner.body.load!.activeMinutes.coverage).toMatchObject({
+      sessions: 2,
+      sessionsWithIntensity: 0,
+      minutesMissingIntensity: 90,
+    });
+    expect(partner.body.load!.effort.coverage).toMatchObject({ sessions: 2, ratedSessions: 0 });
+    expect(partner.body.load!.context).toMatchObject({ strengthSessions: 0 });
   });
 
   test("weeklyLoad: a viewer can read; no access is refused; workspaces are isolated", async () => {
