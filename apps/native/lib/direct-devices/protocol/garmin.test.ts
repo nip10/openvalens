@@ -851,3 +851,16 @@ describe("HRV, resting heart rate and workout decoders", () => {
     expect(garminSportName(250)).toBe("sport_250");
   });
 });
+
+test("a REGISTER_ML_RESP refusal needs no handle byte (CommunicatorV2:359-367)", () => {
+  const refusal = Uint8Array.of(0, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0x18, 0x20, 4);
+  expect(parseGarminMlMessage(refusal)).toEqual({
+    requestType: 1,
+    service: 0x2018,
+    status: 4,
+    handle: null,
+    reliable: null,
+  });
+  // A refusal that also carries bytes after the status reads the same.
+  expect(parseGarminMlMessage(Uint8Array.of(...refusal, 0x12, 0x28))?.handle).toBeNull();
+});

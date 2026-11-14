@@ -369,3 +369,42 @@ test("zlib streams inflate, with the size capped and the checksum verified", () 
     "GARMIN_INFLATE_FAILED",
   );
 });
+
+test("review cases: trailing bytes, lenient fields, notification names, empty chunks", () => {
+  const original = Uint8Array.from({ length: 300 }, (_, index) => index & 0xff);
+  const compressed = zlibSync(original);
+  // A few bytes after the zlib trailer are tolerated, as `Inflater` would.
+  expect(inflateGarminZlib(Uint8Array.from([...compressed, 1, 2]), 1e6)).toEqual(original);
+  // A known field with an unexpected wire type is treated as absent.
+  const odd = encodeMessage([
+    bytesField(1, uuid(1, 1)),
+    bytesField(2, encodeMessage([stringField(2, "FIT_TYPE_32")])),
+    bytesField(3, Uint8Array.of(1)), // data_size as bytes
+  ]);
+  expect(decodeGarminItemReference(odd).dataSize).toBeNull();
+  // A malformed item is dropped; the rest of the list survives.
+  const list = encodeMessage([
+    bytesField(
+      10,
+      encodeMessage([
+        bytesField(4, Uint8Array.of(0x0a, 0x7f)),
+        bytesField(4, item({ name: "FIT_TYPE_49" })),
+      ]),
+    ),
+  ]);
+  const decoded = decodeGarminFileAccessService(list);
+  expect(decoded.kind === "item_list_response" && decoded.items.length).toBe(1);
+  // Notifications resolve no names from keys (`FileSyncServiceHandler.kt:97`).
+  const named = [
+    item({ uid: uuid(1, 1), name: "FIT_TYPE_32", key: 32 }),
+    item({ uid: uuid(2, 2), key: 32 }),
+  ].map(decodeGarminItemReference);
+  expect(selectGarminSyncItems(named, { resolveKeys: false })).toHaveLength(1);
+  expect(selectGarminSyncItems(named)).toHaveLength(2);
+  // A zero-length continuation chunk does not grow the buffer.
+  const assembler = new GarminProtobufReassembler();
+  assembler.accept({ requestId: 1, dataOffset: 0, totalLength: 3, data: Uint8Array.of(1) });
+  expect(
+    assembler.accept({ requestId: 1, dataOffset: 1, totalLength: 3, data: new Uint8Array(0) }),
+  ).toEqual({ kind: "dropped" });
+});

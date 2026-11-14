@@ -29,7 +29,9 @@ import {
 import { decodeGarminMlrHeader, encodeGarminMlrPacket } from "../protocol/garmin-mlr";
 import {
   GARMIN_FILE_ACCESS,
+  GarminProtobufReassembler,
   buildGarminProtobufPayload,
+  buildGarminProtobufStatus,
   chunkGarminProtobuf,
   decodeGarminSmartFileAccess,
   encodeGarminSmartFileAccess,
@@ -202,6 +204,18 @@ class NewSyncWatch implements GarminSessionLink {
   announce: WatchFile | null = null;
   /** Send a non-file-access protobuf (core service) right after the handshake. */
   sendCoreRequest = false;
+  /** DEVICE_INFORMATION max packet size (sets the phone's protobuf chunk). */
+  maxPacket = 375;
+  /** Plain ML handle granted to a transfer service. */
+  transferHandle = 0x2e;
+  /** Per-transfer grant behaviour, consumed in order. */
+  transferGrants: ("ok" | "refuse" | "ignore")[] = [];
+  /** Delay before the watch closes a finished transfer handle. */
+  closeDelayMs = 0;
+  readonly transferRegistrations: number[] = [];
+  /** Protobuf chunks the phone sent, as [requestId, offset, length]. */
+  readonly protobufChunks: number[][] = [];
+  private readonly incoming = new GarminProtobufReassembler();
 
   readonly raw: Uint8Array[] = [];
   readonly gfdi: GarminGfdiFrame[] = [];
@@ -315,14 +329,42 @@ class NewSyncWatch implements GarminSessionLink {
           reliable ? 1 : 0,
         ]),
       );
-      // protocol 150, max packet 375.
+      // protocol 150, max packet `maxPacket`.
       this.emit({
         messageType: GARMIN_MESSAGE.DEVICE_INFORMATION,
-        payload: Uint8Array.of(150, 0, 0xdb, 0x0c, 0xd2, 4, 0, 0, 0xd0, 7, 0x77, 1, 0, 0, 0),
+        payload: Uint8Array.of(
+          150,
+          0,
+          0xdb,
+          0x0c,
+          0xd2,
+          4,
+          0,
+          0,
+          0xd0,
+          7,
+          this.maxPacket & 0xff,
+          this.maxPacket >> 8,
+          0,
+          0,
+          0,
+        ),
       });
       return;
     }
-    const handle = reliable ? 0x87 : 0x2e;
+    this.transferRegistrations.push(service);
+    const grant = this.transferGrants.shift() ?? "ok";
+    if (grant === "ignore") return;
+    if (grant === "refuse") {
+      // A 13-byte refusal: status, no handle (`CommunicatorV2:359-367`).
+      this.later(() =>
+        this.notify(
+          this.management(GARMIN_ML_REQUEST.REGISTER_ML_RESP, [service & 0xff, service >> 8, 4]),
+        ),
+      );
+      return;
+    }
+    const handle = reliable ? 0x87 : this.transferHandle;
     this.transfer = {
       service,
       handle,
@@ -420,7 +462,23 @@ class NewSyncWatch implements GarminSessionLink {
     )
       return;
     const chunk = parseGarminProtobufPayload(frame.payload);
-    const serviceBytes = decodeGarminSmartFileAccess(chunk.data);
+    this.protobufChunks.push([chunk.requestId, chunk.dataOffset, chunk.data.length]);
+    const accepted = this.incoming.accept(chunk);
+    if (accepted.kind !== "complete") {
+      // The watch keeps the chunk and asks for the next one (`ProtobufStatusMessage`).
+      this.emit({
+        messageType: GARMIN_MESSAGE.RESPONSE,
+        payload: buildGarminProtobufStatus({
+          originalMessageType: frame.messageType,
+          requestId: chunk.requestId,
+          dataOffset: chunk.dataOffset,
+          chunkStatus: 0,
+          statusCode: 0,
+        }),
+      });
+      return;
+    }
+    const serviceBytes = decodeGarminSmartFileAccess(accepted.bytes);
     this.protobufs.push({
       type: frame.messageType,
       requestId: chunk.requestId,
@@ -506,14 +564,17 @@ class NewSyncWatch implements GarminSessionLink {
         this.sendData(transfer.peer, transfer.handle, stream.subarray(offset, offset + this.chunk));
       }
       // The watch ends the file by closing the handle.
-      this.notify(
-        this.management(GARMIN_ML_REQUEST.CLOSE_HANDLE_RESP, [
-          transfer.service & 0xff,
-          transfer.service >> 8,
-          transfer.handle,
-          0,
-        ]),
-      );
+      const close = () =>
+        this.notify(
+          this.management(GARMIN_ML_REQUEST.CLOSE_HANDLE_RESP, [
+            transfer.service & 0xff,
+            transfer.service >> 8,
+            transfer.handle,
+            0,
+          ]),
+        );
+      if (this.closeDelayMs > 0) this.later(close, this.closeDelayMs);
+      else close();
     });
   }
 
@@ -729,7 +790,8 @@ test("refused pulls, bad first messages and corrupt streams skip the file", asyn
   expect(f.records).toEqual(expectedRecords(SLEEP_FIT));
   expect(f.failures).toEqual(["file_transfer", "file_transfer", "fit"]);
   // The rejected stream's handle was given back.
-  expect(f.watch.closedByPhone).toEqual([0x2018]);
+  // Each rejected stream was closed by the watch already: no redundant close.
+  expect(f.watch.closedByPhone).toEqual([]);
   expect(f.session.complete).toBe(true);
 });
 
@@ -799,4 +861,74 @@ test("close() during a transfer settles and stops the transfer channel", async (
   expect(f.watch.transferRequests).toHaveLength(1);
   await f.session.close();
   await expect(f.session.whenDone()).resolves.toBeUndefined();
+  // No MLR retransmission or ACK after close.
+  const before = f.watch.raw.length;
+  await new Promise((resolve) => setTimeout(resolve, 1_100));
+  expect(f.watch.raw.length).toBe(before);
+});
+
+test("outgoing protobufs are chunked at maxPacketSize - 20 and continued on the watch's status", async () => {
+  const f = fixture({ pages: [[0x11]] });
+  f.watch.maxPacket = 40; // 20-byte chunks
+  f.session.start();
+  await f.session.whenDone();
+  // The 45-byte list request went out as 3 chunks, each after the last's status.
+  expect(f.watch.protobufChunks.slice(0, 3)).toEqual([
+    [1, 0, 20],
+    [1, 20, 20],
+    [1, 40, 5],
+  ]);
+  expect(f.watch.pulled).toEqual([0x11]);
+  expect(f.records).toEqual(expectedRecords(MONITORING_FIT));
+});
+
+test("a refused transfer registration skips the file at once", async () => {
+  const f = fixture({ pages: [[0x11, 0x12]], watchdogMs: 5_000 });
+  f.watch.transferGrants = ["refuse"];
+  const started = Date.now();
+  f.session.start();
+  await f.session.whenDone();
+  expect(Date.now() - started).toBeLessThan(2_000);
+  expect(f.watch.pulled).toEqual([0x11, 0x12]);
+  expect(f.records).toEqual(expectedRecords(SLEEP_FIT));
+  expect(f.failures).toEqual(["file_transfer"]);
+  // The refused service id is free again.
+  expect(f.watch.transferRegistrations).toEqual([0x2018, 0x2018]);
+});
+
+test("an unanswered transfer registration ends the sync incomplete", async () => {
+  const f = fixture({ pages: [[0x11, 0x12]], watchdogMs: 60 });
+  f.watch.transferGrants = ["ignore"];
+  f.session.start();
+  await f.session.whenDone();
+  expect(f.watch.pulled).toEqual([0x11]);
+  expect(f.session.complete).toBe(false);
+  expect(f.watch.systemEvents()).toEqual([8]);
+});
+
+test("the answer to our own close does not cut the next file short", async () => {
+  const files: WatchFile[] = [
+    { uid: 0x71, name: "FIT_TYPE_32", bytes: MONITORING_FIT, first: Uint8Array.of(9) },
+    { uid: 0x72, name: "FIT_TYPE_49", bytes: SLEEP_FIT },
+  ];
+  const f = fixture({ files, pages: [[0x71, 0x72]] });
+  // The watch's own close of the rejected file arrives late, after ours.
+  f.watch.closeDelayMs = 15;
+  f.session.start();
+  await f.session.whenDone();
+  expect(f.watch.closedByPhone).toEqual([0x2018]);
+  // The id we closed is not reused, so the watch's late close cannot match.
+  expect(f.watch.transferRegistrations).toEqual([0x2018, 0x4018]);
+  expect(f.records).toEqual(expectedRecords(SLEEP_FIT));
+  expect(f.failures).toEqual(["file_transfer"]);
+  expect(f.session.complete).toBe(true);
+});
+
+test("a plain ML transfer handle with the msb set stays on the transfer path (#5476)", async () => {
+  const f = fixture({ pages: [[0x11]] });
+  f.watch.transferHandle = 0xae;
+  f.session.start();
+  await f.session.whenDone();
+  expect(f.records).toEqual(expectedRecords(MONITORING_FIT));
+  expect(f.failures).toEqual([]);
 });
