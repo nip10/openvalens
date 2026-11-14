@@ -28,6 +28,7 @@ path of the Maestro artifacts and the path of the screenshot folder.
 | 03 Onboarding                      | Age check, focus and modules, data sources, basics, a goal, privacy, then the dashboard              |
 | 04 Navigation                      | Every tab, every drawer screen and the screens without a drawer item load without an error           |
 | 05 Food and water                  | Search and one-tap log, quick add, the barcode entry point, plain water, "Describe a meal"           |
+| 05b Home-screen widget links       | The widget's deep links: "Log…" opens the picker; water +1 glass saves at once and Undo removes it   |
 | 06 Strength workout                | Start, add an exercise, two sets (weight × reps, done), finish, history                              |
 | 07 Body, vitals and labs           | Weight, a private body measurement, a vital reading, a lab result                                    |
 | 08 Sleep, activity and health data | Sleep and activity views; the Apple Health / Health Connect permission screen                        |

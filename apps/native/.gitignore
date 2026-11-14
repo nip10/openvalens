@@ -48,3 +48,6 @@ uniwind-types.d.ts
 
 !.env.schema
 /src/env.ts
+
+# Colour sets @bacons/apple-targets writes at prebuild from expo-target.config.js (#449)
+/targets/*/Assets.xcassets

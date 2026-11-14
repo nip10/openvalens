@@ -18,6 +18,7 @@ function recorder(failPush = false) {
     resetHealthSync: step("resetHealthSync"),
     prepareOffline: step("prepareOffline"),
     signOut: step("signOut"),
+    clearHomeWidget: step("clearHomeWidget"),
     clearQueries: () => calls.push("clearQueries"),
   });
   return { calls, signOut };
@@ -30,6 +31,7 @@ const ORDER = [
   "prepareOffline",
   "purgeDirectDevices",
   "signOut",
+  "clearHomeWidget",
   "clearQueries",
 ];
 
@@ -58,6 +60,7 @@ test("preserve policy reaches offline preparation after push and health preparat
       expect(received).toBe(options);
     },
     signOut: async () => calls.push("signOut"),
+    clearHomeWidget: async () => calls.push("clearHomeWidget"),
     clearQueries: () => calls.push("clearQueries"),
   });
   await signOut(options);
@@ -77,6 +80,7 @@ test("typed data-preservation refusal stops before clearing auth and queries", a
       throw blocked;
     },
     signOut: async () => calls.push("signOut"),
+    clearHomeWidget: async () => calls.push("clearHomeWidget"),
     clearQueries: () => calls.push("clearQueries"),
   });
   await expect(
