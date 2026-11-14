@@ -131,6 +131,7 @@ function StackLayout() {
         name="log-food"
         options={{ headerShown: false, presentation: "fullScreenModal" }}
       />
+      <Stack.Screen name="quick-log" options={{ headerShown: false, presentation: "modal" }} />
       <Stack.Screen
         name="check-in"
         options={{ headerShown: false, presentation: "fullScreenModal" }}

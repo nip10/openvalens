@@ -559,6 +559,13 @@ function DrawerLayout() {
           }}
         />
         <Drawer.Screen
+          name="settings"
+          options={{
+            headerTitle,
+            drawerItemStyle: { display: "none" },
+          }}
+        />
+        <Drawer.Screen
           name="settings/devices"
           options={{
             headerTitle,

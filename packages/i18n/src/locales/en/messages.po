@@ -543,7 +543,7 @@ msgstr "{amount} per year"
 msgid "{amount} steps"
 msgstr "{amount} steps"
 
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 msgid "{appVersion} (build {build})"
 msgstr "{appVersion} (build {build})"
 
@@ -552,7 +552,7 @@ msgid "{baselineDays} of {baselineMinDays} days with data so far."
 msgstr "{baselineDays} of {baselineMinDays} days with data so far."
 
 #. safety
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 msgid "{blockerNames} also has another owner. Remove them or transfer the record before deleting."
 msgstr "{blockerNames} also has another owner. Remove them or transfer the record before deleting."
 
@@ -1107,7 +1107,7 @@ msgstr "{scanSource}, {scanDate}, compared with {compareDate}"
 msgid "{scored} of {total, plural, one {# goal} other {# goals}} counted."
 msgstr "{scored} of {total, plural, one {# goal} other {# goals}} counted."
 
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 msgid "{serverVersion} on {host}"
 msgstr "{serverVersion} on {host}"
 
@@ -1311,7 +1311,7 @@ msgstr "0: Rest"
 msgid "1 = {low}, 5 = {high}. Your own rating."
 msgstr "1 = {low}, 5 = {high}. Your own rating."
 
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 #: apps/web/src/routes/_auth/settings/index.tsx
 msgid "1 = very gentle, 5 = very forceful. Currently {assertiveness} of 5."
 msgstr "1 = very gentle, 5 = very forceful. Currently {assertiveness} of 5."
@@ -1625,7 +1625,7 @@ msgstr "A wearable account"
 msgid "A workspace"
 msgstr "A workspace"
 
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 #: apps/web/src/components/about-section.tsx
 #: apps/web/src/routes/_auth/settings/index.tsx
 msgid "About"
@@ -1737,7 +1737,7 @@ msgstr "Access was revoked from the vendor's side."
 msgid "Access was revoked. Choose whether to keep or delete its records in the web app."
 msgstr "Access was revoked. Choose whether to keep or delete its records in the web app."
 
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 #: apps/web/src/components/admin-ai-usage.tsx
 #: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Account"
@@ -2153,8 +2153,8 @@ msgid "admin"
 msgstr "admin"
 
 #: apps/native/app/(drawer)/_layout.tsx
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/native/app/(drawer)/admin/settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 #: apps/web/src/components/admin-invitations-view.tsx
 #: apps/web/src/components/admin-settings-view.tsx
 #: apps/web/src/components/header.tsx
@@ -2518,7 +2518,7 @@ msgstr "App default"
 msgid "App identity:"
 msgstr "App identity:"
 
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 msgid "App version"
 msgstr "App version"
 
@@ -2624,7 +2624,7 @@ msgid "Asleep (min)"
 msgstr "Asleep (min)"
 
 #. placeholder {0}: assertivenessText(assertiveness)
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 #: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Assertiveness ({0})"
 msgstr "Assertiveness ({0})"
@@ -2770,6 +2770,7 @@ msgid "Awake"
 msgstr "Awake"
 
 #: apps/native/app/(drawer)/body-map.tsx
+#: apps/native/app/quick-log.tsx
 #: apps/native/components/muscle-guide.tsx
 #: apps/native/components/onboarding/flow.tsx
 #: apps/web/src/components/muscle-guide.tsx
@@ -3498,6 +3499,7 @@ msgid "Check the highlighted fields."
 msgstr "Check the highlighted fields."
 
 #: apps/native/components/onboarding/first-log.tsx
+#: apps/native/components/quick-log/quick-form.tsx
 #: apps/web/src/components/quick-log/quick-form.tsx
 msgid "Check the highlighted values."
 msgstr "Check the highlighted values."
@@ -3609,7 +3611,7 @@ msgid "Checking..."
 msgstr "Checking..."
 
 #: apps/native/app/(drawer)/(tabs)/index.tsx
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 #: apps/native/components/health-sync-settings.tsx
 #: apps/web/src/components/onboarding/server-checklist.tsx
 msgid "Checking…"
@@ -3704,6 +3706,7 @@ msgstr "Choose a server and sign in to request an export."
 msgid "Choose a start date."
 msgstr "Choose a start date."
 
+#: apps/native/components/quick-log/quick-form.tsx
 #: apps/web/src/components/quick-log/quick-form.tsx
 #: apps/web/src/routes/_auth/-goal-editor.tsx
 msgid "Choose a supplement"
@@ -3717,6 +3720,7 @@ msgstr "Choose a supplement or catalog exercise."
 msgid "Choose a supplement."
 msgstr "Choose a supplement."
 
+#: apps/native/app/quick-log.tsx
 #: apps/native/components/trackers/tracker-log-form.tsx
 #: apps/web/src/components/trackers/tracker-log-form.tsx
 msgid "Choose a value."
@@ -3791,7 +3795,7 @@ msgstr "Choose the days you train. Reminders go out on those days."
 msgid "Choose the parts of the app you use."
 msgstr "Choose the parts of the app you use."
 
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 msgid "Choose the parts of the app you want to see"
 msgstr "Choose the parts of the app you want to see"
 
@@ -3908,6 +3912,7 @@ msgstr "Clinician decision for specific situations"
 #: apps/native/app/(drawer)/trackers.tsx
 #: apps/native/app/check-in.tsx
 #: apps/native/app/modal.tsx
+#: apps/native/app/quick-log.tsx
 #: apps/native/components/change-server.tsx
 #: apps/native/components/select-field.tsx
 #: apps/native/components/workout-session-detail.tsx
@@ -3935,7 +3940,7 @@ msgstr "Closed"
 msgid "Closer to your target: {goalTitle}"
 msgstr "Closer to your target: {goalTitle}"
 
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 msgid "Cloud wearable connections"
 msgstr "Cloud wearable connections"
 
@@ -3945,9 +3950,9 @@ msgid "cm"
 msgstr "cm"
 
 #: apps/native/app/(drawer)/_layout.tsx
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/native/app/(drawer)/coach/[conversationId].tsx
 #: apps/native/app/(drawer)/coach/index.tsx
+#: apps/native/app/(drawer)/settings.tsx
 #: apps/web/src/components/header.tsx
 #: apps/web/src/routes/_auth/coach/$conversationId.tsx
 #: apps/web/src/routes/_auth/coach/route.tsx
@@ -4007,7 +4012,7 @@ msgstr "Community translation"
 msgid "Community translation, not yet reviewed. Units, reference ranges, medication and consent text stay in English until a reviewer approves them."
 msgstr "Community translation, not yet reviewed. Units, reference ranges, medication and consent text stay in English until a reviewer approves them."
 
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 msgid "Compact density"
 msgstr "Compact density"
 
@@ -4195,7 +4200,7 @@ msgid "Connected"
 msgstr "Connected"
 
 #: apps/native/app/(drawer)/_layout.tsx
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 #: apps/native/app/(drawer)/settings/ai-apps.tsx
 #: apps/web/src/components/ai-apps-settings-card.tsx
 #: apps/web/src/routes/_auth/settings/ai-apps.tsx
@@ -4291,13 +4296,13 @@ msgstr "Consent {0} · created {1} · last used {2}"
 msgid "Consent could not be saved. The version may have changed; review it and try again."
 msgstr "Consent could not be saved. The version may have changed; review it and try again."
 
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 #: apps/web/src/components/health-data-consent-status.tsx
 msgid "Consent is not required on this server."
 msgstr "Consent is not required on this server."
 
 #. placeholder {0}: status.data.acceptedVersion
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 #: apps/web/src/components/health-data-consent-status.tsx
 msgid "Consent recorded for version {0}."
 msgstr "Consent recorded for version {0}."
@@ -4783,7 +4788,7 @@ msgstr "Could not load AI usage."
 msgid "Could not load clinical records."
 msgstr "Could not load clinical records."
 
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 #: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Could not load coach settings."
 msgstr "Could not load coach settings."
@@ -4820,7 +4825,7 @@ msgstr "Could not load exercises."
 msgid "Could not load goals."
 msgstr "Could not load goals."
 
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 #: apps/web/src/components/health-data-consent-status.tsx
 msgid "Could not load health data consent status."
 msgstr "Could not load health data consent status."
@@ -5049,7 +5054,7 @@ msgstr "Could not load weekly activity."
 msgid "Could not load weight."
 msgstr "Could not load weight."
 
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 #: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Could not load what would be deleted."
 msgstr "Could not load what would be deleted."
@@ -5198,6 +5203,7 @@ msgstr "Could not read changes saved on this device. Entries on the server are u
 msgid "Could not read your health data. Check permissions."
 msgstr "Could not read your health data. Check permissions."
 
+#: apps/native/app/quick-log.tsx
 #: apps/web/src/components/quick-log/quick-log-palette.tsx
 msgid "Could not remove it. Open the screen to change it."
 msgstr "Could not remove it. Open the screen to change it."
@@ -5305,10 +5311,10 @@ msgid "Could not save your setting. Try again."
 msgstr "Could not save your setting. Try again."
 
 #: apps/native/app/(drawer)/(tabs)/body.tsx
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/native/app/(drawer)/records/activity.tsx
 #: apps/native/app/(drawer)/records/labs.tsx
 #: apps/native/app/(drawer)/records/vitals.tsx
+#: apps/native/app/(drawer)/settings.tsx
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/native/components/blood-pressure-section.tsx
@@ -5361,7 +5367,9 @@ msgstr "Could not save. Retry the same dose."
 #: apps/native/app/(drawer)/goals.tsx
 #: apps/native/app/(drawer)/goals/[goalId].tsx
 #: apps/native/app/(drawer)/trackers/[trackerId].tsx
+#: apps/native/app/quick-log.tsx
 #: apps/native/components/onboarding/first-log.tsx
+#: apps/native/components/quick-log/quick-form.tsx
 #: apps/native/components/trackers/tracker-log-form.tsx
 #: apps/web/src/components/quick-log/quick-form.tsx
 #: apps/web/src/components/quick-log/quick-log-palette.tsx
@@ -5678,7 +5686,7 @@ msgid "Current target: {currentTarget}"
 msgstr "Current target: {currentTarget}"
 
 #. placeholder {0}: status.data.currentVersion
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 #: apps/web/src/components/health-data-consent-status.tsx
 msgid "Current version: {0}."
 msgstr "Current version: {0}."
@@ -5762,7 +5770,7 @@ msgid "Daily progress"
 msgstr "Daily progress"
 
 #: apps/native/app/(drawer)/_layout.tsx
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 #: apps/native/app/(drawer)/settings/telegram.tsx
 #: apps/web/src/routes/_auth/settings/index.tsx
 #: packages/api/src/presenters/insights.ts
@@ -5805,7 +5813,7 @@ msgstr "Daily water target in ml"
 msgid "Dark"
 msgstr "Dark"
 
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 msgid "Dark mode"
 msgstr "Dark mode"
 
@@ -6028,7 +6036,7 @@ msgstr "Delete {summary}, {when}"
 msgid "Delete <0>{foodName}</0>"
 msgstr "Delete <0>{foodName}</0>"
 
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 #: apps/web/src/components/health-data-consent-prompt.tsx
 #: apps/web/src/components/health-data-consent-status.tsx
 msgid "Delete account"
@@ -6064,7 +6072,7 @@ msgstr "Delete entry"
 #. safety
 #. safety
 #. safety
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 #: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Delete everything"
 msgstr "Delete everything"
@@ -6183,7 +6191,7 @@ msgstr "Deleted"
 msgid "Deletes every period and import you have logged, in every workspace, and withdraws your consent. This cannot be undone."
 msgstr "Deletes every period and import you have logged, in every workspace, and withdraws your consent. This cannot be undone."
 
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 #: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/web/src/components/ai-apps-view.tsx
 #: apps/web/src/routes/_auth/settings/index.tsx
@@ -6248,7 +6256,7 @@ msgid "Device score"
 msgstr "Device score"
 
 #: apps/native/app/(drawer)/_layout.tsx
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 #: apps/native/app/(drawer)/settings/devices.tsx
 #: apps/web/src/routes/_auth/settings/devices.tsx
 #: apps/web/src/routes/_auth/settings/index.tsx
@@ -6572,6 +6580,7 @@ msgstr "Drink shortcuts need the USDA FoodData Central catalog on this server. Y
 msgid "Drinks"
 msgstr "Drinks"
 
+#: apps/native/lib/quick-log/picker.ts
 #: apps/web/src/components/quick-log/palette-sections.ts
 msgid "Due now"
 msgstr "Due now"
@@ -6888,6 +6897,7 @@ msgstr "Enrollment is not available right now."
 msgid "Enter a bedtime and a wake time."
 msgstr "Enter a bedtime and a wake time."
 
+#: apps/native/app/quick-log.tsx
 #: apps/native/components/trackers/tracker-log-form.tsx
 #: apps/web/src/components/quick-log/quick-form.tsx
 #: apps/web/src/components/trackers/tracker-log-form.tsx
@@ -6920,6 +6930,7 @@ msgstr "Enter a minimum, a maximum or both."
 msgid "Enter a name for this goal."
 msgstr "Enter a name for this goal."
 
+#: apps/native/app/quick-log.tsx
 #: apps/native/components/trackers/tracker-log-form.tsx
 #: apps/web/src/components/trackers/tracker-log-form.tsx
 msgid "Enter a number."
@@ -7419,7 +7430,7 @@ msgstr "Expires: {0}"
 msgid "Export preparation was cancelled."
 msgstr "Export preparation was cancelled."
 
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 #: apps/native/components/cloud-access-notice.tsx
 #: apps/native/components/health-data-consent-prompt.tsx
 #: apps/web/src/components/health-data-consent-prompt.tsx
@@ -7729,7 +7740,7 @@ msgstr "For your own reference. These estimates never change your targets on the
 msgid "For your security, confirm it's you with a fresh sign-in."
 msgstr "For your security, confirm it's you with a fresh sign-in."
 
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 msgid "For your security, sign out and sign back in, then return here within 10 minutes."
 msgstr "For your security, sign out and sign back in, then return here within 10 minutes."
 
@@ -8118,7 +8129,7 @@ msgstr "Head (front)"
 msgid "Health data"
 msgstr "Health data"
 
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 #: apps/native/components/health-data-consent-prompt.tsx
 #: apps/native/components/onboarding/steps.tsx
 #: apps/web/src/components/health-data-consent-prompt.tsx
@@ -8639,7 +8650,7 @@ msgstr "If you don't have an account yet, you need an invitation first."
 msgid "If you missed a day, you can still add it until the end of {until}."
 msgstr "If you missed a day, you can still add it until the end of {until}."
 
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 #: apps/web/src/components/health-data-consent-status.tsx
 msgid "If you no longer want OpenValens to process your health data, you can export your records and delete your account."
 msgstr "If you no longer want OpenValens to process your health data, you can export your records and delete your account."
@@ -8826,7 +8837,7 @@ msgstr "Ingredients or JSON-LD"
 msgid "Ingredients remain unmatched and unverified. No nutrition values are calculated. This is not clinical advice."
 msgstr "Ingredients remain unmatched and unverified. No nutrition values are calculated. This is not clinical advice."
 
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 #: packages/api/src/presenters/insights.ts
 msgid "Insight notifications"
 msgstr "Insight notifications"
@@ -8857,8 +8868,8 @@ msgstr "Insights describe your records only. They are not medical advice and say
 msgid "Instance administration"
 msgstr "Instance administration"
 
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/native/app/(drawer)/admin/settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 #: apps/web/src/components/admin-settings-view.tsx
 #: apps/web/src/routes/_auth/admin/settings.tsx
 msgid "Instance configuration"
@@ -8885,7 +8896,7 @@ msgstr "Instance-wide defaults affect how weight, distance, dates, and times app
 msgid "Instructions (optional)"
 msgstr "Instructions (optional)"
 
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 #: apps/native/app/(drawer)/settings/devices.tsx
 #: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Integrations"
@@ -9638,7 +9649,7 @@ msgstr "Load more sessions"
 msgid "Load older sessions"
 msgstr "Load older sessions"
 
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 #: apps/web/src/components/health-data-consent-status.tsx
 msgid "Loading consent status…"
 msgstr "Loading consent status…"
@@ -9730,6 +9741,7 @@ msgstr "Loading workouts…"
 msgid "Loading your entries…"
 msgstr "Loading your entries…"
 
+#: apps/native/components/quick-log/quick-form.tsx
 #: apps/web/src/components/quick-log/quick-form.tsx
 msgid "Loading your supplements…"
 msgstr "Loading your supplements…"
@@ -9740,12 +9752,12 @@ msgid "Loading your workspace…"
 msgstr "Loading your workspace…"
 
 #: apps/native/app/(drawer)/(tabs)/index.tsx
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/native/app/(drawer)/body-map.tsx
 #: apps/native/app/(drawer)/cycle.tsx
 #: apps/native/app/(drawer)/foods.tsx
 #: apps/native/app/(drawer)/micronutrients.tsx
 #: apps/native/app/(drawer)/nutrition-targets.tsx
+#: apps/native/app/(drawer)/settings.tsx
 #: apps/native/components/ai-section.tsx
 #: apps/native/components/insights-section.tsx
 #: apps/native/components/nutrition-trend-card.tsx
@@ -9771,8 +9783,11 @@ msgstr "Locale"
 msgid "Location and other photo details are removed before sending. The photo is not stored here, and no nutrition values or portion sizes come from the reply. The provider processes it under its own terms."
 msgstr "Location and other photo details are removed before sending. The photo is not stored here, and no nutrition values or portion sizes come from the reply. The provider processes it under its own terms."
 
+#: apps/native/app/(drawer)/(tabs)/_layout.tsx
 #: apps/native/app/(drawer)/trackers/[trackerId].tsx
+#: apps/native/app/quick-log.tsx
 #: apps/native/components/trackers/tracker-log-form.tsx
+#: apps/native/lib/quick-log/picker.ts
 #: apps/web/src/components/quick-log/palette-sections.ts
 #: apps/web/src/components/trackers/tracker-log-form.tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
@@ -9901,6 +9916,10 @@ msgstr "Log saved meal"
 msgid "Log session"
 msgstr "Log session"
 
+#: apps/native/app/(drawer)/(tabs)/_layout.tsx
+msgid "Log something"
+msgstr "Log something"
+
 #: apps/web/src/components/quick-log/quick-log-palette.tsx
 msgid "Log something in a tap, repeat a recent entry or open a screen."
 msgstr "Log something in a tap, repeat a recent entry or open a screen."
@@ -9995,6 +10014,14 @@ msgstr "Logging streak"
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 msgid "Logs at {0}"
 msgstr "Logs at {0}"
+
+#: apps/native/app/quick-log.tsx
+msgid "Logs the same again, now."
+msgstr "Logs the same again, now."
+
+#: apps/native/app/quick-log.tsx
+msgid "Logs the scheduled dose now. Long-press to change it."
+msgstr "Logs the scheduled dose now. Long-press to change it."
 
 #: packages/api/src/presenters/food-lookup.ts
 msgid "Look up"
@@ -10367,7 +10394,7 @@ msgstr "Measurements you keep private."
 
 #. safety
 #. safety
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 #: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Medical disclaimer"
 msgstr "Medical disclaimer"
@@ -10587,7 +10614,7 @@ msgid "Moderate: {moderate} min"
 msgstr "Moderate: {moderate} min"
 
 #: apps/native/app/(drawer)/_layout.tsx
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 #: apps/native/app/(drawer)/settings/modules.tsx
 #: apps/web/src/components/modules-settings.tsx
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
@@ -10637,6 +10664,7 @@ msgstr "More notification settings"
 msgid "More options"
 msgstr "More options"
 
+#: apps/native/lib/quick-log/picker.ts
 #: apps/web/src/components/quick-log/palette-sections.ts
 msgid "More things to track…"
 msgstr "More things to track…"
@@ -11166,7 +11194,7 @@ msgstr "No foods match this search."
 msgid "No foods were recognised. Try naming each food, for example “two eggs and toast”."
 msgstr "No foods were recognised. Try naming each food, for example “two eggs and toast”."
 
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 #: apps/web/src/components/health-data-consent-status.tsx
 msgid "No health data consent is recorded."
 msgstr "No health data consent is recorded."
@@ -11472,6 +11500,7 @@ msgstr "No structured recipe was found on that page. The draft has the page titl
 msgid "No supplements logged. Add one to get reminders."
 msgstr "No supplements logged. Add one to get reminders."
 
+#: apps/native/components/quick-log/quick-form.tsx
 #: apps/web/src/components/quick-log/quick-form.tsx
 msgid "No supplements yet. Add one on Supplements."
 msgstr "No supplements yet. Add one on Supplements."
@@ -11575,7 +11604,7 @@ msgctxt "ai app call"
 msgid "Not allowed"
 msgstr "Not allowed"
 
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 msgid "Not available"
 msgstr "Not available"
 
@@ -12075,8 +12104,8 @@ msgstr "of {days}"
 msgid "of {text}"
 msgstr "of {text}"
 
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/native/app/(drawer)/insight-settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 #: apps/native/components/health-sync-settings.tsx
 #: apps/native/components/onboarding/steps.tsx
 #: apps/web/src/components/insight-notifications-section.tsx
@@ -12210,8 +12239,8 @@ msgctxt "sleep quality"
 msgid "Okay"
 msgstr "Okay"
 
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/native/app/(drawer)/insight-settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 #: apps/native/components/health-sync-settings.tsx
 #: apps/native/components/onboarding/steps.tsx
 #: apps/web/src/components/insight-notifications-section.tsx
@@ -12306,6 +12335,8 @@ msgstr "Only you can see these photos. Workspace owners and other members cannot
 
 #: apps/native/app/(drawer)/exports.tsx
 #: apps/native/app/(drawer)/trackers.tsx
+#: apps/native/app/quick-log.tsx
+#: apps/native/lib/quick-log/picker.ts
 #: apps/web/src/components/quick-log/one-liner-section.ts
 #: apps/web/src/components/quick-log/palette-sections.ts
 #: apps/web/src/components/quick-log/quick-log-palette.tsx
@@ -12422,7 +12453,7 @@ msgstr "OpenValens Cloud"
 msgid "OpenValens home"
 msgstr "OpenValens home"
 
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 #: apps/web/src/components/about-section.tsx
 msgid "OpenValens is free software under the GNU Affero General Public License, version 3 or later."
 msgstr "OpenValens is free software under the GNU Affero General Public License, version 3 or later."
@@ -12436,6 +12467,7 @@ msgid "Optimal"
 msgstr "Optimal"
 
 #: apps/native/components/onboarding/first-log.tsx
+#: apps/native/components/quick-log/quick-form.tsx
 #: apps/web/src/components/quick-log/quick-form.tsx
 msgid "optional"
 msgstr "optional"
@@ -12448,7 +12480,7 @@ msgstr "optional"
 msgid "Optional"
 msgstr "Optional"
 
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 msgid "Optional answers only you can see"
 msgstr "Optional answers only you can see"
 
@@ -12831,12 +12863,12 @@ msgid "Period: {from} to {to} ({days, plural, one {# day} other {# days}})"
 msgstr "Period: {from} to {to} ({days, plural, one {# day} other {# days}})"
 
 #. safety
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 msgid "Permanently deletes your account and {rows} stored rows across {organizationCount} health records. This can't be undone. Export your data from Clinical export first."
 msgstr "Permanently deletes your account and {rows} stored rows across {organizationCount} health records. This can't be undone. Export your data from Clinical export first."
 
 #. safety
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 msgid "Permanently deletes your account and {rows} stored rows across your health record. This can't be undone. Export your data from Clinical export first."
 msgstr "Permanently deletes your account and {rows} stored rows across your health record. This can't be undone. Export your data from Clinical export first."
 
@@ -13095,7 +13127,7 @@ msgstr "Pre-bed"
 msgid "Prefer not to say"
 msgstr "Prefer not to say"
 
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 msgid "Preferences"
 msgstr "Preferences"
 
@@ -13269,7 +13301,7 @@ msgid "Private: only you see it."
 msgstr "Private: only you see it."
 
 #: apps/native/app/(drawer)/_layout.tsx
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 #: apps/web/src/components/profile-summary-card.tsx
 #: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Profile"
@@ -13424,7 +13456,7 @@ msgstr "Pulse (bpm)"
 msgid "Push and email can only be turned on by the owner of this workspace. You can still see insights in the app."
 msgstr "Push and email can only be turned on by the owner of this workspace. You can still see insights in the app."
 
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 msgid "Push and weekly email, off until you turn them on"
 msgstr "Push and weekly email, off until you turn them on"
 
@@ -13552,8 +13584,8 @@ msgstr "Reaching a target does not mean your health has improved. Goals you have
 msgid "Read our <0>Terms</0>."
 msgstr "Read our <0>Terms</0>."
 
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/native/app/(drawer)/invitations.tsx
+#: apps/native/app/(drawer)/settings.tsx
 #: apps/native/components/health-data-consent-prompt.tsx
 #: apps/native/components/onboarding/steps.tsx
 #: apps/web/src/components/accept-invitation-view.tsx
@@ -13611,6 +13643,7 @@ msgstr "Ready"
 msgid "Rebuilding your usual after a new source"
 msgstr "Rebuilding your usual after a new source"
 
+#: apps/native/lib/quick-log/picker.ts
 #: apps/web/src/components/quick-log/palette-sections.ts
 msgid "Recent"
 msgstr "Recent"
@@ -13748,7 +13781,7 @@ msgstr "Recorded evidence"
 
 #. placeholder {0}: new Date(status.data.acceptedAt).toLocaleDateString()
 #. placeholder {0}: new Date(status.data.acceptedAt).toLocaleDateString(i18n.locale)
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 #: apps/web/src/components/health-data-consent-status.tsx
 msgid "Recorded on {0}."
 msgstr "Recorded on {0}."
@@ -13983,6 +14016,7 @@ msgstr "Remove the night of {day}"
 msgid "Removed from favourites"
 msgstr "Removed from favourites"
 
+#: apps/native/app/quick-log.tsx
 #: apps/web/src/components/quick-log/quick-log-palette.tsx
 msgid "Removed: {what}"
 msgstr "Removed: {what}"
@@ -13995,6 +14029,7 @@ msgstr "Renews on {periodEnd}."
 msgid "Reorder {label}"
 msgstr "Reorder {label}"
 
+#: apps/native/lib/quick-log/picker.ts
 #: apps/web/src/components/quick-log/palette-sections.ts
 msgid "Repeat"
 msgstr "Repeat"
@@ -14174,7 +14209,6 @@ msgid "Retired version"
 msgstr "Retired version"
 
 #: apps/native/app/(drawer)/(tabs)/body.tsx
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/native/app/(drawer)/(tabs)/timeline.tsx
 #: apps/native/app/(drawer)/admin/settings.tsx
 #: apps/native/app/(drawer)/body-map.tsx
@@ -14194,6 +14228,7 @@ msgstr "Retired version"
 #: apps/native/app/(drawer)/records/sleep.tsx
 #: apps/native/app/(drawer)/records/vitals.tsx
 #: apps/native/app/(drawer)/scores.tsx
+#: apps/native/app/(drawer)/settings.tsx
 #: apps/native/app/(drawer)/settings/ai-apps.tsx
 #: apps/native/app/(drawer)/settings/devices.tsx
 #: apps/native/app/(drawer)/settings/modules.tsx
@@ -14541,7 +14576,7 @@ msgstr "Right wrist and hand"
 msgid "Ring history (steps, heart rate and sleep) syncs automatically while connected. Records are saved in batches and sent only when you tap “Retry upload”."
 msgstr "Ring history (steps, heart rate and sleep) syncs automatically while connected. Records are saved in batches and sent only when you tap “Retry upload”."
 
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 #: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Risk tolerance"
 msgstr "Risk tolerance"
@@ -14678,19 +14713,21 @@ msgid "Sauna"
 msgstr "Sauna"
 
 #: apps/native/app/(drawer)/(tabs)/body.tsx
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/native/app/(drawer)/preventive-care.tsx
 #: apps/native/app/(drawer)/profile.tsx
 #: apps/native/app/(drawer)/records/activity.tsx
 #: apps/native/app/(drawer)/records/labs.tsx
 #: apps/native/app/(drawer)/records/vitals.tsx
+#: apps/native/app/(drawer)/settings.tsx
 #: apps/native/app/(drawer)/supplements.tsx
+#: apps/native/app/quick-log.tsx
 #: apps/native/components/active-workout.tsx
 #: apps/native/components/blood-pressure-section.tsx
 #: apps/native/components/manual-sleep-section.tsx
 #: apps/native/components/onboarding/first-log.tsx
 #: apps/native/components/onboarding/steps.tsx
 #: apps/native/components/pain/pain-panel.tsx
+#: apps/native/components/quick-log/quick-form.tsx
 #: apps/native/components/routine-editor.tsx
 #: apps/native/components/workout-exercise-tools.tsx
 #: apps/web/src/components/blood-pressure-section.tsx
@@ -14864,11 +14901,11 @@ msgid "Save workout"
 msgstr "Save workout"
 
 #: apps/native/app/(drawer)/(tabs)/body.tsx
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/native/app/(drawer)/profile.tsx
 #: apps/native/app/(drawer)/records/activity.tsx
 #: apps/native/app/(drawer)/records/labs.tsx
 #: apps/native/app/(drawer)/records/vitals.tsx
+#: apps/native/app/(drawer)/settings.tsx
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/native/components/blood-pressure-section.tsx
 #: apps/web/src/components/blood-pressure-section.tsx
@@ -14942,6 +14979,7 @@ msgstr "Saved meal added to your diary."
 msgid "Saved meals and recipes"
 msgstr "Saved meals and recipes"
 
+#: apps/native/app/quick-log.tsx
 #: apps/native/components/onboarding/first-log.tsx
 #: apps/web/src/components/onboarding/setup-steps.tsx
 #: apps/web/src/components/quick-log/quick-log-palette.tsx
@@ -14960,6 +14998,7 @@ msgstr "Saved to Goals, in the menu under Habits. You can change it there."
 msgid "Saved to your Goals under Workouts, where you can add a target and date later."
 msgstr "Saved to your Goals under Workouts, where you can add a target and date later."
 
+#: apps/native/app/quick-log.tsx
 #: apps/native/components/onboarding/first-log.tsx
 #: apps/web/src/components/onboarding/setup-steps.tsx
 #: apps/web/src/components/quick-log/quick-log-palette.tsx
@@ -14985,7 +15024,6 @@ msgid "Saving photo…"
 msgstr "Saving photo…"
 
 #: apps/native/app/(drawer)/(tabs)/body.tsx
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/native/app/(drawer)/cycle.tsx
 #: apps/native/app/(drawer)/goals.tsx
 #: apps/native/app/(drawer)/goals/[goalId].tsx
@@ -14994,13 +15032,16 @@ msgstr "Saving photo…"
 #: apps/native/app/(drawer)/records/activity.tsx
 #: apps/native/app/(drawer)/records/labs.tsx
 #: apps/native/app/(drawer)/records/vitals.tsx
+#: apps/native/app/(drawer)/settings.tsx
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/native/app/(drawer)/trackers/[trackerId].tsx
+#: apps/native/app/quick-log.tsx
 #: apps/native/components/blood-pressure-section.tsx
 #: apps/native/components/goal-editor.tsx
 #: apps/native/components/manual-sleep-section.tsx
 #: apps/native/components/onboarding/flow.tsx
 #: apps/native/components/pain/pain-panel.tsx
+#: apps/native/components/quick-log/quick-form.tsx
 #: apps/native/components/routine-editor.tsx
 #: apps/native/components/trackers/tracker-log-form.tsx
 #: apps/native/components/workout-routines.tsx
@@ -15350,7 +15391,7 @@ msgstr "Server checklist"
 msgid "Server is processing minutes…"
 msgstr "Server is processing minutes…"
 
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 msgid "Server version"
 msgstr "Server version"
 
@@ -15490,8 +15531,7 @@ msgid "Sets from {trainingFrom} to {trainingTo}"
 msgstr "Sets from {trainingFrom} to {trainingTo}"
 
 #: apps/native/app/(drawer)/_layout.tsx
-#: apps/native/app/(drawer)/(tabs)/_layout.tsx
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 #: apps/native/app/(drawer)/settings/ai-apps.tsx
 #: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/web/src/components/header.tsx
@@ -15835,7 +15875,7 @@ msgstr "Sign in with email"
 msgid "Sign in with the matching email first, then return and enter the token again."
 msgstr "Sign in with the matching email first, then return and enter the token again."
 
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 #: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Sign out"
 msgstr "Sign out"
@@ -15844,7 +15884,7 @@ msgstr "Sign out"
 msgid "Sign Out"
 msgstr "Sign Out"
 
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 msgid "Sign out to confirm it's you"
 msgstr "Sign out to confirm it's you"
 
@@ -16095,11 +16135,11 @@ msgstr "Something you are grateful for, with a note."
 msgid "Source"
 msgstr "Source"
 
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 msgid "Source code for this app"
 msgstr "Source code for this app"
 
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 #: apps/web/src/components/about-section.tsx
 msgid "Source code for this server"
 msgstr "Source code for this server"
@@ -16704,6 +16744,7 @@ msgid "Systolic {systolicMin}–{systolicMax}, diastolic {diastolicMin}–{diast
 msgstr "Systolic {systolicMin}–{systolicMax}, diastolic {diastolicMin}–{diastolicMax}, pulse {pulseMin}–{pulseMax}."
 
 #: apps/native/components/blood-pressure-section.tsx
+#: apps/native/components/quick-log/quick-form.tsx
 #: apps/web/src/components/blood-pressure-section.tsx
 #: apps/web/src/components/quick-log/quick-form.tsx
 msgid "Systolic must be higher than diastolic."
@@ -16722,6 +16763,7 @@ msgstr "Take care: {cautions}"
 msgid "Take photo"
 msgstr "Take photo"
 
+#: apps/native/lib/quick-log/picker.ts
 #: apps/web/src/components/quick-log/palette-sections.ts
 msgctxt "supplement"
 msgid "Taken"
@@ -16856,7 +16898,7 @@ msgstr "Targets are yours to set, change or clear. They are shown next to what y
 msgid "Tea"
 msgstr "Tea"
 
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 #: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Template"
 msgstr "Template"
@@ -18007,7 +18049,7 @@ msgstr "Tokens in / out"
 msgid "Tolerable upper intake level (UL)"
 msgstr "Tolerable upper intake level (UL)"
 
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 #: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Tone"
 msgstr "Tone"
@@ -18318,7 +18360,7 @@ msgid "Type (optional)"
 msgstr "Type (optional)"
 
 #. safety
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 msgid "Type {confirmationPhrase} to confirm"
 msgstr "Type {confirmationPhrase} to confirm"
 
@@ -18368,6 +18410,7 @@ msgid "Under 4 sets"
 msgstr "Under 4 sets"
 
 #: apps/native/app/(drawer)/supplements.tsx
+#: apps/native/app/quick-log.tsx
 #: apps/native/components/trackers/tracker-log-form.tsx
 #: apps/web/src/components/quick-log/quick-log-palette.tsx
 #: apps/web/src/components/trackers/tracker-log-form.tsx
@@ -18440,6 +18483,7 @@ msgid "Unit choices are unavailable for this saved entry. Its existing unit will
 msgstr "Unit choices are unavailable for this saved entry. Its existing unit will be kept."
 
 #: apps/native/components/onboarding/first-log.tsx
+#: apps/native/components/quick-log/quick-form.tsx
 #: apps/web/src/components/quick-log/quick-form.tsx
 msgid "Unit for {label}"
 msgstr "Unit for {label}"
@@ -18477,9 +18521,9 @@ msgstr "Units"
 msgid "unknown"
 msgstr "unknown"
 
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/native/app/(drawer)/goals/[goalId].tsx
 #: apps/native/app/(drawer)/micronutrients.tsx
+#: apps/native/app/(drawer)/settings.tsx
 #: apps/native/components/recipe-draft-editor.tsx
 #: apps/web/src/components/admin-backup-status.tsx
 #: apps/web/src/components/recipe-draft-editor.tsx
@@ -18737,6 +18781,7 @@ msgid "Value ({unit})"
 msgstr "Value ({unit})"
 
 #. placeholder {0}: tracker.name
+#: apps/native/app/quick-log.tsx
 #: apps/native/components/trackers/tracker-log-form.tsx
 #: apps/web/src/components/trackers/tracker-log-form.tsx
 msgid "Value for {0}"
@@ -18840,7 +18885,7 @@ msgstr "Very stressed"
 msgid "via {name}"
 msgstr "via {name}"
 
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 msgid "View and revoke apps that read your records"
 msgstr "View and revoke apps that read your records"
 
@@ -18848,7 +18893,7 @@ msgstr "View and revoke apps that read your records"
 msgid "View details"
 msgstr "View details"
 
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings.tsx
 msgid "View global environment settings"
 msgstr "View global environment settings"
 
@@ -19946,8 +19991,8 @@ msgstr "Your plan is active."
 msgid "Your privacy choices"
 msgstr "Your privacy choices"
 
-#: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/native/app/(drawer)/profile.tsx
+#: apps/native/app/(drawer)/settings.tsx
 #: apps/web/src/routes/_auth/profile.tsx
 msgid "Your profile"
 msgstr "Your profile"

@@ -42,7 +42,11 @@ tags: [logging]
 - extendedWaitUntil:
     visible: "Add food to Breakfast"
     timeout: 15000
-- assertVisible: ".*Baked salmon.*"
+# Breakfast already has three seeded foods: the new one can sit below the fold.
+- scrollUntilVisible:
+    element: ".*Baked salmon.*"
+    centerElement: true
+    timeout: 20000
 - takeScreenshot: 05-meal-diary-after-search
 
 # Quick add: a name and calories, to the snack

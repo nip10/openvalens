@@ -1,5 +1,5 @@
 # 7. Add a body measurement (weight, and a private waist measurement), a
-# vital reading and a lab result.
+# vital reading and a lab result, then a blood pressure from the "+" log picker.
 appId: com.openvalens.app
 name: 07 Body, vitals and labs
 tags: [logging]
@@ -77,4 +77,33 @@ tags: [logging]
       SHOT: 07-labs-add
 - extendedWaitUntil:
     visible: "Saved"
+    timeout: 15000
+
+# The log picker (#440): "+" then a kind, two taps, then the values. Labs is
+# a drawer screen without the tab bar: back to the tabs first.
+- runFlow:
+    file: ../subflows/drawer-go.yaml
+    env:
+      ID: drawer-cockpit
+- tapOn:
+    id: "tab-log"
+- extendedWaitUntil:
+    visible:
+      id: "quick-log-kind:blood_pressure"
+    timeout: 20000
+- takeScreenshot: 07-log-picker
+- tapOn:
+    id: "quick-log-kind:blood_pressure"
+- tapOn:
+    id: "quick-log-blood_pressure-systolic"
+- inputText: "118"
+- tapOn:
+    id: "quick-log-blood_pressure-diastolic"
+- inputText: "76"
+- runFlow: ../subflows/hide-keyboard.yaml
+- takeScreenshot: 07-log-picker-blood-pressure
+- tapOn:
+    id: "quick-log-save"
+- extendedWaitUntil:
+    visible: "Saved: Blood pressure"
     timeout: 15000

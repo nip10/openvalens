@@ -3,6 +3,16 @@
 # Generated list; keep it in step with app/(drawer)/_layout.tsx.
 appId: com.openvalens.app
 ---
+# Drawer screens (Settings) hide the tab bar: start from the tabs.
+- runFlow:
+    when:
+      notVisible:
+        id: "tab-training"
+    commands:
+      - runFlow:
+          file: drawer-go.yaml
+          env:
+            ID: drawer-cockpit
 - tapOn:
     id: "tab-training"
 - runFlow:
@@ -33,12 +43,15 @@ appId: com.openvalens.app
     file: check-screen.yaml
     env:
       SHOT: ${PREFIX}-tab-05-body
+# The "+" tab opens the log picker over the current tab (#440).
 - tapOn:
-    id: "tab-settings"
+    id: "tab-log"
 - runFlow:
     file: check-screen.yaml
     env:
-      SHOT: ${PREFIX}-tab-06-settings
+      SHOT: ${PREFIX}-tab-06-log-picker
+- tapOn:
+    id: "quick-log-close"
 - runFlow:
     file: drawer-go.yaml
     env:
