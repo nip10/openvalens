@@ -6,7 +6,7 @@ native drawer → Scores). They are never blended into one health score.
 | Number          | Version                        | Endpoint             | Permission     |
 | --------------- | ------------------------------ | -------------------- | -------------- |
 | Readiness index | `readiness-0.1.0-experimental` | `score.readiness`    | `records:read` |
-| Goal progress   | `goal-progress-0.1.0`          | `score.goalProgress` | `goals:read`   |
+| Goal progress   | `goal-progress-0.2.0`          | `score.goalProgress` | `goals:read`   |
 
 Both are computed on the server on every request from the active workspace's
 records (`packages/api/src/score.ts`), with pure, deterministic algorithms
@@ -77,7 +77,7 @@ with manually entered sleep and steps.
 `used`, `ready_not_used` (ready, but not in the active profile),
 `no_recent_value`, `insufficient_baseline`, `not_supported_yet`.
 
-## Goal progress — `goal-progress-0.1.0`
+## Goal progress — `goal-progress-0.2.0`
 
 ### Goal measurement contract
 
@@ -104,6 +104,23 @@ current value.
   A `decrease` goal without a baseline is unscored until it reaches its target.
 - Trend: the change between the last two numeric check-ins, toward or away
   from the target. A goal moving away is **flagged** next to the total.
+
+### Goals on custom trackers (0.2.0, #451)
+
+A personal goal on one of the member's custom trackers counts too. Its
+evaluation of the tracker's days gives a current value and a target, then the
+same per-goal progress applies (measured from 0, priority normal):
+
+- One-time target and rolling average: the latest day (or the complete
+  window's average; an incomplete window is `needs_current_value`) against the
+  threshold, up for "at least", down for "at most".
+- Streak: the current streak against the streak length.
+- Weekly schedule: the last full Monday–Sunday week's qualifying days against
+  the days required. Daily and weekday schedules: the qualifying days among
+  the last seven scheduled days; today counts once it has an entry.
+- A goal that reached its target, or that the member marked complete, is 100%.
+  Paused goals are left out. There is no trend, so tracker goals are never
+  flagged.
 
 ### Goal states
 
