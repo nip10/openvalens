@@ -23,6 +23,24 @@ appId: com.openvalens.app
     start: "30%, 25%"
     end: "30%, 90%"
     duration: 200
+# A tap that lands while the screen still settles can leave the drawer shut:
+# open it again ("Close drawer" is the open drawer's backdrop on Android).
+- runFlow:
+    when:
+      platform: Android
+      notVisible: "Close drawer"
+    commands:
+      - tapOn: "Show navigation menu"
+      - waitForAnimationToEnd:
+          timeout: 2000
+      - swipe:
+          start: "30%, 25%"
+          end: "30%, 90%"
+          duration: 200
+      - swipe:
+          start: "30%, 25%"
+          end: "30%, 90%"
+          duration: 200
 # A keyboard (Android gives focus back to the last field when the app
 # resumes) covers the end of the list, where Settings is: close it. Android
 # only: the iOS way (a tap in the gutter) would land on a drawer item.
