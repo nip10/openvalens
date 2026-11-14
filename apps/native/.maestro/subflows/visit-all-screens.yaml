@@ -3,6 +3,16 @@
 # Generated list; keep it in step with app/(drawer)/_layout.tsx.
 appId: com.openvalens.app
 ---
+# Drawer screens (Settings) hide the tab bar: start from the tabs.
+- runFlow:
+    when:
+      notVisible:
+        id: "tab-training"
+    commands:
+      - runFlow:
+          file: drawer-go.yaml
+          env:
+            ID: drawer-cockpit
 - tapOn:
     id: "tab-training"
 - runFlow:

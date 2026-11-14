@@ -29,8 +29,11 @@ tags: [settings]
     visible: "Idioma da interface"
     timeout: 10000
 - takeScreenshot: 10-language-pt-PT
-- tapOn:
-    id: "tab-cockpit"
+# Settings is a drawer screen without the tab bar (#440).
+- runFlow:
+    file: ../subflows/drawer-go.yaml
+    env:
+      ID: drawer-cockpit
 - takeScreenshot: 10-cockpit-pt-PT
 - runFlow:
     file: ../subflows/drawer-go.yaml
