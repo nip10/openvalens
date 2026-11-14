@@ -370,6 +370,61 @@ export function insightView(
           : i18n._(msg`This is only a little larger than your usual day-to-day variation.`);
       break;
     }
+    case "tracker_week_change": {
+      // #501: a tracker logged a few days a week, by its weekly total. The same
+      // neutral wording as the daily tracker change: more, less, never better.
+      const { direction, recentDays, baselineWeeks, baselineWindowWeeks } = detail;
+      const name = detail.trackerName;
+      const week = formatInsightDate(detail.weekStart);
+      // "5–11 Oct", or "28 Sep–4 Oct" across a month.
+      const weekRange = `${
+        detail.weekStart.slice(0, 7) === detail.weekEnd.slice(0, 7)
+          ? Number(detail.weekStart.slice(8, 10))
+          : week
+      }–${formatInsightDate(detail.weekEnd)}`;
+      if (detail.trackerType === "yes_no") {
+        const recentYes = Math.round(detail.recentValue);
+        const usual = Math.round(detail.baselineValue * 10) / 10;
+        title = i18n._(
+          msg`${name}: ${select(direction, {
+            higher: "yes on more days than your usual week",
+            other: "yes on fewer days than your usual week",
+          })}`,
+        );
+        body = i18n._(
+          msg`“${name}” was yes on ${plural(recentYes, { one: "# day", other: "# days" })} in the week of ${week}, compared with your usual of ${plural(usual, { one: "# day", other: "# days" })} a week.`,
+        );
+      } else {
+        const shape = {
+          type: detail.trackerType,
+          unit: detail.unit,
+          // A median of four weekly totals can end in .5.
+          decimals: Math.max(1, detail.decimals),
+        };
+        const recent = formatTrackerValue(i18n, shape, Math.abs(detail.recentValue));
+        const usual = formatTrackerValue(i18n, shape, Math.abs(detail.baselineValue));
+        const difference = formatTrackerValue(i18n, shape, Math.abs(detail.difference));
+        const recentText = `${detail.recentValue < 0 ? "−" : ""}${recent}`;
+        const usualText = `${detail.baselineValue < 0 ? "−" : ""}${usual}`;
+        title = i18n._(
+          msg`${name}: ${select(direction, {
+            higher: "more than your usual week",
+            other: "less than your usual week",
+          })}`,
+        );
+        body = i18n._(
+          msg`“${name}” added up to ${recentText} in the week of ${week}, ${difference} ${select(direction, { higher: "more", other: "less" })} than your usual week of ${usualText}.`,
+        );
+      }
+      coverageText = i18n._(
+        msg`Based on ${plural(recentDays, { one: "# day", other: "# days" })} with an entry in the week of ${weekRange}, compared with the ${baselineWindowWeeks} weeks before (${plural(baselineWeeks, { one: "# week", other: "# weeks" })} with an entry). Weeks run Monday to Sunday.`,
+      );
+      certaintyText =
+        detail.certainty === "clear"
+          ? i18n._(msg`This is clearly larger than your usual week-to-week variation.`)
+          : i18n._(msg`This is only a little larger than your usual week-to-week variation.`);
+      break;
+    }
     case "trend": {
       const { direction, days, windowDays } = detail;
       const change = value(detail.endValue - detail.startValue, detail.unit);

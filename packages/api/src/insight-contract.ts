@@ -98,7 +98,8 @@ export const INSIGHT_RULE_VERSIONS: Record<InsightRuleId, string> = {
   "change.resting_heart_rate": "1",
   "change.steps": "1",
   "change.weight_trend": "1",
-  "change.tracker": "1",
+  // v2 (#501): trackers logged only a few days a week get a weekly-total comparison.
+  "change.tracker": "2",
   "goal.reached": "2",
   "goal.toward_target": "2",
   "goal.away_from_target": "2",
@@ -170,6 +171,39 @@ export const trackerChangeDetailSchema = z.object({
   baselineValue: z.number(),
   baselineDays: z.number().int(),
   baselineWindowDays: z.number().int(),
+  difference: z.number(),
+  threshold: z.number(),
+  certainty: z.enum(INSIGHT_CERTAINTIES),
+});
+
+/**
+ * #501 — a change in the weekly total of one of the member's own trackers
+ * that is logged only a few days a week (rule `change.tracker` v2): the latest
+ * complete Monday–Sunday week against the median of the 4 weeks before it.
+ * Totals are in the tracker's own terms: `number` in its `unit`, `duration` in
+ * seconds, and `yes_no` in yes days.
+ */
+export const trackerWeekChangeDetailSchema = z.object({
+  type: z.literal("tracker_week_change"),
+  trackerId: z.string(),
+  trackerName: z.string(),
+  trackerType: z.enum(INSIGHT_TRACKER_TYPES),
+  /** The free-text unit of a `number` tracker; null for the other types. */
+  unit: z.string().nullable(),
+  decimals: z.number().int(),
+  direction: z.enum(["higher", "lower"]),
+  /** Monday and Sunday (YYYY-MM-DD) of the week described. */
+  weekStart: z.string(),
+  weekEnd: z.string(),
+  /** That week's total. */
+  recentValue: z.number(),
+  /** Days with an entry in that week. */
+  recentDays: z.number().int(),
+  /** The median weekly total of the baseline weeks. */
+  baselineValue: z.number(),
+  /** Baseline weeks with at least one entry. */
+  baselineWeeks: z.number().int(),
+  baselineWindowWeeks: z.number().int(),
   difference: z.number(),
   threshold: z.number(),
   certainty: z.enum(INSIGHT_CERTAINTIES),
@@ -268,6 +302,7 @@ export const activityEnergyContextDetailSchema = z.object({
 export const insightDetailSchema = z.discriminatedUnion("type", [
   changeDetailSchema,
   trackerChangeDetailSchema,
+  trackerWeekChangeDetailSchema,
   trendDetailSchema,
   goalDetailSchema,
   recordingGapDetailSchema,

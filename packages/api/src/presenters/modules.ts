@@ -186,6 +186,7 @@ export function insightModules(insight: Pick<Insight, "detail">): PersonModule[]
     case "goal":
     // #450 custom trackers are not part of a module.
     case "tracker_change":
+    case "tracker_week_change":
       return [];
     case "meals_and_workouts":
       return ["food", "activity"];

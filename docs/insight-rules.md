@@ -57,7 +57,7 @@ says "different from your usual", never "meaningful for your health".
 | `change.resting_heart_rate`  | change         | Daily mean resting heart rate. Floor 3 bpm. Window ends today.                                                                                                                                                              | ISO week                           |
 | `change.steps`               | change         | Daily steps from the dominant source. Floor max(1,000 steps, 20% of the baseline). Window ends yesterday (today is partial).                                                                                                | ISO week                           |
 | `change.weight_trend`        | change         | Least-squares trend of canonical daily weight over 28 days; ≥ 8 weigh-ins spanning ≥ 21 days; fitted change ≥ max(0.5 kg, 1.5% of the mean) and slope ≥ 3 standard errors.                                                  | ISO week                           |
-| `change.tracker`             | change         | One of your own custom trackers (number, duration or yes/no; never a 1–5 scale) with the insights/AI switch on. The shared gates with a relative floor; window ends yesterday. See [Custom trackers](#custom-trackers-450). | tracker id + ISO week              |
+| `change.tracker`             | change         | One of your own custom trackers (number, duration or yes/no; never a 1–5 scale) with the insights/AI switch on. Relative floor; ends yesterday; if sparse, weekly totals #501. See [Custom trackers](#custom-trackers-450). | tracker id + (`week` +) ISO week   |
 | `goal.reached`               | goal_milestone | A counted goal (#95) whose latest value reached its target.                                                                                                                                                                 | goal id                            |
 | `goal.toward_target`         | goal_milestone | The latest check-in (within 14 days) moved toward the target.                                                                                                                                                               | goal id + check-in date            |
 | `goal.away_from_target`      | goal_milestone | The latest check-in (within 14 days) moved away from the target.                                                                                                                                                            | goal id + check-in date            |
@@ -100,7 +100,9 @@ person's own variation decides.
 count days with an entry. Zero and negative numbers are values, not gaps.
 Durations are stored and compared in seconds and shown as durations
 ("25 min"). A tracker logged on only a few days a week (sauna twice a week)
-stays silent: it never reaches the 5-of-7 gate.
+never reaches the 5-of-7 gate; it gets the
+[weekly-total comparison](#weekly-totals-for-trackers-logged-a-few-days-a-week-501)
+instead.
 
 **Yes/no series.** Many yes/no trackers are logged only on yes days, so the
 series is 1 for a yes day and 0 for every other day (an explicit "no" or no
@@ -123,15 +125,96 @@ as "fewer yes days".
 - Topic `trackers`: a push that may name its topic says only "You have a new
   tracker insight", never the tracker's name.
 - No module: tracker insights are not hidden by the module switches.
-- "Not useful" mutes the whole rule, so every tracker's change insights, for
-  30 days, like any other rule; dismissing hides one tracker's insight for
-  that week.
+- "Not useful" mutes the whole rule, so every tracker's change insights (daily
+  and weekly), for 30 days, like any other rule; dismissing hides one
+  tracker's insight for that week.
 
 **False alarms.** `insight-rules-trackers.test.ts` simulates 40 people with
 three stable trackers each (a noisy count with unlogged days, a duration and a
 yes/no with a steady share logged only on yes days) and requires at most one
 change insight per tracker per 300 days. The current parameters give about one
-per 1,900 days.
+per 1,300 days (yes/no trackers logged on a few days a week now take the weekly
+comparison, #501).
+
+## Weekly totals for trackers logged a few days a week (#501)
+
+A tracker logged on a few days a week (sauna twice a week) never reaches the
+daily 5-of-7 gate, so `change.tracker` v2 compares its **weekly total**
+instead: "Sauna: more than your usual week". Weeks run Monday to Sunday.
+
+**Rule id and version.** The weekly comparison is part of `change.tracker`,
+whose version goes from 1 to 2, rather than a new rule id. A tracker gets
+either the daily or the weekly comparison on a given day, never both, and they
+describe the same thing (one of your trackers changed), so they share one
+rule: "Not useful" on a sauna insight mutes both, the cap share applies to both
+without a second rule id to track, and the push topic is the same. The detail
+type (`tracker_week_change`) and the window key (`<tracker id>:week:<ISO
+week>`) tell them apart.
+
+**Which trackers.** The same trackers as the daily rule (the viewer's own,
+number, duration or yes/no, never a 1–5 scale, only with the insights/AI switch
+on), and only when both hold:
+
+- It fails the daily gates counting only days with an entry (at least 14 in the
+  28-day baseline and 5 of the last 7). For number and duration trackers this
+  is the daily gate itself.
+- Its usual week has fewer than 5 days with an entry (the median over the 4
+  baseline weeks). A tracker logged on most days that had a quiet week stays
+  on the daily rule, which stays silent, so a week with fewer entries is not
+  described as "less".
+
+A **yes/no** tracker logged only on its yes days passes the daily gates only
+because a day with no entry counts as no; on that rule a twice-a-week yes/no
+tracker would need nearly every day to change before anything is described.
+So a yes/no tracker logged on a few days a week also takes the weekly path when
+fewer than 5 of its last 7 days have an entry. A yes/no tracker logged on most
+days stays on the daily rule, unchanged.
+
+A **number** tracker takes part only when its days are added up (`sum`). A
+weekly total of averaged or "last one" days would mix how often you logged with
+the value, so those trackers stay silent.
+
+**Weekly totals.** Number: the sum of the day values, in the tracker's unit.
+Duration: the sum, in seconds, shown as a duration. Yes/no: the number of yes
+days.
+
+**The comparison.** The latest complete week's total against the **median**
+total of the 4 complete weeks before it. A week is read once a full day has
+passed since its Sunday (from Tuesday), so a Sunday entry logged on Monday is
+in. The result then holds unchanged for the 7 days the week stays the latest,
+under one window key; this takes the place of the daily rule's 2-day
+confirmation, since a week's comparison does not move from day to day.
+
+**Gates.**
+
+| Gate             | Rule                                                                                                                                                                                                                                                                                                                                                     |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Zero-heavy weeks | At least 3 of the 4 baseline weeks need an entry, and the latest week needs one. A tracker used now and then stays silent, and so does one you stopped using (never "less than your usual week").                                                                                                                                                        |
+| Noise and floor  | `threshold = max(k × SD × √(1/1 + 1/4), 20% × \|median\|, step)` with k = 3.5, one recent week against four. The step is one display step for numbers, one minute for durations and one yes day for yes/no.                                                                                                                                              |
+| Spread           | The SD is of the weekly totals over up to the 8 weeks before the latest: the 4 baseline weeks plus older full weeks since the first entry. The SD of 4 totals alone is too unstable: in the simulation below it gives about 0.12 insights per tracker per 30 days instead of 0.03.                                                                       |
+| Persistence      | The change must not rest on one day. With the latest week's largest day replaced by a usual day (the baseline's median logged day), a higher total must still be half the threshold above the median; with one more usual day, a lower total must still be half the threshold below it. One very long session, or one skipped session, is not described. |
+| Certainty        | "clearly larger than your usual week-to-week variation" at 1.5 × the threshold with all 4 baseline weeks logged; otherwise "only a little larger".                                                                                                                                                                                                       |
+
+Everything else is as for the daily tracker rule: no readiness rows, no source
+segmentation, no co-occurring factors, topic `trackers`, no module, and the
+same share of the change cap (tracker changes, daily and weekly together, fill
+at most half of it).
+
+**Wording.** Neutral, with the tracker's name and unit: "“Sauna” added up to
+1 h 15 min in the week of 5 Oct, 45 min more than your usual week of 30 min."
+Yes/no: "“Flossed” was yes on 1 day in the week of 5 Oct, compared with your
+usual of 4 days a week." The coverage line names the week, the days with an
+entry and the baseline weeks with an entry. It passes the same copy lint.
+
+**False alarms.** `insight-rules-tracker-weeks.test.ts` simulates 60 people
+with four stable trackers logged a few days a week each (durations on random
+days, durations on a fixed schedule with skipped and extra sessions, added-up
+numbers on random days, and a yes/no logged only on yes days), runs the engine
+every day for 150 days, and requires at most one insight per tracker per 300
+days. The current parameters give about one per 950 days. In the daily tracker
+simulation (`insight-rules-trackers.test.ts`), its yes/no trackers logged on a
+few days a week now take this path, which moves it from about one per 1,900
+days to about one per 1,300.
 
 ## Nutrition timing observations (#84)
 

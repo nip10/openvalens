@@ -204,6 +204,7 @@ export async function loadInsightTrackers(
     type: row.type,
     unit: row.unit,
     decimals: row.decimals,
+    aggregation: row.aggregation,
     aiVisible: true,
     days: (days.get(row.id) ?? []).map((day) => ({ date: day.date, value: day.value })),
   }));

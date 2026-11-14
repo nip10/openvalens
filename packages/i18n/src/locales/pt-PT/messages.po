@@ -13,10 +13,18 @@ msgstr ""
 msgid "—"
 msgstr "—"
 
+#: packages/api/src/presenters/insights.ts
+msgid "“{name}” added up to {recentText} in the week of {week}, {difference} {direction, select, higher {more} other {less}} than your usual week of {usualText}."
+msgstr "“{name}” somou {recentText} na semana de {week}, {difference} {direction, select, higher {acima} other {abaixo}} da sua semana habitual de {usualText}."
+
 #: apps/native/components/ai-app-drafts.tsx
 #: apps/web/src/components/ai-app-drafts.tsx
 msgid "“{name}” is not in the exercise catalog. Choose one, or add it as your own."
 msgstr "“{name}” não está no catálogo de exercícios. Escolha um ou adicione-o como seu."
+
+#: packages/api/src/presenters/insights.ts
+msgid "“{name}” was yes on {recentYes, plural, one {# day} other {# days}} in the week of {week}, compared with your usual of {usual, plural, one {# day} other {# days}} a week."
+msgstr "“{name}” foi registado como sim em {recentYes, plural, one {# dia} other {# dias}} na semana de {week}, em comparação com o seu habitual de {usual, plural, one {# dia} other {# dias}} por semana."
 
 #: packages/api/src/presenters/insights.ts
 msgid "“{name}” was yes on {recentYes} of the last {recentWindowDays} days, compared with your usual of about {usual, plural, one {# day} other {# days}} a week."
@@ -999,6 +1007,14 @@ msgstr "{name}: {count} séries"
 #: packages/api/src/presenters/insights.ts
 msgid "{name}: {direction, select, higher {higher than your usual} other {lower than your usual}}"
 msgstr "{name}: {direction, select, higher {acima do seu habitual} other {abaixo do seu habitual}}"
+
+#: packages/api/src/presenters/insights.ts
+msgid "{name}: {direction, select, higher {more than your usual week} other {less than your usual week}}"
+msgstr "{name}: {direction, select, higher {acima da sua semana habitual} other {abaixo da sua semana habitual}}"
+
+#: packages/api/src/presenters/insights.ts
+msgid "{name}: {direction, select, higher {yes on more days than your usual week} other {yes on fewer days than your usual week}}"
+msgstr "{name}: {direction, select, higher {sim em mais dias do que na sua semana habitual} other {sim em menos dias do que na sua semana habitual}}"
 
 #: packages/api/src/presenters/insights.ts
 msgid "{name}: {direction, select, higher {yes on more days than your usual} other {yes on fewer days than your usual}}"
@@ -2950,6 +2966,10 @@ msgstr "Barras: passos por dia"
 #: packages/api/src/presenters/insights.ts
 msgid "Based on {days, plural, one {# weigh-in} other {# weigh-ins}} in the last {windowDays} days."
 msgstr "Com base em {days, plural, one {# pesagem} other {# pesagens}} nos últimos {windowDays} dias."
+
+#: packages/api/src/presenters/insights.ts
+msgid "Based on {recentDays, plural, one {# day} other {# days}} with an entry in the week of {weekRange}, compared with the {baselineWindowWeeks} weeks before ({baselineWeeks, plural, one {# week} other {# weeks}} with an entry). Weeks run Monday to Sunday."
+msgstr "Com base em {recentDays, plural, one {# dia} other {# dias}} com registo na semana de {weekRange}, em comparação com as {baselineWindowWeeks} semanas anteriores ({baselineWeeks, plural, one {# semana} other {# semanas}} com registos). As semanas vão de segunda-feira a domingo."
 
 #: packages/api/src/presenters/insights.ts
 msgid "Based on {recentDays} of the last {recentWindowDays} days, compared with {baselineDays, plural, one {# day} other {# days}} in the {baselineWindowDays} days before."
@@ -17763,6 +17783,10 @@ msgstr "Este é um ecrã modal de exemplo para diálogos e confirmações."
 msgid "This is clearly larger than your usual day-to-day variation."
 msgstr "Isto é claramente maior do que a sua variação habitual de um dia para o outro."
 
+#: packages/api/src/presenters/insights.ts
+msgid "This is clearly larger than your usual week-to-week variation."
+msgstr "Isto é claramente maior do que a sua variação habitual de uma semana para a outra."
+
 #. safety
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "This is general information about published references. It is not medical advice and says nothing about your health."
@@ -17776,6 +17800,10 @@ msgstr "Isto não é um endereço de servidor"
 #: packages/api/src/presenters/insights.ts
 msgid "This is only a little larger than your usual day-to-day variation."
 msgstr "Isto é apenas um pouco maior do que a sua variação habitual de um dia para o outro."
+
+#: packages/api/src/presenters/insights.ts
+msgid "This is only a little larger than your usual week-to-week variation."
+msgstr "Isto é apenas um pouco maior do que a sua variação habitual de uma semana para a outra."
 
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "This is only available after you confirm you are 18 or older."
