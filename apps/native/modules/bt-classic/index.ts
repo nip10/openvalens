@@ -61,6 +61,8 @@ type Subscription = { remove(): void };
 
 export type NativeBtClassicModule = Readonly<{
   isAvailable(): boolean;
+  /** `PackageManager.FEATURE_BLUETOOTH_LE` and an adapter (#524). */
+  hasBluetoothLe?(): boolean;
   listBonded(): Promise<unknown[]>;
   startDiscovery(timeoutMs: number): Promise<void>;
   cancelDiscovery(): Promise<void>;
@@ -89,10 +91,30 @@ function loadNativeModule(): NativeBtClassicModule | null {
 
 const READ_BUFFER_BYTES = 4096;
 
+const platformIsAndroid = () =>
+  (require("react-native") as { Platform: { OS: string } }).Platform.OS === "android";
+
+/**
+ * Whether this phone has Bluetooth LE hardware (#524). Bluetooth is optional
+ * in the Android manifest, so a phone or tablet without it can install the
+ * app; `react-native-ble-plx` must not be started there, as its Android module
+ * dereferences a null `BluetoothManager`. Every supported iPhone has BLE.
+ * Without the native module (e.g. Expo Go) the answer is left to
+ * `react-native-ble-plx`'s own state.
+ */
+export function hasBluetoothLeHardware(
+  loadNative: NativeLoader = loadNativeModule,
+  isAndroid: () => boolean = platformIsAndroid,
+): boolean {
+  if (!isAndroid()) return true;
+  const native = loadNative();
+  if (!native) return true;
+  return native.hasBluetoothLe ? native.hasBluetoothLe() : native.isAvailable();
+}
+
 export function createBtClassicAdapter(
   loadNative: NativeLoader = loadNativeModule,
-  isAndroid: () => boolean = () =>
-    (require("react-native") as { Platform: { OS: string } }).Platform.OS === "android",
+  isAndroid: () => boolean = platformIsAndroid,
 ): BtClassicAdapter {
   let resolved = false;
   let nativeModule: NativeBtClassicModule | null = null;

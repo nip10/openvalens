@@ -36,6 +36,63 @@ describe("app.config.ts", () => {
     expect(withBuildEnv(base, {}).plugins).toEqual(base.plugins);
   });
 
+  test("Bluetooth and location hardware stay optional, so Play keeps devices without them (#524)", () => {
+    expect(base.plugins).toContain("./plugins/optional-hardware");
+    const plugin = require("./plugins/optional-hardware") as {
+      OPTIONAL_FEATURES: readonly string[];
+      withOptionalFeatures: (manifest: unknown) => {
+        manifest: {
+          $: Record<string, string>;
+          "uses-feature"?: { $: Record<string, string> }[];
+        };
+      };
+    };
+    expect(plugin.OPTIONAL_FEATURES).toEqual([
+      "android.hardware.bluetooth",
+      "android.hardware.bluetooth_le",
+      "android.hardware.location",
+      "android.hardware.location.gps",
+      "android.hardware.location.network",
+    ]);
+    const { manifest } = plugin.withOptionalFeatures({
+      manifest: {
+        $: { "xmlns:android": "http://schemas.android.com/apk/res/android" },
+        "uses-feature": [
+          { $: { "android:name": "android.hardware.camera", "android:required": "true" } },
+          { $: { "android:name": "android.hardware.bluetooth_le", "android:required": "true" } },
+        ],
+      },
+    });
+    expect(manifest.$["xmlns:tools"]).toBe("http://schemas.android.com/tools");
+    const features = manifest["uses-feature"] ?? [];
+    // Features the app needs are left alone…
+    expect(features[0]?.$).toEqual({
+      "android:name": "android.hardware.camera",
+      "android:required": "true",
+    });
+    // …and each optional one is declared once, not required, over any library's declaration.
+    expect(features.slice(1).map((feature) => feature.$)).toEqual(
+      plugin.OPTIONAL_FEATURES.map((name) => ({
+        "android:name": name,
+        "android:required": "false",
+        "tools:replace": "android:required",
+      })),
+    );
+    // ble-plx adds a required bluetooth_le feature only with isBackgroundEnabled.
+    const ble = base.plugins?.find(
+      (entry) => Array.isArray(entry) && entry[0] === "@config-plugins/react-native-ble-plx",
+    ) as [string, Record<string, unknown>];
+    expect(ble[1].isBackgroundEnabled).toBeUndefined();
+    // The local Bluetooth modules never require their hardware.
+    for (const module of ["bt-classic", "pebble-bond"])
+      expect(
+        readFileSync(
+          join(import.meta.dir, `modules/${module}/android/src/main/AndroidManifest.xml`),
+          "utf8",
+        ),
+      ).not.toMatch(/android:required="true"/);
+  });
+
   test("HealthKit sets both purpose strings (App Store rejects a build missing either, ITMS-90683)", () => {
     const healthkit = base.plugins?.find(
       (p) => Array.isArray(p) && p[0] === "@kingstinct/react-native-healthkit",

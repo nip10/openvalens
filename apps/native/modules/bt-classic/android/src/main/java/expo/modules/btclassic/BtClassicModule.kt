@@ -73,6 +73,14 @@ class BtClassicModule : Module() {
 
     Function("isAvailable") { adapter() != null }
 
+    // Bluetooth is optional in the manifest (#524): without BLE hardware the
+    // app must not start react-native-ble-plx, whose Android module
+    // dereferences a null BluetoothManager.
+    Function("hasBluetoothLe") {
+      context.packageManager.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE) &&
+        adapter() != null
+    }
+
     AsyncFunction("getAdapterState") { ->
       val adapter = adapter() ?: return@AsyncFunction "unsupported"
       if (adapter.isEnabled) "on" else "off"

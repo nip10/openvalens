@@ -101,6 +101,11 @@ type Runtime = {
   version: number;
   requestPermissions(permissions: string[]): Promise<Record<string, string>>;
   granted: string;
+  /**
+   * False on a phone without Bluetooth LE hardware (#524), where the radio
+   * must not be started. Absent means unknown: the radio's state decides.
+   */
+  hasBluetoothLe?: () => boolean;
 };
 type Deps = {
   platform?: string;
@@ -305,9 +310,19 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
     cancelReadyWait = null;
   };
   const runtime = (): Runtime => (deps.runtime ? deps.runtime() : loadRuntime());
+  /** No BLE hardware (#524): checked before any permission prompt or radio. */
+  const bluetoothLeMissing = (): boolean => {
+    if (deps.platform) return false;
+    try {
+      return runtime().hasBluetoothLe?.() === false;
+    } catch {
+      return false;
+    }
+  };
   const ensureRadio = async (): Promise<Radio> => {
     if ((deps.platform ?? ("document" in globalThis ? "web" : "native")) === "web")
       throw new Error("UNSUPPORTED");
+    if (bluetoothLeMissing()) throw new Error("BLUETOOTH_UNSUPPORTED");
     await managerTeardownBarrier;
     if (disposed) throw new Error("CANCELLED");
     if (!radio) radio = deps.loadRadio ? deps.loadRadio() : loadBlePlx();
@@ -340,6 +355,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
       scanToken = token;
       const current = ++generation;
       try {
+        if (bluetoothLeMissing()) throw new Error("BLUETOOTH_UNSUPPORTED");
         const native = deps.platform ? null : runtime();
         const platform = deps.platform ?? native!.platform;
         if (platform === "android") {
@@ -646,7 +662,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
           publish({
             phase: "error",
             bluetooth:
-              errorCode(error) === "UNSUPPORTED"
+              errorCode(error) === "UNSUPPORTED" || errorCode(error) === "BLUETOOTH_UNSUPPORTED"
                 ? "unsupported"
                 : errorCode(error) === "PERMISSION_DENIED"
                   ? "unauthorized"
@@ -1873,6 +1889,10 @@ function loadRuntime(): Runtime {
     granted: PermissionsAndroid.RESULTS.GRANTED,
     requestPermissions: (permissions) =>
       PermissionsAndroid.requestMultiple(permissions as never) as Promise<Record<string, string>>,
+    hasBluetoothLe: () =>
+      (
+        require("../../../modules/bt-classic") as typeof import("../../../modules/bt-classic")
+      ).hasBluetoothLeHardware(),
   };
 }
 async function waitUntilPoweredOn(
@@ -1974,6 +1994,7 @@ const SAFE_CODES = new Set([
   "FOSSIL_MONITOR_FAILED",
   "FOSSIL_WRITE_FAILED",
   "UNSUPPORTED",
+  "BLUETOOTH_UNSUPPORTED",
   "PERMISSION_DENIED",
   "CANCELLED",
   "DEVICE_NOT_DISCOVERED",

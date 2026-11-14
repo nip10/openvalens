@@ -124,7 +124,8 @@
         }
       ],
       "./plugins/home-widget",
-      "./plugins/android-r8"
+      "./plugins/android-r8",
+      "./plugins/optional-hardware"
     ],
     "experiments": {
       "typedRoutes": true,

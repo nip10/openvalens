@@ -3190,6 +3190,10 @@ msgstr "Blood oxygen"
 msgid "Blood pressure"
 msgstr "Blood pressure"
 
+#: apps/native/components/direct-device-settings.tsx
+msgid "Bluetooth isn't available on this device."
+msgstr "Bluetooth isn't available on this device."
+
 #: packages/api/src/presenters/insights.ts
 msgctxt "insight topic"
 msgid "body"
