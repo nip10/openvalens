@@ -1,8 +1,11 @@
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import {
   AI_APP_LAB_RANGE_FROM_REPORT,
-  AI_APP_SOURCE_LABEL,
+  aiAppDraftIdentity,
+  aiAppName,
+  aiAppSourceLabel,
   type AiAppDraftKind,
+  type AiAppIdentity,
 } from "@openvalens/api/presenters/ai-apps";
 import { displayLabRange, formatLabRange, formatLabValue } from "@openvalens/api/presenters/labs";
 import { SLOT_LABELS } from "@openvalens/api/presenters/nutrition-diary";
@@ -69,13 +72,13 @@ export function useAiAppDraftActions(kind: AiAppDraftKind, onChanged?: () => voi
   return { confirm, discard, error, kind };
 }
 
-/** "via Claude": which app wrote a draft. */
-export function ViaApp({ name }: { name: string }) {
+/** "via Claude (claude.ai)": which app wrote a draft (#507). */
+export function ViaApp({ app }: { app: AiAppIdentity }) {
   const { i18n } = useLingui();
   return (
     <StatusPill tone="neutral">
       <Bot className="mr-1 size-3.5" aria-hidden="true" />
-      {i18n._({ ...AI_APP_SOURCE_LABEL, values: { name } })}
+      {aiAppSourceLabel(app, i18n)}
     </StatusPill>
   );
 }
@@ -127,7 +130,7 @@ export function AiAppLabDrafts({ onSaved }: { onSaved?: () => void }) {
         {drafts.map((draft) => {
           const range = labRangeLine(i18n, draft);
           const marker = draft.payload.markerName;
-          const app = draft.appName;
+          const app = aiAppName(aiAppDraftIdentity(draft), i18n);
           return (
             <li
               key={draft.id}
@@ -144,7 +147,7 @@ export function AiAppLabDrafts({ onSaved }: { onSaved?: () => void }) {
                 <time dateTime={draft.payload.observedAt}>
                   {friendlyDate(i18n, draft.payload.observedAt)}
                 </time>
-                <ViaApp name={draft.appName} />
+                <ViaApp app={aiAppDraftIdentity(draft)} />
               </div>
               {range ? <span className="num text-sm text-ink-2">{range}</span> : null}
               <div className="flex flex-wrap gap-2">
@@ -272,7 +275,7 @@ function WorkoutDraftCard({
   const ready = unresolved.every(({ index }) => chosen[index]);
   const busy = actions.confirm.isPending || actions.discard.isPending;
   const type = i18n._(workoutTypeLabel(plan.type));
-  const app = draft.appName;
+  const app = aiAppName(aiAppDraftIdentity(draft), i18n);
   return (
     <li className="grid gap-3 rounded-2xl bg-paper-2 p-4" aria-label={t`${type}, from ${app}`}>
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -282,7 +285,7 @@ function WorkoutDraftCard({
           {plan.duration ? ` · ${workoutDurationLabel(plan.duration)}` : ""}
         </span>
       </div>
-      <ViaApp name={draft.appName} />
+      <ViaApp app={aiAppDraftIdentity(draft)} />
       <ol className="grid gap-3">
         {plan.exercises.map((item, index) => (
           <li key={index} className="grid gap-1.5">
@@ -396,7 +399,7 @@ export function AiAppFoodDrafts({
         {drafts.map((draft) => {
           const slot = draft.payload.meal as keyof typeof SLOT_LABELS | null;
           const items = draft.payload.items.map((item) => item.foodText).join(", ");
-          const app = draft.appName;
+          const app = aiAppName(aiAppDraftIdentity(draft), i18n);
           return (
             <li
               key={draft.id}
@@ -410,7 +413,7 @@ export function AiAppFoodDrafts({
                 <time dateTime={draft.payload.eatenAt}>
                   {friendlyDate(i18n, draft.payload.eatenAt)}
                 </time>
-                <ViaApp name={draft.appName} />
+                <ViaApp app={aiAppDraftIdentity(draft)} />
               </div>
               <p className="text-sm text-ink-2">{items}</p>
               <div className="flex flex-wrap gap-2">

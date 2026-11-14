@@ -1005,9 +1005,24 @@ msgstr "{month}, renova a {resets}"
 msgid "{more, plural, one {+# more exercise} other {+# more exercises}}"
 msgstr "{more, plural, one {+# exercício} other {+# exercícios}}"
 
+#. A connected AI app: the name it gives itself, then the web address it connected from, e.g. 'Claude (claude.ai)'. Keep both as they are.
+#: packages/api/src/presenters/ai-apps.ts
+msgid "{name} ({host})"
+msgstr "{name} ({host})"
+
 #: packages/api/src/presenters/food-lookup.ts
 msgid "{name} (live lookup)"
 msgstr "{name} (consulta em direto)"
+
+#. A personal API key, by the name the member gave it, e.g. 'My script (personal key)'.
+#: packages/api/src/presenters/ai-apps.ts
+msgid "{name} (personal key)"
+msgstr "{name} (chave pessoal)"
+
+#. A connected AI app whose web address is not known: the name it gives itself, which nobody checked.
+#: packages/api/src/presenters/ai-apps.ts
+msgid "{name} (unverified)"
+msgstr "{name} (não verificada)"
 
 #: apps/native/components/exercise-detail.tsx
 msgid "{name}, illustration"
@@ -2516,12 +2531,16 @@ msgid "An administrator can import licensed exercises, or you can create a works
 msgstr "Um administrador pode importar exercícios licenciados, ou pode criar abaixo um exercício do espaço de trabalho."
 
 #: packages/email/src/templates/ai-app-connected.tsx
-msgid "An AI app calling itself \"{appName}\" (from {clientIdHost}) was connected on {connectedAt} to the workspace {workspaceName}."
-msgstr "Uma aplicação de IA que se identifica como \"{appName}\" (de {clientIdHost}) foi ligada a {connectedAt} ao espaço de trabalho {workspaceName}."
+msgid "An AI app calling itself \"{appName}\" (from {host}) was connected on {connectedAt} to the workspace {workspaceName}."
+msgstr "Uma aplicação de IA que se identifica como \"{appName}\" (de {host}) foi ligada a {connectedAt} ao espaço de trabalho {workspaceName}."
 
 #: packages/email/src/templates/ai-app-connected.tsx
 msgid "An AI app calling itself \"{appName}\" was connected on {connectedAt} to the workspace {workspaceName}."
 msgstr "Uma aplicação de IA que se identifica como \"{appName}\" foi ligada a {connectedAt} ao espaço de trabalho {workspaceName}."
+
+#: packages/email/src/templates/ai-app-connected.tsx
+msgid "An AI app from {host} was connected on {connectedAt} to the workspace {workspaceName}."
+msgstr "Uma aplicação de IA de {host} foi ligada a {connectedAt} ao espaço de trabalho {workspaceName}."
 
 #: packages/email/src/templates/ai-app-connected.tsx
 msgid "An app that can read your records was just connected."
@@ -2553,7 +2572,7 @@ msgstr "Um registo de saúde privado e de código aberto."
 msgid "An OpenValens server you or your organization runs."
 msgstr "Um servidor OpenValens gerido por si ou pela sua organização."
 
-#: apps/web/src/components/oauth-consent-view.tsx
+#: packages/api/src/presenters/ai-apps.ts
 msgid "An unnamed app"
 msgstr "Uma aplicação sem nome"
 
@@ -6269,10 +6288,9 @@ msgstr "Eliminar registo"
 msgid "Delete everything"
 msgstr "Eliminar tudo"
 
-#. placeholder {0}: props.confirmDeleteWrites?.label
 #: apps/web/src/components/ai-apps-view.tsx
-msgid "Delete everything {0} added?"
-msgstr "Eliminar tudo o que {0} adicionou?"
+msgid "Delete everything {deleteWritesName} added?"
+msgstr "Eliminar tudo o que {deleteWritesName} adicionou?"
 
 #: apps/web/src/components/ai-apps-view.tsx
 msgid "Delete everything this app wrote"
@@ -6571,16 +6589,17 @@ msgstr "Descartar o treino?"
 msgid "Disconnect"
 msgstr "Desligar"
 
-#. placeholder {0}: grant.label
-#. placeholder {0}: props.confirmRevoke.label
-#: apps/native/app/(drawer)/settings/ai-apps.tsx
-#: apps/web/src/components/ai-apps-view.tsx
-msgid "Disconnect {0}?"
-msgstr "Desligar {0}?"
-
 #: apps/web/src/components/wearable-devices-view.tsx
 msgid "Disconnect {confirmName}?"
 msgstr "Desligar {confirmName}?"
+
+#: apps/native/app/(drawer)/settings/ai-apps.tsx
+msgid "Disconnect {name}?"
+msgstr "Desligar {name}?"
+
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "Disconnect {revokeName}?"
+msgstr "Desligar {revokeName}?"
 
 #: apps/web/src/components/wearable-devices-view.tsx
 msgid "Disconnect and delete records"
@@ -14826,11 +14845,10 @@ msgstr "Rever e tentar novamente"
 msgid "Revoke"
 msgstr "Revogar"
 
-#. placeholder {0}: grant.label
 #: apps/native/app/(drawer)/settings/ai-apps.tsx
 #: apps/web/src/components/ai-apps-view.tsx
-msgid "Revoke {0}"
-msgstr "Revogar {0}"
+msgid "Revoke {name}"
+msgstr "Revogar {name}"
 
 #. safety
 #. safety
@@ -19426,7 +19444,7 @@ msgstr "Muito stressado"
 msgid "Very unpleasant"
 msgstr "Muito desagradável"
 
-#. Source of an entry a connected AI app wrote; {name} is the app's or key's name.
+#. Source of an entry a connected AI app wrote; {name} is the app's name with its web address, e.g. 'Claude (claude.ai)', or a personal key's name, e.g. 'My script (personal key)'.
 #: packages/api/src/presenters/ai-apps.ts
 msgid "via {name}"
 msgstr "via {name}"

@@ -11,6 +11,7 @@ const REQUEST: NonNullable<OAuthConsentViewProps["request"]> = {
     clientIdHost: "claude.ai",
     registration: "cimd",
     redirectHost: "claude.ai",
+    appHost: "claude.ai",
     verified: false,
   },
   scopes: [
@@ -57,10 +58,21 @@ function checkbox(html: string, scope: string): string {
 describe("OAuthConsentView", () => {
   test("labels the app unverified and shows its identity and redirect hosts", () => {
     const html = render();
-    expect(html).toContain("Connect Claude to OpenValens?");
+    expect(html).toContain("Connect Claude (claude.ai) to OpenValens?");
     expect(html).toContain("Unverified app");
     expect(html).toContain("claude.ai");
     expect(html).toContain("Consent mcp-v2");
+  });
+
+  test("an app calling itself OpenValens is named by its host (#507)", () => {
+    const html = render({
+      request: {
+        ...REQUEST,
+        client: { ...REQUEST.client, name: "Open Valens", appHost: "evil.example" },
+      },
+    });
+    expect(html).toContain("Connect evil.example to OpenValens?");
+    expect(html).not.toContain("Connect Open Valens");
   });
 
   test("ticks only the required scope; sensitive scopes start off even when requested", () => {
@@ -111,7 +123,7 @@ describe("OAuthConsentView", () => {
     expect(box).toContain('type="checkbox"');
     expect(box).not.toContain("checked");
     expect(connect(html)).toContain('disabled=""');
-    expect(html).toContain("I want to send this health data to Claude");
+    expect(html).toContain("I want to send this health data to Claude (claude.ai)");
     expect(connect(render({ agreed: true }))).not.toContain('disabled=""');
     expect(render({ agreed: true })).toContain(">Connect<");
   });
@@ -119,7 +131,7 @@ describe("OAuthConsentView", () => {
   test("discloses the third party, its own terms, the purpose and what disconnecting does", () => {
     const html = render();
     expect(html).toContain(
-      "Claude is a third-party app, which can be an AI service. OpenValens doesn&#x27;t run it and has no agreement with it. Once it has your data, its own terms and privacy policy apply, which may let it store your data or use it to train models.",
+      "Claude (claude.ai) is a third-party app, which can be an AI service. OpenValens doesn&#x27;t run it and has no agreement with it. Once it has your data, its own terms and privacy policy apply, which may let it store your data or use it to train models.",
     );
     expect(html).toContain(
       "Shared only so the app can help you with your own health and fitness. Never used for advertising and never sold.",

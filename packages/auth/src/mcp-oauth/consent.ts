@@ -3,6 +3,7 @@ import {
   verifyOAuthQueryParams,
 } from "@better-auth/oauth-provider";
 
+import { aiAppHostOf, isReservedAiAppName } from "./client-name";
 import {
   MCP_OAUTH_OFFLINE_SCOPE,
   MCP_OAUTH_REQUESTED_SCOPE_PARAM,
@@ -26,7 +27,10 @@ import {
 
 export type McpOAuthConsentRequest = {
   clientId: string;
-  /** The client's self-declared name; always shown as unverified. */
+  /**
+   * The client's self-declared name; always shown as unverified. `null` when
+   * it gave none or one that reads as "OpenValens" (#507).
+   */
   clientName: string | null;
   /** Host of a CIMD `client_id` URL; `null` for a dynamically registered client. */
   clientIdHost: string | null;
@@ -34,6 +38,12 @@ export type McpOAuthConsentRequest = {
   registration: "cimd" | "dcr";
   /** Host the browser returns to with the authorization code. */
   redirectHost: string;
+  /**
+   * The host the app is shown with next to its name everywhere (#507): the
+   * client id's host for a metadata document, else the redirect URL's, without
+   * the port.
+   */
+  appHost: string;
   /** Scopes the member may approve (the grantable reads). */
   offeredScopes: string[];
   /** Of those, the ones the client itself asked for. */
@@ -141,12 +151,16 @@ export function createMcpOAuthConsent(instance: { api: object; $context: Promise
       .split(" ")
       .filter((scope) => grantable.has(scope));
     const discovered = Boolean(client.clientDiscoveryId);
+    const name = client.name?.trim().slice(0, 80) || null;
+    const redirectHost = hostOf(redirectUri) ?? redirectUri.slice(0, 80);
     return {
       clientId,
-      clientName: client.name?.trim() ? client.name.trim().slice(0, 80) : null,
+      clientName: name && !isReservedAiAppName(name) ? name : null,
       clientIdHost: discovered ? hostOf(clientId) : null,
       registration: discovered ? "cimd" : "dcr",
-      redirectHost: hostOf(redirectUri) ?? redirectUri.slice(0, 80),
+      redirectHost,
+      appHost:
+        (discovered ? aiAppHostOf(clientId) : null) ?? aiAppHostOf(redirectUri) ?? redirectHost,
       offeredScopes: offered,
       requestedScopes: requested,
     };

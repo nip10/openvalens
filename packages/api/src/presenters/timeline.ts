@@ -8,7 +8,7 @@ import type { I18n, MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import type { WearableProviderId } from "@openvalens/wearables";
 
-import { AI_APP_SOURCE_LABEL } from "./ai-apps";
+import { aiAppSourceLabel } from "./ai-apps";
 import { MANUAL_ENTRY_FIELDS } from "./manual-entry";
 import { HIDDEN_VALUE } from "./nutrition-targets";
 import { painEntrySummary, painRegionText } from "./pain";
@@ -26,7 +26,13 @@ export type TimelineItemLike = {
   title: string;
   summary: string;
   severity: string;
-  sourceRefs: { type: string; label: string; provider?: string }[];
+  sourceRefs: {
+    type: string;
+    label: string;
+    provider?: string;
+    /** For an `ai_app` source: the grant's kind and the OAuth app's host (#507). */
+    app?: { kind: "personal_key" | "oauth"; host: string | null };
+  }[];
   /** Structured fields the server keeps next to its English title. */
   canonical?: Record<string, unknown>;
 };
@@ -86,9 +92,13 @@ const PLATFORM_NAMES: Record<string, string> = {
  */
 export function sourceLabel(item: TimelineItemLike, i18n: I18n): string | null {
   for (const ref of item.sourceRefs) {
-    // #439 (M2) — an entry a connected AI app wrote: "via Claude".
+    // #439 (M2) — an entry a connected AI app wrote: "via Claude (claude.ai)"
+    // (#507). Without the grant's identity it is named as unverified.
     if (ref.type === "ai_app")
-      return i18n._({ ...AI_APP_SOURCE_LABEL, values: { name: ref.label } });
+      return aiAppSourceLabel(
+        { kind: ref.app?.kind ?? "oauth", label: ref.label, host: ref.app?.host ?? null },
+        i18n,
+      );
     if (ref.provider === "manual" || ref.type === "manual")
       return i18n._(msg({ message: "Manual", context: "data source" }));
     const name = ref.provider ? PLATFORM_NAMES[ref.provider] : undefined;

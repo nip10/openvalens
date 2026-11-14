@@ -8,8 +8,11 @@ const APP_NAME = "OpenValens";
 export type AiAppConnectedEmailInput = {
   /** The app's self-declared name (unverified; a client value, not translated). */
   appName: string;
-  /** Host of the app's client id URL, or `null` for a dynamically registered app. */
-  clientIdHost: string | null;
+  /**
+   * The host the app was shown with on the consent screen (#507): its client
+   * id URL's, else its redirect URL's. `null` when unknown.
+   */
+  host: string | null;
   workspaceName: string;
   /** When the connection was approved, already formatted for the recipient. */
   connectedAt: string;
@@ -30,18 +33,23 @@ export async function renderAiAppConnectedEmail(
   options: EmailRenderOptions = {},
 ): Promise<RenderedAiAppConnectedEmail> {
   const i18n = emailI18n(options);
-  const { appName, clientIdHost, workspaceName, connectedAt } = input;
+  const { appName, host, workspaceName, connectedAt } = input;
   const productName = APP_NAME;
 
   const subject = i18n._(msg`A new AI app was connected to ${productName}`);
   const bodyLines = [
-    clientIdHost
+    // An app named by its host gave no name, or one that reads as ours (#507).
+    host && appName === host
       ? i18n._(
-          msg`An AI app calling itself "${appName}" (from ${clientIdHost}) was connected on ${connectedAt} to the workspace ${workspaceName}.`,
+          msg`An AI app from ${host} was connected on ${connectedAt} to the workspace ${workspaceName}.`,
         )
-      : i18n._(
-          msg`An AI app calling itself "${appName}" was connected on ${connectedAt} to the workspace ${workspaceName}.`,
-        ),
+      : host
+        ? i18n._(
+            msg`An AI app calling itself "${appName}" (from ${host}) was connected on ${connectedAt} to the workspace ${workspaceName}.`,
+          )
+        : i18n._(
+            msg`An AI app calling itself "${appName}" was connected on ${connectedAt} to the workspace ${workspaceName}.`,
+          ),
     i18n._(
       msg`Anything this connection reads goes to that app, under the app's own terms. The app's name is not verified.`,
     ),

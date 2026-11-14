@@ -12,6 +12,7 @@ import {
 } from "@openvalens/db/schema/health-record";
 import { weeklyReview } from "@openvalens/db/schema/plans";
 import { and, desc, eq, gte, inArray, isNull, lte, sql } from "drizzle-orm";
+import { withAiAppIdentities } from "./ai-app-sources";
 import { canonicalEvent, canonicalMetric } from "./canonical";
 import { buildTimelinePage, normalizeTimelineDateRange } from "./timeline";
 import type { TimelineFilters, ProvenanceLinkInsert } from "./types";
@@ -312,8 +313,10 @@ export function createHealthRecordRepository(db: Database) {
         .map((ref) => ({ table: ref.sourceTable, id: ref.sourceId, relation: ref.relation }));
     }
     const excluded = new Set(excludedIds);
+    const allItems = [...items, ...buildDomainTimelineItems(domainRows)];
+    await withAiAppIdentities(db, organizationId, allItems);
     return buildTimelinePage(
-      [...items, ...buildDomainTimelineItems(domainRows)].filter(
+      allItems.filter(
         (item) =>
           !excluded.has(item.id) &&
           !(viewer?.activityHidden && item.id.startsWith("health_event:") && isWorkoutEvent(item)),

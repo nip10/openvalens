@@ -207,7 +207,12 @@ describe("timeline presenter", () => {
     expect(timelineSummary(review, englishI18n)).toBe("Felt good");
   });
 
-  const aiRef = { type: "ai_app", label: "Claude", provider: "ai_app" };
+  const aiRef = {
+    type: "ai_app",
+    label: "Claude",
+    provider: "ai_app",
+    app: { kind: "oauth" as const, host: "claude.ai" },
+  };
   const manualRef = { type: "source_record", label: "x:1", provider: "manual" };
 
   test("water entries read as plain water and their amount, or Hidden in hide-numbers mode (#493)", () => {
@@ -224,7 +229,20 @@ describe("timeline presenter", () => {
     expect(inEnglish(domainLabel("water"))).toBe("Water");
     expect(sourceLabel(water, englishI18n)).toBe("Manual");
     const viaApp = { ...water, sourceRefs: [aiRef, manualRef] };
-    expect(sourceLabel(viaApp, englishI18n)).toBe("via Claude");
+    expect(sourceLabel(viaApp, englishI18n)).toBe("via Claude (claude.ai)");
+    // #507 — an app the server could not identify is never named by its label alone.
+    const { app: _app, ...bareRef } = aiRef;
+    expect(sourceLabel({ ...water, sourceRefs: [bareRef] }, englishI18n)).toBe(
+      "via Claude (unverified)",
+    );
+    const keyRef = {
+      ...aiRef,
+      label: "My script",
+      app: { kind: "personal_key" as const, host: null },
+    };
+    expect(sourceLabel({ ...water, sourceRefs: [keyRef] }, englishI18n)).toBe(
+      "via My script (personal key)",
+    );
 
     const hidden = {
       ...water,
@@ -254,7 +272,7 @@ describe("timeline presenter", () => {
     });
     expect(timelineTitle(intake, englishI18n)).toBe("Magnesium");
     expect(timelineSummary(intake, englishI18n)).toBe("1 cap");
-    expect(sourceLabel(intake, englishI18n)).toBe("via Claude");
+    expect(sourceLabel(intake, englishI18n)).toBe("via Claude (claude.ai)");
     const noted = { ...intake, canonical: { ...intake.canonical, note: "With dinner" } };
     expect(timelineSummary(noted, englishI18n)).toBe("1 cap · With dinner");
   });

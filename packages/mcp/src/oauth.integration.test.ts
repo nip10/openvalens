@@ -234,6 +234,7 @@ describe.skipIf(!url)("OAuth 2.1 for AI apps against disposable PostgreSQL", () 
       clientId: request.clientId,
       clientName: request.clientName,
       clientIdHost: request.clientIdHost,
+      clientHost: request.appHost,
       scopes: input.scopes ?? [],
       consentVersion: AI_APP_CONSENT_VERSION,
       authorize: (grant) =>
@@ -397,12 +398,15 @@ describe.skipIf(!url)("OAuth 2.1 for AI apps against disposable PostgreSQL", () 
       clientIdHost: "app.example.com",
       registration: "cimd",
       redirectHost: "app.example.com",
+      appHost: "app.example.com",
       requestedScopes: ["records:read"],
     });
     expect(request.offeredScopes.sort()).toEqual([...GRANTABLE_SCOPES].sort());
     expect(result.created).toBe(true);
     // The settings list shows the host the app's client id lives on.
     expect(result.grant.clientIdHost).toBe("app.example.com");
+    // #507 — and every "via <app>" names it with that host.
+    expect(result.grant.clientHost).toBe("app.example.com");
     expect(connected.at(-1)).toMatchObject({
       label: "Example Assistant",
       clientIdHost: "app.example.com",
@@ -629,6 +633,35 @@ describe.skipIf(!url)("OAuth 2.1 for AI apps against disposable PostgreSQL", () 
     );
     expect(remaining).not.toContain(abandoned);
     expect(remaining).toEqual(expect.arrayContaining([fresh, used, CIMD_CLIENT]));
+  });
+
+  test("a client calling itself OpenValens is named by its redirect host (#507)", async () => {
+    const response = await auth.handler(
+      new Request(`${BASE}/api/auth/oauth2/register`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          client_name: "Open Valens",
+          redirect_uris: ["http://127.0.0.1:33419/callback"],
+          token_endpoint_auth_method: "none",
+          grant_types: ["authorization_code", "refresh_token"],
+          response_types: ["code"],
+        }),
+      }),
+    );
+    expect(response.status).toBe(201);
+    const clientId = ((await response.json()) as { client_id: string }).client_id;
+    const { request, result } = await connect({
+      clientId,
+      redirectUri: "http://127.0.0.1:33419/callback",
+    });
+    // The consent screen never shows the name, and the grant never keeps it.
+    expect(request.clientName).toBeNull();
+    expect(request.redirectHost).toBe("127.0.0.1:33419");
+    expect(request.appHost).toBe("127.0.0.1");
+    expect(result.grant.label).toBe("127.0.0.1");
+    expect(result.grant.clientHost).toBe("127.0.0.1");
+    expect(connected.at(-1)).toMatchObject({ label: "127.0.0.1", clientHost: "127.0.0.1" });
   });
 
   test("the consent request is bound to the session it was issued for", async () => {

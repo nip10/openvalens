@@ -1,4 +1,5 @@
 import { writeAuditLog, type AuditEventType } from "@openvalens/audit-security";
+import { isReservedAiAppName } from "@openvalens/auth/mcp-oauth/client-name";
 import {
   hashOAuthToken,
   isOAuthAccessTokenFormat,
@@ -105,6 +106,12 @@ export type AiAppGrantSummary = {
    * (CIMD); `null` for a personal key or a dynamically registered app.
    */
   clientIdHost: string | null;
+  /**
+   * Issue #507 — the host an OAuth app is shown with next to its label
+   * ("Claude (claude.ai)"): {@link clientIdHost}, else its redirect URL's
+   * host. `null` for a personal key.
+   */
+  clientHost: string | null;
   createdAt: string;
   lastUsedAt: string | null;
   expiresAt: string | null;
@@ -198,6 +205,8 @@ export type AiAppOAuthConnectedEvent = {
   label: string;
   /** Host of a CIMD client id, or `null` for a dynamically registered client. */
   clientIdHost: string | null;
+  /** The host the app is shown with (#507); see {@link AiAppGrantSummary.clientHost}. */
+  clientHost: string | null;
   scopes: readonly string[];
   createdAt: Date;
 };
@@ -206,9 +215,14 @@ export type ConnectOAuthClientInput = {
   userId: string;
   organizationId: string;
   clientId: string;
-  /** The client's self-declared name; stored as the grant label. */
+  /**
+   * The client's self-declared name; stored as the grant label unless it reads
+   * as "OpenValens" (#507), when the label is {@link clientHost}.
+   */
   clientName: string | null;
   clientIdHost: string | null;
+  /** The host the consent screen showed for the app (#507). */
+  clientHost: string | null;
   scopes: readonly string[];
   /** Must equal {@link AI_APP_CONSENT_VERSION}. */
   consentVersion: string;
@@ -312,6 +326,7 @@ export function createAiAppsService(options: AiAppsServiceOptions) {
       status: grantStatus(row, now()),
       displayPrefix,
       clientIdHost: row.kind === "oauth" ? clientIdHostOf(row.oauthClientId) : null,
+      clientHost: row.kind === "oauth" ? row.clientHost : null,
       createdAt: row.createdAt.toISOString(),
       lastUsedAt: iso(row.lastUsedAt),
       expiresAt: iso(row.expiresAt),
@@ -856,10 +871,14 @@ export function createAiAppsService(options: AiAppsServiceOptions) {
     }
 
     const at = now();
-    const label = (input.clientName?.trim() || input.clientIdHost || "AI app").slice(
-      0,
-      MAX_LABEL_LENGTH,
-    );
+    // #507 — a name that reads as ours is never kept: the app is named by its host.
+    const declared = input.clientName?.trim() || null;
+    const label = (
+      (declared && !isReservedAiAppName(declared) ? declared : null) ||
+      input.clientHost ||
+      input.clientIdHost ||
+      "AI app"
+    ).slice(0, MAX_LABEL_LENGTH);
     const [existing] = await db
       .select()
       .from(aiAppGrant)
@@ -884,6 +903,7 @@ export function createAiAppsService(options: AiAppsServiceOptions) {
           consentVersion: AI_APP_CONSENT_VERSION,
           consentedAt: at,
           label,
+          clientHost: input.clientHost,
         })
         .where(eq(aiAppGrant.id, existing.id))
         .returning();
@@ -901,6 +921,7 @@ export function createAiAppsService(options: AiAppsServiceOptions) {
           consentVersion: AI_APP_CONSENT_VERSION,
           consentedAt: at,
           oauthClientId: input.clientId,
+          clientHost: input.clientHost,
           expiresAt: null,
           createdAt: at,
         })
@@ -921,6 +942,7 @@ export function createAiAppsService(options: AiAppsServiceOptions) {
             consentVersion: existing.consentVersion,
             consentedAt: existing.consentedAt,
             label: existing.label,
+            clientHost: existing.clientHost,
           })
           .where(eq(aiAppGrant.id, existing.id));
       } else {
@@ -960,6 +982,7 @@ export function createAiAppsService(options: AiAppsServiceOptions) {
             organizationId: input.organizationId,
             label,
             clientIdHost: input.clientIdHost,
+            clientHost: input.clientHost,
             scopes: scopes.scopes,
             createdAt: at,
           });
