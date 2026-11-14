@@ -15,6 +15,7 @@ import type { AiAppAuthFailure, AiAppGrantPrincipal, AiAppsService } from "./gra
 import { hasScope } from "./scopes";
 import type { McpDataSources } from "./sources";
 import { findTool, toolsForScopes, type McpToolContext, type McpToolDefinition } from "./tools";
+import { AiWriteLimitError, type AiAppWrites } from "./writes";
 
 /**
  * HTTP faces of connected AI apps (Issue #439): the MCP server at
@@ -30,7 +31,9 @@ import { findTool, toolsForScopes, type McpToolContext, type McpToolDefinition }
  * 2. counts against 60 calls a minute per grant and 120 per member (env), and
  *    is answered `429` with `Retry-After` past either;
  * 3. records one usage row per tool call: grant, tool, time, status and row
- *    count, never the arguments or results.
+ *    count, never the arguments or results;
+ * 4. for a write tool (M2), refuses it while the workspace is read-only and
+ *    past the grant's daily write limit (`429` with `Retry-After`).
  *
  * Framework-free: each face takes a web `Request` and returns a `Response`;
  * the server mounts them on Hono.
@@ -44,6 +47,7 @@ export const MCP_SERVER_INSTRUCTIONS = [
   "Every tool returns the member's recorded values as stored, with units, ISO 8601 times with the member's UTC offset and days in the member's time zone. Results are facts only, with no interpretation beyond the flags the app already shows.",
   "OpenValens is a personal record-keeping and wellness tool. It is not a medical device and does not give medical advice, diagnosis or treatment. Do not present its data as a diagnosis; encourage the member to talk to a qualified health professional about medical questions.",
   "Cycle data and progress photos are never available through this server.",
+  "With a write scope the member granted, tools can add the member's own entries (water, weight and body composition, vitals, a supplement taken) and delete entries this app added. Only write what the member asked you to record, give every write a new mutationId, and reuse it only to retry that same write. Entries are labelled with this app's name and never change a device reading.",
 ].join("\n\n");
 
 export type AiAppsHttpOptions = {
@@ -61,6 +65,17 @@ export type AiAppsHttpOptions = {
    * authorization flow, and OAuth access tokens are accepted there.
    */
   oauth?: { resourceMetadataUrl: string; challengeScopes: readonly string[] } | null;
+  /**
+   * Write tools (M2): the write foundation over the app's own domain write
+   * paths. Without it no write tool is listed or callable.
+   */
+  writes?: AiAppWrites | null;
+  /**
+   * Whether this grant's workspace may be written to now. On Cloud a
+   * workspace that lost full access is read-only: reads keep working, write
+   * tools are refused. Self-host omits it (always writable).
+   */
+  canWrite?: (principal: AiAppGrantPrincipal) => Promise<boolean>;
 };
 
 type Authorized = { principal: AiAppGrantPrincipal };
@@ -140,7 +155,15 @@ async function calledToolName(request: Request): Promise<string | null> {
 
 type ToolOutcome =
   | { ok: true; result: unknown }
-  | { ok: false; status: "insufficient_scope" | "invalid_input" | "error"; message: string };
+  | {
+      ok: false;
+      status: "insufficient_scope" | "invalid_input" | "read_only" | "limit_reached" | "error";
+      message: string;
+      retryAfterSeconds?: number;
+    };
+
+const READ_ONLY_MESSAGE =
+  "This workspace is read-only right now, so entries cannot be added or deleted. Reading still works.";
 
 export function createAiAppsHttp(options: AiAppsHttpOptions) {
   const logger = options.logger ?? createStructuredLogger({ level: "info" });
@@ -221,8 +244,15 @@ export function createAiAppsHttp(options: AiAppsHttpOptions) {
       units: preferences.units,
       logger,
       correlationId,
+      writes: options.writes ?? null,
     };
   }
+
+  const writesOffered = Boolean(options.writes);
+  const availableTool = (name: string): McpToolDefinition | undefined => {
+    const tool = findTool(name);
+    return tool && (!tool.write || writesOffered) ? tool : undefined;
+  };
 
   /** Runs one tool for one grant and records the call. */
   async function invoke(
@@ -255,6 +285,15 @@ export function createAiAppsHttp(options: AiAppsHttpOptions) {
       });
       return { ok: false, status: "invalid_input", message: z.prettifyError(parsed.error) };
     }
+    if (tool.write && options.canWrite && !(await options.canWrite(principal))) {
+      await options.service.recordCall({
+        principal,
+        tool: tool.name,
+        transport,
+        status: "read_only",
+      });
+      return { ok: false, status: "read_only", message: READ_ONLY_MESSAGE };
+    }
     try {
       const context = await toolContext(principal, correlationId);
       const { result, rowCount } = await tool.run(context, parsed.data);
@@ -275,6 +314,20 @@ export function createAiAppsHttp(options: AiAppsHttpOptions) {
           status: "invalid_input",
         });
         return { ok: false, status: "invalid_input", message: error.message };
+      }
+      if (error instanceof AiWriteLimitError) {
+        await options.service.recordCall({
+          principal,
+          tool: tool.name,
+          transport,
+          status: "limit_reached",
+        });
+        return {
+          ok: false,
+          status: "limit_reached",
+          message: error.message,
+          retryAfterSeconds: error.retryAfterSeconds,
+        };
       }
       logger.error("ai_apps.tool.failed", {
         correlationId,
@@ -310,7 +363,7 @@ export function createAiAppsHttp(options: AiAppsHttpOptions) {
       { name: MCP_SERVER_NAME, title: "OpenValens", version: options.version },
       { instructions: MCP_SERVER_INSTRUCTIONS },
     );
-    for (const tool of toolsForScopes(principal.scopes)) {
+    for (const tool of toolsForScopes(principal.scopes, { writes: writesOffered })) {
       server.registerTool(
         tool.name,
         {
@@ -318,8 +371,9 @@ export function createAiAppsHttp(options: AiAppsHttpOptions) {
           description: tool.description,
           inputSchema: tool.input,
           annotations: {
-            readOnlyHint: true,
-            destructiveHint: false,
+            readOnlyHint: !tool.write,
+            destructiveHint: tool.write === "delete",
+            // Writes are idempotent per mutation id: a retry writes nothing again.
             idempotentHint: true,
             openWorldHint: false,
           },
@@ -353,7 +407,7 @@ export function createAiAppsHttp(options: AiAppsHttpOptions) {
     // an HTTP 403 `insufficient_scope` challenge (MCP step-up), so the client
     // can ask the member to approve the extra scope and retry.
     const called = await calledToolName(request);
-    const calledTool = called ? findTool(called) : undefined;
+    const calledTool = called ? availableTool(called) : undefined;
     if (calledTool && !hasScope(authorized.principal.scopes, calledTool.scope)) {
       await options.service.recordCall({
         principal: authorized.principal,
@@ -395,7 +449,7 @@ export function createAiAppsHttp(options: AiAppsHttpOptions) {
   ): Promise<Response> {
     const authorized = await authorize(request, correlationId, "rest");
     if (authorized instanceof Response) return authorized;
-    const tool = findTool(name);
+    const tool = availableTool(name);
     if (!tool)
       return json(404, {
         error: "unknown_tool",
@@ -424,6 +478,16 @@ export function createAiAppsHttp(options: AiAppsHttpOptions) {
     if (outcome.status === "invalid_input") {
       return json(400, { error: "invalid_input", error_description: outcome.message });
     }
+    if (outcome.status === "read_only") {
+      return json(403, { error: "access_read_only", error_description: outcome.message });
+    }
+    if (outcome.status === "limit_reached") {
+      return json(
+        429,
+        { error: "write_limit_reached", error_description: outcome.message },
+        { "retry-after": String(outcome.retryAfterSeconds ?? 3600) },
+      );
+    }
     return json(500, { error: "server_error", error_description: outcome.message });
   }
 
@@ -432,11 +496,12 @@ export function createAiAppsHttp(options: AiAppsHttpOptions) {
     const authorized = await authorize(request, correlationId, "rest");
     if (authorized instanceof Response) return authorized;
     return json(200, {
-      tools: toolsForScopes(authorized.principal.scopes).map((tool) => ({
+      tools: toolsForScopes(authorized.principal.scopes, { writes: writesOffered }).map((tool) => ({
         name: tool.name,
         title: tool.title,
         description: tool.description,
         scope: tool.scope,
+        readOnly: !tool.write,
         inputSchema: z.toJSONSchema(tool.input),
       })),
     });

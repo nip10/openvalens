@@ -159,6 +159,11 @@ msgstr "{0, plural, one {# syncing} other {# syncing}}"
 msgid "{0, plural, one {# unsynced change will be removed from this device.} other {# unsynced changes will be removed from this device.}}"
 msgstr "{0, plural, one {# unsynced change will be removed from this device.} other {# unsynced changes will be removed from this device.}}"
 
+#. placeholder {0}: props.confirmDeleteWrites?.entryCount ?? 0
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "{0, plural, one {The # entry this app added to your records is deleted. Your own entries and device data stay. This can't be undone.} other {The # entries this app added to your records are deleted. Your own entries and device data stay. This can't be undone.}}"
+msgstr "{0, plural, one {The # entry this app added to your records is deleted. Your own entries and device data stay. This can't be undone.} other {The # entries this app added to your records are deleted. Your own entries and device data stay. This can't be undone.}}"
+
 #. placeholder {0}: target.source
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "{0, select, entered {Entered by you} proposal {Accepted suggestion} other {Target}}, from {from}"
@@ -1975,6 +1980,10 @@ msgstr "Add set"
 msgid "Add supplement"
 msgstr "Add supplement"
 
+#: packages/api/src/presenters/ai-apps.ts
+msgid "Add supplements taken"
+msgstr "Add supplements taken"
+
 #: apps/native/components/active-workout.tsx
 msgid "Add the first exercise to start logging sets."
 msgstr "Add the first exercise to start logging sets."
@@ -2001,10 +2010,22 @@ msgstr "Add to routine"
 msgid "Add to workout"
 msgstr "Add to workout"
 
+#: packages/api/src/presenters/ai-apps.ts
+msgid "Add vitals"
+msgstr "Add vitals"
+
+#: packages/api/src/presenters/ai-apps.ts
+msgid "Add water"
+msgstr "Add water"
+
 #: apps/native/app/(drawer)/(tabs)/body.tsx
 #: apps/web/src/routes/_auth/body.tsx
 msgid "Add weight"
 msgstr "Add weight"
+
+#: packages/api/src/presenters/ai-apps.ts
+msgid "Add weight and body composition"
+msgstr "Add weight and body composition"
 
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "Add your adult answer in your profile to use this."
@@ -3153,6 +3174,10 @@ msgstr "Camera permission is off. Allow camera access in Settings to take a phot
 #: apps/native/components/barcode-scanner.tsx
 msgid "Camera view for scanning a barcode"
 msgstr "Camera view for scanning a barcode"
+
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "Can add"
+msgstr "Can add"
 
 #: apps/web/src/components/ai-apps-view.tsx
 msgid "Can read"
@@ -4566,6 +4591,10 @@ msgstr "Could not decline the invitation."
 msgid "Could not delete it. Try again."
 msgstr "Could not delete it. Try again."
 
+#: apps/web/src/routes/_auth/settings/ai-apps.tsx
+msgid "Could not delete the entries. Try again."
+msgstr "Could not delete the entries. Try again."
+
 #: apps/web/src/routes/_auth/private-measurements.tsx
 msgid "Could not delete this entry. Check your connection and try again."
 msgstr "Could not delete this entry. Check your connection and try again."
@@ -5574,6 +5603,11 @@ msgstr "Cut"
 msgid "Cycle"
 msgstr "Cycle"
 
+#: apps/web/src/components/ai-app-key-form.tsx
+#: apps/web/src/components/oauth-consent-view.tsx
+msgid "Cycle data and progress photos are never shared."
+msgstr "Cycle data and progress photos are never shared."
+
 #: apps/native/app/(drawer)/cycle.tsx
 #: apps/web/src/routes/_auth/cycle.tsx
 msgid "Cycle logging is off"
@@ -5614,6 +5648,11 @@ msgstr "Daily cutoff (optional)"
 #: apps/native/components/goal-editor.tsx
 msgid "Daily evidence"
 msgstr "Daily evidence"
+
+#: packages/api/src/presenters/ai-apps.ts
+msgctxt "ai app call"
+msgid "Daily limit reached"
+msgstr "Daily limit reached"
 
 #: apps/native/app/(drawer)/goals/[goalId].tsx
 msgid "Daily progress"
@@ -5902,6 +5941,10 @@ msgstr "Delete check-in"
 msgid "Delete check-in?"
 msgstr "Delete check-in?"
 
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "Delete entries"
+msgstr "Delete entries"
+
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 #: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
@@ -5916,6 +5959,15 @@ msgstr "Delete entry"
 #: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Delete everything"
 msgstr "Delete everything"
+
+#. placeholder {0}: props.confirmDeleteWrites?.label
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "Delete everything {0} added?"
+msgstr "Delete everything {0} added?"
+
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "Delete everything this app wrote"
+msgstr "Delete everything this app wrote"
 
 #: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
@@ -6023,6 +6075,7 @@ msgstr "Deletes every period and import you have logged, in every workspace, and
 
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/native/app/(drawer)/trackers/[trackerId].tsx
+#: apps/web/src/components/ai-apps-view.tsx
 #: apps/web/src/routes/_auth/settings/index.tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 msgid "Deleting…"
@@ -6886,6 +6939,22 @@ msgstr "Entered by you"
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 msgid "Entries"
 msgstr "Entries"
+
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "Entries added"
+msgstr "Entries added"
+
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "Entries it added stay in your records. You can delete them here at any time."
+msgstr "Entries it added stay in your records. You can delete them here at any time."
+
+#: apps/web/src/components/ai-app-key-form.tsx
+msgid "Entries the app adds are labelled with its name and never change device data. The app can delete only what it added; you can delete it all here."
+msgstr "Entries the app adds are labelled with its name and never change device data. The app can delete only what it added; you can delete it all here."
+
+#: apps/web/src/components/oauth-consent-view.tsx
+msgid "Entries the app adds are labelled with its name and never change device data. The app can delete only what it added; you can delete it all in Settings → Connected AI apps."
+msgstr "Entries the app adds are labelled with its name and never change device data. The app can delete only what it added; you can delete it all in Settings → Connected AI apps."
 
 #: apps/web/src/components/plain-water-day-view.tsx
 msgid "entry at {time}"
@@ -9624,6 +9693,10 @@ msgstr "Log actual dose"
 msgid "Log actual intake"
 msgstr "Log actual intake"
 
+#: packages/api/src/presenters/ai-apps.ts
+msgid "Log blood pressure, heart rate, resting heart rate, blood oxygen and respiratory rate. The app can delete only the entries it added."
+msgstr "Log blood pressure, heart rate, resting heart rate, blood oxygen and respiratory rate. The app can delete only the entries it added."
+
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
 msgid "Log dose"
@@ -9660,6 +9733,10 @@ msgstr "Log pain"
 msgid "Log past session"
 msgstr "Log past session"
 
+#: packages/api/src/presenters/ai-apps.ts
+msgid "Log plain water you drank. The app can delete only the entries it added."
+msgstr "Log plain water you drank. The app can delete only the entries it added."
+
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 msgid "Log saved meal"
 msgstr "Log saved meal"
@@ -9676,6 +9753,10 @@ msgstr "Log something in a tap, repeat a recent entry or open a screen."
 msgid "Log supplement intake"
 msgstr "Log supplement intake"
 
+#: packages/api/src/presenters/ai-apps.ts
+msgid "Log that you took one of your supplements. The app can delete only the entries it added."
+msgstr "Log that you took one of your supplements. The app can delete only the entries it added."
+
 #: apps/native/app/(drawer)/goals.tsx
 msgid "Log the dose actually taken. Each dose is kept; goal credit is once per day."
 msgstr "Log the dose actually taken. Each dose is kept; goal credit is once per day."
@@ -9691,6 +9772,10 @@ msgstr "Log today"
 #: apps/web/src/routes/_auth/goals.index.tsx
 msgid "Log water"
 msgstr "Log water"
+
+#: packages/api/src/presenters/ai-apps.ts
+msgid "Log weight, body fat, muscle, bone and body water. The app can delete only the entries it added."
+msgstr "Log weight, body fat, muscle, bone and body water. The app can delete only the entries it added."
 
 #: apps/web/src/components/onboarding/setup-steps.tsx
 #: packages/api/src/presenters/onboarding.ts
@@ -13317,6 +13402,11 @@ msgstr "Read the source"
 msgid "Read-only"
 msgstr "Read-only"
 
+#: packages/api/src/presenters/ai-apps.ts
+msgctxt "ai app call"
+msgid "Read-only"
+msgstr "Read-only"
+
 #. placeholder {0}: readiness.data.timestamp
 #: apps/native/app/(drawer)/(tabs)/index.tsx
 msgid "Readiness checked at {0}"
@@ -15366,6 +15456,14 @@ msgstr "Show archived foods"
 msgid "Show archived trackers"
 msgstr "Show archived trackers"
 
+#: apps/web/src/routes/_auth/records/timeline.tsx
+msgid "Show everything"
+msgstr "Show everything"
+
+#: apps/web/src/routes/_auth/settings/ai-apps.tsx
+msgid "Show on timeline"
+msgstr "Show on timeline"
+
 #: apps/web/src/components/onboarding/finish-setup-card.tsx
 msgid "Show on Today"
 msgstr "Show on Today"
@@ -15399,6 +15497,14 @@ msgstr "Showing {date}"
 #: packages/api/src/presenters/preventive-care.ts
 msgid "Showing guidance for: {region}. Change your region in your profile."
 msgstr "Showing guidance for: {region}. Change your region in your profile."
+
+#: apps/web/src/routes/_auth/records/timeline.tsx
+msgid "Showing only entries a connected AI app added."
+msgstr "Showing only entries a connected AI app added."
+
+#: apps/web/src/routes/_auth/records/timeline.tsx
+msgid "Showing only entries from one source."
+msgstr "Showing only entries from one source."
 
 #: packages/api/src/presenters/activity-load.ts
 msgid "Shown for context only. Steps and strength volume are never converted into points."
@@ -16609,7 +16715,6 @@ msgstr "That time does not exist on this date in your time zone. Choose another 
 msgid "The AI provider is not set up on this server. Use the on-server draft instead."
 msgstr "The AI provider is not set up on this server. Use the on-server draft instead."
 
-#: apps/web/src/components/ai-app-key-form.tsx
 #: apps/web/src/components/oauth-consent-view.tsx
 msgid "The app cannot change your records. Cycle data and progress photos are never shared."
 msgstr "The app cannot change your records. Cycle data and progress photos are never shared."
@@ -18492,6 +18597,11 @@ msgstr "Very low certainty (“the evidence is very uncertain”)"
 msgid "Very stressed"
 msgstr "Very stressed"
 
+#. Source of an entry a connected AI app wrote; {name} is the app's or key's name.
+#: packages/api/src/presenters/ai-apps.ts
+msgid "via {name}"
+msgstr "via {name}"
+
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 msgid "View and revoke apps that read your records"
 msgstr "View and revoke apps that read your records"
@@ -18865,6 +18975,11 @@ msgstr "What needs attention today, followed by your longer-term progress."
 #: packages/api/src/presenters/preventive-care.ts
 msgid "What public-health authorities in your region publish for people of your age and sex, with the source of each item. This is general public-health information, not personal medical advice, and it may not apply to you. Talk to your clinician about what is right for you."
 msgstr "What public-health authorities in your region publish for people of your age and sex, with the source of each item. This is general public-health information, not personal medical advice, and it may not apply to you. Talk to your clinician about what is right for you."
+
+#: apps/web/src/components/ai-app-key-form.tsx
+#: apps/web/src/components/oauth-consent-view.tsx
+msgid "What the app may add"
+msgstr "What the app may add"
 
 #: apps/web/src/components/ai-app-key-form.tsx
 #: apps/web/src/components/oauth-consent-view.tsx

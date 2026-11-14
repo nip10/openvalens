@@ -160,9 +160,19 @@ function common(
     sourceRefs.push({ type: "data_source", label: fallback, ...withProvider });
   if (!sourceRefs.length && provider)
     sourceRefs.push({ type: "data_source", label: provider, provider });
+  // #439 (M2) — a reading a connected AI app wrote for the member: tagged with
+  // the grant ("via <app>"); filter the timeline with `source=ai_app:<grantId>`.
+  const aiApp = bag(p.aiApp);
+  if (!source && typeof aiApp.grantId === "string" && typeof aiApp.label === "string")
+    sourceRefs.push({
+      type: "ai_app",
+      label: aiApp.label,
+      id: `ai_app:${aiApp.grantId}`,
+      provider: "ai_app",
+    });
   // `healthRecord.ingestMetricSample` stamps the signed-in user and takes no
   // device: that is a reading the user typed in.
-  if (!sourceRefs.length && !source && typeof p.ingestedByUserId === "string")
+  else if (!sourceRefs.length && !source && typeof p.ingestedByUserId === "string")
     sourceRefs.push({ type: "manual", label: "manual", provider: "manual" });
   return {
     severity,

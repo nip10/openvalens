@@ -22,6 +22,8 @@ export type AiAppKeyDraft = {
 export type AiAppKeyFormProps = {
   baseScope: string;
   optInScopes: readonly string[];
+  /** Opt-in write scopes (M2), off by default; absent offers no writing. */
+  writeScopes?: readonly string[];
   expiryDays: readonly (number | null)[];
   consentVersion: string;
   workspaceName: string;
@@ -39,7 +41,7 @@ const CHECKBOX = "mt-1 size-4 shrink-0 accent-primary disabled:opacity-55";
 /**
  * Issue #439 — the create-key form. Presentational. The base read scope is
  * always on; nutrition, private body measurements and notes start unticked;
- * writing is not offered. The key is for the workspace the member is in now
+ * so do the write scopes, each for one domain (M2). The key is for the workspace the member is in now
  * (the server never takes a workspace from the form). Nothing is created
  * until the member ticks the `mcp-v1` consent.
  */
@@ -108,11 +110,38 @@ export function AiAppKeyForm(props: AiAppKeyFormProps) {
           />
         ))}
         <p className="px-3 text-sm text-ink-3">
-          <Trans>
-            The app cannot change your records. Cycle data and progress photos are never shared.
-          </Trans>
+          <Trans>Cycle data and progress photos are never shared.</Trans>
         </p>
       </fieldset>
+
+      {props.writeScopes?.length ? (
+        <fieldset className="grid gap-1">
+          <legend className="mb-1 font-medium text-ink">
+            <Trans>What the app may add</Trans>
+          </legend>
+          {props.writeScopes.map((scope) => (
+            <ScopeCheckbox
+              key={scope}
+              scope={scope}
+              required={false}
+              checked={draft.scopes.includes(scope)}
+              onChange={(selected) =>
+                set({
+                  scopes: selected
+                    ? [...new Set([...draft.scopes, scope])]
+                    : draft.scopes.filter((entry) => entry !== scope),
+                })
+              }
+            />
+          ))}
+          <p className="px-3 text-sm text-ink-3">
+            <Trans>
+              Entries the app adds are labelled with its name and never change device data. The app
+              can delete only what it added; you can delete it all here.
+            </Trans>
+          </p>
+        </fieldset>
+      ) : null}
 
       <fieldset className="grid gap-2">
         <legend className="mb-1 font-medium text-ink">

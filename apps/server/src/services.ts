@@ -7,6 +7,7 @@ import {
   parseAiUsageConfig,
 } from "@openvalens/ai";
 import type { BillingService } from "@openvalens/billing";
+import { createAiAppWriteTargets } from "@openvalens/api/ai-app-writes";
 import { deriveInsightUnsubscribeKey } from "@openvalens/api/insights";
 import { createProductSettingsService } from "@openvalens/api/product-settings";
 import { SignUpRateLimiter } from "@openvalens/api/sign-up";
@@ -50,6 +51,7 @@ import {
   parseMcpConfig,
 } from "@openvalens/mcp";
 import { createAiAppsHttp } from "@openvalens/mcp/http";
+import { createAiAppWrites } from "@openvalens/mcp/writes";
 import { createMcpDataSources } from "@openvalens/mcp/sources";
 import { createExerciseCatalogService } from "@openvalens/api/services/exercise-catalog";
 import {
@@ -326,6 +328,8 @@ export const mcpConfig = parseMcpConfig({
   DEPLOYMENT_MODE: ENV.DEPLOYMENT_MODE,
   MCP_RATE_LIMIT_PER_GRANT_PER_MINUTE: ENV.MCP_RATE_LIMIT_PER_GRANT_PER_MINUTE,
   MCP_RATE_LIMIT_PER_MEMBER_PER_MINUTE: ENV.MCP_RATE_LIMIT_PER_MEMBER_PER_MINUTE,
+  MCP_WRITE_ENTRIES_PER_CALL: ENV.MCP_WRITE_ENTRIES_PER_CALL,
+  MCP_WRITE_ENTRIES_PER_DAY: ENV.MCP_WRITE_ENTRIES_PER_DAY,
 });
 
 /**
@@ -483,6 +487,21 @@ assertCloudAiUsageCap({ mode: deploymentConfig.mode, ai: aiConfig, usage: aiUsag
 export const aiUsageMeter = createPgAiUsageMeter({ db, config: aiUsageConfig });
 
 /**
+ * Issue #439 (M2a) — AI app writes over the app's own domain write paths
+ * (water, weight and body composition, vitals, supplement taken), with
+ * receipts, ownership and the per-call and per-day limits; `null` while the
+ * MCP server is off.
+ */
+export const aiAppWrites = aiAppsService
+  ? createAiAppWrites({
+      db,
+      targets: createAiAppWriteTargets(db),
+      limits: mcpConfig.writeLimits,
+      logger: createStructuredLogger({ level: "info" }).child({ component: "ai-apps" }),
+    })
+  : null;
+
+/**
  * Issue #439 — the MCP server and REST tool API over {@link aiAppsService}, or
  * `null` when `MCP_ENABLED` is off (then no route is mounted). The tools read
  * only the allowlisted sources in `@openvalens/mcp/sources`; the exercise
@@ -494,6 +513,22 @@ export const aiAppsHttp = aiAppsService
       service: aiAppsService,
       config: mcpConfig,
       version: "1.0.0",
+      writes: aiAppWrites,
+      // Cloud read-only (#298): reads keep working, write tools are refused.
+      ...(deploymentConfig.mode === "cloud"
+        ? {
+            canWrite: async (principal: { userId: string; organizationId: string }) => {
+              const billing = await getBillingService();
+              // Cloud always builds billing; never fail open if it is missing.
+              if (!billing) return false;
+              const access = await billing.resolveAccess({
+                userId: principal.userId,
+                organizationId: principal.organizationId,
+              });
+              return access.level !== "read_only";
+            },
+          }
+        : {}),
       // Issue #439 (M1b) — 401/403 challenges point MCP clients at the RFC
       // 9728 metadata, and OAuth access tokens are accepted on `/api/mcp`.
       oauth: mcpOAuthEndpoints

@@ -110,6 +110,9 @@ describe("connected AI apps never reach cycle data or photos", () => {
       "ai_app_grant",
       "ai_app_key",
       "ai_app_call",
+      // AI write receipts and the entries each grant wrote (M2): ids only.
+      "ai_app_write",
+      "ai_app_entry",
       // OAuth token lookup, revoke and client cleanup (M1b): no member data.
       "oauth_access_token",
       "oauth_refresh_token",

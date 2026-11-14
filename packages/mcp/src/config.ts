@@ -22,9 +22,19 @@ export const DEFAULT_MCP_RATE_LIMIT_PER_GRANT = 60;
 /** Default per-member budget across all of their grants (120 a minute). */
 export const DEFAULT_MCP_RATE_LIMIT_PER_MEMBER = 120;
 
+/** Default most entries one write call may hold (M2). */
+export const DEFAULT_MCP_WRITE_ENTRIES_PER_CALL = 100;
+/** Default most entries one grant may write in 24 hours (M2). */
+export const DEFAULT_MCP_WRITE_ENTRIES_PER_DAY = 1_000;
+
 export type McpConfig = {
   enabled: boolean;
   rateLimits: { perGrantPerMinute: number; perMemberPerMinute: number };
+  /**
+   * Write limits (M2): entries per call and per grant in any 24 hours. Larger
+   * imports go through the app's own import flows.
+   */
+  writeLimits: { entriesPerCall: number; entriesPerDay: number };
 };
 
 export type McpEnv = {
@@ -32,6 +42,8 @@ export type McpEnv = {
   DEPLOYMENT_MODE?: string | null;
   MCP_RATE_LIMIT_PER_GRANT_PER_MINUTE?: number | string | null;
   MCP_RATE_LIMIT_PER_MEMBER_PER_MINUTE?: number | string | null;
+  MCP_WRITE_ENTRIES_PER_CALL?: number | string | null;
+  MCP_WRITE_ENTRIES_PER_DAY?: number | string | null;
 };
 
 function readBoolean(value: boolean | string | null | undefined): boolean | null {
@@ -62,6 +74,10 @@ export function parseMcpConfig(env: McpEnv): McpConfig {
         env.MCP_RATE_LIMIT_PER_MEMBER_PER_MINUTE,
         DEFAULT_MCP_RATE_LIMIT_PER_MEMBER,
       ),
+    },
+    writeLimits: {
+      entriesPerCall: readLimit(env.MCP_WRITE_ENTRIES_PER_CALL, DEFAULT_MCP_WRITE_ENTRIES_PER_CALL),
+      entriesPerDay: readLimit(env.MCP_WRITE_ENTRIES_PER_DAY, DEFAULT_MCP_WRITE_ENTRIES_PER_DAY),
     },
   };
 }

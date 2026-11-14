@@ -7,6 +7,7 @@ import {
   aiAppScopeTitle,
   aiAppsHelpUrl,
   claudeCodeOAuthCommand,
+  isAiAppWriteScope,
   splitGrants,
   type AiAppCallLike,
   type AiAppGrantLike,
@@ -53,6 +54,17 @@ export type AiAppsViewProps = {
   keyPanel?: ReactNode;
   /** Renders one grant's recent activity (it loads when opened). */
   renderActivity: (grant: AiAppGrantLike) => ReactNode;
+  /**
+   * "Delete everything this app wrote" (M2): the grant waiting for
+   * confirmation, and the delete itself. Absent hides the action.
+   */
+  confirmDeleteWrites?: AiAppGrantLike | null;
+  onConfirmDeleteWritesChange?: (grant: AiAppGrantLike | null) => void;
+  onDeleteWrites?: (grant: AiAppGrantLike) => void;
+  /** The grant a delete is running for, so only its button disables. */
+  deletingWritesId?: string | null;
+  /** A link to the timeline filtered to what this grant wrote. */
+  renderTimelineLink?: (grant: AiAppGrantLike) => ReactNode;
 };
 
 /**
@@ -186,7 +198,12 @@ export function AiAppsView(props: AiAppsViewProps) {
               <Trans>
                 The app stops reading your records on its next request. What it already read stays
                 with the app. This can't be undone; you can connect again later.
-              </Trans>
+              </Trans>{" "}
+              {props.confirmRevoke?.entryCount ? (
+                <Trans>
+                  Entries it added stay in your records. You can delete them here at any time.
+                </Trans>
+              ) : null}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -198,6 +215,41 @@ export function AiAppsView(props: AiAppsViewProps) {
               onClick={() => props.confirmRevoke && props.onRevoke(props.confirmRevoke)}
             >
               <Trans>Revoke</Trans>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={Boolean(props.confirmDeleteWrites)}
+        onOpenChange={(open) => {
+          if (!open) props.onConfirmDeleteWritesChange?.(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              <Trans>Delete everything {props.confirmDeleteWrites?.label} added?</Trans>
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              <Plural
+                value={props.confirmDeleteWrites?.entryCount ?? 0}
+                one="The # entry this app added to your records is deleted. Your own entries and device data stay. This can't be undone."
+                other="The # entries this app added to your records are deleted. Your own entries and device data stay. This can't be undone."
+              />
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>
+              <Trans>Cancel</Trans>
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() =>
+                props.confirmDeleteWrites && props.onDeleteWrites?.(props.confirmDeleteWrites)
+              }
+            >
+              <Trans>Delete entries</Trans>
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -301,6 +353,16 @@ function GrantCard(props: AiAppsViewProps & { grant: AiAppGrantLike }) {
   const created = when(grant.createdAt);
   const lastUsed = when(grant.lastUsedAt) ?? t`Never`;
   const expires = grant.expiresAt ? when(grant.expiresAt) : t`Never`;
+  const scopeNames = (write: boolean) =>
+    grant.scopes
+      .filter((scope) => isAiAppWriteScope(scope) === write)
+      .map((scope) => {
+        const title = aiAppScopeTitle(scope);
+        return title ? i18n._(title) : scope;
+      })
+      .join(", ");
+  const writes = scopeNames(true);
+  const entryCount = grant.entryCount ?? 0;
 
   return (
     <li className="sheet grid gap-4 p-5" data-grant={grant.id}>
@@ -341,14 +403,8 @@ function GrantCard(props: AiAppsViewProps & { grant: AiAppGrantLike }) {
       </div>
 
       <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
-        <Fact label={<Trans>Can read</Trans>}>
-          {grant.scopes
-            .map((scope) => {
-              const title = aiAppScopeTitle(scope);
-              return title ? i18n._(title) : scope;
-            })
-            .join(", ")}
-        </Fact>
+        <Fact label={<Trans>Can read</Trans>}>{scopeNames(false)}</Fact>
+        {writes ? <Fact label={<Trans>Can add</Trans>}>{writes}</Fact> : null}
         <Fact label={<Trans>Consent</Trans>}>
           <span className="num">{grant.consentVersion}</span>
         </Fact>
@@ -358,7 +414,30 @@ function GrantCard(props: AiAppsViewProps & { grant: AiAppGrantLike }) {
           <Fact label={<Trans>Expires</Trans>}>{expires}</Fact>
         ) : null}
         {grant.revokedAt ? <Fact label={<Trans>Ended</Trans>}>{when(grant.revokedAt)}</Fact> : null}
+        {entryCount > 0 ? (
+          <Fact label={<Trans>Entries added</Trans>}>
+            <span className="num">{entryCount}</span>
+          </Fact>
+        ) : null}
       </dl>
+
+      {entryCount > 0 ? (
+        <div className="flex flex-wrap items-center gap-3 text-sm" data-testid="ai-app-writes">
+          {props.renderTimelineLink?.(grant)}
+          {props.onConfirmDeleteWritesChange ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => props.onConfirmDeleteWritesChange?.(grant)}
+              disabled={props.deletingWritesId === grant.id}
+            >
+              {props.deletingWritesId === grant.id
+                ? t`Deleting…`
+                : t`Delete everything this app wrote`}
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
 
       {props.renderActivity(grant)}
     </li>

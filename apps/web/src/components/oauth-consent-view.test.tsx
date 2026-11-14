@@ -74,6 +74,26 @@ describe("OAuthConsentView", () => {
     expect(html).toContain("cannot change your records");
   });
 
+  test("write scopes are listed apart and start unticked even when the app asks", () => {
+    const html = render({
+      request: {
+        ...REQUEST,
+        scopes: [
+          ...REQUEST.scopes,
+          { scope: "water:write", required: false, requestedByApp: true },
+          { scope: "vitals:write", required: false, requestedByApp: false },
+        ],
+      },
+    });
+    expect(html).toContain("What the app may add");
+    expect(html).toContain("Add water");
+    expect(html).toContain("Add vitals");
+    expect(html).not.toContain("cannot change your records");
+    for (const scope of ["water:write", "vitals:write"]) {
+      expect(checkbox(html, scope)).not.toContain("checked");
+    }
+  });
+
   test("allows approving only after agreeing, in a workspace the member may connect", () => {
     expect(render()).toMatch(/<button[^>]*type="submit"[^>]*disabled/);
     expect(render({ agreed: true })).not.toMatch(/<button[^>]*type="submit"[^>]*disabled/);

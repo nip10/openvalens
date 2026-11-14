@@ -10,6 +10,7 @@ import {
   aiAppExpiryLabel,
   aiAppScopeTitle,
   aiAppsHelpUrl,
+  isAiAppWriteScope,
   claudeCodeKeyCommand,
   claudeCodeOAuthCommand,
   splitGrants,
@@ -36,7 +37,10 @@ function grant(id: string, kind: AiAppGrantLike["kind"], status: AiAppGrantLike[
 describe("ai apps presenter", () => {
   test("every grantable scope has a label", () => {
     for (const scope of GRANTABLE_SCOPES) expect(aiAppScopeTitle(scope)).not.toBeNull();
-    expect(aiAppScopeTitle("water:write")).toBeNull();
+    expect(aiAppScopeTitle("water:write")).not.toBeNull();
+    expect(aiAppScopeTitle("workouts:write")).toBeNull();
+    expect(isAiAppWriteScope("water:write")).toBe(true);
+    expect(isAiAppWriteScope("records:read")).toBe(false);
   });
 
   test("Claude Code commands match the documented syntax", () => {

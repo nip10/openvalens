@@ -7,6 +7,7 @@ import { painEntry, painPreference } from "@openvalens/db/schema/pain";
 import { workout, workoutExercise } from "@openvalens/db/schema/plans";
 import { productSettings } from "@openvalens/db/schema/product-settings";
 import { customTracker, customTrackerEntry } from "@openvalens/db/schema/trackers";
+import { countsInDailyTotals } from "@openvalens/vitals/device-overlap";
 import { and, asc, between, desc, eq, ilike, inArray, isNull, sql } from "drizzle-orm";
 
 import type { Units } from "./format";
@@ -295,6 +296,8 @@ export function createMcpDataSources(
             isNull(metricSample.supersededAt),
             inArray(metricDefinition.code, [...VITAL_CODES]),
             sql`${day} between ${range.from} and ${range.to}`,
+            // Device data wins: an AI-written reading next to a device one is left out.
+            countsInDailyTotals(),
           ),
         )
         // By position: the zone is a bound parameter, so the select and group-by

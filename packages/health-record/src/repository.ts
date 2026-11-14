@@ -646,12 +646,17 @@ export function createHealthRecordRepository(db: Database) {
      * missing fixed taxonomy metric (e.g. `blood_pressure_systolic` for a
      * member who never synced a monitor) from the taxonomy. Lab markers
      * (`blood_marker_*`) are never auto-registered: they carry a lab unit.
+     *
+     * `aiApp` (#439, M2) tags a reading a connected AI app wrote for the
+     * member: the grant and the app's name, shown on the timeline as
+     * "via <app>". Only the server sets it; a client `payload.aiApp` is dropped.
      */
     async ingestMetricSample(input: {
       organizationId: string;
       userId: string;
       payload: IngestMetricSampleInput;
       registerCanonicalDefinition?: boolean;
+      aiApp?: { grantId: string; label: string };
     }) {
       const resolved = resolveCanonicalMetricCode({ metricCode: input.payload.metricCode });
       if (!resolved) {
@@ -707,9 +712,13 @@ export function createHealthRecordRepository(db: Database) {
           ingestQualityFlags: qualityFlags,
         };
       }
+      const { aiApp: _clientTag, ...metadata } = materialised.metadataJson;
       materialised.metadataJson = {
-        ...materialised.metadataJson,
+        ...metadata,
         ingestedByUserId: input.userId,
+        ...(input.aiApp
+          ? { aiApp: { grantId: input.aiApp.grantId, label: input.aiApp.label } }
+          : {}),
       };
       const [inserted] = await db
         .insert(metricSample)
