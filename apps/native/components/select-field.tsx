@@ -59,13 +59,7 @@ export function SelectField<V extends string>({
         </Text>
         <Icon icon={ChevronDown} size={18} color="ink-2" />
       </Pressable>
-      <Modal
-        visible={open}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setOpen(false)}
-        statusBarTranslucent
-      >
+      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
         <View className="flex-1 justify-end">
           <Pressable
             className="absolute inset-0 bg-black/40"

@@ -129,6 +129,34 @@ and `android/` folders this generates are not committed.
   Android, two local modules (`apps/native/modules/bt-classic`,
   `pebble-bond`) add `BLUETOOTH_CONNECT` and `BLUETOOTH_SCAN`.
 
+## Android: R8 and edge-to-edge
+
+- **R8 (#522).** Release builds are minified, optimised and resource-shrunk:
+  `expo-build-properties` turns on `enableMinifyInReleaseBuilds` and
+  `enableShrinkResourcesInReleaseBuilds`, and `apps/native/plugins/android-r8`
+  switches the template's `proguard-android.txt` (which carries
+  `-dontoptimize`) to `proguard-android-optimize.txt` and appends our keep
+  rules from `plugins/android-r8/proguard-rules.pro`. Add a rule there when a
+  native dependency loads a class by name that only a string or the manifest
+  mentions. The e2e workflow builds `assembleRelease`, so the Maestro suite
+  runs on the R8 build.
+- **Mapping file.** The AAB carries the R8 mapping
+  (`BUNDLE-METADATA/com.android.tools.build.obfuscation/proguard.map`), so
+  Play Console deobfuscates Android vitals crashes with no upload step. Sentry
+  gets no native Java events (the mobile SDK runs with `enableNative: false`),
+  so there is no mapping to upload there. If native reporting is turned on,
+  add the `@sentry/react-native` config plugin with
+  `experimental_android: { enableAndroidGradlePlugin: true, autoUploadProguardMapping: true }`.
+- **Edge-to-edge.** Expo SDK 57 / React Native 0.86 always draw edge to edge
+  (`edgeToEdgeEnabled=true`); screens pad with safe-area insets. Don't set
+  `statusBarTranslucent` / `navigationBarTranslucent` on a `Modal` or a
+  status or navigation bar colour: they are ignored. Play Console's
+  "deprecated edge-to-edge APIs" note still lists calls inside React Native,
+  react-native-screens, react-native-keyboard-controller, reanimated, Material
+  Components, `core-splashscreen` and CameraX. Those are library code (on
+  Android 15 and later the calls do nothing); the list and their upgrade
+  status are in #522.
+
 ## iOS app extensions: the home-screen widget
 
 The quick-log widget (#449, PR #499) is an iOS WidgetKit extension built at

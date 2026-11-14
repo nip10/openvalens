@@ -118,13 +118,7 @@ export function ServerCompatibilityGate({
   return (
     <>
       {children}
-      <Modal
-        visible={overlayVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => {}}
-        statusBarTranslucent
-      >
+      <Modal visible={overlayVisible} transparent animationType="fade" onRequestClose={() => {}}>
         <View
           className="flex-1 justify-center bg-background/95 px-4 py-10"
           accessibilityViewIsModal
