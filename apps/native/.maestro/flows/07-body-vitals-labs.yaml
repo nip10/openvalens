@@ -87,11 +87,18 @@ tags: [logging]
       ID: drawer-cockpit
 - tapOn:
     id: "tab-log"
+# The picker lists due supplements and recent entries first, so the Log row
+# for blood pressure can be below the fold: wait for the picker, then scroll.
 - extendedWaitUntil:
     visible:
-      id: "quick-log-kind:blood_pressure"
+      id: "quick-log-type"
     timeout: 20000
 - takeScreenshot: 07-log-picker
+- scrollUntilVisible:
+    element:
+      id: "quick-log-kind:blood_pressure"
+    direction: DOWN
+    timeout: 20000
 - tapOn:
     id: "quick-log-kind:blood_pressure"
 - tapOn:
