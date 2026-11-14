@@ -1,12 +1,15 @@
 /**
  * Who may make a widget link write (#505). `openvalens://quick-log?widget=…` is
  * a public deep link: any Android app can open it without a prompt, and a web
- * page can after one tap. So a link only saves at once when all of these hold:
+ * page can after one tap. So the link itself carries no authority, and it
+ * only saves at once when all of these hold:
  *
- * - it carries this install's nonce, which only the widget is given (Android:
- *   the widget is drawn by the app from its own storage). A link without it
- *   (every iOS link, as the iOS widget is static and has no App Group) opens
- *   the picker with the action ready and one "Save" tap;
+ * - it follows a tap on the Android widget itself. The widget's receiver,
+ *   which the app does not export (no other app can reach it), records the
+ *   tap just before it opens the app (`modules/home-widget-tap`), and the app
+ *   takes that record, once, when the link arrives. A link with no fresh tap
+ *   behind it (every iOS link: the iOS widget is static, with no App Group)
+ *   opens the picker with the action ready and one "Save" tap;
  * - the active workspace is the member's own (they are its owner), never one
  *   they look after for someone else. Otherwise: the picker, nothing written;
  * - the same kind was not written from the widget in the last
@@ -18,58 +21,60 @@ import type { DueSupplement } from "@openvalens/api/contracts/quick-log";
 
 import type { HomeWidgetAction, HomeWidgetTapPlan } from "./model";
 
-/** The query parameter the widget's links carry the nonce in. */
-export const HOME_WIDGET_NONCE_PARAM = "nonce";
-
 /** Repeated widget writes of one kind within this window are ignored. */
 export const HOME_WIDGET_REPEAT_WINDOW_MS = 10_000;
 
-const NONCE_BYTES = 16;
-const NONCE_PATTERN = /^[0-9a-f]{32}$/;
+/**
+ * How long a recorded widget tap vouches for the link it opens. Generous: a
+ * cold start can take some seconds before the screen asks.
+ */
+export const HOME_WIDGET_TAP_WINDOW_MS = 30_000;
 
-/** A fresh per-install nonce: 16 random bytes as lowercase hex. */
-export function newHomeWidgetNonce(randomBytes: (count: number) => Uint8Array): string {
-  const bytes = randomBytes(NONCE_BYTES);
-  if (bytes.length !== NONCE_BYTES) throw new Error("home widget nonce: short random bytes");
-  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
-}
+type WriteAction = Exclude<HomeWidgetAction, "log">;
 
-export function isHomeWidgetNonce(value: unknown): value is string {
-  return typeof value === "string" && NONCE_PATTERN.test(value);
-}
-
-/** Compares in time independent of where the strings first differ. */
-function sameNonce(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i += 1) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return diff === 0;
+/**
+ * Whether a link follows a tap on the widget itself. `ageMs` is how long ago
+ * the widget's receiver recorded a tap on that button; `null` when there is
+ * none to take (another app opened the link, or iOS).
+ */
+export function homeWidgetTapVerified(ageMs: number | null | undefined): boolean {
+  return (
+    typeof ageMs === "number" &&
+    Number.isFinite(ageMs) &&
+    ageMs >= 0 &&
+    ageMs < HOME_WIDGET_TAP_WINDOW_MS
+  );
 }
 
 /**
- * Whether the link's `?nonce=` is this install's. `stored` is `undefined`
- * while it is being read (the answer is then `null`: wait), and `null` when
- * this install has none (no Android widget drawn yet, or iOS).
+ * Asks the receiver's record once per link: taking a tap forgets it, so the
+ * answer is kept until the link is gone (`reset`). "Log…" writes nothing and
+ * takes nothing.
  */
-export function homeWidgetLinkVerified(
-  linkNonce: string | readonly string[] | undefined | null,
-  stored: string | null | undefined,
-): boolean | null {
-  if (stored === undefined) return null;
-  const raw = Array.isArray(linkNonce) ? linkNonce[0] : linkNonce;
-  if (!isHomeWidgetNonce(stored) || !isHomeWidgetNonce(raw)) return false;
-  return sameNonce(raw, stored);
+export function createHomeWidgetLinkCheck(takeTap: (action: WriteAction) => number | null) {
+  let current: { action: WriteAction; verified: boolean } | null = null;
+  return {
+    verified(action: WriteAction): boolean {
+      if (current?.action !== action)
+        current = { action, verified: homeWidgetTapVerified(takeTap(action)) };
+      return current.verified;
+    },
+    /** The link was handled or left: the next one is asked afresh. */
+    reset() {
+      current = null;
+    },
+  };
 }
 
 export type GuardedHomeWidgetTap =
   | HomeWidgetTapPlan
   /** The active workspace is not the member's own: the picker, nothing written. */
-  | { type: "not_own_record"; action: Exclude<HomeWidgetAction, "log"> }
+  | { type: "not_own_record"; action: WriteAction }
   /** The link is not known to come from the widget: the action, ready to save with one tap. */
   | { type: "confirm_water" }
   | { type: "confirm_take"; item: DueSupplement }
   /** The same kind was written from the widget a moment ago: ignored, with a toast. */
-  | { type: "repeat_ignored"; action: Exclude<HomeWidgetAction, "log"> };
+  | { type: "repeat_ignored"; action: WriteAction };
 
 /**
  * Applies the rules above to the plan `planHomeWidgetTap` made.
@@ -118,10 +123,10 @@ export function isOwnRecord(me: {
 
 /** When each kind was last written from the widget, in this app process. */
 export function createHomeWidgetWriteLog() {
-  const last = new Map<Exclude<HomeWidgetAction, "log">, number>();
+  const last = new Map<WriteAction, number>();
   return {
-    lastWriteAt: (action: Exclude<HomeWidgetAction, "log">) => last.get(action),
-    record: (action: Exclude<HomeWidgetAction, "log">, at: number) => {
+    lastWriteAt: (action: WriteAction) => last.get(action),
+    record: (action: WriteAction, at: number) => {
       last.set(action, at);
     },
   };

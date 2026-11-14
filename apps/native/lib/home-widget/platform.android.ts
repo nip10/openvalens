@@ -5,14 +5,15 @@ import { TurboModuleRegistry } from "react-native";
 import type { WidgetTaskHandler } from "react-native-android-widget";
 
 import { homeWidgetView, type HomeWidgetSnapshot } from "./model";
-import { readHomeWidgetNonce, readHomeWidgetSnapshot } from "./storage";
+import { readHomeWidgetSnapshot } from "./storage";
 import { widgetLayouts } from "./widget-layout";
 
 /**
  * The Android home-screen widget (#449), drawn with react-native-android-widget.
  * The widget runs inside the app: Android starts the app's JS as a headless
  * task to draw it, and the task reads the snapshot the app stored. The
- * receiver (`QuickLog`) is set up by the library's config plugin in app.json.
+ * receiver (`QuickLog`) is set up by the library's config plugin in app.json,
+ * and records water and "Taken" taps (`modules/home-widget-tap`, #505).
  */
 export const HOME_WIDGET_DRAWN_BY_APP = true;
 
@@ -45,36 +46,37 @@ function deviceLocale(): string | null {
   }
 }
 
-function render(lib: Library, snapshot: HomeWidgetSnapshot | null, nonce: string | null) {
+function render(lib: Library, snapshot: HomeWidgetSnapshot | null) {
   // Signed out there is no snapshot: the phone's language.
   const i18n = i18nFor(snapshot?.locale ?? resolveLocale([deviceLocale()]));
-  const view = homeWidgetView(snapshot, i18n, localDateIn(deviceTimeZone(), new Date()), nonce);
+  const view = homeWidgetView(snapshot, i18n, localDateIn(deviceTimeZone(), new Date()));
   return widgetLayouts(lib, view);
 }
 
-/**
- * Redraws every placed widget from `snapshot` (`null`: signed out). The
- * buttons' links carry the stored nonce (#505); the app makes it before it
- * first stores a snapshot (`ensureHomeWidgetNonce`).
- */
+/** Redraws every placed widget from `snapshot` (`null`: signed out). */
 export async function drawHomeWidget(snapshot: HomeWidgetSnapshot | null): Promise<void> {
   const lib = library();
   if (!lib) return;
-  const nonce = snapshot ? await readHomeWidgetNonce() : null;
   await lib.requestWidgetUpdate({
     widgetName: WIDGET_NAME,
-    renderWidget: () => render(lib, snapshot, nonce),
+    renderWidget: () => render(lib, snapshot),
   });
 }
 
 /** Android asks for a drawing when a widget is placed, resized or due an update. */
 const handleWidgetTask: WidgetTaskHandler = async ({ widgetAction, renderWidget }) => {
   const lib = library();
-  // Taps open a deep link: they never reach here.
+  // Taps open the app from the receiver (`modules/home-widget-tap`): they never reach here.
   if (!lib || widgetAction === "WIDGET_DELETED" || widgetAction === "WIDGET_CLICK") return;
-  const snapshot = await readHomeWidgetSnapshot();
-  renderWidget(render(lib, snapshot, snapshot ? await readHomeWidgetNonce() : null));
+  renderWidget(render(lib, await readHomeWidgetSnapshot()));
 };
+
+/**
+ * How long ago the widget's water or "Taken" button was tapped, in ms, and
+ * forgets the tap (#505). The widget's receiver records it just before it
+ * opens the app; `null` when there is none (the link came from elsewhere).
+ */
+export { takeHomeWidgetTap } from "../../modules/home-widget-tap";
 
 /** From the app entry (`index.ts`), so the headless task exists before any screen loads. */
 export function registerHomeWidgetTask(): void {

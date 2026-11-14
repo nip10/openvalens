@@ -20,7 +20,6 @@ import {
 import { drawHomeWidget, HOME_WIDGET_DRAWN_BY_APP } from "@/lib/home-widget/platform";
 import {
   clearHomeWidgetSnapshot,
-  ensureHomeWidgetNonce,
   useHomeWidgetValuesEnabled,
   writeHomeWidgetSnapshot,
 } from "@/lib/home-widget/storage";
@@ -82,9 +81,7 @@ function AndroidHomeWidgetSync() {
     }
     if (!snapshotKey) return;
     const next = JSON.parse(snapshotKey) as HomeWidgetSnapshot;
-    // The nonce first, so the drawing's links carry it (#505).
-    void ensureHomeWidgetNonce()
-      .then(() => writeHomeWidgetSnapshot(next))
+    void writeHomeWidgetSnapshot(next)
       .then(() => drawHomeWidget(next))
       .catch(() => {});
   }, [snapshotKey, signedIn, session.isPending]);

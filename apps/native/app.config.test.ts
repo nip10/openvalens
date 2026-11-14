@@ -110,4 +110,25 @@ describe("app.config.ts", () => {
       ["QuickLog", "home_screen|not_keyguard"],
     ]);
   });
+
+  test("the Android widget's receiver records its own taps and keeps its class name (#505)", () => {
+    const plugin = require("./plugins/home-widget") as {
+      widgetReceiverJava: (androidPackage: string) => string;
+    };
+    const java = plugin.widgetReceiverJava(base.android?.package ?? "");
+    // The library's class, so widgets already on a home screen stay bound to it…
+    expect(java).toContain("package com.openvalens.app.widget;");
+    expect(java).toContain("public class QuickLog extends TapRecordingWidgetProvider");
+    // …made to extend the module's receiver, which records the tap before it opens the app.
+    const kotlin = readFileSync(
+      join(
+        import.meta.dir,
+        "modules/home-widget-tap/android/src/main/java/expo/modules/homewidgettap/TapRecordingWidgetProvider.kt",
+      ),
+      "utf8",
+    );
+    expect(kotlin).toContain("package expo.modules.homewidgettap");
+    expect(kotlin).toContain("open class TapRecordingWidgetProvider : RNWidgetProvider()");
+    expect(java).toContain("import expo.modules.homewidgettap.TapRecordingWidgetProvider;");
+  });
 });
