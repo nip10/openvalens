@@ -183,7 +183,17 @@ function statusPayload(original: number, status: number, detail: number, size: n
 }
 
 /** An Edge on the far end of the accepted socket: COBS GFDI, no ML handle byte. */
-function fakeEdge(files: Map<number, Uint8Array>, options: { dropAfterDirectory?: boolean } = {}) {
+function fakeEdge(
+  files: Map<number, Uint8Array>,
+  options: {
+    dropAfterDirectory?: boolean;
+    /** Drop the link silently after archiving this file; later writes fail. */
+    dropAfterArchive?: number;
+    /** Never complete a write of this GFDI message type (a peer that stops reading). */
+    hangOn?: number;
+  } = {},
+) {
+  let dropped = false;
   const decoder = new GarminCobsDecoder(0x10000);
   const written: GarminGfdiFrame[] = [];
   const rawWrites: Uint8Array[] = [];
@@ -220,8 +230,13 @@ function fakeEdge(files: Map<number, Uint8Array>, options: { dropAfterDirectory?
       };
     },
     async write(bytes) {
+      if (dropped) throw new Error("BT_CLASSIC_NOT_CONNECTED");
       rawWrites.push(bytes);
       for (const message of decoder.acceptAll(bytes)) {
+        if (options.hangOn !== undefined) {
+          const type = decodeGarminGfdiFrame(message).messageType;
+          if (type === options.hangOn) await new Promise(() => undefined);
+        }
         const gfdi = decodeGarminGfdiFrame(message);
         written.push(gfdi);
         const original = gfdi.payload[0]! | (gfdi.payload[1]! << 8);
@@ -249,8 +264,10 @@ function fakeEdge(files: Map<number, Uint8Array>, options: { dropAfterDirectory?
             ...stream(file),
           );
         }
-        if (gfdi.messageType === GARMIN_MESSAGE.SET_FILE_FLAG)
+        if (gfdi.messageType === GARMIN_MESSAGE.SET_FILE_FLAG) {
           order.push(`archive:${gfdi.payload[0]}`);
+          if (gfdi.payload[0] === options.dropAfterArchive) dropped = true;
+        }
         if (gfdi.messageType === GARMIN_MESSAGE.SYSTEM_EVENT)
           order.push(`event:${gfdi.payload[0]}`);
         if (gfdi.messageType === GARMIN_MESSAGE.SUPPORTED_FILE_TYPES_REQUEST)
@@ -287,9 +304,6 @@ function fakeBtClassic(link: RfcommLink, calls: unknown[][]): BtClassicAdapter {
 
 test("listens, triggers with an SDP query, then syncs files over the accepted link", async () => {
   const fit = monitoringFit();
-  // A FIT file over 0x4000 bytes needs a second chunk.
-  const big = new Uint8Array(0x4000 + 10);
-  big.set(fit);
   const files = new Map<number, Uint8Array>([
     [0, directory([[1, 128, 32, fit.length]])],
     [1, fit],
@@ -415,4 +429,75 @@ test("an abort closes the session; unsupported adapters refuse up front", async 
       signal: new AbortController().signal,
     }),
   ).rejects.toThrow("BT_CLASSIC_UNSUPPORTED");
+});
+
+test("a link lost between files is never reported complete", async () => {
+  const fit = monitoringFit();
+  const files = new Map<number, Uint8Array>([
+    [
+      0,
+      directory([
+        [1, 128, 32, fit.length],
+        [2, 128, 32, fit.length],
+        [3, 128, 32, fit.length],
+      ]),
+    ],
+    [1, fit],
+    [2, fit],
+    [3, fit],
+  ]);
+  // The socket goes away right after the first archive, without onClosed.
+  const edge = fakeEdge(files, { dropAfterArchive: 1 });
+  await expect(
+    runGarminRfcommSync({
+      btClassic: fakeBtClassic(edge.link, []),
+      classicAddress: "5A:4B:3C:2D:1E:0F",
+      deviceId: "edge-6",
+      onRecord: () => undefined,
+      syncState: createMemoryGarminSyncStateStore(),
+      signal: new AbortController().signal,
+      configurationWaitMs: 1_000,
+      watchdogMs: 1_000,
+    }),
+  ).rejects.toThrow("BT_CLASSIC_NOT_CONNECTED");
+  expect(edge.order).toEqual(["file-types", "event:8", "download:0", "download:1", "archive:1"]);
+  expect(edge.closes()).toBe(1);
+});
+
+test("a write the device never takes times out and fails the sync", async () => {
+  const edge = fakeEdge(new Map([[0, directory([])]]), {
+    hangOn: GARMIN_MESSAGE.DOWNLOAD_REQUEST,
+  });
+  await expect(
+    runGarminRfcommSync({
+      btClassic: fakeBtClassic(edge.link, []),
+      classicAddress: "5A:4B:3C:2D:1E:0F",
+      deviceId: "edge-7",
+      onRecord: () => undefined,
+      syncState: createMemoryGarminSyncStateStore(),
+      signal: new AbortController().signal,
+      configurationWaitMs: 1_000,
+      watchdogMs: 50,
+    }),
+  ).rejects.toThrow("GARMIN_RFCOMM_WRITE_TIMEOUT");
+  expect(edge.closes()).toBe(1);
+});
+
+test("a device that never connects back ends the sync incomplete, not failed", async () => {
+  const adapter = fakeBtClassic(fakeEdge(new Map()).link, []);
+  expect(
+    await runGarminRfcommSync({
+      btClassic: {
+        ...adapter,
+        listen: async () => {
+          throw new Error("BT_CLASSIC_ACCEPT_TIMEOUT");
+        },
+      },
+      classicAddress: "5A:4B:3C:2D:1E:0F",
+      deviceId: "edge-8",
+      onRecord: () => undefined,
+      syncState: createMemoryGarminSyncStateStore(),
+      signal: new AbortController().signal,
+    }),
+  ).toEqual({ complete: false });
 });

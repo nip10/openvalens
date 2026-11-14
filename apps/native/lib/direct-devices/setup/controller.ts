@@ -1243,8 +1243,10 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
             });
           }
           // Edge bike computers on Android: files may come over RFCOMM (#421).
+          // The BLE session runs first and needs the ML (v2) transport.
           const garminRfcomm =
             garminProfile !== null &&
+            garminProfile.protocol === "v2" &&
             garminModel !== null &&
             garminUsesRfcommFileTransfer(garminModel.id) &&
             deps.onHistorySample !== undefined &&

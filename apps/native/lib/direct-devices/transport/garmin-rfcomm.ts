@@ -89,9 +89,6 @@ export const GARMIN_RFCOMM_DECODER_BYTES = 0x10000;
 export const GARMIN_RFCOMM_ACCEPT_TIMEOUT_MS = 60_000;
 export const GARMIN_RFCOMM_SDP_TIMEOUT_MS = 10_000;
 
-/** FIT files have data type 128; a directory without one triggers RFCOMM (FileTransferHandler). */
-export const GARMIN_FIT_DATA_TYPE = 128;
-
 export type GarminRfcommSyncOptions = Readonly<{
   btClassic: BtClassicAdapter;
   /** From DEVICE_INFORMATION on the BLE link (`parseGarminClassicAddress`). */
@@ -123,20 +120,31 @@ export async function runGarminRfcommSync(
   const { btClassic, signal } = options;
   if (signal.aborted) throw new Error("GARMIN_CLOSED");
   if (!btClassic.isSupported()) throw new Error("BT_CLASSIC_UNSUPPORTED");
-  const { link } = await btClassic.listen({
-    name: GARMIN_RFCOMM_SERVICE_NAME,
-    uuid: GARMIN_RFCOMM_UUID,
-    // listenUsingRfcommWithServiceRecord is the secure variant (GRL:103).
-    secure: true,
-    timeoutMs: options.acceptTimeoutMs ?? GARMIN_RFCOMM_ACCEPT_TIMEOUT_MS,
-    signal,
-    // "The device looks up our service record when queried, so only query
-    // once it exists" (GRL:109-110). The query's result does not matter.
-    onListening: () =>
-      void btClassic
-        .fetchUuids(options.classicAddress, options.sdpTimeoutMs ?? GARMIN_RFCOMM_SDP_TIMEOUT_MS)
-        .catch(() => undefined),
-  });
+  let link: RfcommLink;
+  try {
+    ({ link } = await btClassic.listen({
+      name: GARMIN_RFCOMM_SERVICE_NAME,
+      uuid: GARMIN_RFCOMM_UUID,
+      // listenUsingRfcommWithServiceRecord is the secure variant (GRL:103).
+      secure: true,
+      timeoutMs: options.acceptTimeoutMs ?? GARMIN_RFCOMM_ACCEPT_TIMEOUT_MS,
+      signal,
+      // "The device looks up our service record when queried, so only query
+      // once it exists" (GRL:109-110). The query's result does not matter.
+      onListening: () =>
+        void btClassic
+          .fetchUuids(options.classicAddress, options.sdpTimeoutMs ?? GARMIN_RFCOMM_SDP_TIMEOUT_MS)
+          .catch(() => undefined),
+    }));
+  } catch (error) {
+    if (signal.aborted) throw new Error("GARMIN_CLOSED");
+    // The device never connected back (nothing to send, or it ignores the
+    // query). Upstream just leaves its listener idle; here the sync ends
+    // incomplete, so the device keeps its files and no error is reported.
+    if (error instanceof Error && error.message === "BT_CLASSIC_ACCEPT_TIMEOUT")
+      return { complete: false };
+    throw error;
+  }
   if (signal.aborted) {
     await link.close().catch(() => undefined);
     throw new Error("GARMIN_CLOSED");
@@ -199,6 +207,8 @@ class GarminRfcommSession {
   private transfer: Transfer | null = null;
   private stalled = false;
   private closed = false;
+  /** Set once the link dropped or the session closed; every later step fails with it. */
+  private lost: Error | null = null;
   private queue: Promise<void> = Promise.resolve();
 
   constructor(
@@ -279,8 +289,8 @@ class GarminRfcommSession {
           this.stalled = true;
           return;
         }
-        // A dropped link fails every later file too.
-        if (error instanceof Error && error.message === "GARMIN_RFCOMM_CLOSED") throw error;
+        // A dropped link fails every later file too: never report it complete.
+        if (this.lost) throw this.lost;
         continue;
       }
       try {
@@ -290,6 +300,7 @@ class GarminRfcommSession {
         this.options.onFailure?.("fit");
       }
       await this.archive(entry);
+      if (this.lost) throw this.lost;
     }
   }
 
@@ -504,11 +515,17 @@ class GarminRfcommSession {
 
   /** `GarminRfcommListener.sendMessage`: COBS-encode the GFDI message, in order. */
   private writeFrame(frame: GarminGfdiFrame): Promise<void> {
-    if (this.closed) return Promise.reject(new Error("GARMIN_CLOSED"));
+    if (this.lost) return Promise.reject(this.lost);
     const bytes = encodeGarminCobs(encodeGarminGfdiFrame(frame));
     const next = this.queue.then(() => this.link.write(bytes));
     this.queue = next.catch(() => undefined);
-    return next;
+    // A peer that stops reading blocks the native write: bound it, and treat
+    // a stuck or failed write as a lost link.
+    const bounded = this.race(this.withWatchdog(next, "GARMIN_RFCOMM_WRITE_TIMEOUT"));
+    bounded.catch((error: unknown) =>
+      this.fail(error instanceof Error ? error : new Error("GARMIN_RFCOMM_WRITE_FAILED")),
+    );
+    return bounded;
   }
 
   private reply(frames: readonly GarminGfdiFrame[]): Promise<void> {
@@ -552,6 +569,7 @@ class GarminRfcommSession {
   }
 
   private fail(error: Error): void {
+    this.lost ??= error;
     this.linkLost.reject(error);
     this.configured.resolve();
     const status = this.statusWaiter;
