@@ -250,9 +250,9 @@ describe.skipIf(!url)("AI-app grants against disposable PostgreSQL", () => {
   });
 
   test("reserved scopes and a stale consent version are refused", async () => {
-    // M2a and M2b write scopes are grantable; the M2c draft scopes are still reserved.
-    await expectCode(createKey({ scopes: ["food:write"] }), "INVALID_SCOPE");
-    await expectCode(createKey({ scopes: ["labs:write"] }), "INVALID_SCOPE");
+    // Every M2 write scope is grantable (M2c added food and labs); unknown ones are refused.
+    await expectCode(createKey({ scopes: ["food:read"] }), "INVALID_SCOPE");
+    await expectCode(createKey({ scopes: ["labs:delete"] }), "INVALID_SCOPE");
     await expectCode(createKey({ scopes: ["cycle:read"] }), "INVALID_SCOPE");
     await expectCode(createKey({ consentVersion: "v1" }), "CONSENT_REQUIRED");
   });

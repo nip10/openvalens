@@ -11,8 +11,9 @@
  *   every create screen and the OAuth consent screen. A write scope lets the
  *   app add entries to that domain and delete the entries its own grant wrote;
  *   it never lets the app change or delete anything else.
- * - Reserved scopes are known names that cannot be granted yet (later M2
- *   writes). Creating a grant with one fails.
+ * - Reserved scopes are known names that cannot be granted yet. None are left
+ *   since M2c; the list stays so a future name can be held back the same way.
+ *   Creating a grant with one fails.
  *
  * Cycle data and progress photos have no scope at all: no grant can ever
  * reach them (see `./exclusions`).
@@ -33,9 +34,10 @@ export const OPT_IN_SCOPES = [
 ] as const;
 
 /**
- * Write scopes that can be granted today (M2a and M2b, the save-at-once
- * domains). Each one covers adding entries in its domain and deleting entries
- * this grant wrote there.
+ * Write scopes that can be granted today. M2a and M2b are the save-at-once
+ * domains; M2c adds food and labs, whose entries are drafts the member
+ * confirms in the app. Each one covers adding entries in its domain and
+ * deleting entries this grant wrote there.
  */
 export const WRITE_SCOPES = [
   "water:write",
@@ -45,7 +47,8 @@ export const WRITE_SCOPES = [
   "vitals:write",
   // A supplement taken (an intake of one of the member's own supplements).
   "supplements:write",
-  // A workout session: catalog exercises only (M2b).
+  // A workout session (M2b). One with an exercise not in the catalog is a
+  // draft the member confirms, mapping or creating the exercise (M2c).
   "workouts:write",
   // A night of sleep, saved as a manual night; device nights win (M2b).
   "sleep:write",
@@ -53,6 +56,10 @@ export const WRITE_SCOPES = [
   "trackers:write",
   // Pain log entries, only while the pain log and its AI switch are on (#442, M2b).
   "pain:write",
+  // A meal draft the member matches to foods and logs in the meal diary (#73, M2c).
+  "food:write",
+  // A lab result the member confirms on the Labs screen (M2c).
+  "labs:write",
 ] as const;
 
 export type WriteScope = (typeof WRITE_SCOPES)[number];
@@ -62,11 +69,8 @@ export const GRANTABLE_SCOPES = [BASE_SCOPE, ...OPT_IN_SCOPES, ...WRITE_SCOPES] 
 
 export type GrantableScope = (typeof GRANTABLE_SCOPES)[number];
 
-/**
- * Names held back for later milestones so nothing else takes them: the M2c
- * draft scopes (food drafts and lab drafts the member confirms in the app).
- */
-export const RESERVED_SCOPES = ["food:write", "labs:write"] as const;
+/** Names held back for later milestones so nothing else takes them (none today). */
+export const RESERVED_SCOPES = [] as const satisfies readonly string[];
 
 export type ReservedScope = (typeof RESERVED_SCOPES)[number];
 

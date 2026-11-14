@@ -139,6 +139,10 @@ export const DATA_RIGHTS_REGISTRY: Readonly<Record<string, TableEntry>> = Object
   // exported, and erased with the account or the workspace.
   ai_app_write: { kind: "user", redact: ["fingerprint"] },
   ai_app_entry: { kind: "user" },
+  // AI app drafts (#439, M2c): what an app sent that waits for the member's
+  // review (a meal draft, a lab result, a workout). The member's own:
+  // exported, and erased with the account or the workspace.
+  ai_app_draft: { kind: "user" },
   // OAuth 2.1 for AI apps (#439, M1b), owned by Better Auth. The member's
   // consents and opaque tokens (each pointing at its `ai_app_grant`) are
   // theirs: exported with the token digests and the stored refresh response

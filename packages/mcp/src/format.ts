@@ -57,9 +57,16 @@ export type RangeInput = {
 export type ResolvedRange = { from: string; to: string; offset: number; pageSize: number };
 
 export class ToolInputError extends Error {
-  constructor(message: string) {
+  /**
+   * Machine-readable detail the REST API adds to the error body, e.g.
+   * `accepted_units` for a lab unit that is not accepted (M2c). The message
+   * always says the same in words, for MCP clients.
+   */
+  readonly details?: Record<string, unknown>;
+  constructor(message: string, details?: Record<string, unknown>) {
     super(message);
     this.name = "ToolInputError";
+    if (details) this.details = details;
   }
 }
 

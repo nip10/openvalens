@@ -7,6 +7,7 @@ import type { WriteScope } from "./scopes";
 import type { McpToolContext, McpToolDefinition } from "./tools";
 import {
   BODY_ENTRY_KINDS,
+  FOOD_ENTRY_MEALS,
   VITAL_ENTRY_KINDS,
   WORKOUT_ENTRY_INTENSITIES,
   WORKOUT_ENTRY_TYPES,
@@ -26,8 +27,11 @@ import {
  * own manual entries, labelled "via <app>"; they never change device data.
  * Larger imports go through the app's import screens.
  *
- * Later (M2c): food and lab drafts, and workouts with an exercise that is not
- * in the catalog, all as drafts the member confirms in the app.
+ * M2c: food (a meal draft) and labs (a lab result), and a workout with an
+ * exercise that is not in the catalog, are drafts the member confirms in the
+ * app. Their entries come back with status `pending_review`; nothing lands in
+ * the member's records until the member confirms. The same receipts, tags,
+ * ownership and limits apply.
  */
 
 /** Hard cap of the input schema; the configured per-call limit is checked at run time. */
@@ -65,6 +69,8 @@ const READING_OVERLAP_NOTE =
   "An entry within ten minutes of a device reading of the same kind is marked possibleDuplicate (the device reading counts in daily totals).";
 const RETURNS_NOTE =
   "Returns an entryId per entry. Needs a mutationId; at most 100 entries per call by default.";
+const DRAFT_NOTE =
+  "Each entry is a draft labelled with this app's name (status pending_review) that the member confirms or discards in the app; nothing is saved to their records before that. Tell the member it is waiting for their review.";
 
 const DELETE_NOTE =
   "Deletes only entries this same app wrote, by the entryIds its log calls returned. Any other id (the member's own entries, another app's, unknown) is answered not_found and left alone. Needs a mutationId.";
@@ -83,12 +89,16 @@ function logTool(input: {
   entry: z.ZodType;
   /** How an overlap with device data is reported; empty for domains with no device data. */
   overlapNote?: string;
+  /** What happens to the entries; drafts (M2c) say so instead of "saved". */
+  savedNote?: string;
 }): McpToolDefinition {
   const overlap = input.overlapNote ?? READING_OVERLAP_NOTE;
   return {
     name: input.name,
     title: input.title,
-    description: [input.description, SAVED_NOTE, overlap, RETURNS_NOTE].filter(Boolean).join(" "),
+    description: [input.description, input.savedNote ?? SAVED_NOTE, overlap, RETURNS_NOTE]
+      .filter(Boolean)
+      .join(" "),
     scope: input.scope,
     write: "add",
     input: z.strictObject({ mutationId, entries: entriesOf(input.entry) }) as z.ZodType<
@@ -161,7 +171,7 @@ const workoutExercise = z.strictObject({
     .positive()
     .optional()
     .describe(
-      "The exercise's id from `exercises.search`. Required: only catalog exercises can be saved.",
+      "The exercise's id from `exercises.search`. Search there first: a workout whose exercises all have an id is saved at once.",
     ),
   name: z
     .string()
@@ -170,7 +180,7 @@ const workoutExercise = z.strictObject({
     .max(200)
     .optional()
     .describe(
-      "Do not use: an exercise without a catalog id is refused for now. Search the catalog with `exercises.search` instead.",
+      "Only for an exercise `exercises.search` does not find: its name, without an exerciseId. The workout then becomes a draft the member reviews in the app, where they map the exercise to a catalog one or add it as their own.",
     ),
   sets: z.array(workoutSet).max(20).optional(),
 });
@@ -285,7 +295,7 @@ export const WRITE_TOOLS: readonly McpToolDefinition[] = Object.freeze([
     title: "Log a workout",
     scope: "workouts:write",
     description:
-      "Adds workout sessions the member did, one entry per session. A session with only a type, a duration and an effort rating is fine. Exercises must be catalog exercises: give each one's exerciseId from `exercises.search` (the member's own custom exercises are there too) and optional sets (reps, weight in kg or lb, RPE). A session with an exercise that is not in the catalog is refused; log it without that exercise, or ask the member to add it in the app.",
+      "Adds workout sessions the member did, one entry per session. A session with only a type, a duration and an effort rating is fine. Give each exercise's exerciseId from `exercises.search` (the member's own custom exercises are there too) and optional sets (reps, weight in kg or lb, RPE). A session with an exercise `exercises.search` does not find, given by name only, is not saved at once: it becomes a draft (status pending_review) the member reviews in the app, mapping that exercise to a catalog one or adding it as their own. An exerciseId the catalog does not have is refused.",
     overlapNote: "",
     entry: z.strictObject({
       date: isoDay,
@@ -382,5 +392,94 @@ export const WRITE_TOOLS: readonly McpToolDefinition[] = Object.freeze([
     title: "Delete logged pain entries",
     scope: "pain:write",
     what: "pain entries",
+  }),
+  // ─── M2c: drafts the member confirms ────────────────────────
+  logTool({
+    domain: "food",
+    name: "food.log",
+    title: "Suggest a meal",
+    scope: "food:write",
+    description:
+      "Makes a meal draft from what the member said they ate, one entry per meal: either `description`, the meal in the member's words (split into items the same way as the app's \"Describe a meal\"), or `items` already split (the food, the quantity as stated, the unit). The member reviews it in the app, matches each item to a food and logs it in the meal diary; nothing is added to the food diary until they do. Send only what the member said: never nutrient values, and never a weight, volume or portion they did not state.",
+    savedNote: DRAFT_NOTE,
+    overlapNote: "",
+    entry: z
+      .strictObject({
+        at: at.describe("When the meal was eaten, ISO 8601 with a UTC offset. Not in the future."),
+        meal: z.enum(FOOD_ENTRY_MEALS).optional(),
+        description: z
+          .string()
+          .trim()
+          .min(1)
+          .max(2000)
+          .optional()
+          .describe('The meal as the member described it, e.g. "two eggs, a slice of toast".'),
+        items: z
+          .array(
+            z.strictObject({
+              food: z.string().trim().min(1).max(200),
+              quantity: z
+                .union([z.number().finite().positive(), z.string().trim().min(1).max(40)])
+                .optional()
+                .describe('As stated: a number, or words such as "half" or "a couple".'),
+              unit: z
+                .string()
+                .trim()
+                .min(1)
+                .max(20)
+                .optional()
+                .describe('"slice", "g", "cup"…; omit when none was stated.'),
+            }),
+          )
+          .min(1)
+          .max(20)
+          .optional(),
+      })
+      .refine((entry) => (entry.description === undefined) !== (entry.items === undefined), {
+        message: "Give either description or items.",
+      }),
+  }),
+  deleteTool({
+    domain: "food",
+    name: "food.delete",
+    title: "Delete a meal draft",
+    scope: "food:write",
+    what: "meal drafts that are still waiting for the member's review",
+  }),
+  logTool({
+    domain: "labs",
+    name: "labs.log",
+    title: "Suggest lab results",
+    scope: "labs:write",
+    description:
+      "Adds lab results the member gives, one entry per marker: one of the member's own lab markers (its code, e.g. ferritin, or its name), the value, and the unit exactly as written on the report. The unit must be one the marker already uses; otherwise the call fails and lists the accepted units. Never convert a value to another unit yourself. Give referenceRange only when the report printed one; it is saved labelled as the range from the report, and nothing else is added. Each result waits on the member's Labs screen until they confirm it.",
+    savedNote: DRAFT_NOTE,
+    overlapNote: "",
+    entry: z.strictObject({
+      at: at.describe("When the sample was taken, ISO 8601 with a UTC offset. Not in the future."),
+      marker: z.string().trim().min(1).max(120),
+      value: z.number().finite(),
+      unit: z.string().trim().min(1).max(40),
+      referenceRange: z
+        .strictObject({
+          low: z.number().finite().optional(),
+          high: z.number().finite().optional(),
+          text: z.string().trim().min(1).max(120).optional(),
+        })
+        .refine(
+          (range) =>
+            range.low !== undefined || range.high !== undefined || range.text !== undefined,
+          { message: "Give low, high or text." },
+        )
+        .optional()
+        .describe("The reference range printed on the report, only when it printed one."),
+    }),
+  }),
+  deleteTool({
+    domain: "labs",
+    name: "labs.delete",
+    title: "Delete lab results",
+    scope: "labs:write",
+    what: "lab results (waiting for review or confirmed)",
   }),
 ]);

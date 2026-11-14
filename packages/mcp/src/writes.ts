@@ -11,8 +11,8 @@ import { ToolInputError } from "./format";
 import type { AiAppGrantPrincipal } from "./grants";
 
 /**
- * AI app writes (Issue #439, M2a, extended in M2b): the foundation every write
- * tool runs on.
+ * AI app writes (Issue #439, M2a, extended in M2b and M2c): the foundation
+ * every write tool runs on.
  *
  * - **Idempotency.** Every write call carries a `mutationId`. Its receipt
  *   (`ai_app_write`, keyed by grant and mutation id) follows the plain-water
@@ -35,6 +35,12 @@ import type { AiAppGrantPrincipal } from "./grants";
  *   entries only. They never merge into or overwrite a device reading; an
  *   entry near one is flagged `possibleDuplicate` and device data wins in the
  *   daily totals.
+ * - **Drafts (M2c).** Food, labs and a workout with an exercise that is not in
+ *   the catalog are written as drafts the member reviews in the app
+ *   (`pendingReview`, status `pending_review`). They go through the same
+ *   receipts, tags, ownership and limits; nothing lands in the member's
+ *   records until they confirm one. "Delete everything this app wrote" also
+ *   removes the drafts still waiting.
  *
  * Domain writes go through {@link McpWriteTargets}, injected by the server:
  * the same write paths the app's own quick log uses. This package never
@@ -55,7 +61,9 @@ export type AiWriteTargetTable =
   | "workout"
   | "health_event"
   | "custom_tracker_entry"
-  | "pain_entry";
+  | "pain_entry"
+  // M2c: a draft waiting for the member's review (its id in `targetUuids`).
+  | "ai_app_draft";
 
 /** The domain rows one entry made. */
 export type AiWrittenEntry = {
@@ -71,6 +79,8 @@ export type AiWrittenEntry = {
    * kept and the device data counts.
    */
   possibleDuplicate: boolean;
+  /** A draft the member reviews in the app before anything is saved (M2c). */
+  pendingReview?: boolean;
 };
 
 /** The domain rows of one recorded entry, as `remove` gets them. */
@@ -172,9 +182,9 @@ export type WorkoutSetEntryInput = {
   rpe?: number;
 };
 export type WorkoutExerciseEntryInput = {
-  /** A catalog id from `exercises.search`. Missing means not in the catalog: refused (M2c). */
+  /** A catalog id from `exercises.search`. Missing means not in the catalog: the workout is a draft (M2c). */
   exerciseId?: number;
-  /** Only to name an exercise that is not in the catalog, which is refused for now. */
+  /** Names an exercise that is not in the catalog; the member maps or creates it on review (M2c). */
   name?: string;
   sets?: WorkoutSetEntryInput[];
 };
@@ -208,6 +218,41 @@ export type PainEntryInput = {
   note?: string;
 };
 
+// ─── M2c: drafts the member confirms ─────────────────────────
+
+/** The meal diary's slots (`@openvalens/nutrition` `MEAL_SLOTS`). */
+export const FOOD_ENTRY_MEALS = ["breakfast", "lunch", "dinner", "snack", "other"] as const;
+
+export type FoodItemEntryInput = {
+  /** The food as the member named it, for example "wholemeal toast". */
+  food: string;
+  /** The amount as stated: a number, or words such as "half" or "a couple". */
+  quantity?: number | string;
+  /** "slice", "g", "cup"…; omit when none was stated. */
+  unit?: string;
+};
+export type FoodEntryInput = {
+  /** When it was eaten. */
+  at: string;
+  meal?: (typeof FOOD_ENTRY_MEALS)[number];
+  /** What the member said, split into items like the app's own "Describe a meal". */
+  description?: string;
+  /** Or the items already split. */
+  items?: FoodItemEntryInput[];
+};
+
+export type LabEntryInput = {
+  /** When the sample was taken. */
+  at: string;
+  /** One of the member's lab markers: its code (`ferritin`) or its name. */
+  marker: string;
+  value: number;
+  /** One of the marker's accepted units, as written on the report. */
+  unit: string;
+  /** Only when the report printed one. */
+  referenceRange?: { low?: number; high?: number; text?: string };
+};
+
 /** The domain write paths, injected by the server (the app's own quick-log paths). */
 export type McpWriteTargets = {
   water: AiDomainWriter<WaterEntryInput>;
@@ -218,6 +263,10 @@ export type McpWriteTargets = {
   sleep: AiDomainWriter<SleepEntryInput>;
   trackers: AiDomainWriter<TrackerEntryInput>;
   pain: AiDomainWriter<PainEntryInput>;
+  /** M2c: a meal draft, reviewed in "Describe a meal". */
+  food: AiDomainWriter<FoodEntryInput>;
+  /** M2c: a lab result, confirmed on the Labs screen. */
+  labs: AiDomainWriter<LabEntryInput>;
   /**
    * Deletes the domain rows of one entry an AI app wrote. `gone` when they
    * were already deleted (by the member, or an earlier retry).
@@ -231,6 +280,12 @@ export type McpWriteTargets = {
     },
     entry: AiWrittenTarget,
   ) => Promise<"deleted" | "gone">;
+  /**
+   * Deletes every draft of one grant that is still waiting for review, also
+   * one whose entry was never recorded (a call that failed half-way). Returns
+   * how many were deleted.
+   */
+  removeDrafts: (context: { scope: AiWriteScope; grantId: string }) => Promise<number>;
 };
 
 export type AiWriteDomain =
@@ -241,7 +296,9 @@ export type AiWriteDomain =
   | "workouts"
   | "sleep"
   | "trackers"
-  | "pain";
+  | "pain"
+  | "food"
+  | "labs";
 
 /** The entry kinds each write domain (and so each write scope) covers. */
 export const WRITE_DOMAIN_KINDS: Record<AiWriteDomain, readonly string[]> = {
@@ -253,6 +310,8 @@ export const WRITE_DOMAIN_KINDS: Record<AiWriteDomain, readonly string[]> = {
   sleep: ["sleep_session"],
   trackers: ["tracker_entry"],
   pain: ["pain_entry"],
+  food: ["food_draft"],
+  labs: ["lab_result"],
 };
 
 /** Too many entries for one grant today. */
@@ -269,7 +328,14 @@ export type AiLogResult = {
   replayed: boolean;
   /** "via <app>": how the app's entries are labelled in OpenValens. */
   source: string;
-  entries: Array<{ index: number; entryId: string; kind: string; possibleDuplicate: boolean }>;
+  entries: Array<{
+    index: number;
+    entryId: string;
+    kind: string;
+    possibleDuplicate: boolean;
+    /** `pending_review`: a draft the member confirms in the app before it is saved (M2c). */
+    status: "saved" | "pending_review";
+  }>;
 };
 
 export type AiDeleteResult = {
@@ -588,6 +654,7 @@ export function createAiAppWrites(options: AiAppWritesOptions) {
         entryId,
         kind: written.kind,
         possibleDuplicate: written.possibleDuplicate,
+        status: written.pendingReview ? "pending_review" : "saved",
       });
     }
     const outcome: AiLogResult = {
@@ -691,8 +758,9 @@ export function createAiAppWrites(options: AiAppWritesOptions) {
 
   /**
    * "Delete everything this app wrote": every entry one of the member's grants
-   * wrote in this workspace, revoked or not. Returns how many entries were
-   * deleted; `null` when the grant is not the member's.
+   * wrote in this workspace, revoked or not, and its drafts still waiting for
+   * review. Returns how many entries were deleted; `null` when the grant is
+   * not the member's.
    */
   async function deleteEverythingWritten(input: {
     userId: string;
@@ -737,6 +805,13 @@ export function createAiAppWrites(options: AiAppWritesOptions) {
       entries += rows.length;
       deleted += await removeEntries(principal, rows, input.correlationId);
     }
+    // Drafts still waiting whose entry a failed call never recorded.
+    const strayDrafts = await targets.removeDrafts({
+      scope: { organizationId: input.organizationId, userId: input.userId },
+      grantId: grant.id,
+    });
+    entries += strayDrafts;
+    deleted += strayDrafts;
     await writeAuditLog({
       db,
       organizationId: input.organizationId,

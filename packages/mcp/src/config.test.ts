@@ -97,11 +97,13 @@ describe("scopes", () => {
     });
   });
 
-  test("grant the M2a and M2b write scopes, which are opt-in", () => {
+  test("grant the M2 write scopes, which are opt-in", () => {
     expect(normalizeScopes([...WRITE_SCOPES])).toEqual({
       ok: true,
       scopes: [
         "body:write",
+        "food:write",
+        "labs:write",
         "pain:write",
         "records:read",
         "sleep:write",
@@ -112,13 +114,13 @@ describe("scopes", () => {
         "workouts:write",
       ],
     });
-    // Food and lab drafts (M2c) stay reserved.
-    expect([...RESERVED_SCOPES]).toEqual(["food:write", "labs:write"]);
+    // Food and lab drafts (M2c) are grantable now: nothing is reserved.
+    expect([...RESERVED_SCOPES]).toEqual([]);
     for (const scope of WRITE_SCOPES) expect(RESERVED_SCOPES).not.toContain(scope as never);
   });
 
   test("refuse reserved and unknown scopes instead of dropping them", () => {
-    for (const reserved of RESERVED_SCOPES) {
+    for (const reserved of RESERVED_SCOPES as readonly string[]) {
       expect(normalizeScopes([reserved]).ok).toBe(false);
     }
     expect(normalizeScopes(["cycle:read", "photos:read"])).toEqual({

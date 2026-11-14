@@ -2,11 +2,12 @@ import { readdir } from "node:fs/promises";
 import { beforeAll, describe, expect, test } from "bun:test";
 import { seedAccount } from "@openvalens/data-rights/testing";
 import { createDb, sql } from "@openvalens/db";
-import { aiAppCall, aiAppEntry, aiAppWrite } from "@openvalens/db/schema/ai-apps";
+import { aiAppCall, aiAppDraft, aiAppEntry, aiAppWrite } from "@openvalens/db/schema/ai-apps";
 import { metricSample } from "@openvalens/db/schema/health-record";
 import { plainWaterEntry } from "@openvalens/db/schema/nutrition";
 import { supplementIntake } from "@openvalens/db/schema/plans";
 import { createHealthRecordRepository } from "@openvalens/health-record";
+import { listLabMarkerLatest } from "@openvalens/labs";
 import { parseMcpConfig } from "@openvalens/mcp/config";
 import { AI_APP_CONSENT_VERSION, createAiAppsService } from "@openvalens/mcp/grants";
 import { createAiAppsHttp } from "@openvalens/mcp/http";
@@ -22,7 +23,11 @@ import { insertManualSleepSession, listManualSleepSessions } from "@openvalens/s
 import { listDailyVitals, listRecentBloodPressureReadings } from "@openvalens/vitals";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 
-import { createAiAppWriteTargets } from "./ai-app-writes";
+import {
+  AiAppDraftReviewError,
+  createAiAppDraftReview,
+  createAiAppWriteTargets,
+} from "./ai-app-writes";
 
 /**
  * Issue #439 (M2a, M2b) — AI app writes end to end against a disposable
@@ -35,7 +40,11 @@ import { createAiAppWriteTargets } from "./ai-app-writes";
  * source tag on the timeline. M2b adds workouts (catalog exercises only),
  * sleep (a night overlapping a device night is a possible duplicate), custom
  * trackers (only the member's own with the AI switch on) and the pain log
- * (only while it and its AI switch are on). Synthetic data only.
+ * (only while it and its AI switch are on). M2c adds drafts the member
+ * confirms: meal drafts and lab results (a known marker in one of its units,
+ * never converted), and a workout with an exercise not in the catalog; their
+ * confirm and discard, and "Delete everything this app wrote" removing the
+ * drafts still waiting. Synthetic data only.
  */
 
 const url = process.env.AI_APP_WRITES_TEST_DATABASE_URL;
@@ -722,11 +731,9 @@ describe.skipIf(!url)("AI app writes against disposable PostgreSQL", () => {
     expect(strength?.exercise_id).toBe(setup.exerciseId);
     expect(strength?.weights.map((value) => Math.round(value))).toEqual([102, 100]);
 
-    // An exercise that is not in the catalog is refused (a draft is M2c), and nothing is written.
-    for (const [index, exercise] of [
-      { name: "Banded face pulls" },
-      { exerciseId: 987_654_321 },
-    ].entries()) {
+    // An id the catalog does not have, or an exercise with neither id nor name, is refused
+    // and nothing is written. (A name without an id is a draft: see the M2c tests.)
+    for (const [index, exercise] of [{ exerciseId: 987_654_321 }, {}].entries()) {
       const refused = await rest(
         "workouts.log",
         {
@@ -737,7 +744,6 @@ describe.skipIf(!url)("AI app writes against disposable PostgreSQL", () => {
       );
       expect(refused.status).toBe(400);
       expect(refused.body.error_description).toContain("exercises.search");
-      expect(refused.body.error_description).toContain("not available yet");
     }
     const future = await rest(
       "workouts.log",
@@ -1209,5 +1215,546 @@ describe.skipIf(!url)("AI app writes against disposable PostgreSQL", () => {
     expect(
       await db.select().from(metricSample).where(eq(metricSample.dedupeHash, "device-heart_rate")),
     ).toHaveLength(1);
+  });
+
+  // ─── M2c: drafts the member confirms (food, labs, non-catalog workouts) ─
+
+  const M2C_WRITES = ["food:write", "labs:write", "workouts:write"];
+  const review = createAiAppDraftReview(db);
+  let m2c: {
+    key: string;
+    grantId: string;
+    otherKey: string;
+    exerciseId: number;
+    principal: Principal;
+  } | null = null;
+
+  async function m2cSetup() {
+    if (m2c) return m2c;
+    const { exerciseId } = await m2bSetup();
+    // The member's own lab markers, each with the unit it uses.
+    await db.execute(
+      sql`insert into metric_definition (organization_id, code, display_name, unit)
+          values (${ORG}, 'blood_marker_ferritin', 'Ferritin', 'ng/mL'),
+                 (${ORG}, 'blood_marker_glucose', 'Glucose', 'mg/dL')`,
+    );
+    const created = await key(M2C_WRITES, "Claude M2c");
+    const other = await key(M2C_WRITES, "Other M2c app");
+    const auth = (await service.authenticate(`Bearer ${created.key}`)) as {
+      ok: true;
+      principal: Principal;
+    };
+    m2c = {
+      key: created.key,
+      grantId: created.grant.id,
+      otherKey: other.key,
+      exerciseId,
+      principal: auth.principal,
+    };
+    return m2c;
+  }
+
+  async function draftsOf(grantId: string) {
+    return db.select().from(aiAppDraft).where(eq(aiAppDraft.grantId, grantId));
+  }
+
+  async function labSamples() {
+    const [row] = (
+      await db.execute(
+        sql`select count(*)::int as n from metric_sample s join metric_definition d on d.id = s.metric_definition_id
+            where s.organization_id = ${ORG} and d.code like 'blood_marker_%'`,
+      )
+    ).rows as Array<{ n: number }>;
+    return Number(row?.n ?? 0);
+  }
+
+  async function mealEntries() {
+    const [row] = (
+      await db.execute(
+        sql`select count(*)::int as n from nutrition_meal_entry where organization_id = ${ORG}`,
+      )
+    ).rows as Array<{ n: number }>;
+    return Number(row?.n ?? 0);
+  }
+
+  test("M2c write tools need their own write scope", async () => {
+    const setup = await m2cSetup();
+    const waterOnly = (await key(["water:write"], "Water only M2c")).key;
+    for (const [tool, scope, entries] of [
+      ["food.log", "food:write", [{ at: minutesAgo(30), description: "two eggs" }]],
+      [
+        "labs.log",
+        "labs:write",
+        [{ at: minutesAgo(60), marker: "ferritin", value: 40, unit: "ng/mL" }],
+      ],
+    ] as const) {
+      const refused = await rest(tool, { mutationId: `m-scope-${tool}`, entries }, waterOnly);
+      expect(refused.status).toBe(403);
+      expect(refused.body.error).toBe("insufficient_scope");
+      expect(refused.body.scope).toBe(scope);
+    }
+    expect(await db.select().from(aiAppDraft)).toHaveLength(0);
+    const names = (
+      (await mcp(setup.key, "tools/list")).body.result.tools as Array<{ name: string }>
+    ).map((tool) => tool.name);
+    expect(names).toEqual(
+      expect.arrayContaining(["food.log", "food.delete", "labs.log", "labs.delete"]),
+    );
+    const m2bNames = (
+      (await mcp(m2b!.key, "tools/list")).body.result.tools as Array<{ name: string }>
+    ).map((tool) => tool.name);
+    expect(m2bNames).not.toContain("food.log");
+    expect(m2bNames).not.toContain("labs.log");
+  });
+
+  test("food and lab writes create drafts, not entries; a retry creates no duplicate draft", async () => {
+    const setup = await m2cSetup();
+    const meals = await mealEntries();
+    const labs = await labSamples();
+    const food = {
+      mutationId: "m-food-1",
+      entries: [
+        { at: minutesAgo(90), meal: "breakfast", description: "two eggs, a slice of toast" },
+        {
+          at: minutesAgo(30),
+          items: [
+            { food: "Greek yoghurt", quantity: 150, unit: "g" },
+            { food: "blueberries", quantity: "a handful" },
+          ],
+        },
+      ],
+    };
+    const first = await rest("food.log", food, setup.key);
+    expect(first.status).toBe(200);
+    expect(first.body.result.source).toBe("via Claude M2c");
+    expect(
+      first.body.result.entries.map((entry: { kind: string; status: string }) => [
+        entry.kind,
+        entry.status,
+      ]),
+    ).toEqual([
+      ["food_draft", "pending_review"],
+      ["food_draft", "pending_review"],
+    ]);
+    const again = await rest("food.log", food, setup.key);
+    expect(again.body.result.replayed).toBe(true);
+    expect(again.body.result.entries).toEqual(first.body.result.entries);
+
+    const lab = {
+      mutationId: "m-lab-1",
+      entries: [
+        // The unit's spelling may differ; it is stored as the marker's own.
+        {
+          at: minutesAgo(600),
+          marker: "Ferritin",
+          value: 45,
+          unit: "ng/ml",
+          referenceRange: { low: 30, high: 400 },
+        },
+        { at: minutesAgo(600), marker: "blood_marker_glucose", value: 92, unit: "mg/dL" },
+      ],
+    };
+    const labFirst = await rest("labs.log", lab, setup.key);
+    expect(labFirst.status).toBe(200);
+    expect(labFirst.body.result.entries.map((entry: { status: string }) => entry.status)).toEqual([
+      "pending_review",
+      "pending_review",
+    ]);
+    const labAgain = await rest("labs.log", lab, setup.key);
+    expect(labAgain.body.result.replayed).toBe(true);
+
+    // Nothing landed in the diary or the lab readings; four drafts wait.
+    expect(await mealEntries()).toBe(meals);
+    expect(await labSamples()).toBe(labs);
+    expect(await draftsOf(setup.grantId)).toHaveLength(4);
+    const owned = await db.select().from(aiAppEntry).where(eq(aiAppEntry.grantId, setup.grantId));
+    expect(owned.every((row) => row.targetTable === "ai_app_draft")).toBe(true);
+
+    const listed = await review.list({ organizationId: ORG, userId: USER });
+    expect(listed.map((draft) => [draft.kind, draft.appName])).toEqual([
+      ["food", "Claude M2c"],
+      ["food", "Claude M2c"],
+      ["lab", "Claude M2c"],
+      ["lab", "Claude M2c"],
+    ]);
+    const breakfast = listed[0]!.payload as {
+      meal: string;
+      items: Array<{ foodText: string; quantity: number | null; flags: string[] }>;
+    };
+    expect(breakfast.meal).toBe("breakfast");
+    expect(breakfast.items.map((item) => [item.foodText, item.quantity])).toEqual([
+      ["eggs", 2],
+      ["toast", 1],
+    ]);
+    // A vague amount is flagged for the member, never guessed.
+    const snack = listed[1]!.payload as typeof breakfast;
+    expect(snack.items[1]?.quantity).toBeNull();
+    expect(snack.items[1]?.flags).toContain("vague_quantity");
+    const ferritin = listed[2]!.payload as {
+      markerCode: string;
+      unit: string;
+      referenceRange: unknown;
+    };
+    expect(ferritin.markerCode).toBe("blood_marker_ferritin");
+    expect(ferritin.unit).toBe("ng/mL");
+    expect(ferritin.referenceRange).toEqual({ low: 30, high: 400, text: null, source: "report" });
+    // No range unless the app gave one.
+    expect((listed[3]!.payload as { referenceRange: unknown }).referenceRange).toBeNull();
+    // Another member sees none of them.
+    expect(await review.list({ organizationId: ORG, userId: "user-someone-else" })).toEqual([]);
+  });
+
+  test("M2c: a retry after a failure half-way through makes each draft once", async () => {
+    const setup = await m2cSetup();
+    const cases = [
+      {
+        domain: "food" as const,
+        tool: "food.log",
+        entries: [
+          { at: minutesAgo(20), description: "porridge" },
+          { at: minutesAgo(15), items: [{ food: "coffee", quantity: 1, unit: "cup" }] },
+        ],
+      },
+      {
+        domain: "labs" as const,
+        tool: "labs.log",
+        entries: [
+          { at: minutesAgo(900), marker: "ferritin", value: 41, unit: "ng/mL" },
+          { at: minutesAgo(900), marker: "glucose", value: 90, unit: "mg/dL" },
+        ],
+      },
+    ];
+    for (const item of cases) {
+      let failOnce = true;
+      const writer = targets[item.domain] as AiDomainWriter<unknown>;
+      const flaky = {
+        ...targets,
+        [item.domain]: {
+          prepare: writer.prepare,
+          write: async (context, prepared) => {
+            const written = await writer.write(context, prepared);
+            if (failOnce) {
+              // The first draft is saved; the call dies before recording it.
+              failOnce = false;
+              throw new Error("simulated crash");
+            }
+            return written;
+          },
+        } satisfies AiDomainWriter<unknown>,
+      } as McpWriteTargets;
+      const flakyWrites = createAiAppWrites({ db, targets: flaky, limits: writes.limits });
+      const before = (await draftsOf(setup.grantId)).length;
+      const input = {
+        principal: setup.principal,
+        domain: item.domain,
+        tool: item.tool,
+        mutationId: `m-crash-${item.domain}`,
+        entries: item.entries,
+        timeZone: "UTC",
+      };
+      await expect(flakyWrites.log(input)).rejects.toThrow("simulated crash");
+      const resumed = await flakyWrites.log(input);
+      expect(resumed.entries.map((entry) => entry.status)).toEqual([
+        "pending_review",
+        "pending_review",
+      ]);
+      expect((await draftsOf(setup.grantId)).length).toBe(before + 2);
+      // These two are not part of the review walk-through below.
+      for (const entry of resumed.entries) {
+        const [row] = await db.select().from(aiAppEntry).where(eq(aiAppEntry.id, entry.entryId));
+        await review.discard({ organizationId: ORG, userId: USER, draftId: row!.targetUuids[0]! });
+      }
+    }
+  });
+
+  test("an unknown lab unit or marker is refused with the accepted list; nothing is converted", async () => {
+    const setup = await m2cSetup();
+    const before = (await draftsOf(setup.grantId)).length;
+    const unit = await rest(
+      "labs.log",
+      {
+        mutationId: "m-lab-unit",
+        entries: [{ at: minutesAgo(600), marker: "glucose", value: 5.1, unit: "mmol/L" }],
+      },
+      setup.key,
+    );
+    expect(unit.status).toBe(400);
+    expect(unit.body.accepted_units).toEqual(["mg/dL"]);
+    expect(unit.body.marker).toBe("blood_marker_glucose");
+    expect(unit.body.error_description).toContain("Accepted units: mg/dL");
+    expect(unit.body.error_description).toContain("No conversion");
+    // Over MCP the same list is in the message.
+    const viaMcp = await mcp(setup.key, "tools/call", {
+      name: "labs.log",
+      arguments: {
+        mutationId: "m-lab-unit-mcp",
+        entries: [{ at: minutesAgo(600), marker: "glucose", value: 5.1, unit: "mmol/L" }],
+      },
+    });
+    expect(viaMcp.body.result.isError).toBe(true);
+    expect(viaMcp.body.result.content[0].text).toContain("Accepted units: mg/dL");
+    const marker = await rest(
+      "labs.log",
+      {
+        mutationId: "m-lab-marker",
+        entries: [{ at: minutesAgo(600), marker: "vitamin d", value: 30, unit: "ng/mL" }],
+      },
+      setup.key,
+    );
+    expect(marker.status).toBe(400);
+    expect(marker.body.known_markers).toEqual([
+      { marker: "ferritin", name: "Ferritin", accepted_units: ["ng/mL"] },
+      { marker: "glucose", name: "Glucose", accepted_units: ["mg/dL"] },
+    ]);
+    expect((await draftsOf(setup.grantId)).length).toBe(before);
+  });
+
+  test("a workout with an exercise not in the catalog becomes a draft; catalog ones save at once", async () => {
+    const setup = await m2cSetup();
+    const workouts = await countRows("workout");
+    const body = {
+      mutationId: "m-workout-draft-1",
+      entries: [
+        {
+          date: daysAgo(2),
+          type: "weights",
+          durationMinutes: 40,
+          exercises: [
+            { exerciseId: setup.exerciseId, sets: [{ reps: 5, weight: 80 }] },
+            { name: "Banded face pulls", sets: [{ reps: 15 }, { reps: 15 }] },
+          ],
+        },
+        // Catalog only: saved at once, as in M2b.
+        {
+          date: daysAgo(2),
+          type: "weights",
+          exercises: [{ exerciseId: setup.exerciseId, sets: [{ reps: 8, weight: 60 }] }],
+        },
+      ],
+    };
+    const first = await rest("workouts.log", body, setup.key);
+    expect(first.status).toBe(200);
+    expect(
+      first.body.result.entries.map((entry: { kind: string; status: string }) => [
+        entry.kind,
+        entry.status,
+      ]),
+    ).toEqual([
+      ["workout", "pending_review"],
+      ["workout", "saved"],
+    ]);
+    const again = await rest("workouts.log", body, setup.key);
+    expect(again.body.result.replayed).toBe(true);
+    expect(await countRows("workout")).toBe(workouts + 1);
+    const [draft] = await review.list({ organizationId: ORG, userId: USER, kind: "workout" });
+    const plan = draft!.payload as {
+      exercises: Array<{ name: string; exerciseId: number | null; sets: unknown[] }>;
+    };
+    expect(plan.exercises.map((item) => [item.name, item.exerciseId])).toEqual([
+      ["Bench press", setup.exerciseId],
+      ["Banded face pulls", null],
+    ]);
+    expect(plan.exercises[1]?.sets).toHaveLength(2);
+  });
+
+  test("the member confirms or discards drafts; confirmed rows keep the app's tag", async () => {
+    const setup = await m2cSetup();
+    const scope = { organizationId: ORG, userId: USER };
+    const drafts = await review.list(scope);
+    const [breakfast, snack] = drafts.filter((draft) => draft.kind === "food");
+    const [ferritin, glucose] = drafts.filter((draft) => draft.kind === "lab");
+    const workoutDraft = drafts.find((draft) => draft.kind === "workout")!;
+
+    // Someone else cannot confirm or discard the member's drafts.
+    expect(
+      await review.confirm({ organizationId: ORG, userId: "user-x", draftId: ferritin!.id }),
+    ).toBeNull();
+    expect(
+      await review.discard({ organizationId: "org-x", userId: USER, draftId: ferritin!.id }),
+    ).toBe(false);
+
+    // A lab result is saved as a reading of its marker, with the range from the report.
+    const labsBefore = await labSamples();
+    const confirmed = await review.confirm({ ...scope, draftId: ferritin!.id });
+    expect(confirmed?.kind).toBe("lab");
+    expect(await labSamples()).toBe(labsBefore + 1);
+    const [sample] = await db
+      .select()
+      .from(metricSample)
+      .where(eq(metricSample.id, confirmed!.savedId!));
+    expect(sample?.numericValue).toBe(45);
+    expect(sample?.metadataJson).toMatchObject({
+      unit: "ng/mL",
+      refRangeLow: 30,
+      refRangeHigh: 400,
+      refRangeSource: "report",
+      aiApp: { grantId: setup.grantId, label: "Claude M2c" },
+    });
+    const markers = await listLabMarkerLatest(db, ORG, 10);
+    expect(markers.find((row) => row.code === "blood_marker_ferritin")).toMatchObject({
+      latestValue: 45,
+      referenceRange: { low: 30, high: 400, unit: "ng/mL" },
+    });
+    const [entry] = await db
+      .select()
+      .from(aiAppEntry)
+      .where(and(eq(aiAppEntry.grantId, setup.grantId), eq(aiAppEntry.kind, "lab_result")))
+      .orderBy(aiAppEntry.itemIndex);
+    expect(entry?.targetTable).toBe("metric_sample");
+    expect(entry?.targetIds).toEqual([confirmed!.savedId!]);
+    // Confirming twice saves once.
+    expect(await review.confirm({ ...scope, draftId: ferritin!.id })).toBeNull();
+    expect(await labSamples()).toBe(labsBefore + 1);
+
+    // Discarding saves nothing and removes the entry.
+    expect(await review.discard({ ...scope, draftId: glucose!.id })).toBe(true);
+    expect(await labSamples()).toBe(labsBefore + 1);
+    expect(
+      (await db.select().from(aiAppEntry).where(eq(aiAppEntry.grantId, setup.grantId))).some(
+        (row) => row.targetUuids.includes(glucose!.id),
+      ),
+    ).toBe(false);
+
+    // A workout needs an exercise for the one that was not in the catalog: the
+    // member creates it as their own and maps it.
+    const workouts = await countRows("workout");
+    await expect(review.confirm({ ...scope, draftId: workoutDraft.id })).rejects.toBeInstanceOf(
+      AiAppDraftReviewError,
+    );
+    await expect(
+      review.confirm({
+        ...scope,
+        draftId: workoutDraft.id,
+        exercises: [{ index: 1, exerciseId: 987_654_321 }],
+      }),
+    ).rejects.toBeInstanceOf(AiAppDraftReviewError);
+    expect(await countRows("workout")).toBe(workouts);
+    const [own] = (
+      await db.execute(
+        sql`insert into exercise (organization_id, source, name) values (${ORG}, 'user', 'Banded face pulls') returning id`,
+      )
+    ).rows as Array<{ id: number }>;
+    const savedWorkout = await review.confirm({
+      ...scope,
+      draftId: workoutDraft.id,
+      exercises: [{ index: 1, exerciseId: Number(own!.id) }],
+    });
+    expect(savedWorkout?.kind).toBe("workout");
+    expect(await countRows("workout")).toBe(workouts + 1);
+    const exercises = (
+      await db.execute(
+        sql`select we.name, we.exercise_id, count(ws.id)::int as sets from workout_exercise we
+            left join workout_set ws on ws.exercise_id = we.id
+            where we.workout_id = ${savedWorkout!.savedId} group by we.id order by we.sort_order`,
+      )
+    ).rows as Array<{ name: string; exercise_id: number; sets: number }>;
+    expect(exercises.map((row) => [row.name, Number(row.exercise_id), row.sets])).toEqual([
+      ["Bench press", setup.exerciseId, 1],
+      ["Banded face pulls", Number(own!.id), 2],
+    ]);
+
+    // A meal draft is done once the member has logged its items in the meal diary.
+    const meals = await mealEntries();
+    expect((await review.confirm({ ...scope, draftId: breakfast!.id }))?.kind).toBe("food");
+    expect(await review.discard({ ...scope, draftId: snack!.id })).toBe(true);
+    expect(await mealEntries()).toBe(meals);
+    expect(await draftsOf(setup.grantId)).toHaveLength(0);
+
+    // The app can delete what it wrote once confirmed; another app cannot.
+    const labEntryId = entry!.id;
+    const other = await rest(
+      "labs.delete",
+      { mutationId: "m-lab-del-other", entryIds: [labEntryId] },
+      setup.otherKey,
+    );
+    expect(other.body.result.entries).toEqual([{ entryId: labEntryId, status: "not_found" }]);
+    expect(await labSamples()).toBe(labsBefore + 1);
+  });
+
+  test("an app deletes its own pending drafts; delete everything removes drafts too", async () => {
+    const setup = await m2cSetup();
+    const made = await rest(
+      "food.log",
+      { mutationId: "m-food-2", entries: [{ at: minutesAgo(10), description: "a banana" }] },
+      setup.key,
+    );
+    const foodEntryId = made.body.result.entries[0].entryId as string;
+    // Another app, or the wrong domain, cannot delete it.
+    const other = await rest(
+      "food.delete",
+      { mutationId: "m-food-del-other", entryIds: [foodEntryId] },
+      setup.otherKey,
+    );
+    expect(other.body.result.entries[0].status).toBe("not_found");
+    const wrong = await rest(
+      "labs.delete",
+      { mutationId: "m-food-del-wrong", entryIds: [foodEntryId] },
+      setup.key,
+    );
+    expect(wrong.body.result.entries[0].status).toBe("not_found");
+    expect(await draftsOf(setup.grantId)).toHaveLength(1);
+    const own = await rest(
+      "food.delete",
+      { mutationId: "m-food-del", entryIds: [foodEntryId] },
+      setup.key,
+    );
+    expect(own.body.result.entries[0].status).toBe("deleted");
+    expect(await draftsOf(setup.grantId)).toHaveLength(0);
+
+    // Waiting drafts of every kind, and one a failed call left without an entry.
+    await rest(
+      "food.log",
+      { mutationId: "m-food-3", entries: [{ at: minutesAgo(10), description: "an apple" }] },
+      setup.key,
+    );
+    await rest(
+      "labs.log",
+      {
+        mutationId: "m-lab-3",
+        entries: [{ at: minutesAgo(60), marker: "glucose", value: 88, unit: "mg/dL" }],
+      },
+      setup.key,
+    );
+    await rest(
+      "workouts.log",
+      {
+        mutationId: "m-workout-draft-3",
+        entries: [{ date: daysAgo(1), type: "other", exercises: [{ name: "Rope climb" }] }],
+      },
+      setup.key,
+    );
+    await db.insert(aiAppDraft).values({
+      id: crypto.randomUUID(),
+      grantId: setup.grantId,
+      organizationId: ORG,
+      userId: USER,
+      kind: "food",
+      payload: { eatenAt: minutesAgo(5), meal: null, description: null, items: [] },
+    });
+    // The other app's draft stays.
+    await rest(
+      "labs.log",
+      {
+        mutationId: "m-lab-other",
+        entries: [{ at: minutesAgo(60), marker: "ferritin", value: 50, unit: "ng/mL" }],
+      },
+      setup.otherKey,
+    );
+    expect(await draftsOf(setup.grantId)).toHaveLength(4);
+    const owned = await db.select().from(aiAppEntry).where(eq(aiAppEntry.grantId, setup.grantId));
+    const labs = await labSamples();
+    const result = await writes.deleteEverythingWritten({
+      userId: USER,
+      organizationId: ORG,
+      grantId: setup.grantId,
+    });
+    // The confirmed lab reading and workout, the saved workout, and every waiting draft.
+    expect(result?.deleted).toBe(owned.length + 1);
+    expect(await draftsOf(setup.grantId)).toHaveLength(0);
+    expect(
+      await db.select().from(aiAppEntry).where(eq(aiAppEntry.grantId, setup.grantId)),
+    ).toHaveLength(0);
+    expect(await labSamples()).toBe(labs - 1);
+    expect(await review.list({ organizationId: ORG, userId: USER })).toHaveLength(1);
   });
 });

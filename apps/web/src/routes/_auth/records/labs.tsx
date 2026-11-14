@@ -39,6 +39,7 @@ import { useDisplayPreferences } from "@/lib/display-preferences";
 import { useProductSettings } from "@/utils/product-settings";
 import { enqueueMetricSample, useCacheFirst } from "@/utils/sync-engine";
 import { ModuleHiddenNote } from "@/components/module-hidden-note";
+import { AiAppLabDrafts } from "@/components/ai-app-drafts";
 
 export const Route = createFileRoute("/_auth/records/labs")({
   component: LabsPage,
@@ -273,6 +274,9 @@ function LabsPage() {
       {header}
 
       <ProductSettingsStatus />
+
+      {/* Lab results a connected AI app sent, waiting for the member (#439, M2c). */}
+      <AiAppLabDrafts onSaved={() => void markers.refetch()} />
 
       {list.length === 0 ? (
         <EmptyState

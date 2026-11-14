@@ -93,12 +93,12 @@ the consent screen):
 | `sleep:write`       | `sleep.log`, `sleep.delete`                       | A night of sleep (bedtime, wake time, optional quality 1–5)                       |
 | `trackers:write`    | `trackers.log`, `trackers.delete`                 | Entries in the member's own custom trackers whose AI switch is on                 |
 | `pain:write`        | `pain.log`, `pain.delete`                         | Pain ratings, one entry per body region (needs the pain log and its AI switch on) |
+| `food:write`        | `food.log`, `food.delete`                         | A meal draft the member reviews and logs in the meal diary (draft)                |
+| `labs:write`        | `labs.log`, `labs.delete`                         | Lab results for the member's own markers, confirmed on the Labs screen (draft)    |
 
 A grant without the scope gets `403 insufficient_scope`; on `/api/mcp` the
 challenge names the scope so the app can ask for it (approving again updates
-the connection's scopes without reconnecting). `food:write` and `labs:write`
-are reserved for M2c (food drafts through #73 and lab drafts through the
-lab-extraction review screen, both confirmed in the app) and refused for now.
+the connection's scopes without reconnecting). No scope is reserved any more.
 
 - **Same paths as the app.** Entries go through the domain write paths the
   quick log and the app's own forms use (plain-water diary,
@@ -109,9 +109,9 @@ lab-extraction review screen, both confirmed in the app) and refused for now.
   the whole call before anything is written.
 - **Workouts** take catalog exercise ids from `exercises.search` (the member's
   own custom exercises are listed there too); a session with only a type, a
-  duration and an effort rating is fine. A session with an exercise that is
-  not in the catalog is refused with what to do instead; saving it as a draft
-  the member confirms comes with M2c.
+  duration and an effort rating is fine. A session with an exercise given by
+  name only (not in the catalog) is a draft: see below. An `exerciseId` the
+  workspace cannot see is refused.
 - **Sleep** is saved as a manual night (`entryMode: "manual"`, #440), with the
   app's own sleep form rules (10 minutes to 24 hours, not ending in the
   future). A night that overlaps a device night is `possibleDuplicate: true`,
@@ -125,6 +125,50 @@ lab-extraction review screen, both confirmed in the app) and refused for now.
 - **Pain** is refused unless the member turned the pain log on and "Coach and
   connected AI apps can read my pain log" is on (#442); the pain service checks
   both again inside the write.
+- **Drafts the member confirms (M2c).** Meals, lab results and workouts with
+  an exercise that is not in the catalog are not saved at once. Each becomes a
+  row in `ai_app_draft` (its `ai_app_entry` points at it) and the log call
+  returns it with `status: "pending_review"` instead of `"saved"`. Nothing
+  reaches the member's records until they confirm it in the web app, where
+  each draft says "via <app name>"; discarding it saves nothing.
+  - **Food** (`food.log`): one entry per meal, either a `description` in the
+    member's words, split by the same local parser as "Describe a meal" (#73),
+    or `items` already split (food, quantity as stated, unit). There is no
+    field for a nutrient value, weight or portion the member did not say;
+    unclear amounts are flagged, never guessed. The draft is listed at the top
+    of "Describe a meal" (`/food-draft`); "Review" opens it in the usual
+    review, where the member matches each item to a food and logs it in the
+    meal diary with its own confirmation, then marks the draft done or
+    discards it.
+  - **Labs** (`labs.log`): `marker` must be one of the member's lab markers
+    (a `blood_marker_*` definition in the workspace, by code such as
+    `ferritin` or by name) and `unit` one the marker already uses. Spelling is
+    forgiven (case, spaces, `u`/`µ`), nothing else: no conversion is ever
+    made. Otherwise the call fails with the list, in the message and, on REST,
+    as `accepted_units` (or `known_markers` for an unknown marker). A
+    `referenceRange` is saved only when the app sends one, kept as the range
+    from the report (`refRangeSource: "report"`) and shown "(from the report)"
+    on review. The result waits in "Waiting for your review" on the Labs
+    screen; "Save to my labs" writes it with `ingestMetricSample`, tagged with
+    the app like any other AI reading.
+  - **Workouts:** the draft keeps the catalog exercises and the named ones. On
+    Workouts, the member chooses a catalog exercise for each named one or adds
+    it as their own exercise (`exerciseCatalog.createCustom`), then "Save
+    workout" saves it through the workout repository.
+  - The member's side is `aiApps.drafts.list`, `aiApps.drafts.confirm`
+    (procedure access `write`) and `aiApps.drafts.discard` (`always`, like
+    deleting what an app wrote). A confirmed lab result or workout keeps the
+    app's tag: its `ai_app_entry` now points at the saved rows, so the app's
+    own `labs.delete` / `workouts.delete` and "Delete everything this app
+    wrote" still reach it. A confirmed or discarded meal draft leaves nothing
+    behind; the foods the member logged are their own entries. Confirming
+    twice saves once.
+  - Retries never duplicate a draft: its id is derived from the entry key.
+    `*.delete` with a draft's `entryId` deletes the draft. "Delete everything
+    this app wrote" also deletes every draft still waiting, including one a
+    failed call never recorded.
+  - Drafts can be reviewed on the web app only; the mobile app does not list
+    them yet.
 - **Idempotent.** Every call needs a `mutationId`. Its receipt (`ai_app_write`)
   works like the plain-water receipts (#83): a retry with the same id and
   arguments returns the first result (`replayed: true`) and writes nothing; the
@@ -132,8 +176,8 @@ lab-extraction review screen, both confirmed in the app) and refused for now.
   from the grant, the id and its position, used as the domain's own mutation id
   or dedupe hash, so a retry after a failure half-way through never duplicates
   an entry.
-- **Source.** Every entry is recorded in `ai_app_entry` with the grant that
-  wrote it and shown as "via <app name>". On the timeline,
+- **Source.** Every entry (and every draft) is recorded in `ai_app_entry`
+  with the grant that wrote it and shown as "via <app name>". On the timeline,
   `timeline.list({ source: "ai_app:<grantId>" })` (or `/records/timeline?source=…`)
   shows only one app's entries: readings, sleep nights, tracker entries and
   pain entries. Water, supplement intakes and workouts are not timeline items

@@ -71,6 +71,7 @@ import {
 import { friendlyDate } from "@/utils/friendly";
 import { orpc } from "@/utils/orpc";
 import { ModuleHiddenNote } from "@/components/module-hidden-note";
+import { AiAppWorkoutDrafts } from "@/components/ai-app-drafts";
 import { WorkoutSessionEditor, type WorkoutEditorValue } from "@/components/workout-session-editor";
 import { WorkoutRoutines, SaveWorkoutAsRoutine } from "@/components/workout-routines";
 import { authClient } from "@/lib/auth-client";
@@ -334,6 +335,9 @@ function WorkoutsPage() {
           </Link>
         }
       />
+
+      {/* Workouts a connected AI app sent with a non-catalog exercise (#439, M2c). */}
+      <AiAppWorkoutDrafts onSaved={reloadWorkouts} />
 
       {load.isPending ? (
         <div className="grid gap-4 sm:grid-cols-2" aria-hidden="true">

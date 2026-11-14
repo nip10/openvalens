@@ -26,6 +26,12 @@ import {
 import { useState } from "react";
 
 import { DecimalHint } from "@/components/decimal-hint";
+import {
+  AiAppFoodDrafts,
+  useAiAppDraftActions,
+  ViaApp,
+  type AiAppFoodDraft,
+} from "@/components/ai-app-drafts";
 import { controlLinkClass, textLinkClass } from "@/components/food-classes";
 import { Page, PageHeader, Section, StatusPill, ToneIcon } from "@/components/page";
 import { client } from "@/utils/orpc";
@@ -56,9 +62,14 @@ function withFlags(flags: Flag[], cleared: Flag[], added: Flag | null): Flag[] {
  * A meal photo (#71) feeds the same review. It is sent to the provider only
  * after a per-photo confirmation, with metadata stripped on the server, and
  * is never stored.
+ *
+ * A meal draft a connected AI app made (#439, M2c) is listed at the top and
+ * opens in the same review. It is the one kind of draft that is stored, until
+ * the member marks it done or discards it.
  */
 const DRAFT_FAILED = msg`Could not make a draft. Nothing was saved.`;
 const DRAFT_DISCARDED = msg`Draft discarded. Nothing was saved.`;
+const AI_DRAFT_DONE = msg`Draft done. The foods you logged are in your meal diary.`;
 const PHOTO_TOO_LARGE = msg`This photo is larger than 10 MB. Choose a smaller JPEG or PNG.`;
 const PHOTO_WRONG_TYPE = msg`Use a JPEG or PNG photo up to 10 MB.`;
 
@@ -70,7 +81,10 @@ function FoodDraftPage() {
   const [candidates, setCandidates] = useState<FoodDraftCandidateWire[] | null>(null);
   // What the member typed in each quantity, so "8," stays while they type (#455).
   const [quantityText, setQuantityText] = useState<Record<string, string>>({});
-  const [source, setSource] = useState<"text" | "photo">("text");
+  const [source, setSource] = useState<"text" | "photo" | "ai">("text");
+  // A meal draft from a connected AI app being reviewed (#439, M2c).
+  const [aiDraft, setAiDraft] = useState<AiAppFoodDraft | null>(null);
+  const aiActions = useAiAppDraftActions("food");
   const [message, setMessage] = useState<MessageDescriptor | null>(null);
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoAgreed, setPhotoAgreed] = useState(false);
@@ -93,6 +107,7 @@ function FoodDraftPage() {
       // A confirmation covers one send only.
       setAiAgreed(false);
       setSource("text");
+      setAiDraft(null);
       setCandidates(result.status === "ready" ? result.candidates : null);
       setQuantityText({});
       setMessage(FOOD_DRAFT_COPY.status[result.status]);
@@ -112,6 +127,7 @@ function FoodDraftPage() {
       // A confirmation covers this one photo only.
       setPhotoAgreed(false);
       setSource("photo");
+      setAiDraft(null);
       setCandidates(result.status === "ready" ? result.candidates : null);
       setQuantityText({});
       setPhotoMessage(PHOTO_DRAFT_COPY.status[result.status]);
@@ -121,8 +137,18 @@ function FoodDraftPage() {
   const providerName = provider.data?.host
     ? `${provider.data.provider} (${provider.data.host})`
     : (provider.data?.provider ?? "");
-  const itemLegend = (number: number, heard: string | null) =>
-    heard === null ? t`Item ${number}, from the photo` : t`Item ${number}, heard “${heard}”`;
+  const itemLegend = (number: number, heard: string | null) => {
+    if (aiDraft && heard !== null) {
+      const app = aiDraft.appName;
+      return t`Item ${number}, from ${app}: “${heard}”`;
+    }
+    return heard === null ? t`Item ${number}, from the photo` : t`Item ${number}, heard “${heard}”`;
+  };
+  const closeAiDraft = (done: MessageDescriptor) => {
+    setCandidates(null);
+    setAiDraft(null);
+    setMessage(done);
+  };
   const edit = (id: string, patch: Partial<FoodDraftCandidateWire>) =>
     setCandidates((current) =>
       current ? current.map((item) => (item.id === id ? { ...item, ...patch } : item)) : current,
@@ -140,6 +166,17 @@ function FoodDraftPage() {
             <Trans>Back to meal diary</Trans>
           </Link>
         }
+      />
+      <AiAppFoodDrafts
+        reviewingId={aiDraft?.id ?? null}
+        actions={aiActions}
+        onReview={(draft) => {
+          setAiDraft(draft);
+          setSource("ai");
+          setCandidates(draft.payload.items);
+          setQuantityText({});
+          setMessage(null);
+        }}
       />
       <Section sheet>
         <div className="grid gap-4">
@@ -291,6 +328,15 @@ function FoodDraftPage() {
           info={i18n._(source === "photo" ? PHOTO_DRAFT_COPY.review : FOOD_DRAFT_COPY.review)}
         >
           <div className="grid gap-3">
+            {aiDraft ? (
+              <p className="text-sm text-ink-2">
+                <ViaApp name={aiDraft.appName} />{" "}
+                <Trans>
+                  Log each food in your meal diary, then mark the draft done. It stays here until
+                  you do.
+                </Trans>
+              </p>
+            ) : null}
             {candidates.map((item, index) => (
               <fieldset key={item.id} className="sheet grid min-w-0 gap-3 p-5">
                 <legend className="float-left mb-1 font-display font-medium text-ink">
@@ -390,16 +436,39 @@ function FoodDraftPage() {
                 </div>
               </fieldset>
             ))}
-            <Button
-              variant="destructive"
-              className="mt-1 w-fit"
-              onClick={() => {
-                setCandidates(null);
-                setMessage(DRAFT_DISCARDED);
-              }}
-            >
-              <Trans>Discard draft</Trans>
-            </Button>
+            <div className="mt-1 flex flex-wrap gap-2">
+              {aiDraft ? (
+                <Button
+                  disabled={aiActions.confirm.isPending}
+                  onClick={() =>
+                    aiActions.confirm.mutate(
+                      { draftId: aiDraft.id },
+                      { onSuccess: () => closeAiDraft(AI_DRAFT_DONE) },
+                    )
+                  }
+                >
+                  <Trans>Mark draft done</Trans>
+                </Button>
+              ) : null}
+              <Button
+                variant="destructive"
+                className="w-fit"
+                disabled={aiActions.discard.isPending}
+                onClick={() => {
+                  if (aiDraft)
+                    aiActions.discard.mutate(
+                      { draftId: aiDraft.id },
+                      { onSuccess: () => closeAiDraft(DRAFT_DISCARDED) },
+                    );
+                  else {
+                    setCandidates(null);
+                    setMessage(DRAFT_DISCARDED);
+                  }
+                }}
+              >
+                <Trans>Discard draft</Trans>
+              </Button>
+            </div>
           </div>
         </Section>
       ) : null}

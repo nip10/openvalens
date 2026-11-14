@@ -97,7 +97,7 @@ const SCOPES: Record<string, { title: MessageDescriptor; detail: MessageDescript
   },
   "workouts:write": {
     title: msg`Add workouts`,
-    detail: msg`Log workout sessions with exercises from the exercise catalog. The app can delete only the workouts it added.`,
+    detail: msg`Log workout sessions with exercises from the exercise catalog. A workout with an exercise that is not in the catalog waits for you to review it. The app can delete only the workouts it added.`,
   },
   "sleep:write": {
     title: msg`Add sleep`,
@@ -111,7 +111,26 @@ const SCOPES: Record<string, { title: MessageDescriptor; detail: MessageDescript
     title: msg`Add to pain log`,
     detail: msg`Log pain ratings by body region, only while "Coach and connected AI apps can read my pain log" is on. The app can delete only the entries it added.`,
   },
+  // M2c: entries in these domains are drafts the member confirms in the app.
+  "food:write": {
+    title: msg`Suggest meals`,
+    detail: msg`Make meal drafts you review in Describe a meal. Nothing goes into your food diary until you pick each food and log it. The app can delete only the drafts it made.`,
+  },
+  "labs:write": {
+    title: msg`Suggest lab results`,
+    detail: msg`Add lab results for your own markers, in a unit the marker already uses. Each result waits on the Labs screen until you confirm it. The app can delete only the results it added.`,
+  },
 };
+
+/** Whether an AI-app draft is a meal, a lab result or a workout (M2c). */
+export type AiAppDraftKind = "food" | "lab" | "workout";
+
+/** "Reference range from the report": how a lab result's range from an AI app is labelled. */
+export const AI_APP_LAB_RANGE_FROM_REPORT = msg({
+  message: "from the report",
+  comment:
+    "Follows a lab reference range a connected AI app sent with a result, e.g. 'Lab range 30 to 400 ng/mL (from the report)'.",
+});
 
 /** Whether a scope lets the app add entries (M2) rather than read. */
 export function isAiAppWriteScope(scope: string): boolean {

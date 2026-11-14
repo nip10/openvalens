@@ -81,6 +81,11 @@ export const PROCEDURE_ACCESS: Readonly<Record<string, ProcedureAccessClass>> = 
   // Deleting what an AI app wrote is the member's control over their own
   // records (#439, M2), like revoking: allowed while read-only.
   "aiApps.deleteWrites": ALWAYS,
+  // Drafts an AI app wrote (M2c): confirming one saves records, so it is a
+  // write; discarding one saves nothing and is the member's control.
+  "aiApps.drafts.list": R,
+  "aiApps.drafts.confirm": W,
+  "aiApps.drafts.discard": ALWAYS,
   "aiApps.workspaceSetting.get": R,
   "aiApps.workspaceSetting.set": ALWAYS,
   // OAuth consent screen (M1b): approving a connection creates a grant, like a

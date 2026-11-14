@@ -13,6 +13,14 @@ msgstr ""
 msgid "—"
 msgstr "—"
 
+#: apps/web/src/components/ai-app-drafts.tsx
+msgid "“{name}” is not in the exercise catalog. Choose one, or add it as your own."
+msgstr "“{name}” não está no catálogo de exercícios. Escolha um ou adicione-o como seu."
+
+#: apps/web/src/components/ai-app-drafts.tsx
+msgid "“{name}” will be saved as <0>{chosenName}</0>"
+msgstr "“{name}” será guardado como <0>{chosenName}</0>"
+
 #: packages/api/src/presenters/decimal-input.ts
 msgid "“{typed}” could mean {whole} or {decimal}. Type {whole} or {decimal}, whichever you mean."
 msgstr "“{typed}” pode ser {whole} ou {decimal}. Escreva {whole} ou {decimal}, conforme o que pretende."
@@ -149,7 +157,9 @@ msgid "{0, plural, one {# session} other {# sessions}}, {1}"
 msgstr "{0, plural, one {# sessão} other {# sessões}}, {1}"
 
 #. placeholder {0}: counts.sets
+#. placeholder {0}: item.sets.length
 #: apps/native/components/workout-session.tsx
+#: apps/web/src/components/ai-app-drafts.tsx
 msgid "{0, plural, one {# set} other {# sets}}"
 msgstr "{0, plural, one {# série} other {# séries}}"
 
@@ -911,6 +921,10 @@ msgstr "{luteal}: {0} a {1}"
 msgid "{luteal}: {from} to {to}"
 msgstr "{luteal}: {from} a {to}"
 
+#: apps/web/src/components/ai-app-drafts.tsx
+msgid "{marker}, from {app}"
+msgstr "{marker}, de {app}"
+
 #: packages/api/src/presenters/insights.ts
 msgid "{metric, select, sleep_duration {Sleep} resting_heart_rate {Resting heart rate} steps {Steps} other {Weight}} {direction, select, higher {higher} other {lower}} than your usual"
 msgstr "{metric, select, sleep_duration {Sono} resting_heart_rate {Frequência cardíaca em repouso} steps {Passos} other {Peso}} {direction, select, higher {acima} other {abaixo}} do seu habitual"
@@ -1184,6 +1198,10 @@ msgstr "{type}, {minutes} min, no mesmo dia"
 msgid "{type}, 2 days before"
 msgstr "{type}, 2 dias antes"
 
+#: apps/web/src/components/ai-app-drafts.tsx
+msgid "{type}, from {app}"
+msgstr "{type}, de {app}"
+
 #: packages/api/src/presenters/pain.ts
 msgid "{type}, the day before"
 msgstr "{type}, no dia anterior"
@@ -1446,6 +1464,18 @@ msgstr "Está a ser enviada uma alteração. Nada foi removido. Tente novamente 
 #: apps/native/components/change-server.tsx
 msgid "A change is being sent right now. Nothing was removed. Try again when it finishes."
 msgstr "Está a ser enviada uma alteração. Nada foi removido. Tente novamente quando terminar."
+
+#: apps/web/src/components/ai-app-drafts.tsx
+msgid "A connected AI app made these from what you told it. Review one to match each item to a food and log it in your meal diary; nothing is logged until you do."
+msgstr "Uma aplicação de IA ligada fez estes rascunhos a partir do que lhe disse. Reveja um para associar cada item a um alimento e registá-lo no diário de refeições; nada é registado até o fazer."
+
+#: apps/web/src/components/ai-app-drafts.tsx
+msgid "A connected AI app sent these results. Check each one against the report before you save it; nothing is in your labs until you do."
+msgstr "Uma aplicação de IA ligada enviou estes resultados. Confira cada um com o relatório antes de o guardar; nada fica nas suas análises até o fazer."
+
+#: apps/web/src/components/ai-app-drafts.tsx
+msgid "A connected AI app sent these workouts with an exercise that is not in the catalog. Choose a catalog exercise or add it as your own, then save; nothing is in your workouts until you do."
+msgstr "Uma aplicação de IA ligada enviou estes treinos com um exercício que não está no catálogo. Escolha um exercício do catálogo ou adicione-o como seu e guarde; nada fica nos seus treinos até o fazer."
 
 #: packages/api/src/presenters/preventive-care.ts
 msgid "A date you set has arrived"
@@ -1825,6 +1855,10 @@ msgstr "Adicionar"
 msgid "Add “{0}” as a custom exercise"
 msgstr "Adicionar “{0}” como exercício personalizado"
 
+#: apps/web/src/components/ai-app-drafts.tsx
+msgid "Add “{name}” as my own exercise"
+msgstr "Adicionar “{name}” como exercício meu"
+
 #. placeholder {0}: addExercise.name
 #. placeholder {1}: r.name
 #: apps/native/components/workout-routines.tsx
@@ -1960,6 +1994,10 @@ msgstr "Adicionar ingrediente"
 #: apps/web/src/components/ai-app-key-form.tsx
 msgid "Add it to Claude Code"
 msgstr "Adicioná-la ao Claude Code"
+
+#: packages/api/src/presenters/ai-apps.ts
+msgid "Add lab results for your own markers, in a unit the marker already uses. Each result waits on the Labs screen until you confirm it. The app can delete only the results it added."
+msgstr "Adicionar resultados de análises dos seus marcadores, numa unidade que o marcador já usa. Cada resultado fica à espera no ecrã Análises até o confirmar. A aplicação só pode eliminar os resultados que adicionou."
 
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
@@ -3334,6 +3372,10 @@ msgstr "Os intervalos de passos por hora do Casio sincronizam automaticamente en
 msgid "Catalog exercise"
 msgstr "Exercício do catálogo"
 
+#: apps/web/src/components/ai-app-drafts.tsx
+msgid "Catalog exercises"
+msgstr "Exercícios do catálogo"
+
 #: apps/web/src/components/workout-session-editor.tsx
 msgid "Catalog results"
 msgstr "Resultados do catálogo"
@@ -3343,6 +3385,7 @@ msgid "Catalog search is unavailable. You can still add an exercise by name."
 msgstr "A pesquisa no catálogo não está disponível. Ainda pode adicionar um exercício pelo nome."
 
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
+#: apps/web/src/components/ai-app-drafts.tsx
 msgid "Change"
 msgstr "Alterar"
 
@@ -4478,6 +4521,10 @@ msgstr "Não foi possível aceitar o convite."
 #: apps/web/src/utils/session-bootstrap.ts
 msgid "Could not activate your workspace. Please try again."
 msgstr "Não foi possível ativar o seu espaço de trabalho. Tente novamente."
+
+#: apps/web/src/components/ai-app-drafts.tsx
+msgid "Could not add the exercise. Try again."
+msgstr "Não foi possível adicionar o exercício. Tente novamente."
 
 #: apps/native/components/change-server.tsx
 msgid "Could not change server. Your data on this phone was kept. Try again."
@@ -6244,6 +6291,7 @@ msgstr "Desativado"
 
 #: apps/native/components/active-workout.tsx
 #: apps/native/components/workout-session.tsx
+#: apps/web/src/components/ai-app-drafts.tsx
 msgid "Discard"
 msgstr "Descartar"
 
@@ -6482,6 +6530,10 @@ msgstr "Rascunho limpo. Nada foi guardado."
 #: apps/web/src/routes/_auth/food-draft.tsx
 msgid "Draft discarded. Nothing was saved."
 msgstr "Rascunho descartado. Nada foi guardado."
+
+#: apps/web/src/routes/_auth/food-draft.tsx
+msgid "Draft done. The foods you logged are in your meal diary."
+msgstr "Rascunho concluído. Os alimentos que registou estão no diário de refeições."
 
 #: packages/api/src/presenters/food-draft.ts
 msgid "Draft ready. Nothing has been logged yet."
@@ -7728,6 +7780,11 @@ msgstr "A partir de uma fotografia"
 msgid "From the link"
 msgstr "Da ligação"
 
+#. Follows a lab reference range a connected AI app sent with a result, e.g. 'Lab range 30 to 400 ng/mL (from the report)'.
+#: packages/api/src/presenters/ai-apps.ts
+msgid "from the report"
+msgstr "do relatório"
+
 #: apps/web/src/components/exercise-library.tsx
 msgid "From wger, {licenseText}"
 msgstr "Do wger, {licenseText}"
@@ -8954,6 +9011,10 @@ msgid "It starts your weight trend."
 msgstr "Inicia a sua tendência de peso."
 
 #: apps/web/src/routes/_auth/food-draft.tsx
+msgid "Item {number}, from {app}: “{heard}”"
+msgstr "Item {number}, de {app}: “{heard}”"
+
+#: apps/web/src/routes/_auth/food-draft.tsx
 msgid "Item {number}, from the photo"
 msgstr "Item {number}, da fotografia"
 
@@ -9756,6 +9817,10 @@ msgstr "Registar dose"
 msgid "Log doses actually taken. Schedules are reminders, not proof. Goals count the day once, while every dose stays recorded."
 msgstr "Registe as doses realmente tomadas. Os horários são lembretes, não comprovativos. As metas contam cada dia uma vez, mas todas as doses ficam registadas."
 
+#: apps/web/src/routes/_auth/food-draft.tsx
+msgid "Log each food in your meal diary, then mark the draft done. It stays here until you do."
+msgstr "Registe cada alimento no diário de refeições e depois marque o rascunho como concluído. Fica aqui até o fazer."
+
 #: packages/api/src/presenters/ai-apps.ts
 msgid "Log entries in your own trackers that have \"Coach and connected AI apps can read this\" on. The app can delete only the entries it added."
 msgstr "Registar entradas nos seus acompanhamentos que têm ligado \"O Coach e as apps de IA ligadas podem ler isto\". A aplicação só pode eliminar os registos que adicionou."
@@ -9840,8 +9905,8 @@ msgid "Log weight, body fat, muscle, bone and body water. The app can delete onl
 msgstr "Registar peso, gordura corporal, músculo, osso e água corporal. A aplicação só pode eliminar os registos que adicionou."
 
 #: packages/api/src/presenters/ai-apps.ts
-msgid "Log workout sessions with exercises from the exercise catalog. The app can delete only the workouts it added."
-msgstr "Registar sessões de treino com exercícios do catálogo de exercícios. A aplicação só pode eliminar os treinos que adicionou."
+msgid "Log workout sessions with exercises from the exercise catalog. A workout with an exercise that is not in the catalog waits for you to review it. The app can delete only the workouts it added."
+msgstr "Registar sessões de treino com exercícios do catálogo de exercícios. Um treino com um exercício que não está no catálogo fica à espera da sua revisão. A aplicação só pode eliminar os treinos que adicionou."
 
 #: apps/native/components/onboarding/first-log.tsx
 #: apps/web/src/components/onboarding/setup-steps.tsx
@@ -10010,6 +10075,10 @@ msgstr "Criar rascunhos de alimentos a partir de uma fotografia da refeição"
 msgid "Make food drafts from a spoken or typed description"
 msgstr "Criar rascunhos de alimentos a partir de uma descrição falada ou escrita"
 
+#: packages/api/src/presenters/ai-apps.ts
+msgid "Make meal drafts you review in Describe a meal. Nothing goes into your food diary until you pick each food and log it. The app can delete only the drafts it made."
+msgstr "Fazer rascunhos de refeições que revê em Descrever uma refeição. Nada entra no diário alimentar até escolher e registar cada alimento. A aplicação só pode eliminar os rascunhos que fez."
+
 #: packages/api/src/presenters/wellness-profile.ts
 msgid "Male"
 msgstr "Masculino"
@@ -10099,6 +10168,10 @@ msgstr "Marcar como feito diariamente"
 #: apps/web/src/routes/_auth/goals.index.tsx
 msgid "Mark done today"
 msgstr "Marcar como feito hoje"
+
+#: apps/web/src/routes/_auth/food-draft.tsx
+msgid "Mark draft done"
+msgstr "Marcar rascunho como concluído"
 
 #: apps/native/components/nutrition-week-strip.tsx
 msgid "marked complete"
@@ -10191,6 +10264,7 @@ msgid "May help slightly"
 msgstr "Pode ajudar ligeiramente"
 
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
+#: apps/web/src/components/ai-app-drafts.tsx
 #: apps/web/src/routes/_auth/nutrition.tsx
 msgid "Meal"
 msgstr "Refeição"
@@ -10208,6 +10282,14 @@ msgstr "Diário de refeições"
 #: packages/api/src/presenters/modules.ts
 msgid "Meal diary, water, nutrients"
 msgstr "Diário de refeições, água, nutrientes"
+
+#: apps/web/src/components/ai-app-drafts.tsx
+msgid "Meal draft from {app}"
+msgstr "Rascunho de refeição de {app}"
+
+#: apps/web/src/components/ai-app-drafts.tsx
+msgid "Meal drafts waiting for your review"
+msgstr "Rascunhos de refeições à espera da sua revisão"
 
 #: apps/web/src/routes/_auth/food-draft.tsx
 msgid "Meal photo (JPEG or PNG, up to 10 MB)"
@@ -14194,6 +14276,10 @@ msgstr "Tentar carregar treinos"
 msgid "Returns you to:"
 msgstr "Regressa a:"
 
+#: apps/web/src/components/ai-app-drafts.tsx
+msgid "Review"
+msgstr "Rever"
+
 #: apps/native/components/workout-session.tsx
 msgid "Review against latest"
 msgstr "Rever com a versão mais recente"
@@ -14251,6 +14337,10 @@ msgstr "Rever: {reviewName}, {reviewAmount} em {localDate} ({reviewSource})"
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 msgid "Review: {reviewName}, {reviewAmount}, {slotLabel}, {localDate} ({source})"
 msgstr "Rever: {reviewName}, {reviewAmount}, {slotLabel}, {localDate} ({source})"
+
+#: apps/web/src/components/ai-app-drafts.tsx
+msgid "Reviewing"
+msgstr "Em revisão"
 
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Revise and try again"
@@ -14727,7 +14817,12 @@ msgstr "Guardar em {slotLabel}"
 msgid "Save to my foods for next time"
 msgstr "Guardar nos meus alimentos para a próxima vez"
 
+#: apps/web/src/components/ai-app-drafts.tsx
+msgid "Save to my labs"
+msgstr "Guardar nas minhas análises"
+
 #: apps/native/components/active-workout.tsx
+#: apps/web/src/components/ai-app-drafts.tsx
 #: apps/web/src/components/workout-session-editor.tsx
 msgid "Save workout"
 msgstr "Guardar treino"
@@ -15007,6 +15102,10 @@ msgstr "Pesquisar alimentos, adiciona a {0}"
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 msgid "Search foods, logs at {0}"
 msgstr "Pesquisar alimentos, regista às {0}"
+
+#: apps/web/src/components/ai-app-drafts.tsx
+msgid "Search the catalog"
+msgstr "Pesquisar no catálogo"
 
 #: apps/web/src/components/workout-session-editor.tsx
 msgid "Search the exercise catalog or enter a name. A session with no exercises is valid."
@@ -16296,6 +16395,14 @@ msgstr "Por exemplo, 20 min, 1:30 ou 45 s."
 #: packages/api/src/nutrition-observations.ts
 msgid "Sufficient matching timestamped records from completed diary days were available."
 msgstr "Havia registos suficientes com data e hora correspondentes de dias do diário concluídos."
+
+#: packages/api/src/presenters/ai-apps.ts
+msgid "Suggest lab results"
+msgstr "Sugerir resultados de análises"
+
+#: packages/api/src/presenters/ai-apps.ts
+msgid "Suggest meals"
+msgstr "Sugerir refeições"
 
 #: apps/native/components/workout-routines.tsx
 msgid "Suggested changes"
@@ -18790,6 +18897,10 @@ msgstr "Cintura"
 #: apps/web/src/routes/_auth/goals.$goalId.tsx
 msgid "Waiting for a record."
 msgstr "À espera de um registo."
+
+#: apps/web/src/components/ai-app-drafts.tsx
+msgid "Waiting for your review"
+msgstr "À espera da sua revisão"
 
 #: apps/native/components/complete-export-card.tsx
 #: apps/web/src/components/complete-export-card.tsx
