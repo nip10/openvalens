@@ -2,10 +2,11 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { useMutation, useQuery, type UseQueryResult } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { MailPlus, Settings2 } from "lucide-react";
-import { useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 
 import { AdminAiUsage } from "@/components/admin-ai-usage";
 import { AdminBackupStatus } from "@/components/admin-backup-status";
+import { AdminOnboardingTotals } from "@/components/admin-onboarding-totals";
 import { AdminSettingsView } from "@/components/admin-settings-view";
 import { ProductSettingsForm } from "@/components/product-settings-form";
 import { Page, PageHeader } from "@/components/page";
@@ -17,6 +18,7 @@ import {
   adminAiUsageQueryOptions,
   adminBackupStatusQueryOptions,
   adminConfigurationQueryOptions,
+  adminOnboardingTotalsQueryOptions,
 } from "@/utils/admin-settings";
 import { orpc, queryClient } from "@/utils/orpc";
 import {
@@ -25,6 +27,7 @@ import {
   type ProductSettingsSnapshot,
 } from "@/utils/product-settings";
 import { productSettingsQueryKey } from "@/utils/product-settings-keys";
+import type { OnboardingWindowDays } from "@openvalens/api/contracts/onboarding-measurement";
 import type { ProductSettingsUpdateInput } from "@openvalens/api/product-settings-contract";
 
 export const Route = createFileRoute("/_auth/admin/settings")({
@@ -95,6 +98,8 @@ function AuthenticatedAdminPage({ userId }: { userId: string }) {
       <div className="grid max-w-3xl gap-4">
         <ProductSettingsSection userId={userId} />
       </div>
+
+      {isAdmin ? <OnboardingTotalsSection userId={userId} /> : null}
 
       {isAdmin ? <AiUsageSection userId={userId} /> : null}
 
@@ -292,6 +297,21 @@ function AiUsageSection({ userId }: { userId: string }) {
   if (usage.data) return <AdminAiUsage status="ready" usage={usage.data} />;
   if (usage.isError) return <AdminAiUsage status="error" onRetry={() => void usage.refetch()} />;
   return <AdminAiUsage status="loading" />;
+}
+
+function OnboardingTotalsSection({ userId }: { userId: string }) {
+  const [windowDays, setWindowDays] = useState<OnboardingWindowDays>(30);
+  const totals = useQuery({
+    ...adminOnboardingTotalsQueryOptions(userId, windowDays),
+    enabled: !!userId,
+  });
+  const picker = { windowDays, onWindowChange: setWindowDays };
+  if (totals.data) return <AdminOnboardingTotals {...picker} status="ready" totals={totals.data} />;
+  if (totals.isError)
+    return (
+      <AdminOnboardingTotals {...picker} status="error" onRetry={() => void totals.refetch()} />
+    );
+  return <AdminOnboardingTotals {...picker} status="loading" />;
 }
 
 function BackupSection({ userId }: { userId: string }) {

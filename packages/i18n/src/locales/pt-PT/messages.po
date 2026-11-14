@@ -626,6 +626,7 @@ msgstr "{days, plural, one {# dia seguido} other {# dias seguidos}} com registo 
 msgid "{days, plural, one {This invitation expires in # day.} other {This invitation expires in # days.}}"
 msgstr "{days, plural, one {Este convite expira dentro de # dia.} other {Este convite expira dentro de # dias.}}"
 
+#: apps/web/src/components/admin-onboarding-totals.tsx
 #: packages/api/src/presenters/ai-apps.ts
 #: packages/api/src/presenters/trackers.ts
 msgid "{days} days"
@@ -1096,6 +1097,10 @@ msgstr "{serverVersion} em {host}"
 msgid "{setsDone} of {setsPlanned} sets done"
 msgstr "{setsDone} de {setsPlanned} séries feitas"
 
+#: apps/web/src/components/admin-onboarding-totals.tsx
+msgid "{signUps} new accounts in the last {windowDays} days."
+msgstr "{signUps} contas novas nos últimos {windowDays} dias."
+
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 msgid "{skipped, plural, one {# food waiting to sync was not copied.} other {# foods waiting to sync were not copied.}}"
 msgstr "{skipped, plural, one {# alimento à espera de sincronizar não foi copiado.} other {# alimentos à espera de sincronizar não foram copiados.}}"
@@ -1242,6 +1247,10 @@ msgstr "+ Treino vazio"
 #: apps/native/components/active-workout.tsx
 msgid "+30 s"
 msgstr "+30 s"
+
+#: apps/web/src/components/admin-onboarding-totals.tsx
+msgid "<0>{share}</0> ({reached} of {eligible} accounts)"
+msgstr "<0>{share}</0> ({reached} de {eligible} contas)"
 
 #: apps/web/src/components/magic-link-form.tsx
 msgid "<0>Create an account</0> first, then sign in."
@@ -2436,6 +2445,10 @@ msgstr "Respondido"
 #: apps/web/src/routes/_auth/-goal-editor.tsx
 msgid "Any days each week"
 msgstr "Quaisquer dias da semana"
+
+#: apps/web/src/components/admin-onboarding-totals.tsx
+msgid "Any entry on days 2–7"
+msgstr "Algum registo nos dias 2–7"
 
 #: packages/email/src/templates/ai-app-connected.tsx
 msgid "Anything this connection reads goes to that app, under the app's own terms. The app's name is not verified."
@@ -4800,6 +4813,10 @@ msgstr "Não foi possível carregar as definições de notificações."
 msgid "Could not load observation setting. Retry"
 msgstr "Não foi possível carregar a definição de observações. Tentar novamente"
 
+#: apps/web/src/components/admin-onboarding-totals.tsx
+msgid "Could not load onboarding totals."
+msgstr "Não foi possível carregar os totais dos primeiros passos."
+
 #: apps/native/components/ai-section.tsx
 msgid "Could not load or update AI settings."
 msgstr "Não foi possível carregar ou atualizar as definições de IA."
@@ -5481,6 +5498,10 @@ msgstr "Não foi possível preparar esta rotina. Atualize quando tiver ligação
 #: packages/api/src/presenters/score.ts
 msgid "Counted"
 msgstr "Contado"
+
+#: apps/web/src/components/admin-onboarding-totals.tsx
+msgid "Counted from when accounts were created and when entries were saved, on this server only. An entry is something a person typed in, not device data. Each figure counts only the accounts old enough for it, and a figure for fewer than {minimum} accounts is not shown. See docs/self-hosting/privacy.md, section Onboarding totals."
+msgstr "Calculado a partir da criação das contas e da hora em que os registos foram guardados, apenas neste servidor. Um registo é algo que a pessoa introduziu, não dados de dispositivos. Cada valor conta só as contas com idade suficiente, e um valor com menos de {minimum} contas não é mostrado. Consulte docs/self-hosting/privacy.md, secção Onboarding totals."
 
 #: packages/api/src/presenters/logging-streak.ts
 msgid "Counts days with at least one diary entry. It is about the habit of logging, not about what you eat. Hidden in hide-numbers mode and after any declaration."
@@ -7481,6 +7502,18 @@ msgstr "Terminar a configuração, {done} de {total}"
 #: apps/native/components/active-workout.tsx
 msgid "Finish workout"
 msgstr "Concluir treino"
+
+#: apps/web/src/components/admin-onboarding-totals.tsx
+msgid "First entry within 1 day"
+msgstr "Primeiro registo em 1 dia"
+
+#: apps/web/src/components/admin-onboarding-totals.tsx
+msgid "First entry within 10 minutes"
+msgstr "Primeiro registo em 10 minutos"
+
+#: apps/web/src/components/admin-onboarding-totals.tsx
+msgid "First entry within 7 days"
+msgstr "Primeiro registo em 7 dias"
 
 #: apps/web/src/components/magic-link-form.tsx
 msgid "First setup"
@@ -11632,6 +11665,10 @@ msgstr "Não configurado"
 msgid "Not shown for you"
 msgstr "Não mostrados para si"
 
+#: apps/web/src/components/admin-onboarding-totals.tsx
+msgid "Not shown: fewer than {minimum} accounts old enough"
+msgstr "Não mostrado: menos de {minimum} contas com idade suficiente"
+
 #: packages/api/src/presenters/workouts.ts
 msgid "Not started"
 msgstr "Não iniciado"
@@ -12080,6 +12117,10 @@ msgstr "Ativado. Só o proprietário do espaço de trabalho pode alterar isto."
 #: apps/web/src/components/ai-apps-settings-card.tsx
 msgid "On. Turning it off stops every key and connection in this workspace."
 msgstr "Ativado. Ao desativar, todas as chaves e ligações neste espaço de trabalho deixam de funcionar."
+
+#: apps/web/src/components/admin-onboarding-totals.tsx
+msgid "Onboarding"
+msgstr "Primeiros passos"
 
 #. safety
 #: packages/api/src/presenters/supplements.ts
@@ -14052,6 +14093,7 @@ msgstr "Versão anterior"
 #: apps/web/src/components/admin-ai-usage.tsx
 #: apps/web/src/components/admin-backup-status.tsx
 #: apps/web/src/components/admin-invitations-view.tsx
+#: apps/web/src/components/admin-onboarding-totals.tsx
 #: apps/web/src/components/admin-settings-view.tsx
 #: apps/web/src/components/ai-apps-settings-card.tsx
 #: apps/web/src/components/ai-apps-view.tsx
@@ -15693,6 +15735,10 @@ msgstr "O início de sessão com {displayName} não foi concluído. Tente novame
 #: apps/native/components/social-sign-in.tsx
 msgid "Sign-in with {name} did not finish. If it isn't connected to your account yet, sign in with an email link and connect it in Settings."
 msgstr "O início de sessão com {name} não terminou. Se ainda não estiver ligado à sua conta, inicie sessão com uma ligação por email e ligue-o nas Definições."
+
+#: apps/web/src/components/admin-onboarding-totals.tsx
+msgid "Sign-ups in the last"
+msgstr "Contas criadas nos últimos"
 
 #: apps/web/src/components/admission-form.tsx
 msgid "Signed in as {email}. Enter the token again to continue enrollment."

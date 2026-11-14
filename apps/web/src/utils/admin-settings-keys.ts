@@ -20,6 +20,8 @@ export type AdminBackupStatusOutput = AdminSettingsOutputs["backupStatus"];
 
 export type AdminAiUsageOutput = AdminSettingsOutputs["aiUsage"];
 
+export type AdminOnboardingTotalsOutput = AdminSettingsOutputs["onboardingTotals"];
+
 export function adminAccessQueryKey(userId: string) {
   return ["admin-settings", "access", userId] as const;
 }
@@ -34,4 +36,8 @@ export function adminAiUsageQueryKey(userId: string) {
 
 export function adminBackupStatusQueryKey(userId: string) {
   return ["admin-settings", "backup-status", userId] as const;
+}
+
+export function adminOnboardingTotalsQueryKey(userId: string, windowDays: number) {
+  return ["admin-settings", "onboarding-totals", userId, windowDays] as const;
 }

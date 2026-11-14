@@ -48,6 +48,7 @@ export const PROCEDURE_ACCESS: Readonly<Record<string, ProcedureAccessClass>> = 
   "adminSettings.productSettings": ALWAYS,
   "adminSettings.updateProductSettings": ALWAYS,
   "adminSettings.aiUsage": ALWAYS,
+  "adminSettings.onboardingTotals": ALWAYS,
 
   // Self-host admission (invitations to the instance), public or operator-only.
   "admission.status": ALWAYS,

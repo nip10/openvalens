@@ -8,7 +8,10 @@ import {
   protectedProcedure,
   raiseApiError,
   resolveInstanceAdminProcedure,
+  validateInput,
 } from "../index";
+import { onboardingTotalsInput, onboardingTotalsOutput } from "../contracts/onboarding-measurement";
+import { readOnboardingTotals } from "../onboarding-measurement";
 import {
   productSettingsSnapshotSchema,
   productSettingsUpdateInput,
@@ -130,6 +133,24 @@ export const adminSettingsRouter = {
           totals: summary.totals,
           top: summary.top,
         };
+      } catch {
+        throw raiseApiError("INTERNAL", "Something went wrong.");
+      }
+    }),
+
+  /**
+   * Issue #444 — onboarding totals: the share of recent sign-ups with a first
+   * entry within 10 minutes, 1 day and 7 days, and with any entry on days 2–7.
+   * Counts and shares only, suppressed below the minimum group size; never a
+   * per-person row. Instance administrators only.
+   */
+  onboardingTotals: instanceAdminProcedure
+    .use(validateInput(onboardingTotalsInput))
+    .input(onboardingTotalsInput)
+    .output(onboardingTotalsOutput)
+    .handler(async ({ context, input }) => {
+      try {
+        return await readOnboardingTotals(context.db, input.windowDays);
       } catch {
         throw raiseApiError("INTERNAL", "Something went wrong.");
       }
