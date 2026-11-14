@@ -23,6 +23,9 @@ import {
 const AS_OF = "2026-03-10";
 const NOW = new Date(`${AS_OF}T12:00:00.000Z`);
 const CHANNELS: readonly InsightChannel[] = ["in_app", "push", "email"];
+const TRACKER_ID = "0b9c6f1e-4a3d-4c2b-9f1e-2a3b4c5d6e7f";
+/** The tracker above with its insights/AI switch on. */
+const SWITCH_ON: ReadonlySet<string> = new Set([TRACKER_ID]);
 
 const METRICS: Record<GoalDefinition["source"], string> = {
   manual: "amount",
@@ -30,7 +33,7 @@ const METRICS: Record<GoalDefinition["source"], string> = {
   sleep: "sleep_hours",
   supplement: "supplement:7",
   workout: "exercise:9",
-  tracker: trackerGoalMetric("0b9c6f1e-4a3d-4c2b-9f1e-2a3b4c5d6e7f"),
+  tracker: trackerGoalMetric(TRACKER_ID),
 };
 
 /** A personal goal whose target was reached today (synthetic data only). */
@@ -61,8 +64,13 @@ function reachedGoal(id: number, source: GoalDefinition["source"]) {
 function goalInsightsByChannel(
   goals: ReturnType<typeof reachedGoal>[],
   enabledModules: readonly PersonModule[] | null,
+  insightTrackerIds: ReadonlySet<string> = SWITCH_ON,
 ): Record<InsightChannel, string[]> {
-  const output = runInsightRules({ asOf: AS_OF, series: {}, goals: insightGoalInput([], goals) });
+  const output = runInsightRules({
+    asOf: AS_OF,
+    series: {},
+    goals: insightGoalInput([], goals, insightTrackerIds),
+  });
   const insights = filterInsightsByModules(output.insights, { enabledModules });
   const byChannel = {} as Record<InsightChannel, string[]>;
   for (const channel of CHANNELS)
@@ -89,7 +97,7 @@ describe("goal insights follow their source's module (#500)", () => {
     const output = runInsightRules({
       asOf: AS_OF,
       series: {},
-      goals: insightGoalInput([], [reachedGoal(1, "water"), reachedGoal(2, "manual")]),
+      goals: insightGoalInput([], [reachedGoal(1, "water"), reachedGoal(2, "manual")], SWITCH_ON),
     });
     const modules = Object.fromEntries(
       output.insights.map((insight) => [insight.id, insightModules(insight)]),
@@ -135,5 +143,37 @@ describe("goal insights follow their source's module (#500)", () => {
     expect(goalInsightsByChannel(goals, [])).toEqual(
       everywhere(["goal.reached:6", "goal.reached:7"]),
     );
+  });
+});
+
+describe("tracker goal insights follow the tracker's insights/AI switch (#450, #500)", () => {
+  test("a reached tracker goal with the switch off produces no insight on any channel", () => {
+    const goals = [reachedGoal(7, "tracker"), reachedGoal(6, "manual")];
+    expect(goalInsightsByChannel(goals, null, new Set())).toEqual(everywhere(["goal.reached:6"]));
+    // Another tracker's switch does not speak for this one.
+    expect(
+      goalInsightsByChannel(goals, null, new Set(["9e8d7c6b-5a4f-4e3d-8c2b-1a0f9e8d7c6b"])),
+    ).toEqual(everywhere(["goal.reached:6"]));
+  });
+
+  test("with the switch on, the reached tracker goal is shown and sent", () => {
+    expect(goalInsightsByChannel([reachedGoal(7, "tracker")], null, SWITCH_ON)).toEqual(
+      everywhere(["goal.reached:7"]),
+    );
+  });
+
+  test("a tracker goal whose metric names no tracker stays silent", () => {
+    const goal = reachedGoal(8, "tracker");
+    const unreadable = { ...goal, definition: { ...goal.definition, metric: "not-a-tracker" } };
+    expect(goalInsightsByChannel([unreadable], null, SWITCH_ON)).toEqual(everywhere([]));
+  });
+
+  test("the goal-progress score still counts a silent tracker goal", () => {
+    const off = insightGoalInput([], [reachedGoal(7, "tracker")], new Set());
+    const on = insightGoalInput([], [reachedGoal(7, "tracker")], SWITCH_ON);
+    expect(off.result.goals).toEqual([]);
+    expect(on.result.goals.map((goal) => goal.goalId)).toEqual([7]);
+    expect(off.result.score).toBe(100);
+    expect(off.result.coverage).toEqual(on.result.coverage);
   });
 });
