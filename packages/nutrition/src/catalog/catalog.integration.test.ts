@@ -221,6 +221,34 @@ describe.skipIf(!url)("food catalogs against disposable PostgreSQL", () => {
     expect(again).toMatchObject({ imported: false, releaseId: first.id });
   });
 
+  test("re-importing an OFF dump fills caffeine and alcohol too (#443)", async () => {
+    const before = await catalog.getFood("off:20012345");
+    expect(before?.nutrients).toMatchObject({ caffeineMg: null, alcoholG: null });
+    // Simulate a release imported before #443 (adapter version 1).
+    await db.execute(
+      sql`update nutrition_catalog_release set adapter_version = 1 where source = 'off'`,
+    );
+    const items = offItems(1_780_000_000, 6).map((item) =>
+      item.code === "20012345"
+        ? {
+            ...item,
+            product_quantity_unit: "ml",
+            // OFF stores caffeine in grams and alcohol as % vol.
+            nutriments: { caffeine_100g: 0.032, alcohol_100g: 5, alcohol_unit: "% vol" },
+          }
+        : item,
+    );
+    const first = (await catalog.listReleases()).find((release) => release.source === "off")!;
+    const reparsed = await catalog.importRelease(offRelease("2026-05-01", "b"), items);
+    expect(reparsed).toMatchObject({ imported: true, releaseId: first.id, recordCount: 2 });
+    const after = await catalog.getFood("off:20012345");
+    // 32 mg per 100 ml; 5 % vol × 0.789 g/ml = 3.945 g per 100 ml.
+    expect(after?.nutrients).toMatchObject({ caffeineMg: 32, alcoholG: 3.945 });
+    expect((await catalog.listReleases()).filter((r) => r.source === "off")).toHaveLength(1);
+    const again = await catalog.importRelease(offRelease("2026-05-01", "b"), items);
+    expect(again).toMatchObject({ imported: false, releaseId: first.id });
+  });
+
   test("the database refuses to mix sources or mislabel licenses", async () => {
     const releases = await catalog.listReleases();
     const offReleaseId = releases.find((release) => release.source === "off")!.id;

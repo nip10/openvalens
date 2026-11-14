@@ -10,6 +10,7 @@ import type { I18n } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import type { DueSupplement, RecentLogEntry } from "@openvalens/api/contracts/quick-log";
 import type { LogKind, LogKindIconKey } from "@openvalens/api/presenters/log-kinds";
+import { localDateIn } from "@openvalens/api/presenters/nutrition-diary";
 import {
   hasQuickForm,
   recentEntryTitle,
@@ -69,6 +70,31 @@ export function kindOpening(kind: LogKind): KindOpening {
 export function opensInPicker(kind: LogKind): boolean {
   const opening = kindOpening(kind);
   return opening === "quick_form" || opening === "tracker";
+}
+
+/**
+ * The doses still due, as this device knows them (#440 offline "Taken"). The
+ * server's answer may be a cached one: from another day it says nothing about
+ * today, so nothing is offered. An intake still waiting on the device covers
+ * the earliest open dose of its supplement, as a logged one does on the
+ * server, so a dose taken offline is not offered again.
+ */
+export function dueWithQueuedIntakes(
+  due: { localDate: string; items: readonly DueSupplement[] } | undefined,
+  queued: readonly { supplementId: number; occurredAt: string }[],
+  timeZone: string,
+  now: Date = new Date(),
+): DueSupplement[] {
+  if (!due || due.localDate !== localDateIn(timeZone, now)) return [];
+  const taken = new Map<number, number>();
+  for (const intake of queued) {
+    if (localDateIn(timeZone, new Date(intake.occurredAt)) !== due.localDate) continue;
+    taken.set(intake.supplementId, (taken.get(intake.supplementId) ?? 0) + 1);
+  }
+  return due.items.flatMap((item) => {
+    const pending = item.pending - (taken.get(item.supplementId) ?? 0);
+    return pending > 0 ? [{ ...item, pending }] : [];
+  });
 }
 
 /**
