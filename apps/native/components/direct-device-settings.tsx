@@ -660,9 +660,9 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
         ) : null}
         {snapshot.errorCode ? (
           <Text className="font-sans text-sm text-destructive">
-            {GARMIN_ERROR_COPY[snapshot.errorCode]
+            {Object.hasOwn(GARMIN_ERROR_COPY, snapshot.errorCode)
               ? i18n._(GARMIN_ERROR_COPY[snapshot.errorCode]!)
-              : HUAWEI_ERROR_COPY[snapshot.errorCode]
+              : Object.hasOwn(HUAWEI_ERROR_COPY, snapshot.errorCode)
                 ? i18n._(HUAWEI_ERROR_COPY[snapshot.errorCode]!)
                 : friendlyError(snapshot.errorCode)}
           </Text>
@@ -700,7 +700,7 @@ const HUAWEI_ERROR_COPY: Partial<Record<string, MessageDescriptor>> = {
   HUAWEI_DEVICE_STATUS_UNSUPPORTED: msg`The watch reported a state this app cannot handle yet (it may need setting up in the Huawei Health app first).`,
   HUAWEI_AUTH_UNSUPPORTED: msg`This Honor watch (Watch 5, 5 Pro or 6) needs a pairing mode that is not supported yet.`,
   HUAWEI_HICHAIN_CONFIRM_TIMEOUT: msg`The watch did not confirm pairing in time. Unlock it, keep it near the phone, sync again and tap Confirm on the watch.`,
-  HUAWEI_HICHAIN_AUTH_TIMEOUT: msg`The watch did not answer the pairing check. Keep it unlocked and near the phone, then sync again from this screen. If the watch was reset, you will be asked to confirm on it.`,
+  HUAWEI_HICHAIN_AUTH_TIMEOUT: msg`The watch did not answer the pairing check. Keep it unlocked and near the phone, then sync again.`,
   HUAWEI_HICHAIN_REJECTED: huaweiRejected,
   HUAWEI_HICHAIN_TOKEN_MISMATCH: huaweiRejected,
   HUAWEI_HICHAIN_REBIND_REQUIRED: msg`The watch no longer recognises this phone. Sync again to pair: you will confirm on the watch.`,

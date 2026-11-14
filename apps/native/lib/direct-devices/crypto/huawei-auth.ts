@@ -41,6 +41,13 @@ export type HuaweiCryptoProvider = {
   randomBytes(size: number): Uint8Array;
   sha256(data: Uint8Array): Uint8Array;
   hmacSha256(key: Uint8Array, data: Uint8Array): Uint8Array;
+  /** Native PBKDF2-HMAC-SHA256 when available; `pbkdf2HmacSha256` falls back to HMAC rounds. */
+  pbkdf2Sha256?(
+    password: Uint8Array,
+    salt: Uint8Array,
+    iterations: number,
+    length: number,
+  ): Uint8Array;
 };
 
 export const HUAWEI_SECRET_KEY_1_V1 = Uint8Array.of(
@@ -290,6 +297,8 @@ export function pbkdf2HmacSha256(
   if (!Number.isInteger(iterations) || iterations < 1) throw new Error("HUAWEI_PBKDF2_ITERATIONS");
   if (!Number.isInteger(length) || length < 1 || length > 255 * 32)
     throw new Error("HUAWEI_PBKDF2_LENGTH");
+  if (crypto.pbkdf2Sha256)
+    return Uint8Array.from(crypto.pbkdf2Sha256(password, salt, iterations, length));
   const out = new Uint8Array(length);
   for (let block = 1, offset = 0; offset < length; block += 1) {
     let u = crypto.hmacSha256(password, concatHuaweiBytes(salt, Uint8Array.of(0, 0, 0, block)));
@@ -319,9 +328,18 @@ export async function loadHuaweiCrypto(): Promise<HuaweiCryptoProvider> {
       algorithm: string,
       key: Uint8Array,
     ): { update(data: Uint8Array): void; digest(): Uint8Array };
+    pbkdf2Sync(
+      password: Uint8Array,
+      salt: Uint8Array,
+      iterations: number,
+      keylen: number,
+      digest: string,
+    ): Uint8Array;
   };
   return {
     randomBytes: (size) => native.randomBytes(size),
+    pbkdf2Sha256: (password, salt, iterations, length) =>
+      new Uint8Array(native.pbkdf2Sync(password, salt, iterations, length, "sha256")),
     sha256(data) {
       const hash = native.createHash("sha256");
       hash.update(data);

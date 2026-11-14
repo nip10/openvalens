@@ -125,7 +125,7 @@ I read `DCH` (whole file), `R/GetDualChannelRequest.java`, `DC:2005-2073`, `Req:
 
 - **Who starts it.** The phone. `0x01/0x3C` is sent only when the watch advertises expand-capability bit 56 (`HS:223-226`), which needs the `GetExpandCapability` reply we never request, and only on BR (`R/GetDualChannelRequest.java:45-48`). It runs in `initializeDynamicServices`, after auth, product info and supported services (`SP:834`, `SP:998`, `SP:1055`).
 - **Request.** Encrypted (the `HuaweiPacket` default), all-empty tags `01`, `02`, plus `03`, `04` when bit 142 ("extend") is set (`DC:2018-2032`, `HS:228-232`).
-- **Response.** Tag `01`: the aux RFCOMM channel number. Tag `02`: services routed wholesale to aux. Tag `03`: file types (extend only). Tag `84` holding `85` entries of `06` service, `07` command ids, `08` `#`-separated P2P package names (`DC:2034-2073`).
+- **Response.** Tag `01`: the aux RFCOMM channel number. Tag `02`: services routed wholesale to aux. Tag `03`: file types (extend only). Tag `84` holding `85` entries of `06` service, `07` command ids, `08` `#`-separated P2P package names (`DC:2037-2073`).
 - **What goes on aux.** Only what those tables list: a whole service, a (service, command) pair, or, for P2P services `0x34`/`0x37`, a destination package (`DCH:114-154`, `Req:395-408`). Services `0x28` and `0x2C` (file upload/download) stay on the primary socket unless the Watch 4 quirk moves file download over (`DC:2009`, `DCH:56-62`, `DCH:122-128`). The tables differ per model and are only known at runtime; upstream logs them because of that (`DCH:74-84`).
 - **Why it exists.** To keep bulk traffic off the primary socket. `SP:1730-1740`: when it is active, the fitness fetch rides aux, so the device is not marked busy for notifications during a long sync.
 - **Without it.** `useExtraChannel` and `routeToExtraChannel` return false while it is inactive, so every packet goes on the primary socket; until the aux socket is connected flagged packets also fall back to the primary (`DCH:114-121`, `Req:398-401`, `ABR:238-254`). Nothing in the source says a watch refuses service `0x07` on the primary socket when the phone never asked for a second one.
@@ -186,7 +186,7 @@ Auth-mode selection, which is the same code for BR and LE (`SP:585-637`):
 - `deviceSupportType` `1`, `3` or `4` → HiChain. Upstream sends a SecurityNegotiation (`0x01/0x33`). If `supportsHiChainPake()`, it goes to the Honor PAKE/STS path (`SP:620-621`, `SP:640-656`). Otherwise it goes to `finalizeSecurityNegotiationHiChain`: HiChain/HiChain3 for `authType 0x0186A0` or HiChain3 bits, HiChainLite for `authType` 1 or 2 (`SP:663-673`).
 - Full HiChain fetches the watch PIN with `GetPincodeRequest` (`0x01/0x2C`) on the first connection only. The PIN comes back encrypted with the digest secret (`DC:1690-1732`, `Cry:248-257`). Upstream then runs the HiChain ISO exchange (`0x01/0x28`, JSON steps). It derives `sessionKey = HKDF-SHA256(psk, randSelf‖randPeer, "hichain_iso_session_key")` and finally sets the packet secret key (`SP:708-722`, `R/GetHiChainRequest.java:132`, `:196`).
 
-What we already have (`ours/…/transport/huawei.ts:394-424`): normal mode and HiChainLite with `authVersion == 2`. We refuse HiChain (`hichain`), HiChainLite with a PIN (`hichain_lite_pincode`) and PAKE (`honor_pake`) with typed errors (`:130-139`).
+What we have now (`ours/…/transport/huawei.ts`): normal mode, HiChainLite (with the watch PIN below auth version 2) and full HiChain. Only PAKE (`honor_pake`) is refused with a typed error.
 
 ### 3.5 Messages that differ
 

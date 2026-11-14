@@ -162,8 +162,8 @@ export type HuaweiUnsupportedAuthReason = "honor_pake";
 export const HUAWEI_HICHAIN_AUTH_STEP_MS = 10_000;
 /**
  * Op-2 step-1 attempts before the watch counts as silent. One timeout can be a
- * slow or busy watch; two in a row (20 s) look like a watch that was reset and
- * no longer knows this phone.
+ * slow or busy watch; two in a row (10 s, then 20 s) with no late reply look
+ * like a watch that was reset and no longer knows this phone.
  */
 export const HUAWEI_HICHAIN_AUTH_ATTEMPTS = 2;
 
@@ -173,6 +173,9 @@ type HuaweiHiChainAbandonedStep = Readonly<{
   randSelf: Uint8Array;
   authIdSelf: Uint8Array;
 }>;
+
+/** Op-2 retry state for one session: abandoned step 1s, and whether a late reply proved the token. */
+type HuaweiHiChainRetry = { abandoned: HuaweiHiChainAbandonedStep[]; tokenProven: boolean };
 
 export class HuaweiUnsupportedAuthError extends Error {
   readonly code = "HUAWEI_AUTH_UNSUPPORTED";
@@ -608,27 +611,29 @@ export class HuaweiSession {
    *
    * A watch that stays silent on the stored token (upstream: the 5 s op-2
    * timeout, then reconnect, forever; a re-pair from the UI is the only way
-   * out) gets one more authenticate, then, only for an interactive caller
-   * (`onAuthPrompt`), a bind in the same sync. The token is dropped only once
-   * the watch has answered the PIN request, so a watch that is simply out of
-   * reach keeps it.
+   * out) gets one more authenticate with a longer wait, then, only for an
+   * interactive caller (`onAuthPrompt`), a bind in the same sync. A late reply
+   * that proves the stored token means the watch is slow, not reset: no bind.
+   * The stored token is only replaced by a successful bind, so a bind that
+   * fails or is not confirmed leaves it in place.
    */
   private async hichain(): Promise<void> {
     const deviceId = this.options.deviceId;
     const stored = this.hichainStore.getAuthToken(deviceId);
-    const abandoned: HuaweiHiChainAbandonedStep[] = [];
+    const retry: HuaweiHiChainRetry = { abandoned: [], tokenProven: false };
     let packetKey: Uint8Array | null = null;
     if (stored) {
       try {
-        packetKey = await this.hichainAuthenticate(stored, abandoned);
+        packetKey = await this.hichainAuthenticate(stored, retry);
       } catch (error) {
         const code = error instanceof Error ? error.message : "";
         if (code === "HUAWEI_HICHAIN_TOKEN_MISMATCH" || code === "HUAWEI_HICHAIN_REJECTED") {
           this.hichainStore.clearAuthToken(deviceId);
           throw new Error("HUAWEI_HICHAIN_REBIND_REQUIRED", { cause: error });
         }
-        // Only a watch that never answered step 1 may have forgotten us.
-        if (code !== "HUAWEI_HICHAIN_AUTH_TIMEOUT" || !this.options.onAuthPrompt) throw error;
+        // Only a watch that never answered step 1, even late, may have forgotten us.
+        const forgotten = code === "HUAWEI_HICHAIN_AUTH_TIMEOUT" && !retry.tokenProven;
+        if (!forgotten || !this.options.onAuthPrompt) throw error;
       }
     }
     if (!packetKey) {
@@ -643,34 +648,31 @@ export class HuaweiSession {
         encryptMethod: this.encryptMethod,
         aes: this.aes!,
       });
-      // The watch answers, yet ignored the stored token twice: it forgot us.
-      if (stored) this.hichainStore.clearAuthToken(deviceId);
+      if (this.closed) throw new Error("HUAWEI_CLOSED");
       this.options.onAuthPrompt?.("confirm_on_watch");
-      const bound = await this.hichainOperation(
-        1,
-        huaweiHiChainPinKey(this.crypto!, pin),
-        abandoned,
-      );
+      const bound = await this.hichainOperation(1, huaweiHiChainPinKey(this.crypto!, pin), retry);
       if (!bound.authToken) throw new Error("HUAWEI_HICHAIN_PROTOCOL");
+      // Replaces a token the (reset) watch no longer knows.
       this.hichainStore.setAuthToken(deviceId, bound.authToken);
-      packetKey = await this.hichainAuthenticate(bound.authToken, abandoned);
+      packetKey = await this.hichainAuthenticate(bound.authToken, retry);
     }
     this.secretKey = packetKey;
     this.encryptionCounter = 0;
   }
 
   /**
-   * Op 2 with `token`, retried once when the watch does not answer step 1.
-   * Each retry is a fresh operation (new randoms and request id).
+   * Op 2 with `token`, retried once when the watch does not answer step 1;
+   * attempt n waits n times as long. Each retry is a fresh operation (new
+   * randoms and request id).
    */
   private async hichainAuthenticate(
     token: Uint8Array,
-    abandoned: HuaweiHiChainAbandonedStep[],
+    retry: HuaweiHiChainRetry,
   ): Promise<Uint8Array> {
     for (let attempt = 1; ; attempt += 1) {
       if (this.closed) throw new Error("HUAWEI_CLOSED");
       try {
-        const { packetKey } = await this.hichainOperation(2, token, abandoned);
+        const { packetKey } = await this.hichainOperation(2, token, retry, attempt);
         if (!packetKey) throw new Error("HUAWEI_HICHAIN_PROTOCOL");
         return packetKey;
       } catch (error) {
@@ -682,14 +684,17 @@ export class HuaweiSession {
 
   /**
    * One ISO operation: 1 binds (returns the auth token), 2 authenticates (the
-   * packet key). A step-1 reply that proves an `abandoned` op-2 step 1 is a
-   * late answer to it and is skipped; an op-2 step 1 that times out joins them.
+   * packet key). A step-1 reply that proves an abandoned op-2 step 1 is a late
+   * answer to it: it is skipped and marks the token as proven. An op-2 step 1
+   * that times out joins the abandoned ones.
    */
   private async hichainOperation(
     operation: HuaweiHiChainOperation,
     key: Uint8Array,
-    abandoned: HuaweiHiChainAbandonedStep[] = [],
+    retry: HuaweiHiChainRetry = { abandoned: [], tokenProven: false },
+    attempt = 1,
   ): Promise<{ authToken?: Uint8Array; packetKey?: Uint8Array }> {
+    const { abandoned } = retry;
     const crypto = this.crypto!;
     const aes = this.aes!;
     const androidId = this.androidId();
@@ -725,7 +730,11 @@ export class HuaweiSession {
             // A late step-1 answer can land while any later step waits.
             accept:
               abandoned.length > 0
-                ? (tlv) => !isLateHuaweiHiChainStepOne(crypto, tlv, abandoned)
+                ? (tlv) => {
+                    if (!isLateHuaweiHiChainStepOne(crypto, tlv, abandoned)) return true;
+                    retry.tokenProven = true;
+                    return false;
+                  }
                 : undefined,
           },
         ),
@@ -755,7 +764,7 @@ export class HuaweiSession {
           watchdogMs:
             operation === 1
               ? HUAWEI_HICHAIN_CONFIRM_TIMEOUT_MS
-              : Math.max(this.statusWatchdogMs, HUAWEI_HICHAIN_AUTH_STEP_MS),
+              : Math.max(this.statusWatchdogMs, HUAWEI_HICHAIN_AUTH_STEP_MS) * attempt,
         },
       );
     } catch (error) {
@@ -1053,6 +1062,8 @@ export class HuaweiSession {
       accept?: (tlv: HuaweiTlv) => boolean;
     }> = {},
   ): Promise<HuaweiTlv> {
+    // A close during an await (or inside a callback) must not reach the link.
+    if (this.closed) throw new Error("HUAWEI_CLOSED");
     const encrypted = (options.encrypted ?? true) && this.transactionsCrypted;
     const payload =
       encrypted && this.secretKey

@@ -673,7 +673,7 @@ This is separate work, but it shares §7.2's PIN code.
 - `initializeDeviceHiChainLiteMode` fetches the PIN when `pinCode == null & authVersion != 2`, with no `authMode` check (`SP:747-753`). So a type-4 watch on HiChainLite (`authMode` 4) also fetches it, but `GetAuthRequest` only uses it as the key when `authMode == 2` (`GAR:70-74`); with `authMode` 4 the digest is normal mode. Ours mirrors both.
 - `computeDigestHiChainLite(message, key, nonce)` (`Cry:132-153`): `hashKey = SHA(UTF-8(hex(pin)))`; `secret = digestSecret(authVersion) XOR hashKey[0..16)`; `m = secret ‖ message` (18 bytes); `step1 = authAlgo == 1 ? PBKDF2-HMAC-SHA256(password = hex(m), salt = UTF-8(hex(nonce)), 1000, 256 bits) : HMAC(m, nonce)`; result `HMAC(step1, nonce) ‖ step1`. `CU:152-156` builds the `PBEKeySpec` from `hex(m).toCharArray()`; the hex is ASCII, so the char-to-byte encoding cannot matter.
 - In auth mode 2, `digestChallenge` always uses `MESSAGE_CHALLENGE` (`01 00`), never the v4 one (`Cry:155-177`).
-- The bond uses `firstKey = digest[0x20..0x30)` (`GAR:83-85`, `ByteBuffer.get` continues after the challenge), which is `step1[0..16)`. `GetBondRequest` picks it when `authMode == 2`, else the MAC key; `GetBondParamsRequest` stops on status 1 only when `authMode != 2` (`requests/GetBondRequest.java:54-58`, `requests/GetBondParamsRequest.java:56-60`). Ours now branches on `authMode` the same way.
+- The bond uses `firstKey = digest[0x20..0x30)` (`GAR:83-85`, `ByteBuffer.get` continues after the challenge), which is `step1[0..16)`. `GetBondRequest` picks it when `authMode == 2`, else the MAC key; `GetBondParamsRequest` stops on status 1 only when `authMode != 2` (`requests/GetBondRequest.java:54-58`, `requests/GetBondParamsRequest.java:58-62`). Ours now branches on `authMode` the same way.
 - No timeout and no user step: the PIN request has none (`GPR:31-35`), and nothing is shown on the watch for it.
 
 Vectors (ours, computed with Node `createHmac`/`pbkdf2Sync` from the lines above): PIN ASCII `"12345678"`, nonce `10…1F ‖ 20…2F`, in `crypto/huawei-auth.test.ts` and `protocol/huawei.test.ts`.
@@ -684,12 +684,13 @@ Upstream, an op-2 step 1 with no reply in 5 s hits `configureReq.timeout` (`SP:6
 
 Ours, in `HuaweiSession.hichain()`:
 
-1. A stored token runs op 2. If step 1 gets no answer in 10 s (§7.3), op 2 runs once more with fresh randoms and a fresh `requestId` (`HUAWEI_HICHAIN_AUTH_ATTEMPTS = 2`). A slow watch therefore never re-confirms on one timeout.
+1. A stored token runs op 2. If step 1 gets no answer in 10 s (§7.3), op 2 runs once more with fresh randoms, a fresh `requestId` and a 20 s wait (`HUAWEI_HICHAIN_AUTH_ATTEMPTS = 2`). A slow watch therefore never re-confirms on one timeout.
 2. A rejection or a token mismatch is still `HUAWEI_HICHAIN_REBIND_REQUIRED` (the token is cleared).
-3. Two silent attempts: if the caller passed `onAuthPrompt` (an interactive, user-started sync), the session fetches the PIN, then binds (op 1 with the "confirm on your watch" prompt), then authenticates with the new token, all in the same sync. The old token is cleared only after the watch answered the PIN request: a watch that is just out of reach keeps it.
-4. Without `onAuthPrompt`, it fails with `HUAWEI_HICHAIN_AUTH_TIMEOUT` and keeps the token.
+3. Two silent attempts, and no late reply proved the token (below): if the caller passed `onAuthPrompt`, the session fetches the PIN, binds (op 1 with the "confirm on your watch" prompt), then authenticates with the new token, all in the same sync. Both production callers are user-started syncs from the device sheet and pass it (`ours/setup/controller.ts`).
+4. The stored token is replaced only by a successful bind. A PIN request that times out, a bind the user does not confirm, or a failed bind leaves it in place.
+5. Without `onAuthPrompt`, or when a late reply proved the token, it fails with `HUAWEI_HICHAIN_AUTH_TIMEOUT` and keeps the token.
 
-**Late replies.** A reply to an abandoned step 1 may arrive while a later request on the same `0x01/0x28` waits. Upstream's response JSON is not known to echo `requestId` (`DC:1534-1545` reads only `payload` and `errorCode`), so the session drops any step-1 reply whose token verifies against an abandoned attempt's `psk`/`randSelf`; that cannot match the current attempt except by an HMAC collision. **UNKNOWN:** whether a reset watch answers a stale op 2 late with an `errorCode`; such a reply cannot be told apart and would surface as `HUAWEI_HICHAIN_REJECTED`.
+**Late replies.** A reply to an abandoned step 1 may arrive while a later request on the same `0x01/0x28` waits. Upstream's response JSON is not known to echo `requestId` (`DC:1534-1545` reads only `payload` and `errorCode`), so the session drops any step-1 reply whose token verifies against an abandoned attempt's `psk`/`randSelf`; that cannot match the current attempt except by an HMAC collision. Such a reply proves the watch still holds our token, so it also rules out the re-bind. **UNKNOWN:** whether a reset watch answers a stale op 2 late with an `errorCode`. Such a reply cannot be told apart: during the retry it surfaces as `HUAWEI_HICHAIN_REJECTED` (a watch that rejects one attempt rejects both, so `REBIND_REQUIRED` is still right); during the bind it surfaces as `REJECTED` and the old token stays.
 
 ## 8. Uncertainties
 
