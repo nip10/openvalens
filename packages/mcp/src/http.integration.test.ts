@@ -123,6 +123,55 @@ describe.skipIf(!url)("MCP server and REST tools against disposable PostgreSQL",
     return { status: response.status, body: JSON.parse(payload) as Record<string, any> };
   }
 
+  // Its own limiter state, so the batch test does not share the member budget
+  // the rate-limit test spends on `limited`.
+  const batched = createAiAppsHttp({
+    db,
+    service,
+    sources,
+    config: parseMcpConfig({
+      MCP_ENABLED: true,
+      MCP_RATE_LIMIT_PER_GRANT_PER_MINUTE: 3,
+      MCP_RATE_LIMIT_PER_MEMBER_PER_MINUTE: 10,
+    }),
+    version: "1.0.0",
+    now: () => NOW,
+  });
+
+  /** A JSON-RPC batch the way a 2025-03-26 client sends one (no protocol header). */
+  async function mcpBatch(bearer: string, messages: unknown[], via = batched) {
+    const response = await via.handleMcp(
+      new Request("http://server.test/api/mcp", {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${bearer}`,
+          "content-type": "application/json",
+          accept: "application/json, text/event-stream",
+        },
+        body: JSON.stringify(messages),
+      }),
+    );
+    const text = await response.text();
+    const payloads =
+      text.trimStart().startsWith("{") || text.trimStart().startsWith("[")
+        ? [text]
+        : text
+            .split("\n")
+            .filter((line) => line.startsWith("data:"))
+            .map((line) => line.slice(5).trim());
+    return {
+      status: response.status,
+      headers: response.headers,
+      messages: payloads.flatMap((payload) => JSON.parse(payload) as unknown) as Array<
+        Record<string, any>
+      >,
+    };
+  }
+
+  function toolCall(id: number, name: string, args: unknown = {}) {
+    return { jsonrpc: "2.0", id, method: "tools/call", params: { name, arguments: args } };
+  }
+
   beforeAll(async () => {
     const tables = await db.execute(
       sql`select tablename from pg_tables where schemaname = 'public'`,
@@ -164,6 +213,9 @@ describe.skipIf(!url)("MCP server and REST tools against disposable PostgreSQL",
         select id, organization_id, user_id, user_id, 2, '2026-10-12T09:00:00Z', '2026-10-12' from t;
       insert into "user" (id, email) values ('user-other-${WHO}', 'other-${WHO}@example.test');
       insert into member (id, organization_id, user_id, role) values ('m-other-${WHO}', '${ORG}', 'user-other-${WHO}', 'collaborator');
+      -- Another member's workout: private to its author, as on the app's own screens.
+      insert into workout (organization_id, user_id, date, type, duration, notes, created_at)
+        values ('${ORG}', 'user-other-${WHO}', '2026-10-13', 'cycling', 75, 'other-workout-secret', '2026-10-13');
       with t as (insert into custom_tracker (organization_id, user_id, name, icon, type, unit, aggregation, shared)
         values ('${ORG}', 'user-other-${WHO}', 'Other member shared-secret', 'book', 'number', 'pages', 'sum', true) returning id, organization_id, user_id)
         insert into custom_tracker_entry (tracker_id, organization_id, user_id, logged_by_user_id, value, logged_at, local_date)
@@ -244,6 +296,26 @@ describe.skipIf(!url)("MCP server and REST tools against disposable PostgreSQL",
     // The full key holds the notes scope: notes appear.
     expect(all).toContain("workout-note-secret");
     expect(all).toContain("panel-note-secret");
+    // Never another member's workout, through any tool.
+    expect(all).not.toContain("other-workout-secret");
+  });
+
+  test("workouts.list holds the member's own and legacy sessions, never another member's", async () => {
+    const days = (body: any) =>
+      (body.workouts as Array<{ day: string; type: string }>).map((w) => `${w.day} ${w.type}`);
+    // The seeded legacy session has no author and stays visible, as in the app.
+    const expected = ["2026-10-12 running", "2026-09-01 strength"];
+
+    const viaRest = (await (await rest("workouts.list", RANGE, fullKey)).json()) as any;
+    expect(days(viaRest.result)).toEqual(expected);
+    const viaMcp = await mcp(fullKey, "tools/call", { name: "workouts.list", arguments: RANGE });
+    expect(days(viaMcp.body.result.structuredContent)).toEqual(expected);
+
+    for (const text of [JSON.stringify(viaRest), JSON.stringify(viaMcp.body)]) {
+      expect(text).toContain("workout-note-secret");
+      expect(text).not.toContain("other-workout-secret");
+      expect(text).not.toContain("cycling");
+    }
   });
 
   test("labs history, weights and vitals keep units and flags as recorded", async () => {
@@ -419,6 +491,51 @@ describe.skipIf(!url)("MCP server and REST tools against disposable PostgreSQL",
     expect((await rest("goals", {}, second, limited)).status).toBe(200);
     expect((await rest("goals", {}, second, limited)).status).toBe(200);
     expect((await rest("goals", {}, second, limited)).status).toBe(429);
+  });
+
+  test("each tool call in a JSON-RPC batch counts against the per-minute limits", async () => {
+    const first = await key([], "Batch one");
+    // Three calls in one POST spend the grant's whole budget (3)...
+    const served = await mcpBatch(first, [
+      toolCall(1, "goals"),
+      toolCall(2, "goals"),
+      toolCall(3, "goals"),
+    ]);
+    expect(served.status).toBe(200);
+    expect(served.messages.map((message) => message.id).sort()).toEqual([1, 2, 3]);
+    expect(served.messages.every((message) => message.result?.isError === undefined)).toBe(true);
+    // ...so the next call, alone or batched, is refused.
+    const refused = await mcpBatch(first, [toolCall(4, "goals")]);
+    expect(refused.status).toBe(429);
+    expect(Number(refused.headers.get("retry-after"))).toBeGreaterThan(0);
+
+    // A batch that needs more than the remaining budget records nothing and is refused whole.
+    const second = await key([], "Batch two");
+    expect((await mcpBatch(second, [toolCall(1, "goals"), toolCall(2, "goals")])).status).toBe(200);
+    expect((await mcpBatch(second, [toolCall(3, "goals"), toolCall(4, "goals")])).status).toBe(429);
+    expect((await mcpBatch(second, [toolCall(5, "goals")])).status).toBe(200);
+
+    // More calls than a minute's budget can never be served: a JSON-RPC error, no Retry-After.
+    // (Checked before any charge; the grant's budget is spent here anyway.)
+    const tooMany = await mcpBatch(
+      second,
+      [1, 2, 3, 4].map((id) => toolCall(id, "goals")),
+    );
+    expect(tooMany.status).toBe(400);
+    expect(tooMany.messages[0]?.error?.code).toBe(-32_600);
+    expect(tooMany.headers.get("retry-after")).toBeNull();
+  });
+
+  test("a batch with a call the grant lacks the scope for gets the step-up challenge", async () => {
+    const response = await mcpBatch(
+      baseKey,
+      [toolCall(1, "goals"), toolCall(2, "body.privateMeasurements", RANGE)],
+      http,
+    );
+    expect(response.status).toBe(403);
+    expect(response.headers.get("www-authenticate")).toContain('error="insufficient_scope"');
+    expect(response.headers.get("www-authenticate")).toContain("private_body:read");
+    expect(JSON.stringify(response.messages)).not.toContain("structuredContent");
   });
 
   test("the owner's switch and a revoked key stop the next call", async () => {

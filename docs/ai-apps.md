@@ -18,7 +18,10 @@ With it off, `/api/mcp`, `/api/v1/tools/*`, the OAuth endpoints
 and readiness reports `mcp: off`. Rate limits:
 `MCP_RATE_LIMIT_PER_GRANT_PER_MINUTE` (60) and
 `MCP_RATE_LIMIT_PER_MEMBER_PER_MINUTE` (120), per server process, answered
-with `429` and `Retry-After`. Write limits: `MCP_WRITE_ENTRIES_PER_CALL` (100)
+with `429` and `Retry-After`. Each `tools/call` in a JSON-RPC batch (which
+2025-03-26 clients may send) counts as one call; a batch with more tool calls
+than the lower of the two limits is refused with `400` and JSON-RPC error
+`-32600`. Write limits: `MCP_WRITE_ENTRIES_PER_CALL` (100)
 and `MCP_WRITE_ENTRIES_PER_DAY` (1,000 added per grant in any 24 hours). See
 [configuration](self-hosting/configuration.md).
 
@@ -233,7 +236,9 @@ Tools: `healthSnapshot`, `labs`, `markerTrend`, `panelCompare`, `outOfRange`,
 `nutritionContext` (nutrition scope), `sleep.sessions`, `workouts.list`,
 `vitals.daily`, `weights.daily`, `labs.history`, `body.privateMeasurements`
 (private body scope), `trackers.*` (trackers scope), `pain.entries` (pain
-scope), `exercises.search`, and the write tools above. Range reads cover at most 365 days
+scope), `exercises.search`, and the write tools above. `workouts.list` holds
+the member's own sessions and legacy ones with no author, never another
+member's, as on the app's own screens. Range reads cover at most 365 days
 and page with `nextCursor`. Times are ISO 8601 with the member's UTC offset;
 values keep their stored unit next to the member's preferred unit.
 
