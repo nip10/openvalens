@@ -11,6 +11,7 @@ import { getHealthAccess } from "./permissions";
 import { recordHealthSyncRun } from "./status";
 
 import { readCloudAccess, writesPaused } from "@/lib/cloud-access";
+import { importTrackerFeeds } from "@/lib/tracker-feeds";
 import { client } from "@/utils/orpc";
 
 export type HealthSyncResult =
@@ -28,9 +29,20 @@ let inFlight: Promise<HealthSyncResult> | null = null;
  * run so two runs never move the same cursor concurrently.
  */
 export function runHealthSync(options: DrainOptions): Promise<HealthSyncResult> {
-  inFlight ??= run(options).finally(() => {
-    inFlight = null;
-  });
+  inFlight ??= run(options)
+    .then(async (result) => {
+      // #452: then the linked tracker feeds (mindful minutes, State of Mind),
+      // in what is left of the run's window. Best effort; never fails the sync.
+      await importTrackerFeeds({
+        force: true,
+        maxPages: options.maxBatches,
+        ...(options.deadline !== undefined ? { deadline: options.deadline } : {}),
+      });
+      return result;
+    })
+    .finally(() => {
+      inFlight = null;
+    });
   return inFlight;
 }
 

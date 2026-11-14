@@ -116,7 +116,8 @@ and `android/` folders this generates are not committed.
 - **Health Connect (Android).** `react-native-health-connect` and the
   permissions in `app.json` (`READ_STEPS`, `READ_HEART_RATE`, `READ_SLEEP`,
   `READ_WEIGHT`, `READ_BODY_FAT`, `READ_ACTIVE_CALORIES_BURNED`,
-  `READ_DISTANCE`, `READ_EXERCISE`, background and history reads). Google
+  `READ_DISTANCE`, `READ_EXERCISE`, `READ_MINDFULNESS` (#452, asked only when
+  a tracker is linked), background and history reads). Google
   Play requires the **Health Connect permissions declaration** form in the
   Play Console, a privacy policy that names each data type, and a short
   video of the flow for each permission. Expect review to take longer than

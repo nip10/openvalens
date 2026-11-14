@@ -5,6 +5,7 @@ import {
   trackerUpdatePayload,
   type TrackerDraft,
 } from "@openvalens/api/presenters/tracker-draft";
+import { entrySourceLabel } from "@openvalens/api/presenters/tracker-feeds";
 import {
   formatTrackerTarget,
   formatTrackerTotal,
@@ -35,6 +36,7 @@ import { Container } from "@/components/container";
 import { TrackerEditor } from "@/components/trackers/tracker-editor";
 import { trackerIcon } from "@/components/trackers/tracker-icons";
 import { TrackerLogForm } from "@/components/trackers/tracker-log-form";
+import { TrackerPhoneFeeds, useTrackerFeedImport } from "@/components/trackers/tracker-phone-feed";
 import { TRACKER_INPUT_CLASS } from "@/components/trackers/tracker-value-input";
 import { friendlyDate } from "@/utils/friendly";
 import { orpc } from "@/utils/orpc";
@@ -51,6 +53,7 @@ export default function TrackerScreen() {
     enabled: Boolean(trackerId),
   });
   const refresh = () => void queryClient.invalidateQueries({ queryKey: orpc.trackers.key() });
+  useTrackerFeedImport();
 
   if (tracker.isPending)
     return (
@@ -102,6 +105,7 @@ export default function TrackerScreen() {
         ) : null}
         <ChartSection tracker={data} />
         <EntriesSection tracker={data} onChanged={refresh} />
+        {data.canEdit ? <TrackerPhoneFeeds tracker={data} /> : null}
         {data.canEdit ? <SettingsSection tracker={data} onChanged={refresh} /> : null}
       </Page>
     </Container>
@@ -233,11 +237,14 @@ function EntriesSection({ tracker, onChanged }: { tracker: Tracker; onChanged: (
       ) : (
         <Sheet className="gap-0 px-4 py-1">
           {entries.data.entries.map((entry) => {
-            const by = entry.loggedBy.isYou
-              ? t`logged by you`
-              : entry.loggedBy.name
-                ? t`logged by ${entry.loggedBy.name}`
-                : t`logged by a former member`;
+            const from = entrySourceLabel(entry.source);
+            const by = from
+              ? i18n._(from)
+              : entry.loggedBy.isYou
+                ? t`logged by you`
+                : entry.loggedBy.name
+                  ? t`logged by ${entry.loggedBy.name}`
+                  : t`logged by a former member`;
             return (
               <View
                 key={entry.id}

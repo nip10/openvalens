@@ -1152,6 +1152,14 @@ msgstr "{statementTitle}. {sourceVersion}. Retrieved {retrieved}; last checked {
 msgid "{steps} steps a day"
 msgstr "{steps} steps a day"
 
+#: apps/native/components/trackers/tracker-phone-feed.tsx
+msgid "{storeName} asks for permission to read this one data type when you link it."
+msgstr "{storeName} asks for permission to read this one data type when you link it."
+
+#: apps/native/components/trackers/tracker-phone-feed.tsx
+msgid "{storeName} is not available on this phone."
+msgstr "{storeName} is not available on this phone."
+
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 msgid "{syncing, plural, one {# syncing} other {# syncing}}"
 msgstr "{syncing, plural, one {# syncing} other {# syncing}}"
@@ -2378,6 +2386,14 @@ msgstr "All trackers"
 msgid "Allow access"
 msgstr "Allow access"
 
+#: apps/native/components/trackers/tracker-phone-feed.tsx
+msgid "Allow access in {storeName} to import from this phone."
+msgstr "Allow access in {storeName} to import from this phone."
+
+#: apps/native/components/trackers/tracker-phone-feed.tsx
+msgid "Allow access in {storeName} to link it."
+msgstr "Allow access in {storeName} to link it."
+
 #. safety
 #. safety
 #: apps/native/components/ai-section.tsx
@@ -2537,6 +2553,14 @@ msgstr "App identity:"
 #: apps/native/app/(drawer)/settings.tsx
 msgid "App version"
 msgstr "App version"
+
+#: packages/api/src/presenters/tracker-feeds.ts
+msgid "Apple Health mindful minutes"
+msgstr "Apple Health mindful minutes"
+
+#: packages/api/src/presenters/tracker-feeds.ts
+msgid "Apple Health State of Mind"
+msgstr "Apple Health State of Mind"
 
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Applies from"
@@ -4784,6 +4808,10 @@ msgstr "Could not export. Try again."
 msgid "Could not generate a connect link."
 msgstr "Could not generate a connect link."
 
+#: apps/native/components/trackers/tracker-phone-feed.tsx
+msgid "Could not link it. Try again."
+msgstr "Could not link it. Try again."
+
 #: apps/web/src/components/workout-routines.tsx
 msgid "Could not load a preview. Your routine is unchanged."
 msgstr "Could not load a preview. Your routine is unchanged."
@@ -4994,6 +5022,10 @@ msgstr "Could not load the exercise library."
 #: apps/native/components/workout-session.tsx
 msgid "Could not load the latest version"
 msgstr "Could not load the latest version"
+
+#: apps/native/components/trackers/tracker-phone-feed.tsx
+msgid "Could not load the links. Try again."
+msgstr "Could not load the links. Try again."
 
 #: apps/web/src/routes/_auth/scores.tsx
 msgid "Could not load the readiness index."
@@ -5212,6 +5244,10 @@ msgstr "Could not reach the server. Your saved foods are unchanged."
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Could not reach the server. Your saved targets are unchanged."
 msgstr "Could not reach the server. Your saved targets are unchanged."
+
+#: apps/native/components/trackers/tracker-phone-feed.tsx
+msgid "Could not read {storeName}. Check its permissions and try again."
+msgstr "Could not read {storeName}. Check its permissions and try again."
 
 #: packages/api/src/presenters/plain-water.ts
 msgid "Could not read changes saved on this device. Entries on the server are unaffected."
@@ -5494,6 +5530,10 @@ msgstr "Could not turn this on. Try again."
 #: apps/web/src/routes/_auth/cycle.tsx
 msgid "Could not undo this import. Try again."
 msgstr "Could not undo this import. Try again."
+
+#: apps/native/components/trackers/tracker-phone-feed.tsx
+msgid "Could not unlink it. Try again."
+msgstr "Could not unlink it. Try again."
 
 #: apps/web/src/components/ai-consent-section.tsx
 msgid "Could not update AI consent."
@@ -6642,6 +6682,10 @@ msgstr "Duration must be between 1 and 1440 minutes."
 msgid "Each answer is optional and only you can see it. Nothing is pre-selected, and you can choose “Prefer not to say” or clear an answer at any time."
 msgstr "Each answer is optional and only you can see it. Nothing is pre-selected, and you can choose “Prefer not to say” or clear an answer at any time."
 
+#: packages/api/src/presenters/tracker-feeds.ts
+msgid "Each daily mood you log in Apple Health becomes a 1 to 5 entry. Momentary emotions are not imported."
+msgstr "Each daily mood you log in Apple Health becomes a 1 to 5 entry. Momentary emotions are not imported."
+
 #: packages/api/src/presenters/score.ts
 msgid "Each goal's progress is how far you have moved from its starting value toward its target, capped at 100% once reached. The total weighs each counted goal by its priority (low 1, normal 2, high 3). Paused or cancelled goals, and goals without a target, current value or direction, are left out instead of counted as zero."
 msgstr "Each goal's progress is how far you have moved from its starting value toward its target, capped at 100% once reached. The total weighs each counted goal by its priority (low 1, normal 2, high 3). Paused or cancelled goals, and goals without a target, current value or direction, are left out instead of counted as zero."
@@ -6654,6 +6698,14 @@ msgstr "Each input is compared with your own median over the 28 days before it (
 #: apps/web/src/routes/_auth/-goal-editor.tsx
 msgid "Each milestone needs a value and date."
 msgstr "Each milestone needs a value and date."
+
+#: packages/api/src/presenters/tracker-feeds.ts
+msgid "Each mindful session in Apple Health becomes an entry: its length, on the day it started."
+msgstr "Each mindful session in Apple Health becomes an entry: its length, on the day it started."
+
+#: packages/api/src/presenters/tracker-feeds.ts
+msgid "Each mindfulness session in Health Connect becomes an entry: its length, on the day it started."
+msgstr "Each mindfulness session in Health Connect becomes an entry: its length, on the day it started."
 
 #: apps/native/components/finish-setup-card.tsx
 #: apps/web/src/components/onboarding/finish-setup-card.tsx
@@ -7556,6 +7608,10 @@ msgstr "Fetches this one page once. Nothing is saved."
 msgid "Fibre"
 msgstr "Fibre"
 
+#: apps/web/src/routes/_auth/trackers.$trackerId.tsx
+msgid "Filled from {names}. Link or unlink it in the tracker's settings in the OpenValens app on your phone; unlinking keeps the entries already imported."
+msgstr "Filled from {names}. Link or unlink it in the tracker's settings in the OpenValens app on your phone; unlinking keeps the entries already imported."
+
 #: apps/native/components/server-choice.tsx
 msgid "Filled in from a link. Check that this is your server, then tap Connect."
 msgstr "Filled in from a link. Check that this is your server, then tap Connect."
@@ -7845,6 +7901,14 @@ msgctxt "add food mode"
 msgid "From app"
 msgstr "From app"
 
+#: packages/api/src/presenters/tracker-feeds.ts
+msgid "from Apple Health"
+msgstr "from Apple Health"
+
+#: packages/api/src/presenters/tracker-feeds.ts
+msgid "from Health Connect"
+msgstr "from Health Connect"
+
 #: apps/native/app/server.tsx
 msgid "From the link"
 msgstr "From the link"
@@ -7865,6 +7929,11 @@ msgstr "From wger, {licenseText}, {author}"
 #: apps/web/src/components/quick-log/one-liner-section.ts
 msgid "From what you typed"
 msgstr "From what you typed"
+
+#: apps/native/components/trackers/tracker-phone-feed.tsx
+#: apps/web/src/routes/_auth/trackers.$trackerId.tsx
+msgid "From your phone"
+msgstr "From your phone"
 
 #: apps/native/app/(drawer)/body-map.tsx
 #: apps/native/components/muscle-guide.tsx
@@ -8161,6 +8230,14 @@ msgstr "Head (back)"
 #: packages/api/src/presenters/pain-entry.ts
 msgid "Head (front)"
 msgstr "Head (front)"
+
+#: packages/api/src/presenters/tracker-feeds.ts
+msgid "Health Connect mindfulness"
+msgstr "Health Connect mindfulness"
+
+#: apps/native/components/trackers/tracker-phone-feed.tsx
+msgid "Health Connect's mindfulness data is still an experimental feature, so how it works may change."
+msgstr "Health Connect's mindfulness data is still an experimental feature, so how it works may change."
 
 #: apps/native/components/health-sync-settings.tsx
 msgid "Health data"
@@ -8459,6 +8536,10 @@ msgstr "hours, kg, cups"
 msgid "hours, kg, servings…"
 msgstr "hours, kg, servings…"
 
+#: apps/native/components/trackers/tracker-phone-feed.tsx
+msgid "How a daily mood becomes 1 to 5"
+msgstr "How a daily mood becomes 1 to 5"
+
 #: packages/api/src/presenters/insights.ts
 #: packages/api/src/presenters/score.ts
 msgid "How am I doing?"
@@ -8740,6 +8821,10 @@ msgstr "Imperial"
 msgid "Import a recipe"
 msgstr "Import a recipe"
 
+#: apps/native/components/trackers/tracker-phone-feed.tsx
+msgid "Import now"
+msgstr "Import now"
+
 #: packages/api/src/presenters/recipe-draft.ts
 msgid "Import recipes from a web address"
 msgstr "Import recipes from a web address"
@@ -8754,6 +8839,14 @@ msgstr "Import undone. {0, plural, one {# imported period removed.} other {# imp
 msgid "imported"
 msgstr "imported"
 
+#: apps/native/components/trackers/tracker-phone-feed.tsx
+msgid "Imported {count} new entries."
+msgstr "Imported {count} new entries."
+
+#: apps/native/components/trackers/tracker-phone-feed.tsx
+msgid "Imported 1 new entry."
+msgstr "Imported 1 new entry."
+
 #: packages/api/src/presenters/nutrition-templates.ts
 msgid "Imported recipe draft"
 msgstr "Imported recipe draft"
@@ -8763,6 +8856,7 @@ msgstr "Imported recipe draft"
 msgid "Imported: {importedAt}"
 msgstr "Imported: {importedAt}"
 
+#: apps/native/components/trackers/tracker-phone-feed.tsx
 #: packages/api/src/presenters/recipe-draft.ts
 msgid "Importing…"
 msgstr "Importing…"
@@ -9081,6 +9175,10 @@ msgstr "It is not medical advice and says nothing about your health status. It d
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 msgid "It may have been deleted, or its owner stopped sharing it with this workspace."
 msgstr "It may have been deleted, or its owner stopped sharing it with this workspace."
+
+#: apps/native/components/trackers/tracker-phone-feed.tsx
+msgid "It now fills {otherName}. Linking it here moves it; {otherName} keeps its entries."
+msgstr "It now fills {otherName}. Linking it here moves it; {otherName} keeps its entries."
 
 #: apps/native/components/get-started-card.tsx
 msgid "It starts your weight trend."
@@ -9649,9 +9747,21 @@ msgstr "Light: {light} min (not counted)"
 msgid "Linear progression"
 msgstr "Linear progression"
 
+#: apps/native/components/trackers/tracker-phone-feed.tsx
+msgid "Link to this tracker"
+msgstr "Link to this tracker"
+
+#: apps/native/components/trackers/tracker-phone-feed.tsx
+msgid "Linked"
+msgstr "Linked"
+
 #: apps/native/app/(drawer)/goals/[goalId].tsx
 msgid "Linked water diary target"
 msgstr "Linked water diary target"
+
+#: apps/native/components/trackers/tracker-phone-feed.tsx
+msgid "Linking…"
+msgstr "Linking…"
 
 #. safety
 #: packages/api/src/presenters/preventive-care.ts
@@ -10358,6 +10468,10 @@ msgstr "Maximum reps"
 msgid "May apply to you, depending on your answer to a question below."
 msgstr "May apply to you, depending on your answer to a question below."
 
+#: apps/native/components/trackers/tracker-phone-feed.tsx
+msgid "May change"
+msgstr "May change"
+
 #. safety
 #: packages/api/src/presenters/preventive-care.ts
 msgid "May help slightly"
@@ -10903,6 +11017,10 @@ msgstr "Needs attention"
 msgid "Needs attention: {change}"
 msgstr "Needs attention: {change}"
 
+#: apps/native/components/trackers/tracker-phone-feed.tsx
+msgid "Needs iOS 18 or later."
+msgstr "Needs iOS 18 or later."
+
 #: packages/api/src/presenters/score.ts
 msgid "Needs steps on at least 2 of the last 3 full days (found {found})."
 msgstr "Needs steps on at least 2 of the last 3 full days (found {found})."
@@ -10910,6 +11028,10 @@ msgstr "Needs steps on at least 2 of the last 3 full days (found {found})."
 #: packages/api/src/presenters/wellness-profile.ts
 msgid "Neither fits me"
 msgstr "Neither fits me"
+
+#: packages/api/src/presenters/tracker-feeds.ts
+msgid "Neutral"
+msgstr "Neutral"
 
 #: apps/native/app/(drawer)/settings/ai-apps.tsx
 #: apps/web/src/components/ai-apps-view.tsx
@@ -10941,6 +11063,10 @@ msgstr "New changes are still on this phone ({0} waiting records and {1} drafts)
 #: apps/web/src/routes/_auth/coach/route.tsx
 msgid "New conversation"
 msgstr "New conversation"
+
+#: apps/native/components/trackers/tracker-phone-feed.tsx
+msgid "New entries are imported when you open your trackers and when the app syncs. If this phone has not been allowed yet, Import now asks."
+msgstr "New entries are imported when you open your trackers and when the app syncs. If this phone has not been allowed yet, Import now asks."
 
 #: packages/api/src/presenters/custom-foods.ts
 msgid "New food"
@@ -12015,6 +12141,10 @@ msgstr "Nothing stands out right now. On most days nothing does."
 #: packages/api/src/presenters/insights.ts
 msgid "Nothing stood out this week."
 msgstr "Nothing stood out this week."
+
+#: apps/native/components/trackers/tracker-phone-feed.tsx
+msgid "Nothing to import yet."
+msgstr "Nothing to import yet."
 
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 msgid "nothing yet"
@@ -13110,6 +13240,10 @@ msgstr "Plan a workout you want to repeat, then start it in one tap."
 msgid "Plays it safe; avoids pushing limits."
 msgstr "Plays it safe; avoids pushing limits."
 
+#: packages/api/src/presenters/tracker-feeds.ts
+msgid "Pleasant"
+msgstr "Pleasant"
+
 #: packages/email/src/templates/billing.tsx
 msgid "Please check your payment method in Plan & billing on the web. We will try again automatically."
 msgstr "Please check your payment method in Plan & billing on the web. We will try again automatically."
@@ -13625,6 +13759,10 @@ msgstr "Reached {0}"
 #: packages/api/src/presenters/score.ts
 msgid "Reaching a target does not mean your health has improved. Goals you have not set are never counted against you."
 msgstr "Reaching a target does not mean your health has improved. Goals you have not set are never counted against you."
+
+#: apps/native/components/trackers/tracker-phone-feed.tsx
+msgid "Read only: nothing is written back to your phone's health data."
+msgstr "Read only: nothing is written back to your phone's health data."
 
 #: apps/web/src/components/billing-plan-view.tsx
 msgid "Read our <0>Terms</0>."
@@ -14226,6 +14364,14 @@ msgstr "Restore {0}"
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 msgid "Restore entry"
 msgstr "Restore entry"
+
+#: apps/native/components/trackers/tracker-phone-feed.tsx
+msgid "Restore this tracker to import into it."
+msgstr "Restore this tracker to import into it."
+
+#: apps/native/components/trackers/tracker-phone-feed.tsx
+msgid "Restore this tracker to link it."
+msgstr "Restore this tracker to link it."
 
 #: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
@@ -16105,6 +16251,14 @@ msgstr "Slightly higher"
 msgid "Slightly lower"
 msgstr "Slightly lower"
 
+#: packages/api/src/presenters/tracker-feeds.ts
+msgid "Slightly pleasant"
+msgstr "Slightly pleasant"
+
+#: packages/api/src/presenters/tracker-feeds.ts
+msgid "Slightly unpleasant"
+msgstr "Slightly unpleasant"
+
 #: apps/native/app/(drawer)/trackers.tsx
 #: apps/web/src/routes/_auth/trackers.index.tsx
 msgid "Small things you track yourself: mood, sauna, dead hangs and more."
@@ -17629,6 +17783,10 @@ msgstr "This export has expired. Request a new one if you still need it."
 msgid "This export is too large to prepare. Try the exports below."
 msgstr "This export is too large to prepare. Try the exports below."
 
+#: apps/native/components/trackers/tracker-phone-feed.tsx
+msgid "This feed no longer fills this tracker."
+msgstr "This feed no longer fills this tracker."
+
 #: packages/api/src/presenters/custom-foods.ts
 msgid "This food changed on another device"
 msgstr "This food changed on another device"
@@ -18596,6 +18754,26 @@ msgstr "Unknown"
 msgid "Unknown means the food's source did not provide that value."
 msgstr "Unknown means the food's source did not provide that value."
 
+#: apps/native/components/trackers/tracker-phone-feed.tsx
+msgid "Unlink"
+msgstr "Unlink"
+
+#: apps/native/components/trackers/tracker-phone-feed.tsx
+msgid "Unlinked. The imported entries stay."
+msgstr "Unlinked. The imported entries stay."
+
+#: apps/native/components/trackers/tracker-phone-feed.tsx
+msgid "Unlinking stops imports and keeps the entries already imported."
+msgstr "Unlinking stops imports and keeps the entries already imported."
+
+#: apps/native/components/trackers/tracker-phone-feed.tsx
+msgid "Unlinking…"
+msgstr "Unlinking…"
+
+#: packages/api/src/presenters/tracker-feeds.ts
+msgid "Unpleasant"
+msgstr "Unpleasant"
+
 #: apps/native/app/(drawer)/profile.tsx
 #: apps/web/src/components/wellness-profile-editor.tsx
 msgid "Unsaved changes"
@@ -18634,6 +18812,10 @@ msgstr "up to {value} {unit}"
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Up to {value} {unit}"
 msgstr "Up to {value} {unit}"
+
+#: apps/native/components/trackers/tracker-phone-feed.tsx
+msgid "Up to date: no new entries."
+msgstr "Up to date: no new entries."
 
 #: apps/native/app/(drawer)/goals/[goalId].tsx
 #: apps/web/src/routes/_auth/goals.$goalId.tsx
@@ -18933,9 +19115,17 @@ msgstr "Very gentle"
 msgid "Very low certainty (“the evidence is very uncertain”)"
 msgstr "Very low certainty (“the evidence is very uncertain”)"
 
+#: packages/api/src/presenters/tracker-feeds.ts
+msgid "Very pleasant"
+msgstr "Very pleasant"
+
 #: packages/api/src/presenters/trackers.ts
 msgid "Very stressed"
 msgstr "Very stressed"
+
+#: packages/api/src/presenters/tracker-feeds.ts
+msgid "Very unpleasant"
+msgstr "Very unpleasant"
 
 #. Source of an entry a connected AI app wrote; {name} is the app's or key's name.
 #: packages/api/src/presenters/ai-apps.ts

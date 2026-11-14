@@ -35,6 +35,7 @@ import { Container } from "@/components/container";
 import { TrackerEditor } from "@/components/trackers/tracker-editor";
 import { trackerIcon } from "@/components/trackers/tracker-icons";
 import { TrackerLogForm } from "@/components/trackers/tracker-log-form";
+import { useTrackerFeedImport } from "@/components/trackers/tracker-phone-feed";
 import { orpc } from "@/utils/orpc";
 
 type TrackerSummary = Awaited<ReturnType<typeof orpc.trackers.list.call>>[number];
@@ -52,6 +53,8 @@ export default function TrackersScreen() {
     }),
   );
   const refresh = () => void queryClient.invalidateQueries({ queryKey: orpc.trackers.key() });
+  // #452: linked phone feeds (mindful minutes, State of Mind) import on open.
+  useTrackerFeedImport();
   const header = (
     <PageHeader
       eyebrow={t`Habits`}
