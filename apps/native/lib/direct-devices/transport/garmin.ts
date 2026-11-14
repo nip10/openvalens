@@ -59,6 +59,7 @@ import {
   isGarminDirectoryType,
   isGarminActivityFile,
   isGarminHealthFile,
+  parseGarminClassicAddress,
   parseGarminDeviceInformation,
   parseGarminDirectory,
   parseGarminFileTransferData,
@@ -169,6 +170,14 @@ export type GarminSessionOptions = Readonly<{
   link?: GarminSessionLink;
   maxFiles?: number;
   manager?: TransactionManager;
+  /**
+   * Edge-class devices (issue #421): called when the BLE directory lists no
+   * FIT file and the device reported a Classic address, as upstream's
+   * `onDirectoryWithoutFitFiles` (GarminSupport:1067-1087). It runs the file
+   * sync over RFCOMM (transport/garmin-rfcomm.ts) and resolves false when that
+   * sync was cut short.
+   */
+  onDirectoryWithoutFitFiles?: (classicAddress: string, signal: AbortSignal) => Promise<boolean>;
 }>;
 
 type Deferred<T> = {
@@ -237,6 +246,8 @@ export class GarminSession {
   private closed = false;
   /** A transfer stalled and the remaining files were left for the next sync. */
   private stalled = false;
+  /** From DEVICE_INFORMATION (GarminSupport:505-510); used only by the RFCOMM hook. */
+  private classicAddress: string | null = null;
 
   constructor(private readonly options: GarminSessionOptions) {
     this.timers = options.timers ?? defaultTimers;
@@ -359,6 +370,12 @@ export class GarminSession {
   private async syncFiles(): Promise<void> {
     const directory = await this.downloadFile(0);
     const entries = parseGarminDirectory(directory);
+    const rfcomm = this.options.onDirectoryWithoutFitFiles;
+    // FileTransferHandler: no entry of data type 128 (FIT) moves the sync to RFCOMM.
+    if (rfcomm && this.classicAddress && !entries.some((entry) => entry.dataType === 128)) {
+      if (!(await rfcomm(this.classicAddress, this.abort.signal))) this.stalled = true;
+      return;
+    }
     // Monitoring, sleep and HRV files first: ACTIVITY files can be large and
     // slow, and must not crowd them out of the file budget or a failing sync.
     const queue = entries
@@ -635,6 +652,7 @@ export class GarminSession {
         } catch {
           return;
         }
+        this.classicAddress = parseGarminClassicAddress(frame.payload) ?? this.classicAddress;
         void this.reply([
           this.status(type, GARMIN_STATUS.ACK),
           {

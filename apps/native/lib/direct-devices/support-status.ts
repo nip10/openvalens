@@ -16,6 +16,7 @@ import { findGadgetbridgeDevice } from "@openvalens/health-record/device-catalog
 import type { GadgetbridgeFeatureLevel } from "@openvalens/health-record/device-catalog";
 
 import type { DirectDeviceFamily } from "./setup/types";
+import { garminUsesRfcommFileTransfer } from "./models/garmin";
 
 /**
  * Upstream catalog status. `listed: false` means the model id has no entry;
@@ -42,6 +43,7 @@ export type OpenValensDeviceSupport =
   | "huawei_connection_only"
   | "garmin_history_sync"
   | "garmin_connection_only"
+  | "garmin_edge_rfcomm_sync"
   | "ble_gatt_live_capture"
   | "ble_scale_live_capture"
   | "ble_scale_connection_only"
@@ -96,6 +98,7 @@ export function describeDeviceSupport(input: {
       input.transportValidated,
       input.records,
       input.sync,
+      input.modelId,
     ),
   };
 }
@@ -105,6 +108,7 @@ function openValensSupport(
   transportValidated: boolean,
   records?: readonly string[],
   sync?: boolean,
+  modelId?: string,
 ): OpenValensDeviceSupport {
   switch (family) {
     case "zepp_os":
@@ -114,7 +118,11 @@ function openValensSupport(
     case "huawei":
       return sync === true ? "huawei_history_sync" : "huawei_connection_only";
     case "garmin":
-      return sync === true ? "garmin_history_sync" : "garmin_connection_only";
+      if (sync === true) return "garmin_history_sync";
+      // Edge bike computers: activity files over Bluetooth Classic on Android.
+      return modelId !== undefined && garminUsesRfcommFileTransfer(modelId)
+        ? "garmin_edge_rfcomm_sync"
+        : "garmin_connection_only";
     case "ble_gatt":
       return "ble_gatt_live_capture";
     case "ble_scale":

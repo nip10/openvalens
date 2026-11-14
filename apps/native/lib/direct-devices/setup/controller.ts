@@ -12,7 +12,7 @@ import { runHelioStepsHistory } from "../protocol/history";
 import { getZeppOsModel, matchDeviceName, type ZeppOsModelId } from "../models/zepp-os";
 import { matchXiaomiDeviceName } from "../models/xiaomi";
 import { matchHuaweiDeviceName, type HuaweiModel } from "../models/huawei";
-import { matchGarminDeviceName } from "../models/garmin";
+import { garminUsesRfcommFileTransfer, matchGarminDeviceName } from "../models/garmin";
 import { matchBleGattDevice, normalizeServiceUuid } from "../models/ble-gatt";
 import { matchBangleJsDevice } from "../models/bangle-js";
 import { matchBleScaleDevice } from "../models/ble-scale";
@@ -62,7 +62,12 @@ import { createFossilHrSession, type FossilPeer, type FossilSession } from "../t
 import { createDurablePebbleSession, type PebbleBondAdapter } from "../transport/pebble";
 import type { DurablePebbleSession, PebblePeer, PebbleSessionOutcome } from "../pebble-types";
 import { createHuamiLegacySession, selectHuamiLegacyProfile } from "../transport/huami-legacy";
-import { createGarminSession, type GarminSession } from "../transport/garmin";
+import {
+  createGarminSession,
+  defaultGarminSyncStateStore,
+  type GarminSession,
+} from "../transport/garmin";
+import { runGarminRfcommSync } from "../transport/garmin-rfcomm";
 import type { HuamiLegacyProfile, HuamiLegacySession } from "../transport/huami-legacy";
 import { HUAMI_SERVICE_UUID, matchHuamiLegacyDevice } from "../models/huami-legacy";
 import { createHuaweiSession } from "../transport/huawei";
@@ -1237,16 +1242,35 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
               onLiveHeartRate: deps.onHistorySample,
             });
           }
-          if (garminProfile && garminModel?.sync && deps.onHistorySample) {
+          // Edge bike computers on Android: files may come over RFCOMM (#421).
+          const garminRfcomm =
+            garminProfile !== null &&
+            garminModel !== null &&
+            garminUsesRfcommFileTransfer(garminModel.id) &&
+            deps.onHistorySample !== undefined &&
+            btClassicSupported();
+          if (garminProfile && (garminModel?.sync || garminRfcomm) && deps.onHistorySample) {
             void connectedGarminSession?.close();
+            const onRecord = deps.onHistorySample;
             // Garmin needs no key, so the FIT file sync starts on connection
             // and `fetchSteps` only awaits it inside the sync action.
             connectedGarminSession = createGarminSession({
               device: discovered,
               deviceId,
               profile: garminProfile,
-              modelId: garminModel.id,
-              onRecord: deps.onHistorySample,
+              modelId: garminModel!.id,
+              onRecord,
+              onDirectoryWithoutFitFiles: garminRfcomm
+                ? (classicAddress, signal) =>
+                    runGarminRfcommSync({
+                      btClassic: (deps.btClassicAdapter ?? loadBtClassicAdapter)(),
+                      classicAddress,
+                      deviceId,
+                      onRecord,
+                      syncState: defaultGarminSyncStateStore,
+                      signal,
+                    }).then((result) => result.complete)
+                : undefined,
             });
             connectedGarminSession.start();
           }
@@ -1323,7 +1347,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
                 (family === "pebble" && pebblePeer !== null) ||
                 (family === "fossil_hr" && fossilPeer !== null) ||
                 (family === "huawei" && (huaweiModel?.sync === true || huaweiBrSync)) ||
-                (family === "garmin" && garminModel?.sync === true),
+                (family === "garmin" && (garminModel?.sync === true || garminRfcomm)),
               liveCapture: family === "ble_gatt" || family === "ble_scale",
               historySync:
                 family === "colmi_ring" ||
@@ -1335,7 +1359,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
                 (family === "casio" && casioProfile?.source !== null) ||
                 (family === "pebble" && pebblePeer !== null) ||
                 (family === "huawei" && (huaweiModel?.sync === true || huaweiBrSync)) ||
-                (family === "garmin" && garminModel?.sync === true),
+                (family === "garmin" && (garminModel?.sync === true || garminRfcomm)),
             }),
             bluetooth: "powered_on",
           });

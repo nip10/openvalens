@@ -116,7 +116,7 @@ test("Garmin wearables report FIT history sync, other models connection checks o
     }).openValens,
   ).toBe("garmin_history_sync");
 
-  for (const modelId of ["garmin_edge_530", "garmin_gpsmap_66s", "garmin_hrm_200"]) {
+  for (const modelId of ["garmin_etrex_se", "garmin_gpsmap_66s", "garmin_hrm_200"]) {
     const model = getGarminModel(modelId as Parameters<typeof getGarminModel>[0]);
     expect(
       describeDeviceSupport({
@@ -127,6 +127,20 @@ test("Garmin wearables report FIT history sync, other models connection checks o
       }).openValens,
       modelId,
     ).toBe("garmin_connection_only");
+  }
+
+  // Edge bike computers sync recorded rides over Bluetooth Classic on Android.
+  for (const modelId of ["garmin_edge_530", "garmin_edge_520_plus"]) {
+    const model = getGarminModel(modelId as Parameters<typeof getGarminModel>[0]);
+    expect(
+      describeDeviceSupport({
+        family: "garmin",
+        modelId,
+        transportValidated: model?.transportValidated ?? false,
+        sync: model?.sync,
+      }).openValens,
+      modelId,
+    ).toBe("garmin_edge_rfcomm_sync");
   }
 });
 

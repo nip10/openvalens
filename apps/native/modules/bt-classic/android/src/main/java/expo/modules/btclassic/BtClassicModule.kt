@@ -4,6 +4,7 @@ import android.Manifest
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
+import android.bluetooth.BluetoothServerSocket
 import android.bluetooth.BluetoothSocket
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -11,6 +12,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.Build
+import android.os.ParcelUuid
 import android.util.Base64
 import expo.modules.kotlin.Promise
 import expo.modules.kotlin.modules.Module
@@ -25,10 +27,12 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 
 /**
- * Bluetooth Classic RFCOMM client sockets for the direct-device stack
+ * Bluetooth Classic RFCOMM sockets for the direct-device stack
  * (docs/research/notes/Bluetooth Classic RFCOMM, decided 2026-11-13: Android
- * only). One reader thread and one ordered writer per socket; connects run on
- * a background executor with a watchdog. Errors reject with BT_CLASSIC_* codes.
+ * only). One reader thread and one ordered writer per socket; connects and
+ * accepts run on a background executor with a watchdog. Server sockets
+ * (`listen`/`accept`) serve Garmin Edge, which opens the link towards the
+ * phone. Errors reject with BT_CLASSIC_* codes.
  */
 class BtClassicModule : Module() {
   private class SocketEntry(val socket: BluetoothSocket) {
@@ -37,7 +41,15 @@ class BtClassicModule : Module() {
     @Volatile var reader: Thread? = null
   }
 
+  private class ServerEntry(val server: BluetoothServerSocket) {
+    val accepting = AtomicBoolean(false)
+    val closed = AtomicBoolean(false)
+  }
+
   private val sockets = ConcurrentHashMap<String, SocketEntry>()
+  private val servers = ConcurrentHashMap<String, ServerEntry>()
+  /** ACTION_UUID receivers still waiting; unregistered on settle or destroy. */
+  private val uuidReceivers = ConcurrentHashMap.newKeySet<BroadcastReceiver>()
   private val pendingConnects = ConcurrentHashMap<String, BluetoothSocket>()
   /** Addresses with a connect in flight; claimed on the caller thread. */
   private val connectingAddresses = ConcurrentHashMap.newKeySet<String>()
@@ -237,9 +249,135 @@ class BtClassicModule : Module() {
       closeEntry(socketId, "local", null)
     }
 
+    // A server socket with an SDP record; `accept` then waits for one link.
+    AsyncFunction("listen") { name: String, uuid: String, secure: Boolean, promise: Promise ->
+      val adapter = usableAdapter(promise, Manifest.permission.BLUETOOTH_CONNECT) ?: return@AsyncFunction
+      val serviceUuid = try {
+        UUID.fromString(uuid)
+      } catch (error: IllegalArgumentException) {
+        promise.reject("BT_CLASSIC_INVALID_UUID", uuid, error)
+        return@AsyncFunction
+      }
+      if (servers.size >= MAX_SERVERS) {
+        promise.reject("BT_CLASSIC_BUSY", null, null)
+        return@AsyncFunction
+      }
+      connectExecutor.execute {
+        val server = try {
+          if (secure) adapter.listenUsingRfcommWithServiceRecord(name, serviceUuid)
+          else adapter.listenUsingInsecureRfcommWithServiceRecord(name, serviceUuid)
+        } catch (error: SecurityException) {
+          promise.reject("BT_CLASSIC_PERMISSION", error.message, error)
+          return@execute
+        } catch (error: IOException) {
+          promise.reject("BT_CLASSIC_LISTEN_FAILED", error.message, error)
+          return@execute
+        }
+        val id = "server-${nextId.getAndIncrement()}"
+        servers[id] = ServerEntry(server)
+        // OnDestroy may have swept the map before this entry landed.
+        if (destroyed.get()) {
+          closeServer(id)
+          promise.reject("BT_CLASSIC_CANCELLED", null, null)
+          return@execute
+        }
+        promise.resolve(id)
+      }
+    }
+
+    // Waits for one inbound link, then closes the server socket. A watchdog
+    // close() from another thread enforces timeoutMs, as for connect.
+    AsyncFunction("accept") { serverId: String, timeoutMs: Double, promise: Promise ->
+      val entry = servers[serverId]
+      if (entry == null || entry.closed.get()) {
+        promise.reject("BT_CLASSIC_NOT_LISTENING", serverId, null)
+        return@AsyncFunction
+      }
+      if (sockets.size >= MAX_SOCKETS) {
+        promise.reject("BT_CLASSIC_TOO_MANY_SOCKETS", null, null)
+        return@AsyncFunction
+      }
+      if (!entry.accepting.compareAndSet(false, true)) {
+        promise.reject("BT_CLASSIC_BUSY", serverId, null)
+        return@AsyncFunction
+      }
+      connectExecutor.execute { acceptOnExecutor(serverId, entry, timeoutMs, promise) }
+    }
+
+    AsyncFunction("stopListening") { serverId: String ->
+      closeServer(serverId)
+    }
+
+    // Starts an SDP query (fetchUuidsWithSdp) and resolves with the UUIDs the
+    // ACTION_UUID broadcast reports, or the cached ones after timeoutMs. For
+    // Garmin the query itself is the point: it makes the device connect back
+    // (GarminRfcommListener.requestConnection).
+    AsyncFunction("fetchUuids") { address: String, timeoutMs: Double, promise: Promise ->
+      val adapter = usableAdapter(promise, Manifest.permission.BLUETOOTH_CONNECT) ?: return@AsyncFunction
+      if (!BluetoothAdapter.checkBluetoothAddress(address)) {
+        promise.reject("BT_CLASSIC_INVALID_ADDRESS", address, null)
+        return@AsyncFunction
+      }
+      val device = adapter.getRemoteDevice(address)
+      val settled = AtomicBoolean(false)
+      val receiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+          if (intent.action != BluetoothDevice.ACTION_UUID) return
+          val found = deviceExtra(intent) ?: return
+          if (!found.address.equals(address, ignoreCase = true)) return
+          if (settled.compareAndSet(false, true)) {
+            dropUuidReceiver(this)
+            promise.resolve(uuidExtra(intent) ?: cachedUuids(device))
+          }
+        }
+      }
+      try {
+        val filter = IntentFilter(BluetoothDevice.ACTION_UUID)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+          context.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED)
+        } else {
+          @Suppress("UnspecifiedRegisterReceiverFlag")
+          context.registerReceiver(receiver, filter)
+        }
+        uuidReceivers.add(receiver)
+        if (!device.fetchUuidsWithSdp()) {
+          if (settled.compareAndSet(false, true)) {
+            dropUuidReceiver(receiver)
+            promise.reject("BT_CLASSIC_SDP_FAILED", "fetchUuidsWithSdp returned false", null)
+          }
+          return@AsyncFunction
+        }
+      } catch (error: SecurityException) {
+        if (settled.compareAndSet(false, true)) {
+          dropUuidReceiver(receiver)
+          promise.reject("BT_CLASSIC_PERMISSION", error.message, error)
+        }
+        return@AsyncFunction
+      }
+      val timeout = Runnable {
+        try {
+          Thread.sleep(timeoutMs.toLong().coerceIn(1_000L, 60_000L))
+        } catch (_: InterruptedException) {}
+        if (settled.compareAndSet(false, true)) {
+          dropUuidReceiver(receiver)
+          promise.resolve(cachedUuids(device))
+        }
+      }
+      try {
+        connectExecutor.execute(timeout)
+      } catch (_: java.util.concurrent.RejectedExecutionException) {
+        if (settled.compareAndSet(false, true)) {
+          dropUuidReceiver(receiver)
+          promise.reject("BT_CLASSIC_CANCELLED", null, null)
+        }
+      }
+    }
+
     OnDestroy {
       destroyed.set(true)
       for (socket in pendingConnects.values) closeQuietly(socket)
+      for (id in servers.keys.toList()) closeServer(id)
+      for (receiver in uuidReceivers.toList()) dropUuidReceiver(receiver)
       for (id in sockets.keys.toList()) closeEntry(id, "local", null)
       try {
         adapter()?.cancelDiscovery()
@@ -322,6 +460,97 @@ class BtClassicModule : Module() {
       pendingConnects.remove(address)
     }
   }
+
+  private fun acceptOnExecutor(serverId: String, entry: ServerEntry, timeoutMs: Double, promise: Promise) {
+    // Exactly one of the watchdog and a finished accept claims the outcome.
+    val settled = AtomicBoolean(false)
+    val timedOut = AtomicBoolean(false)
+    val watchdog = Thread {
+      try {
+        Thread.sleep(timeoutMs.toLong().coerceIn(1_000L, 300_000L))
+        if (settled.compareAndSet(false, true)) {
+          timedOut.set(true)
+          closeServer(serverId)
+        }
+      } catch (_: InterruptedException) {}
+    }
+    watchdog.isDaemon = true
+    watchdog.start()
+    try {
+      val socket = entry.server.accept()
+      watchdog.interrupt()
+      // One link per listen (connect-per-sync): no second device may attach.
+      closeServer(serverId)
+      if (!settled.compareAndSet(false, true)) {
+        closeQuietly(socket)
+        promise.reject("BT_CLASSIC_ACCEPT_TIMEOUT", null, null)
+        return
+      }
+      if (destroyed.get()) {
+        closeQuietly(socket)
+        promise.reject("BT_CLASSIC_CANCELLED", null, null)
+        return
+      }
+      val address = try {
+        socket.remoteDevice.address
+      } catch (_: Exception) {
+        null
+      }
+      val id = "rfcomm-${nextId.getAndIncrement()}"
+      sockets[id] = SocketEntry(socket)
+      promise.resolve(mapOf("socketId" to id, "address" to address))
+    } catch (error: IOException) {
+      watchdog.interrupt()
+      settled.set(true)
+      // Read before closeServer() below marks a still-open entry closed.
+      val stopped = entry.closed.get()
+      closeServer(serverId)
+      when {
+        timedOut.get() -> promise.reject("BT_CLASSIC_ACCEPT_TIMEOUT", null, error)
+        destroyed.get() || stopped -> promise.reject("BT_CLASSIC_CANCELLED", null, error)
+        else -> promise.reject("BT_CLASSIC_ACCEPT_FAILED", error.message, error)
+      }
+    } catch (error: SecurityException) {
+      watchdog.interrupt()
+      settled.set(true)
+      closeServer(serverId)
+      promise.reject("BT_CLASSIC_PERMISSION", error.message, error)
+    }
+  }
+
+  /** Idempotent; closing aborts a blocking accept() on another thread. */
+  private fun closeServer(serverId: String) {
+    val entry = servers.remove(serverId) ?: return
+    if (!entry.closed.compareAndSet(false, true)) return
+    try {
+      entry.server.close()
+    } catch (_: IOException) {}
+  }
+
+  private fun dropUuidReceiver(receiver: BroadcastReceiver) {
+    if (!uuidReceivers.remove(receiver)) return
+    try {
+      context.unregisterReceiver(receiver)
+    } catch (_: Exception) {}
+  }
+
+  @Suppress("DEPRECATION")
+  private fun uuidExtra(intent: Intent): List<String>? {
+    val values: Array<out android.os.Parcelable>? =
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        intent.getParcelableArrayExtra(BluetoothDevice.EXTRA_UUID, ParcelUuid::class.java)
+      } else {
+        intent.getParcelableArrayExtra(BluetoothDevice.EXTRA_UUID)
+      }
+    return values?.mapNotNull { (it as? ParcelUuid)?.uuid?.toString() }
+  }
+
+  private fun cachedUuids(device: BluetoothDevice): List<String> =
+    try {
+      device.uuids?.map { it.uuid.toString() } ?: emptyList()
+    } catch (_: SecurityException) {
+      emptyList()
+    }
 
   /** Idempotent: emits onClosed once per socket. */
   private fun closeEntry(socketId: String, reason: String, message: String?) {
@@ -409,5 +638,6 @@ class BtClassicModule : Module() {
 
   companion object {
     private const val MAX_SOCKETS = 4
+    private const val MAX_SERVERS = 2
   }
 }

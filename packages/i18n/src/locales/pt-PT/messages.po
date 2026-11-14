@@ -16334,6 +16334,10 @@ msgstr "A sincronizar…"
 msgid "Syncs over Bluetooth Classic on Android; the first sync asks you to confirm pairing on the watch. Honor Watch 5, 5 Pro and 6 are not supported yet. Connection checks only on iPhone. Not hardware-verified."
 msgstr "Sincroniza por Bluetooth Clássico no Android; a primeira sincronização pede-lhe que confirme o emparelhamento no relógio. Os Honor Watch 5, 5 Pro e 6 ainda não são suportados. No iPhone apenas verifica a ligação. Não verificado em hardware."
 
+#: apps/native/components/direct-device-settings.tsx
+msgid "Syncs recorded rides over Bluetooth Classic on Android when the device lists no files over Bluetooth LE. Connection checks only on iPhone. Not hardware-verified."
+msgstr "Sincroniza as atividades gravadas por Bluetooth Clássico no Android quando o dispositivo não lista ficheiros por Bluetooth LE. No iPhone apenas verifica a ligação. Não verificado em hardware."
+
 #: apps/web/src/components/mode-toggle.tsx
 msgid "System"
 msgstr "Sistema"

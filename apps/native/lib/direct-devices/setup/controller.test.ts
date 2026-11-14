@@ -303,6 +303,10 @@ function fixture(
         openRfcomm: async () => {
           throw new Error("BT_CLASSIC_UNSUPPORTED");
         },
+        fetchUuids: async () => [],
+        listen: async () => {
+          throw new Error("BT_CLASSIC_UNSUPPORTED");
+        },
       })),
     createPebbleSession: options.createPebbleSession,
     createFossilSession: options.createFossilSession,
@@ -1388,6 +1392,10 @@ test("a Bluetooth Classic Huawei watch syncs over RFCOMM only where the module i
         opened.push(args);
         throw new Error("BT_CLASSIC_CONNECT_TIMEOUT");
       },
+      fetchUuids: async () => [],
+      listen: async () => {
+        throw new Error("BT_CLASSIC_UNSUPPORTED");
+      },
     }),
   });
   await android.controller.startScan();
@@ -1700,6 +1708,51 @@ test("a Garmin wearable exposes FIT history sync; a bike computer stays connecti
     capabilities: { stepsHistory: false, liveCapture: false, historySync: false },
   });
   await bike.controller.dispose();
+});
+
+test("an Edge bike computer offers history sync only where Bluetooth Classic is supported", async () => {
+  const garminServices = async () => [{ uuid: "6a4e2800-667b-11e3-949a-0800200c9a66" }];
+  const garminCharacteristics = async (service: string) =>
+    service === "6a4e2800-667b-11e3-949a-0800200c9a66"
+      ? [
+          { uuid: "6a4e2810-667b-11e3-949a-0800200c9a66" },
+          { uuid: "6a4e2820-667b-11e3-949a-0800200c9a66" },
+        ]
+      : [];
+  const btClassic = (supported: boolean) => () => ({
+    isSupported: () => supported,
+    listBonded: async () => [],
+    discover: async () => undefined,
+    openRfcomm: async () => {
+      throw new Error("BT_CLASSIC_UNSUPPORTED");
+    },
+    fetchUuids: async () => [],
+    listen: async () => {
+      throw new Error("BT_CLASSIC_UNSUPPORTED");
+    },
+  });
+  for (const [deviceName, supported, expected] of [
+    ["Edge 520 Plus", true, true],
+    ["Edge 520 Plus", false, false],
+    // The eTrex SE is not a GarminBikeComputerCoordinator upstream.
+    ["eTrex SE", true, false],
+  ] as const) {
+    const f = fixture({
+      deviceName,
+      services: garminServices,
+      characteristics: garminCharacteristics,
+      onHistorySample: () => undefined,
+      btClassicAdapter: btClassic(supported),
+    });
+    await f.controller.startScan();
+    f.emit();
+    await f.controller.connect("local-id");
+    expect(f.controller.getSnapshot()).toMatchObject({
+      phase: "connected",
+      capabilities: { stepsHistory: expected, liveCapture: false, historySync: expected },
+    });
+    await f.controller.dispose();
+  }
 });
 
 test("a Garmin model without a Garmin service is rejected", async () => {

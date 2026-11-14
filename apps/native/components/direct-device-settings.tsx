@@ -318,6 +318,7 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
     huawei_connection_only: t`Syncs over Bluetooth Classic on Android; the first sync asks you to confirm pairing on the watch. Honor Watch 5, 5 Pro and 6 are not supported yet. Connection checks only on iPhone. Not hardware-verified.`,
     garmin_history_sync: t`FIT file sync on connection for exact-minute steps, heart rate and sleep; not hardware-verified.`,
     garmin_connection_only: t`Connection checks only; this model carries no health-monitoring FIT files. Not hardware-verified.`,
+    garmin_edge_rfcomm_sync: t`Syncs recorded rides over Bluetooth Classic on Android when the device lists no files over Bluetooth LE. Connection checks only on iPhone. Not hardware-verified.`,
     ble_gatt_live_capture: t`Live capture while connected; not hardware-verified. No history backfill. Samples are sent only when you tap “Retry upload”.`,
     ble_scale_live_capture: t`Live weight capture while connected; not hardware-verified. Some scales also report stored measurements on connection. Samples are sent only when you tap “Retry upload”.`,
     ble_scale_connection_only: t`Connection checks only; measurement capture is not implemented for this model yet. Not hardware-verified.`,

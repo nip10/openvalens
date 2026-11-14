@@ -29,6 +29,10 @@ function fakeBtClassic(options: { bonded?: BtClassicDevice[]; failFirst?: string
       }
       return socket;
     },
+    fetchUuids: async () => [],
+    listen: async () => {
+      throw new Error("BT_CLASSIC_UNSUPPORTED");
+    },
   };
   return { adapter, calls };
 }

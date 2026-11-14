@@ -26,6 +26,19 @@ function fakeNative(overrides: Partial<NativeBtClassicModule> = {}) {
       void calls.push(["startReading", socketId, bufferSize]),
     write: async (socketId, bytes) => void calls.push(["write", socketId, Array.from(bytes)]),
     close: async (socketId) => void calls.push(["close", socketId]),
+    fetchUuids: async (address, timeoutMs) => {
+      calls.push(["fetchUuids", address, timeoutMs]);
+      return ["deab91e4-670f-11e1-9ace-30bc4824019b", 7];
+    },
+    listen: async (name, uuid, secure) => {
+      calls.push(["listen", name, uuid, secure]);
+      return "server-1";
+    },
+    accept: async (serverId, timeoutMs) => {
+      calls.push(["accept", serverId, timeoutMs]);
+      return { socketId: "rfcomm-2", address: "AA:BB:CC:DD:EE:03" };
+    },
+    stopListening: async (serverId) => void calls.push(["stopListening", serverId]),
     addListener: (event, listener) => {
       const set = listeners.get(event) ?? new Set();
       set.add(listener);
@@ -169,4 +182,92 @@ test("base64 decoding matches the platform encoder for every length", async () =
     );
   }
   expect(decodeBase64("not base64!")).toBeNull();
+});
+
+test("listen publishes the record, signals it, accepts one link and always stops the server", async () => {
+  const fake = fakeNative();
+  const adapter = createBtClassicAdapter(
+    () => fake.native,
+    () => true,
+  );
+  const order: string[] = [];
+  const { link, address } = await adapter.listen({
+    name: "Garmin SPP",
+    uuid: "deab91e4-670f-11e1-9ace-30bc4824019b",
+    timeoutMs: 60_000,
+    onListening: () => order.push(`listening after ${fake.calls.length} call(s)`),
+  });
+  expect(order).toEqual(["listening after 1 call(s)"]);
+  expect(fake.calls).toEqual([
+    ["listen", "Garmin SPP", "deab91e4-670f-11e1-9ace-30bc4824019b", true],
+    ["accept", "server-1", 60_000],
+    ["stopListening", "server-1"],
+  ]);
+  expect(address).toBe("AA:BB:CC:DD:EE:03");
+  // The accepted socket is an ordinary link: reader on subscribe, ordered writes.
+  const received: number[][] = [];
+  link.subscribe(
+    (bytes) => received.push(Array.from(bytes)),
+    () => undefined,
+  );
+  expect(fake.calls.at(-1)).toEqual(["startReading", "rfcomm-2", 4096]);
+  fake.emit("onData", { socketId: "rfcomm-2", base64: Buffer.from([0, 1, 0]).toString("base64") });
+  expect(received).toEqual([[0, 1, 0]]);
+  await link.write(Uint8Array.of(9));
+  expect(fake.calls.at(-1)).toEqual(["write", "rfcomm-2", [9]]);
+});
+
+test("an abort while accepting stops the server; native codes surface", async () => {
+  let rejectAccept: (error: unknown) => void = () => undefined;
+  const calls: unknown[][] = [];
+  const fake = fakeNative({
+    accept: () =>
+      new Promise((_, reject) => {
+        rejectAccept = reject;
+      }),
+    stopListening: async (serverId) => {
+      calls.push(["stopListening", serverId]);
+      rejectAccept(Object.assign(new Error("closed"), { code: "BT_CLASSIC_CANCELLED" }));
+    },
+  });
+  const adapter = createBtClassicAdapter(
+    () => fake.native,
+    () => true,
+  );
+  const abort = new AbortController();
+  const pending = adapter.listen({
+    name: "Garmin SPP",
+    uuid: "deab91e4-670f-11e1-9ace-30bc4824019b",
+    timeoutMs: 60_000,
+    signal: abort.signal,
+  });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  abort.abort();
+  await expect(pending).rejects.toThrow("BT_CLASSIC_CANCELLED");
+  expect(calls[0]).toEqual(["stopListening", "server-1"]);
+
+  const timedOut = fakeNative({
+    accept: async () => {
+      throw Object.assign(new Error("timeout"), { code: "BT_CLASSIC_ACCEPT_TIMEOUT" });
+    },
+  });
+  await expect(
+    createBtClassicAdapter(
+      () => timedOut.native,
+      () => true,
+    ).listen({ name: "x", uuid: "y", timeoutMs: 1 }),
+  ).rejects.toThrow("BT_CLASSIC_ACCEPT_TIMEOUT");
+  expect(timedOut.calls.at(-1)).toEqual(["stopListening", "server-1"]);
+});
+
+test("fetchUuids passes the address through and drops non-string rows", async () => {
+  const fake = fakeNative();
+  const adapter = createBtClassicAdapter(
+    () => fake.native,
+    () => true,
+  );
+  expect(await adapter.fetchUuids("AA:BB:CC:DD:EE:03", 10_000)).toEqual([
+    "deab91e4-670f-11e1-9ace-30bc4824019b",
+  ]);
+  expect(fake.calls).toEqual([["fetchUuids", "AA:BB:CC:DD:EE:03", 10_000]]);
 });
