@@ -1,8 +1,8 @@
 # 5b. The home-screen widget's deep links (#449). The widget itself is native
 # (WidgetKit, App Widgets) and Maestro cannot place it, so this opens the
-# links its buttons open: "Log…" shows the picker; water +1 glass (without the
-# widget's nonce) waits for one "Save" tap, and Undo takes it back, so the
-# day's water is as flow 05 left it.
+# links its buttons open: "Log…" shows the picker; water +1 glass (with no tap
+# on the widget behind it) waits for one "Save" tap, and Undo takes it back, so
+# the day's water is as flow 05 left it.
 appId: com.openvalens.app
 name: 05b Home-screen widget links
 tags: [widget]
@@ -25,14 +25,15 @@ tags: [widget]
     visible: "Show navigation menu"
     timeout: 10000
 
-# Water +1 glass. Any app or page can open this link, and only the Android
-# widget is given this install's nonce (#505), so a link without it does not
-# save at once: the entry waits for one "Save" tap. Then Undo as usual (the
-# toast stays about 6 s).
+# Water +1 glass. Any app or page can open this link, so it saves at once only
+# after a tap on the widget itself, which the app's own (not exported) widget
+# receiver records (#505). Opened here, with no tap behind it and even with
+# 1.2.0's nonce on it, the entry waits for one "Save" tap. Then Undo as usual
+# (the toast stays about 6 s).
 - runFlow:
     file: ../subflows/open-link.yaml
     env:
-      LINK: "openvalens://quick-log?widget=water"
+      LINK: "openvalens://quick-log?widget=water&nonce=0123456789abcdef0123456789abcdef"
 - extendedWaitUntil:
     visible:
       id: "quick-log-widget-entry"

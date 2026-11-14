@@ -3,13 +3,13 @@ import type { DueSupplement } from "@openvalens/api/contracts/quick-log";
 import { englishI18n } from "@openvalens/i18n/testing";
 
 import {
+  createHomeWidgetLinkCheck,
   createHomeWidgetWriteLog,
   guardHomeWidgetTap,
   HOME_WIDGET_REPEAT_WINDOW_MS,
-  homeWidgetLinkVerified,
-  isHomeWidgetNonce,
+  HOME_WIDGET_TAP_WINDOW_MS,
+  homeWidgetTapVerified,
   isOwnRecord,
-  newHomeWidgetNonce,
 } from "./link-guard";
 import {
   homeWidgetUrl,
@@ -19,8 +19,6 @@ import {
   type HomeWidgetTapPlan,
 } from "./model";
 
-const NONCE = "0123456789abcdef0123456789abcdef";
-const OTHER = "fedcba9876543210fedcba9876543210";
 const NOW = 1_800_000_000_000;
 
 const item: DueSupplement = {
@@ -34,70 +32,66 @@ const item: DueSupplement = {
 
 const trusted = { ownRecord: true, verified: true, lastWriteAt: undefined, now: NOW } as const;
 
-describe("the per-install nonce", () => {
-  test("16 random bytes as lowercase hex", () => {
-    const nonce = newHomeWidgetNonce((count) => Uint8Array.from({ length: count }, (_, i) => i));
-    expect(nonce).toBe("000102030405060708090a0b0c0d0e0f");
-    expect(isHomeWidgetNonce(nonce)).toBe(true);
-  });
-
-  test("refuses a short random source rather than make a weak nonce", () => {
-    expect(() => newHomeWidgetNonce(() => new Uint8Array(4))).toThrow();
-  });
-
-  test("only 32 lowercase hex characters count as one", () => {
-    expect(isHomeWidgetNonce(NONCE)).toBe(true);
-    for (const value of ["", "abc", NONCE.toUpperCase(), `${NONCE}0`, null, undefined, 42])
-      expect(isHomeWidgetNonce(value)).toBe(false);
-  });
-
-  test("the Android widget's water and supplement links carry it; Log… does not", () => {
+describe("the widget's links carry no secret", () => {
+  test("every button opens the plain link, on Android as on iOS", () => {
     const view = homeWidgetView(
       { version: 1, locale: "en", buttons: ["water", "supplement", "log"], values: null },
       englishI18n,
       "2026-11-14",
-      NONCE,
     );
     if (view.type !== "buttons") throw new Error("expected buttons");
-    const links = view.buttons.map((button) => new URL(button.url));
-    expect(links.map((url) => url.searchParams.get("nonce"))).toEqual([NONCE, NONCE, null]);
-    expect(links.map((url) => parseHomeWidgetAction(url.searchParams.get("widget")))).toEqual([
-      "water",
-      "supplement",
-      "log",
+    expect(view.buttons.map((button) => button.url)).toEqual([
+      "openvalens://quick-log?widget=water",
+      "openvalens://quick-log?widget=supplement",
+      "openvalens://quick-log?widget=log",
     ]);
-  });
-
-  test("without a nonce (iOS, or none stored yet) the links are the plain ones", () => {
-    expect(homeWidgetUrl("water", null)).toBe("openvalens://quick-log?widget=water");
     expect(homeWidgetUrl("water")).toBe("openvalens://quick-log?widget=water");
   });
 });
 
-describe("whether a link is the widget's", () => {
-  test("waits while the stored nonce is read", () => {
-    expect(homeWidgetLinkVerified(NONCE, undefined)).toBeNull();
+describe("whether a link follows a tap on the widget", () => {
+  test("a tap the receiver recorded a moment ago verifies", () => {
+    expect(homeWidgetTapVerified(0)).toBe(true);
+    expect(homeWidgetTapVerified(1_200)).toBe(true);
+    expect(homeWidgetTapVerified(HOME_WIDGET_TAP_WINDOW_MS - 1)).toBe(true);
   });
 
-  test("the matching nonce verifies", () => {
-    expect(homeWidgetLinkVerified(NONCE, NONCE)).toBe(true);
-    expect(homeWidgetLinkVerified([NONCE, OTHER], NONCE)).toBe(true);
+  test("no tap (another app, a page, iOS), a stale one or nonsense does not", () => {
+    for (const age of [
+      null,
+      undefined,
+      HOME_WIDGET_TAP_WINDOW_MS,
+      HOME_WIDGET_TAP_WINDOW_MS * 10,
+      -1,
+      Number.NaN,
+      Number.POSITIVE_INFINITY,
+    ])
+      expect(homeWidgetTapVerified(age)).toBe(false);
   });
 
-  test("a missing, wrong or malformed nonce does not", () => {
-    expect(homeWidgetLinkVerified(undefined, NONCE)).toBe(false);
-    expect(homeWidgetLinkVerified(null, NONCE)).toBe(false);
-    expect(homeWidgetLinkVerified("", NONCE)).toBe(false);
-    expect(homeWidgetLinkVerified(OTHER, NONCE)).toBe(false);
-    expect(homeWidgetLinkVerified(NONCE.toUpperCase(), NONCE)).toBe(false);
-    expect(homeWidgetLinkVerified(`${NONCE}&widget=water`, NONCE)).toBe(false);
+  test("asks the receiver's record once per link, as taking a tap forgets it", () => {
+    const taken: string[] = [];
+    const taps = new Map<string, number>([["water", 800]]);
+    const check = createHomeWidgetLinkCheck((action) => {
+      taken.push(action);
+      const age = taps.get(action) ?? null;
+      taps.delete(action);
+      return age;
+    });
+    // The screen re-checks while it waits for its data: the answer holds.
+    expect(check.verified("water")).toBe(true);
+    expect(check.verified("water")).toBe(true);
+    expect(taken).toEqual(["water"]);
+    // The next link is asked afresh, and finds no tap behind it.
+    check.reset();
+    expect(check.verified("water")).toBe(false);
+    expect(taken).toEqual(["water", "water"]);
   });
 
-  test("nothing verifies when this install has no nonce (iOS)", () => {
-    expect(homeWidgetLinkVerified(NONCE, null)).toBe(false);
-    expect(homeWidgetLinkVerified(undefined, null)).toBe(false);
-    // A stored value that is not a nonce is treated as none.
-    expect(homeWidgetLinkVerified("", "")).toBe(false);
+  test("a link for another button is asked about that button", () => {
+    const check = createHomeWidgetLinkCheck((action) => (action === "supplement" ? 100 : null));
+    expect(check.verified("water")).toBe(false);
+    expect(check.verified("supplement")).toBe(true);
   });
 });
 
@@ -131,7 +125,7 @@ describe("guarding a widget tap", () => {
     expect(guardHomeWidgetTap({ type: "wait" }, trusted)).toEqual({ type: "wait" });
   });
 
-  test("someone else's workspace: the picker, nothing written, whatever the nonce", () => {
+  test("someone else's workspace: the picker, nothing written, even after a real tap", () => {
     for (const plan of [
       water,
       take,
@@ -147,12 +141,12 @@ describe("guarding a widget tap", () => {
     });
   });
 
-  test("waits until the workspace and the nonce are known", () => {
+  test("waits until the workspace and the tap are known", () => {
     expect(guardHomeWidgetTap(water, { ...trusted, ownRecord: null })).toEqual({ type: "wait" });
     expect(guardHomeWidgetTap(water, { ...trusted, verified: null })).toEqual({ type: "wait" });
   });
 
-  test("a link without the widget's nonce: ready to save with one tap, not saved", () => {
+  test("a link no widget tap is behind: ready to save with one tap, not saved", () => {
     expect(guardHomeWidgetTap(water, { ...trusted, verified: false })).toEqual({
       type: "confirm_water",
     });
@@ -162,7 +156,7 @@ describe("guarding a widget tap", () => {
     });
   });
 
-  test("taps that write nothing need no nonce", () => {
+  test("taps that write nothing need no recorded tap", () => {
     const choose: HomeWidgetTapPlan = { type: "choose_supplement", supplementId: null };
     const off: HomeWidgetTapPlan = { type: "off", action: "supplement" };
     expect(guardHomeWidgetTap(choose, { ...trusted, verified: false })).toEqual(choose);
@@ -191,18 +185,19 @@ describe("guarding a widget tap", () => {
     ).toEqual({ type: "confirm_water" });
   });
 
-  test("end to end: a forged water link (no nonce) never plans a write", () => {
-    const forged = new URL("openvalens://quick-log?widget=water");
+  test("end to end: a forged water link, even with 1.2.0's nonce, never plans a write", () => {
+    const forged = new URL(
+      "openvalens://quick-log?widget=water&nonce=0123456789abcdef0123456789abcdef",
+    );
     const action = parseHomeWidgetAction(forged.searchParams.get("widget"));
-    if (!action) throw new Error("expected an action");
+    if (action !== "water") throw new Error("expected water");
     const plan = planHomeWidgetTap(action, {
       availability: { water: true, supplement: true },
       next: null,
     });
-    const guarded = guardHomeWidgetTap(plan, {
-      ...trusted,
-      verified: homeWidgetLinkVerified(forged.searchParams.get("nonce"), NONCE),
-    });
+    // Another app opened it: the widget's receiver recorded no tap.
+    const check = createHomeWidgetLinkCheck(() => null);
+    const guarded = guardHomeWidgetTap(plan, { ...trusted, verified: check.verified(action) });
     expect(guarded).toEqual({ type: "confirm_water" });
   });
 });

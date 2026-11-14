@@ -45,13 +45,12 @@ import {
   planHomeWidgetTap,
 } from "@/lib/home-widget/model";
 import {
+  createHomeWidgetLinkCheck,
   createHomeWidgetWriteLog,
   guardHomeWidgetTap,
-  HOME_WIDGET_NONCE_PARAM,
-  homeWidgetLinkVerified,
   isOwnRecord,
 } from "@/lib/home-widget/link-guard";
-import { useHomeWidgetNonce } from "@/lib/home-widget/storage";
+import { takeHomeWidgetTap } from "@/lib/home-widget/platform";
 import {
   discardQueuedSupplementIntake,
   enqueueMetricSample,
@@ -149,15 +148,15 @@ type PickerView =
  * `?widget=<action>` is a tap on the home-screen widget (#449): water and
  * "Taken" save at once, with Undo, the same as a tap here; "Log…" just
  * opens the picker. Any app or page can open that link, so it only saves at
- * once from the Android widget (its links carry this install's nonce), in
- * the member's own workspace, and not twice within a few seconds; else the
- * entry waits for one "Save" tap or nothing is written
- * (`lib/home-widget/link-guard.ts`, #505).
+ * once after a tap on the Android widget itself (its receiver, which no
+ * other app can reach, records the tap), in the member's own workspace, and
+ * not twice within a few seconds; else the entry waits for one "Save" tap or
+ * nothing is written (`lib/home-widget/link-guard.ts`, #505).
  */
 export default function QuickLogRoute() {
   const { t, i18n } = useLingui();
   const router = useRouter();
-  const params = useLocalSearchParams<{ kind?: string; widget?: string; nonce?: string }>();
+  const params = useLocalSearchParams<{ kind?: string; widget?: string }>();
   const insets = useSafeAreaInsets();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -395,9 +394,8 @@ export default function QuickLogRoute() {
   const kindsSettled = Boolean(session.data) && kindsKnown;
   // A cached answer may be from before a dose was taken elsewhere: wait for the refetch.
   const nextDue = due.isFetching ? undefined : nextDueSupplement(due.data, queuedIntakes, timeZone);
-  // #505: only the Android widget is given this install's nonce. iOS links never carry one.
-  const storedNonce = useHomeWidgetNonce(Platform.OS === "android");
-  const widgetVerified = homeWidgetLinkVerified(params[HOME_WIDGET_NONCE_PARAM], storedNonce);
+  // #505: whether this link follows a tap on the Android widget itself, asked once per link.
+  const [widgetLink] = useState(() => createHomeWidgetLinkCheck(takeHomeWidgetTap));
   const ownRecord = isOwnRecord(me);
   const waterKind = kinds.find((kind) => kind.id === "water");
   const glassOfWaterLabel = (write: ReturnType<typeof glassOfWaterWrite>) =>
@@ -410,6 +408,7 @@ export default function QuickLogRoute() {
   useEffect(() => {
     if (!widgetAction) {
       widgetHandled.current = false;
+      widgetLink.reset();
       return;
     }
     if (widgetHandled.current || saving) return;
@@ -420,16 +419,15 @@ export default function QuickLogRoute() {
       }),
       {
         ownRecord,
-        verified: widgetVerified,
+        verified: widgetAction === "log" ? true : widgetLink.verified(widgetAction),
         lastWriteAt: widgetAction === "log" ? undefined : widgetWrites.lastWriteAt(widgetAction),
         now: Date.now(),
       },
     );
     if (plan.type === "wait") return;
     widgetHandled.current = true;
-    // The picker stays open: clear the action (and nonce) so the same tap again acts again.
-    const stay = () =>
-      router.setParams({ widget: undefined, [HOME_WIDGET_NONCE_PARAM]: undefined });
+    // The picker stays open: clear the action so the same tap again acts again.
+    const stay = () => router.setParams({ widget: undefined });
     switch (plan.type) {
       case "picker":
         stay();
@@ -494,7 +492,7 @@ export default function QuickLogRoute() {
     }
     // The handlers read the latest data; run once per tap.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [widgetAction, kindsSettled, kinds, nextDue, saving, ownRecord, widgetVerified]);
+  }, [widgetAction, kindsSettled, kinds, nextDue, saving, ownRecord]);
 
   // `?kind=<id>`: open that kind once it is known to be available.
   const opened = useRef(false);
@@ -802,7 +800,7 @@ function QuickFormView({
   );
 }
 
-/** A widget link's entry, ready to save with one tap (#505: iOS, or a link without the nonce). */
+/** A widget link's entry, ready to save with one tap (#505: iOS, or a link no widget tap is behind). */
 function WidgetConfirmView({
   what,
   saving,

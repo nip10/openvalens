@@ -137,7 +137,11 @@ It has its own bundle id, `com.openvalens.app.quicklogwidget`, so it needs its
 own App ID and provisioning profile. It has no App Group and no other
 capability, and it shows no health data on iOS: its three buttons only open
 `openvalens://quick-log?widget=…`. On Android the widget is a receiver inside
-the app package and needs nothing extra.
+the app package and needs nothing extra: the receiver is not exported, and it
+records each water or "Taken" tap before it opens the app
+(`apps/native/modules/home-widget-tap`, #505), so only a real tap on the
+widget saves at once. The same link opened by another app or page waits for
+one "Save" tap, as every iOS tap does.
 
 **Nothing goes in `eas.json`.** `eas.json` has no setting for extensions or
 their entitlements. The plugin writes the extension into the app config
@@ -194,6 +198,47 @@ without the extension's profile fails):
 
 App Store Connect needs nothing for the extension: it ships inside the app,
 and it adds no purpose string or App Privacy answer.
+
+### Later: saving from the iOS widget (App Intents, needs an App Group)
+
+On iOS a widget tap opens the app with the entry ready and one "Save" tap
+(#505). Saving from the widget without opening the app takes an interactive
+button (`Button(intent:)`, iOS 17+, already the extension's deployment
+target), and its App Intent's `perform()` runs in the widget extension's
+process. That process has no session and no data: #449 settled on no App
+Group and no shared keychain for v1. A v2 would need, with the owner's
+decision first:
+
+1. **An App Group** (`group.com.openvalens.app`) on both App IDs
+   (`com.openvalens.app` and `com.openvalens.app.quicklogwidget`):
+   `ios.entitlements` in `app.json`, `entitlements` in
+   `targets/quick-log-widget/expo-target.config.js`, new provisioning
+   profiles from `eas credentials`, and the "no App Group" check in
+   `app.config.test.ts` changed.
+2. **A snapshot the widget can read**: the app writes the buttons, the next
+   due supplement (id and dose), whether the active workspace is the
+   member's own, and (opt-in) the values to the group's `UserDefaults`, and
+   asks WidgetKit to reload, as the Android widget's snapshot already does.
+   That takes a small native module. Sign-out clears it.
+3. **A write path from the extension**, one of:
+   - _A queue (no credential in the extension):_ `perform()` appends
+     `{ action, at, clientMutationId }` to a file in the group, and the app
+     drains it into its offline outbox on next open or background task.
+     Writes land late, and there is no Undo.
+   - _A scoped token:_ a new server endpoint issues a per-device token that
+     can only add water and supplement intakes to the owner's own record,
+     kept in a shared keychain access group (`keychain-access-groups`) and
+     revoked on sign-out. Writes land at once. Sharing the full Better Auth
+     session instead is not recommended.
+4. **The same guards**: own record only (checked again by the server for a
+   scoped token), kinds turned off, the 10 s repeat window, and a line on the
+   widget saying what was saved, since it has no Undo.
+
+Without an App Group, an App Intent that opens the app (`openAppWhenRun`) and
+runs `perform()` in the app could record the tap the way the Android receiver
+does, and give one-tap saves with Undo and no public link. It still opens the
+app, puts Swift in the main app target through a config plugin, and which
+process runs `perform()` has to be checked on a device first.
 
 ## Pre-submission checklist
 

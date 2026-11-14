@@ -5,11 +5,13 @@ import WidgetKit
 // supplement that is due, and "Log…". Each button opens the app through a deep
 // link (`openvalens://quick-log?widget=<action>`, the same links as
 // lib/home-widget/model.ts). The widget is static and holds no data: there is
-// no App Group, so the app cannot give it any, not even the nonce the Android
-// widget's links carry. So any page could open these links too, and on iOS the
-// app shows the entry ready to save with one "Save" tap instead of saving at
-// once (lib/home-widget/link-guard.ts, #505; App Intents could later). Its labels
-// come from Localizable.strings, generated from the Lingui catalogs.
+// no App Group, so the app cannot give it any. Nothing tells the app that a
+// link came from this widget rather than a page (the Android widget's receiver
+// records its taps; WidgetKit has no such hook), so on iOS the app shows the
+// entry ready to save with one "Save" tap instead of saving at once
+// (lib/home-widget/link-guard.ts, #505). Saving from the widget itself, with
+// App Intents, needs an App Group: see docs/mobile-release.md. Its labels come
+// from Localizable.strings, generated from the Lingui catalogs.
 
 @main
 struct QuickLogWidgetBundle: WidgetBundle {
