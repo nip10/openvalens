@@ -150,12 +150,55 @@ const trackerChange = (
     certainty,
   }) as const;
 
+/** #501 weekly-total tracker changes, in each type the rule reads. */
+const trackerWeekChange = (
+  trackerType: "number" | "duration" | "yes_no",
+  direction: "higher" | "lower",
+  certainty: "clear" | "modest",
+) => {
+  const higher = direction === "higher";
+  const [recentValue, baselineValue] =
+    trackerType === "number"
+      ? higher
+        ? [50, 20]
+        : [10, 40]
+      : trackerType === "duration"
+        ? higher
+          ? [4500, 1800]
+          : [900, 3600]
+        : higher
+          ? [5, 2]
+          : [1, 4];
+  return {
+    type: "tracker_week_change",
+    trackerId: "00000000-0000-4000-8000-000000000002",
+    trackerName:
+      trackerType === "number" ? "Cycling" : trackerType === "duration" ? "Sauna" : "Flossed",
+    trackerType,
+    unit: trackerType === "number" ? "km" : null,
+    decimals: 0,
+    direction,
+    weekStart: "2026-10-05",
+    weekEnd: "2026-10-11",
+    recentValue,
+    recentDays: trackerType === "yes_no" ? recentValue : higher ? 5 : 1,
+    baselineValue,
+    baselineWeeks: certainty === "clear" ? 4 : 3,
+    baselineWindowWeeks: 4,
+    difference: recentValue - baselineValue,
+    threshold: 1,
+    certainty,
+  } as const;
+};
+
 function everyInsight(): Insight[] {
   const out: Insight[] = [];
   for (const trackerType of ["number", "duration", "yes_no"] as const)
     for (const direction of ["higher", "lower"] as const)
-      for (const certainty of ["clear", "modest"] as const)
+      for (const certainty of ["clear", "modest"] as const) {
         out.push(make("change.tracker", trackerChange(trackerType, direction, certainty)));
+        out.push(make("change.tracker", trackerWeekChange(trackerType, direction, certainty)));
+      }
   for (const metric of ["sleep_duration", "resting_heart_rate", "steps"] as const)
     for (const direction of ["higher", "lower"] as const)
       for (const certainty of ["clear", "modest"] as const)
@@ -310,7 +353,7 @@ describe("insight templates (copy lint)", () => {
     );
     expect(view.certaintyText).toContain("usual day-to-day variation");
     expect(view.factorsText).toBeNull();
-    expect(view.ruleText).toBe("Rule change.tracker v1");
+    expect(view.ruleText).toBe("Rule change.tracker v2");
   });
 
   test("a duration tracker change is formatted as durations", () => {
@@ -346,6 +389,46 @@ describe("insight templates (copy lint)", () => {
     expect(once.body).toContain("your usual of about 1 day a week");
   });
 
+  test("a weekly tracker change compares the week's total with the usual week (#501)", () => {
+    const view = insightView(
+      englishI18n,
+      make("change.tracker", trackerWeekChange("duration", "higher", "clear")),
+    );
+    expect(view.title).toBe("Sauna: more than your usual week");
+    expect(view.body).toBe(
+      "“Sauna” added up to 1 h 15 min in the week of 5 Oct, 45 min more than your usual week of 30 min.",
+    );
+    expect(view.coverageText).toBe(
+      "Based on 5 days with an entry in the week of 5–11 Oct, compared with the 4 weeks before (4 weeks with an entry). Weeks run Monday to Sunday.",
+    );
+    expect(view.certaintyText).toBe(
+      "This is clearly larger than your usual week-to-week variation.",
+    );
+    expect(view.factorsText).toBeNull();
+    expect(view.ruleText).toBe("Rule change.tracker v2");
+
+    const lower = insightView(
+      englishI18n,
+      make("change.tracker", trackerWeekChange("number", "lower", "modest")),
+    );
+    expect(lower.title).toBe("Cycling: less than your usual week");
+    expect(lower.body).toBe(
+      "“Cycling” added up to 10 km in the week of 5 Oct, 30 km less than your usual week of 40 km.",
+    );
+    expect(lower.certaintyText).toContain("only a little larger");
+  });
+
+  test("a weekly yes/no tracker change counts yes days in the week", () => {
+    const view = insightView(
+      englishI18n,
+      make("change.tracker", trackerWeekChange("yes_no", "lower", "clear")),
+    );
+    expect(view.title).toBe("Flossed: yes on fewer days than your usual week");
+    expect(view.body).toBe(
+      "“Flossed” was yes on 1 day in the week of 5 Oct, compared with your usual of 4 days a week.",
+    );
+  });
+
   test("weight respects imperial display settings", () => {
     const view = insightView(
       englishI18n,
@@ -378,6 +461,7 @@ describe("insight templates in pt-PT (#231)", () => {
         [
           "change",
           "tracker_change",
+          "tracker_week_change",
           "trend",
           "goal",
           "recording_gap",
@@ -392,6 +476,7 @@ describe("insight templates in pt-PT (#231)", () => {
     expect(titles).toEqual({
       change: "Sono acima do seu habitual",
       tracker_change: "Push-ups: acima do seu habitual",
+      tracker_week_change: "Cycling: acima da sua semana habitual",
       trend: "Peso em tendência de subida",
       goal: "Alvo atingido: Walk 10k steps",
       recording_gap: "Sem registos de sono desde 11 Oct",

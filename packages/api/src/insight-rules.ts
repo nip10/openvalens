@@ -73,6 +73,12 @@ export type InsightTrackerInput = {
   /** The free-text unit of a `number` tracker. */
   unit: string | null;
   decimals: number;
+  /**
+   * How a day's entries combine (#501 reads it: only an added-up `number`
+   * has a meaningful weekly total). Omitted means the type's default, which
+   * is `sum` for numbers and durations.
+   */
+  aggregation?: string;
   /** "Coach and connected AI apps can read this"; off means no insight. */
   aiVisible: boolean;
   days: readonly { date: string; value: number }[];
@@ -239,6 +245,52 @@ export const TRACKER_CHANGE_RULE = {
   sustainedDays: 2,
   /** Yes/no: days with an entry (yes or no) needed in the recent window. */
   yesNoRecentLoggedMinDays: 1,
+};
+
+/**
+ * #501 — the weekly-total comparison of `change.tracker` (v2), for trackers
+ * logged only a few days a week (sauna twice a week), which never reach the
+ * daily rule's 5-of-7 gate. Weeks run Monday to Sunday.
+ *
+ * - Which trackers: a usual week (median of the 4 baseline weeks) with fewer
+ *   than 5 days with an entry, that does not pass the daily gates counting
+ *   only days with an entry (at least 14 baseline days and 5 of the last 7).
+ *   Numbers only when their days are added up: a weekly sum of averages or
+ *   last values would mix how often the member logged with the value.
+ * - The latest complete week's total against the median total of the 4 weeks
+ *   before it. A week counts once a full day has passed since its Sunday, so
+ *   an entry for Sunday logged on Monday is in; the result then holds for the
+ *   7 days the week stays the latest (this replaces the 2-day confirmation).
+ * - Zero-heavy weeks: at least 3 of the 4 baseline weeks and the latest week
+ *   need an entry, so a tracker used now and then, or one the member stopped
+ *   using, stays silent.
+ * - Noise floor in the daily rule's style, for one week against four:
+ *   `max(k × SD × √(1/1 + 1/4), 20% × |median|, step)`, where the step is one
+ *   display step, one minute, or one yes day. The SD is of the weekly totals
+ *   over up to 8 weeks before the latest (the 4 baseline weeks, plus older
+ *   full weeks since the first entry): 4 totals alone give an unstable SD.
+ * - Persistence: the change must not rest on one day. With the latest week's
+ *   largest day replaced by a usual day (higher), or with one more usual day
+ *   (lower), the total must still be half the threshold past the median.
+ */
+export const TRACKER_WEEK_RULE = {
+  baselineWeeks: 4,
+  /** Baseline weeks that need at least one entry. */
+  baselineMinWeeksLogged: 3,
+  /** Days with an entry the latest week needs. */
+  latestMinDaysLogged: 1,
+  /** A usual week with fewer days with an entry than this is "a few days a week". */
+  sparseBelowDays: TRACKER_CHANGE_RULE.recentMinDays,
+  /** Days after yesterday before a finished week is read (late entries). */
+  lateEntryDays: 1,
+  floorRelative: TRACKER_CHANGE_RULE.floorRelative,
+  /** Seconds. */
+  durationFloor: 60,
+  /** Yes days in the week. */
+  yesNoFloor: 1,
+  noiseMultiplier: TRACKER_CHANGE_RULE.noiseMultiplier,
+  /** Weeks before the latest one whose totals set the spread (SD). */
+  spreadWeeks: 8,
 };
 
 /** Change insights shown at once; the rest are counted as suppressed. */
@@ -688,6 +740,233 @@ export function evaluateTrackerChange(
   };
 }
 
+// ─── custom trackers: weekly totals (#501) ─────────────────────
+
+/**
+ * Whether a tracker passes the daily rule's gates counting only days with an
+ * entry: at least 14 in the baseline window and 5 of the last 7. For number
+ * and duration trackers this is the daily rule's own gate. A yes/no tracker
+ * logged only on its yes days passes the daily gates only because a day with
+ * no entry counts as "no"; when it is logged on a few days a week it gets the
+ * weekly comparison instead.
+ */
+export function passesTrackerDailyEntryGates(
+  tracker: Pick<InsightTrackerInput, "days">,
+  asOf: string,
+): boolean {
+  const rule = TRACKER_CHANGE_RULE;
+  const end = addDays(asOf, -rule.recentEndOffset);
+  const recentFrom = addDays(end, -(rule.recentWindowDays - 1));
+  const baselineFrom = addDays(recentFrom, -rule.baselineWindowDays);
+  let recent = 0;
+  let baseline = 0;
+  for (const day of tracker.days) {
+    if (!Number.isFinite(day.value) || day.date > end || day.date < baselineFrom) continue;
+    if (day.date >= recentFrom) recent += 1;
+    else baseline += 1;
+  }
+  return baseline >= rule.baselineMinDays && recent >= rule.recentMinDays;
+}
+
+/**
+ * The Sunday that ends the week the weekly comparison reads on `asOf`: the
+ * latest Monday–Sunday week that ended at least a full day before yesterday.
+ */
+export function latestTrackerWeekEnd(asOf: string): string {
+  const last = addDays(
+    asOf,
+    -(TRACKER_CHANGE_RULE.recentEndOffset + TRACKER_WEEK_RULE.lateEntryDays),
+  );
+  const weekday = new Date(`${last}T00:00:00.000Z`).getUTCDay(); // 0 = Sunday
+  return addDays(last, -weekday);
+}
+
+type TrackerWeek = {
+  start: string;
+  end: string;
+  total: number;
+  /** Days with an entry. */
+  logged: number;
+  /** Each logged day's value (yes/no: 1 for yes, 0 for no). */
+  dayValues: number[];
+};
+
+function trackerWeek(
+  type: InsightTrackerType,
+  byDate: ReadonlyMap<string, number>,
+  end: string,
+): TrackerWeek {
+  const start = addDays(end, -6);
+  const dayValues = valuesBetween(byDate, start, end).map((value) =>
+    type === "yes_no" ? (value > 0 ? 1 : 0) : value,
+  );
+  return {
+    start,
+    end,
+    total: dayValues.reduce((sum, value) => sum + value, 0),
+    logged: dayValues.length,
+    dayValues,
+  };
+}
+
+/**
+ * Whether a weekly total means something for the tracker: durations and yes
+ * days add up; a number only when its days are added up, not averaged or
+ * "last one".
+ */
+function hasWeeklyTotal(tracker: InsightTrackerInput & { type: InsightTrackerType }): boolean {
+  return tracker.type !== "number" || (tracker.aggregation ?? "sum") === "sum";
+}
+
+export type TrackerWeekState =
+  /** The weekly comparison does not apply (see `TRACKER_WEEK_RULE`). */
+  | "not_sparse"
+  | "not_added_up"
+  /** Fewer than 3 of the 4 baseline weeks have an entry. */
+  | "building_baseline"
+  /** The latest week has no entry. */
+  | "no_recent_data"
+  | "ready";
+
+export type TrackerWeekEvaluation = {
+  trackerId: string;
+  state: TrackerWeekState;
+  strength: number | null;
+  direction: "higher" | "lower" | null;
+  fired: boolean;
+  detail: Extract<InsightDetail, { type: "tracker_week_change" }> | null;
+  /** Sunday of the latest complete week. */
+  weekEnd: string;
+};
+
+/**
+ * Evaluates the weekly-total comparison for one tracker (#501). It does not
+ * check the daily gates; `runInsightRules` calls it only for a tracker that
+ * fails them. Exported for tests.
+ */
+export function evaluateTrackerWeek(
+  tracker: InsightTrackerInput,
+  asOf: string,
+): TrackerWeekEvaluation | null {
+  if (!isInsightTracker(tracker)) return null;
+  const type = tracker.type;
+  const rule = TRACKER_WEEK_RULE;
+  const end = latestTrackerWeekEnd(asOf);
+  const byDate = new Map(
+    tracker.days
+      .filter((day) => Number.isFinite(day.value) && day.date <= end)
+      .map((day) => [day.date, day.value]),
+  );
+  const latest = trackerWeek(type, byDate, end);
+  // Most recent first: the 4 baseline weeks, then the older weeks the spread
+  // also reads.
+  const before = Array.from({ length: rule.spreadWeeks }, (_, index) =>
+    trackerWeek(type, byDate, addDays(end, -7 * (index + 1))),
+  );
+  const baseline = before.slice(0, rule.baselineWeeks);
+  const weeksLogged = baseline.filter((week) => week.logged > 0).length;
+
+  const state: TrackerWeekState = !hasWeeklyTotal({ ...tracker, type })
+    ? "not_added_up"
+    : median(baseline.map((week) => week.logged)) >= rule.sparseBelowDays
+      ? "not_sparse"
+      : weeksLogged < rule.baselineMinWeeksLogged
+        ? "building_baseline"
+        : latest.logged < rule.latestMinDaysLogged
+          ? "no_recent_data"
+          : "ready";
+  const base: TrackerWeekEvaluation = {
+    trackerId: tracker.id,
+    state,
+    strength: null,
+    direction: null,
+    fired: false,
+    detail: null,
+    weekEnd: end,
+  };
+  if (state !== "ready") return base;
+
+  const totals = baseline.map((week) => week.total);
+  const center = median(totals);
+  const difference = latest.total - center;
+  const step =
+    type === "duration"
+      ? rule.durationFloor
+      : type === "yes_no"
+        ? rule.yesNoFloor
+        : 10 ** -Math.max(0, Math.min(2, Math.round(tracker.decimals)));
+  const floor = Math.max(step, rule.floorRelative * Math.abs(center));
+  // The SD of 4 weekly totals is too unstable to set the threshold on its
+  // own, so the spread also reads the older full weeks since the tracker's
+  // first entry (up to 8 weeks in all).
+  const firstEntry = tracker.days.reduce(
+    (first, day) => (day.date < first ? day.date : first),
+    end,
+  );
+  const spread = before
+    .filter((week, index) => index < rule.baselineWeeks || week.start >= firstEntry)
+    .map((week) => week.total);
+  const noise = rule.noiseMultiplier * sampleSd(spread) * Math.sqrt(1 + 1 / rule.baselineWeeks);
+  const threshold = Math.max(floor, noise);
+  const strength = Math.abs(difference) / threshold;
+  const direction = difference > 0 ? "higher" : "lower";
+
+  // Persistence: the change must not rest on one day. Higher: the week with
+  // its largest day replaced by a usual day (the baseline's median logged
+  // day). Lower: the week with one more usual day.
+  const usualDay = Math.max(0, median(baseline.flatMap((week) => week.dayValues)));
+  const oneDayEvened =
+    direction === "higher"
+      ? latest.total - Math.max(0, ...latest.dayValues) + usualDay
+      : latest.total - Math.min(0, ...latest.dayValues) + usualDay;
+  const past = direction === "higher" ? oneDayEvened - center : center - oneDayEvened;
+  const fired = strength >= 1 && past >= threshold / 2;
+  const certainty: InsightCertainty =
+    strength >= CLEAR_STRENGTH && weeksLogged === rule.baselineWeeks ? "clear" : "modest";
+  return {
+    ...base,
+    strength,
+    direction,
+    fired,
+    detail: fired
+      ? {
+          type: "tracker_week_change",
+          trackerId: tracker.id,
+          trackerName: tracker.name,
+          trackerType: type,
+          unit: type === "number" ? tracker.unit : null,
+          decimals: tracker.decimals,
+          direction,
+          weekStart: latest.start,
+          weekEnd: latest.end,
+          recentValue: round(latest.total, 2),
+          recentDays: latest.logged,
+          baselineValue: round(center, 2),
+          baselineWeeks: weeksLogged,
+          baselineWindowWeeks: rule.baselineWeeks,
+          difference: round(difference, 2),
+          threshold: round(threshold, 2),
+          certainty,
+        }
+      : null,
+  };
+}
+
+/**
+ * The weekly evaluation when the weekly comparison, not the daily one, applies
+ * to a tracker today: it fails the daily gates and is logged on fewer than 5
+ * days in a usual week. Null when the daily rule applies.
+ */
+function weeklyTrackerEvaluation(
+  tracker: InsightTrackerInput,
+  asOf: string,
+): TrackerWeekEvaluation | null {
+  if (passesTrackerDailyEntryGates(tracker, asOf)) return null;
+  const weekly = evaluateTrackerWeek(tracker, asOf);
+  if (!weekly || weekly.state === "not_sparse" || weekly.state === "not_added_up") return null;
+  return weekly;
+}
+
 // ─── weight trend ──────────────────────────────────────────────
 
 export type TrendEvaluation = {
@@ -823,7 +1102,7 @@ function makeInsight(
   const topic =
     detail.type === "goal"
       ? "goals"
-      : detail.type === "tracker_change"
+      : detail.type === "tracker_change" || detail.type === "tracker_week_change"
         ? "trackers"
         : "metric" in detail
           ? METRIC_TOPICS[detail.metric]
@@ -947,7 +1226,23 @@ export function runInsightRules(input: InsightEngineInput): InsightEngineOutput 
   // #450 custom trackers: the member's own, with the insights/AI switch on.
   // No readiness rows (a tracker stays silent until it has enough data) and no
   // co-occurring factors in either direction.
+  // #501 a tracker logged only a few days a week that fails the daily gates
+  // gets the weekly-total comparison instead (never both).
   for (const tracker of input.trackers ?? []) {
+    const weekly = weeklyTrackerEvaluation(tracker, asOf);
+    if (weekly) {
+      if (!weekly.fired || !weekly.detail) continue;
+      changes.push({
+        strength: weekly.strength!,
+        insight: makeInsight(
+          TRACKER_CHANGE_RULE.ruleId,
+          `${tracker.id}:week:${isoWeek(weekly.weekEnd)}`,
+          weekly.weekEnd,
+          weekly.detail,
+        ),
+      });
+      continue;
+    }
     const evaluation = evaluateTrackerChange(tracker, asOf);
     if (!evaluation?.fired || !evaluation.detail) continue;
     changes.push({
