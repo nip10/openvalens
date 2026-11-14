@@ -1,6 +1,6 @@
 # OpenValens Cloud operations
 
-**Applies to:** `app.openvalens.com` and `openvalens.com` · Last updated: 2026-11-03
+**Applies to:** `app.openvalens.com` and `openvalens.com` · Last updated: 2026-11-14
 
 How the hosted service is run day to day (#308). Credentials and private
 details are not in this file. They live with the owner, in
@@ -130,6 +130,22 @@ v1.0.1 for about an hour, #358 fixed it, and the pin was removed.
   [observability.md](observability.md)).
 - **Coolify:** turn on email notifications for failed deployments and failed
   backups in Coolify › Notifications, sending to the same address.
+
+## Onboarding totals
+
+How new accounts get started (#444) is on
+`https://app.openvalens.com/admin/settings`, section **Onboarding**, for an
+instance administrator (an account whose `user.role` includes `admin`). Of the
+accounts created in the last 30, 90 or 365 days, it shows the share with a
+first entry within 10 minutes, 1 day and 7 days of sign-up, and with any entry
+on days 2–7.
+
+The figures come from timestamps already in the database (account creation
+and when entries were saved); there is no tracking and PostHog is not used.
+Counts and shares only, never a per-person row, and a figure for fewer than 5
+accounts is hidden. What counts as an entry and the limits of the small-group
+rule are in
+[self-hosting/privacy.md › Onboarding totals](self-hosting/privacy.md#onboarding-totals).
 
 ## Data-rights requests
 

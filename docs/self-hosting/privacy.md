@@ -1,6 +1,6 @@
 # Privacy and data rights
 
-**Applies to:** OpenValens 1.1.0 · Last updated: 2026-10-14
+**Applies to:** OpenValens 1.1.0 · Last updated: 2026-11-14
 
 This page is for operators. It describes where a self-hosted instance keeps
 data, what the app lets people do with their own data, and the gaps you need
@@ -79,6 +79,42 @@ and erases the person again; see
 [Backups](backup.md#deleted-accounts-and-the-erasure-ledger).
 Application logs do not contain health values, so they hold nothing to delete
 beyond identifiers.
+
+## Onboarding totals
+
+**Administration › Configuration** (`/admin/settings`, instance administrators only)
+shows how new accounts get started (#444). Of the accounts created in the
+last 30, 90 or 365 days, it gives the share, with the count behind it, that:
+
+- saved a first entry within 10 minutes, 1 day and 7 days of creating the
+  account;
+- saved any entry on days 2–7 (from 24 hours to 7 days after sign-up).
+
+The server works these out when the page is opened, from timestamps already
+in the database: when each account was created and when each entry was saved.
+Nothing is tracked, no events are recorded, nothing is sent anywhere, and the
+optional analytics ([docs/analytics.md](../analytics.md)) is not involved.
+
+- **An entry** is something the person typed in, or saved through a connected
+  AI app: a metric without a data source (weight, blood pressure, …), water, a
+  food diary entry, a supplement intake, a manual sleep, a workout, pain, a
+  manual cycle period or a private body measurement. Phone, watch and wearable
+  data never counts. A deleted entry no longer counts.
+- **Each figure counts only the accounts old enough for it.** The 10-minute
+  figure leaves out accounts created less than 10 minutes ago, the 1-day figure
+  those under a day old, and the 7-day and days 2–7 figures those under 7 days
+  old.
+- **Small groups are hidden.** When fewer than **5** accounts count toward a
+  figure, the page shows neither the count nor the share, only that it is not
+  shown. The number of new accounts is always shown.
+- **Aggregates only.** The page and its API (`adminSettings.onboardingTotals`)
+  return counts and shares. They never return an account id, a name, an email
+  or a row per person.
+
+The minimum of 5 keeps one small group from showing what a few people did. It
+does not stop someone comparing two windows (30 and 90 days) to narrow things
+down, and an administrator with database access can see the records anyway.
+Treat the figures as a rough signal on a small instance.
 
 ## Not covered yet
 

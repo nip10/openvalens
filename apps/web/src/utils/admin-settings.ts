@@ -1,3 +1,5 @@
+import type { OnboardingWindowDays } from "@openvalens/api/contracts/onboarding-measurement";
+
 import { orpc } from "./orpc";
 
 export type {
@@ -6,6 +8,7 @@ export type {
   AdminBackupStatusOutput,
   AdminConfigurationEntry,
   AdminConfigurationOutput,
+  AdminOnboardingTotalsOutput,
 } from "./admin-settings-keys";
 
 import {
@@ -13,6 +16,7 @@ import {
   adminAiUsageQueryKey,
   adminBackupStatusQueryKey,
   adminConfigurationQueryKey,
+  adminOnboardingTotalsQueryKey,
 } from "./admin-settings-keys";
 
 export function adminAccessQueryOptions(userId: string) {
@@ -51,6 +55,19 @@ export function adminBackupStatusQueryOptions(userId: string) {
     queryKey: [...adminBackupStatusQueryKey(userId)],
     staleTime: 0,
     refetchInterval: 60_000,
+    retry: 1,
+  };
+}
+
+/** Issue #444 — onboarding totals for sign-ups in the last `windowDays` days. */
+export function adminOnboardingTotalsQueryOptions(
+  userId: string,
+  windowDays: OnboardingWindowDays,
+) {
+  return {
+    ...orpc.adminSettings.onboardingTotals.queryOptions({ input: { windowDays } }),
+    queryKey: [...adminOnboardingTotalsQueryKey(userId, windowDays)],
+    staleTime: 60_000,
     retry: 1,
   };
 }
