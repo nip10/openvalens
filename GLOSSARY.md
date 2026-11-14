@@ -24,8 +24,10 @@ workspace. For workouts, sleep nights, weigh-ins and body composition (#509)
 every read (screens, Coach, AI apps, insights, timeline, exports) returns the
 member's own rows plus legacy rows saved before authors were recorded, which
 have none and stay visible to the workspace. No role, not even the workspace
-owner's, reads another member's. Other device readings (heart rate, steps) and
-imported reports (labs, DEXA) have no author and belong to the workspace.
+owner's, reads another member's, and the owner's account erasure is refused
+while the workspace holds them rather than deleting them. Other device
+readings (heart rate, steps) and imported reports (labs, DEXA) have no author
+and belong to the workspace.
 _Avoid_: Personal data (every health record is), hidden record
 
 **Food catalog**:
