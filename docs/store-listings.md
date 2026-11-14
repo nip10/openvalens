@@ -217,12 +217,13 @@ answers for the form:
 answers the medical-functionality question.
 
 Before submitting, the privacy policy must name the new data type, because
-Play checks it against the declaration. `docs/legal/privacy.md`,
-`docs/legal/data-map.md` and `apps/site/src/privacy.html` list the phone health
-data the app reads (steps, heart rate, sleep, weight, body fat, active energy,
-distance, workouts). `[CONFIRM]` and add: "mindfulness
-sessions, and on iPhone mindful minutes and State of Mind (daily mood), only
-for a tracker you link". The Data safety and App Privacy answers do not change:
+Play checks it against the declaration. Privacy version `2026-11-14`
+(`apps/site/src/privacy.html`, `docs/legal/privacy.md`,
+`docs/legal/data-map.md`) names mindfulness sessions (Mindful Minutes in Apple
+Health, mindfulness sessions in Health Connect) and, on iOS 18 or later, State
+of Mind daily moods, read only for a tracker the person links. Publish it
+before the 1.2.0 Android build goes to review. The Data safety and App
+Privacy answers do not change:
 both already declare health and fitness data, collected, linked to the person,
 for app functionality.
 

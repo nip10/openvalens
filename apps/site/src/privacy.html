@@ -33,7 +33,7 @@
       <article class="prose">
         <p class="eyebrow">Legal</p>
         <h1>Privacy policy</h1>
-        <p class="meta">Version 2026-11-02 · Applies from 2 November 2026</p>
+        <p class="meta">Version 2026-11-14 · Applies from 14 November 2026</p>
 
         <p>
           This policy explains what personal data OpenValens collects, why, on what legal basis,
@@ -76,8 +76,9 @@
             which you give at sign-up and can withdraw.
           </li>
           <li>
-            Optional features that send data elsewhere (the AI assistant, push notifications, Google
-            or Apple sign-in, phone health data, usage analytics) only do so when you turn them on.
+            Optional features that send data elsewhere (the AI assistant, connected AI apps, push
+            notifications, Google or Apple sign-in, phone health data, usage analytics) only do so
+            when you turn them on.
           </li>
           <li>
             You can export your data and delete your account at any time, also after your
@@ -99,8 +100,9 @@
           record, which can include: weight and body composition, body scans (DEXA), body
           measurements, laboratory results, vital signs (for example heart rate, blood pressure,
           heart-rate variability), sleep, activity and workouts, nutrition and water, supplements
-          and medications, menstrual cycle, goals, clinical records and notes, preventive-care
-          answers (which can include smoking history, pregnancy and
+          and medications, menstrual cycle, pain, goals, custom trackers you create (for example
+          meditation minutes or a mood scale), clinical records and notes, preventive-care answers
+          (which can include smoking history, pregnancy and
           <strong>family medical history, which is data about your relatives</strong>), your
           wellness profile, private progress photos, and the scores and insights the app calculates
           from all of this. Health data is a special category of personal data under Article 9 GDPR.
@@ -108,14 +110,29 @@
         <p>
           <strong>Phone health data.</strong> If you allow it, the mobile app reads from
           <strong>Apple Health</strong> (iOS) or <strong>Health Connect</strong> (Android): steps,
-          heart rate, sleep, weight, body fat, active energy, distance and workouts. It only reads;
-          it never writes to them. You choose each permission in the system's own screen and can
-          revoke it there.
+          heart rate, sleep, weight, body fat, active energy, distance and workouts. If you link a
+          custom tracker to Apple Health or Health Connect, it also reads your mindfulness sessions
+          (Mindful Minutes in Apple Health, mindfulness sessions in Health Connect) and, on iOS 18
+          or later, your daily moods from State of Mind in Apple Health; each one is saved as an
+          entry in that tracker and is part of your record like any other entry, including for
+          export and deletion. It asks for these only when you link a tracker, and stops reading
+          them when you unlink it. It only reads; it never writes to Apple Health or Health Connect.
+          You choose each permission in the system's own screen and can revoke it there.
         </p>
         <p>
           <strong>AI assistant.</strong> If you use the assistant, your messages and its replies,
           and counts of how much you used it each month (tokens, estimated cost, number of calls;
           never the content).
+        </p>
+        <p>
+          <strong>Connected AI apps.</strong> If you connect an AI app (<a href="#features"
+            >section 7</a
+          >): each connection, with the app's name, the permissions you chose, the version of the
+          consent you gave and when, and when it was last used or revoked; for a personal key, and
+          for the sign-in tokens of an app that signs in, only a digest, never the key or token
+          itself. A usage record of each call (which tool, when, whether it worked and how many rows
+          it returned; never what the app asked or what it received). The entries an app adds and
+          the drafts waiting for your review, each marked with the app that wrote it.
         </p>
         <p>
           <strong>Billing data.</strong> For a workspace owner: plan, subscription status, trial and
@@ -184,6 +201,14 @@
                 <td>
                   <strong>Explicit consent</strong>, Art. 9(2)(a), given separately when you turn on
                   AI processing.
+                </td>
+              </tr>
+              <tr>
+                <td>Connected AI apps</td>
+                <td>The records the connection's permissions allow and the entries the app adds</td>
+                <td>
+                  <strong>Explicit consent</strong>, Art. 9(2)(a), given separately for each
+                  connection.
                 </td>
               </tr>
               <tr>
@@ -295,7 +320,14 @@
         <p>
           <strong>People you share with.</strong> Members you invite into your workspace see what
           their role allows. Records you add to someone else's workspace are visible to its owner
-          and members according to their roles.
+          and members according to their roles. Some records are private to the member who logged or
+          synced them, and no role, including the workspace owner's, can see another member's. They
+          include your workouts (including workouts synced from your device), sleep, weigh-ins and
+          body composition, your pain log, and your custom trackers unless you share one with the
+          workspace. Workouts, sleep, weigh-ins and body composition saved before OpenValens 1.2.0
+          that have no recorded author stay visible to the workspace, as before. Other device
+          readings, such as heart rate and steps, and imported reports, such as lab results and body
+          scans, belong to the workspace.
         </p>
         <p>
           <strong>Our staff.</strong> Only authorised people can access the production systems, and
@@ -305,8 +337,9 @@
         <p>
           <strong>Services you choose to connect</strong> are independent controllers, under their
           own privacy policies: Google or Apple when you sign in with them; Apple Health or Health
-          Connect on your phone; and a wearable vendor if you connect your account with it, which
-          then sends us your data from that vendor.
+          Connect on your phone; a wearable vendor if you connect your account with it, which then
+          sends us your data from that vendor; and an AI app you connect, which receives what it
+          reads from us under its own terms and privacy policy.
         </p>
         <p>
           <strong>Authorities.</strong> We disclose data only where the law requires it, and we tell
@@ -321,10 +354,10 @@
         <p>
           <strong>Apple Health and Health Connect.</strong> Data read from Apple Health or Health
           Connect is used only to show and analyse it in your OpenValens record and in features you
-          turn on (such as the AI assistant). It is never used for advertising or marketing, never
-          sold, never shared with data brokers, and never used to decide eligibility for credit,
-          insurance or employment. We do not store it in iCloud. Our use of Health Connect data
-          follows the
+          turn on (such as the AI assistant or a connected AI app). It is never used for advertising
+          or marketing, never sold, never shared with data brokers, and never used to decide
+          eligibility for credit, insurance or employment. We do not store it in iCloud. Our use of
+          Health Connect data follows the
           <a href="https://support.google.com/googleplay/android-developer/answer/12991134"
             >Health Connect permissions policy</a
           >, including its Limited Use requirements.
@@ -337,6 +370,26 @@
           generates the reply. Your conversations are private to you, also in a shared workspace.
           Under our agreement Anthropic does not use this data to train its models and keeps it for
           up to 30 days. There is a monthly usage allowance; we count usage, never content.
+        </p>
+        <p>
+          <strong>Connected AI apps.</strong> You can connect your own AI app, such as claude.ai or
+          ChatGPT, to your own records in a workspace you own, by signing in from the app (OAuth) or
+          with a personal key. Each connection is off until you set it up, and you choose its
+          permissions: reading your records, and separately reading nutrition, private body
+          measurements, notes, custom trackers and your pain log, and adding entries, each off by
+          default. A custom tracker or your pain log is readable only while its own switch for the
+          Coach and connected AI apps is on. Cycle data and progress photos are never available to
+          connected AI apps. Meals, lab results and workouts with exercises the app does not know
+          wait as drafts until you review them. The workspace owner can turn connected AI apps off
+          for the workspace. You can revoke a connection at any time in Settings; it stops on its
+          next request, and the entries it added stay until you delete them.
+        </p>
+        <p>
+          What a connected app reads is sent to that app and its provider, which process it under
+          their own terms and privacy policy, not ours. We do not control what they do with it. Your
+          consent for connected AI apps is separate from your consent for the AI assistant. We keep
+          a usage record of each call for 90 days, with the tool, the time, the status and the
+          number of rows, never what the app asked or what it received.
         </p>
         <p>
           <strong>Push notifications.</strong> You allow them in your phone's settings and can turn
@@ -448,6 +501,10 @@
                 </td>
               </tr>
               <tr>
+                <td>Connected AI app usage records</td>
+                <td>90 days.</td>
+              </tr>
+              <tr>
                 <td>AI requests (Anthropic)</td>
                 <td>Up to 30 days at Anthropic.</td>
               </tr>
@@ -491,15 +548,19 @@
             <strong>erasure</strong>: delete your account and everything in workspaces you own in
             <strong>Settings › Delete account and all data</strong>, at any time and in every
             subscription state (see
-            <a href="/support#delete-account">how to delete your account</a>);
+            <a href="/support#delete-account">how to delete your account</a>). If a workspace you
+            own holds another member's own entries, such as their workouts, sleep, weigh-ins, body
+            composition or private body measurements, deletion is refused, and nothing is deleted,
+            until that member is removed from the workspace, so their records are never deleted with
+            yours;
           </li>
           <li>
             <strong>restriction</strong> and <strong>objection</strong> (to processing based on
             legitimate interest);
           </li>
           <li>
-            <strong>withdraw consent</strong> at any time (health data, AI assistant, insight
-            emails, push, usage analytics), without affecting earlier processing.
+            <strong>withdraw consent</strong> at any time (health data, AI assistant, connected AI
+            apps, insight emails, push, usage analytics), without affecting earlier processing.
           </li>
         </ul>
         <p>
