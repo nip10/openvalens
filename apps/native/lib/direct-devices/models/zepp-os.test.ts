@@ -151,6 +151,28 @@ test("matchDeviceName rejects non-model names and is case-sensitive", () => {
   expect(matchDeviceName("Amazfit Active 2")).toBeNull();
 });
 
+test("SPP is the transport exactly for the coordinators that return ConnectionType.BOTH", () => {
+  // Upstream: AmazfitActive2Round (and AmazfitActive2Nfc, which extends it),
+  // AmazfitActive2Square, AmazfitActive3Premium, AmazfitBalance3,
+  // AmazfitBalanceUltra, AmazfitBipMax, AmazfitCheetah2Pro and
+  // AmazfitCheetah2Ultra override getConnectionType() with BOTH, which
+  // ZeppOsCoordinator.createDeviceSupport maps to ZeppOsBtbrSupport.
+  expect(
+    ZEPP_OS_MODELS.filter((model) => model.transport === "spp")
+      .map((model) => model.id)
+      .sort(),
+  ).toEqual([
+    "amazfit_active_2",
+    "amazfit_active_3_premium",
+    "amazfit_balance_3",
+    "amazfit_balance_ultra",
+    "amazfit_bip_max",
+    "amazfit_cheetah_2_pro",
+    "amazfit_cheetah_2_ultra",
+  ]);
+  expect(ZEPP_OS_MODELS.filter((model) => model.transport === "ble")).toHaveLength(29);
+});
+
 test("matchDeviceName does not confuse a prefix with a suffix", () => {
   expect(matchDeviceName("Amazfit Active")?.id).toBe("amazfit_active");
   expect(matchDeviceName("Amazfit Active Edge")?.id).toBe("amazfit_active_edge");

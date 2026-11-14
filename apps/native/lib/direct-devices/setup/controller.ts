@@ -9,7 +9,7 @@ import type {
 } from "./types";
 import { NativeHelioLink } from "../transport/helio-link";
 import { runHelioStepsHistory } from "../protocol/history";
-import { matchDeviceName } from "../models/zepp-os";
+import { getZeppOsModel, matchDeviceName, type ZeppOsModelId } from "../models/zepp-os";
 import { matchXiaomiDeviceName } from "../models/xiaomi";
 import { matchHuaweiDeviceName, type HuaweiModel } from "../models/huawei";
 import { matchGarminDeviceName } from "../models/garmin";
@@ -68,6 +68,7 @@ import { HUAMI_SERVICE_UUID, matchHuamiLegacyDevice } from "../models/huami-lega
 import { createHuaweiSession } from "../transport/huawei";
 import type { HuaweiSession } from "../transport/huawei";
 import { runHuaweiBrSync } from "../transport/huawei-rfcomm";
+import { openZeppSppLink } from "../transport/zepp-spp";
 import { createSecureHuaweiHiChainStore } from "../transport/huawei-hichain-store";
 import type { HuaweiHiChainStore } from "../transport/huawei";
 import type { BtClassicAdapter } from "../../../modules/bt-classic";
@@ -126,6 +127,8 @@ type Deps = {
   pebbleBondAdapter?: () => PebbleBondAdapter;
   /** Android Bluetooth Classic adapter; production loads `bt-classic` lazily. */
   btClassicAdapter?: () => BtClassicAdapter;
+  /** Test seam for the Zepp OS history runner (BLE or SPP link). */
+  runHelioHistory?: typeof runHelioStepsHistory;
   /** Durable HiChain id/token store; production uses the OS keystore. */
   huaweiHiChainStore?: () => HuaweiHiChainStore;
   /** Pairing/handshake/identity budget for the Pebble prepare step. */
@@ -236,6 +239,11 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
   let connectedHuaweiSession: HuaweiSession | null = null;
   /** A Bluetooth Classic Huawei/Honor watch: history runs over RFCOMM in `fetchSteps`. */
   let connectedHuaweiBr: { model: HuaweiModel; bleAddress: string; deviceId: string } | null = null;
+  /**
+   * Android, a Zepp OS model upstream defaults to SPP: `fetchSteps` tries
+   * RFCOMM on this address first and falls back to the BLE link.
+   */
+  let connectedZeppSppAddress: string | null = null;
   let hichainStore: HuaweiHiChainStore | null = null;
   const huaweiHiChainStore = (): HuaweiHiChainStore =>
     (hichainStore ??= (deps.huaweiHiChainStore ?? createSecureHuaweiHiChainStore)());
@@ -1103,6 +1111,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
             void connectedHuaweiSession?.close();
             connectedHuaweiSession = null;
             connectedHuaweiBr = null;
+            connectedZeppSppAddress = null;
             void connectedCasioSession?.close();
             connectedCasioSession = null;
             void connectedPebbleSession?.close();
@@ -1272,6 +1281,14 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
             connectedHuaweiSession = null;
             connectedHuaweiBr = { model: huaweiModel, bleAddress: discovered.id, deviceId };
           }
+          // On Android the BLE id is the MAC; upstream connects SPP on the same
+          // address it paired over (AbstractBTBRDeviceSupport uses getAddress()).
+          connectedZeppSppAddress =
+            family === "zepp_os" &&
+            getZeppOsModel(model!.id as ZeppOsModelId)?.transport === "spp" &&
+            btClassicSupported()
+              ? deviceId
+              : null;
           if (huaweiProfile && huaweiModel?.sync && deps.onHistorySample) {
             void connectedHuaweiSession?.close();
             // Huawei auth is automatic (MAC-derived key), but the transfer is
@@ -1401,6 +1418,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
       void connectedHuaweiSession?.close();
       connectedHuaweiSession = null;
       connectedHuaweiBr = null;
+      connectedZeppSppAddress = null;
       void connectedCasioSession?.close();
       connectedCasioSession = null;
       pebblePrepareAbort?.abort();
@@ -1671,9 +1689,26 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
                           );
                       return runXiaomiStepsHistory(transport, linked);
                     })()
-                  : (() => {
-                      const workLink = new NativeHelioLink(device, radio?.manager);
-                      return runHelioStepsHistory(workLink, linked).finally(() => workLink.close());
+                  : (async () => {
+                      const sppAddress =
+                        connectedFamily === "zepp_os" ? connectedZeppSppAddress : null;
+                      // Upstream's default for these models is SPP; any failure to
+                      // open it (no SDP record, not bonded, handshake) keeps BLE.
+                      const spp = sppAddress
+                        ? await openZeppSppLink({
+                            btClassic: (deps.btClassicAdapter ?? loadBtClassicAdapter)(),
+                            address: sppAddress,
+                            signal: linked.signal,
+                          }).catch(() => {
+                            if (linked.signal.aborted) throw new Error("CANCELLED");
+                            return null;
+                          })
+                        : null;
+                      const workLink = spp ?? new NativeHelioLink(device, radio?.manager);
+                      return (deps.runHelioHistory ?? runHelioStepsHistory)(
+                        workLink,
+                        linked,
+                      ).finally(() => workLink.close());
                     })();
       historyCompletion = work;
       try {
@@ -1738,6 +1773,7 @@ export function createHelioSetupController(deps: Deps = {}): HelioSetupControlle
       void connectedHuaweiSession?.close();
       connectedHuaweiSession = null;
       connectedHuaweiBr = null;
+      connectedZeppSppAddress = null;
       void connectedCasioSession?.close();
       connectedCasioSession = null;
       pebblePrepareAbort?.abort();
