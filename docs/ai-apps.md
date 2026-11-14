@@ -129,8 +129,8 @@ the connection's scopes without reconnecting). No scope is reserved any more.
   an exercise that is not in the catalog are not saved at once. Each becomes a
   row in `ai_app_draft` (its `ai_app_entry` points at it) and the log call
   returns it with `status: "pending_review"` instead of `"saved"`. Nothing
-  reaches the member's records until they confirm it in the web app, where
-  each draft says "via <app name>"; discarding it saves nothing.
+  reaches the member's records until they confirm it in the web or mobile
+  app, where each draft says "via <app name>"; discarding it saves nothing.
   - **Food** (`food.log`): one entry per meal, either a `description` in the
     member's words, split by the same local parser as "Describe a meal" (#73),
     or `items` already split (food, quantity as stated, unit). There is no
@@ -167,8 +167,11 @@ the connection's scopes without reconnecting). No scope is reserved any more.
     `*.delete` with a draft's `entryId` deletes the draft. "Delete everything
     this app wrote" also deletes every draft still waiting, including one a
     failed call never recorded.
-  - Drafts can be reviewed on the web app only; the mobile app does not list
-    them yet.
+  - The mobile app reviews them too, with the same procedures: lab results in
+    "Waiting for your review" on Labs, workouts on Training, and meal drafts
+    on the food diary, where "Review" opens Add food's "From app" tab for the
+    day, meal and time the app sent. Each item is matched and logged through
+    the usual search, then the draft is marked done or discarded.
 - **Idempotent.** Every call needs a `mutationId`. Its receipt (`ai_app_write`)
   works like the plain-water receipts (#83): a retry with the same id and
   arguments returns the first result (`replayed: true`) and writes nothing; the
@@ -182,7 +185,8 @@ the connection's scopes without reconnecting). No scope is reserved any more.
   shows only one app's entries: readings, sleep nights, tracker entries and
   pain entries. Water, supplement intakes and workouts are not timeline items
   yet; they carry the same tag in `ai_app_entry` and are counted and deleted
-  with the rest.
+  with the rest. The quick log's "recent entries" are the member's own only,
+  so nothing an app wrote is offered there to repeat.
 - **Ownership.** `*.delete` deletes only entries the same grant wrote, by the
   `entryId`s its log calls returned; any other id is answered `not_found` and
   left alone. There is no edit tool: an app corrects an entry by deleting it and

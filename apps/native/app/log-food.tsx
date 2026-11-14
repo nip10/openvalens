@@ -29,6 +29,7 @@ export default function LogFoodRoute() {
     seedDate?: string;
     seedSlot?: string;
     at?: string;
+    aiDraft?: string;
   }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -48,6 +49,11 @@ export default function LogFoodRoute() {
   const consumedAt =
     params.at && !Number.isNaN(Date.parse(params.at))
       ? new Date(params.at).toISOString()
+      : undefined;
+  // A meal draft from a connected AI app (#439, M2c), opened from the diary.
+  const aiDraftId =
+    params.mode === "app" && typeof params.aiDraft === "string" && params.aiDraft
+      ? params.aiDraft
       : undefined;
   const initialQuery = (Array.isArray(params.food) ? params.food[0] : (params.food ?? ""))
     .trim()
@@ -125,16 +131,19 @@ export default function LogFoodRoute() {
           outbox={outbox}
           hideNumbers={hideNumbers}
           initialMeal={initialMeal}
+          aiDraftId={aiDraftId}
           initialMode={
-            params.mode === "templates"
-              ? "templates"
-              : params.mode === "barcode"
-                ? "barcode"
-                : params.mode === "describe" &&
-                    (targets.data?.settings.voiceDraftsEnabled ??
-                      cachedPreference?.voiceDraftsEnabled)
-                  ? "describe"
-                  : "choose"
+            aiDraftId
+              ? "app"
+              : params.mode === "templates"
+                ? "templates"
+                : params.mode === "barcode"
+                  ? "barcode"
+                  : params.mode === "describe" &&
+                      (targets.data?.settings.voiceDraftsEnabled ??
+                        cachedPreference?.voiceDraftsEnabled)
+                    ? "describe"
+                    : "choose"
           }
           recipeImportEnabled={
             targets.data?.settings.recipeImportEnabled ??

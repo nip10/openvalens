@@ -37,6 +37,7 @@ import { labRangeBar } from "@/utils/lab-range-bar";
 import { orpc } from "@/utils/orpc";
 import { useThemeColor } from "@/utils/theme";
 import { ModuleHiddenNote } from "@/components/module-hidden-note";
+import { AiAppLabDrafts } from "@/components/ai-app-drafts";
 
 function AddReadingForm({ markerCode, onSaved }: { markerCode: string; onSaved: () => void }) {
   const [value, setValue] = useState("");
@@ -223,6 +224,9 @@ export default function LabsScreen() {
       <Page>
         <ModuleHiddenNote module="labs" />
         {header}
+
+        {/* Lab results a connected AI app sent, waiting for the member (#439, M2c). */}
+        <AiAppLabDrafts onSaved={() => void markers.refetch()} />
 
         {list.length === 0 ? (
           <EmptyState

@@ -68,6 +68,7 @@ mock.module("lucide-react-native", () =>
     [
       "Apple",
       "Bookmark",
+      "Bot",
       "ChevronDown",
       "ChevronLeft",
       "ChevronRight",
@@ -115,6 +116,23 @@ mock.module("@tanstack/react-query", () => ({
 mock.module("@/components/barcode-scanner", () => ({ BarcodeScanner: host("BarcodeScanner") }));
 mock.module("@/components/food-logger-capture", () => ({
   FoodLoggerCapture: host("FoodLoggerCapture"),
+}));
+// Every export, so a later file in the same `bun test` run still finds them (#439).
+mock.module("@/components/ai-app-drafts", () => ({
+  AiAppDraftError: host("AiAppDraftError"),
+  AiAppFoodDraftReview: host("AiAppFoodDraftReview"),
+  AiAppFoodDrafts: host("AiAppFoodDrafts"),
+  AiAppLabDrafts: host("AiAppLabDrafts"),
+  AiAppWorkoutDrafts: host("AiAppWorkoutDrafts"),
+  ViaApp: host("ViaApp"),
+  useAiAppDrafts: () => ({ drafts: [], isPending: false }),
+  useAiAppDraftActions: () => ({
+    confirm: { mutate: noop },
+    discard: { mutate: noop },
+    error: null,
+    busy: false,
+  }),
+  useFoodDraftTitle: () => () => "Meal",
 }));
 mock.module("@/components/nutrition-date-picker", () => ({
   NutritionDatePicker: host("NutritionDatePicker"),
