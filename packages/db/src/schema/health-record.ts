@@ -349,7 +349,12 @@ export const healthEvent = pgTable(
     organizationId: text("organization_id")
       .notNull()
       .references(() => organization.id, { onDelete: "cascade" }),
-    /** Person attribution is populated only from a trusted provider connection; historical rows stay null. */
+    /**
+     * The member a sleep night or device workout belongs to
+     * (`MEMBER_PRIVATE_EVENT_TYPES`), populated only from a trusted provider
+     * connection or the member who typed it in. Other event types and
+     * historical rows stay null and are shared with the workspace.
+     */
     userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
     dataSourceId: integer("data_source_id").references(() => dataSource.id, {
       onDelete: "set null",

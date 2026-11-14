@@ -1,5 +1,6 @@
 import { readdir } from "node:fs/promises";
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { listActivitySessions } from "@openvalens/activity";
 import { createDomainHealthToolSources } from "@openvalens/ai/tools/sources";
 import { ROLE_PERMISSION_PRESETS, isRole } from "@openvalens/auth/access/roles";
 import { clearRegisteredAuth, setRegisteredAuth, type Auth } from "@openvalens/auth";
@@ -102,11 +103,15 @@ const dateOf = (daysAgo: number) => at(daysAgo, 12).toISOString().slice(0, 10);
 const A_KG = 71.25;
 const B_KG = 93.75;
 const LEGACY_KG = 80.5;
-const A_FAT = 21.5;
-const B_FAT = 33.5;
+// Four decimals: a timestamp such as "...:21.5xxZ" cannot contain them.
+const A_FAT = 21.4375;
+const B_FAT = 33.5625;
 const A_SLEEP = "SyntheticRingA";
 const B_SLEEP = "SyntheticRingB";
 const LEGACY_SLEEP = "SyntheticRingLegacy";
+const A_WATCH = "SyntheticWatchA";
+const B_WATCH = "SyntheticWatchB";
+const LEGACY_WATCH = "SyntheticWatchLegacy";
 
 describe.skipIf(!url)("sleep and weight are private per member (#509)", () => {
   const db: Database = createDb({
@@ -323,6 +328,17 @@ describe.skipIf(!url)("sleep and weight are private per member (#509)", () => {
     ids.nightA = await night("user-a", 1, A_SLEEP);
     ids.nightB = await night("user-b", 2, B_SLEEP);
     ids.nightLegacy = await night(null, 3, LEGACY_SLEEP);
+
+    // Device workouts: one watch workout each, and a legacy one with no author.
+    const watch = async (userId: string | null, daysAgo: number, sourceApp: string) =>
+      insertId(sql`insert into health_event
+        (organization_id, user_id, event_type, event_at, payload_json, dedupe_hash)
+        values (${ORG}, ${userId}, 'workout', ${at(daysAgo, 17)},
+          ${JSON.stringify({ endAt: new Date(at(daysAgo, 17).getTime() + HOUR / 2).toISOString(), sourceApp })}::jsonb,
+          ${`workout-${sourceApp}`}) returning id`);
+    ids.workoutA = await watch("user-a", 1, A_WATCH);
+    ids.workoutB = await watch("user-b", 2, B_WATCH);
+    ids.workoutLegacy = await watch(null, 3, LEGACY_WATCH);
   });
 
   afterAll(async () => {
@@ -559,6 +575,39 @@ describe.skipIf(!url)("sleep and weight are private per member (#509)", () => {
       userId: "user-a",
     });
     expectPrivate(payload, "a", { own: [A_KG], other: [B_KG], legacy: [LEGACY_KG] });
+  });
+
+  test("device workouts: timeline, activity load, clinical and data-rights exports are per member", async () => {
+    for (const [user, view, own, other, ownId, otherId] of [
+      ["user-a", "a", A_WATCH, B_WATCH, ids.workoutA, ids.workoutB],
+      ["user-b", "b", B_WATCH, A_WATCH, ids.workoutB, ids.workoutA],
+    ] as const) {
+      const timeline = await call("timeline/list", { limit: 200 }, user);
+      const itemIds = timeline.items.map((item: { id: string }) => item.id);
+      expect(itemIds).toContain(`health_event:${ownId}`);
+      expect(itemIds).toContain(`health_event:${ids.workoutLegacy}`);
+      expect(itemIds).not.toContain(`health_event:${otherId}`);
+      expectPrivate(timeline, view, { own: [own], other: [other], legacy: [LEGACY_WATCH] });
+
+      const sessions = await listActivitySessions(db, ORG, user, {
+        from: dateOf(6),
+        to: dateOf(0),
+      });
+      const refs = sessions.map((session) => session.ref);
+      expect(refs).toContain(`health_event:${ownId}`);
+      expect(refs).toContain(`health_event:${ids.workoutLegacy}`);
+      expect(refs).not.toContain(`health_event:${otherId}`);
+
+      expectPrivate(await call("exports/clinicalBundle", {}, user), view, {
+        own: [own],
+        other: [other],
+        legacy: [LEGACY_WATCH],
+      });
+    }
+    const owner = await exportSubjectData(db, { userId: "user-a", organizationIds: [ORG] });
+    expectPrivate(owner.files, "a", { own: [A_WATCH], other: [B_WATCH], legacy: [LEGACY_WATCH] });
+    const member = await exportSubjectData(db, { userId: "user-b", organizationIds: [] });
+    expectPrivate(member.files, "b", { own: [B_WATCH], other: [A_WATCH, LEGACY_WATCH] });
   });
 
   test("the data-rights export of the workspace owner leaves the other member's rows out", async () => {

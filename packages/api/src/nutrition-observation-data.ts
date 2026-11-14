@@ -1,4 +1,5 @@
 import type { Database } from "@openvalens/db";
+import { ownOrUnattributed } from "@openvalens/db/member-private";
 import { healthEvent, dataSource } from "@openvalens/db/schema/health-record";
 import {
   nutritionDiaryDay,
@@ -30,7 +31,9 @@ export type NutritionObservationAccess = {
 /**
  * Reads only permitted modules and always applies both organization and member
  * scope. Health events without an explicitly user-owned provider connection
- * are excluded because their member ownership cannot be established.
+ * are excluded because their member ownership cannot be established, and a
+ * night or workout attributed to another member (a connection that moved, #509)
+ * never counts.
  */
 export async function loadNutritionObservations(
   db: Database,
@@ -76,6 +79,7 @@ export async function loadNutritionObservations(
         and(
           eq(healthEvent.organizationId, scope.organizationId),
           eq(providerConnection.userId, scope.userId),
+          ownOrUnattributed(healthEvent.userId, scope.userId),
           isNull(healthEvent.supersededAt),
           gte(healthEvent.eventAt, from),
           lt(healthEvent.eventAt, until),
