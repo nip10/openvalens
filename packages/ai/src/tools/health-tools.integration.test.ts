@@ -168,7 +168,7 @@ describe.skipIf(!url)("AI health tools against disposable PostgreSQL", () => {
         organizationId: ORG_B,
         metricDefinitionId: ferritinB,
         sampledAt: new Date(now - 5 * DAY_MS),
-        numericValue: 999,
+        numericValue: 987.654,
         dedupeHash: "b-f-2",
       },
       {
@@ -220,7 +220,7 @@ describe.skipIf(!url)("AI health tools against disposable PostgreSQL", () => {
 
     const serialized = JSON.stringify(snapshot);
     for (const forbidden of [
-      "999",
+      "987.654",
       "777.125",
       "123.4",
       "Cortisol",
@@ -244,7 +244,8 @@ describe.skipIf(!url)("AI health tools against disposable PostgreSQL", () => {
       first: { value: 40 },
       latest: { value: 52 },
     });
-    expect(JSON.stringify(trend)).not.toContain("999");
+    // A decimal sentinel: a bare "999" also matched timestamps ending in .999Z.
+    expect(JSON.stringify(trend)).not.toContain("987.654");
   });
 
   btest("a marker defined only by another org is not_found", async () => {
