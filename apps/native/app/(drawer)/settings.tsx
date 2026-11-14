@@ -61,7 +61,6 @@ import { useConfirmedSignOut } from "@/components/confirm-sign-out";
 import { ListRow } from "@/components/list-row";
 import { Container } from "@/components/container";
 import { HealthSyncSettings } from "@/components/health-sync-settings";
-import { DirectDeviceSettings } from "@/components/direct-device-settings";
 import { LanguageSection, SettingsGroup, SettingsIcon } from "@/components/language-section";
 import { AnalyticsConsentSection } from "@/components/analytics-consent-section";
 import { AiSection } from "@/components/ai-section";
@@ -81,7 +80,6 @@ import { adminAccessQueryOptions } from "@/utils/admin-settings";
 
 export default function SettingsScreen() {
   const { isDark, toggleTheme } = useAppTheme();
-  const directDeviceServer = useServer();
   const [density, setDensity] = useState<"comfortable" | "compact">("comfortable");
   const { data: session, isPending: sessionPending } = authClient.useSession();
   const settingsScroll = useRef<ScrollView>(null);
@@ -202,37 +200,13 @@ export default function SettingsScreen() {
 
         {session?.user && <HealthSyncSettings />}
 
-        <DirectDeviceSettings
-          key={
-            session?.user?.id &&
-            session.session.id &&
-            session.session.activeOrganizationId &&
-            directDeviceServer.status === "set"
-              ? `${directDeviceServer.url}:${session.session.id}:${session.user.id}:${session.session.activeOrganizationId}`
-              : "no-scope"
-          }
-          context={
-            session?.user?.id &&
-            session.session.id &&
-            session.session.activeOrganizationId &&
-            directDeviceServer.status === "set"
-              ? {
-                  serverUrl: directDeviceServer.url,
-                  userId: session.user.id,
-                  organizationId: session.session.activeOrganizationId,
-                  sessionId: session.session.id,
-                }
-              : null
-          }
-        />
-
         {session?.user && (
           <Section title={t`Integrations`} icon={Plug} tone="signal">
             <Sheet className="overflow-hidden p-0 py-1">
               <ListRow
                 icon={<Icon icon={Watch} size={18} color="ink-2" />}
                 title={t`Devices`}
-                subtitle={t`Cloud wearable connections`}
+                subtitle={t`Watches, rings, scales and wearable accounts`}
                 onPress={() => router.push("/settings/devices")}
                 showDivider
                 trailing={<RowChevron />}

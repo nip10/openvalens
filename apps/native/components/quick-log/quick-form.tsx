@@ -10,6 +10,7 @@ import { unitKey, type QuickFormValues } from "@openvalens/api/presenters/quick-
 import { Button, cn } from "heroui-native";
 import { Pressable, Text, TextInput, View } from "react-native";
 
+import { DecimalHint } from "@/components/decimal-hint";
 import { SelectField } from "@/components/select-field";
 import { useThemeColor } from "@/utils/theme";
 
@@ -55,6 +56,8 @@ function Chip({
  * A log kind's quick form on mobile, built from its `fields` (#440): numbers
  * with their unit (and the other units the member may type), times, a 1–5
  * rating and the member's own supplements. The twin of the web palette's form.
+ * The "+" picker and the first run's first log (#444) both use it; the first
+ * run hides the Save button because its screen keeps Save at the bottom.
  */
 export function QuickForm({
   kind,
@@ -66,6 +69,7 @@ export function QuickForm({
   failed,
   onChange,
   onSubmit,
+  showSave = true,
 }: {
   kind: LogKind;
   values: QuickFormValues;
@@ -76,6 +80,8 @@ export function QuickForm({
   failed: boolean;
   onChange: (id: string, value: string) => void;
   onSubmit: () => void;
+  /** Off when the screen already has its own Save button. */
+  showSave?: boolean;
 }) {
   const { t, i18n } = useLingui();
   const placeholderColor = useThemeColor("ink-3");
@@ -128,6 +134,7 @@ export function QuickForm({
               <Text className="font-sans text-base text-ink-3">{symbol}</Text>
             ) : null}
           </View>
+          <DecimalHint value={values[field.id]} />
           {units.length > 1 && field.unit ? (
             <View
               className="flex-row flex-wrap gap-2"
@@ -234,9 +241,11 @@ export function QuickForm({
           {t`Could not save. Try again.`}
         </Text>
       ) : null}
-      <Button testID="quick-log-save" onPress={onSubmit} isDisabled={pending}>
-        <Button.Label>{pending ? t`Saving…` : t`Save`}</Button.Label>
-      </Button>
+      {showSave ? (
+        <Button testID="quick-log-save" onPress={onSubmit} isDisabled={pending}>
+          <Button.Label>{pending ? t`Saving…` : t`Save`}</Button.Label>
+        </Button>
+      ) : null}
     </View>
   );
 }
