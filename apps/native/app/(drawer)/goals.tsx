@@ -3,6 +3,7 @@ import type { I18n } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import type { GoalSummary } from "@openvalens/plans/personal-goals";
 import type { GoalComparator, GoalRule } from "@openvalens/plans/goal-model";
+import { trackerIdFromGoalMetric } from "@openvalens/plans/goal-tracker";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "expo-router";
 import { Button, Spinner } from "heroui-native";
@@ -306,6 +307,19 @@ function Action({ goal, onRefresh }: { goal: GoalSummary; onRefresh: () => void 
     return (
       <Text className="text-xs text-ink-3">{t`Matched actual lifts count automatically.`}</Text>
     );
+  if (actionKind === "tracker-entries") {
+    const trackerId = trackerIdFromGoalMetric(goal.definition.metric);
+    return trackerId ? (
+      <Link href={{ pathname: "/trackers/[trackerId]", params: { trackerId } }} asChild>
+        <Pressable
+          testID={`goal-open-tracker-${goal.id}`}
+          className="self-start rounded-xl bg-paper-2 px-3 py-2"
+        >
+          <Text className="font-semibold text-ink">{t`Log in the tracker`}</Text>
+        </Pressable>
+      </Link>
+    ) : null;
+  }
   if (actionKind === "manual-completion")
     return (
       <View className="gap-1">

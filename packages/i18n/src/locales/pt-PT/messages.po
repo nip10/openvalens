@@ -1457,6 +1457,11 @@ msgstr "8 a menos de 12"
 msgid "90 days"
 msgstr "90 dias"
 
+#: apps/native/components/goal-editor.tsx
+#: apps/web/src/routes/_auth/-goal-editor.tsx
+msgid "A 1–5 rating goal is a streak of days you logged it. It never sets a target for the rating itself."
+msgstr "Uma meta de avaliação de 1 a 5 é uma sequência de dias em que a registou. Nunca define uma meta para a própria avaliação."
+
 #: apps/native/components/change-server.tsx
 msgid "A change is being sent right now. Nothing has been removed. Try again when it finishes."
 msgstr "Está a ser enviada uma alteração. Nada foi removido. Tente novamente quando terminar."
@@ -2735,6 +2740,10 @@ msgstr "Dia médio"
 msgid "Average target"
 msgstr "Meta da média"
 
+#: apps/web/src/routes/_auth/-goal-editor.tsx
+msgid "Average target ({trackerUnit})"
+msgstr "Meta da média ({trackerUnit})"
+
 #. placeholder {0}: friendlyDate(i18n, snapshot.vitals.date)
 #. placeholder {0}: friendlyDate(i18n, vitalsRow.date)
 #: apps/native/app/(drawer)/(tabs)/index.tsx
@@ -3720,6 +3729,10 @@ msgstr "Escolha um suplemento ou um exercício do catálogo."
 msgid "Choose a supplement."
 msgstr "Escolha um suplemento."
 
+#: apps/web/src/routes/_auth/-goal-editor.tsx
+msgid "Choose a tracker"
+msgstr "Escolha um acompanhamento"
+
 #: apps/native/app/quick-log.tsx
 #: apps/native/components/trackers/tracker-log-form.tsx
 #: apps/web/src/components/trackers/tracker-log-form.tsx
@@ -3781,6 +3794,15 @@ msgstr "Escolha os domínios e um formato e depois transfira."
 #: apps/web/src/components/product-settings-form.tsx
 msgid "Choose how weight and distance are displayed."
 msgstr "Escolha como o peso e a distância são apresentados."
+
+#: apps/native/components/goal-editor.tsx
+msgid "Choose one of your trackers"
+msgstr "Escolha um dos seus acompanhamentos"
+
+#: apps/native/components/goal-editor.tsx
+#: apps/web/src/routes/_auth/-goal-editor.tsx
+msgid "Choose one of your trackers."
+msgstr "Escolha um dos seus acompanhamentos."
 
 #: apps/native/components/goal-editor.tsx
 msgid "Choose one to seven days per week."
@@ -5143,6 +5165,11 @@ msgstr "Não foi possível carregar os seus exames."
 msgid "Could not load your scores."
 msgstr "Não foi possível carregar as suas pontuações."
 
+#: apps/native/components/goal-editor.tsx
+#: apps/web/src/routes/_auth/-goal-editor.tsx
+msgid "Could not load your trackers. Try again."
+msgstr "Não foi possível carregar os seus acompanhamentos. Tente novamente."
+
 #: apps/native/app/(drawer)/body-map.tsx
 #: apps/web/src/routes/_auth/body-map.tsx
 msgid "Could not load your workouts."
@@ -5576,6 +5603,11 @@ msgstr "Calculado a partir da criação das contas e da hora em que os registos 
 msgid "Counts days with at least one diary entry. It is about the habit of logging, not about what you eat. Hidden in hide-numbers mode and after any declaration."
 msgstr "Conta os dias com pelo menos um registo no diário. Diz respeito ao hábito de registar, não ao que come. Fica oculto no modo de ocultar números e após qualquer declaração."
 
+#: apps/native/components/goal-editor.tsx
+#: apps/web/src/routes/_auth/-goal-editor.tsx
+msgid "Counts the days with a yes."
+msgstr "Conta os dias com um sim."
+
 #: apps/web/src/components/nutrition-day-totals.tsx
 msgid "Coverage"
 msgstr "Cobertura"
@@ -5697,6 +5729,11 @@ msgstr "Versão atual: {0}."
 msgid "Custom"
 msgstr "Personalizado"
 
+#: apps/native/app/(drawer)/goals/[goalId].tsx
+#: apps/web/src/routes/_auth/goals.$goalId.tsx
+msgid "Custom tracker · the tracker's days"
+msgstr "Acompanhamento personalizado · os dias do acompanhamento"
+
 #: apps/web/src/components/oauth-consent-view.tsx
 #: packages/api/src/presenters/ai-apps.ts
 msgid "Custom trackers"
@@ -5748,8 +5785,16 @@ msgid "Daily amount"
 msgstr "Valor diário"
 
 #: apps/web/src/routes/_auth/-goal-editor.tsx
+msgid "Daily amount ({trackerUnit})"
+msgstr "Valor diário ({trackerUnit})"
+
+#: apps/web/src/routes/_auth/-goal-editor.tsx
 msgid "Daily amount needed"
 msgstr "Valor diário necessário"
+
+#: apps/web/src/routes/_auth/-goal-editor.tsx
+msgid "Daily amount needed ({trackerUnit})"
+msgstr "Valor diário necessário ({trackerUnit})"
 
 #: apps/native/components/goal-editor.tsx
 #: apps/web/src/routes/_auth/-goal-editor.tsx
@@ -6609,6 +6654,11 @@ msgstr "A duração tem de ser entre 1 e 1 440 minutos."
 #: apps/native/components/active-workout.tsx
 msgid "Duration must be between 1 and 1440 minutes."
 msgstr "A duração tem de ser entre 1 e 1440 minutos."
+
+#: apps/native/components/goal-editor.tsx
+#: apps/web/src/routes/_auth/-goal-editor.tsx
+msgid "Durations are compared in minutes per day."
+msgstr "As durações são comparadas em minutos por dia."
 
 #: packages/api/src/presenters/preventive-care.ts
 msgid "Each answer is optional and only you can see it. Nothing is pre-selected, and you can choose “Prefer not to say” or clear an answer at any time."
@@ -9732,6 +9782,10 @@ msgstr "A carregar o suplemento selecionado…"
 msgid "Loading supplements…"
 msgstr "A carregar suplementos…"
 
+#: apps/native/components/goal-editor.tsx
+msgid "Loading trackers…"
+msgstr "A carregar acompanhamentos…"
+
 #: apps/web/src/components/exercise-library.tsx
 msgid "Loading workouts…"
 msgstr "A carregar treinos…"
@@ -9871,6 +9925,11 @@ msgstr "Registar entradas nos seus acompanhamentos que têm ligado \"O Coach e a
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 msgid "Log food ({amount})"
 msgstr "Registar alimento ({amount})"
+
+#: apps/native/app/(drawer)/goals.tsx
+#: apps/web/src/routes/_auth/goals.index.tsx
+msgid "Log in the tracker"
+msgstr "Registar no acompanhamento"
 
 #: apps/native/components/onboarding/steps.tsx
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
@@ -10772,6 +10831,10 @@ msgstr "Os meus alimentos"
 #: apps/native/components/server-choice.tsx
 msgid "My own server"
 msgstr "O meu próprio servidor"
+
+#: apps/native/components/goal-editor.tsx
+msgid "My tracker"
+msgstr "O meu acompanhamento"
 
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/native/components/exercise-library.tsx
@@ -12285,6 +12348,10 @@ msgstr "Um objetivo"
 msgid "One goal (optional)"
 msgstr "Um objetivo (opcional)"
 
+#: apps/web/src/routes/_auth/-goal-editor.tsx
+msgid "One of my trackers"
+msgstr "Um dos meus acompanhamentos"
+
 #: apps/native/app/(drawer)/goals.tsx
 #: apps/native/app/(drawer)/goals/[goalId].tsx
 #: apps/native/components/goal-editor.tsx
@@ -12408,6 +12475,11 @@ msgstr "Abrir URL de origem"
 #: apps/web/src/routes/_auth/settings/telegram.tsx
 msgid "Open the link in Telegram and press Start. This page updates once the chat is connected."
 msgstr "Abra a ligação no Telegram e carregue em Start. Esta página atualiza-se quando a conversa estiver ligada."
+
+#: apps/native/app/(drawer)/goals/[goalId].tsx
+#: apps/web/src/routes/_auth/goals.$goalId.tsx
+msgid "Open the tracker"
+msgstr "Abrir o acompanhamento"
 
 #: apps/web/src/routes/index.tsx
 msgid "Open your dashboard"
@@ -15580,6 +15652,11 @@ msgstr "Token de configuração"
 msgid "Several entries in a day"
 msgstr "Várias entradas num dia"
 
+#: apps/native/components/goal-editor.tsx
+#: apps/web/src/routes/_auth/-goal-editor.tsx
+msgid "Several entries in a day are combined the way this tracker combines them."
+msgstr "Várias entradas no mesmo dia são combinadas como este acompanhamento as combina."
+
 #: packages/api/src/presenters/preventive-care.ts
 msgid "Sex for reference tables is not available: {reason, select, not_provided {You haven't added this yet.} declined {You chose not to share this.} not_applicable {You said neither option fits you.} adult_confirmation_required {This is only available after you confirm you are 18 or older.} other {Your birth year falls on the edge of two age bands.}} Items published for one sex say so instead of guessing."
 msgstr "O sexo para tabelas de referência não está disponível: {reason, select, not_provided {Ainda não adicionou isto.} declined {Optou por não partilhar isto.} not_applicable {Indicou que nenhuma opção se aplica a si.} adult_confirmation_required {Isto só está disponível depois de confirmar que tem 18 anos ou mais.} other {O seu ano de nascimento fica no limite entre dois grupos etários.}} Os itens publicados para um só sexo indicam-no, em vez de adivinhar."
@@ -16842,6 +16919,10 @@ msgstr "Objetivo definido"
 msgid "Target value"
 msgstr "Valor da meta"
 
+#: apps/web/src/routes/_auth/-goal-editor.tsx
+msgid "Target value ({trackerUnit})"
+msgstr "Valor da meta ({trackerUnit})"
+
 #: apps/native/components/routine-editor.tsx
 msgid "Target weight"
 msgstr "Peso-alvo"
@@ -17837,6 +17918,11 @@ msgstr "Este token ou código expirou. Peça um novo."
 msgid "This tracker is not available."
 msgstr "Este acompanhamento não está disponível."
 
+#: apps/native/components/goal-editor.tsx
+#: apps/web/src/routes/_auth/-goal-editor.tsx
+msgid "This tracker was deleted. The goal keeps its history."
+msgstr "Este acompanhamento foi apagado. A meta mantém o seu histórico."
+
 #: packages/api/src/presenters/onboarding.ts
 msgid "This turns on water logging"
 msgstr "Isto liga o registo de água"
@@ -18098,6 +18184,10 @@ msgstr "Acompanhe metas pessoais separadamente das sessões de treino."
 msgid "Track sleep through Health Connect or Apple Health, or add a session."
 msgstr "Registe o sono através do Health Connect ou do Apple Health, ou adicione uma sessão."
 
+#: apps/web/src/routes/_auth/-goal-editor.tsx
+msgid "Tracker"
+msgstr "Acompanhamento"
+
 #. placeholder {0}: result.deletedEntries
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 msgid "Tracker and {0} entries deleted."
@@ -18106,6 +18196,11 @@ msgstr "Acompanhamento e {0} entradas apagados."
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 msgid "Tracker and 1 entry deleted."
 msgstr "Acompanhamento e 1 entrada apagados."
+
+#: apps/native/app/(drawer)/goals/[goalId].tsx
+#: apps/web/src/routes/_auth/goals.$goalId.tsx
+msgid "Tracker entries count automatically, combined per day the way the tracker combines them."
+msgstr "As entradas do acompanhamento contam automaticamente, combinadas por dia como o acompanhamento as combina."
 
 #: apps/native/app/(drawer)/trackers/[trackerId].tsx
 msgid "Tracker name"
@@ -18772,6 +18867,10 @@ msgstr "Valor"
 #: apps/web/src/routes/_auth/goals.$goalId.tsx
 msgid "Value ({0})"
 msgstr "Valor ({0})"
+
+#: apps/native/components/goal-editor.tsx
+msgid "Value ({trackerUnit})"
+msgstr "Valor ({trackerUnit})"
 
 #: apps/native/app/(drawer)/records/activity.tsx
 #: apps/native/app/(drawer)/records/vitals.tsx
@@ -19641,6 +19740,14 @@ msgstr "Não tem convites pendentes para espaços de trabalho."
 #: packages/email/src/templates/daily-reminder.tsx
 msgid "You have no reminders for today."
 msgstr "Não tem lembretes para hoje."
+
+#: apps/web/src/routes/_auth/-goal-editor.tsx
+msgid "You have no trackers yet. Create one on the Trackers page first."
+msgstr "Ainda não tem acompanhamentos. Crie um primeiro na página Acompanhamentos."
+
+#: apps/native/components/goal-editor.tsx
+msgid "You have no trackers yet. Create one on the Trackers screen first."
+msgstr "Ainda não tem acompanhamentos. Crie um primeiro no ecrã Acompanhamentos."
 
 #: apps/web/src/routes/_auth/profile.tsx
 msgid "You have unsaved changes on this page. Leave without saving them?"
