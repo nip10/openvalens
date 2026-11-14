@@ -662,7 +662,9 @@ function HelioPanel({ controller }: { controller: HelioSyncController | null }) 
           <Text className="font-sans text-sm text-destructive">
             {GARMIN_ERROR_COPY[snapshot.errorCode]
               ? i18n._(GARMIN_ERROR_COPY[snapshot.errorCode]!)
-              : friendlyError(snapshot.errorCode)}
+              : HUAWEI_ERROR_COPY[snapshot.errorCode]
+                ? i18n._(HUAWEI_ERROR_COPY[snapshot.errorCode]!)
+                : friendlyError(snapshot.errorCode)}
           </Text>
         ) : null}
         <View className="flex-row items-center gap-2">
@@ -686,6 +688,29 @@ const GARMIN_ERROR_COPY: Record<string, MessageDescriptor> = {
   GARMIN_PROTOBUF_TIMEOUT: msg`The Garmin watch did not send its file list. Keep it near the phone, then sync again.`,
 };
 
+const huaweiPairingFailed = msg`Pairing with the watch failed. Restart the watch, then sync again.`;
+const huaweiRejected = msg`The watch rejected pairing. If it is paired with the Huawei Health app or another phone, unpair it there first, then sync again.`;
+const huaweiClassicOnly = msg`This Huawei/Honor model syncs over Bluetooth Classic, which works on Android only.`;
+
+/** Huawei/Honor failures by error code (localized; the rest fall back to `friendlyError`). */
+const HUAWEI_ERROR_COPY: Partial<Record<string, MessageDescriptor>> = {
+  HUAWEI_HISTORY_UNSUPPORTED: huaweiClassicOnly,
+  HUAWEI_BR_UNSUPPORTED: huaweiClassicOnly,
+  HUAWEI_BR_PAIRING_FAILED: msg`Pairing with the watch did not finish. Accept the pairing prompt on the phone and the watch, then sync again.`,
+  HUAWEI_DEVICE_STATUS_UNSUPPORTED: msg`The watch reported a state this app cannot handle yet (it may need setting up in the Huawei Health app first).`,
+  HUAWEI_AUTH_UNSUPPORTED: msg`This Honor watch (Watch 5, 5 Pro or 6) needs a pairing mode that is not supported yet.`,
+  HUAWEI_HICHAIN_CONFIRM_TIMEOUT: msg`The watch did not confirm pairing in time. Unlock it, keep it near the phone, sync again and tap Confirm on the watch.`,
+  HUAWEI_HICHAIN_AUTH_TIMEOUT: msg`The watch did not answer the pairing check. Keep it unlocked and near the phone, then sync again from this screen. If the watch was reset, you will be asked to confirm on it.`,
+  HUAWEI_HICHAIN_REJECTED: huaweiRejected,
+  HUAWEI_HICHAIN_TOKEN_MISMATCH: huaweiRejected,
+  HUAWEI_HICHAIN_REBIND_REQUIRED: msg`The watch no longer recognises this phone. Sync again to pair: you will confirm on the watch.`,
+  HUAWEI_AUTH_NEGOTIATION_FAILED: huaweiPairingFailed,
+  HUAWEI_HICHAIN_PIN_FAILED: huaweiPairingFailed,
+  HUAWEI_HICHAIN_PROTOCOL: huaweiPairingFailed,
+  HUAWEI_MAC_UNAVAILABLE: msg`Huawei authentication needs the device MAC address, which this platform does not expose. Sync is only available on Android.`,
+  HUAWEI_AUTH_FAILED: msg`The Huawei/Honor device rejected the authentication exchange. Reconnect and try again.`,
+};
+
 function friendlyError(code: string) {
   if (code === "BLUETOOTH_UNAUTHORIZED") return "Allow Bluetooth access in device settings.";
   if (code === "BLUETOOTH_POWERED_OFF") return "Turn on Bluetooth and try again.";
@@ -693,35 +718,11 @@ function friendlyError(code: string) {
     return "The device key or captured data was not accepted. Check the key and try again.";
   if (code === "MINUTE_CONFLICT")
     return "This device reported different steps for a minute already stored. No duplicate was added.";
-  if (code === "HUAWEI_HISTORY_UNSUPPORTED" || code === "HUAWEI_BR_UNSUPPORTED")
-    return "This Huawei/Honor model syncs over Bluetooth Classic, which works on Android only.";
-  if (code === "HUAWEI_BR_PAIRING_FAILED")
-    return "Pairing with the watch did not finish. Accept the pairing prompt on the phone and the watch, then sync again.";
   if (code === "HUAWEI_BR_PERMISSION" || code === "BT_CLASSIC_PERMISSION")
     return "Allow Nearby devices (Bluetooth) access for this app, then sync again.";
   if (code === "BT_CLASSIC_DISABLED") return "Turn on Bluetooth and try again.";
   if (code === "BT_CLASSIC_CONNECT_FAILED" || code === "BT_CLASSIC_CONNECT_TIMEOUT")
     return "Could not open the watch's Bluetooth Classic connection. Keep it close to the phone, close the Huawei Health app if it is connected, then sync again.";
-  if (code === "HUAWEI_DEVICE_STATUS_UNSUPPORTED")
-    return "The watch reported a state this app cannot handle yet (it may need setting up in the Huawei Health app first).";
-  if (code === "HUAWEI_AUTH_UNSUPPORTED")
-    return "This Huawei/Honor device needs a pairing mode that is not supported yet (Honor Watch 5, 5 Pro and 6, or an older PIN-based mode).";
-  if (code === "HUAWEI_HICHAIN_CONFIRM_TIMEOUT")
-    return "The watch did not confirm pairing in time. Unlock it, keep it near the phone, sync again and tap Confirm on the watch.";
-  if (code === "HUAWEI_HICHAIN_REJECTED" || code === "HUAWEI_HICHAIN_TOKEN_MISMATCH")
-    return "The watch rejected pairing. If it is paired with the Huawei Health app or another phone, unpair it there first, then sync again.";
-  if (code === "HUAWEI_HICHAIN_REBIND_REQUIRED")
-    return "The watch no longer recognises this phone. Sync again to pair: you will confirm on the watch.";
-  if (
-    code === "HUAWEI_AUTH_NEGOTIATION_FAILED" ||
-    code === "HUAWEI_HICHAIN_PIN_FAILED" ||
-    code === "HUAWEI_HICHAIN_PROTOCOL"
-  )
-    return "Pairing with the watch failed. Restart the watch, then sync again.";
-  if (code === "HUAWEI_MAC_UNAVAILABLE")
-    return "Huawei authentication needs the device MAC address, which this platform does not expose. Sync is only available on Android.";
-  if (code === "HUAWEI_AUTH_FAILED")
-    return "The Huawei/Honor device rejected the authentication exchange. Reconnect and try again.";
   if (code === "IDENTITY_REQUIRED")
     return "This older capture has no device identity and cannot be assigned automatically.";
   if (code === "IDENTITY_MISMATCH")

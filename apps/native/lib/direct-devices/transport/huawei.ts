@@ -15,19 +15,18 @@
  *
  * Auth
  * ----
- * App-layer key exchange, not BLE bonding. Two modes are supported:
+ * App-layer key exchange, not BLE bonding. Supported modes:
  * - normal mode: `GetAuthRequest` (0x01 0x13) digest challenge/response with the
  *   device key derived from the MAC (`createHuaweiDeviceSecretKey`), then
  *   `GetBondParamsRequest` (0x01 0x0F) + `GetBondRequest` (0x01 0x0E) carrying
  *   the AES-encrypted local secret key.
- * - HiChainLite with `authVersion == 0x02`: `GetSecurityNegotiationRequest`
- *   (0x01 0x33) then the same auth/bond chain.
+ * - HiChainLite: `GetSecurityNegotiationRequest` (0x01 0x33) then the same
+ *   auth/bond chain. With `authVersion != 2` the digest is keyed by the PIN the
+ *   phone reads from the watch (`GetPincodeRequest`, 0x01 0x2C).
+ * - full HiChain / HiChain3: one bind (the user confirms on the watch), then an
+ *   authenticate with the stored token on every connection.
  *
- * Deliberately refused with a typed error (never attempted):
- * - full HiChain / HiChain3 (`deviceSupportType` 1, 3 or 4) — needs on-device
- *   user confirmation;
- * - HiChainLite with `authVersion != 2` — needs the device PIN code;
- * - Honor PAKE/STS (X25519 SPEKE) — not implemented.
+ * Refused with a typed error (never attempted): Honor PAKE/STS.
  *
  * Deliberately deferred (not implemented, not attempted):
  * - TruSleep file downloads (service 0x0E/0x0F) and dictionary/sequence sleep
@@ -36,7 +35,8 @@
  * - stress, ECG and workout records;
  * - SpO2 and resting-HR are parsed from the step bitmap but not emitted as
  *   records (the frozen contract has no such record types);
- * - the dual-channel socket used by Watch 4;
+ * - the dual-channel socket (0x01 0x3C): opt-in by the phone, so a watch we
+ *   never ask keeps every service on the one socket (see the RFCOMM note §2.8);
  * - Honor new-protocol devices are reached through their alternate GATT UUIDs,
  *   but their dictionary-based sync is not implemented.
  *
@@ -55,6 +55,7 @@ import {
   HUAWEI_BOND_PARAMS_COMMAND,
   HUAWEI_DEVICE_CONFIG_SERVICE,
   HUAWEI_DEVICE_STATUS_COMMAND,
+  HUAWEI_DIGEST_MESSAGE_CHALLENGE,
   HUAWEI_DIGEST_MESSAGE_RESPONSE,
   HUAWEI_FITNESS_SERVICE,
   HUAWEI_FITNESS_TOTALS_COMMAND,
@@ -155,10 +156,23 @@ export type HuaweiFailure =
   | "sleep_session";
 
 /** Typed refusals for the auth modes this build does not implement. */
-export type HuaweiUnsupportedAuthReason = "hichain" | "hichain_lite_pincode" | "honor_pake";
+export type HuaweiUnsupportedAuthReason = "honor_pake";
 
 /** Op-2 step 1 waits longer than upstream's 5 s: Bluetooth Classic adds latency. */
 export const HUAWEI_HICHAIN_AUTH_STEP_MS = 10_000;
+/**
+ * Op-2 step-1 attempts before the watch counts as silent. One timeout can be a
+ * slow or busy watch; two in a row (20 s) look like a watch that was reset and
+ * no longer knows this phone.
+ */
+export const HUAWEI_HICHAIN_AUTH_ATTEMPTS = 2;
+
+/** Our side of an op-2 step 1 that timed out; a late reply to it is not for the current one. */
+type HuaweiHiChainAbandonedStep = Readonly<{
+  psk: Uint8Array;
+  randSelf: Uint8Array;
+  authIdSelf: Uint8Array;
+}>;
 
 export class HuaweiUnsupportedAuthError extends Error {
   readonly code = "HUAWEI_AUTH_UNSUPPORTED";
@@ -273,6 +287,36 @@ function equalBytes(left: Uint8Array, right: Uint8Array): boolean {
   return true;
 }
 
+/**
+ * True for a step-1 reply whose token proves one of our abandoned op-2 step-1
+ * requests: the watch answering it late. Anything else (including what does
+ * not parse) is left to the normal parser.
+ */
+function isLateHuaweiHiChainStepOne(
+  crypto: HuaweiCryptoProvider,
+  tlv: HuaweiTlv,
+  abandoned: readonly HuaweiHiChainAbandonedStep[],
+): boolean {
+  let reply: ReturnType<typeof parseHuaweiHiChainResponse>;
+  try {
+    reply = parseHuaweiHiChainResponse(tlv);
+  } catch {
+    return false;
+  }
+  if (reply.step !== 1) return false;
+  return abandoned.some((step) =>
+    huaweiEqualBytes(
+      reply.token,
+      huaweiHiChainPeerToken(crypto, step.psk, {
+        randSelf: step.randSelf,
+        randPeer: reply.randPeer,
+        authIdSelf: step.authIdSelf,
+        authIdPeer: reply.authIdPeer,
+      }),
+    ),
+  );
+}
+
 export type HuaweiSessionOptions = Readonly<{
   /** BLE: the connected device and its GATT profile. */
   device?: MonitorDevice & Partial<WriteDevice>;
@@ -288,7 +332,12 @@ export type HuaweiSessionOptions = Readonly<{
   transactionsCrypted?: boolean;
   /** HiChain id and bind token; defaults to a process-wide memory store. */
   hichainStore?: HuaweiHiChainStore;
-  /** Called right before the bind that asks the user to confirm on the watch. */
+  /**
+   * Called right before the bind that asks the user to confirm on the watch.
+   * Passing it marks the caller as interactive: a watch that goes silent on a
+   * stored token may then be re-bound in the same sync. Without it, that case
+   * fails with `HUAWEI_HICHAIN_AUTH_TIMEOUT` and the token is kept.
+   */
   onAuthPrompt?: (prompt: "confirm_on_watch") => void;
   /** Stable device id used as the cursor and secret-key key. */
   deviceId: string;
@@ -326,6 +375,8 @@ export type HuaweiSessionOptions = Readonly<{
 type Pending = {
   serviceId: number;
   commandId: number;
+  /** False drops the response and keeps waiting (a late reply to an abandoned request). */
+  accept?: (tlv: HuaweiTlv) => boolean;
   resolve: (tlv: HuaweiTlv) => void;
   reject: (error: unknown) => void;
   timer: unknown;
@@ -527,7 +578,6 @@ export class HuaweiSession {
         return;
       }
       if (kind === "hichain_lite") {
-        if (this.authVersion !== 0x02) throw new HuaweiUnsupportedAuthError("hichain_lite_pincode");
         // Upstream keeps the negotiated mode: 4 for a type-4 watch, else 2.
         this.authMode = authMode;
         this.authPath = "lite";
@@ -555,12 +605,33 @@ export class HuaweiSession {
    * authenticate with the stored token on every connection; the result is the
    * 32-byte packet key. A stored token the watch rejects is forgotten and
    * reported, so a background sync never pops a pairing prompt unannounced.
+   *
+   * A watch that stays silent on the stored token (upstream: the 5 s op-2
+   * timeout, then reconnect, forever; a re-pair from the UI is the only way
+   * out) gets one more authenticate, then, only for an interactive caller
+   * (`onAuthPrompt`), a bind in the same sync. The token is dropped only once
+   * the watch has answered the PIN request, so a watch that is simply out of
+   * reach keeps it.
    */
   private async hichain(): Promise<void> {
     const deviceId = this.options.deviceId;
-    let token = this.hichainStore.getAuthToken(deviceId);
-    const fresh = token === null;
-    if (!token) {
+    const stored = this.hichainStore.getAuthToken(deviceId);
+    const abandoned: HuaweiHiChainAbandonedStep[] = [];
+    let packetKey: Uint8Array | null = null;
+    if (stored) {
+      try {
+        packetKey = await this.hichainAuthenticate(stored, abandoned);
+      } catch (error) {
+        const code = error instanceof Error ? error.message : "";
+        if (code === "HUAWEI_HICHAIN_TOKEN_MISMATCH" || code === "HUAWEI_HICHAIN_REJECTED") {
+          this.hichainStore.clearAuthToken(deviceId);
+          throw new Error("HUAWEI_HICHAIN_REBIND_REQUIRED", { cause: error });
+        }
+        // Only a watch that never answered step 1 may have forgotten us.
+        if (code !== "HUAWEI_HICHAIN_AUTH_TIMEOUT" || !this.options.onAuthPrompt) throw error;
+      }
+    }
+    if (!packetKey) {
       const pin = decryptHuaweiPinCode({
         tlv: await this.request(
           HUAWEI_DEVICE_CONFIG_SERVICE,
@@ -572,35 +643,52 @@ export class HuaweiSession {
         encryptMethod: this.encryptMethod,
         aes: this.aes!,
       });
+      // The watch answers, yet ignored the stored token twice: it forgot us.
+      if (stored) this.hichainStore.clearAuthToken(deviceId);
       this.options.onAuthPrompt?.("confirm_on_watch");
-      const bound = await this.hichainOperation(1, huaweiHiChainPinKey(this.crypto!, pin));
+      const bound = await this.hichainOperation(
+        1,
+        huaweiHiChainPinKey(this.crypto!, pin),
+        abandoned,
+      );
       if (!bound.authToken) throw new Error("HUAWEI_HICHAIN_PROTOCOL");
-      token = bound.authToken;
-      this.hichainStore.setAuthToken(deviceId, token);
+      this.hichainStore.setAuthToken(deviceId, bound.authToken);
+      packetKey = await this.hichainAuthenticate(bound.authToken, abandoned);
     }
-    let packetKey: Uint8Array | undefined;
-    try {
-      packetKey = (await this.hichainOperation(2, token)).packetKey;
-    } catch (error) {
-      const code = error instanceof Error ? error.message : "";
-      if (
-        !fresh &&
-        (code === "HUAWEI_HICHAIN_TOKEN_MISMATCH" || code === "HUAWEI_HICHAIN_REJECTED")
-      ) {
-        this.hichainStore.clearAuthToken(deviceId);
-        throw new Error("HUAWEI_HICHAIN_REBIND_REQUIRED", { cause: error });
-      }
-      throw error;
-    }
-    if (!packetKey) throw new Error("HUAWEI_HICHAIN_PROTOCOL");
     this.secretKey = packetKey;
     this.encryptionCounter = 0;
   }
 
-  /** One ISO operation: 1 binds (returns the auth token), 2 authenticates (the packet key). */
+  /**
+   * Op 2 with `token`, retried once when the watch does not answer step 1.
+   * Each retry is a fresh operation (new randoms and request id).
+   */
+  private async hichainAuthenticate(
+    token: Uint8Array,
+    abandoned: HuaweiHiChainAbandonedStep[],
+  ): Promise<Uint8Array> {
+    for (let attempt = 1; ; attempt += 1) {
+      if (this.closed) throw new Error("HUAWEI_CLOSED");
+      try {
+        const { packetKey } = await this.hichainOperation(2, token, abandoned);
+        if (!packetKey) throw new Error("HUAWEI_HICHAIN_PROTOCOL");
+        return packetKey;
+      } catch (error) {
+        const silent = error instanceof Error && error.message === "HUAWEI_HICHAIN_AUTH_TIMEOUT";
+        if (!silent || attempt >= HUAWEI_HICHAIN_AUTH_ATTEMPTS) throw error;
+      }
+    }
+  }
+
+  /**
+   * One ISO operation: 1 binds (returns the auth token), 2 authenticates (the
+   * packet key). A step-1 reply that proves an `abandoned` op-2 step 1 is a
+   * late answer to it and is skipped; an op-2 step 1 that times out joins them.
+   */
   private async hichainOperation(
     operation: HuaweiHiChainOperation,
     key: Uint8Array,
+    abandoned: HuaweiHiChainAbandonedStep[] = [],
   ): Promise<{ authToken?: Uint8Array; packetKey?: Uint8Array }> {
     const crypto = this.crypto!;
     const aes = this.aes!;
@@ -609,6 +697,7 @@ export class HuaweiSession {
     const requestId = BigInt(this.now().getTime());
     const seed = this.randomBytes(32);
     const randSelf = this.randomBytes(16);
+    const psk = huaweiHiChainPsk(crypto, key, seed);
     const send = async (
       messageId: number,
       fields: ReadonlyArray<readonly [string, string | number]>,
@@ -630,7 +719,15 @@ export class HuaweiSession {
               isDeviceLevel: options.isDeviceLevel,
             }),
           }),
-          { encrypted: false, watchdogMs: options.watchdogMs },
+          {
+            encrypted: false,
+            watchdogMs: options.watchdogMs,
+            // A late step-1 answer can land while any later step waits.
+            accept:
+              abandoned.length > 0
+                ? (tlv) => !isLateHuaweiHiChainStepOne(crypto, tlv, abandoned)
+                : undefined,
+          },
         ),
       );
 
@@ -662,8 +759,11 @@ export class HuaweiSession {
         },
       );
     } catch (error) {
-      if (operation === 1 && error instanceof Error && error.message === "HUAWEI_REQUEST_TIMEOUT")
-        throw new Error("HUAWEI_HICHAIN_CONFIRM_TIMEOUT", { cause: error });
+      if (error instanceof Error && error.message === "HUAWEI_REQUEST_TIMEOUT") {
+        if (operation === 1) throw new Error("HUAWEI_HICHAIN_CONFIRM_TIMEOUT", { cause: error });
+        abandoned.push({ psk, randSelf, authIdSelf });
+        throw new Error("HUAWEI_HICHAIN_AUTH_TIMEOUT", { cause: error });
+      }
       throw error;
     }
     if (first.step !== 1) throw new Error("HUAWEI_HICHAIN_PROTOCOL");
@@ -673,7 +773,6 @@ export class HuaweiSession {
       authIdSelf,
       authIdPeer: first.authIdPeer,
     };
-    const psk = huaweiHiChainPsk(crypto, key, seed);
     if (!huaweiEqualBytes(first.token, huaweiHiChainPeerToken(crypto, psk, ids)))
       throw new Error("HUAWEI_HICHAIN_TOKEN_MISMATCH");
 
@@ -741,12 +840,36 @@ export class HuaweiSession {
       this.randomBytes(16),
     );
 
+    // `initializeDeviceHiChainLiteMode`: below auth version 2 the phone first
+    // reads the watch's PIN (the user types nothing). Upstream fetches it for a
+    // type-4 watch too, though only auth mode 2 keys the digest with it.
+    let pinCode: Uint8Array | null = null;
+    if (this.authPath === "lite" && this.authVersion !== 0x02) {
+      pinCode = decryptHuaweiPinCode({
+        tlv: await this.request(
+          HUAWEI_DEVICE_CONFIG_SERVICE,
+          HUAWEI_PINCODE_COMMAND,
+          buildHuaweiPincodeRequest(),
+          { encrypted: false },
+        ),
+        authVersion: this.authVersion,
+        encryptMethod: this.encryptMethod,
+        aes,
+      });
+    }
+
     const challengeDigest = computeHuaweiAuthDigest({
-      message: huaweiChallengeMessage(this.authVersion),
+      // `digestChallenge`: auth mode 2 always uses MESSAGE_CHALLENGE (not the v4 one).
+      message:
+        this.authMode === 0x02
+          ? HUAWEI_DIGEST_MESSAGE_CHALLENGE
+          : huaweiChallengeMessage(this.authVersion),
       nonce: doubleNonce,
       authMode: this.authMode,
       authVersion: this.authVersion,
       secretKey: this.secretKey,
+      pinCode,
+      authAlgo: this.authAlgo,
       crypto,
     });
     const challenge = challengeDigest.slice(0, 0x20);
@@ -772,6 +895,8 @@ export class HuaweiSession {
       authMode: this.authMode,
       authVersion: this.authVersion,
       secretKey: this.secretKey,
+      pinCode,
+      authAlgo: this.authAlgo,
       crypto,
     }).slice(0, 0x20);
     if (!authResponse || !equalBytes(authResponse, expected)) {
@@ -793,12 +918,14 @@ export class HuaweiSession {
       ),
     );
     this.encryptionCounter = bondParams.encryptionCounter;
-    if (this.authPath !== "lite" && bondParams.status === 1) return;
+    // `GetBondParamsRequest`/`GetBondRequest` branch on auth mode 2, not on the
+    // path: a type-4 watch on HiChainLite (auth mode 4) bonds like normal mode.
+    if (this.authMode !== 0x02 && bondParams.status === 1) return;
 
     // `ParamsProvider.getIv`: the counter IV, or a random one for type 4.
     const iv = this.nextIv();
     let bondingKey: Uint8Array;
-    if (this.authPath === "lite") {
+    if (this.authMode === 0x02) {
       bondingKey = firstKey;
     } else {
       // createSecretKey needs the real device MAC. iOS exposes an opaque
@@ -920,7 +1047,11 @@ export class HuaweiSession {
     serviceId: number,
     commandId: number,
     tlv: Uint8Array,
-    options: Readonly<{ encrypted?: boolean; watchdogMs?: number }> = {},
+    options: Readonly<{
+      encrypted?: boolean;
+      watchdogMs?: number;
+      accept?: (tlv: HuaweiTlv) => boolean;
+    }> = {},
   ): Promise<HuaweiTlv> {
     const encrypted = (options.encrypted ?? true) && this.transactionsCrypted;
     const payload =
@@ -933,7 +1064,12 @@ export class HuaweiSession {
       tlv: payload,
       sliceSize: this.sliceSize,
     });
-    const wait = this.waitFor(serviceId, commandId, options.watchdogMs ?? this.watchdogMs);
+    const wait = this.waitFor(
+      serviceId,
+      commandId,
+      options.watchdogMs ?? this.watchdogMs,
+      options.accept,
+    );
     try {
       for (const frame of frames) await this.write(frame);
     } catch (error) {
@@ -985,14 +1121,19 @@ export class HuaweiSession {
     );
   }
 
-  private waitFor(serviceId: number, commandId: number, watchdogMs: number): Promise<HuaweiTlv> {
+  private waitFor(
+    serviceId: number,
+    commandId: number,
+    watchdogMs: number,
+    accept?: (tlv: HuaweiTlv) => boolean,
+  ): Promise<HuaweiTlv> {
     return new Promise<HuaweiTlv>((resolve, reject) => {
       const timer = this.timers.setTimeout(() => {
         if (this.pending?.reject !== reject) return;
         this.pending = null;
         reject(new Error("HUAWEI_REQUEST_TIMEOUT"));
       }, watchdogMs);
-      this.pending = { serviceId, commandId, resolve, reject, timer };
+      this.pending = { serviceId, commandId, accept, resolve, reject, timer };
     });
   }
 
@@ -1090,6 +1231,8 @@ export class HuaweiSession {
     const pending = this.pending;
     if (!pending) return;
     if (packet.serviceId !== pending.serviceId || packet.commandId !== pending.commandId) return;
+    // A late reply to an abandoned request: drop it, keep the watchdog running.
+    if (pending.accept && !pending.accept(packet.tlv)) return;
     this.pending = null;
     this.timers.clearTimeout(pending.timer);
     pending.resolve(packet.tlv);

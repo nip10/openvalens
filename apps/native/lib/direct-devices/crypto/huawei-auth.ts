@@ -30,12 +30,11 @@
  *
  * IMPORTANT: Huawei auth is **automatic / bonding-based**, not a user-entered
  * 16-byte key like Huami/Xiaomi. The device secret is derived from the device
- * MAC address plus fixed upstream constants (`createSecretKey`), and the
- * HiChain/HiChainLite/PAKE handshake requires on-device pairing confirmation
- * (and, for HiChainLite, a PIN code read from the device). The full handshake
- * is therefore kept out of the wired path; the setup controller stops at
- * connected + service-verified. This module ports the deterministic primitives
- * needed for vectors and for a future auth milestone.
+ * MAC address plus fixed upstream constants (`createSecretKey`). Full HiChain
+ * asks the user to confirm on the watch once; HiChainLite (except
+ * `authVersion` 2) keys its digest with a PIN the phone reads from the watch
+ * (0x01/0x2C), so the user types nothing. This module holds the deterministic
+ * primitives; `transport/huawei.ts` drives the exchanges.
  */
 
 export type HuaweiCryptoProvider = {
@@ -245,6 +244,70 @@ export function computeHuaweiDigest(
   const messageToDigest = concatHuaweiBytes(secret, message);
   const step1 = crypto.hmacSha256(messageToDigest, nonce);
   return concatHuaweiBytes(crypto.hmacSha256(step1, nonce), step1);
+}
+
+/**
+ * Upstream `HuaweiCrypto.computeDigestHiChainLite` (HiChainLite when
+ * `authVersion != 2`): the watch's PIN keys the digest. The digest secret for
+ * `authVersion` is XORed with `SHA256(UTF-8(uppercase hex of the PIN))`, the
+ * 2-byte message is appended, and step 1 is HMAC-SHA256 over the nonce or,
+ * when `authAlgo == 1`, PBKDF2-HMAC-SHA256 (1000 iterations, 256 bits) with
+ * the uppercase hex of that 18-byte key as the password and the uppercase hex
+ * of the nonce as the salt. Returns `HMAC(step1, nonce) ‖ step1` (64 bytes).
+ */
+export function computeHuaweiHiChainLiteDigest(args: {
+  message: Uint8Array;
+  pinCode: Uint8Array;
+  nonce: Uint8Array;
+  authVersion: number;
+  authAlgo: number;
+  crypto: HuaweiCryptoProvider;
+}): Uint8Array {
+  const { crypto, nonce } = args;
+  const hashKey = crypto.sha256(utf8(hexUpper(args.pinCode)));
+  const secret = Uint8Array.from(huaweiDigestSecret(args.authVersion));
+  for (let index = 0; index < secret.length; index += 1) secret[index]! ^= hashKey[index]!;
+  const messageToDigest = concatHuaweiBytes(secret, args.message);
+  const step1 =
+    args.authAlgo === 0x01
+      ? pbkdf2HmacSha256(crypto, utf8(hexUpper(messageToDigest)), utf8(hexUpper(nonce)), 1000, 32)
+      : crypto.hmacSha256(messageToDigest, nonce);
+  return concatHuaweiBytes(crypto.hmacSha256(step1, nonce), step1);
+}
+
+/**
+ * RFC 8018 PBKDF2 with HMAC-SHA256 on the provider's HMAC (upstream
+ * `CryptoUtils.pbkdf2Sha256`, Java `PBKDF2WithHmacSHA256`). Upstream's
+ * password and salt are ASCII hex strings, so their encoding is not in question.
+ */
+export function pbkdf2HmacSha256(
+  crypto: HuaweiCryptoProvider,
+  password: Uint8Array,
+  salt: Uint8Array,
+  iterations: number,
+  length: number,
+): Uint8Array {
+  if (!Number.isInteger(iterations) || iterations < 1) throw new Error("HUAWEI_PBKDF2_ITERATIONS");
+  if (!Number.isInteger(length) || length < 1 || length > 255 * 32)
+    throw new Error("HUAWEI_PBKDF2_LENGTH");
+  const out = new Uint8Array(length);
+  for (let block = 1, offset = 0; offset < length; block += 1) {
+    let u = crypto.hmacSha256(password, concatHuaweiBytes(salt, Uint8Array.of(0, 0, 0, block)));
+    const sum = Uint8Array.from(u);
+    for (let round = 1; round < iterations; round += 1) {
+      u = crypto.hmacSha256(password, u);
+      for (let at = 0; at < sum.length; at += 1) sum[at]! ^= u[at]!;
+    }
+    out.set(sum.subarray(0, Math.min(sum.length, length - offset)), offset);
+    offset += sum.length;
+  }
+  return out;
+}
+
+function hexUpper(bytes: Uint8Array): string {
+  let out = "";
+  for (const byte of bytes) out += byte.toString(16).padStart(2, "0");
+  return out.toUpperCase();
 }
 
 /** Native provider; loaded lazily so importing this module has no native side effects. */

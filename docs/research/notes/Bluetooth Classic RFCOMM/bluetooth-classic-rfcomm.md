@@ -22,6 +22,7 @@ Notation:
 | `SP`      | `G/service/devices/huawei/HuaweiSupportProvider.java`                           |
 | `RM`      | `G/service/devices/huawei/ResponseManager.java`                                 |
 | `DCH`     | `G/service/devices/huawei/HuaweiDualChannelHelper.java`                         |
+| `HS`      | `G/devices/huawei/HuaweiState.java`                                             |
 | `Req`     | `G/service/devices/huawei/requests/Request.java`                                |
 | `R/`      | `G/service/devices/huawei/requests/`                                            |
 | `ABR`     | `G/service/btbr/AbstractBTBRDeviceSupport.java`                                 |
@@ -60,7 +61,7 @@ Notation:
   3. Six Honor models and the TalkBand B6 turn transaction encryption off.
   4. Three Honor models (Watch 5, 5 Pro and 6) use the Honor PAKE/STS path.
   5. Some BR devices negotiate an optional second RFCOMM socket ("dual channel").
-- **Auth.** Auth mode is negotiated at runtime from `LinkParams.deviceSupportType`, not fixed per model. Only the PAKE flag is per model. Our code already does normal mode and HiChainLite v2. Full HiChain (needs the watch PIN and user confirmation on the watch) and PAKE are refused today. **INFERRED:** most of the 41 BR watches will need HiChain. Hardware has to confirm that per model.
+- **Auth.** Auth mode is negotiated at runtime from `LinkParams.deviceSupportType`, not fixed per model. Only the PAKE flag is per model. Our code does normal mode, HiChainLite (all auth versions, with the PIN read from the watch below version 2) and full HiChain (user confirmation on the watch, see `huawei-hichain-auth.md`). Only Honor PAKE is refused. **INFERRED:** most of the 41 BR watches will need HiChain. Hardware has to confirm that per model.
 - **Module.** We need a new local Expo module, `apps/native/modules/bt-classic`, modelled on `modules/pebble-bond`. It has a lazy `requireOptionalNativeModule` loader, an injectable native object for tests, and coded errors. It adds sockets, events and discovery. Huawei and Zepp use outgoing client sockets. Garmin needs a server socket. One module serves all three.
 
 ## 2. The upstream Huawei BR connection
@@ -117,6 +118,19 @@ Notation:
 - `GetDualChannelRequest` (`0x01/0x3C`) runs only on BR, and only when the device reports dual-socket support (`R/GetDualChannelRequest.java:45-48`). It is queued first in the post-auth init (`SP:1053-1055`). The response sets the routing tables and opens an aux socket on the negotiated channel (`R/GetDualChannelRequest.java:63-77`, `SP:349-358`, `ABR:140-180`).
 - Routing never sends services `0x28` and `0x2C` to aux (`DC:2009`, `DCH:44-49`, `DCH:119-140`). Until the aux socket is connected, traffic falls back to the primary (`ABR:238-254`). There is a Watch 4 file-download quirk (`DCH:56-62`).
 - **INFERRED:** we can skip the dual channel at first. It is optional, and service 0x07 (fitness) is not forced onto aux. It would also need the hidden `createRfcommSocket(int)` API (`Q:331-332`), which non-SDK interface restrictions can block on newer targets (UNKNOWN for our target SDK).
+
+#### 2.8.1 What it carries, and the decision (2026-11-14)
+
+I read `DCH` (whole file), `R/GetDualChannelRequest.java`, `DC:2005-2073`, `Req:360-418`, `SP:345-358`, `SP:1052-1055`, `SP:1730-1740` and `G/devices/huawei/HuaweiState.java:223-232` (alias `HS`).
+
+- **Who starts it.** The phone. `0x01/0x3C` is sent only when the watch advertises expand-capability bit 56 (`HS:223-226`), which needs the `GetExpandCapability` reply we never request, and only on BR (`R/GetDualChannelRequest.java:45-48`). It runs in `initializeDynamicServices`, after auth, product info and supported services (`SP:834`, `SP:998`, `SP:1055`).
+- **Request.** Encrypted (the `HuaweiPacket` default), all-empty tags `01`, `02`, plus `03`, `04` when bit 142 ("extend") is set (`DC:2018-2032`, `HS:228-232`).
+- **Response.** Tag `01`: the aux RFCOMM channel number. Tag `02`: services routed wholesale to aux. Tag `03`: file types (extend only). Tag `84` holding `85` entries of `06` service, `07` command ids, `08` `#`-separated P2P package names (`DC:2034-2073`).
+- **What goes on aux.** Only what those tables list: a whole service, a (service, command) pair, or, for P2P services `0x34`/`0x37`, a destination package (`DCH:114-154`, `Req:395-408`). Services `0x28` and `0x2C` (file upload/download) stay on the primary socket unless the Watch 4 quirk moves file download over (`DC:2009`, `DCH:56-62`, `DCH:122-128`). The tables differ per model and are only known at runtime; upstream logs them because of that (`DCH:74-84`).
+- **Why it exists.** To keep bulk traffic off the primary socket. `SP:1730-1740`: when it is active, the fitness fetch rides aux, so the device is not marked busy for notifications during a long sync.
+- **Without it.** `useExtraChannel` and `routeToExtraChannel` return false while it is inactive, so every packet goes on the primary socket; until the aux socket is connected flagged packets also fall back to the primary (`DCH:114-121`, `Req:398-401`, `ABR:238-254`). Nothing in the source says a watch refuses service `0x07` on the primary socket when the phone never asked for a second one.
+
+**Decision: not built.** Our sync uses services `0x01` (auth) and `0x07` (sleep/step counts, totals, data). We never send `0x3C`, so the watch never activates a routing table, and upstream's own fallback puts everything on the one socket. The only benefit is parallelism with notifications, which we do not handle. Building it would also need a second socket on a fixed channel, which on Android means the hidden `createRfcommSocket(int)` (non-SDK; the public API only does SDP-UUID lookups). **UNKNOWN:** whether some firmware ignores `0x07` on the primary socket regardless; a hardware probe would show it as a `0x07` timeout after auth succeeds.
 
 ## 3. Frame format: BR vs LE
 
