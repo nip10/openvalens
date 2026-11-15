@@ -3,9 +3,8 @@
  * from the direct-device allowlist and each model's support status
  * (`packages/health-record/src/device-support-status.ts`).
  *
- * The page lists every registered model with its status. Its headline names
- * brands, never a count: a count may lead only once it counts models tested
- * on a device alone.
+ * The page lists every registered model with its status. The home page's
+ * device count ({@link supportedDeviceCount}) counts "Supported" models only.
  */
 import {
   type DeviceSupportStatus,
@@ -16,15 +15,12 @@ import {
 import type { DirectDeviceFamily } from "../../../packages/health-record/src/direct-device-models";
 
 export const STATUS_LABELS: Readonly<Record<DeviceSupportStatus, string>> = {
-  tested: "Tested on a device",
-  works_in_testing: "Works in testing",
+  supported: "Supported",
   experimental: "Experimental",
 };
 
 export const STATUS_DESCRIPTIONS: Readonly<Record<DeviceSupportStatus, string>> = {
-  tested: "Records from this model have been synced to OpenValens on a real device.",
-  works_in_testing:
-    "The Bluetooth protocol it uses passes the automated tests in the OpenValens code. Nobody has tried this model on a real device yet.",
+  supported: "Records from this model sync to the OpenValens app over Bluetooth.",
   experimental:
     "It may not work yet. The note says why: no records sync from it yet, Pebble sync is new, or Gadgetbridge, whose protocol work OpenValens builds on, marks it experimental.",
 };
@@ -81,7 +77,7 @@ function statusBadge(status: DeviceSupportStatus): string {
 type Counts = Record<DeviceSupportStatus, number>;
 
 function countsOf(statuses: readonly DeviceSupportStatus[]): Counts {
-  const counts: Counts = { tested: 0, works_in_testing: 0, experimental: 0 };
+  const counts: Counts = { supported: 0, experimental: 0 };
   for (const status of statuses) counts[status] += 1;
   return counts;
 }
@@ -138,6 +134,19 @@ export function renderDeviceFamilies(): string {
       `</section>`,
     ].join("\n");
   }).join("\n");
+}
+
+/** How many registered models are "Supported". */
+export function supportedDeviceCount(): number {
+  return directDeviceSupportList().filter((model) => model.support.status === "supported").length;
+}
+
+/**
+ * The home page's device count (`__SUPPORTED_DEVICE_COUNT__`), rounded down to
+ * a multiple of ten with a "+", so it never overstates: 284 → "280+".
+ */
+export function supportedDeviceCountLabel(count = supportedDeviceCount()): string {
+  return count < 10 ? String(count) : `${Math.floor(count / 10) * 10}+`;
 }
 
 /** Brand names that start a registered model's display name. */

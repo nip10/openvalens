@@ -2,7 +2,7 @@
  * Keeps the public support status (`@openvalens/health-record/device-support-status`,
  * shown on the landing site's supported-devices page, #445) honest against the
  * native registries: a model the app cannot sync records from must never be
- * listed as "Works in testing" or better.
+ * listed as "Supported".
  */
 import { expect, test } from "bun:test";
 

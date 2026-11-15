@@ -26,21 +26,14 @@ test("every experimental family is a real family", () => {
   }
 });
 
-test("every registered model gets one of the three statuses", () => {
+test("every registered model gets one of the two statuses", () => {
   const list = directDeviceSupportList();
   expect(list).toHaveLength(DIRECT_DEVICE_MODELS.length);
   for (const { support } of list) expect(DEVICE_SUPPORT_STATUSES).toContain(support.status);
 });
 
-test("no model is tested on a device until the owner says so", () => {
-  // Remove this test when the owner adds the first hardware-tested model.
-  expect(directDeviceSupportList().filter((m) => m.support.status === "tested")).toEqual([]);
-});
-
-test("models default to works_in_testing; Pebble, upstream-experimental and no-data models do not", () => {
-  expect(deviceSupport({ family: "garmin", modelId: "garmin_fenix_7" }).status).toBe(
-    "works_in_testing",
-  );
+test("models default to supported; Pebble, upstream-experimental and no-data models do not", () => {
+  expect(deviceSupport({ family: "garmin", modelId: "garmin_fenix_7" }).status).toBe("supported");
   expect(deviceSupport({ family: "pebble", modelId: "pebble_2_duo" })).toEqual({
     status: "experimental",
     reason: "new_capture_path",
@@ -58,6 +51,6 @@ test("models default to works_in_testing; Pebble, upstream-experimental and no-d
     reason: "upstream_experimental",
   });
   expect(deviceSupport({ family: "zepp_os", modelId: "amazfit_helio_strap" }).status).toBe(
-    "works_in_testing",
+    "supported",
   );
 });
