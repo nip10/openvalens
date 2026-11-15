@@ -112,8 +112,8 @@
             <h3>Open source and yours</h3>
             <p>
               The code is public under the GNU AGPL, and Cloud runs the same code. Export everything
-              as JSON, CSV or PDF, delete it at any time, or run the app on your own server. No
-              lock-in.
+              as JSON, or chosen records as CSV or a printable page. Delete it at any time, or run
+              the app on your own server. No lock-in.
             </p>
             <p class="pillar-note">
               “Open” means open source. It never means your records are public: every workspace is
@@ -128,9 +128,13 @@
             ></span>
             <h3>Your devices, without their cloud</h3>
             <p>
-              Many Garmin, Huawei and Amazfit watches, and rings, scales and heart-rate straps, sync
-              straight to the OpenValens app over Bluetooth. No account with the maker, and your
-              records go to your OpenValens server, not to theirs.
+              Many Garmin and Amazfit watches, Huawei bands, and rings, scales and heart-rate straps
+              sync straight to the OpenValens app over Bluetooth. Your records go to your OpenValens
+              server, not to the maker’s.
+            </p>
+            <p class="pillar-note">
+              Arrives with app 1.2.1, now in store review. Some watches need a pairing key from the
+              maker’s account, once.
             </p>
             <a class="text-link" href="#devices">About devices <span aria-hidden="true">↓</span></a>
           </li>
@@ -143,10 +147,10 @@
             ></span>
             <h3>The depth of your record</h3>
             <p>
-              Keep and compare your lab results, marker by marker. See the preventive care that
-              public-health authorities in your region publish, with the source of each item. Make a
-              PDF of your record for your doctor, and share a workspace with your family, each with
-              their own role.
+              Keep your lab results marker by marker, and ask Coach how they changed. See the
+              preventive care that public-health authorities publish for the US, England and
+              Portugal, with the source of each item. Print a summary of chosen records to take to
+              your doctor, and share a workspace with your family, each with their own role.
             </p>
           </li>
           <li class="pillar">
@@ -206,7 +210,9 @@
             <tr>
               <th scope="row">Taking your records with you</th>
               <td data-label="Closed">Whatever the app offers</td>
-              <td data-label="OpenValens">Everything, as JSON, CSV or PDF</td>
+              <td data-label="OpenValens">
+                Everything, as JSON; chosen records as CSV or a printable page
+              </td>
             </tr>
             <tr>
               <th scope="row">Your watch</th>
@@ -293,9 +299,10 @@
             Connect sync too.
           </p>
           <p>
-            Direct Bluetooth support is new, and no model has been tested on a real device yet. The
-            list shows each model’s status. Some Amazfit, Xiaomi and Fossil watches need their
-            pairing key, which you get once from the maker’s account.
+            Direct Bluetooth support is new: it arrives with app 1.2.1, now in store review, and no
+            model has been tested on a real device yet. The list shows each model’s status. Some
+            Amazfit, Xiaomi and Fossil watches need their pairing key, which you get once from the
+            maker’s account.
           </p>
           <a class="button" href="/devices">See all supported devices</a>
         </div>
@@ -309,8 +316,8 @@
             <span class="availability">OpenValens Cloud</span>
             <h3>A workspace, looked after for you</h3>
             <p>
-              We run the server in the EU, with updates and daily backups. Sign up on the web and
-              use it from your browser or the app.
+              We run the server in the EU, with updates and daily database backups. Sign up on the
+              web and use it from your browser or the app.
             </p>
             <p class="choice-note">€7.99/month or €69/year, VAT included, after a 30-day trial.</p>
             <a class="text-link" href="__CLOUD_SIGNUP_URL__"
@@ -345,7 +352,7 @@
           <tbody>
             <tr>
               <th scope="row">Who runs the server</th>
-              <td data-label="Cloud">We do, with updates and daily backups</td>
+              <td data-label="Cloud">We do, with updates and daily database backups</td>
               <td data-label="Self-host">
                 You do, on a server you choose, with built-in upgrade and backup commands
               </td>
@@ -478,8 +485,8 @@ deploy/setup.sh install</code></pre>
         <ul class="rows">
           <li>
             <strong>No device model is tested on real hardware yet.</strong> Direct Bluetooth
-            support is tested in code only; the <a href="/devices">device list</a> shows each
-            model’s status.
+            support arrives with app 1.2.1, now in store review, and is tested in code only; the
+            <a href="/devices">device list</a> shows each model’s status.
           </li>
           <li>
             <strong>Off-site backups are opt-in.</strong> Encrypted daily backups stay on the host
@@ -490,8 +497,9 @@ deploy/setup.sh install</code></pre>
             Play.
           </li>
           <li>
-            <strong>Wearable accounts need setup.</strong> Connections to a maker’s online account
-            are optional and require provider configuration.
+            <strong>Wearable accounts need setup.</strong> Connecting a maker’s online account is
+            optional and needs that provider’s credentials on the server. Cloud doesn’t offer these
+            connections yet.
           </li>
         </ul>
       </section>
@@ -525,8 +533,11 @@ deploy/setup.sh install</code></pre>
             <p>
               On your own server, your records stay in its database, with no published port.
               <strong>Resend</strong> sends sign-in and invitation emails and
-              <strong>Let’s Encrypt</strong> issues the HTTPS certificate. AI, connected AI apps,
-              barcode lookup, S3 storage, push and single sign-on stay off unless you turn them on.
+              <strong>Let’s Encrypt</strong> issues the HTTPS certificate. On first start, the
+              server downloads the public exercise catalog and its images from wger.de and GitHub.
+              Food catalogs are optional downloads you run. If the store app crashes, it sends us a
+              crash report without health data. AI, connected AI apps, barcode lookup, S3 storage,
+              push and single sign-on stay off unless you turn them on.
             </p>
           </article>
           <article>
