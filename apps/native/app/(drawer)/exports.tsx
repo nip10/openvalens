@@ -296,7 +296,7 @@ export default function ExportsScreen() {
                           isSelected ? "font-semibold text-ink" : "text-ink-3",
                         )}
                       >
-                        {value.toUpperCase()}
+                        {value === "csv" ? "CSV" : t`Printable page`}
                       </Text>
                     </Pressable>
                   );

@@ -51,8 +51,8 @@ its end as `ended` even before the scheduled job records it.
 | `canceled`, `ended`, no subscription row | yes  | no    | yes                     | no       |
 
 - **Ended means read-only, never deleted.** Every write is refused with the
-  typed error `ACCESS_READ_ONLY` (HTTP 403); reading, export (JSON, CSV, PDF,
-  clinical bundle) and account deletion always work (#89).
+  typed error `ACCESS_READ_ONLY` (HTTP 403); reading, export (JSON, CSV, the printable
+  page, clinical bundle) and account deletion always work (#89).
 - **Grace period:** `BILLING_PAST_DUE_GRACE_DAYS` (default 7) days from the
   first failed renewal (`subscription.past_due_since`). Stripe's automatic
   retries do not restart it; a paid invoice clears it.

@@ -226,7 +226,7 @@ function DomainCard() {
                 )}
                 onClick={() => setFormat(value)}
               >
-                {value.toUpperCase()}
+                {value === "csv" ? "CSV" : <Trans>Printable page</Trans>}
               </Button>
             ))}
           </div>
