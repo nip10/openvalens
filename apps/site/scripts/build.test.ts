@@ -213,6 +213,23 @@ describe("site copy", () => {
     expect(text).toContain("usage analytics on Cloud is optional, off until you turn it on");
   });
 
+  test("claims only what ships (#445 claims audit)", async () => {
+    const text = await pageText();
+    // The "pdf" export renders HTML (packages/clinical-export/src/render-pdf.ts).
+    expect(text).not.toMatch(/\bPDF\b/);
+    // Only JSON is the full export; CSV and the printable page cover chosen records.
+    expect(text).not.toContain("JSON, CSV or PDF");
+    // No comparison screen for labs; Coach compares.
+    expect(text).not.toContain("Keep and compare your lab results");
+    // Preventive-care packs exist for three regions only.
+    expect(text).not.toContain("in your region");
+    expect(text).toContain("for the US, England and Portugal");
+    // Direct Bluetooth first ships in app 1.2.1; drop this note once both stores approve it (#361).
+    expect(text).toContain("Arrives with app 1.2.1, now in store review.");
+    // A self-host install downloads the exercise catalog on first start (#400).
+    expect(text).toContain("downloads the public exercise catalog and its images");
+  });
+
   test("the install command matches the supported Compose install guide", async () => {
     const html = await readFile(join(outDir, "index.html"), "utf8");
     const install = await readFile(
@@ -484,9 +501,11 @@ describe("positioning (#445)", () => {
     ]);
   });
 
-  test("labs copy keeps and compares results; AI copy names a local model", async () => {
+  test("labs copy keeps results and compares them through Coach; AI copy names a local model", async () => {
     const text = await pageText();
-    expect(text).toContain("Keep and compare your lab results");
+    expect(text).toContain(
+      "Keep your lab results marker by marker, and ask Coach how they changed.",
+    );
     expect(text).toContain("what changed in them");
     expect(text).toContain("including a model on your own machine");
   });

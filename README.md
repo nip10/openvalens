@@ -47,7 +47,7 @@ records), never a real person's data (see [Landing site](#landing-site))._
   ([food catalogs](docs/self-hosting/food-catalogs.md)), or from your own
   foods; daily totals show which entries had a value.
 - **Sleep, supplements and a timeline** of everything you recorded.
-- **Export and delete:** download your record (JSON, CSV or PDF), or delete
+- **Export and delete:** download your record (JSON, CSV or a printable page), or delete
   your account and everything you own ([privacy](docs/self-hosting/privacy.md)).
 - **Workspaces and sharing** with owner, admin, collaborator and viewer roles.
 - **Optional AI assistant,** off by default. When an operator turns it on
