@@ -122,7 +122,14 @@ database, for example inside the production API container. It reads the
 server's `DATABASE_URL`, `REVIEW_ACCOUNT_EMAIL` and `REVIEW_ACCOUNT_CODE`, never
 resets anything, writes only to that account's own workspace, refuses unless
 the account is the sole owner of exactly one empty workspace, and a second run
-changes nothing (`src/review.ts`). See
+changes nothing (`src/review.ts`). The run is one transaction, so a failure
+leaves the workspace as it was.
+
+`--refresh` is the nightly scheduled task. It erases the records of a workspace
+it seeded before (data rights' `eraseSubjectRecords`, which keeps the account,
+its sessions, consents, subscription and audit log), writes a fresh 90 days
+ending today (`--time-zone Area/City` picks whose "today"), and keeps the local
+trial running. See
 [docs/store-review-account.md](../../docs/store-review-account.md).
 
 ## Tests
@@ -134,5 +141,7 @@ changes nothing (`src/review.ts`). See
   that every screen's read has content, seeds again and compares fingerprints.
 - `review.integration.test.ts` (`DEMO_SEED_REVIEW_TEST_DATABASE_URL`, database
   `review_seed_test`): seeds a real Cloud sign-up's workspace, reruns as a
-  no-op, and checks every refusal. `review-cli.test.ts` covers the command's
+  no-op, checks every refusal, refreshes (records replaced, sessions and the
+  audit log kept, trial extended, a Stripe-managed subscription left alone),
+  and checks that a run failing part-way changes nothing. `review-cli.test.ts` covers the command's
   refusals before it opens a database.

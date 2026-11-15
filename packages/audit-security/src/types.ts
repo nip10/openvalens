@@ -29,8 +29,10 @@ export const AUDIT_EVENT_TYPES = [
   // in the review account's own workspace (ids and a reason only).
   "REVIEW_SIGN_IN_SUCCEEDED",
   "REVIEW_SIGN_IN_FAILED",
-  // `bun run demo:seed:review` filled the review account's workspace once.
+  // `bun run demo:seed:review` filled the review account's workspace once, and
+  // each `--refresh` run replaced its records with fresh ones.
   "REVIEW_DEMO_SEEDED",
+  "REVIEW_DEMO_REFRESHED",
   // Connected AI apps (#439): a grant (personal key now, OAuth connection
   // later) was created, revoked by the member, or found expired on its first
   // call after expiry; the member gave or withdrew the AI-app consent (`mcp-v2`)

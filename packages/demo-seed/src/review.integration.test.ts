@@ -2,13 +2,16 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 
 import { createPublicSignUpService, type DeliverSignUp } from "@openvalens/auth/admission";
 import type { DeploymentConfig } from "@openvalens/auth/deployment";
+import { startTrial } from "@openvalens/billing/trial";
 import { createDb, sql } from "@openvalens/db";
 
 import { createDemoApi, type DemoActor, type DemoApi } from "./api";
 import { resetDemoDatabase } from "./reset";
 import {
   MAX_ONBOARDING_GOALS,
+  REVIEW_REFRESH_MARKER,
   REVIEW_SEED_MARKER,
+  refreshReviewAccount,
   ReviewSeedRefusal,
   seedReviewAccount,
   tablesWithRecords,
@@ -66,6 +69,8 @@ describe.skipIf(!url)("review account seed against disposable PostgreSQL", () =>
     if (!link || link.kind !== "new") throw new Error("no sign-up link");
     const result = await signUp.completePublicSignUp(new URL(link.url).searchParams.get("token")!);
     if (result.status !== "created") throw new Error("sign-up failed");
+    // What Cloud's `onAccountCreated` hook does for every sign-up.
+    await startTrial(db, { userId: result.userId });
     return { userId: result.userId, organizationId: result.organizationId };
   }
 
@@ -145,6 +150,140 @@ describe.skipIf(!url)("review account seed against disposable PostgreSQL", () =>
     });
     expect(await rowCount(reviewer.organizationId)).toBe(before);
   }, 300_000);
+
+  test("--refresh replaces the records, keeps the account and its sign-in, and extends the trial", async () => {
+    const count = async (query: ReturnType<typeof sql>) =>
+      Number((await db.execute<{ n: number }>(query)).rows[0]!.n);
+    // What a reviewer leaves behind: a session, and an entry of their own.
+    await db.execute(
+      sql`insert into "session" ("id", "token", "user_id", "expires_at", "created_at", "updated_at")
+        values ('reviewer-session', 'reviewer-session-token', ${reviewer.userId}, now() + interval '1 day', now(), now())`,
+    );
+    await db.execute(
+      sql`insert into "cardiac_exam" ("organization_id", "date", "type", "created_at") values (${reviewer.organizationId}, ${today}, 'ecg', ${new Date().toISOString()})`,
+    );
+    // The trial is about to end.
+    await db.execute(
+      sql`update "subscription" set "trial_ends_at" = now() + interval '1 day' where "user_id" = ${reviewer.userId}`,
+    );
+    const otherBefore = await rowCount(other.organizationId);
+    const exams = sql`select count(*)::int as n from "cardiac_exam" where "organization_id" = ${reviewer.organizationId}`;
+    expect(await count(exams)).toBe(2);
+    const audit = (types: "record" | "other") =>
+      count(
+        sql`select count(*)::int as n from "access_audit_log" where "organization_id" = ${reviewer.organizationId}
+          and ("event_type" in ('RECORD_CREATED', 'RECORD_UPDATED', 'RECORD_DELETED')) = ${types === "record"}`,
+      );
+    const recordAuditBefore = await audit("record");
+    const otherAuditBefore = await audit("other");
+
+    const later = new Date(Date.now() + 3 * 86_400_000).toISOString().slice(0, 10);
+    const result = await refreshReviewAccount(db, { email: "reviewer@example.test", today: later });
+    expect(result).toMatchObject({
+      status: "refreshed",
+      ...reviewer,
+      today: later,
+      trial: "extended",
+    });
+    expect(result.erasedRows).toBeGreaterThan(100);
+
+    // The reviewer's own entry is gone; the seed's one ECG is back.
+    expect(await count(exams)).toBe(1);
+    // Still signed in, still the owner, same account.
+    expect(
+      await count(sql`select count(*)::int as n from "session" where "id" = 'reviewer-session'`),
+    ).toBe(1);
+    expect(await tablesWithRecords(db, other.organizationId)).toEqual([]);
+    expect(await rowCount(other.organizationId)).toBe(otherBefore);
+    // The data now ends on the new day. The seed closed its in-process
+    // client; read through a fresh one.
+    api.close();
+    api = createDemoApi(db);
+    const read = <T>(path: string, input: unknown = {}) => api.call<T>(path, input, reviewer);
+    const diary = await read<{ entries: unknown[] }>("nutritionDiary/getDay", { localDate: later });
+    expect(diary.entries.length).toBeGreaterThan(3);
+    const profile = await read<{ setupStatus: string }>("profile/get");
+    expect(profile.setupStatus).toBe("completed");
+    // The trial runs for 30 more days.
+    const trial = await db.execute<{ status: string; fresh: boolean }>(
+      sql`select "status", "trial_ends_at" > now() + interval '29 days' as "fresh" from "subscription" where "user_id" = ${reviewer.userId}`,
+    );
+    expect(trial.rows).toEqual([{ status: "trialing", fresh: true }]);
+    const markers = await db.execute<{ event_type: string }>(
+      sql`select "event_type" from "access_audit_log" where "organization_id" = ${reviewer.organizationId}
+        and "event_type" in (${REVIEW_SEED_MARKER}, ${REVIEW_REFRESH_MARKER}) order by "created_at"`,
+    );
+    expect(markers.rows.map((row) => row.event_type)).toEqual([
+      REVIEW_SEED_MARKER,
+      REVIEW_REFRESH_MARKER,
+    ]);
+    // The old records' audit rows went with them: what is left is one run's
+    // worth (a run ending on another day writes a few more or fewer records),
+    // not two. Every other audit row stayed, plus the refresh marker.
+    const recordAuditAfter = await audit("record");
+    expect(recordAuditAfter).toBeGreaterThan(recordAuditBefore * 0.9);
+    expect(recordAuditAfter).toBeLessThan(recordAuditBefore * 1.1);
+    expect(await audit("other")).toBe(otherAuditBefore + 1);
+
+    // A second refresh gives the same amount of data.
+    const before = await rowCount(reviewer.organizationId);
+    const again = await refreshReviewAccount(db, { email: "reviewer@example.test", today: later });
+    expect(again.status).toBe("refreshed");
+    expect(await rowCount(reviewer.organizationId)).toBe(before);
+  }, 600_000);
+
+  test("--refresh seeds an empty, never-seeded workspace, and refuses one with other records", async () => {
+    const fresh = await cloudAccount("fresh-refresh@example.test");
+    const result = await refreshReviewAccount(db, { email: "fresh-refresh@example.test", today });
+    expect(result).toMatchObject({ status: "seeded", erasedRows: 0, trial: "extended" });
+    expect(await rowCount(fresh.organizationId)).toBeGreaterThan(100);
+
+    // A subscription Stripe manages is left alone.
+    await db.execute(
+      sql`update "subscription" set "stripe_customer_id" = 'cus_synthetic_review', "trial_ends_at" = now() + interval '2 days' where "user_id" = ${fresh.userId}`,
+    );
+    const ends = sql`select "trial_ends_at"::text as "at" from "subscription" where "user_id" = ${fresh.userId}`;
+    const before = (await db.execute<{ at: string }>(ends)).rows[0]!.at;
+    expect(
+      await refreshReviewAccount(db, { email: "fresh-refresh@example.test", today }),
+    ).toMatchObject({ status: "refreshed", trial: "stripe" });
+    expect((await db.execute<{ at: string }>(ends)).rows[0]!.at).toBe(before);
+
+    const owned = await cloudAccount("owned-refresh@example.test");
+    await db.execute(
+      sql`insert into "cardiac_exam" ("organization_id", "date", "type", "created_at") values (${owned.organizationId}, ${today}, 'ecg', ${new Date().toISOString()})`,
+    );
+    await expect(
+      refreshReviewAccount(db, { email: "owned-refresh@example.test", today }),
+    ).rejects.toThrow("did not write");
+    expect(await tablesWithRecords(db, owned.organizationId)).toEqual(["cardiac_exam"]);
+  }, 600_000);
+
+  test("a run that fails part-way changes nothing", async () => {
+    const victim = await cloudAccount("half-seeded@example.test");
+    // Family history is written near the end, after device data, nutrition
+    // and training: make that insert fail.
+    await db.execute(sql`create function review_seed_test_fail() returns trigger language plpgsql
+      as $$ begin raise exception 'injected failure'; end $$`);
+    await db.execute(sql`create trigger review_seed_test_fail before insert on "family_history"
+      for each row execute function review_seed_test_fail()`);
+    try {
+      await expect(
+        seedReviewAccount(db, { email: "half-seeded@example.test", today }),
+      ).rejects.toThrow();
+      await expect(
+        refreshReviewAccount(db, { email: "half-seeded@example.test", today }),
+      ).rejects.toThrow();
+    } finally {
+      await db.execute(sql`drop trigger review_seed_test_fail on "family_history"`);
+      await db.execute(sql`drop function review_seed_test_fail()`);
+    }
+    expect(await tablesWithRecords(db, victim.organizationId)).toEqual([]);
+    // Nothing half-done blocks the next run.
+    expect(await seedReviewAccount(db, { email: "half-seeded@example.test", today })).toMatchObject(
+      { status: "seeded" },
+    );
+  }, 600_000);
 
   test("refuses a workspace that already holds records", async () => {
     await db.execute(

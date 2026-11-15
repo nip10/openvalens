@@ -3,44 +3,82 @@
  * `bun run demo:seed:review` — fills the app store review account's own
  * workspace with the synthetic demo data, on the server's real database.
  *
- *   bun run demo:seed:review [--today YYYY-MM-DD]
+ *   bun run demo:seed:review [--refresh] [--today YYYY-MM-DD | --time-zone Area/City]
  *
  * Reads the server's own settings from the environment: `DATABASE_URL` (or
  * `DATABASE_URL_FILE`), `REVIEW_ACCOUNT_EMAIL` and `REVIEW_ACCOUNT_CODE` (or
  * `REVIEW_ACCOUNT_CODE_FILE`). It refuses unless review sign-in is configured
- * (both review settings set) and the guards in `review.ts` pass. It never
- * deletes anything, and a second run changes nothing. `--today` defaults to
- * the current UTC day, so the newest data is today's. See
- * docs/store-review-account.md.
+ * (both review settings set) and the guards in `review.ts` pass.
+ *
+ * Without `--refresh` it never deletes anything, and a second run changes
+ * nothing. With `--refresh` (the nightly scheduled task) it replaces the
+ * records of a workspace it seeded before with fresh ones and keeps the trial
+ * running; see `refreshReviewAccount`.
+ *
+ * The newest data is on `--today`, or today in `--time-zone` (an IANA zone),
+ * or today in UTC. See docs/store-review-account.md.
  */
 import { parseReviewSignInConfig, ReviewSignInConfigError } from "@openvalens/auth/review-sign-in";
 import { resolveFileSecrets } from "@openvalens/config/file-secrets";
 import { createDb } from "@openvalens/db";
 
 import { parseDay } from "./options";
-import { ReviewSeedRefusal, seedReviewAccount } from "./review";
+import { refreshReviewAccount, ReviewSeedRefusal, seedReviewAccount } from "./review";
 
-export const REVIEW_USAGE = "Usage: bun run demo:seed:review [--today YYYY-MM-DD]";
+export const REVIEW_USAGE =
+  "Usage: bun run demo:seed:review [--refresh] [--today YYYY-MM-DD | --time-zone Area/City]";
 
-export function parseReviewOptions(
-  argv: readonly string[],
-  now: Date = new Date(),
-): { ok: true; today: string } | { ok: false; message: string } {
-  let today = now.toISOString().slice(0, 10);
+/** `YYYY-MM-DD` for `now` in an IANA time zone, or `null` for an unknown zone. */
+export function dayInTimeZone(now: Date, timeZone: string): string | null {
+  try {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(now);
+    const part = (type: string) => parts.find((p) => p.type === type)?.value;
+    return parseDay(`${part("year")}-${part("month")}-${part("day")}`);
+  } catch {
+    return null;
+  }
+}
+
+export type ReviewOptions =
+  | { ok: true; today: string; refresh: boolean }
+  | { ok: false; message: string };
+
+export function parseReviewOptions(argv: readonly string[], now: Date = new Date()): ReviewOptions {
+  let today: string | undefined;
+  let timeZone: string | undefined;
+  let refresh = false;
+  const value = (arg: string, name: string, next: string | undefined) =>
+    arg === name ? (next ?? "") : arg.slice(name.length + 1);
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i]!;
-    if (arg === "--today") {
-      today = argv[i + 1] ?? "";
-      i += 1;
-    } else if (arg.startsWith("--today=")) {
-      today = arg.slice("--today=".length);
+    if (arg === "--refresh") {
+      refresh = true;
+    } else if (arg === "--today" || arg.startsWith("--today=")) {
+      today = value(arg, "--today", argv[i + 1]);
+      if (arg === "--today") i += 1;
+    } else if (arg === "--time-zone" || arg.startsWith("--time-zone=")) {
+      timeZone = value(arg, "--time-zone", argv[i + 1]);
+      if (arg === "--time-zone") i += 1;
     } else {
       return { ok: false, message: `Unknown option.\n${REVIEW_USAGE}` };
     }
   }
-  const day = parseDay(today);
+  if (today !== undefined && timeZone !== undefined)
+    return { ok: false, message: `Pass --today or --time-zone, not both.\n${REVIEW_USAGE}` };
+  if (timeZone !== undefined) {
+    const day = dayInTimeZone(now, timeZone);
+    return day
+      ? { ok: true, today: day, refresh }
+      : { ok: false, message: `--time-zone must be an IANA time zone.\n${REVIEW_USAGE}` };
+  }
+  const day = parseDay(today ?? now.toISOString().slice(0, 10));
   return day
-    ? { ok: true, today: day }
+    ? { ok: true, today: day, refresh }
     : { ok: false, message: `--today must be a calendar day (YYYY-MM-DD).\n${REVIEW_USAGE}` };
 }
 
@@ -81,9 +119,27 @@ export async function main(
 
   const db = createDb({ DATABASE_URL: resolved.DATABASE_URL });
   try {
+    if (options.refresh) {
+      const result = await refreshReviewAccount(db, { email, today: options.today });
+      console.log(
+        result.status === "refreshed"
+          ? `Refreshed the review account: replaced ${result.erasedRows} rows with demo data ending ${result.today}.`
+          : `Seeded the review account's workspace with demo data ending ${result.today}.`,
+      );
+      console.log(
+        {
+          extended: "Its trial runs for another 30 days.",
+          stripe: "Its subscription is managed by Stripe; the trial was left alone.",
+          none: "It has no subscription (billing is off); nothing to extend.",
+        }[result.trial],
+      );
+      return 0;
+    }
     const result = await seedReviewAccount(db, { email, today: options.today });
     if (result.status === "already-seeded") {
-      console.log("The review account was already seeded. Nothing changed.");
+      console.log(
+        "The review account was already seeded. Nothing changed (use --refresh to replace its data).",
+      );
     } else {
       console.log(`Seeded the review account's workspace with demo data ending ${result.today}.`);
     }
@@ -93,7 +149,8 @@ export async function main(
       console.error(error.message);
       return 1;
     }
-    console.error('Seeding failed part-way. See docs/store-review-account.md ("If a run fails").');
+    // One transaction: a failed run leaves the workspace as it was.
+    console.error("Seeding failed; nothing was changed.");
     throw error;
   } finally {
     await db.$client.end();

@@ -170,14 +170,108 @@ export function eraseSubjectRowsForReplay(
   return eraseInTransaction(tx, subject, erasedAt, order, { recordLedger: false });
 }
 
+/**
+ * What survives {@link eraseSubjectRecords}: the account itself and what it
+ * needs to keep signing in and being billed (sessions, sign-in methods,
+ * consents and legal acceptances, the subscription, membership and roles),
+ * the audit log, setup state and connections the person made (AI apps,
+ * Telegram, wearables, push). `stored_object` stays too, so no stored file
+ * loses its database row; it references only `user` and `organization`.
+ * Everything else the account owns is a record and is erased.
+ */
+export const ACCOUNT_KEEP_TABLES: ReadonlySet<string> = new Set([
+  "access_audit_log",
+  "access_request",
+  "access_request_decision",
+  "account",
+  "admin_notification",
+  "admission_grant",
+  "ai_app_call",
+  "ai_app_draft",
+  "ai_app_entry",
+  "ai_app_grant",
+  "ai_app_key",
+  "ai_app_write",
+  "ai_usage_month",
+  "analytics_consent",
+  "billing_checkout_acknowledgement",
+  "coach_profile",
+  "invitation",
+  "legal_acceptance",
+  "member",
+  "nutrition_coach_consent",
+  "oauth_access_token",
+  "oauth_client",
+  "oauth_consent",
+  "oauth_refresh_token",
+  "onboarding_state",
+  "organization_role",
+  "provider_connection",
+  "push_device",
+  "session",
+  "sign_up_request",
+  "stored_object",
+  "subscription",
+  "telegram_account",
+  "telegram_connect_token",
+  "user_ai_consent",
+  "user_preference",
+  "wearable_connection",
+  "wearable_oauth_state",
+  "wellness_profile",
+]);
+
+/**
+ * Kept tables that reference a table the erase empties. Empty when the keep
+ * set is closed: a kept row must never point at an erased one (the foreign
+ * key would refuse the delete, or cascade into the kept row).
+ */
+export function keepSetViolations(keep: ReadonlySet<string> = ACCOUNT_KEEP_TABLES): string[] {
+  const erased = new Set(deletionOrder().filter((table) => !keep.has(table)));
+  const violations: string[] = [];
+  for (const value of Object.values(schema) as unknown[]) {
+    if (!(value instanceof PgTable)) continue;
+    const config = getTableConfig(value);
+    if (!keep.has(config.name)) continue;
+    for (const fk of config.foreignKeys) {
+      const target = getTableConfig(fk.reference().foreignTable).name;
+      if (erased.has(target)) violations.push(`${config.name} -> ${target}`);
+    }
+  }
+  return violations.sort();
+}
+
+/**
+ * Erases a subject's records but keeps the account (the app store review
+ * account's nightly refresh, `bun run demo:seed:review --refresh`): the same
+ * table order and row filters as "delete everything", minus
+ * {@link ACCOUNT_KEEP_TABLES}. The user and organization rows stay, and no
+ * erasure-ledger row is written, because the account goes on. Stored files
+ * keep their rows, so nothing needs removing from storage. Runs inside the
+ * caller's transaction; the caller authorizes.
+ */
+export async function eraseSubjectRecords(
+  tx: DbTransaction,
+  subject: DataRightsSubject,
+  now: Date = new Date(),
+): Promise<DeletionReport> {
+  const violations = keepSetViolations();
+  if (violations.length) throw new Error(`Kept tables reference erased ones: ${violations}`);
+  return eraseInTransaction(tx, subject, now, deletionOrder(), {
+    recordLedger: false,
+    keep: ACCOUNT_KEEP_TABLES,
+  });
+}
+
 /** Caller-authorized legacy deletion transaction body; never used by the self-service router. */
 async function eraseInTransaction(
   tx: DbTransaction,
   subject: DataRightsSubject,
   now: Date,
   order = deletionOrder(),
-  options: { recordLedger: boolean } = { recordLedger: true },
+  options: { recordLedger: boolean; keep?: ReadonlySet<string> } = { recordLedger: true },
 ): Promise<DeletionReport> {
+  const keep = options.keep;
   const orgIds = [...subject.organizationIds];
   // Container erasure must not cascade another member's private goal,
   // evidence, training, sleep, weigh-in or body-composition data (#509).
@@ -269,6 +363,7 @@ async function eraseInTransaction(
   }
 
   for (const table of order) {
+    if (keep?.has(table)) continue;
     if (table === "nutrition_food_snapshot") {
       record(
         table,
@@ -305,8 +400,10 @@ async function eraseInTransaction(
     record(table, await deleteCount(tx, table, deletionRowFilter(table, subject)));
   }
 
-  record("organization", await deleteCount(tx, "organization", inList("id", orgIds)));
-  record("user", await deleteCount(tx, "user", sql`id = ${subject.userId}`));
+  if (!keep) {
+    record("organization", await deleteCount(tx, "organization", inList("id", orgIds)));
+    record("user", await deleteCount(tx, "user", sql`id = ${subject.userId}`));
+  }
   if (options.recordLedger)
     await tx.execute(sql`insert into erasure_ledger (subject_user_id, organization_ids, row_counts, erased_at)
     values (${subject.userId}, ${JSON.stringify(orgIds)}::jsonb, ${JSON.stringify(rowCounts)}::jsonb, ${now.toISOString()})`);

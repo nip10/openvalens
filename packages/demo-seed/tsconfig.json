@@ -1,6 +1,6 @@
 {
   "extends": "@openvalens/config/tsconfig.base.json",
-  "references": [{ "path": "../api" }, { "path": "../billing" }],
+  "references": [{ "path": "../api" }, { "path": "../billing" }, { "path": "../data-rights" }],
   "compilerOptions": {
     "noEmit": true
   },
