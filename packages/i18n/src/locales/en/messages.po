@@ -13652,6 +13652,11 @@ msgstr "Primary"
 msgid "Primary: {primaryNames}"
 msgstr "Primary: {primaryNames}"
 
+#: apps/native/app/(drawer)/exports.tsx
+#: apps/web/src/routes/_auth/exports.tsx
+msgid "Printable page"
+msgstr "Printable page"
+
 #: packages/api/src/presenters/onboarding.ts
 msgid "Privacy choices"
 msgstr "Privacy choices"

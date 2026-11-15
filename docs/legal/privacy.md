@@ -154,7 +154,7 @@ Your health records are stored in the EU. Some providers are based in, or use in
 You have the right to:
 
 - **access** your data and get a copy;
-- **portability**: receive the data you gave us in a machine-readable format. In the app, **Settings › Export records** prepares a complete export of your account as a ZIP file, and you can also export the clinical record (JSON) and sections (CSV, PDF) at any time;
+- **portability**: receive the data you gave us in a machine-readable format. In the app, **Settings › Export records** prepares a complete export of your account as a ZIP file, and you can also export the clinical record (JSON) and sections (CSV, or a printable page) at any time;
 - **rectification**: correct it, mostly directly in the app;
 - **erasure**: delete your account and everything in workspaces you own in **Settings › Delete account and all data**, at any time and in every subscription state (see [how to delete your account](https://openvalens.com/support#delete-account)). If a workspace you own holds another member's own entries, such as their workouts, sleep, weigh-ins, body composition or private body measurements, deletion is refused, and nothing is deleted, until that member is removed from the workspace, so their records are never deleted with yours;
 - **restriction** and **objection** (to processing based on legitimate interest);

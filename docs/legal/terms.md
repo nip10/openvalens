@@ -136,8 +136,8 @@ subscription within **14 days** without giving any reason.
   Privacy Policy.
 - **Export.** You can export your data at any time, in every subscription
   state, including after your access has ended: the clinical record as JSON,
-  selected sections as CSV or PDF, and a complete copy of your account as a ZIP
-  file (**Settings › Export records**).
+  selected sections as CSV or a printable page, and a complete copy of your
+  account as a ZIP file (**Settings › Export records**).
 - **Deletion.** You can delete your account and everything in workspaces you
   own at any time from **Settings › Delete account and all data**, also when
   your access is read-only.
