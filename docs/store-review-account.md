@@ -85,14 +85,59 @@ inserted the way an import stores them).
 workspace's audit log. Running it again prints "already seeded" and writes
 nothing.
 
-**If a run fails** part-way, the workspace holds some records but no
-completion record, so a rerun refuses ("already holds records"). Start over:
-sign in as the review account, delete it in **Settings › Delete account and all
-data**, create it again through the sign-up, and rerun the seed.
+**All or nothing:** the whole run is one database transaction. If it fails,
+the workspace is left as it was, and you can simply run it again.
 
-**Refreshing the dates** works the same way: the data does not move forward on
-its own, so for a review months later, delete the account, sign up again and
-reseed.
+## Keep it fresh: the nightly refresh
+
+The data does not move forward on its own. Screens such as today's diary,
+readiness and insights read the real clock, so after a week or two the account
+looks empty. The `--refresh` mode fixes that. Run it every night as a
+scheduled task:
+
+```sh
+cd /app && bun run demo:seed:review --refresh --time-zone America/Los_Angeles
+```
+
+Each run, in one transaction:
+
+1. checks the same account rules as above (one account, not an admin, sole
+   owner of exactly one workspace);
+2. if the workspace was seeded before (`REVIEW_DEMO_SEEDED` is in its audit
+   log), erases its records. This is the records-only erasure from
+   `@openvalens/data-rights`, which keeps the account, its sessions and
+   sign-in methods, consents, legal acceptances, subscription, setup state,
+   connections, stored files and the audit log. Reviewers stay signed in.
+   Anything a reviewer entered is erased, and so are the record-level audit
+   rows (`RECORD_*`) that describe the erased records;
+3. if the workspace was never seeded and is empty, it seeds it. That covers a
+   newly created review account. If it holds records the seed did not write,
+   it refuses and changes nothing;
+4. writes a fresh 90 days ending today in `--time-zone`, and records
+   `REVIEW_DEMO_REFRESHED` in the audit log;
+5. keeps a local trial running for another 30 days, so the workspace never
+   turns read-only. A subscription that Stripe manages is left alone.
+
+A run takes well under a minute. Readers never see a half-written workspace, and a
+failed run changes nothing (the next night's run simply tries again).
+
+**Schedule it** in Coolify: `openvalens-api` › Scheduled Tasks › Add:
+
+| Field     | Value                                                                           |
+| --------- | ------------------------------------------------------------------------------- |
+| Name      | `reviewAccountRefresh`                                                          |
+| Command   | `cd /app && bun run demo:seed:review --refresh --time-zone America/Los_Angeles` |
+| Frequency | `10 8 * * *`                                                                    |
+| Timeout   | `600` seconds                                                                   |
+
+At 08:10 UTC it is just past midnight in Los Angeles all year (07:00 or
+08:00 UTC, depending on daylight saving time). Apple's reviewers are mostly in
+California, so their "today" matches the data for their whole day. With Docker
+Compose, put the same command in the host's crontab, through `docker compose
+exec -T -w /app server`.
+
+`--time-zone` takes any IANA zone, and `--today YYYY-MM-DD` still works; the
+default is the current UTC day.
 
 ## What to give the reviewers
 
@@ -107,9 +152,10 @@ Console (App access › All or some functionality is restricted):
 
 ## Keep in mind
 
-- **The trial ends 30 days after sign-up.** After that the workspace is
-  read-only (reviewers can still see everything, but cannot add entries). For
-  a later review, recreate the account as above.
+- **The trial ends 30 days after sign-up** unless the nightly refresh is
+  scheduled: each run moves its end 30 days ahead. Without it, the workspace
+  turns read-only once the trial ends (reviewers can still see everything, but
+  cannot add entries).
 - **Rotate the code** after each review round, or if it leaks: change
   `REVIEW_ACCOUNT_CODE` and redeploy. Sessions already started stay valid
   until they are signed out or expire.

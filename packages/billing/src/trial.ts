@@ -49,3 +49,38 @@ export async function onCloudAccountCreated(input: {
 }): Promise<void> {
   await startTrial(input.tx, { userId: input.userId });
 }
+
+/**
+ * Keeps a local, card-free trial running for `days` more from now (database
+ * time), for the app store review account's nightly refresh: reviewers must
+ * never land on a read-only workspace. Only a local trial is touched: a row
+ * with a Stripe customer or subscription is left to Stripe and reported as
+ * `stripe`. An ended local trial starts running again, and its end and
+ * retention markers are cleared, so the retention job never counts it as
+ * ended. Never shortens a trial. No row (a deployment without billing):
+ * `none`.
+ */
+export async function keepLocalTrialRunning(
+  tx: DbTransaction | Database,
+  input: { userId: string; days?: number },
+): Promise<"extended" | "stripe" | "none"> {
+  const days = input.days ?? TRIAL_DAYS;
+  if (!Number.isInteger(days) || days < 1 || days > 366) throw new Error("Invalid trial length.");
+  const rows = (
+    await tx.execute<{ local: boolean }>(
+      sql`select ("stripe_customer_id" is null and "stripe_subscription_id" is null) as "local"
+        from "subscription" where "user_id" = ${input.userId} for update`,
+    )
+  ).rows;
+  if (rows.length === 0) return "none";
+  if (!rows[0]!.local) return "stripe";
+  await tx.execute(
+    sql`update "subscription" set "status" = 'trialing',
+        "trial_ends_at" = greatest("trial_ends_at", clock_timestamp() + make_interval(days => ${days}::int)),
+        "ended_at" = null, "retention_warning_sent_at" = null,
+        "trial_reminder_sent_at" = null, "trial_ended_sent_at" = null,
+        "updated_at" = clock_timestamp()
+      where "user_id" = ${input.userId}`,
+  );
+  return "extended";
+}

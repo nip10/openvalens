@@ -16,6 +16,7 @@
     "@openvalens/auth": "workspace:*",
     "@openvalens/billing": "workspace:*",
     "@openvalens/config": "workspace:*",
+    "@openvalens/data-rights": "workspace:*",
     "@openvalens/db": "workspace:*",
     "@openvalens/exercise-catalog": "workspace:*",
     "@orpc/server": "catalog:",

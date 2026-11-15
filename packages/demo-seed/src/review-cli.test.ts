@@ -1,21 +1,52 @@
 import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 
-import { main, parseReviewOptions } from "./review-cli";
+import { dayInTimeZone, main, parseReviewOptions } from "./review-cli";
 
 describe("parseReviewOptions", () => {
+  const now = new Date("2026-11-01T23:30:00Z");
+
   test("defaults to the current UTC day and accepts --today", () => {
-    const now = new Date("2026-11-01T23:30:00Z");
-    expect(parseReviewOptions([], now)).toEqual({ ok: true, today: "2026-11-01" });
+    expect(parseReviewOptions([], now)).toEqual({ ok: true, today: "2026-11-01", refresh: false });
     expect(parseReviewOptions(["--today", "2026-10-30"], now)).toEqual({
       ok: true,
       today: "2026-10-30",
+      refresh: false,
     });
     expect(parseReviewOptions(["--today=2026-10-29"], now)).toEqual({
       ok: true,
       today: "2026-10-29",
+      refresh: false,
     });
     expect(parseReviewOptions(["--today", "2026-02-30"], now).ok).toBe(false);
     expect(parseReviewOptions(["--cloud"], now).ok).toBe(false);
+  });
+
+  test("--refresh, and --time-zone picks that zone's day", () => {
+    expect(parseReviewOptions(["--refresh"], now)).toEqual({
+      ok: true,
+      today: "2026-11-01",
+      refresh: true,
+    });
+    expect(parseReviewOptions(["--refresh", "--time-zone", "Asia/Tokyo"], now)).toEqual({
+      ok: true,
+      today: "2026-11-02",
+      refresh: true,
+    });
+    expect(parseReviewOptions(["--time-zone=America/Los_Angeles"], now)).toEqual({
+      ok: true,
+      today: "2026-11-01",
+      refresh: false,
+    });
+    expect(parseReviewOptions(["--time-zone", "Mars/Olympus"], now).ok).toBe(false);
+    expect(parseReviewOptions(["--time-zone", "UTC", "--today", "2026-10-30"], now).ok).toBe(false);
+  });
+
+  test("dayInTimeZone", () => {
+    // 07:30 UTC is still the previous day in Los Angeles (UTC-7 in DST).
+    const morning = new Date("2026-07-15T06:30:00Z");
+    expect(dayInTimeZone(morning, "America/Los_Angeles")).toBe("2026-07-14");
+    expect(dayInTimeZone(morning, "UTC")).toBe("2026-07-15");
+    expect(dayInTimeZone(morning, "not a zone")).toBeNull();
   });
 });
 
