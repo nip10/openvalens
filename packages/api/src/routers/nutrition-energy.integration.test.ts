@@ -150,6 +150,16 @@ function seedMember(org: string, userId: string): string {
   `;
 }
 
+/**
+ * Weigh-ins the safety context must see sit inside its 28-day lookback, which
+ * ends today (nutrition-targets.ts), so they are dated relative to the clock.
+ * Fixed dates expired once the calendar moved past them.
+ */
+const daysAgo = (days: number) =>
+  new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10);
+const recentWeighIn = daysAgo(2);
+const newerWeighIn = daysAgo(1);
+
 describe.skipIf(!url)("nutritionEnergy over HTTP against disposable PostgreSQL", () => {
   const db = createDb({ DATABASE_URL: url ?? "postgres://127.0.0.1/nutrition_energy_test" });
   const rpc = new RPCHandler(appRouter);
@@ -492,7 +502,7 @@ describe.skipIf(!url)("nutritionEnergy over HTTP against disposable PostgreSQL",
     `);
     await db.execute(sql`
       insert into daily_weight (organization_id, user_id, date, weight_kg, source, created_at, updated_at)
-      values ('org-y', 'user-y', '2026-10-18', 80, 'manual', now(), now())
+      values ('org-y', 'user-y', ${recentWeighIn}, 80, 'manual', now(), now())
     `);
     const proposed = await propose("2026-03-28", "user-y");
     if (proposed.body.outcome !== "proposed") throw new Error("expected a proposal");
@@ -506,8 +516,8 @@ describe.skipIf(!url)("nutritionEnergy over HTTP against disposable PostgreSQL",
     const writer = db.transaction(async (tx) => {
       await createAutoReconciliationTxService(tx, tx).ingestAutoWeightEvent({
         ...scope,
-        date: "2026-10-19",
-        measuredAt: "2026-10-19T12:00:00.000Z",
+        date: newerWeighIn,
+        measuredAt: `${newerWeighIn}T12:00:00.000Z`,
         weightKg: 50,
         sourceDetail: "test-scale",
         metadataJson: { metricSampleId: 88001 },
@@ -544,14 +554,14 @@ describe.skipIf(!url)("nutritionEnergy over HTTP against disposable PostgreSQL",
       });
       expect(await energyGoals("user-y")).toEqual([]);
       const canonical = await db.execute(
-        sql`select source from daily_weight where organization_id = 'org-y' and user_id = 'user-y' and date = '2026-10-19'`,
+        sql`select source from daily_weight where organization_id = 'org-y' and user_id = 'user-y' and date = ${newerWeighIn}`,
       );
       expect(canonical.rows).toEqual([{ source: "auto" }]);
     } finally {
       releaseWriter();
       await writer.catch(() => undefined);
       await db.execute(
-        sql`delete from daily_weight where organization_id = 'org-y' and user_id = 'user-y' and date in ('2026-10-18', '2026-10-19')`,
+        sql`delete from daily_weight where organization_id = 'org-y' and user_id = 'user-y' and date in (${recentWeighIn}, ${newerWeighIn})`,
       );
       await db.execute(
         sql`update nutrition_target_settings set energy_direction = 'maintain', height_cm = null where organization_id = 'org-y' and user_id = 'user-y'`,
