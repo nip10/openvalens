@@ -404,3 +404,124 @@ export async function seedNutrition(
     }
   }
 }
+
+type DiaryFoods = {
+  recents: { ref: { kind: string; snapshotId?: number }; name: string }[];
+  customFoods: { ref: { kind: string; foodId?: number }; name: string }[];
+};
+
+/** Saved meals: the usual breakfast and dinner, from the custom foods above. */
+const MEAL_TEMPLATES: { name: string; ingredients: Portion[] }[] = [
+  {
+    name: "Usual breakfast",
+    ingredients: [
+      ["oats", 60],
+      ["yogurt", 150],
+      ["berries", 100],
+    ],
+  },
+  {
+    name: "Salmon, rice and broccoli",
+    ingredients: [
+      ["salmon", 150],
+      ["rice", 180],
+      ["broccoli", 120],
+    ],
+  },
+];
+const FAVOURITES: FoodKey[] = ["oats", "yogurt", "salmon", "almonds"];
+
+/**
+ * What `seedNutrition` leaves out, kept apart so its draws stay as they were:
+ * favourite foods, two saved meals (`nutritionTemplates`), and a morning
+ * coffee with the caffeine totals turned on, so the drinks summary and the
+ * sleep screen's last-caffeine note have something to show. Coffee is logged
+ * on the last three weeks, which are logged every day.
+ */
+export async function seedNutritionExtras(
+  api: DemoApi,
+  actor: DemoActor,
+  calendar: DemoCalendar,
+  random: Random,
+): Promise<void> {
+  const foods = await api.call<DiaryFoods>("nutritionDiary/listFoods", {}, actor);
+  const customId = (key: FoodKey) => {
+    const food = foods.customFoods.find((row) => row.name === FOODS[key].name);
+    if (food?.ref.kind !== "custom" || !food.ref.foodId)
+      throw new Error(`Demo seed: no custom food for ${key}.`);
+    return food.ref.foodId;
+  };
+  for (const key of FAVOURITES) {
+    const recent = foods.recents.find((row) => row.name === FOODS[key].name);
+    if (recent?.ref.kind !== "snapshot" || !recent.ref.snapshotId) continue;
+    await api.call(
+      "nutritionDiary/setFavorite",
+      { snapshotId: recent.ref.snapshotId, favorite: true },
+      actor,
+    );
+  }
+  for (const [index, template] of MEAL_TEMPLATES.entries()) {
+    await api.call(
+      "nutritionTemplates/create",
+      {
+        clientMutationId: `demo-template-${index}`,
+        content: {
+          kind: "meal",
+          name: template.name,
+          ingredients: template.ingredients.map(([key, amount]) => ({
+            food: { kind: "custom", foodId: customId(key) },
+            amount,
+            unit: unitOf(key),
+          })),
+        },
+      },
+      actor,
+    );
+  }
+
+  const settings = await api.call<{ settings: { revision: number } }>(
+    "nutritionTargets/get",
+    { localDate: calendar.today },
+    actor,
+  );
+  await api.call(
+    "nutritionTargets/updateSettings",
+    { expectedRevision: settings.settings.revision, caffeineTotalsEnabled: true },
+    actor,
+  );
+  const coffee = await api.call<{ ref: { foodId: number } }>(
+    "nutritionDiary/createFood",
+    {
+      clientMutationId: "demo-food-coffee",
+      name: "Coffee, black",
+      nutrientBasisAmount: 1,
+      nutrientBasisUnit: "serving",
+      servingLabel: "1 mug",
+      nutrients: { energyKcal: 2, proteinG: 0.3, carbohydrateG: 0, fatG: 0, caffeineMg: 95 },
+    },
+    actor,
+  );
+  for (let offset = 21; offset >= 0; offset -= 1) {
+    const localDate = calendar.day(offset);
+    // A second, early-afternoon cup some days (not today, which is still going).
+    const second = random.chance(0.35) && offset > 0;
+    const cups = second ? [7.75, 14] : [7.75];
+    for (const [index, hour] of cups.entries()) {
+      await api.call(
+        "nutritionDiary/logEntry",
+        {
+          clientMutationId: `demo-coffee-${localDate}-${index}`,
+          localDate,
+          timeZone: TIMEZONE,
+          slot: index === 0 ? "breakfast" : "snack",
+          food: { kind: "custom", foodId: coffee.ref.foodId },
+          amount: 1,
+          unit: "serving",
+          method: "manual",
+          consumedAt: calendar.at(offset, hour + random.between(0, 0.25)).toISOString(),
+        },
+        actor,
+      );
+    }
+  }
+}

@@ -5,45 +5,35 @@ import { cardiacExam, cardiacMeasurement, imagingStudy } from "@openvalens/db/sc
 import type { DemoApi, DemoActor } from "./api";
 import type { DemoCalendar } from "./dates";
 import { demoWeightKg } from "./device";
+import { demoUuid } from "./ids";
 import { round, type Random } from "./random";
 
 /**
  * Everything around the daily data (Issue #301): goals, supplements and a
- * medication, cycle logging, preventive care, family history, private body
- * measurements, a DEXA scan and two clinical records. Free text is short,
- * generic and clearly made up.
+ * medication with their actual intakes, cycle logging, preventive care,
+ * family history, private body measurements, two DEXA scans and two clinical
+ * records. Free text is short, generic and clearly made up.
  */
 
-const thousands = (value: number) => String(value).replace(/\B(?=(\d{3})+$)/g, ",");
+const GOAL_TIMEZONE = "Europe/London";
 
-const DEMO_GOALS = {
-  weight: {
-    title: "Reach 65 kg",
-    category: "body",
-    horizon: "quarter",
-    status: "active",
-    targetValue: "65",
-    baselineValue: "68.4",
-    direction: "decrease",
-    priority: "high",
-  },
-  steps: {
-    title: "Walk 9,000 steps a day",
-    category: "activity",
-    horizon: "quarter",
-    status: "active",
-    // With separators, as typed in the app ("9000" would read as 900).
-    targetValue: "9,000",
-    baselineValue: "7,800",
-    direction: "increase",
-    priority: "normal",
-  },
-} as const;
+type DemoGoal = {
+  title: string;
+  source: "manual" | "sleep";
+  metric: string;
+  unit: string;
+  rule: Record<string, unknown>;
+  startDate: string;
+  milestones: { key: string; value: number; targetDate: string }[];
+};
 
 /**
- * Two goals with weekly check-ins. `skipTitles` (lower-cased, trimmed) leaves
- * out a goal the workspace already has under that title, with its check-ins;
- * the random draws stay the same either way.
+ * Two personal goals in the goal model the Goals screens read (`goals.*`,
+ * GLOSSARY.md "Goal"): a weight target with milestones and weekly manual
+ * check-ins, and a rolling sleep average whose evidence is the watch's sleep
+ * sessions (`device.ts`). `skipTitles` (lower-cased, trimmed) leaves out a
+ * goal the workspace already has under that title (an onboarding goal), with
+ * its check-ins; the random draws stay the same either way.
  */
 export async function seedGoals(
   api: DemoApi,
@@ -52,28 +42,65 @@ export async function seedGoals(
   random: Random,
   options: { skipTitles?: ReadonlySet<string> } = {},
 ) {
-  const create = async (goal: Record<string, string>) =>
-    options.skipTitles?.has(goal.title!.trim().toLowerCase())
-      ? null
-      : await api.call<{ id: number }>("plans/goals/upsertGoal", goal, actor);
-  const weight = await create({ ...DEMO_GOALS.weight, targetDate: calendar.day(-60) });
-  const steps = await create(DEMO_GOALS.steps);
+  const create = async (key: string, goal: DemoGoal) => {
+    if (options.skipTitles?.has(goal.title.trim().toLowerCase())) return null;
+    const { milestones, ...definition } = goal;
+    return await api.call<{ id: number }>(
+      "goals/create",
+      {
+        clientMutationId: demoUuid(`goal-${key}`),
+        definition: {
+          ...definition,
+          id: demoUuid(`goal-${key}-definition`),
+          timeZone: GOAL_TIMEZONE,
+          dayCutoff: null,
+          status: "active",
+          milestones: milestones.map((milestone) => ({
+            id: demoUuid(`goal-${key}-milestone-${milestone.key}`),
+            value: milestone.value,
+            targetDate: milestone.targetDate,
+          })),
+        },
+      },
+      actor,
+    );
+  };
+  // A one-time target: under 65 kg two months from now. The first checkpoint
+  // was met on time; the second is still ahead.
+  const weight = await create("weight", {
+    title: "Reach 65 kg",
+    source: "manual",
+    metric: "personal",
+    unit: "kg",
+    rule: { kind: "target", target: { kind: "maximum", value: 65 }, targetDate: calendar.day(-60) },
+    startDate: calendar.day(84),
+    milestones: [
+      { key: "first", value: 67.5, targetDate: calendar.day(42) },
+      { key: "second", value: 66, targetDate: calendar.day(-21) },
+    ],
+  });
+  // The better last week lifts the rolling average over the target.
+  await create("sleep", {
+    title: "Sleep 7.5 hours a night",
+    source: "sleep",
+    metric: "sleep_hours",
+    unit: "h",
+    rule: { kind: "average", target: { kind: "minimum", value: 7.5 }, windowDays: 7 },
+    startDate: calendar.day(56),
+    milestones: [],
+  });
   for (let offset = 84; offset >= 0; offset -= 7) {
     const date = calendar.day(offset);
     const kg = demoWeightKg(offset, random);
     if (weight)
       await api.call(
-        "plans/goals/upsertCheckin",
-        { goalId: weight.id, date, value: String(kg) },
+        "goals/createCheckin",
+        { goalId: weight.id, date, value: kg, clientMutationId: demoUuid(`goal-weight-${date}`) },
         actor,
       );
-    const average = 7_800 + 1_500 * (1 - offset / 84) + random.normal(0, 300, -600, 600);
-    if (steps)
-      await api.call(
-        "plans/goals/upsertCheckin",
-        { goalId: steps.id, date, value: thousands(Math.round(average)) },
-        actor,
-      );
+    // The weekly steps check-in of the earlier goal list drew here; the draw
+    // stays so the weight check-ins keep their values.
+    random.normal(0, 300, -600, 600);
   }
 }
 
@@ -326,4 +353,118 @@ export async function seedBodyComposition(
       );
     }
   }
+}
+
+/** When each supplement is taken (UTC hour) and how reliably. */
+const INTAKE_PLAN = [
+  { name: "Vitamin D3", hour: 8, chance: 0.92 },
+  { name: "Omega-3 fish oil", hour: 19, chance: 0.8 },
+  { name: "Magnesium glycinate", hour: 22.25, chance: 0.85 },
+  // Training days only (Monday and Friday, `training.ts`).
+  { name: "Creatine monohydrate", hour: 18, chance: 0.9, weekdays: [1, 5] },
+] as const;
+
+/**
+ * Actual doses (GLOSSARY.md "Intake") of the supplements `seedSupplements`
+ * planned, over the last four weeks up to yesterday (`supplementIntake.create`
+ * refuses a future time). A schedule is not an intake, so without these the
+ * supplements screen has no dose history.
+ */
+export async function seedSupplementIntake(
+  api: DemoApi,
+  actor: DemoActor,
+  calendar: DemoCalendar,
+  random: Random,
+) {
+  const supplements = await api.call<{ id: number; name: string; dose: string | null }[]>(
+    "plans/listSupplements",
+    {},
+    actor,
+  );
+  for (let offset = 28; offset >= 1; offset -= 1) {
+    const date = calendar.day(offset);
+    const weekday = new Date(`${date}T00:00:00Z`).getUTCDay();
+    for (const item of INTAKE_PLAN) {
+      const taken = random.chance(item.chance);
+      if ("weekdays" in item && !(item.weekdays as readonly number[]).includes(weekday)) continue;
+      const supplement = supplements.find((row) => row.name === item.name);
+      if (!supplement || !taken) continue;
+      await api.call(
+        "supplementIntake/create",
+        {
+          supplementId: supplement.id,
+          occurredAt: calendar.at(offset, item.hour + random.between(0, 0.5)).toISOString(),
+          timeZone: "Europe/London",
+          dose: supplement.dose ?? "1",
+          clientMutationId: demoUuid(`intake-${item.name}-${date}`),
+        },
+        actor,
+      );
+    }
+  }
+}
+
+/**
+ * A follow-up DEXA scan last week, stored as an import would (no app write
+ * path), so the body map can compare two scans: a little less fat, a little
+ * more lean mass than the first one in `seedBodyComposition`.
+ */
+export async function seedFollowUpDexa(db: Database, actor: DemoActor, calendar: DemoCalendar) {
+  const weightKg = 66.6;
+  const bodyFatPct = 25.8;
+  const fatMassG = round(weightKg * bodyFatPct * 10);
+  const [scan] = await db
+    .insert(dexaScan)
+    .values({
+      organizationId: actor.organizationId,
+      date: calendar.day(6),
+      height: 168,
+      weight: weightKg,
+      age: 36,
+      totalMass: weightKg,
+      fatMass: fatMassG,
+      leanMass: round(weightKg * 1000 - fatMassG - 2410),
+      boneMineralContent: 2410,
+      bodyFatPct,
+      leanTissuePct: round(100 - bodyFatPct, 1),
+      bmi: round(weightKg / 1.68 ** 2, 1),
+      androidFatPct: 22.6,
+      gynoidFatPct: 32.9,
+      agRatio: 0.69,
+      rmr: 1435,
+      bmdTotal: 1.16,
+      tScore: 0.4,
+      zScore: 0.5,
+      bmdPercentile: 66,
+      createdAt: calendar.at(6, 10).toISOString(),
+    })
+    .returning({ id: dexaScan.id });
+  const regions: [string, number, number][] = [
+    // region, fat %, lean mass (g)
+    ["left_arm", 30.1, 2190],
+    ["right_arm", 29.6, 2280],
+    ["left_leg", 31.6, 7420],
+    ["right_leg", 31.2, 7560],
+    ["trunk", 22.9, 21650],
+    ["android", 22.6, 2950],
+    ["gynoid", 32.9, 6180],
+  ];
+  await db.insert(dexaRegional).values(
+    regions.flatMap(([region, fatPct, leanMass]) => [
+      {
+        organizationId: actor.organizationId,
+        scanId: scan!.id,
+        measurementType: "fat_pct",
+        region,
+        value: fatPct,
+      },
+      {
+        organizationId: actor.organizationId,
+        scanId: scan!.id,
+        measurementType: "lean_mass",
+        region,
+        value: leanMass,
+      },
+    ]),
+  );
 }

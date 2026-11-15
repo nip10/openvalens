@@ -5,21 +5,10 @@ import { eraseSubjectRecords } from "@openvalens/data-rights";
 import { sql, type Database, type DbTransaction } from "@openvalens/db";
 
 import { createDemoApi, type DemoActor } from "./api";
-import {
-  seedBodyComposition,
-  seedClinical,
-  seedCycle,
-  seedGoals,
-  seedPreventiveCare,
-  seedSupplements,
-} from "./care";
 import { createCalendar } from "./dates";
-import { planDeviceDays, seedDeviceData } from "./device";
-import { seedNutrition } from "./nutrition";
+import { seedPersonData } from "./person";
 import { completeSetup } from "./profile";
 import { createRandom } from "./random";
-import { seedLabs, seedRecoveryMetrics } from "./records";
-import { seedStrengthTraining } from "./training";
 
 /**
  * Seeds the synthetic demo data into the app store review account, on a real
@@ -221,22 +210,11 @@ async function writeReviewDemoData(db: Database, actor: DemoActor, today: string
   const api = createDemoApi(db);
   try {
     await completeSetup(api, actor, { sex: "female", birthYear: 1990 });
-    const days = planDeviceDays(calendar, random.fork("plan"));
-    await seedDeviceData(api, actor, calendar, days, random.fork("device"));
-    await seedRecoveryMetrics(api, actor, calendar, random.fork("recovery"));
-    await seedLabs(db, api, actor, calendar);
-    await seedStrengthTraining(db, api, actor, calendar, random.fork("training"));
-    await seedNutrition(api, actor, calendar, random.fork("nutrition"));
     // An onboarding goal stays as it is; a demo goal with the same title is
     // skipped rather than added twice.
-    await seedGoals(api, actor, calendar, random.fork("goals"), {
-      skipTitles: await goalTitles(db, actor.organizationId),
+    await seedPersonData(db, api, actor, calendar, random, {
+      skipGoalTitles: await goalTitles(db, actor.organizationId),
     });
-    await seedSupplements(api, actor);
-    await seedCycle(api, actor, calendar, random.fork("cycle"));
-    await seedPreventiveCare(api, actor, calendar);
-    await seedClinical(db, api, actor, calendar);
-    await seedBodyComposition(db, api, actor, calendar, random.fork("body"));
   } finally {
     api.close();
   }

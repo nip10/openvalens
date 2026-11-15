@@ -26,6 +26,8 @@ if (url) {
 // The screens read "today" and "the last 30 days" from the real clock, so the
 // data must end today for them to show it.
 const today = new Date().toISOString().slice(0, 10);
+const daysAgo = (days: number) =>
+  new Date(Date.parse(`${today}T00:00:00Z`) - days * 86_400_000).toISOString().slice(0, 10);
 
 describe.skipIf(!url)("demo seed against disposable PostgreSQL", () => {
   const db = createDb({ DATABASE_URL: url ?? "postgres://127.0.0.1/openvalens_demo_test" });
@@ -116,17 +118,95 @@ describe.skipIf(!url)("demo seed against disposable PostgreSQL", () => {
     });
     const training = await read<{ exercises: unknown[] }>("bodyMap/training", { today });
     expect(training.exercises.length).toBeGreaterThan(2);
-    expect(await read<unknown[]>("body/listDexaScans")).toHaveLength(1);
+    // The first scan and the follow-up last week, so the body map can compare.
+    expect(await read<unknown[]>("body/listDexaScans")).toHaveLength(2);
     expect(await read<unknown[]>("clinical/listCardiacExams")).toHaveLength(1);
     const care = await read<{ items: { id: string }[] }>("preventiveCare/get");
     expect(care.items.map((item) => item.id)).toContain("uk.cervical_screening");
-    expect(await read<unknown[]>("plans/goals/listGoals")).toHaveLength(2);
     expect(await read<unknown[]>("clinical/listFamilyHistory")).toHaveLength(2);
     expect(await read<unknown[]>("privateBody/list")).not.toHaveLength(0);
     const readiness = await read<{ state?: string; score?: number | null }>("score/readiness");
     expect(JSON.stringify(readiness)).not.toContain("insufficient");
     const insights = await read<{ insights: { ruleId: string }[] }>("insights/list");
     expect(insights.insights.map((insight) => insight.ruleId)).toContain("change.sleep_duration");
+  });
+
+  test("the screens added after the first seed have data", async () => {
+    // Goals in the goal model the Goals screens read (not the legacy rows).
+    type Goal = {
+      id: number;
+      title: string;
+      definition: { source: string };
+      evaluation: {
+        currentValue: number | null;
+        coverage: { completeDays: number };
+        milestones: { achieved: boolean }[];
+      };
+    };
+    const goals = await read<Goal[]>("goals/list");
+    expect(goals.map((goal) => goal.definition.source).sort()).toEqual(["manual", "sleep"]);
+    const weight = goals.find((goal) => goal.definition.source === "manual")!;
+    expect(weight.evaluation.currentValue).not.toBeNull();
+    expect(weight.evaluation.milestones.map((m) => m.achieved)).toEqual([true, false]);
+    const detail = await read<{ checkins: unknown[] }>("goals/detail", { id: weight.id });
+    expect(detail.checkins.length).toBeGreaterThan(10);
+    const sleepGoal = goals.find((goal) => goal.definition.source === "sleep")!;
+    expect(sleepGoal.evaluation.coverage.completeDays).toBeGreaterThan(40);
+
+    type Vitals = {
+      oxygenSaturation: { avgPercent: number | null };
+      respiratoryRate: { avgBreathsPerMinute: number | null };
+    };
+    const vitals = await read<Vitals[]>("vitals/daily", { days: 30 });
+    expect(vitals.filter((day) => day.oxygenSaturation.avgPercent !== null).length).toBeGreaterThan(
+      25,
+    );
+    expect(
+      vitals.filter((day) => day.respiratoryRate.avgBreathsPerMinute !== null).length,
+    ).toBeGreaterThan(25);
+    expect(await read<unknown[]>("vitals/bloodPressureReadings", { limit: 10 })).toHaveLength(10);
+
+    const intake = await read<unknown[]>("supplementIntake/list", {
+      from: `${daysAgo(7)}T00:00:00Z`,
+    });
+    expect(intake.length).toBeGreaterThan(10);
+
+    const trackers = await read<{ id: string; name: string }[]>("trackers/list", {
+      timeZone: "Europe/London",
+    });
+    expect(trackers.map((tracker) => tracker.name).sort()).toEqual(["Meditation", "Mood"]);
+    const feeds = await read<{ feed: string; trackerName: string }[]>("trackers/feeds");
+    expect(feeds.map((link) => [link.feed, link.trackerName])).toEqual([
+      ["health_connect_mindfulness", "Meditation"],
+    ]);
+    for (const tracker of trackers) {
+      const chart = await read<{ loggedDays: number }>("trackers/chart", {
+        trackerId: tracker.id,
+        days: 30,
+        timeZone: "Europe/London",
+      });
+      expect(chart.loggedDays).toBeGreaterThan(15);
+    }
+
+    const pain = await read<{ enabled: boolean; regions: unknown[] }>("pain/map", {
+      days: 7,
+      timeZone: "Europe/London",
+    });
+    expect(pain.enabled).toBe(true);
+    expect(pain.regions.length).toBeGreaterThan(0);
+
+    const foods = await read<{ favorites: unknown[] }>("nutritionDiary/listFoods");
+    expect(foods.favorites.length).toBeGreaterThan(2);
+    const templates = await read<{ templates: unknown[] }>("nutritionTemplates/list");
+    expect(templates.templates).toHaveLength(2);
+    const drinks = await read<{ caffeine: { status: string; total?: unknown } }>(
+      "nutritionDrinks/summary",
+      { localDate: today },
+    );
+    expect(drinks.caffeine.status).toBe("ready");
+
+    const comparison = await read<{ comparisons: { optedIn: boolean }[] }>("comparison/get");
+    expect(comparison.comparisons.every((item) => item.optedIn)).toBe(true);
   });
 
   test("a second run gives the same result", async () => {

@@ -339,7 +339,7 @@ describe.skipIf(!url)("review account seed against disposable PostgreSQL", () =>
     expect(goals.map((goal) => goal.title.toLowerCase()).sort()).toEqual([
       "log meals most days",
       "reach 65 kg",
-      "walk 9,000 steps a day",
+      "sleep 7.5 hours a night",
     ]);
   }, 300_000);
 
