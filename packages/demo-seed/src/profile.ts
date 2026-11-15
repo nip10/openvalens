@@ -1,3 +1,4 @@
+import { COMPARISON_METRICS } from "@openvalens/api/reference-comparison-contract";
 import { PERSON_MODULES } from "@openvalens/api/wellness-profile-contract";
 
 import type { DemoApi, DemoActor } from "./api";
@@ -25,6 +26,22 @@ export async function completeSetup(
       sex: { state: "recorded", value: answers.sex },
       enabledModules: [...PERSON_MODULES],
     },
+    actor,
+  );
+}
+
+/**
+ * The opt-ins a curious person turns on, which the screens otherwise show as
+ * offers: reference comparisons for every metric (Scores) and nutrition
+ * observations on the insights panel.
+ */
+export async function seedOptIns(api: DemoApi, actor: DemoActor): Promise<void> {
+  for (const metric of COMPARISON_METRICS) {
+    await api.call("comparison/updateSettings", { metric, enabled: true }, actor);
+  }
+  await api.call(
+    "insights/preferences/update",
+    { channels: { observation: { in_app: true } } },
     actor,
   );
 }

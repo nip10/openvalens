@@ -72,20 +72,49 @@ so it passes the same validation, ownership checks, audit and derived writes
 as the apps. Only the session lookup is replaced: it resolves the acting
 person from the database and checks permissions with the Better Auth roles.
 
+Both entry points run the same list of module seeders, `seedPersonData` in
+`src/person.ts`: `seedDemo` for Alex in the disposable instance, and
+`seedReviewAccount` for the review account.
+
 - Phone and watch data (`mobile.ingestBatch`, as the Android app syncs Health
   Connect): steps, distance, active energy, heart rate, sleep with stages,
   cardio workouts, weight and body fat.
-- Resting heart rate and HRV, and lab readings (`healthRecord.*`).
+- Resting heart rate and HRV, overnight SpO₂ and respiration rate, blood
+  pressure typed in twice a week, and lab readings
+  (`healthRecord.ingestMetricSample`).
 - Strength training: custom exercises, two routines, twice-weekly sessions
   with progressing sets (`exerciseCatalog`, `plans.routines`, `plans.workouts`).
-- Meal diary, plain water and nutrition targets.
-- Goals, supplements and a medication, cycle logging, preventive care, family
-  history, private body measurements, and the wellness profile.
+- Meal diary, plain water and nutrition targets; favourite foods, two saved
+  meals (`nutritionTemplates`), and a morning coffee with the caffeine totals
+  on, so the drinks summary and the sleep screen's caffeine note show.
+- Two goals in the goal model the Goals screens read (`goals.*`): "Reach 65 kg"
+  (a manual target with two milestones and weekly check-ins) and "Sleep 7.5
+  hours a night" (a rolling average fed by the synced sleep).
+- Supplements and a medication with four weeks of actual intakes
+  (`supplementIntake`), cycle logging, preventive care, family history and
+  private body measurements.
+- Custom trackers: Meditation, linked to the Health Connect mindfulness feed
+  and filled by a feed import (`trackers.importFeed`), and a typed-in 1–5 mood.
+- The pain layer of the body map: lower-back stiffness after the deadlift day
+  and an occasional knee ache after a run (`pain.*`).
+- Opt-ins: reference comparisons for every metric (Scores) and nutrition
+  observations on the insights panel; and the wellness profile.
+
+Entries with a time (intakes, tracker entries, pain) end yesterday, because
+those procedures refuse a time in the future and the seed never reads the
+clock.
 
 A few rows have no app write path yet and are inserted the way an import
 would store them: lab marker definitions (with their units), the muscles of
-the custom exercises (the wger catalog carries them), one DEXA scan, one ECG
-and one imaging study.
+the custom exercises (the wger catalog carries them), two DEXA scans (80 days
+and 6 days ago, so the body map can compare them), one ECG and one imaging
+study.
+
+Not seeded, because they need an external service or have no write path the
+seed can use: coach conversations (an AI provider), wearable connections
+(OAuth), Telegram, connected AI apps, progress photos (file storage),
+micronutrients (only catalog foods carry them) and drink presets (catalog
+foods).
 
 The last week is deliberately better than the four before it (more sleep, more
 steps, lower resting heart rate), so the insights screen has changes to report.

@@ -3,24 +3,13 @@ import { importExerciseCatalogSample } from "@openvalens/exercise-catalog/sample
 
 import { createDemoAccounts, type DemoAccounts } from "./accounts";
 import { createDemoApi } from "./api";
-import {
-  seedBodyComposition,
-  seedClinical,
-  seedCycle,
-  seedGoals,
-  seedPreventiveCare,
-  seedSupplements,
-} from "./care";
 import { markTrialingSubscription } from "./cloud";
 import { createCalendar } from "./dates";
-import { planDeviceDays, seedDeviceData } from "./device";
-import { seedNutrition } from "./nutrition";
 import type { DemoSeedOptions } from "./options";
+import { seedPersonData } from "./person";
 import { completeSetup } from "./profile";
 import { createRandom } from "./random";
-import { seedLabs, seedRecoveryMetrics } from "./records";
 import { resetDemoDatabase } from "./reset";
-import { seedStrengthTraining } from "./training";
 
 export type DemoSeedResult = DemoAccounts & {
   cloud: { applied: boolean; reason: string } | null;
@@ -48,19 +37,7 @@ export async function seedDemo(db: Database, options: DemoSeedOptions): Promise<
     const alex = accounts.admin;
     await completeSetup(api, alex, { sex: "female", birthYear: 1990 });
     await completeSetup(api, accounts.member, { sex: "male", birthYear: 1988 });
-
-    const days = planDeviceDays(calendar, random.fork("plan"));
-    await seedDeviceData(api, alex, calendar, days, random.fork("device"));
-    await seedRecoveryMetrics(api, alex, calendar, random.fork("recovery"));
-    await seedLabs(db, api, alex, calendar);
-    await seedStrengthTraining(db, api, alex, calendar, random.fork("training"));
-    await seedNutrition(api, alex, calendar, random.fork("nutrition"));
-    await seedGoals(api, alex, calendar, random.fork("goals"));
-    await seedSupplements(api, alex);
-    await seedCycle(api, alex, calendar, random.fork("cycle"));
-    await seedPreventiveCare(api, alex, calendar);
-    await seedClinical(db, api, alex, calendar);
-    await seedBodyComposition(db, api, alex, calendar, random.fork("body"));
+    await seedPersonData(db, api, alex, calendar, random);
   } finally {
     api.close();
   }

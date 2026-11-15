@@ -177,12 +177,16 @@ describe.skipIf(!url)("review account seed against disposable PostgreSQL", () =>
     const recordAuditBefore = await audit("record");
     const otherAuditBefore = await audit("other");
 
-    const later = new Date(Date.now() + 3 * 86_400_000).toISOString().slice(0, 10);
-    const result = await refreshReviewAccount(db, { email: "reviewer@example.test", today: later });
+    // Goal check-ins refuse future days, so move the data back, not forward.
+    const earlier = new Date(Date.now() - 3 * 86_400_000).toISOString().slice(0, 10);
+    const result = await refreshReviewAccount(db, {
+      email: "reviewer@example.test",
+      today: earlier,
+    });
     expect(result).toMatchObject({
       status: "refreshed",
       ...reviewer,
-      today: later,
+      today: earlier,
       trial: "extended",
     });
     expect(result.erasedRows).toBeGreaterThan(100);
@@ -200,8 +204,12 @@ describe.skipIf(!url)("review account seed against disposable PostgreSQL", () =>
     api.close();
     api = createDemoApi(db);
     const read = <T>(path: string, input: unknown = {}) => api.call<T>(path, input, reviewer);
-    const diary = await read<{ entries: unknown[] }>("nutritionDiary/getDay", { localDate: later });
+    const diary = await read<{ entries: unknown[] }>("nutritionDiary/getDay", {
+      localDate: earlier,
+    });
     expect(diary.entries.length).toBeGreaterThan(3);
+    const after = await read<{ entries: unknown[] }>("nutritionDiary/getDay", { localDate: today });
+    expect(after.entries).toHaveLength(0);
     const profile = await read<{ setupStatus: string }>("profile/get");
     expect(profile.setupStatus).toBe("completed");
     // The trial runs for 30 more days.
@@ -227,7 +235,10 @@ describe.skipIf(!url)("review account seed against disposable PostgreSQL", () =>
 
     // A second refresh gives the same amount of data.
     const before = await rowCount(reviewer.organizationId);
-    const again = await refreshReviewAccount(db, { email: "reviewer@example.test", today: later });
+    const again = await refreshReviewAccount(db, {
+      email: "reviewer@example.test",
+      today: earlier,
+    });
     expect(again.status).toBe("refreshed");
     expect(await rowCount(reviewer.organizationId)).toBe(before);
   }, 600_000);
@@ -339,7 +350,7 @@ describe.skipIf(!url)("review account seed against disposable PostgreSQL", () =>
     expect(goals.map((goal) => goal.title.toLowerCase()).sort()).toEqual([
       "log meals most days",
       "reach 65 kg",
-      "walk 9,000 steps a day",
+      "sleep 7.5 hours a night",
     ]);
   }, 300_000);
 

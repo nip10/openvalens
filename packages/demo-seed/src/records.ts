@@ -3,13 +3,13 @@ import { metricDefinition } from "@openvalens/db/schema/health-record";
 
 import type { DemoApi, DemoActor } from "./api";
 import type { DemoCalendar } from "./dates";
-import { demoRestingHeartRate } from "./device";
+import { demoRestingHeartRate, type DeviceDay } from "./device";
 import { round, type Random } from "./random";
 
 /**
- * Daily recovery metrics and lab results (Issue #301), written through
- * `healthRecord.ingestMetricSample`, the procedure the labs screen uses to add
- * a reading.
+ * Daily recovery metrics, overnight vitals, blood pressure and lab results
+ * (Issue #301), written through `healthRecord.ingestMetricSample`, the
+ * procedure the labs and vitals screens use to add a reading.
  */
 
 /** Synthetic lab panel: three draws, so each marker has a small trend. */
@@ -133,6 +133,76 @@ export async function seedLabs(
                 }
               : { refRangeHigh: marker.high, refRangeText: `< ${marker.high}` },
         },
+        actor,
+      );
+    }
+  }
+}
+
+/**
+ * Overnight blood oxygen (SpO₂) and respiration rate, the vitals added with
+ * the direct-device metrics, through `healthRecord.ingestMetricSample` like the
+ * recovery metrics: three SpO₂ readings and one respiration reading inside each
+ * night's sleep. The calmer last week breathes a little slower.
+ */
+export async function seedNightVitals(
+  api: DemoApi,
+  actor: DemoActor,
+  calendar: DemoCalendar,
+  days: readonly DeviceDay[],
+  random: Random,
+): Promise<void> {
+  for (const metricCode of ["oxygen_saturation", "respiratory_rate"] as const) {
+    await api.call("healthRecord/ingestMetricDefinition", { metricCode }, actor);
+  }
+  for (const day of days) {
+    const { start, end } = day.sleep;
+    for (const share of [0.2, 0.5, 0.8]) {
+      await api.call(
+        "healthRecord/ingestMetricSample",
+        {
+          metricCode: "oxygen_saturation",
+          observedAt: calendar.at(day.offset, start + (end - start) * share).toISOString(),
+          valueNumeric: Math.round(random.normal(96, 1, 92, 99)),
+        },
+        actor,
+      );
+    }
+    const breaths = (day.offset < 7 ? 13.9 : 14.6) + random.normal(0, 0.5, -1.2, 1.2);
+    await api.call(
+      "healthRecord/ingestMetricSample",
+      {
+        metricCode: "respiratory_rate",
+        observedAt: calendar.at(day.offset, (start + end) / 2).toISOString(),
+        valueNumeric: round(breaths, 1),
+      },
+      actor,
+    );
+  }
+}
+
+/**
+ * Blood pressure typed in on Monday and Thursday mornings, as the vitals
+ * screen's form writes it: a systolic and a diastolic sample at the same time.
+ */
+export async function seedBloodPressure(
+  api: DemoApi,
+  actor: DemoActor,
+  calendar: DemoCalendar,
+  random: Random,
+): Promise<void> {
+  for (const offset of calendar.offsets()) {
+    const weekday = new Date(`${calendar.day(offset)}T00:00:00Z`).getUTCDay();
+    if (weekday !== 1 && weekday !== 4) continue;
+    const observedAt = calendar.at(offset, 7.5).toISOString();
+    const readings = [
+      ["blood_pressure_systolic", Math.round(random.normal(117, 4, 106, 128))],
+      ["blood_pressure_diastolic", Math.round(random.normal(75, 3, 66, 84))],
+    ] as const;
+    for (const [metricCode, valueNumeric] of readings) {
+      await api.call(
+        "healthRecord/ingestMetricSample",
+        { metricCode, observedAt, valueNumeric },
         actor,
       );
     }
