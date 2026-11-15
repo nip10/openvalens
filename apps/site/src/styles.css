@@ -1058,11 +1058,7 @@ pre {
   white-space: nowrap;
 }
 
-.status-tested {
-  background: var(--color-weight-soft);
-}
-
-.status-works-in-testing {
+.status-supported {
   background: var(--color-water-soft);
 }
 

@@ -14,7 +14,14 @@ import { ALLOWED_PHRASES, BANNED_TERMS, COMPETITOR_NAMES } from "./wording-rules
 
 import { readAllReleaseNotes } from "../../../scripts/release-notes";
 import { directDeviceSupportList } from "../../../packages/health-record/src/device-support-status";
-import { FAMILY_LABELS, registeredBrands, REASON_NOTES, STATUS_LABELS } from "./devices";
+import {
+  FAMILY_LABELS,
+  registeredBrands,
+  REASON_NOTES,
+  STATUS_LABELS,
+  supportedDeviceCount,
+  supportedDeviceCountLabel,
+} from "./devices";
 import {
   auditCss,
   auditMarkup,
@@ -207,7 +214,9 @@ describe("site copy", () => {
     expect(text).toContain("The iPhone app is in App Store review.");
     expect(text).not.toContain("Mobile apps are not published in the stores yet.");
     expect(text).not.toContain("No hosted service.");
-    expect(text).toContain("No device model is tested on real hardware yet.");
+    expect(text).toContain("Direct Bluetooth arrives with app 1.2.1.");
+    // No separate "tested on a device" status (owner, 2026-11-15).
+    expect(text).not.toMatch(/tested on (a real device|real hardware)/i);
     // Matches the privacy policy: Cloud analytics is opt-in, never health data.
     expect(text).not.toContain("no analytics and no telemetry");
     expect(text).toContain("usage analytics on Cloud is optional, off until you turn it on");
@@ -551,13 +560,17 @@ describe("positioning (#445)", () => {
     expect(html).toContain(`href="${base}/README.md"`);
   });
 
-  test("the devices headline names brands, not a count, and every brand is in the allowlist", async () => {
+  test("the devices headline counts Supported models, rounded down, and every brand is in the allowlist", async () => {
     const html = await readFile(join(outDir, "index.html"), "utf8");
     const headline = /<h2 id="devices-title">\s*([\s\S]*?)\s*<\/h2>/.exec(html)?.[1];
     expect(headline?.replace(/\s+/g, " ")).toBe(
-      "Works with Garmin, Huawei, Amazfit and more, without their apps.",
+      `Works with ${supportedDeviceCountLabel()} devices from Garmin, Huawei, Amazfit and more, without their apps.`,
     );
-    expect(headline).not.toMatch(/\d/);
+    expect(supportedDeviceCountLabel(284)).toBe("280+");
+    expect(supportedDeviceCountLabel(7)).toBe("7");
+    expect(Number.parseInt(supportedDeviceCountLabel(), 10)).toBeLessThanOrEqual(
+      supportedDeviceCount(),
+    );
     const brands = registeredBrands();
     for (const brand of ["Garmin", "Huawei", "Amazfit"]) expect(brands).toContain(brand);
     // Every Pebble model is Experimental, so Pebble is not a headline brand (owner, 2026-11-14).
@@ -616,12 +629,13 @@ describe("supported devices page (#445)", () => {
     }
   });
 
-  test("the headline names no count until models are tested on a device", async () => {
+  test("has two statuses, Supported and Experimental, and no tested-on-a-device copy", async () => {
     const html = await readFile(join(outDir, "devices.html"), "utf8");
     const h1 = /<h1>([^<]*)<\/h1>/.exec(html)?.[1];
     expect(h1).toBe("Supported devices");
-    expect(await pageText(outDir, "devices.html")).toContain(
-      "No model has been tested on a real device yet",
+    expect(Object.values(STATUS_LABELS)).toEqual(["Supported", "Experimental"]);
+    expect(await pageText(outDir, "devices.html")).not.toMatch(
+      /tested on a (real )?device|works in testing/i,
     );
   });
 

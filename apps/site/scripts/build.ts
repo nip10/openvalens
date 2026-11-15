@@ -20,7 +20,7 @@ import {
   RELEASES_DIR,
   type ReleaseNotes,
 } from "../../../scripts/release-notes";
-import { renderDeviceFamilies, renderDeviceSummary } from "./devices";
+import { renderDeviceFamilies, renderDeviceSummary, supportedDeviceCountLabel } from "./devices";
 
 export const SITE_SRC = join(import.meta.dir, "..", "src");
 export const SITE_URL = "https://openvalens.com";
@@ -51,6 +51,8 @@ const CHANGELOG_PLACEHOLDER = "__CHANGELOG_ENTRIES__";
 /** Fill `devices.html` from the direct-device allowlist and statuses (Issue #445). */
 const DEVICE_SUMMARY_PLACEHOLDER = "__DEVICE_SUMMARY__";
 const DEVICE_FAMILIES_PLACEHOLDER = "__DEVICE_FAMILIES__";
+/** The home page's count of "Supported" models, such as "280+". */
+const DEVICE_COUNT_PLACEHOLDER = "__SUPPORTED_DEVICE_COUNT__";
 
 const MONTHS = [
   "January",
@@ -322,6 +324,7 @@ export async function buildSite(
   const changelog = renderChangelogEntries(releases);
   const deviceSummary = renderDeviceSummary();
   const deviceFamilies = renderDeviceFamilies();
+  const deviceCount = supportedDeviceCountLabel();
   await rm(outDir, { recursive: true, force: true });
   await mkdir(outDir, { recursive: true });
   await cp(srcDir, outDir, { recursive: true });
@@ -337,7 +340,8 @@ export async function buildSite(
         .replaceAll(SIGNUP_PLACEHOLDER, CLOUD_SIGNUP_URL)
         .replaceAll(CHANGELOG_PLACEHOLDER, changelog)
         .replaceAll(DEVICE_SUMMARY_PLACEHOLDER, deviceSummary)
-        .replaceAll(DEVICE_FAMILIES_PLACEHOLDER, deviceFamilies),
+        .replaceAll(DEVICE_FAMILIES_PLACEHOLDER, deviceFamilies)
+        .replaceAll(DEVICE_COUNT_PLACEHOLDER, deviceCount),
     );
   }
   await writeFile(join(outDir, "changelog.xml"), renderChangelogFeed(releases));
