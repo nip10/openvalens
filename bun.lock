@@ -481,6 +481,7 @@
         "drizzle-orm": "catalog:",
       },
       "devDependencies": {
+        "@openvalens/i18n": "workspace:*",
         "@types/bun": "catalog:",
         "typescript": "^6.0.3",
       },

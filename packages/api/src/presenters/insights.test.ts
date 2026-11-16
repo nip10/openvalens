@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { createAppI18n } from "@openvalens/i18n";
 import { englishI18n, inEnglish } from "@openvalens/i18n/testing";
 
@@ -16,12 +16,14 @@ import {
   GENERIC_DELIVERY_KINDS,
   GENERIC_PUSH_BODY,
   INSIGHT_COPY,
+  formatInsightDateRange,
   INSIGHT_EMAIL_COPY,
   INSIGHT_KIND_LABELS,
   insightPushContent,
   insightReadinessViews,
   insightView,
   type InsightView,
+  nutritionObservationView,
 } from "./insights";
 
 /**
@@ -603,5 +605,48 @@ describe("push content", () => {
       }
     }
     expect(insightPushContent(pt, null, false).body).toContain("perspetiva");
+  });
+});
+
+/**
+ * Hermes, the engine the native app runs on, has `Intl.DateTimeFormat` but not
+ * `formatRange` (facebook/hermes doc/IntlAPIs.md). Calling it threw "undefined
+ * is not a function" and crashed the Android cockpit as soon as the demo account
+ * showed a nutrition observation, so these run with it removed.
+ */
+describe("date ranges without Intl formatRange (Hermes)", () => {
+  const prototype = Intl.DateTimeFormat.prototype as { formatRange?: unknown };
+  const original = prototype.formatRange;
+  beforeEach(() => {
+    delete prototype.formatRange;
+  });
+  afterEach(() => {
+    prototype.formatRange = original;
+  });
+
+  test("a range falls back to two locale days", () => {
+    expect(formatInsightDateRange(englishI18n, "2026-10-01", "2026-10-07")).toBe("Oct 1 – Oct 7");
+    expect(formatInsightDateRange(englishI18n, "2026-09-28", "2026-10-04")).toBe("Sep 28 – Oct 4");
+  });
+
+  test("the nutrition observation period renders", () => {
+    const view = nutritionObservationView(englishI18n, {
+      ruleId: "observation.meals_and_workouts",
+      window: { from: "2026-10-01", to: "2026-10-07", days: 7 },
+      matchingEvents: null,
+      minimumMatchingEvents: null,
+      completeness: "Completeness information is not available.",
+      title: "Meals and recorded workouts",
+      body: "Logged meals and recorded workouts were noted during this period.",
+    });
+    expect(view.period).toBe("Period: Oct 1 – Oct 7 (7 days)");
+  });
+
+  test("a weekly tracker change renders its week", () => {
+    const view = insightView(
+      englishI18n,
+      make("change.tracker", trackerWeekChange("duration", "higher", "clear")),
+    );
+    expect(view.coverageText).toContain("in the week of Oct 5 – Oct 11,");
   });
 });

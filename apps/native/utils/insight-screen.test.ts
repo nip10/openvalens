@@ -55,6 +55,30 @@ describe("insights section model (native)", () => {
     expect(JSON.stringify(view)).not.toContain("matchingEvents");
     expect(view.body).not.toContain("caused");
   });
+  test("observation and weekly ranges render on Hermes, which has no Intl formatRange", () => {
+    // The Android cockpit crashed with "undefined is not a function" once the
+    // demo account showed a nutrition observation: Hermes implements
+    // `Intl.DateTimeFormat#format` but not `formatRange`.
+    const prototype = Intl.DateTimeFormat.prototype as { formatRange?: unknown };
+    const original = prototype.formatRange;
+    delete prototype.formatRange;
+    try {
+      const view = nutritionObservationView(englishI18n, {
+        ruleId: "observation.meals_and_workouts",
+        window: { from: "2026-10-01", to: "2026-10-07", days: 7 },
+        matchingEvents: null,
+        minimumMatchingEvents: null,
+        completeness: "Completeness information is not available.",
+        title: "Meals and recorded workouts",
+        body: "Logged meals and recorded workouts were noted during this period.",
+      });
+      expect(view.period).toBe("Period: Oct 1 – Oct 7 (7 days)");
+      expect(() => insightsSectionModel(englishI18n, result())).not.toThrow();
+    } finally {
+      prototype.formatRange = original;
+    }
+  });
+
   test("shows the same text as the web view model (parity)", () => {
     const data = result();
     const model = insightsSectionModel(englishI18n, data);
