@@ -79,6 +79,7 @@ function allCopy(): string[] {
     for (const metric of view.metrics)
       strings.push(
         ...metric.ownTrendLines,
+        ...metric.trendFigures.flatMap((figure) => [figure.label, figure.value, figure.note ?? ""]),
         ...metric.comparisonLines,
         ...metric.notes,
         metric.statusText ?? "",
@@ -167,6 +168,26 @@ describe("reference comparison copy (#96)", () => {
     expect(explainUnavailable("not_your_workspace", "sleep_duration", englishI18n)).toContain(
       "your own workspace",
     );
+  });
+
+  test("own trend: the latest day as people say it, and the usual window named", () => {
+    const view = referenceComparisonsView(result(70), englishI18n, {
+      formatDate: (date) => (date === AS_OF ? "Today" : date),
+    });
+    const rhr = view.metrics.find((m) => m.key === "resting_heart_rate")!;
+    expect(rhr.ownTrendLines).toEqual([
+      "Today: 70 bpm.",
+      "Your usual: 70 bpm (median of the last 28 days).",
+    ]);
+    expect(rhr.trendFigures).toEqual([
+      { label: "Today", value: "70 bpm", note: null },
+      { label: "Your usual", value: "70 bpm", note: "median of the last 28 days" },
+    ]);
+    const sleep = view.metrics.find((m) => m.key === "sleep_duration")!;
+    expect(sleep.trendFigures[1]?.value).toBe("8h 00m");
+    // Without a formatter (native today) the ISO date stays.
+    const plain = referenceComparisonsView(result(70), englishI18n).metrics[0]!;
+    expect(plain.ownTrendLines[0]).toBe(`Latest (${AS_OF}): 70 bpm.`);
   });
 
   test("withheld for under-18 and age spans format without false precision", () => {

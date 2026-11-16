@@ -30,8 +30,10 @@ function ScoresPage() {
   });
   return (
     <Page>
+      {/* The nav says "Scores"; the friendly question stays as the subtitle. */}
       <PageHeader
-        title={i18n._(SCORE_COPY.pageTitle)}
+        title={<Trans>Scores</Trans>}
+        description={i18n._(SCORE_COPY.pageTitle)}
         info={
           <>
             <p>{i18n._(SCORE_COPY.pageIntro)}</p>
@@ -40,24 +42,26 @@ function ScoresPage() {
         }
       />
 
-      <div className="grid items-start gap-6">
-        {readiness.isPending ? (
-          <ScoreSkeleton />
-        ) : readiness.isError || !readiness.data ? (
-          <ErrorState
-            title={<Trans>Could not load the readiness index.</Trans>}
-            action={
-              <Button variant="outline" size="sm" onClick={() => void readiness.refetch()}>
-                <Trans>Retry</Trans>
-              </Button>
-            }
-          />
-        ) : (
-          <ReadinessCard result={readiness.data} />
-        )}
+      {/* Desktop: readiness on the left (about 55%), the references stacked on the right. */}
+      <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,11fr)_minmax(0,9fr)]">
+        <div className="grid min-w-0 gap-6">
+          {readiness.isPending ? (
+            <ScoreSkeleton />
+          ) : readiness.isError || !readiness.data ? (
+            <ErrorState
+              title={<Trans>Could not load the readiness index.</Trans>}
+              action={
+                <Button variant="outline" size="sm" onClick={() => void readiness.refetch()}>
+                  <Trans>Retry</Trans>
+                </Button>
+              }
+            />
+          ) : (
+            <ReadinessCard result={readiness.data} />
+          )}
+        </div>
+        <ReferenceComparisonsSection />
       </div>
-
-      <ReferenceComparisonsSection />
 
       <p className="flex flex-wrap items-center gap-2 text-sm text-ink-3">
         <ToneIcon icon={Target} tone="weight" size="sm" />

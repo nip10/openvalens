@@ -1,18 +1,25 @@
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import {
+  collapseTimelineSamples,
   domainLabel,
   groupTimelineByDay,
   severityTone,
   sourceLabel,
   timelineSummary,
   timelineTitle,
+  type TimelineItemLike,
 } from "@openvalens/api/presenters/timeline";
 import { Button } from "@openvalens/ui/components/button";
+import { Label } from "@openvalens/ui/components/label";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
+import { cn } from "@openvalens/ui/lib/utils";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
   Activity,
+  ChevronRight,
   ListChecks,
   PersonStanding,
   CalendarDays,
@@ -43,14 +50,45 @@ import {
 import { friendlyDate } from "@/utils/friendly";
 import { orpc } from "@/utils/orpc";
 
+/**
+ * The filter chips under the title. Each is one or more timeline domains:
+ * Vitals spans the vitals and cardiac domains (heart-rate samples are cardiac).
+ */
+const FILTERS = {
+  sleep: { label: msg`Sleep`, domains: ["sleep"] },
+  activity: { label: msg`Activity`, domains: ["activity"] },
+  vitals: { label: msg`Vitals`, domains: ["vitals", "cardiac"] },
+  body: { label: msg`Body`, domains: ["body"] },
+  labs: { label: msg`Labs`, domains: ["labs", "imaging"] },
+  supplements: { label: msg`Meds and supplements`, domains: ["meds_supplements"] },
+  water: { label: msg`Water`, domains: ["water"] },
+  trackers: { label: msg`Trackers`, domains: ["custom"] },
+  pain: { label: msg`Pain`, domains: ["pain"] },
+} as const satisfies Record<string, { label: MessageDescriptor; domains: readonly string[] }>;
+type FilterId = keyof typeof FILTERS;
+const FILTER_IDS = Object.keys(FILTERS) as [FilterId, ...FilterId[]];
+
 export const Route = createFileRoute("/_auth/records/timeline")({
   // `?source=ai_app:<grantId>` shows only what one connected AI app wrote
-  // (#439, M2; linked from Settings → Connected AI apps).
-  validateSearch: z.object({ source: z.string().min(1).max(200).optional() }),
+  // (#439, M2; linked from Settings → Connected AI apps). `?show=` is a filter
+  // chip and `?day=` jumps to a day (that day and earlier).
+  validateSearch: z.object({
+    source: z.string().min(1).max(200).optional(),
+    show: z.enum(FILTER_IDS).optional().catch(undefined),
+    day: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional()
+      .catch(undefined),
+  }),
   component: TimelinePage,
 });
 
-const PAGE_SIZE = 50;
+/**
+ * The server's page size. Passive readings fold into one row per measure and
+ * day, so a full page keeps the day's other entries on screen.
+ */
+const PAGE_SIZE = 200;
 const DOMAIN_ICON: Record<string, { icon: LucideIcon; tone: Tone }> = {
   sleep: { icon: Moon, tone: "sleep" },
   activity: { icon: Footprints, tone: "steps" },
@@ -68,15 +106,38 @@ const DOMAIN_ICON: Record<string, { icon: LucideIcon; tone: Tone }> = {
 };
 const OTHER_DOMAIN = { icon: Sparkles, tone: "signal" } as const;
 
+/** The end of a local calendar day as an ISO timestamp (the server's `to` is inclusive). */
+function endOfLocalDay(day: string): string {
+  const [y, m, d] = day.split("-").map(Number);
+  return new Date(y!, m! - 1, d!, 23, 59, 59, 999).toISOString();
+}
+
+function todayIso(): string {
+  const now = new Date();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  return `${now.getFullYear()}-${m}-${d}`;
+}
+
+const CHIP =
+  "inline-flex h-8 shrink-0 items-center rounded-full border px-3 text-sm whitespace-nowrap transition-colors duration-[var(--dur-short)] hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:bg-paper-3";
+const CHIP_ON =
+  "border-transparent bg-sidebar-accent font-semibold text-signal hover:bg-sidebar-accent";
+const CHIP_OFF = "border-input bg-card text-ink-2";
+
 function TimelinePage() {
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const { i18n } = useLingui();
-  const { source } = Route.useSearch();
+  const { i18n, t } = useLingui();
+  const { source, show, day } = Route.useSearch();
+  const navigate = useNavigate({ from: Route.fullPath });
+  const domains = show ? [...FILTERS[show].domains] : undefined;
   const query = useInfiniteQuery(
     orpc.timeline.list.infiniteOptions({
       input: (cursor: string | undefined) => ({
         limit: PAGE_SIZE,
         ...(source ? { source } : {}),
+        ...(domains ? { domains } : {}),
+        ...(day ? { to: endOfLocalDay(day) } : {}),
         ...(cursor ? { cursor } : {}),
       }),
       initialPageParam: undefined,
@@ -85,10 +146,73 @@ function TimelinePage() {
   );
   const items = query.data?.pages.flatMap((page) => page.items) ?? [];
   const groups = groupTimelineByDay(items, timeZone);
+  const filtered = Boolean(show || day);
 
   return (
     <Page>
       <PageHeader title={<Trans>Timeline</Trans>} />
+
+      <div className="grid min-w-0 gap-3">
+        <nav
+          aria-label={t`Filter the timeline`}
+          className="-mx-4 min-w-0 overflow-x-auto px-4 [contain:inline-size] md:mx-0 md:px-0"
+        >
+          <ul className="flex w-max gap-2 md:w-auto md:flex-wrap">
+            <li>
+              <Link
+                to="/records/timeline"
+                search={(prev) => ({ ...prev, show: undefined })}
+                aria-current={show ? undefined : "page"}
+                className={cn(CHIP, show ? CHIP_OFF : CHIP_ON)}
+              >
+                <Trans>All</Trans>
+              </Link>
+            </li>
+            {FILTER_IDS.map((id) => (
+              <li key={id}>
+                <Link
+                  to="/records/timeline"
+                  search={(prev) => ({ ...prev, show: id })}
+                  aria-current={show === id ? "page" : undefined}
+                  className={cn(CHIP, show === id ? CHIP_ON : CHIP_OFF)}
+                >
+                  {i18n._(FILTERS[id].label)}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
+          <Label htmlFor="timeline-day" className="text-ink-3">
+            <Trans>Go to a day</Trans>
+          </Label>
+          <input
+            id="timeline-day"
+            type="date"
+            max={todayIso()}
+            value={day ?? ""}
+            onChange={(event) => {
+              const value = event.target.value;
+              void navigate({
+                search: (prev) => ({
+                  ...prev,
+                  day: /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : undefined,
+                }),
+              });
+            }}
+            className="h-9 rounded-xl border border-input bg-card px-3 text-sm text-ink outline-2 -outline-offset-2 outline-transparent focus-visible:outline-ring"
+          />
+          {day ? (
+            <Link
+              to="/records/timeline"
+              search={(prev) => ({ ...prev, day: undefined })}
+              className="font-medium text-ink underline-offset-4 hover:underline"
+            >
+              <Trans>Back to today</Trans>
+            </Link>
+          ) : null}
+        </div>
+      </div>
 
       {source ? (
         <p
@@ -128,57 +252,64 @@ function TimelinePage() {
           }
         />
       ) : groups.length === 0 ? (
-        <EmptyState
-          icon={History}
-          title={<Trans>No records yet</Trans>}
-          description={
-            <Trans>Sync Health Connect or Apple Health from the mobile app, or add an entry.</Trans>
-          }
-        />
+        filtered ? (
+          <EmptyState
+            icon={History}
+            title={<Trans>Nothing here</Trans>}
+            description={<Trans>No entries match this filter.</Trans>}
+          />
+        ) : (
+          <EmptyState
+            icon={History}
+            title={<Trans>No records yet</Trans>}
+            description={
+              <Trans>
+                Sync Health Connect or Apple Health from the mobile app, or add an entry.
+              </Trans>
+            }
+          />
+        )
       ) : (
-        <div className="grid justify-items-start gap-8">
+        <div className="grid min-w-0 justify-items-start gap-6">
           {groups.map((group) => (
-            <section key={group.day} aria-label={group.day} className="grid w-full gap-3">
-              <h2 className="text-xl leading-tight text-ink">
+            <section
+              key={group.day}
+              aria-label={group.day}
+              className="grid w-full min-w-0 grid-cols-1 gap-2"
+            >
+              {/* The day stays in view while its entries scroll (below the phone top bar). */}
+              <h2 className="sticky top-14 z-10 bg-paper py-2 text-xl leading-tight text-ink lg:top-0">
                 <time dateTime={group.day}>{friendlyDate(i18n, group.day)}</time>
               </h2>
-              <ul className="sheet grid divide-y divide-rule px-4 py-1">
-                {group.items.map((item) => {
-                  const tone = severityTone(item.severity);
-                  const source = sourceLabel(item, i18n);
-                  const summary = timelineSummary(item, i18n);
-                  const look = DOMAIN_ICON[item.domain] ?? OTHER_DOMAIN;
-                  return (
-                    <li key={item.id} className="flex items-start gap-3 py-3">
-                      <ToneIcon icon={look.icon} tone={look.tone} />
-                      <div className="grid min-w-0 flex-1 gap-0.5">
-                        <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                          <span className="font-semibold text-ink">
-                            {timelineTitle(item, i18n)}
-                          </span>
-                          {tone ? (
-                            <StatusPill tone={tone === "destructive" ? "bad" : "warn"}>
-                              {item.severity === "critical" ? (
-                                <Trans>Needs attention</Trans>
-                              ) : (
-                                <Trans>Check</Trans>
-                              )}
-                            </StatusPill>
-                          ) : null}
-                        </p>
-                        {summary ? <p className="truncate text-ink-2">{summary}</p> : null}
-                        <p className="text-sm text-ink-3">
-                          {i18n._(domainLabel(item.domain))}
-                          {source ? ` · ${source}` : ""}
-                        </p>
-                      </div>
-                      {/* A workout session has a day but no time of day (#493). */}
-                      {item.time ? (
-                        <span className="num shrink-0 pt-0.5 text-sm text-ink-3">{item.time}</span>
-                      ) : null}
+              <ul className="sheet grid grid-cols-1 divide-y divide-rule px-4 py-1">
+                {collapseTimelineSamples(group.items, i18n).map((row) =>
+                  row.type === "entry" ? (
+                    <li key={row.key}>
+                      <EntryLine item={row.item} time={row.item.time} />
                     </li>
-                  );
-                })}
+                  ) : (
+                    <li key={row.key}>
+                      <details className="group">
+                        <summary className="-mx-2 cursor-pointer list-none rounded-2xl px-2 transition-colors duration-[var(--dur-short)] hover:bg-paper-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
+                          <EntryLine
+                            item={row.items[0]!}
+                            summary={row.summary}
+                            time={row.timeRange}
+                            expandable
+                          />
+                        </summary>
+                        <ul className="grid grid-cols-2 gap-x-4 gap-y-1 pb-3 pl-11 text-sm text-ink-2 sm:grid-cols-4">
+                          {row.items.map((reading) => (
+                            <li key={reading.id} className="flex gap-2 tabular-nums">
+                              <span className="text-ink-3">{reading.time}</span>
+                              <span>{timelineSummary(reading, i18n)}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </details>
+                    </li>
+                  ),
+                )}
               </ul>
             </section>
           ))}
@@ -196,5 +327,56 @@ function TimelinePage() {
         </div>
       )}
     </Page>
+  );
+}
+
+/**
+ * One entry on one line: the icon (which names the area), name and value on
+ * the left, source and time on the right. The source gives way on a phone.
+ */
+function EntryLine({
+  item,
+  summary,
+  time,
+  expandable = false,
+}: {
+  item: TimelineItemLike;
+  /** Overrides the entry's own value (a folded row's "44 readings · 52–95 bpm"). */
+  summary?: string;
+  time: string;
+  expandable?: boolean;
+}) {
+  const { i18n } = useLingui();
+  const tone = severityTone(item.severity);
+  const source = sourceLabel(item, i18n);
+  const value = summary ?? timelineSummary(item, i18n);
+  const look = DOMAIN_ICON[item.domain] ?? OTHER_DOMAIN;
+  return (
+    <div className="flex min-h-12 items-center gap-3 py-2">
+      <ToneIcon icon={look.icon} tone={look.tone} size="sm" />
+      <span className="sr-only">{i18n._(domainLabel(item.domain))}</span>
+      <p className="flex min-w-0 flex-1 items-center gap-2">
+        <span className="min-w-0 truncate">
+          <span className="font-semibold text-ink">{timelineTitle(item, i18n)}</span>
+          {value ? <span className="text-ink-2"> {value}</span> : null}
+        </span>
+        {tone ? (
+          <StatusPill tone={tone === "destructive" ? "bad" : "warn"}>
+            {item.severity === "critical" ? <Trans>Needs attention</Trans> : <Trans>Check</Trans>}
+          </StatusPill>
+        ) : null}
+      </p>
+      <span className="flex shrink-0 items-center gap-1.5 text-sm text-ink-3 tabular-nums">
+        {source ? <span className="hidden sm:inline">{time ? `${source} ·` : source}</span> : null}
+        {/* A workout session has a day but no time of day (#493). */}
+        {time ? <span>{time}</span> : null}
+        {expandable ? (
+          <ChevronRight
+            className="size-4 transition-transform duration-[var(--dur-short)] group-open:rotate-90 motion-reduce:transition-none"
+            aria-hidden="true"
+          />
+        ) : null}
+      </span>
+    </div>
   );
 }

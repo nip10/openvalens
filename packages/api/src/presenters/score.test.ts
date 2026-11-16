@@ -47,9 +47,9 @@ describe("readinessView", () => {
     expect(view.badge).toBe("Experimental");
     expect(view.scoreText).toBe("38");
     expect(view.accessibilityLabel).toBe(
-      "Experimental readiness index 38 out of 100, physiology-enhanced profile.",
+      "Experimental readiness index 38 out of 100. Uses heart data from your watch.",
     );
-    expect(view.profileLabel).toBe("Physiology-enhanced profile");
+    expect(view.profileLabel).toBe("Uses heart data from your watch");
     expect(view.coverageText).toBe(
       "Uses 2 of 3 inputs for this profile: Sleep and Resting heart rate.",
     );
@@ -58,9 +58,40 @@ describe("readinessView", () => {
     const sleep = view.components.find((c) => c.key === "sleep")!;
     expect(sleep).toMatchObject({ used: true, scoreText: "40", stateLabel: "Used" });
     expect(sleep.detail).toBe(
-      "Recent 6h 45m vs usual 7h 30m (median of 28 days), 10% below your usual.",
+      "Recent 6h 45m vs usual 7h 30m (median of the 28 days before), 10% below your usual.",
+    );
+    // Which way each counted part moves the index, and its share of it.
+    expect(sleep.effectText).toBe("Less sleep than your usual, so it lowers readiness.");
+    expect(sleep.weightText).toBe("1 of 2 equal parts.");
+    const heart = view.components.find((c) => c.key === "resting_heart_rate")!;
+    expect(heart.effectText).toBe("Higher than your usual, so it lowers readiness.");
+    expect(view.components.find((c) => c.key === "activity_load")?.effectText).toBeNull();
+    expect(view.notCountedText).toBe(
+      "Not counted yet: Heart rate variability and How you feel (check-in)",
     );
     expect(view.versionText).toBe("Method readiness-0.1.0-experimental, as of 2026-10-15.");
+  });
+
+  test("a part above its usual adds to readiness; a short window is named", () => {
+    const view = readinessView(
+      computeReadiness(
+        {
+          sleepMinutes: [...flat(1, 20, 450), { date: AS_OF, value: 495 }],
+          restingHeartRate: [...flat(1, 28, 60), { date: AS_OF, value: 57 }],
+          steps: [],
+        },
+        AS_OF,
+      ),
+      englishI18n,
+    );
+    const sleep = view.components.find((c) => c.key === "sleep")!;
+    expect(sleep.detail).toBe(
+      "Recent 8h 15m vs usual 7h 30m (median of 20 days in the 28 before), 10% above your usual.",
+    );
+    expect(sleep.effectText).toBe("More sleep than your usual, so it adds to readiness.");
+    expect(view.components.find((c) => c.key === "resting_heart_rate")?.effectText).toBe(
+      "Lower than your usual, so it adds to readiness.",
+    );
   });
 
   test("a withheld score shows no number, a reason and what would help", () => {

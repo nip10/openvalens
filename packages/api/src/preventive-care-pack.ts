@@ -48,7 +48,7 @@ const NHS_ITEM = {
 const DECISION_AID_INVENTORY = "https://decisionaid.ohri.ca/AZinvent.php";
 
 export const PREVENTIVE_CARE_PACK: PreventivePack = {
-  version: "2026-10-16.1",
+  version: "2026-11-16.1",
   maxReviewDays: 90,
   criteria: [
     {
@@ -67,9 +67,9 @@ export const PREVENTIVE_CARE_PACK: PreventivePack = {
     {
       id: "nhs_health_check_listed_condition",
       question:
-        "Have you been told you have any of the conditions the NHS lists as not eligible for the NHS Health Check?",
+        "Do you have heart disease, diabetes, kidney disease or another condition the NHS Health Check excludes?",
       purpose:
-        "Optional. The NHS page linked on the item lists them. Only used to show whether that item may apply to you. Stored privately; clear it any time.",
+        "Optional. The full list is on the NHS Health Check page linked from that item (Source). Only used to show whether that item may apply to you. Stored privately; clear it any time.",
     },
   ],
   items: [

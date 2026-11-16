@@ -15,6 +15,7 @@ import { Footprints, HeartPulse, type LucideIcon, Moon, Scale } from "lucide-rea
 import { toast } from "sonner";
 
 import { Details, ErrorState, InfoTip, type Tone, ToneIcon } from "@/components/page";
+import { friendlyDate } from "@/utils/friendly";
 import { orpc } from "@/utils/orpc";
 
 /**
@@ -45,30 +46,40 @@ function MetricCard({
   const headingId = `comparison-${metric.key}`;
   const look = METRIC_LOOK[metric.key] ?? { icon: Scale, tone: "water" as const };
   return (
-    <li aria-labelledby={headingId} className="sheet grid min-w-0 content-start gap-4 p-5">
-      <div className="flex items-start gap-3">
+    // Every card has the same order (title, latest, your usual, reference,
+    // footer) and is a flex column, so the footer sits on the card's bottom
+    // edge and lines up with its siblings (one row height via `auto-rows-fr`).
+    <li aria-labelledby={headingId} className="sheet flex h-full min-w-0 flex-col gap-4 p-5">
+      <div className="flex items-center gap-3">
         <ToneIcon icon={look.icon} tone={look.tone} />
-        <div className="grid min-w-0 flex-1 gap-1">
-          <div className="flex items-center gap-1">
-            <h3 id={headingId} className="text-base leading-snug text-ink">
-              {metric.title}
-            </h3>
-            {!metric.optedIn ? (
-              <InfoTip>
-                <p>{metric.disclosure}</p>
-              </InfoTip>
-            ) : null}
-          </div>
-          <p className="sr-only">
-            <Trans>Your trend</Trans>
-          </p>
-          <ul className="grid gap-0.5 text-sm text-ink-2 tabular-nums">
-            {metric.ownTrendLines.map((line) => (
-              <li key={line}>{line}</li>
-            ))}
-          </ul>
-        </div>
+        <h3 id={headingId} className="text-base leading-snug text-ink">
+          {metric.title}
+        </h3>
+        {!metric.optedIn ? (
+          <InfoTip>
+            <p>{metric.disclosure}</p>
+          </InfoTip>
+        ) : null}
       </div>
+      <p className="sr-only">
+        <Trans>Your trend</Trans>
+      </p>
+      <ul className="sr-only">
+        {metric.ownTrendLines.map((line) => (
+          <li key={line}>{line}</li>
+        ))}
+      </ul>
+      <dl className="grid grid-cols-2 gap-3" aria-hidden="true">
+        {metric.trendFigures.map((figure) => (
+          <div key={figure.label} className="grid min-w-0 content-start gap-0.5">
+            <dt className="text-sm text-ink-3">{figure.label}</dt>
+            <dd className="num font-display text-2xl leading-tight font-medium text-ink">
+              {figure.value}
+            </dd>
+            {figure.note ? <dd className="text-xs text-ink-3">{figure.note}</dd> : null}
+          </div>
+        ))}
+      </dl>
       {metric.statusText || metric.comparisonLines.length > 0 ? (
         <div className="grid gap-1 rounded-2xl bg-paper-2 px-4 py-3 text-sm">
           <p className="text-ink-3">
@@ -82,7 +93,7 @@ function MetricCard({
           ))}
         </div>
       ) : null}
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="mt-auto grid justify-items-start gap-1.5">
         <Button
           variant="outline"
           size="sm"
@@ -134,7 +145,10 @@ export function ReferenceComparisonsCard({
   onToggle: (metric: ComparisonMetric, enabled: boolean) => void;
 }) {
   const { i18n } = useLingui();
-  const view = referenceComparisonsView(result, i18n);
+  // "Today: 54 bpm", the way the rest of the app names a day.
+  const view = referenceComparisonsView(result, i18n, {
+    formatDate: (date) => friendlyDate(i18n, date),
+  });
   return (
     <section
       aria-labelledby="reference-comparisons-title"
@@ -154,7 +168,7 @@ export function ReferenceComparisonsCard({
       </div>
       {view.withheldText ? <p className="sheet px-5 py-4 text-ink-2">{view.withheldText}</p> : null}
       {view.metrics.length > 0 ? (
-        <ul className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <ul className="grid gap-4 lg:auto-rows-fr">
           {view.metrics.map((metric) => (
             <MetricCard key={metric.key} metric={metric} pending={pending} onToggle={onToggle} />
           ))}
@@ -191,7 +205,7 @@ export function ReferenceComparisonsSection() {
   );
   if (comparisons.isPending)
     return (
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3" aria-hidden="true">
+      <div className="grid gap-4" aria-hidden="true">
         {["a", "b", "c"].map((key) => (
           <Skeleton key={key} className="h-48 w-full rounded-3xl" />
         ))}

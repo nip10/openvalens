@@ -5,7 +5,7 @@
  * times). Labels are Lingui message descriptors (#67).
  */
 import type { I18n, MessageDescriptor } from "@lingui/core";
-import { msg } from "@lingui/core/macro";
+import { msg, plural } from "@lingui/core/macro";
 import type { WearableProviderId } from "@openvalens/wearables";
 
 import { aiAppSourceLabel } from "./ai-apps";
@@ -53,7 +53,8 @@ const DOMAIN_LABELS: Record<string, MessageDescriptor> = {
   calendar: msg`Calendar`,
   sync: msg`Sync`,
   imaging: msg`Imaging`,
-  cardiac: msg`Cardiac`,
+  // Heart-rate samples land here; people know the area as Vitals (nav, dashboard, Scores).
+  cardiac: msg`Vitals`,
   custom: msg`Trackers`,
   pain: msg`Pain`,
   water: msg`Water`,
@@ -223,6 +224,14 @@ function workoutSession(item: TimelineItemLike) {
   };
 }
 
+/** A metric's unit in the reader's language, or the stored one when it reads well alone. */
+function metricUnit(item: TimelineItemLike, i18n: I18n): string | null {
+  const copy = metricCopy(item);
+  const stored = text(item.canonical?.unit);
+  if (copy) return copy.unit ? i18n._(copy.unit) : null;
+  return stored && !SILENT_UNITS.has(stored) ? stored : null;
+}
+
 function eventType(item: TimelineItemLike): string | null {
   return item.kind === "event" ? text(item.canonical?.type) : null;
 }
@@ -289,13 +298,7 @@ export function timelineSummary(item: TimelineItemLike, i18n: I18n): string {
     const value = item.canonical.value;
     if (typeof value === "number" && Number.isFinite(value)) {
       const number = new Intl.NumberFormat(i18n.locale, { maximumFractionDigits: 1 }).format(value);
-      const copy = metricCopy(item);
-      const stored = text(item.canonical.unit);
-      const unit = copy
-        ? copy.unit && i18n._(copy.unit)
-        : stored && !SILENT_UNITS.has(stored)
-          ? stored
-          : null;
+      const unit = metricUnit(item, i18n);
       return unit ? `${number} ${unit}` : number;
     }
     const written = text(value);
@@ -354,4 +357,95 @@ export function groupTimelineByDay<T extends TimelineItemLike>(
     else groups.push({ day, items: [{ ...item, time }] });
   }
   return groups;
+}
+
+type DayItem<T extends TimelineItemLike> = TimelineDayGroup<T>["items"][number];
+
+/** A day's row: one entry, or a device's readings of one measure folded into one. */
+export type TimelineRow<T extends TimelineItemLike> =
+  | { type: "entry"; key: string; item: DayItem<T> }
+  | {
+      type: "samples";
+      key: string;
+      /** The readings, newest first; the first stands for the row (title, icon, source). */
+      items: DayItem<T>[];
+      /** "44 readings · 52–95 bpm". */
+      summary: string;
+      /** "05:00–15:45": the earliest to the latest reading. */
+      timeRange: string;
+    };
+
+/**
+ * A reading a device or app wrote on its own (a heart-rate sample every 15
+ * minutes), not one the member typed in or a connected AI app added.
+ */
+function isPassiveSample(item: TimelineItemLike): boolean {
+  if (item.kind !== "metric" || !text(item.canonical?.metricCode)) return false;
+  return item.sourceRefs.every(
+    (ref) => ref.provider !== "manual" && ref.type !== "manual" && ref.type !== "ai_app",
+  );
+}
+
+function numericValue(item: TimelineItemLike): number | null {
+  const value = item.canonical?.value;
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+/**
+ * Folds a day's passive readings into one row per measure and source, so a
+ * heart-rate sample every 15 minutes reads "Heart rate · 44 readings · 52–95
+ * bpm" instead of burying everything else. The row sits where the newest
+ * reading was; entries the member logged stay one row each. Only a range is
+ * shown, never a total: overlapping samples from one source would double count.
+ */
+export function collapseTimelineSamples<T extends TimelineItemLike>(
+  items: readonly DayItem<T>[],
+  i18n: I18n,
+): TimelineRow<T>[] {
+  const rows: TimelineRow<T>[] = [];
+  const groups = new Map<string, DayItem<T>[]>();
+  const order: (DayItem<T> | string)[] = [];
+  for (const item of items) {
+    if (!isPassiveSample(item)) {
+      order.push(item);
+      continue;
+    }
+    const key = `${text(item.canonical?.metricCode)}|${sourceLabel(item, i18n) ?? ""}`;
+    const group = groups.get(key);
+    if (group) group.push(item);
+    else {
+      groups.set(key, [item]);
+      order.push(key);
+    }
+  }
+  const format = new Intl.NumberFormat(i18n.locale, { maximumFractionDigits: 1 });
+  for (const entry of order) {
+    if (typeof entry !== "string") {
+      rows.push({ type: "entry", key: entry.id, item: entry });
+      continue;
+    }
+    const group = groups.get(entry)!;
+    const first = group[0]!;
+    if (group.length === 1) {
+      rows.push({ type: "entry", key: first.id, item: first });
+      continue;
+    }
+    const values = group.map(numericValue).filter((value): value is number => value !== null);
+    const unit = metricUnit(first, i18n);
+    const low = values.length ? format.format(Math.min(...values)) : null;
+    const high = values.length ? format.format(Math.max(...values)) : null;
+    const range = low === null ? null : low === high ? low : `${low}–${high}`;
+    const count = group.length;
+    const readings = i18n._(msg`${plural(count, { one: "# reading", other: "# readings" })}`);
+    const latest = first.time;
+    const earliest = group.at(-1)!.time;
+    rows.push({
+      type: "samples",
+      key: `samples:${entry}`,
+      items: group,
+      summary: range ? `${readings} · ${unit ? `${range} ${unit}` : range}` : readings,
+      timeRange: earliest && latest && earliest !== latest ? `${earliest}–${latest}` : latest,
+    });
+  }
+  return rows;
 }

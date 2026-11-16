@@ -1,4 +1,4 @@
-import { Trans, useLingui } from "@lingui/react/macro";
+import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import type {
   DeclarationAnswer,
   EvidenceLibraryResult,
@@ -22,11 +22,11 @@ import { Label } from "@openvalens/ui/components/label";
 import { Switch } from "@openvalens/ui/components/switch";
 import { useState, type ReactNode } from "react";
 
-import { BookOpen, CalendarClock, MessageCircleQuestion, ShieldCheck } from "lucide-react";
+import { BookOpen, ChevronRight, MessageCircleQuestion, ShieldCheck } from "lucide-react";
 
 import { friendlyDate } from "@/utils/friendly";
 
-import { Details, InfoTip, PageHeader, StatTile, StatusPill, ToneIcon } from "./page";
+import { Details, InfoTip, PageHeader, StatusPill, ToneIcon } from "./page";
 
 /**
  * Issue #97 — preventive care (web). Same view models and copy as native
@@ -310,39 +310,50 @@ function Criteria({
         </InfoTip>
       </div>
       <div className="sheet divide-y divide-rule">
-        {result.criteria.map((criterion) => (
-          <fieldset
-            key={criterion.id}
-            className="grid gap-1 px-5 py-4"
-            disabled={pending || !result.canEdit}
-          >
-            <legend className="mb-1 flex items-center gap-1 font-semibold text-ink">
-              {criterion.question}
-              <InfoTip align="end">
-                <p>{criterion.purpose}</p>
-              </InfoTip>
-            </legend>
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-1">
-              {DECLARATION_ANSWERS.map((answer) => (
-                <label key={answer} className="flex items-center gap-1.5 text-sm text-ink-2">
-                  <input
-                    className="size-4 accent-signal disabled:cursor-not-allowed disabled:opacity-55"
-                    type="radio"
-                    name={`criterion-${criterion.id}`}
-                    checked={criterion.answer === answer}
-                    onChange={() => onDeclare(criterion.id, answer)}
-                  />
-                  {i18n._(DECLARATION_LABELS[answer])}
-                </label>
-              ))}
-              {criterion.answer !== null ? (
-                <Button size="sm" variant="ghost" onClick={() => onDeclare(criterion.id, null)}>
-                  {i18n._(PREVENTIVE_COPY.clearAnswer)}
-                </Button>
-              ) : null}
-            </div>
-          </fieldset>
-        ))}
+        {result.criteria.map((criterion) => {
+          // The page of the item that asks this question, e.g. the NHS list of conditions.
+          const source = result.items.find((item) =>
+            item.population.criteria.some((entry) => entry.criterion === criterion.id),
+          )?.sourceUrl;
+          return (
+            <fieldset
+              key={criterion.id}
+              className="grid gap-1 px-5 py-4"
+              disabled={pending || !result.canEdit}
+            >
+              <legend className="mb-1 flex items-center gap-1 font-semibold text-ink">
+                {criterion.question}
+                <InfoTip align="end">
+                  <p>{criterion.purpose}</p>
+                  {source ? (
+                    <a className={LINK} href={source} target="_blank" rel="noreferrer">
+                      {i18n._(PREVENTIVE_COPY.sourceLink)}
+                    </a>
+                  ) : null}
+                </InfoTip>
+              </legend>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-1">
+                {DECLARATION_ANSWERS.map((answer) => (
+                  <label key={answer} className="flex items-center gap-1.5 text-sm text-ink-2">
+                    <input
+                      className="size-4 accent-signal disabled:cursor-not-allowed disabled:opacity-55"
+                      type="radio"
+                      name={`criterion-${criterion.id}`}
+                      checked={criterion.answer === answer}
+                      onChange={() => onDeclare(criterion.id, answer)}
+                    />
+                    {i18n._(DECLARATION_LABELS[answer])}
+                  </label>
+                ))}
+                {criterion.answer !== null ? (
+                  <Button size="sm" variant="ghost" onClick={() => onDeclare(criterion.id, null)}>
+                    {i18n._(PREVENTIVE_COPY.clearAnswer)}
+                  </Button>
+                ) : null}
+              </div>
+            </fieldset>
+          );
+        })}
       </div>
     </section>
   );
@@ -366,44 +377,57 @@ export function EvidenceLibraryView({ library }: { library: EvidenceLibraryResul
           </p>
         </InfoTip>
       </div>
-      <div className="grid gap-4 md:grid-cols-2">
+      {/* A compact list: the title and its verdict on one line, the rest on tap. */}
+      <ul className="sheet grid divide-y divide-rule px-2">
         {library.entries.map((entry) => {
           const card = evidenceEntryCard(i18n, entry);
           return (
-            <article
-              key={card.key}
-              role="article"
-              aria-labelledby={`ev-${card.key}`}
-              className="sheet grid min-w-0 content-start gap-2.5 p-5"
-            >
-              <h3 id={`ev-${card.key}`} className="text-base leading-tight text-ink">
-                {card.title}
-              </h3>
-              <p className="flex flex-wrap items-center gap-2 text-sm">
-                <StatusPill tone="neutral">{card.verdictLabel}</StatusPill>
-                <span className="text-ink-3">{card.certaintyLabel}</span>
-              </p>
-              <div className="grid gap-2 text-sm text-ink-2">
-                {card.lines.map((line) => (
-                  <p key={line}>{line}</p>
-                ))}
-              </div>
-              <Details summary={<Trans>Sources</Trans>} className="text-sm">
-                <ul className="grid gap-1 text-sm text-ink-3">
-                  {card.sources.map((source) => (
-                    <li key={source.url + source.citation}>
-                      <a className={LINK} href={source.url} target="_blank" rel="noreferrer">
-                        {source.citation}
-                      </a>
-                      {source.note ? <span className="block">{source.note}</span> : null}
-                    </li>
-                  ))}
-                </ul>
-              </Details>
-            </article>
+            <li key={card.key}>
+              <details className="group">
+                <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-1.5 rounded-2xl px-3 py-3 transition-colors duration-[var(--dur-short)] hover:bg-paper-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
+                  <ChevronRight
+                    className="size-4 shrink-0 text-ink-3 transition-transform duration-[var(--dur-short)] group-open:rotate-90 motion-reduce:transition-none"
+                    aria-hidden="true"
+                  />
+                  <span
+                    id={`ev-${card.key}`}
+                    className="min-w-0 flex-1 font-display text-base leading-tight font-medium text-ink"
+                  >
+                    {card.title}
+                  </span>
+                  <StatusPill tone={card.verdictTone} className="whitespace-normal">
+                    {card.verdictLabel}
+                  </StatusPill>
+                </summary>
+                <article
+                  role="article"
+                  aria-labelledby={`ev-${card.key}`}
+                  className="grid min-w-0 gap-2.5 px-3 pb-4 pl-10"
+                >
+                  <p className="text-sm text-ink-3">{card.certaintyLabel}</p>
+                  <div className="grid max-w-[70ch] gap-2 text-sm text-ink-2">
+                    {card.lines.map((line) => (
+                      <p key={line}>{line}</p>
+                    ))}
+                  </div>
+                  <Details summary={<Trans>Sources</Trans>} className="text-sm">
+                    <ul className="grid gap-1 text-sm text-ink-3">
+                      {card.sources.map((source) => (
+                        <li key={source.url + source.citation}>
+                          <a className={LINK} href={source.url} target="_blank" rel="noreferrer">
+                            {source.citation}
+                          </a>
+                          {source.note ? <span className="block">{source.note}</span> : null}
+                        </li>
+                      ))}
+                    </ul>
+                  </Details>
+                </article>
+              </details>
+            </li>
           );
         })}
-      </div>
+      </ul>
     </section>
   );
 }
@@ -450,47 +474,65 @@ export function PreventiveCareView({
         </div>
       ) : (
         <>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <StatTile
-              icon={ShieldCheck}
-              tone="water"
-              label={<Trans>For you</Trans>}
-              value={result.items.length}
-              note={
-                page.notes.length > 0 ? (
-                  <InfoTip>
-                    {page.notes.map((note) => (
-                      <p key={note}>{note}</p>
-                    ))}
-                  </InfoTip>
-                ) : null
-              }
-            />
-            <StatTile
-              icon={CalendarClock}
-              tone="water"
-              label={<Trans>Date reached</Trans>}
-              value={dueCount}
-              status={
-                dueCount > 0
-                  ? { tone: "warn", label: <Trans>Worth a look</Trans> }
-                  : { tone: "good", label: <Trans>All clear</Trans> }
-              }
-            />
+          {/* One status line instead of two counters. */}
+          <div role="status" className="flex flex-wrap items-center gap-x-2 gap-y-1.5 text-ink-2">
+            <ToneIcon icon={ShieldCheck} tone="water" size="sm" />
+            <span className="font-medium text-ink">
+              <Plural
+                value={result.items.length}
+                _0="Nothing listed for you"
+                one="# item for you"
+                other="# items for you"
+              />
+            </span>
+            <span aria-hidden="true" className="text-ink-3">
+              ·
+            </span>
+            {dueCount > 0 ? (
+              <StatusPill tone="warn">
+                <Plural value={dueCount} one="# due now" other="# due now" />
+              </StatusPill>
+            ) : (
+              <StatusPill tone="good">
+                <Trans>Nothing due now</Trans>
+              </StatusPill>
+            )}
+            {page.notes.length > 0 ? (
+              <InfoTip>
+                {page.notes.map((note) => (
+                  <p key={note}>{note}</p>
+                ))}
+              </InfoTip>
+            ) : null}
           </div>
-          <ul className="grid items-start gap-4 md:grid-cols-2">
-            {result.items.map((item) => (
-              <li key={item.id} className="grid min-w-0">
-                <PreventiveItemCardView
-                  item={item}
-                  canEdit={result.canEdit}
-                  pending={handlers.pending}
-                  onUpdateItem={handlers.onUpdateItem}
-                />
-              </li>
-            ))}
-          </ul>
-          <Criteria result={result} pending={handlers.pending} onDeclare={handlers.onDeclare} />
+          {/* One item: its card and the questions share the row, so neither half is empty. */}
+          <div
+            className={
+              result.items.length === 1 && result.criteria.length > 0
+                ? "grid items-start gap-6 lg:grid-cols-2"
+                : "grid gap-8"
+            }
+          >
+            <ul
+              className={
+                result.items.length === 1
+                  ? "grid items-start gap-4"
+                  : "grid items-start gap-4 md:grid-cols-2"
+              }
+            >
+              {result.items.map((item) => (
+                <li key={item.id} className="grid min-w-0">
+                  <PreventiveItemCardView
+                    item={item}
+                    canEdit={result.canEdit}
+                    pending={handlers.pending}
+                    onUpdateItem={handlers.onUpdateItem}
+                  />
+                </li>
+              ))}
+            </ul>
+            <Criteria result={result} pending={handlers.pending} onDeclare={handlers.onDeclare} />
+          </div>
           {result.notShown.length > 0 ? (
             <Details
               summary={

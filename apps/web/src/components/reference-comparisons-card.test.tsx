@@ -55,7 +55,13 @@ describe("reference comparisons card (web)", () => {
   test("off by default: own trend, disclosure and a pressed-state toggle", () => {
     const html = render(false);
     expect(html).toContain("Compared with published references");
-    expect(html).toContain("Your usual: 70 bpm");
+    expect(html).toContain("Your usual: 70 bpm (median of the last 28 days).");
+    // A friendly date, not ISO ("Today" on the day itself).
+    expect(html).toMatch(/Oct 16(, 2026)?: 70 bpm\./);
+    expect(html).not.toContain("Latest (2026-10-16)");
+    // One layout for every card: a flex column with the footer pinned to its bottom.
+    expect(html).toContain("sheet flex h-full min-w-0 flex-col");
+    expect(html).toContain("mt-auto grid");
     expect(html).toContain("Comparison off.");
     expect(html).toContain('aria-pressed="false"');
     expect(html).toContain("Compare with the published reference");

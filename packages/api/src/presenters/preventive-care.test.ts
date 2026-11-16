@@ -304,6 +304,22 @@ describe("evidence-check library", () => {
     }
   });
 
+  test("verdicts read in three tones; an unrated entry is a guideline statement", () => {
+    const byVerdict = (verdict: string) =>
+      EVIDENCE_CHECK_LIBRARY.entries.find((entry) => entry.verdict === verdict)!;
+    expect(evidenceEntryCard(englishI18n, byVerdict("little_or_no_benefit")).verdictTone).toBe(
+      "warn",
+    );
+    expect(evidenceEntryCard(englishI18n, byVerdict("may_help_slightly")).verdictTone).toBe("good");
+    expect(evidenceEntryCard(englishI18n, byVerdict("clinician_decision")).verdictTone).toBe(
+      "neutral",
+    );
+    const unrated = EVIDENCE_CHECK_LIBRARY.entries.find(
+      (entry) => entry.certainty === "not_graded",
+    )!;
+    expect(evidenceEntryCard(englishI18n, unrated).certaintyLabel).toBe("Guideline statement");
+  });
+
   test("no doses and no influencer cited or named as authority", () => {
     for (const entry of EVIDENCE_CHECK_LIBRARY.entries) {
       const text = [

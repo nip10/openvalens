@@ -49,6 +49,11 @@ export const timelineFiltersSchema = z
     from: z.string().optional(),
     to: z.string().optional(),
     domain: z.enum(CANONICAL_TIMELINE_DOMAINS).optional(),
+    domains: z
+      .array(z.enum(CANONICAL_TIMELINE_DOMAINS))
+      .min(1)
+      .max(CANONICAL_TIMELINE_DOMAINS.length)
+      .optional(),
     source: z.string().min(1).max(200).optional(),
     severity: z.enum(CANONICAL_TIMELINE_SEVERITIES).optional(),
     confidence: z.enum(CANONICAL_TIMELINE_CONFIDENCES).optional(),

@@ -58,6 +58,18 @@ test("source filter is exact case-insensitive label or ID, before pagination", (
   expect(buildTimelinePage([event, metric], { source: "3" }).items).toEqual([metric]);
   expect(buildTimelinePage([event, metric], { source: "man" }).items).toEqual([]);
 });
+test("domains keep any of several domains, before pagination", () => {
+  expect(event.domain).not.toBe(metric.domain);
+  const domains = [event.domain, metric.domain];
+  expect(buildTimelinePage([event, metric], { domains }).items).toHaveLength(2);
+  const one = buildTimelinePage([event, metric], { domains: [metric.domain], limit: 1 });
+  expect(one.items).toEqual([metric]);
+  expect(one.nextCursor).toBeNull();
+  expect(validateTimelineFiltersShape({ domains: ["sleep", "vitals"] })).toBeNull();
+  expect(validateTimelineFiltersShape({ domains: ["nope" as never] })).toContain(
+    "domains must be from",
+  );
+});
 test("UTC date range and full timestamps include boundaries", () => {
   expect(normalizeTimelineDateRange({ from: "2026-09-29", to: "2026-09-29" })).toMatchObject({
     fromIso: "2026-09-29T00:00:00.000Z",

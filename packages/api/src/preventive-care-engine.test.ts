@@ -115,6 +115,28 @@ describe("preventive-care engine", () => {
     );
   });
 
+  test("a question is asked only when an item that needs it fits the person's age and sex", () => {
+    const asked = (engineInput: PreventiveEngineInput) =>
+      run(engineInput).criteria.map((criterion) => criterion.id);
+    // The NHS Health Check is for ages 40 to 74; the lung health check for 55 to 74.
+    expect(asked(input({ region: "uk", ageRange: age(30, 31) }))).toEqual([]);
+    expect(asked(input({ region: "uk", ageRange: age(45, 46) }))).toEqual([
+      "nhs_health_check_listed_condition",
+    ]);
+    expect(asked(input({ region: "uk", ageRange: age(60, 61) }))).toEqual([
+      "ever_smoked",
+      "nhs_health_check_listed_condition",
+    ]);
+    // Without an age every question that could matter is asked.
+    expect(asked(input({ region: "uk", ageRange: NO_AGE }))).toContain(
+      "nhs_health_check_listed_condition",
+    );
+    // An answer already given stays, so it can be changed or cleared.
+    expect(
+      asked(input({ region: "uk", ageRange: age(30, 31), declarations: { ever_smoked: "no" } })),
+    ).toEqual(["ever_smoked"]);
+  });
+
   test("a criterion met by 'no' (NHS Health Check)", () => {
     const check = item("uk.nhs_health_check");
     const base = input({ region: "uk", ageRange: age(45, 46) });
