@@ -4,9 +4,13 @@ import { z } from "zod";
 import { protectedProcedure, raiseApiError, validateInput } from "../index";
 import { requireProfileOwner } from "../wellness-profile";
 import {
+  changelogEntries,
+  changelogOutputSchema,
   pickWhatsNewCard,
   readWhatsNewState,
+  serverReleaseHistory,
   serverReleaseNotes,
+  WHATS_NEW_PLATFORMS,
   whatsNewOutputSchema,
   writeWhatsNewState,
 } from "../whats-new";
@@ -16,8 +20,15 @@ import {
  * `appRouter.whatsNew`. The member's own, non-impersonated session only.
  */
 
-/** The app's current language; without it, the member's saved one. */
-const getInput = z.strictObject({ locale: z.enum(LOCALES).optional() });
+/**
+ * The app's current language (without it, the member's saved one) and its
+ * platform, which picks the dialog's headlines (without it, all of them).
+ */
+const getInput = z.strictObject({
+  locale: z.enum(LOCALES).optional(),
+  platform: z.enum(WHATS_NEW_PLATFORMS).optional(),
+});
+const changelogInput = z.strictObject({ locale: z.enum(LOCALES).optional() });
 const dismissInput = z.strictObject({ version: z.string().regex(/^\d+\.\d+\.\d+$/) });
 const setEnabledInput = z.strictObject({ enabled: z.boolean() });
 
@@ -33,12 +44,21 @@ export const whatsNewRouter = {
         const locale = input.locale ?? (isLocale(state.locale) ? state.locale : "en");
         return {
           enabled: state.enabled,
-          card: pickWhatsNewCard(serverReleaseNotes(), state, locale),
+          card: pickWhatsNewCard(serverReleaseNotes(), state, locale, input.platform),
         };
       } catch {
         throw raiseApiError("INTERNAL", "Unable to load preferences. Try again.");
       }
     }),
+
+  /** Settings › What's new: every release this server knows, newest first. */
+  changelog: protectedProcedure
+    .use(validateInput(changelogInput))
+    .input(changelogInput)
+    .output(changelogOutputSchema)
+    .handler(({ input }) => ({
+      entries: changelogEntries(serverReleaseHistory(), input.locale ?? "en"),
+    })),
 
   dismiss: protectedProcedure
     .use(validateInput(dismissInput))

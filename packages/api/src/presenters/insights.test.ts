@@ -396,10 +396,10 @@ describe("insight templates (copy lint)", () => {
     );
     expect(view.title).toBe("Sauna: more than your usual week");
     expect(view.body).toBe(
-      "“Sauna” added up to 1 h 15 min in the week of 5 Oct, 45 min more than your usual week of 30 min.",
+      "“Sauna” added up to 1 h 15 min in the week of Oct 5, 45 min more than your usual week of 30 min.",
     );
     expect(view.coverageText).toBe(
-      "Based on 5 days with an entry in the week of 5–11 Oct, compared with the 4 weeks before (4 weeks with an entry). Weeks run Monday to Sunday.",
+      "Based on 5 days with an entry in the week of Oct 5 – 11, compared with the 4 weeks before (4 weeks with an entry). Weeks run Monday to Sunday.",
     );
     expect(view.certaintyText).toBe(
       "This is clearly larger than your usual week-to-week variation.",
@@ -413,7 +413,7 @@ describe("insight templates (copy lint)", () => {
     );
     expect(lower.title).toBe("Cycling: less than your usual week");
     expect(lower.body).toBe(
-      "“Cycling” added up to 10 km in the week of 5 Oct, 30 km less than your usual week of 40 km.",
+      "“Cycling” added up to 10 km in the week of Oct 5, 30 km less than your usual week of 40 km.",
     );
     expect(lower.certaintyText).toContain("only a little larger");
   });
@@ -425,7 +425,7 @@ describe("insight templates (copy lint)", () => {
     );
     expect(view.title).toBe("Flossed: yes on fewer days than your usual week");
     expect(view.body).toBe(
-      "“Flossed” was yes on 1 day in the week of 5 Oct, compared with your usual of 4 days a week.",
+      "“Flossed” was yes on 1 day in the week of Oct 5, compared with your usual of 4 days a week.",
     );
   });
 
@@ -479,7 +479,7 @@ describe("insight templates in pt-PT (#231)", () => {
       tracker_week_change: "Cycling: acima da sua semana habitual",
       trend: "Peso em tendência de subida",
       goal: "Alvo atingido: Walk 10k steps",
-      recording_gap: "Sem registos de sono desde 11 Oct",
+      recording_gap: "Sem registos de sono desde 11/10",
       source_change: "Nova fonte de dados para o sono",
       streak: "14 dias seguidos com registo de sono",
       meals_and_workouts: "Refeições e treinos registados",

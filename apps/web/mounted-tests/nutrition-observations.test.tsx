@@ -211,7 +211,7 @@ test.skipIf(!mountedMode)(
       expect(screen.getByRole("article").getAttribute("aria-label")).toContain(
         "13 matching events",
       );
-      expect(screen.getByText("Period: 2026-10-01 to 2026-10-07 (7 days)")).toBeTruthy();
+      expect(screen.getByText("Period: Oct 1 – 7 (7 days)")).toBeTruthy();
       expect(screen.getByText(observation.completeness)).toBeTruthy();
       expect(submittedPatch).toEqual(presenter.observationPreferencePatch(true));
       expect(submittedPatch).toEqual({ channels: { observation: { in_app: true } } });
@@ -363,7 +363,7 @@ test.skipIf(!mountedMode)(
         ),
       );
       const redactedArticle = await screen.findByRole("article");
-      expect(redactedArticle.textContent).toContain("2026-10-01 to 2026-10-07");
+      expect(redactedArticle.textContent).toContain("Oct 1 – 7");
       expect(redactedArticle.textContent).toContain("Some records may be missing or incomplete.");
       expect(redactedArticle.textContent).not.toContain("13 matching events");
       expect(redactedArticle.getAttribute("aria-label")).not.toContain("13 matching events");
@@ -387,7 +387,7 @@ test.skipIf(!mountedMode)(
       expect(restored.textContent).toContain(
         "Diary marked complete on 5 days; 7 evenings recorded.",
       );
-      expect(restored.textContent).toContain("Period: 2026-10-01 to 2026-10-07 (7 days)");
+      expect(restored.textContent).toContain("Period: Oct 1 – 7 (7 days)");
 
       // Pending auth and an owner/org switch never paint the previous subject's cached view.
       cleanup();

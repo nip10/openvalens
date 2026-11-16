@@ -12,8 +12,9 @@ import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 
 import { cn } from "@openvalens/ui/lib/utils";
-import { ArrowLeft, Send, Sparkles } from "lucide-react";
+import { ArrowLeft, Send } from "lucide-react";
 
+import { CoachIcon } from "@/components/coach-icon";
 import { ErrorState, ToneIcon } from "@/components/page";
 import { orpc } from "@/utils/orpc";
 import { useProductSettings } from "@/utils/product-settings";
@@ -97,7 +98,7 @@ function CoachThreadPage() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => navigate({ to: "/coach" })}
+          onClick={() => navigate({ to: "/coach", search: { compose: true } })}
           disabled={send.isPending}
         >
           <Trans>New conversation</Trans>
@@ -120,7 +121,7 @@ function CoachThreadPage() {
                 key={message.id}
                 className={cn("flex items-end gap-2.5", mine ? "justify-end" : "justify-start")}
               >
-                {mine ? null : <ToneIcon icon={Sparkles} tone="signal" size="sm" />}
+                {mine ? null : <ToneIcon icon={CoachIcon} tone="signal" size="sm" />}
                 <div
                   className={cn(
                     "grid max-w-[85%] gap-1 px-4 py-3",
@@ -143,7 +144,7 @@ function CoachThreadPage() {
         )}
         {send.isPending ? (
           <p role="status" className="flex items-center gap-2.5 text-sm text-ink-3">
-            <ToneIcon icon={Sparkles} tone="signal" size="sm" />
+            <ToneIcon icon={CoachIcon} tone="signal" size="sm" />
             <Trans>Coach is thinking…</Trans>
           </p>
         ) : null}

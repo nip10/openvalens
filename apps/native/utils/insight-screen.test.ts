@@ -48,7 +48,8 @@ describe("insights section model (native)", () => {
       title: "Meals and recorded workouts",
       body: "Logged meals and recorded workouts were noted during this period. This describes records only.",
     });
-    expect(view.period).toBe("Period: 2026-10-01 to 2026-10-07 (7 days)");
+    // The window as the locale writes a range (#dashboard-9).
+    expect(view.period).toBe("Period: Oct 1 – 7 (7 days)");
     expect(view.completeness).toContain("not available");
     expect(view.accessibilityLabel).toContain(view.body);
     expect(JSON.stringify(view)).not.toContain("matchingEvents");

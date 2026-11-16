@@ -7,7 +7,7 @@ import type { Database } from "@openvalens/db";
 import { userPreference } from "@openvalens/db/schema/preferences";
 import type { Locale } from "@openvalens/i18n";
 import { eq } from "drizzle-orm";
-import bundledNotes from "virtual:openvalens/release-notes";
+import bundledNotes, { history as bundledHistory } from "virtual:openvalens/release-notes";
 import { z } from "zod";
 
 /**
@@ -28,6 +28,10 @@ export const releaseNotesSchema = z.object({
   version: z.string().regex(/^\d+\.\d+\.\d+$/),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   highlights: z.object({ en: z.array(blockSchema), "pt-PT": z.array(blockSchema).nullable() }),
+  /** One short line per list item (the bold lead), for the web dialog. */
+  headlines: z
+    .object({ en: z.array(z.string()), "pt-PT": z.array(z.string()).nullable() })
+    .optional(),
 });
 export type ReleaseNotes = z.infer<typeof releaseNotesSchema>;
 
@@ -41,6 +45,12 @@ export const whatsNewCardSchema = z.object({
   /** The language of `highlights`: pt-PT only when a translation exists. */
   locale: z.enum(["en", "pt-PT"]),
   highlights: z.array(blockSchema),
+  /**
+   * Up to three short lines for the asking app's platform, in `locale`: items
+   * that name another platform ("Android: …") are left out. Empty when none
+   * apply, so the web dialog stays closed.
+   */
+  headlines: z.array(z.string()),
   changelogUrl: z.string(),
 });
 export type WhatsNewCard = z.infer<typeof whatsNewCardSchema>;
@@ -52,6 +62,70 @@ export const whatsNewOutputSchema = z.object({
 export type WhatsNewOutput = z.infer<typeof whatsNewOutputSchema>;
 
 export type WhatsNewState = { enabled: boolean; dismissedVersion: string | null };
+
+export const WHATS_NEW_PLATFORMS = ["web", "ios", "android"] as const;
+export type WhatsNewPlatform = (typeof WHATS_NEW_PLATFORMS)[number];
+
+/** The most headlines the dialog shows. */
+const HEADLINE_LIMIT = 3;
+
+/** A headline that names one platform, such as "Android: …" or "iOS: …". */
+const PLATFORM_PREFIX = /^(android|ios|iphone)\b/i;
+
+function headlinePlatform(headline: string): WhatsNewPlatform | null {
+  const match = PLATFORM_PREFIX.exec(headline)?.[1]?.toLowerCase();
+  if (!match) return null;
+  return match === "android" ? "android" : "ios";
+}
+
+/**
+ * The headlines one platform shows: those for every platform plus its own.
+ * Without a platform (an older app), all of them.
+ */
+export function platformHeadlines(
+  headlines: readonly string[],
+  platform: WhatsNewPlatform | undefined,
+): string[] {
+  const fitting = headlines.filter((headline) => {
+    const only = headlinePlatform(headline);
+    return platform === undefined || only === null || only === platform;
+  });
+  return fitting.slice(0, HEADLINE_LIMIT);
+}
+
+export const changelogEntrySchema = z.object({
+  version: z.string(),
+  /** `YYYY-MM-DD` */
+  date: z.string(),
+  /** The language of `highlights`: pt-PT only when a translation exists. */
+  locale: z.enum(["en", "pt-PT"]),
+  highlights: z.array(blockSchema),
+});
+export type ChangelogEntry = z.infer<typeof changelogEntrySchema>;
+
+export const changelogOutputSchema = z.object({ entries: z.array(changelogEntrySchema) });
+
+/** Every release this server knows, newest first, each in `locale` when translated. */
+export function changelogEntries(
+  history: readonly ReleaseNotes[],
+  locale: Locale,
+): ChangelogEntry[] {
+  return history.map((notes) => {
+    const translated = locale === "pt-PT" ? notes.highlights["pt-PT"] : null;
+    return {
+      version: notes.version,
+      date: notes.date,
+      locale: translated ? "pt-PT" : "en",
+      highlights: translated ?? notes.highlights.en,
+    };
+  });
+}
+
+/** The releases bundled into this server, newest first; empty when they do not parse. */
+export function serverReleaseHistory(): ReleaseNotes[] {
+  const parsed = z.array(releaseNotesSchema).safeParse(bundledHistory ?? []);
+  return parsed.success ? parsed.data : [];
+}
 
 const CHANGELOG_URL = "https://openvalens.com/changelog";
 
@@ -66,17 +140,20 @@ export function pickWhatsNewCard(
   notes: ReleaseNotes | null,
   state: WhatsNewState,
   locale: Locale,
+  platform?: WhatsNewPlatform,
 ): WhatsNewCard | null {
   if (!notes || !state.enabled || state.dismissedVersion === notes.version) return null;
   const translated = locale === "pt-PT" ? notes.highlights["pt-PT"] : null;
   const highlights = translated ?? notes.highlights.en;
   if (highlights.length === 0) return null;
+  const headlines = (translated ? notes.headlines?.["pt-PT"] : notes.headlines?.en) ?? [];
   return {
     version: notes.version,
     shortVersion: notes.version.split(".").slice(0, 2).join("."),
     date: notes.date,
     locale: translated ? "pt-PT" : "en",
     highlights,
+    headlines: platformHeadlines(headlines, platform),
     changelogUrl: `${CHANGELOG_URL}#v${notes.version}`,
   };
 }

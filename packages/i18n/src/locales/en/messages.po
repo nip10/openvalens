@@ -640,6 +640,10 @@ msgstr "{count, plural, one {Copied # item} other {Copied # items}}"
 msgid "{count} from {label}"
 msgstr "{count} from {label}"
 
+#: apps/web/src/components/insights-panel.tsx
+msgid "{count} recording streaks"
+msgstr "{count} recording streaks"
+
 #: apps/native/app/(drawer)/body-map.tsx
 #: apps/web/src/routes/_auth/body-map.tsx
 #: packages/api/src/presenters/body-map.ts
@@ -964,20 +968,20 @@ msgid "{meal} · {day}"
 msgstr "{meal} · {day}"
 
 #: packages/api/src/presenters/insights.ts
+msgid "{metric, select, sleep_duration {Sleep} resting_heart_rate {Resting heart rate} steps {Step count} other {Weight}} has been coming from a different device or app since {date}. Different sources measure differently, so your usual is being rebuilt from the new source only ({baselineDays} of {baselineMinDays} days so far). Change insights for it pause until then."
+msgstr "{metric, select, sleep_duration {Sleep} resting_heart_rate {Resting heart rate} steps {Step count} other {Weight}} has been coming from a different device or app since {date}. Different sources measure differently, so your usual is being rebuilt from the new source only ({baselineDays} of {baselineMinDays} days so far). Change insights for it pause until then."
+
+#: packages/api/src/presenters/insights.ts
+msgid "{metric, select, sleep_duration {Sleep} resting_heart_rate {Resting heart rate} steps {Step count} other {Weight}} has been recorded every day since {date}."
+msgstr "{metric, select, sleep_duration {Sleep} resting_heart_rate {Resting heart rate} steps {Step count} other {Weight}} has been recorded every day since {date}."
+
+#: packages/api/src/presenters/insights.ts
 msgid "{metric, select, sleep_duration {Sleep} resting_heart_rate {Resting heart rate} steps {Steps} other {Weight}} {direction, select, higher {higher} other {lower}} than your usual"
 msgstr "{metric, select, sleep_duration {Sleep} resting_heart_rate {Resting heart rate} steps {Steps} other {Weight}} {direction, select, higher {higher} other {lower}} than your usual"
 
 #: packages/api/src/presenters/insights.ts
 msgid "{metric, select, sleep_duration {Sleep} resting_heart_rate {Resting heart rate} steps {Steps} other {Weight}} had been recorded on most days, but nothing has arrived for {daysWithout, plural, one {# day} other {# days}}. Insights that use it pause until new data arrives."
 msgstr "{metric, select, sleep_duration {Sleep} resting_heart_rate {Resting heart rate} steps {Steps} other {Weight}} had been recorded on most days, but nothing has arrived for {daysWithout, plural, one {# day} other {# days}}. Insights that use it pause until new data arrives."
-
-#: packages/api/src/presenters/insights.ts
-msgid "{metric, select, sleep_duration {Sleep} resting_heart_rate {Resting heart rate} steps {Steps} other {Weight}} has been coming from a different device or app since {date}. Different sources measure differently, so your usual is being rebuilt from the new source only ({baselineDays} of {baselineMinDays} days so far). Change insights for it pause until then."
-msgstr "{metric, select, sleep_duration {Sleep} resting_heart_rate {Resting heart rate} steps {Steps} other {Weight}} has been coming from a different device or app since {date}. Different sources measure differently, so your usual is being rebuilt from the new source only ({baselineDays} of {baselineMinDays} days so far). Change insights for it pause until then."
-
-#: packages/api/src/presenters/insights.ts
-msgid "{metric, select, sleep_duration {Sleep} resting_heart_rate {Resting heart rate} steps {Steps} other {Weight}} has been recorded every day since {date}."
-msgstr "{metric, select, sleep_duration {Sleep} resting_heart_rate {Resting heart rate} steps {Steps} other {Weight}} has been recorded every day since {date}."
 
 #. Minutes ago, abbreviated
 #: packages/api/src/presenters/cochat.ts
@@ -1715,8 +1719,8 @@ msgid "A short card on the Cockpit with the highlights of the new version."
 msgstr "A short card on the Cockpit with the highlights of the new version."
 
 #: apps/web/src/components/whats-new-section.tsx
-msgid "A short card on Today with the highlights of the new version."
-msgstr "A short card on Today with the highlights of the new version."
+msgid "A short note with the highlights the first time you open a new version."
+msgstr "A short note with the highlights the first time you open a new version."
 
 #: packages/api/src/presenters/energy-estimate.ts
 msgid "A suggestion to eat less needs your height, so it can stay within safe limits. It is saved in your nutrition settings."
@@ -1845,9 +1849,14 @@ msgstr "Access was revoked. Choose whether to keep or delete its records in the 
 
 #: apps/native/app/(drawer)/settings.tsx
 #: apps/web/src/components/admin-ai-usage.tsx
+#: apps/web/src/components/header.tsx
 #: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Account"
 msgstr "Account"
+
+#: apps/web/src/components/user-menu.tsx
+msgid "Account menu"
+msgstr "Account menu"
 
 #: apps/web/src/routes/_auth/route.tsx
 msgid "Account setup failed"
@@ -1919,7 +1928,7 @@ msgstr "activity"
 
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/records/activity.tsx
-#: apps/web/src/components/header.tsx
+#: apps/web/src/components/nav-links.ts
 #: apps/web/src/routes/_auth/records/activity.tsx
 #: packages/api/src/presenters/cockpit.ts
 #: packages/api/src/presenters/timeline.ts
@@ -2276,7 +2285,7 @@ msgstr "admin"
 #: apps/native/app/(drawer)/settings.tsx
 #: apps/web/src/components/admin-invitations-view.tsx
 #: apps/web/src/components/admin-settings-view.tsx
-#: apps/web/src/components/header.tsx
+#: apps/web/src/components/nav-links.ts
 #: apps/web/src/routes/_auth/admin/settings.tsx
 msgid "Administration"
 msgstr "Administration"
@@ -2473,6 +2482,10 @@ msgstr "All readings"
 msgid "All sets reached {0} reps last time, so add {increment} {unit}."
 msgstr "All sets reached {0} reps last time, so add {increment} {unit}."
 
+#: apps/web/src/components/onboarding/finish-setup-card.tsx
+msgid "All steps"
+msgstr "All steps"
+
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 msgid "All trackers"
 msgstr "All trackers"
@@ -2508,6 +2521,10 @@ msgstr "Also recorded"
 #: packages/api/src/presenters/coach-settings.ts
 msgid "Always"
 msgstr "Always"
+
+#: apps/web/src/utils/coach-ideas.ts
+msgid "Am I on track for “{title}”?"
+msgstr "Am I on track for “{title}”?"
 
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 #: apps/web/src/routes/_auth/nutrition.tsx
@@ -2649,6 +2666,11 @@ msgstr "App identity:"
 msgid "App version"
 msgstr "App version"
 
+#: apps/web/src/components/appearance-section.tsx
+#: apps/web/src/routes/_auth/settings/index.tsx
+msgid "Appearance"
+msgstr "Appearance"
+
 #: packages/api/src/presenters/tracker-feeds.ts
 msgid "Apple Health mindful minutes"
 msgstr "Apple Health mindful minutes"
@@ -2737,6 +2759,7 @@ msgid "Ask the coach about this"
 msgstr "Ask the coach about this"
 
 #: apps/native/app/(drawer)/coach/[conversationId].tsx
+#: apps/web/src/components/coach-ideas.tsx
 #: apps/web/src/routes/_auth/coach/$conversationId.tsx
 msgid "Ask the coach anything…"
 msgstr "Ask the coach anything…"
@@ -3207,8 +3230,9 @@ msgstr "body"
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/(tabs)/_layout.tsx
 #: apps/native/app/(drawer)/(tabs)/body.tsx
-#: apps/web/src/components/header.tsx
+#: apps/web/src/components/nav-links.ts
 #: apps/web/src/routes/_auth/body.tsx
+#: apps/web/src/utils/coach-ideas.ts
 #: packages/api/src/presenters/clinical-export.ts
 #: packages/api/src/presenters/timeline.ts
 msgid "Body"
@@ -3229,7 +3253,7 @@ msgstr "Body goals"
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/body-map.tsx
 #: apps/native/app/(drawer)/workouts.tsx
-#: apps/web/src/components/header.tsx
+#: apps/web/src/components/nav-links.ts
 #: apps/web/src/routes/_auth/body-map.tsx
 msgid "Body map"
 msgstr "Body map"
@@ -3517,6 +3541,10 @@ msgstr "Carbs"
 #: packages/api/src/presenters/timeline.ts
 msgid "Cardiac"
 msgstr "Cardiac"
+
+#: apps/web/src/components/nav-links.ts
+msgid "Care"
+msgstr "Care"
 
 #: apps/native/components/direct-device-settings.tsx
 msgid "Casio hourly step buckets sync automatically while connected. The watch reports hourly totals only, so there is no heart rate or sleep data. Records are saved in batches and sent only when you tap “Retry upload”."
@@ -4071,7 +4099,7 @@ msgstr "Clinical"
 
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/exports.tsx
-#: apps/web/src/components/header.tsx
+#: apps/web/src/components/nav-links.ts
 #: apps/web/src/routes/_auth/exports.tsx
 msgid "Clinical export"
 msgstr "Clinical export"
@@ -4122,7 +4150,7 @@ msgstr "cm"
 #: apps/native/app/(drawer)/coach/[conversationId].tsx
 #: apps/native/app/(drawer)/coach/index.tsx
 #: apps/native/app/(drawer)/settings.tsx
-#: apps/web/src/components/header.tsx
+#: apps/web/src/components/nav-links.ts
 #: apps/web/src/routes/_auth/coach/$conversationId.tsx
 #: apps/web/src/routes/_auth/coach/route.tsx
 #: apps/web/src/routes/_auth/settings/index.tsx
@@ -4934,7 +4962,6 @@ msgid "Could not disconnect. Sign in again and retry."
 msgstr "Could not disconnect. Sign in again and retry."
 
 #: apps/native/components/whats-new-card.tsx
-#: apps/web/src/components/whats-new-card-view.tsx
 msgid "Could not dismiss it. Try again."
 msgstr "Could not dismiss it. Try again."
 
@@ -5151,6 +5178,10 @@ msgstr "Could not load Telegram status."
 #: apps/web/src/components/admin-backup-status.tsx
 msgid "Could not load the backup status."
 msgstr "Could not load the backup status."
+
+#: apps/web/src/components/whats-new-changelog.tsx
+msgid "Could not load the changelog."
+msgstr "Could not load the changelog."
 
 #: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
@@ -5936,7 +5967,7 @@ msgstr "Cut"
 
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/cycle.tsx
-#: apps/web/src/components/header.tsx
+#: apps/web/src/components/nav-links.ts
 #: apps/web/src/routes/_auth/cycle.tsx
 #: packages/api/src/presenters/modules.ts
 msgid "Cycle"
@@ -5967,6 +5998,7 @@ msgid "daily"
 msgstr "daily"
 
 #. safety
+#: apps/web/src/components/nav-links.ts
 #: packages/api/src/presenters/supplements.ts
 msgid "Daily"
 msgstr "Daily"
@@ -6053,7 +6085,7 @@ msgstr "Dark"
 msgid "Dark mode"
 msgstr "Dark mode"
 
-#: apps/web/src/components/header.tsx
+#: apps/web/src/components/nav-links.ts
 msgid "Dashboard"
 msgstr "Dashboard"
 
@@ -6455,7 +6487,6 @@ msgid "Describe"
 msgstr "Describe"
 
 #: apps/native/app/(drawer)/_layout.tsx
-#: apps/web/src/components/header.tsx
 #: apps/web/src/routes/_auth/food-draft.tsx
 msgid "Describe a meal"
 msgstr "Describe a meal"
@@ -6651,7 +6682,6 @@ msgstr "Disconnecting…"
 #: apps/native/components/finish-setup-card.tsx
 #: apps/native/components/whats-new-card.tsx
 #: apps/web/src/components/onboarding/finish-setup-card.tsx
-#: apps/web/src/components/whats-new-card-view.tsx
 #: packages/api/src/presenters/energy-estimate.ts
 #: packages/api/src/presenters/insights.ts
 #: packages/api/src/presenters/nutrition-targets.ts
@@ -6893,7 +6923,6 @@ msgid "Each mindfulness session in Health Connect becomes an entry: its length, 
 msgstr "Each mindfulness session in Health Connect becomes an entry: its length, on the day it started."
 
 #: apps/native/components/finish-setup-card.tsx
-#: apps/web/src/components/onboarding/finish-setup-card.tsx
 msgid "Each one takes a minute. Skip anything you like."
 msgstr "Each one takes a minute. Skip anything you like."
 
@@ -7513,6 +7542,10 @@ msgstr "Every period and import is deleted and your consent is withdrawn. This c
 msgid "Every record this connection brought in is permanently deleted. It can't be undone."
 msgstr "Every record this connection brought in is permanently deleted. It can't be undone."
 
+#: apps/web/src/routes/_auth/settings/index.tsx
+msgid "Every update, newest first"
+msgstr "Every update, newest first"
+
 #. Home-screen widget: under “Log…”, which opens the log picker.
 #: apps/native/lib/home-widget/copy.ts
 msgid "Everything else"
@@ -7913,6 +7946,7 @@ msgstr "Flow (optional)"
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 #: apps/web/src/components/quick-log/palette-sections.ts
 #: apps/web/src/routes/_auth/food-draft.tsx
+#: apps/web/src/utils/coach-ideas.ts
 #: packages/api/src/presenters/log-kinds.ts
 msgid "Food"
 msgstr "Food"
@@ -8148,7 +8182,6 @@ msgid "front view muscle illustration"
 msgstr "front view muscle illustration"
 
 #: apps/native/components/whats-new-card.tsx
-#: apps/web/src/components/whats-new-card-view.tsx
 msgid "Full changelog"
 msgstr "Full changelog"
 
@@ -8330,8 +8363,9 @@ msgstr "goals"
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/goals.tsx
 #: apps/native/app/(drawer)/workouts.tsx
-#: apps/web/src/components/header.tsx
+#: apps/web/src/components/nav-links.ts
 #: apps/web/src/routes/_auth/goals.index.tsx
+#: apps/web/src/utils/coach-ideas.ts
 #: packages/api/src/presenters/clinical-export.ts
 msgid "Goals"
 msgstr "Goals"
@@ -8359,6 +8393,10 @@ msgstr "Good evening"
 #: apps/web/src/routes/_auth/dashboard.tsx
 msgid "Good morning"
 msgstr "Good morning"
+
+#: apps/web/src/components/whats-new-dialog.tsx
+msgid "Got it"
+msgstr "Got it"
 
 #. safety
 #: apps/native/components/ai-section.tsx
@@ -8403,7 +8441,6 @@ msgstr "Guideline-backed"
 
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/trackers.tsx
-#: apps/web/src/components/header.tsx
 msgid "Habits"
 msgstr "Habits"
 
@@ -8455,6 +8492,10 @@ msgstr "Health data consent"
 #: apps/native/components/cloud-access-notice.tsx
 msgid "Health sync is paused until access is back."
 msgstr "Health sync is paused until access is back."
+
+#: apps/web/src/utils/coach-ideas.ts
+msgid "Heart"
+msgstr "Heart"
 
 #: packages/api/src/presenters/modules.ts
 msgid "Heart & vitals"
@@ -8534,9 +8575,7 @@ msgid "HH:MM"
 msgstr "HH:MM"
 
 #. First message sent to the AI coach for a new conversation; shown as the person's own message
-#. First message sent to the AI coach for a new conversation; shown as the person's own message
 #: apps/native/app/(drawer)/coach/index.tsx
-#: apps/web/src/routes/_auth/coach/route.tsx
 msgid "Hi coach, give me a one-line summary of where I am today and one concrete suggestion."
 msgstr "Hi coach, give me a one-line summary of where I am today and one concrete suggestion."
 
@@ -8570,6 +8609,10 @@ msgstr "Hide numbers"
 #: apps/native/components/active-workout.tsx
 msgid "Hide RPE"
 msgstr "Hide RPE"
+
+#: apps/web/src/components/onboarding/finish-setup-card.tsx
+msgid "Hide steps"
+msgstr "Hide steps"
 
 #: apps/web/src/components/admission-form.tsx
 msgid "Hide token"
@@ -8744,6 +8787,10 @@ msgstr "hours, kg, servings…"
 msgid "How a daily mood becomes 1 to 5"
 msgstr "How a daily mood becomes 1 to 5"
 
+#: apps/web/src/utils/coach-ideas.ts
+msgid "How active have I been this week compared with last week?"
+msgstr "How active have I been this week compared with last week?"
+
 #: packages/api/src/presenters/insights.ts
 #: packages/api/src/presenters/score.ts
 msgid "How am I doing?"
@@ -8766,9 +8813,21 @@ msgstr "How fast suggestions aim to change your weight trend, as a share of body
 msgid "How hard was the whole session? (0 to 10)"
 msgstr "How hard was the whole session? (0 to 10)"
 
+#: apps/web/src/utils/coach-ideas.ts
+msgid "How has my resting heart rate looked lately?"
+msgstr "How has my resting heart rate looked lately?"
+
+#: apps/web/src/utils/coach-ideas.ts
+msgid "How has my sleep been this week?"
+msgstr "How has my sleep been this week?"
+
 #: packages/api/src/presenters/insights.ts
 msgid "How insights work"
 msgstr "How insights work"
+
+#: apps/web/src/utils/coach-ideas.ts
+msgid "How is my weight trending this month?"
+msgstr "How is my weight trending this month?"
 
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "How it was measured"
@@ -8930,6 +8989,10 @@ msgstr "I'll enter things myself"
 #: apps/web/src/components/trackers/tracker-editor.tsx
 msgid "Icon"
 msgstr "Icon"
+
+#: apps/web/src/components/coach-ideas.tsx
+msgid "Ideas to ask"
+msgstr "Ideas to ask"
 
 #: apps/web/src/routes/oauth/login.tsx
 msgid "If nothing happens, this sign-in request has expired. Start connecting again from the app."
@@ -9174,6 +9237,10 @@ msgstr "Ingredients or JSON-LD"
 #: apps/web/src/components/recipe-draft-editor.tsx
 msgid "Ingredients remain unmatched and unverified. No nutrition values are calculated. This is not clinical advice."
 msgstr "Ingredients remain unmatched and unverified. No nutrition values are calculated. This is not clinical advice."
+
+#: apps/web/src/components/insights-panel.tsx
+msgid "Inputs used"
+msgstr "Inputs used"
 
 #: apps/native/app/(drawer)/settings.tsx
 #: packages/api/src/presenters/insights.ts
@@ -9555,7 +9622,7 @@ msgstr "Lab result"
 
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/records/labs.tsx
-#: apps/web/src/components/header.tsx
+#: apps/web/src/components/nav-links.ts
 #: apps/web/src/routes/_auth/records/labs.tsx
 #: packages/api/src/presenters/timeline.ts
 msgid "Labs"
@@ -10725,7 +10792,7 @@ msgid "Meal actions"
 msgstr "Meal actions"
 
 #: apps/native/app/(drawer)/_layout.tsx
-#: apps/web/src/components/header.tsx
+#: apps/web/src/components/nav-links.ts
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Meal diary"
 msgstr "Meal diary"
@@ -10849,10 +10916,6 @@ msgstr "men aged {minAge} and over"
 msgid "men aged {minAge} to {maxAge}"
 msgstr "men aged {minAge} to {maxAge}"
 
-#: apps/web/src/components/header.tsx
-msgid "Menu"
-msgstr "Menu"
-
 #: apps/native/app/(drawer)/goals/[goalId].tsx
 #: apps/web/src/routes/_auth/goals.$goalId.tsx
 msgid "Met"
@@ -10885,7 +10948,7 @@ msgstr "Metric name"
 
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/micronutrients.tsx
-#: apps/web/src/components/header.tsx
+#: apps/web/src/components/nav-links.ts
 #: apps/web/src/routes/_auth/micronutrients.tsx
 msgid "Micronutrients"
 msgstr "Micronutrients"
@@ -10896,6 +10959,7 @@ msgstr "Mild sleep debt"
 
 #: apps/native/app/(drawer)/goals/[goalId].tsx
 #: apps/native/components/goal-editor.tsx
+#: apps/web/src/components/insights-panel.tsx
 #: apps/web/src/routes/_auth/-goal-editor.tsx
 #: apps/web/src/routes/_auth/goals.$goalId.tsx
 msgid "Milestones"
@@ -11042,13 +11106,16 @@ msgid "Mood"
 msgstr "Mood"
 
 #: apps/native/app/(drawer)/_layout.tsx
-#: apps/web/src/components/header.tsx
 msgid "More"
 msgstr "More"
 
 #: packages/api/src/presenters/score.ts
 msgid "More data for {helpList} would help."
 msgstr "More data for {helpList} would help."
+
+#: apps/web/src/components/coach-ideas.tsx
+msgid "More ideas"
+msgstr "More ideas"
 
 #: apps/native/components/bloom.tsx
 #: apps/web/src/components/page.tsx
@@ -11151,12 +11218,7 @@ msgstr "Muscle guide"
 msgid "Muscles not shown on the map: {0}"
 msgstr "Muscles not shown on the map: {0}"
 
-#: apps/web/src/components/user-menu.tsx
-msgid "My Account"
-msgstr "My Account"
-
 #: apps/native/app/(drawer)/_layout.tsx
-#: apps/web/src/components/header.tsx
 msgid "My body"
 msgstr "My body"
 
@@ -13059,6 +13121,10 @@ msgctxt "weight source"
 msgid "Override"
 msgstr "Override"
 
+#: apps/web/src/components/nav-links.ts
+msgid "Overview"
+msgstr "Overview"
+
 #: apps/native/app/(drawer)/invitations.tsx
 #: apps/native/app/(drawer)/sharing.tsx
 #: apps/web/src/components/accept-invitation-view.tsx
@@ -13300,8 +13366,8 @@ msgid "Period saved."
 msgstr "Period saved."
 
 #: packages/api/src/presenters/insights.ts
-msgid "Period: {from} to {to} ({days, plural, one {# day} other {# days}})"
-msgstr "Period: {from} to {to} ({days, plural, one {# day} other {# days}})"
+msgid "Period: {range} ({days, plural, one {# day} other {# days}})"
+msgstr "Period: {range} ({days, plural, one {# day} other {# days}})"
 
 #. safety
 #: apps/native/app/(drawer)/settings.tsx
@@ -13493,6 +13559,7 @@ msgid "Plain water subtotal: {value}"
 msgstr "Plain water subtotal: {value}"
 
 #: apps/web/src/components/access-banner.tsx
+#: apps/web/src/components/user-menu.tsx
 #: apps/web/src/routes/_auth/settings/billing.tsx
 #: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Plan & billing"
@@ -13501,6 +13568,10 @@ msgstr "Plan & billing"
 #: apps/native/components/workout-routines.tsx
 msgid "Plan a workout you want to repeat, then start it in one tap."
 msgstr "Plan a workout you want to repeat, then start it in one tap."
+
+#: apps/web/src/utils/coach-ideas.ts
+msgid "Plan this week's workouts around a readiness of {score}"
+msgstr "Plan this week's workouts around a readiness of {score}"
 
 #: packages/api/src/presenters/coach-settings.ts
 msgid "Plays it safe; avoids pushing limits."
@@ -13623,7 +13694,7 @@ msgid "Preparing…"
 msgstr "Preparing…"
 
 #: apps/native/app/(drawer)/_layout.tsx
-#: apps/web/src/components/header.tsx
+#: apps/web/src/components/nav-links.ts
 #: packages/api/src/presenters/modules.ts
 #: packages/api/src/presenters/preventive-care.ts
 msgid "Preventive care"
@@ -13708,6 +13779,10 @@ msgstr "Printable page"
 msgid "Privacy choices"
 msgstr "Privacy choices"
 
+#: apps/web/src/components/coach-ideas.tsx
+msgid "Privacy details"
+msgstr "Privacy details"
+
 #: apps/web/src/components/oauth-consent-view.tsx
 #: packages/api/src/presenters/ai-apps.ts
 msgid "Private body measurements"
@@ -13723,7 +13798,7 @@ msgstr "Private measurement"
 
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/private-measurements.tsx
-#: apps/web/src/components/header.tsx
+#: apps/web/src/components/nav-links.ts
 #: apps/web/src/routes/_auth/private-measurements.tsx
 msgid "Private measurements"
 msgstr "Private measurements"
@@ -13754,6 +13829,7 @@ msgstr "Private: only you see it."
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/settings.tsx
 #: apps/web/src/components/profile-summary-card.tsx
+#: apps/web/src/components/user-menu.tsx
 #: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Profile"
 msgstr "Profile"
@@ -14040,6 +14116,10 @@ msgstr "Reached {0}"
 msgid "Reaching a target does not mean your health has improved. Goals you have not set are never counted against you."
 msgstr "Reaching a target does not mean your health has improved. Goals you have not set are never counted against you."
 
+#: apps/web/src/components/whats-new-dialog.tsx
+msgid "Read more"
+msgstr "Read more"
+
 #: apps/native/components/trackers/tracker-phone-feed.tsx
 msgid "Read only: nothing is written back to your phone's health data."
 msgstr "Read only: nothing is written back to your phone's health data."
@@ -14158,7 +14238,7 @@ msgstr "Recent sessions"
 
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/components/recipe-draft-editor.tsx
-#: apps/web/src/components/header.tsx
+#: apps/web/src/components/nav-links.ts
 #: apps/web/src/components/recipe-draft-editor.tsx
 msgid "Recipe draft"
 msgstr "Recipe draft"
@@ -14348,6 +14428,10 @@ msgstr "rejected"
 #: packages/api/src/presenters/clinical-records.ts
 msgid "Relation"
 msgstr "Relation"
+
+#: apps/web/src/components/whats-new-changelog.tsx
+msgid "Releases"
+msgstr "Releases"
 
 #: apps/native/app/(drawer)/goals/[goalId].tsx
 msgid "Reliable sleep imports count automatically."
@@ -14618,6 +14702,7 @@ msgstr "Rest timer and alerts"
 msgid "Rest timer complete"
 msgstr "Rest timer complete"
 
+#: apps/web/src/routes/_auth/dashboard.tsx
 #: packages/api/src/presenters/insights.ts
 #: packages/api/src/presenters/manual-entry.ts
 #: packages/api/src/presenters/reference-comparison.ts
@@ -14742,6 +14827,7 @@ msgstr "Retired version"
 #: apps/web/src/components/reference-comparisons-card.tsx
 #: apps/web/src/components/sign-in-methods-section.tsx
 #: apps/web/src/components/wearable-devices-view.tsx
+#: apps/web/src/components/whats-new-changelog.tsx
 #: apps/web/src/components/workout-routines.tsx
 #: apps/web/src/routes/_auth/body-map.tsx
 #: apps/web/src/routes/_auth/body.tsx
@@ -15594,7 +15680,7 @@ msgid "Schedule"
 msgstr "Schedule"
 
 #: apps/native/app/(drawer)/_layout.tsx
-#: apps/web/src/components/header.tsx
+#: apps/web/src/components/nav-links.ts
 msgid "Scores"
 msgstr "Scores"
 
@@ -15783,6 +15869,7 @@ msgstr "Selected weekdays · {0}"
 
 #: apps/native/app/(drawer)/coach/[conversationId].tsx
 #: apps/native/app/(drawer)/sharing.tsx
+#: apps/web/src/components/coach-ideas.tsx
 #: apps/web/src/routes/_auth/coach/$conversationId.tsx
 msgid "Send"
 msgstr "Send"
@@ -16015,6 +16102,8 @@ msgstr "Sets from {trainingFrom} to {trainingTo}"
 #: apps/native/app/(drawer)/settings/ai-apps.tsx
 #: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/web/src/components/header.tsx
+#: apps/web/src/components/nav-links.ts
+#: apps/web/src/components/user-menu.tsx
 #: apps/web/src/routes/_auth/cycle.tsx
 #: apps/web/src/routes/_auth/settings/ai-apps.tsx
 #: apps/web/src/routes/_auth/settings/billing.tsx
@@ -16118,7 +16207,7 @@ msgstr "Shared Zepp OS transport (per-minute steps, heart rate and sleep; older 
 
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/sharing.tsx
-#: apps/web/src/components/header.tsx
+#: apps/web/src/components/nav-links.ts
 #: apps/web/src/routes/_auth/sharing.tsx
 msgid "Sharing"
 msgstr "Sharing"
@@ -16488,9 +16577,10 @@ msgstr "sleep"
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/(tabs)/index.tsx
 #: apps/native/app/(drawer)/records/sleep.tsx
-#: apps/web/src/components/header.tsx
+#: apps/web/src/components/nav-links.ts
 #: apps/web/src/routes/_auth/dashboard.tsx
 #: apps/web/src/routes/_auth/records/sleep.tsx
+#: apps/web/src/utils/coach-ideas.ts
 #: packages/api/src/presenters/cockpit.ts
 #: packages/api/src/presenters/insights.ts
 #: packages/api/src/presenters/log-kinds.ts
@@ -16729,7 +16819,6 @@ msgid "Start {0}"
 msgstr "Start {0}"
 
 #: apps/native/app/(drawer)/coach/index.tsx
-#: apps/web/src/routes/_auth/coach/route.tsx
 msgid "Start a new conversation to ask the AI coach for guidance."
 msgstr "Start a new conversation to ask the AI coach for guidance."
 
@@ -16809,7 +16898,7 @@ msgid "Starting value must start with a number, like \"70\" or \"70 kg\"."
 msgstr "Starting value must start with a number, like \"70\" or \"70 kg\"."
 
 #: apps/native/app/(drawer)/coach/index.tsx
-#: apps/web/src/routes/_auth/coach/route.tsx
+#: apps/web/src/components/coach-ideas.tsx
 msgid "Starting…"
 msgstr "Starting…"
 
@@ -17106,7 +17195,7 @@ msgstr "Supplement taken"
 
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/supplements.tsx
-#: apps/web/src/components/header.tsx
+#: apps/web/src/components/nav-links.ts
 #: apps/web/src/routes/_auth/supplements.tsx
 #: packages/api/src/presenters/clinical-export.ts
 #: packages/email/src/templates/daily-reminder.tsx
@@ -17417,6 +17506,12 @@ msgstr "Targets are yours to set, change or clear. They are shown next to what y
 msgid "Tea"
 msgstr "Tea"
 
+#. A question put in the coach's message box from an insight; the person edits it before sending
+#. placeholder {0}: view.title
+#: apps/web/src/components/insights-section.tsx
+msgid "Tell me more about this: {0}"
+msgstr "Tell me more about this: {0}"
+
 #: apps/native/app/(drawer)/settings.tsx
 #: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Template"
@@ -17568,6 +17663,10 @@ msgstr "The change will not be saved to your history."
 msgid "The coach also needs AI to be turned on for this server and your consent in Settings."
 msgstr "The coach also needs AI to be turned on for this server and your consent in Settings."
 
+#: apps/web/src/routes/_auth/coach/route.tsx
+msgid "The coach uses AI, which is off"
+msgstr "The coach uses AI, which is off"
+
 #: apps/native/app/(drawer)/invitations.tsx
 msgid "The consent version changed. Review it and try accepting the invitation again."
 msgstr "The consent version changed. Review it and try accepting the invitation again."
@@ -17639,6 +17738,10 @@ msgstr "The Garmin watch stopped acknowledging data. Move it closer to the phone
 #: packages/api/src/presenters/pain.ts
 msgid "The highest rating you logged in each region. Regions with no rating stay grey. The joint spots appear only on this layer."
 msgstr "The highest rating you logged in each region. Regions with no rating stay grey. The joint spots appear only on this layer."
+
+#: apps/web/src/components/whats-new-dialog.tsx
+msgid "The highlights of this update."
+msgstr "The highlights of this update."
 
 #: apps/native/components/direct-device-settings.tsx
 msgid "The Huawei/Honor device rejected the authentication exchange. Reconnect and try again."
@@ -17931,6 +18034,11 @@ msgstr "The workspace owner decides whether AI features can be used in this work
 #: apps/web/src/components/ai-apps-view.tsx
 msgid "The workspace owner has turned off connecting AI apps. Existing keys and connections in this workspace are paused until it is turned back on."
 msgstr "The workspace owner has turned off connecting AI apps. Existing keys and connections in this workspace are paused until it is turned back on."
+
+#: apps/web/src/components/appearance-section.tsx
+#: apps/web/src/components/user-menu.tsx
+msgid "Theme"
+msgstr "Theme"
 
 #: apps/web/src/components/magic-link-form.tsx
 msgid "There is no account for this email yet."
@@ -18406,6 +18514,10 @@ msgstr "This tracker was deleted. The goal keeps its history."
 msgid "This turns on water logging"
 msgstr "This turns on water logging"
 
+#: apps/web/src/components/whats-new-changelog.tsx
+msgid "This version"
+msgstr "This version"
+
 #: apps/native/app/(drawer)/records/activity.tsx
 #: apps/native/app/(drawer)/records/vitals.tsx
 #: apps/native/components/training-home.tsx
@@ -18486,7 +18598,7 @@ msgstr "Time zone"
 #: apps/native/app/(drawer)/(tabs)/_layout.tsx
 #: apps/native/app/(drawer)/(tabs)/index.tsx
 #: apps/native/app/(drawer)/(tabs)/timeline.tsx
-#: apps/web/src/components/header.tsx
+#: apps/web/src/components/nav-links.ts
 #: apps/web/src/routes/_auth/records/timeline.tsx
 msgid "Timeline"
 msgstr "Timeline"
@@ -18558,7 +18670,6 @@ msgstr "today"
 #: apps/native/app/(drawer)/records/activity.tsx
 #: apps/native/app/(drawer)/records/vitals.tsx
 #: apps/native/utils/friendly.ts
-#: apps/web/src/components/header.tsx
 #: apps/web/src/routes/_auth/goals.$goalId.tsx
 #: apps/web/src/routes/_auth/goals.index.tsx
 #: apps/web/src/routes/_auth/records/vitals.tsx
@@ -18697,7 +18808,7 @@ msgstr "trackers"
 
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/trackers.tsx
-#: apps/web/src/components/header.tsx
+#: apps/web/src/components/nav-links.ts
 #: apps/web/src/routes/_auth/trackers.index.tsx
 #: packages/api/src/presenters/timeline.ts
 msgid "Trackers"
@@ -18728,6 +18839,7 @@ msgstr "Tracking rule"
 #: apps/native/app/(drawer)/(tabs)/_layout.tsx
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/web/src/routes/_auth/body-map.tsx
+#: apps/web/src/utils/coach-ideas.ts
 #: packages/api/src/presenters/supplements.ts
 msgid "Training"
 msgstr "Training"
@@ -18796,6 +18908,10 @@ msgstr "Try delete again"
 msgid "Try lookup again"
 msgstr "Try lookup again"
 
+#: apps/web/src/routes/_auth/coach/route.tsx
+msgid "Turn it on to ask about your own records. You can turn it off any time."
+msgstr "Turn it on to ask about your own records. You can turn it off any time."
+
 #: packages/api/src/presenters/pain.ts
 msgid "Turn it on to record where it hurts, a rating from 0 to 10, and what it feels like. Only you can see it. It is off by default."
 msgstr "Turn it on to record where it hurts, a rating from 0 to 10, and what it feels like. Only you can see it. It is off by default."
@@ -18847,6 +18963,10 @@ msgstr "Turn off this email"
 #: packages/api/src/presenters/plain-water.ts
 msgid "Turn on"
 msgstr "Turn on"
+
+#: apps/web/src/routes/_auth/coach/route.tsx
+msgid "Turn on AI"
+msgstr "Turn on AI"
 
 #: apps/native/app/(drawer)/cycle.tsx
 #: apps/web/src/routes/_auth/cycle.tsx
@@ -19366,6 +19486,10 @@ msgstr "Uses sleep and recent activity (steps), which can be entered by hand. No
 msgid "Uses sleep and resting heart rate, plus recent activity when available. Typically needs a wearable."
 msgstr "Uses sleep and resting heart rate, plus recent activity when available. Typically needs a wearable."
 
+#: apps/web/src/components/coach-ideas.tsx
+msgid "Uses your sleep, activity, food and goals. Not medical advice."
+msgstr "Uses your sleep, activity, food and goals. Not medical advice."
+
 #: apps/native/app/(drawer)/goals/[goalId].tsx
 #: apps/native/app/(drawer)/records/labs.tsx
 #: apps/native/components/goal-editor.tsx
@@ -19520,7 +19644,6 @@ msgid "View global environment settings"
 msgstr "View global environment settings"
 
 #: apps/native/components/insights-section.tsx
-#: apps/web/src/components/insights-section.tsx
 msgid "View goals"
 msgstr "View goals"
 
@@ -19560,7 +19683,7 @@ msgstr "Visible to members of this workspace."
 
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/records/vitals.tsx
-#: apps/web/src/components/header.tsx
+#: apps/web/src/components/nav-links.ts
 #: apps/web/src/routes/_auth/records/vitals.tsx
 #: packages/api/src/presenters/timeline.ts
 msgid "Vitals"
@@ -19877,6 +20000,14 @@ msgstr "What brings you here"
 msgid "What brings you here?"
 msgstr "What brings you here?"
 
+#: apps/web/src/utils/coach-ideas.ts
+msgid "What changed when my resting heart rate went {direction, select, higher {up} other {down}} to {recent}?"
+msgstr "What changed when my resting heart rate went {direction, select, higher {up} other {down}} to {recent}?"
+
+#: apps/web/src/utils/coach-ideas.ts
+msgid "What could I eat tonight to round out today's meals?"
+msgstr "What could I eat tonight to round out today's meals?"
+
 #: apps/web/src/routes/_auth/food-draft.tsx
 #: packages/api/src/presenters/food-logger-capture.ts
 msgid "What did you have?"
@@ -19915,14 +20046,18 @@ msgstr "What to include"
 msgid "What to log"
 msgstr "What to log"
 
+#: apps/web/src/utils/coach-ideas.ts
+msgid "What's behind my weight trend over the last {weeks, plural, one {week} other {# weeks}}?"
+msgstr "What's behind my weight trend over the last {weeks, plural, one {week} other {# weeks}}?"
+
 #: apps/native/components/whats-new-settings.tsx
-#: apps/web/src/components/whats-new-section.tsx
 #: apps/web/src/routes/_auth/settings/index.tsx
+#: apps/web/src/routes/_auth/settings/whats-new.tsx
 msgid "What's new"
 msgstr "What's new"
 
 #: apps/native/components/whats-new-card.tsx
-#: apps/web/src/components/whats-new-card-view.tsx
+#: apps/web/src/components/whats-new-dialog.tsx
 msgid "What's new in {shortVersion}"
 msgstr "What's new in {shortVersion}"
 
@@ -19965,6 +20100,14 @@ msgstr "WHO guideline for adults: 150 to 300 minutes of moderate activity a week
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "Who was measured"
 msgstr "Who was measured"
+
+#: apps/web/src/utils/coach-ideas.ts
+msgid "Why are my steps {direction, select, higher {up} other {down}} by {difference} this week?"
+msgstr "Why are my steps {direction, select, higher {up} other {down}} by {difference} this week?"
+
+#: apps/web/src/utils/coach-ideas.ts
+msgid "Why is my sleep {difference} {direction, select, higher {above} other {below}} my usual this week?"
+msgstr "Why is my sleep {difference} {direction, select, higher {above} other {below}} my usual this week?"
 
 #: packages/api/src/presenters/body-map.ts
 msgid "Within {slight}"
@@ -20032,7 +20175,7 @@ msgstr "Workout routines"
 msgid "Workout type"
 msgstr "Workout type"
 
-#: apps/web/src/components/header.tsx
+#: apps/web/src/components/nav-links.ts
 #: apps/web/src/routes/_auth/workouts.tsx
 #: packages/api/src/presenters/clinical-export.ts
 msgid "Workouts"
@@ -20466,6 +20609,10 @@ msgstr "Your change: remove the entry."
 msgid "Your change: the entry values."
 msgstr "Your change: the entry values."
 
+#: apps/web/src/routes/_auth/coach/route.tsx
+msgid "Your conversations with the coach appear here."
+msgstr "Your conversations with the coach appear here."
+
 #: packages/email/src/templates/daily-reminder.tsx
 msgid "Your daily reminders"
 msgstr "Your daily reminders"
@@ -20776,9 +20923,9 @@ msgstr "Your usual sleep, {sleep} a night, is {position, select, within {within}
 msgid "Your usual value is close to the edge of the middle range, so a small change could move it to the other side."
 msgstr "Your usual value is close to the edge of the middle range, so a small change could move it to the other side."
 
+#. placeholder {0}: formatBpm(resting.usualBpm)
 #. placeholder {0}: formatBpm(summary.sevenDayAverageBpm)
 #. placeholder {0}: formatDistanceMeters(summary.sevenDayAverageDistance)
-#. placeholder {0}: formatDistanceMeters(summary.sevenDayAverageDistance, settings)
 #: apps/native/app/(drawer)/(tabs)/index.tsx
 #: apps/native/app/(drawer)/records/activity.tsx
 #: apps/native/app/(drawer)/records/vitals.tsx

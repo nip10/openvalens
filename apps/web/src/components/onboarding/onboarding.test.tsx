@@ -58,6 +58,9 @@ describe("Finish setting up card", () => {
     }
     expect(html.match(/\(done\)/g)?.length).toBe(2);
     expect(html).toContain("Dismiss");
+    // One row (#dashboard-5): the steps stay in the page but closed until "All steps".
+    expect(html).toContain("All steps");
+    expect(html).toMatch(/<ul[^>]*hidden=""[^>]*aria-label="Setup steps"/);
   });
 
   test("hidden once dismissed, or once everything has an answer", () => {

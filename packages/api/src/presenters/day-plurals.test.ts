@@ -18,12 +18,8 @@ const observation = (days: number) =>
 describe("day counts use plural forms (#237)", () => {
   test("English", () => {
     const en = serverI18n("en");
-    expect(nutritionObservationView(en, observation(1)).period).toBe(
-      "Period: 2026-10-01 to 2026-10-07 (1 day)",
-    );
-    expect(nutritionObservationView(en, observation(7)).period).toBe(
-      "Period: 2026-10-01 to 2026-10-07 (7 days)",
-    );
+    expect(nutritionObservationView(en, observation(1)).period).toBe("Period: Oct 1 – 7 (1 day)");
+    expect(nutritionObservationView(en, observation(7)).period).toBe("Period: Oct 1 – 7 (7 days)");
   });
 
   test("pt-PT", () => {

@@ -1,39 +1,9 @@
-import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react";
 import { Trans } from "@lingui/react/macro";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "@tanstack/react-router";
-import {
-  CalendarHeart,
-  ChefHat,
-  Dumbbell,
-  FileDown,
-  FlaskConical,
-  Footprints,
-  Gauge,
-  HeartPulse,
-  History,
-  KeyRound,
-  ListChecks,
-  LayoutDashboard,
-  Leaf,
-  Lock,
-  type LucideIcon,
-  Menu,
-  MessageCircle,
-  MessageSquareText,
-  Moon,
-  PersonStanding,
-  Pill,
-  Plus,
-  Scale,
-  Settings,
-  ShieldCheck,
-  Target,
-  Users,
-  UtensilsCrossed,
-} from "lucide-react";
+import { ChevronLeft, Menu, Plus, Settings } from "lucide-react";
 import { type ReactNode, type RefObject, useCallback, useEffect, useRef, useState } from "react";
 
 import { Button } from "@openvalens/ui/components/button";
@@ -45,12 +15,23 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@openvalens/ui/components/sheet";
+import { cn } from "@openvalens/ui/lib/utils";
 
 import { authClient } from "@/lib/auth-client";
 import { adminAccessQueryOptions } from "@/utils/admin-settings";
 import { filterNavByModules, useEnabledModules } from "@/utils/modules";
 
 import { ModeToggle } from "./mode-toggle";
+import {
+  ADMIN_LINK,
+  filterChildren,
+  flattenGroups,
+  isWithin,
+  NAV_GROUPS,
+  type NavGroup,
+  screenLabel,
+  SETTINGS_LINK,
+} from "./nav-links";
 import {
   LogFab,
   LogLauncherProvider,
@@ -59,58 +40,10 @@ import {
 } from "./quick-log/log-launcher";
 import { QuickLogPalette, useQuickLogHotkey } from "./quick-log/quick-log-palette";
 import UserMenu from "./user-menu";
-
-type NavLink = { to: string; label: MessageDescriptor; icon: LucideIcon };
-type NavGroup = { label: MessageDescriptor; links: readonly NavLink[] };
-
-// Twenty-odd destinations read as one undifferentiated row; grouped by what
-// someone came to do, each group stays short enough to scan.
-const NAV_GROUPS: readonly NavGroup[] = [
-  {
-    label: msg`Today`,
-    links: [
-      { to: "/dashboard", label: msg`Dashboard`, icon: LayoutDashboard },
-      { to: "/coach", label: msg`Coach`, icon: MessageCircle },
-      { to: "/scores", label: msg`Scores`, icon: Gauge },
-      { to: "/preventive-care", label: msg`Preventive care`, icon: ShieldCheck },
-    ],
-  },
-  {
-    label: msg`My body`,
-    links: [
-      { to: "/records/sleep", label: msg`Sleep`, icon: Moon },
-      { to: "/records/activity", label: msg`Activity`, icon: Footprints },
-      { to: "/records/vitals", label: msg`Vitals`, icon: HeartPulse },
-      { to: "/body", label: msg`Body`, icon: Scale },
-      { to: "/records/labs", label: msg`Labs`, icon: FlaskConical },
-      { to: "/cycle", label: msg`Cycle`, icon: CalendarHeart },
-      { to: "/body-map", label: msg`Body map`, icon: PersonStanding },
-      { to: "/private-measurements", label: msg`Private measurements`, icon: Lock },
-      { to: "/records/timeline", label: msg`Timeline`, icon: History },
-    ],
-  },
-  {
-    label: msg`Habits`,
-    links: [
-      { to: "/nutrition", label: msg`Meal diary`, icon: UtensilsCrossed },
-      { to: "/food-draft", label: msg`Describe a meal`, icon: MessageSquareText },
-      { to: "/recipe-drafts", label: msg`Recipe draft`, icon: ChefHat },
-      { to: "/micronutrients", label: msg`Micronutrients`, icon: Leaf },
-      { to: "/workouts", label: msg`Workouts`, icon: Dumbbell },
-      { to: "/goals", label: msg`Goals`, icon: Target },
-      { to: "/trackers", label: msg`Trackers`, icon: ListChecks },
-      { to: "/supplements", label: msg`Supplements`, icon: Pill },
-    ],
-  },
-];
-
-const ADMIN_LINK: NavLink = { to: "/admin/settings", label: msg`Administration`, icon: KeyRound };
-const SETTINGS_LINK: NavLink = { to: "/settings", label: msg`Settings`, icon: Settings };
-const EXPORT_LINK: NavLink = { to: "/exports", label: msg`Clinical export`, icon: FileDown };
-const SHARING_LINK: NavLink = { to: "/sharing", label: msg`Sharing`, icon: Users };
+import { WhatsNewDialog } from "./whats-new-dialog";
 
 const linkClasses =
-  "flex min-h-10 items-center gap-3 rounded-2xl px-3 py-2 font-body text-[0.9375rem] font-medium text-ink-2 whitespace-nowrap transition-colors duration-[var(--dur-short)] hover:bg-muted hover:text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring active:bg-paper-2 aria-[current=page]:bg-sidebar-accent aria-[current=page]:font-semibold aria-[current=page]:text-sidebar-accent-foreground [&>svg]:size-[19px] [&>svg]:shrink-0 [&>svg]:text-ink-3 aria-[current=page]:[&>svg]:text-signal";
+  "flex items-center gap-3 rounded-2xl px-3 font-body font-medium text-ink-2 whitespace-nowrap transition-colors duration-[var(--dur-short)] hover:bg-muted hover:text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring active:bg-paper-2 aria-[current=page]:bg-sidebar-accent aria-[current=page]:font-semibold aria-[current=page]:text-sidebar-accent-foreground [&>svg]:shrink-0 [&>svg]:text-ink-3 aria-[current=page]:[&>svg]:text-signal";
 
 function useNavGroups() {
   const { data: session, isPending: sessionPending } = authClient.useSession();
@@ -130,17 +63,31 @@ function useNavGroups() {
     !access.isError &&
     access.data?.isInstanceAdmin === true;
 
-  const more: NavGroup = {
-    label: msg`More`,
-    links: [EXPORT_LINK, SHARING_LINK, SETTINGS_LINK, ...(showAdministration ? [ADMIN_LINK] : [])],
-  };
+  const all = showAdministration
+    ? NAV_GROUPS.map((group, index) =>
+        index === NAV_GROUPS.length - 1 ? { ...group, links: [...group.links, ADMIN_LINK] } : group,
+      )
+    : NAV_GROUPS;
 
   // Onboarding stage 1: links of hidden modules leave the menu (every link
   // shows while the profile loads or fails, or before the person chooses).
   const { isEnabled } = useEnabledModules();
-  const groups = filterNavByModules([...NAV_GROUPS, more], isEnabled);
+  const groups = filterChildren(filterNavByModules(all, isEnabled), isEnabled);
 
   return { groups, signedIn: hasUserId, sessionPending };
+}
+
+/** The round mark alone: the phone's top bar spends its width on where you are. */
+function LogoMark({ className }: { className?: string }) {
+  return (
+    <span
+      className={cn(
+        "size-7 shrink-0 rounded-[10px] bg-[radial-gradient(circle_at_35%_35%,var(--tone-steps-soft),var(--signal))]",
+        className,
+      )}
+      aria-hidden="true"
+    />
+  );
 }
 
 function Wordmark() {
@@ -151,10 +98,7 @@ function Wordmark() {
       aria-label={_(msg`OpenValens home`)}
       className="flex items-center gap-2 rounded-full font-display text-xl font-semibold tracking-[-0.01em] text-ink no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
     >
-      <span
-        className="size-7 rounded-[10px] bg-[radial-gradient(circle_at_35%_35%,var(--tone-steps-soft),var(--signal))]"
-        aria-hidden="true"
-      />
+      <LogoMark />
       OpenValens
     </Link>
   );
@@ -190,38 +134,131 @@ function NavGroups({
   groups,
   label,
   navRef,
+  dense = false,
   onNavigate,
 }: {
   groups: readonly NavGroup[];
   label: string;
   navRef?: RefObject<HTMLElement | null>;
+  /** The desktop sidebar: shorter rows so the whole list fits on screen. */
+  dense?: boolean;
   onNavigate?: () => void;
 }) {
   const { _ } = useLingui();
+  const { pathname } = useLocation();
+  const row = dense
+    ? "min-h-8 py-1.5 text-sm [&>svg]:size-[18px]"
+    : "min-h-10 py-2 text-[0.9375rem] [&>svg]:size-[19px]";
   return (
-    <nav ref={navRef} aria-label={label} className="grid gap-5">
+    <nav ref={navRef} aria-label={label} className={dense ? "grid gap-3" : "grid gap-5"}>
       {groups.map((group) => (
         <div key={group.label.id} className="grid gap-0.5">
           <p
             id={`nav-${label.length}-${group.label.id}`}
-            className="px-3 pb-1 text-[0.8125rem] font-semibold text-ink-3"
+            className="px-3 pb-0.5 text-[0.8125rem] font-semibold text-ink-3"
           >
             {_(group.label)}
           </p>
           <ul aria-labelledby={`nav-${label.length}-${group.label.id}`} className="grid gap-px">
-            {group.links.map(({ to, label: linkLabel, icon: Icon }) => (
-              <li key={to}>
-                <Link to={to} className={linkClasses} onClick={onNavigate}>
-                  <Icon aria-hidden="true" />
-                  {_(linkLabel)}
-                </Link>
-              </li>
-            ))}
+            {group.links.map(({ to, label: linkLabel, icon: Icon, children }) => {
+              const open =
+                !!children?.length &&
+                (isWithin(pathname, to) || children.some((child) => isWithin(pathname, child.to)));
+              return (
+                <li key={to}>
+                  <Link to={to} className={cn(linkClasses, row)} onClick={onNavigate}>
+                    <Icon aria-hidden="true" />
+                    {_(linkLabel)}
+                  </Link>
+                  {open ? (
+                    <ul className="grid gap-px py-px pl-5">
+                      {children!.map((child) => (
+                        <li key={child.to}>
+                          <Link
+                            to={child.to}
+                            className={cn(linkClasses, row, "text-ink-3")}
+                            onClick={onNavigate}
+                          >
+                            <child.icon aria-hidden="true" />
+                            {_(child.label)}
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </li>
+              );
+            })}
           </ul>
         </div>
       ))}
     </nav>
   );
+}
+
+/**
+ * The desktop list: scrolls on its own when the window is short, with a soft
+ * fade at the bottom as the hint, and brings the current page into view.
+ */
+function SidebarNav({ groups }: { groups: readonly NavGroup[] }) {
+  const { _ } = useLingui();
+  const navRef = useRef<HTMLElement>(null);
+  const { pathname } = useLocation();
+  useEffect(() => {
+    const current = navRef.current?.querySelector<HTMLElement>('a[aria-current="page"]');
+    current?.scrollIntoView?.({ block: "nearest" });
+  }, [pathname]);
+  return (
+    <div className="min-h-0 flex-1 overflow-y-auto px-2 pt-1">
+      <NavGroups groups={groups} label={_(msg`Main navigation`)} navRef={navRef} dense />
+      <div
+        className="pointer-events-none sticky bottom-0 h-6 bg-linear-to-t from-sidebar to-transparent"
+        aria-hidden="true"
+      />
+    </div>
+  );
+}
+
+/** Settings, one tap from anywhere, next to the account it belongs to. */
+function SettingsButton() {
+  const { _ } = useLingui();
+  const label = _(msg`Settings`);
+  return (
+    <Button variant="ghost" size="icon" asChild>
+      <Link
+        to="/settings"
+        aria-label={label}
+        title={label}
+        className="text-ink-3 aria-[current=page]:bg-sidebar-accent aria-[current=page]:text-signal"
+      >
+        <Settings className="size-[1.2rem]" aria-hidden="true" />
+      </Link>
+    </Button>
+  );
+}
+
+/**
+ * The phone's top bar, after the menu button: on a settings sub-page a way
+ * back to Settings, elsewhere the name of the screen.
+ */
+function MobilePlace() {
+  const { _ } = useLingui();
+  const { pathname } = useLocation();
+  if (pathname.startsWith("/settings/")) {
+    return (
+      <Link
+        to="/settings"
+        className="inline-flex min-h-11 min-w-0 items-center gap-1 rounded-full pr-2 font-display font-medium text-ink no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+      >
+        <ChevronLeft className="size-5 shrink-0 text-ink-3" aria-hidden="true" />
+        <span className="truncate">{_(msg`Settings`)}</span>
+      </Link>
+    );
+  }
+  const place = screenLabel(pathname);
+  return place ? (
+    <p className="truncate font-display text-lg font-medium text-ink">{_(place)}</p>
+  ) : null;
 }
 
 /**
@@ -242,7 +279,7 @@ function ShellPalette(props: PaletteRenderProps) {
   const { groups, signedIn } = useNavGroups();
   const location = useLocation();
   if (!signedIn || location.pathname === "/welcome") return null;
-  return <QuickLogPalette {...props} navGroups={groups} />;
+  return <QuickLogPalette {...props} navGroups={flattenGroups(groups)} />;
 }
 
 /**
@@ -303,34 +340,29 @@ function AppFrame({ children }: { children: ReactNode }) {
       {skipLink}
       <div className="hidden border-r border-sidebar-border bg-sidebar/80 backdrop-blur-sm lg:block">
         <aside className="sticky top-0 flex h-svh flex-col">
-          <div className="flex h-16 shrink-0 items-center px-5">
+          <div className="flex h-14 shrink-0 items-center px-5">
             <Wordmark />
           </div>
-          <div className="px-3 pb-1">
+          <div className="px-3 pb-2">
             <LogButton onOpen={openPalette} className="w-full justify-start" />
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto px-2 pt-2 pb-6">
-            <NavGroups groups={groups} label={_(msg`Main navigation`)} />
-          </div>
-          <div className="flex shrink-0 items-center gap-2 border-t border-sidebar-border px-3 py-3">
+          <SidebarNav groups={groups} />
+          <div className="flex shrink-0 items-center gap-1 border-t border-sidebar-border px-3 py-2">
             <div className="min-w-0 flex-1">
               <UserMenu />
             </div>
-            <ModeToggle />
+            <SettingsButton />
           </div>
         </aside>
       </div>
 
       <div className="grid min-w-0 grid-rows-[auto_1fr] lg:grid-rows-[1fr]">
         <header className="sticky top-0 z-[var(--z-sticky-nav)] flex h-14 items-center justify-between gap-2 border-b border-rule bg-paper px-4 lg:hidden">
-          <div className="flex min-w-0 items-center gap-3">
+          <div className="flex min-w-0 items-center gap-2">
             <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
               <SheetTrigger asChild>
-                <Button variant="outline" size="sm" aria-label={_(msg`Open navigation menu`)}>
-                  <Menu className="size-4" aria-hidden="true" />
-                  <span className="hidden sm:inline">
-                    <Trans>Menu</Trans>
-                  </span>
+                <Button variant="ghost" size="icon" aria-label={_(msg`Open navigation menu`)}>
+                  <Menu className="size-5" aria-hidden="true" />
                 </Button>
               </SheetTrigger>
               <SheetContent
@@ -348,8 +380,9 @@ function AppFrame({ children }: { children: ReactNode }) {
                 }}
               >
                 <SheetHeader>
-                  <SheetTitle>
-                    <Trans>Menu</Trans>
+                  <SheetTitle className="flex items-center gap-2">
+                    <LogoMark />
+                    OpenValens
                   </SheetTitle>
                   <SheetDescription className="sr-only">
                     <Trans>Navigate the app</Trans>
@@ -357,21 +390,25 @@ function AppFrame({ children }: { children: ReactNode }) {
                 </SheetHeader>
                 <div className="min-h-0 overflow-y-auto px-2 pb-4">
                   <NavGroups
-                    groups={groups}
+                    groups={[...groups, { label: msg`Account`, links: [SETTINGS_LINK] }]}
                     label={_(msg`Mobile navigation`)}
                     navRef={mobileNavRef}
                     onNavigate={() => setMobileOpen(false)}
                   />
-                  <div className="mt-5 border-t border-sidebar-border px-3 pt-4">
-                    <ModeToggle />
-                  </div>
                 </div>
               </SheetContent>
             </Sheet>
-            <Wordmark />
+            <Link
+              to="/"
+              aria-label={_(msg`OpenValens home`)}
+              className="grid size-9 shrink-0 place-items-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            >
+              <LogoMark />
+            </Link>
+            <MobilePlace />
           </div>
-          <div className="flex items-center gap-2">
-            <UserMenu />
+          <div className="flex shrink-0 items-center">
+            <UserMenu compact />
           </div>
         </header>
         {/* Room under the last card for the log "+". */}
@@ -380,6 +417,7 @@ function AppFrame({ children }: { children: ReactNode }) {
         </div>
       </div>
       {showLogFab ? <LogFab /> : null}
+      <WhatsNewDialog />
     </div>
   );
 }

@@ -74,15 +74,15 @@ export const INSIGHT_COPY = {
 export function nutritionObservationView(
   i18n: I18n,
   observation: InsightsResult["observations"][number],
+  settings?: ProductDisplaySettings | null,
 ) {
   const { from, to, days } = observation.window;
+  const range = formatInsightDateRange(i18n, from, to, settings);
   return {
     title: observation.title,
     body: observation.body,
     completeness: observation.completeness,
-    period: i18n._(
-      msg`Period: ${from} to ${to} (${plural(days, { one: "# day", other: "# days" })})`,
-    ),
+    period: i18n._(msg`Period: ${range} (${plural(days, { one: "# day", other: "# days" })})`),
     accessibilityLabel: `${observation.title}. ${observation.body}. ${observation.completeness}`,
   };
 }
@@ -216,6 +216,41 @@ export function formatInsightDate(date: string): string {
   return `${Number(day)} ${months[Number(month) - 1] ?? ""}`.trim();
 }
 
+function utcDay(date: string): Date | null {
+  const value = new Date(`${date.slice(0, 10)}T00:00:00Z`);
+  return Number.isNaN(value.getTime()) ? null : value;
+}
+
+function insightDateFormat(i18n: I18n, settings?: ProductDisplaySettings | null) {
+  return new Intl.DateTimeFormat(settings?.locale ?? i18n.locale, {
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  });
+}
+
+/** A day as the reader's locale writes it: "Aug 19" (en-US), "19 Aug" (en-GB). */
+export function formatLocalInsightDate(
+  i18n: I18n,
+  date: string,
+  settings?: ProductDisplaySettings | null,
+): string {
+  const day = utcDay(date);
+  return day ? insightDateFormat(i18n, settings).format(day) : date;
+}
+
+/** Two days as one range in the reader's locale: "Oct 20 – Nov 16". */
+export function formatInsightDateRange(
+  i18n: I18n,
+  from: string,
+  to: string,
+  settings?: ProductDisplaySettings | null,
+): string {
+  const [start, end] = [utcDay(from), utcDay(to)];
+  if (!start || !end || end < start) return `${from} – ${to}`;
+  return insightDateFormat(i18n, settings).formatRange(start, end);
+}
+
 /** "In the same period, …": one whole sentence for one or two factors. */
 function factorText(i18n: I18n, factors: readonly InsightFactor[]): string | null {
   const [first, second] = factors;
@@ -260,6 +295,8 @@ function factorText(i18n: I18n, factors: readonly InsightFactor[]): string | nul
 export type InsightView = {
   key: string;
   kind: InsightKind;
+  /** The subject, for the subject's icon (moon for sleep, and so on). */
+  topic: InsightTopic;
   kindLabel: string;
   title: string;
   body: string;
@@ -375,13 +412,9 @@ export function insightView(
       // neutral wording as the daily tracker change: more, less, never better.
       const { direction, recentDays, baselineWeeks, baselineWindowWeeks } = detail;
       const name = detail.trackerName;
-      const week = formatInsightDate(detail.weekStart);
-      // "5–11 Oct", or "28 Sep–4 Oct" across a month.
-      const weekRange = `${
-        detail.weekStart.slice(0, 7) === detail.weekEnd.slice(0, 7)
-          ? Number(detail.weekStart.slice(8, 10))
-          : week
-      }–${formatInsightDate(detail.weekEnd)}`;
+      const week = formatLocalInsightDate(i18n, detail.weekStart, settings);
+      // "Oct 5 – 11", or "Sep 28 – Oct 4" across a month.
+      const weekRange = formatInsightDateRange(i18n, detail.weekStart, detail.weekEnd, settings);
       if (detail.trackerType === "yes_no") {
         const recentYes = Math.round(detail.recentValue);
         const usual = Math.round(detail.baselineValue * 10) / 10;
@@ -469,7 +502,7 @@ export function insightView(
     }
     case "recording_gap": {
       const { metric, daysWithout } = detail;
-      const date = formatInsightDate(detail.lastRecordedDate);
+      const date = formatLocalInsightDate(i18n, detail.lastRecordedDate, settings);
       title = i18n._(
         msg`No ${select(metric, {
           sleep_duration: "sleep",
@@ -490,7 +523,7 @@ export function insightView(
     }
     case "source_change": {
       const { metric, baselineDays, baselineMinDays } = detail;
-      const date = formatInsightDate(detail.sinceDate);
+      const date = formatLocalInsightDate(i18n, detail.sinceDate, settings);
       title = i18n._(
         msg`New source for ${select(metric, {
           sleep_duration: "sleep",
@@ -503,7 +536,7 @@ export function insightView(
         msg`${select(metric, {
           sleep_duration: "Sleep",
           resting_heart_rate: "Resting heart rate",
-          steps: "Steps",
+          steps: "Step count",
           other: "Weight",
         })} has been coming from a different device or app since ${date}. Different sources measure differently, so your usual is being rebuilt from the new source only (${baselineDays} of ${baselineMinDays} days so far). Change insights for it pause until then.`,
       );
@@ -511,7 +544,7 @@ export function insightView(
     }
     case "streak": {
       const { metric, days } = detail;
-      const date = formatInsightDate(detail.startDate);
+      const date = formatLocalInsightDate(i18n, detail.startDate, settings);
       title = i18n._(
         msg`${plural(days, { one: "# day", other: "# days" })} of ${select(metric, {
           sleep_duration: "sleep",
@@ -524,7 +557,7 @@ export function insightView(
         msg`${select(metric, {
           sleep_duration: "Sleep",
           resting_heart_rate: "Resting heart rate",
-          steps: "Steps",
+          steps: "Step count",
           other: "Weight",
         })} has been recorded every day since ${date}.`,
       );
@@ -578,6 +611,7 @@ export function insightView(
   return {
     key: insight.id,
     kind: insight.kind,
+    topic: insight.topic,
     kindLabel,
     title,
     body,

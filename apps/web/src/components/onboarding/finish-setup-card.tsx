@@ -13,8 +13,10 @@ import {
 } from "@openvalens/api/presenters/onboarding";
 import { describeProfileSaveError } from "@openvalens/api/presenters/wellness-profile";
 import { Button } from "@openvalens/ui/components/button";
-import { Sprout } from "lucide-react";
-import { useState } from "react";
+import { cn } from "@openvalens/ui/lib/utils";
+import { Link } from "@tanstack/react-router";
+import { ChevronDown, ChevronRight, Sprout } from "lucide-react";
+import { useId, useState } from "react";
 import { toast } from "sonner";
 
 import { SetupItemLink } from "@/components/onboarding/onboarding-steps";
@@ -80,41 +82,74 @@ export function FinishSetupCardView({
   onDismiss: () => void;
 }) {
   const { t, i18n } = useLingui();
+  const [open, setOpen] = useState(false);
+  const listId = useId();
   if (!shouldShowSetupCard(snapshot, facts)) return null;
   const { done, total } = setupProgress(snapshot, facts);
+  const next = SETUP_ITEMS.find((item) => !isSetupItemDone(item, snapshot, facts));
+  // One row (#dashboard-5): the count, the next step and a way to see them all.
   return (
-    <section
-      aria-labelledby="finish-setup-title"
-      className="sheet grid gap-5 bg-[linear-gradient(120deg,var(--sidebar-accent),transparent_70%)] p-6"
-    >
-      <div className="grid gap-4 md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-center md:gap-x-6">
-        <ToneIcon icon={Sprout} tone="signal" size="lg" />
-        <div className="grid min-w-0 gap-2">
-          <h2 id="finish-setup-title" className="text-xl leading-tight text-ink">
-            <Trans>
-              Finish setting up, {done} of {total}
-            </Trans>
-          </h2>
-          <Meter
-            value={done / total}
-            tone="signal"
-            label={t`${done} of ${total} setup steps done`}
-            className="max-w-sm"
-          />
-          <p className="max-w-[60ch] text-sm text-ink-2">
-            <Trans>Each one takes a minute. Skip anything you like.</Trans>
-          </p>
-        </div>
-        <Button
-          variant="ghost"
-          className="justify-self-start"
-          disabled={dismissing}
-          onClick={onDismiss}
+    <section aria-labelledby="finish-setup-title" className="sheet grid gap-2 px-4 py-2.5">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <ToneIcon icon={Sprout} tone="signal" size="sm" />
+        <h2
+          id="finish-setup-title"
+          className="font-body text-base leading-tight font-semibold text-ink"
         >
-          <Trans>Dismiss</Trans>
-        </Button>
+          <Trans>
+            Finish setting up, {done} of {total}
+          </Trans>
+        </h2>
+        <Meter
+          value={done / total}
+          tone="signal"
+          label={t`${done} of ${total} setup steps done`}
+          className="hidden w-24 sm:block"
+        />
+        {next ? (
+          <Link
+            to="/setup/$item"
+            params={{ item: next }}
+            className="inline-flex min-h-9 items-center gap-0.5 rounded-full px-1 text-sm font-medium text-ink no-underline hover:text-signal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          >
+            {i18n._(SETUP_ITEM_COPY[next].title)}
+            <ChevronRight className="size-4" aria-hidden="true" />
+          </Link>
+        ) : null}
+        <div className="ml-auto flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            aria-expanded={open}
+            aria-controls={listId}
+            onClick={() => setOpen((value) => !value)}
+          >
+            {open ? <Trans>Hide steps</Trans> : <Trans>All steps</Trans>}
+            <ChevronDown
+              className={cn(
+                "size-4 transition-transform duration-[var(--dur-short)] motion-reduce:transition-none",
+                open && "rotate-180",
+              )}
+              aria-hidden="true"
+            />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-ink-3"
+            disabled={dismissing}
+            onClick={onDismiss}
+          >
+            <Trans>Dismiss</Trans>
+          </Button>
+        </div>
       </div>
-      <ul className="grid gap-1 sm:grid-cols-2" aria-label={t`Setup steps`}>
+      <ul
+        id={listId}
+        hidden={!open}
+        className="grid gap-1 pb-1 sm:grid-cols-2"
+        aria-label={t`Setup steps`}
+      >
         {SETUP_ITEMS.map((item) => (
           <li key={item}>
             <SetupItemLink
