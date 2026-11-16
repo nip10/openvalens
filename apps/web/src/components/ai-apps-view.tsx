@@ -629,7 +629,7 @@ function HelpLinks({ mcpUrl, oauthEnabled }: { mcpUrl: string | null; oauthEnabl
           <div
             role="tablist"
             aria-labelledby={`${baseId}-label`}
-            className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1"
+            className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sm:flex-wrap sm:overflow-visible"
           >
             {AI_APPS_HELP_PAGES.map((page) => {
               const active = page.id === selected;
