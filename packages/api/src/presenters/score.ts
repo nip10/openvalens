@@ -60,13 +60,13 @@ export const READINESS_INPUT_LABELS: Record<ReadinessInput, MessageDescriptor> =
 };
 
 export const READINESS_PROFILE_LABELS: Record<ReadinessProfile, MessageDescriptor> = {
-  physiology_enhanced: msg`Physiology-enhanced profile`,
-  manual_friendly: msg`Manual-friendly profile`,
+  physiology_enhanced: msg`Uses heart data from your watch`,
+  manual_friendly: msg`Uses sleep and steps`,
 };
 
 export const READINESS_PROFILE_DESCRIPTIONS: Record<ReadinessProfile, MessageDescriptor> = {
   physiology_enhanced: msg`Uses sleep and resting heart rate, plus recent activity when available. Typically needs a wearable.`,
-  manual_friendly: msg`Uses sleep and recent activity (steps), which can be entered by hand. Not comparable with the physiology-enhanced profile.`,
+  manual_friendly: msg`Uses sleep and recent activity (steps), which can be entered by hand. Not comparable with an index that uses heart data.`,
 };
 
 export const READINESS_INPUT_STATE_LABELS: Record<ReadinessInputState, MessageDescriptor> = {
@@ -125,11 +125,16 @@ export function listInputs(inputs: readonly ReadinessInput[], i18n: I18n): strin
 
 export type ReadinessComponentView = {
   key: ReadinessInput;
+  state: ReadinessInputState;
   label: string;
   stateLabel: string;
   used: boolean;
   scoreText: string;
   detail: string;
+  /** A counted part: which way it moves the index ("Less sleep than your usual, so it lowers readiness."). */
+  effectText: string | null;
+  /** A counted part: its share of the index ("1 of 3 equal parts"). */
+  weightText: string | null;
   accessibilityLabel: string;
 };
 
@@ -145,8 +150,47 @@ export type ReadinessView = {
   withheldExplanation: string | null;
   wouldHelpText: string | null;
   components: ReadinessComponentView[];
+  /** Inputs OpenValens does not record yet, folded into one line ("Not counted yet: …"). */
+  notCountedText: string | null;
   versionText: string;
 };
+
+type ScoredInput = "sleep" | "resting_heart_rate" | "activity_load";
+
+/**
+ * Which way a counted part moves the index. A part is 0 to 100 with 50 for
+ * "in line with your usual" (`readinessMethod`), so the direction follows from
+ * the part score alone: above 50 adds to the index, below 50 lowers it.
+ */
+const READINESS_EFFECTS: Record<
+  ScoredInput,
+  { adds: MessageDescriptor; lowers: MessageDescriptor }
+> = {
+  sleep: {
+    adds: msg`More sleep than your usual, so it adds to readiness.`,
+    lowers: msg`Less sleep than your usual, so it lowers readiness.`,
+  },
+  resting_heart_rate: {
+    adds: msg`Lower than your usual, so it adds to readiness.`,
+    lowers: msg`Higher than your usual, so it lowers readiness.`,
+  },
+  activity_load: {
+    adds: msg`Lighter than your usual days, so it adds to readiness.`,
+    lowers: msg`Heavier than your usual days, so it lowers readiness.`,
+  },
+};
+
+function isScoredInput(input: ReadinessInput): input is ScoredInput {
+  return input === "sleep" || input === "resting_heart_rate" || input === "activity_load";
+}
+
+function componentEffect(component: ReadinessComponent, i18n: I18n): string | null {
+  const score = component.componentScore;
+  if (component.state !== "used" || score === null || !isScoredInput(component.input)) return null;
+  if (score === 50) return i18n._(msg`In line with your usual.`);
+  const effects = READINESS_EFFECTS[component.input];
+  return i18n._(score > 50 ? effects.adds : effects.lowers);
+}
 
 function componentDetail(component: ReadinessComponent, i18n: I18n): string {
   if (component.state === "not_supported_yet") {
@@ -160,44 +204,63 @@ function componentDetail(component: ReadinessComponent, i18n: I18n): string {
   }
   const recent = formatReadinessValue(component.recentValue, component.unit, i18n);
   const days = component.baselineDays;
+  const window = component.baselineWindowDays;
   if (component.state === "insufficient_baseline") {
     const minimum = component.baselineMinDays;
-    const window = component.baselineWindowDays;
     return i18n._(
       msg`Recent ${recent}. Your usual needs ${minimum} days with data in the previous ${window}; found ${days}.`,
     );
   }
   const usual = formatReadinessValue(component.baselineValue, component.unit, i18n);
   const relative = formatRelativeDifference(component.relativeDifference, i18n);
+  // The window is named, so this usual reads apart from other screens' usual.
+  const median =
+    days === window
+      ? i18n._(msg`median of the ${window} days before`)
+      : i18n._(
+          msg`median of ${plural(days, { one: "# day", other: "# days" })} in the ${window} before`,
+        );
   return relative
-    ? i18n._(
-        msg`Recent ${recent} vs usual ${usual} (median of ${plural(days, { one: "# day", other: "# days" })}), ${relative}.`,
-      )
-    : i18n._(
-        msg`Recent ${recent} vs usual ${usual} (median of ${plural(days, { one: "# day", other: "# days" })}).`,
-      );
+    ? i18n._(msg`Recent ${recent} vs usual ${usual} (${median}), ${relative}.`)
+    : i18n._(msg`Recent ${recent} vs usual ${usual} (${median}).`);
 }
 
 /** Text is rendered through `i18n` (#67), so the view follows the active language. */
 export function readinessView(result: ReadinessResult, i18n: I18n): ReadinessView {
   const available = result.status === "available" && result.score !== null;
+  const parts = result.coverage.usedInputs.length;
   const components = result.components.map((component): ReadinessComponentView => {
     const label = i18n._(READINESS_INPUT_LABELS[component.input]);
     const state = i18n._(READINESS_INPUT_STATE_LABELS[component.state]);
     const score = component.componentScore;
     const scoreText = score === null ? "—" : `${score}`;
     const detail = componentDetail(component, i18n);
+    const used = component.state === "used";
+    const effectText = componentEffect(component, i18n);
+    // The index is the plain average of the counted parts, so each weighs the same.
+    const weightText =
+      used && score !== null
+        ? i18n._(
+            msg`${plural(parts, { one: "The only part of the index.", other: "1 of # equal parts." })}`,
+          )
+        : null;
+    const accessibilityLabel =
+      score === null
+        ? i18n._(msg`${label}: ${state}. ${detail}`)
+        : i18n._(msg`${label}: ${state}. Part score ${score} out of 100. ${detail}`);
     return {
       key: component.input,
+      state: component.state,
       label,
       stateLabel: state,
-      used: component.state === "used",
+      used,
       scoreText,
       detail,
-      accessibilityLabel:
-        score === null
-          ? i18n._(msg`${label}: ${state}. ${detail}`)
-          : i18n._(msg`${label}: ${state}. Part score ${score} out of 100. ${detail}`),
+      effectText,
+      weightText,
+      accessibilityLabel: effectText
+        ? `${accessibilityLabel} ${effectText} ${weightText ?? ""}`.trim()
+        : accessibilityLabel,
     };
   });
   const used = result.coverage.usedInputs.length;
@@ -209,14 +272,19 @@ export function readinessView(result: ReadinessResult, i18n: I18n): ReadinessVie
   const helpList = listInputs(result.wouldHelp, i18n);
   const version = result.algorithmVersion;
   const asOf = result.asOf;
-  const profileName = profile?.toLowerCase() ?? "";
+  const notYet = result.components
+    .filter((component) => component.state === "not_supported_yet")
+    .map((component) => component.input);
+  const notYetList = listInputs(notYet, i18n);
   return {
     title: i18n._(SCORE_COPY.readinessTitle),
     badge: i18n._(SCORE_COPY.experimentalBadge),
     available,
     scoreText: available ? `${score}` : "—",
     accessibilityLabel: available
-      ? i18n._(msg`Experimental readiness index ${score} out of 100, ${profileName}.`)
+      ? profile
+        ? i18n._(msg`Experimental readiness index ${score} out of 100. ${profile}.`)
+        : i18n._(msg`Experimental readiness index ${score} out of 100.`)
       : i18n._(msg`Experimental readiness index not available.`),
     profileLabel: profile ?? i18n._(msg`No profile applies yet`),
     profileDescription: result.profile
@@ -232,6 +300,7 @@ export function readinessView(result: ReadinessResult, i18n: I18n): ReadinessVie
     wouldHelpText:
       result.wouldHelp.length > 0 ? i18n._(msg`More data for ${helpList} would help.`) : null,
     components,
+    notCountedText: notYet.length > 0 ? i18n._(msg`Not counted yet: ${notYetList}`) : null,
     versionText: i18n._(msg`Method ${version}, as of ${asOf}.`),
   };
 }

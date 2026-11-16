@@ -58,6 +58,10 @@ describe("preventive care (web)", () => {
     expect(html).toContain("https://www.uspreventiveservicestaskforce.org/");
     expect(html).toContain("Report a problem with this guidance");
     expect(html).not.toMatch(/overdue/i);
+    // One status line, not two counters.
+    expect(html).toMatch(/\d+ items? for you/);
+    expect(html).toContain("Nothing due now");
+    expect(html).not.toContain("Date reached");
   });
 
   test("self-declared questions are never pre-selected and offer prefer-not-to-say", () => {
@@ -93,6 +97,17 @@ describe("preventive care (web)", () => {
     expect(html).toContain("Individual decision: discuss with your clinician (USPSTF C)");
     expect(html).toContain("Decided: no");
     expect(html).toContain("decisionaid.ohri.ca");
+  });
+
+  test("one item shares its row with the questions, which link the item's source", () => {
+    const full = result();
+    const aaa = full.items.find((item) => item.id === "us.aaa_screening")!;
+    const html = renderToStaticMarkup(
+      <PreventiveCareView result={{ ...full, items: [aaa] }} library={null} {...handlers} />,
+    );
+    expect(html).toContain("1 item for you");
+    expect(html).toContain("grid items-start gap-6 lg:grid-cols-2");
+    expect(html).toContain(aaa.sourceUrl);
   });
 
   test("no region: an explanation and no list", () => {
@@ -136,5 +151,11 @@ describe("preventive care (web)", () => {
     expect(on).toContain("Evidence check");
     expect(on).toContain("Moderate certainty");
     expect(on).toContain("no doses");
+    // A compact list: each entry opens on tap, its verdict in one of three tones.
+    expect(on).toContain("<summary");
+    expect(on).toContain("bg-warning/14 text-warning");
+    expect(on).toContain("bg-success/12 text-success");
+    expect(on).toContain("Guideline statement");
+    expect(on).not.toContain("Authority grade or consensus");
   });
 });

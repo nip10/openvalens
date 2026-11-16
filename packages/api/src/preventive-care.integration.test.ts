@@ -291,17 +291,20 @@ describe.skipIf(!url)("preventive care over HTTP against disposable PostgreSQL",
 
   test("declarations: never pre-selected, prefer-not-to-say allowed, clearing deletes", async () => {
     const before = await get();
-    const question = before.body.criteria.find((entry) => entry.id === "ever_smoked");
+    // A (52, female, US) is asked about lung screening; the AAA question (men 65 to 75) is not.
+    expect(before.body.criteria.map((entry) => entry.id)).not.toContain("ever_smoked");
+    const criterion = "uspstf_lung_smoking_history";
+    const question = before.body.criteria.find((entry) => entry.id === criterion);
     expect(question?.answer).toBeNull();
     const declared = await call("preventiveCare/declare", {
-      criterion: "ever_smoked",
+      criterion,
       answer: "prefer_not_to_say",
     });
     expect(declared.status).toBe(200);
-    expect((await get()).body.criteria.find((entry) => entry.id === "ever_smoked")?.answer).toBe(
+    expect((await get()).body.criteria.find((entry) => entry.id === criterion)?.answer).toBe(
       "prefer_not_to_say",
     );
-    await call("preventiveCare/declare", { criterion: "ever_smoked", answer: null });
+    await call("preventiveCare/declare", { criterion, answer: null });
     const rows = await db.execute(
       sql`select 1 from preventive_care_declaration where user_id = 'user-a'`,
     );

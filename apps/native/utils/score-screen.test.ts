@@ -32,7 +32,7 @@ describe("native score screen model", () => {
     expect(card.badge).toBe("Experimental");
     expect(card.scoreText).toBe("45");
     expect(card.scoreSuffix).toBe("out of 100");
-    expect(card.notes).toContain("Manual-friendly profile");
+    expect(card.notes).toContain("Uses sleep and steps");
     expect(card.rows.map((row) => [row.key, row.value])).toEqual([
       ["sleep", "40"],
       ["resting_heart_rate", "—"],

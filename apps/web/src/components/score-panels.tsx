@@ -1,5 +1,10 @@
 import { Trans, useLingui } from "@lingui/react/macro";
-import { goalProgressView, readinessView, SCORE_COPY } from "@openvalens/api/presenters/score";
+import {
+  goalProgressView,
+  type ReadinessComponentView,
+  readinessView,
+  SCORE_COPY,
+} from "@openvalens/api/presenters/score";
 import type { GoalProgressResult, ReadinessResult } from "@openvalens/api/score-contract";
 import { Flag, Gauge, type LucideIcon, Target } from "lucide-react";
 import type { ReactNode } from "react";
@@ -138,9 +143,48 @@ function ScoreHero({
   );
 }
 
+/**
+ * One part of the readiness index as a compact row: name, bar and figure on
+ * one line, then one short line on which way it moves the index and its share
+ * (or, for a part that is not counted, why).
+ */
+function BreakdownRow({ component }: { component: ReadinessComponentView }) {
+  const value = share(component.scoreText);
+  const note = component.effectText
+    ? [component.effectText, component.weightText].filter(Boolean).join(" ")
+    : component.stateLabel;
+  return (
+    <li className="grid min-w-0 gap-1 py-3" aria-label={component.accessibilityLabel}>
+      <div className="grid min-w-0 grid-cols-[minmax(0,9.5rem)_minmax(0,1fr)_2.75rem] items-center gap-3 sm:grid-cols-[minmax(0,13rem)_minmax(0,1fr)_2.75rem]">
+        <span className="flex min-w-0 items-center gap-1 font-semibold break-words text-ink">
+          <span className="min-w-0">{component.label}</span>
+          <InfoTip>
+            <p>{component.detail}</p>
+          </InfoTip>
+        </span>
+        {value !== null ? (
+          <Meter value={value} tone="sleep" />
+        ) : (
+          <span className="h-2.5 w-full rounded-full bg-paper-2" aria-hidden="true" />
+        )}
+        <span
+          className="num text-right font-display text-xl font-medium text-ink"
+          aria-hidden="true"
+        >
+          {component.scoreText}
+        </span>
+      </div>
+      <p className="text-sm text-ink-3">{note}</p>
+    </li>
+  );
+}
+
 export function ReadinessCard({ result }: { result: ReadinessResult }) {
   const { i18n } = useLingui();
   const view = readinessView(result, i18n);
+  // HRV and the check-in are not recorded yet: one line, not two empty rows.
+  const rows = view.components.filter((component) => component.state !== "not_supported_yet");
+  const notYet = view.components.filter((component) => component.state === "not_supported_yet");
   return (
     <section
       aria-labelledby="readiness-title"
@@ -158,48 +202,54 @@ export function ReadinessCard({ result }: { result: ReadinessResult }) {
           version={view.versionText}
         />
       </div>
-      <ScoreHero
-        icon={Gauge}
-        tone="sleep"
-        value={view.available ? (share(view.scoreText) ?? 0) : 0}
-        scoreText={view.scoreText}
-        accessibilityLabel={view.accessibilityLabel}
-        unit={
-          view.available ? (
-            <span className="text-sm text-ink-3">{i18n._(SCORE_COPY.outOf100)}</span>
-          ) : null
-        }
-      />
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-4">
+        <ScoreHero
+          icon={Gauge}
+          tone="sleep"
+          value={view.available ? (share(view.scoreText) ?? 0) : 0}
+          scoreText={view.scoreText}
+          accessibilityLabel={view.accessibilityLabel}
+          unit={
+            view.available ? (
+              <span className="text-sm text-ink-3">{i18n._(SCORE_COPY.outOf100)}</span>
+            ) : null
+          }
+        />
+        <div className="flex flex-wrap items-center gap-1 text-sm">
+          <span className="rounded-full bg-sleep-soft px-2.5 py-1 font-semibold text-ink">
+            {view.profileLabel}
+          </span>
+          <InfoTip>
+            {view.profileDescription ? <p>{view.profileDescription}</p> : null}
+            <p>{view.coverageText}</p>
+          </InfoTip>
+        </div>
+      </div>
       {view.withheldExplanation ? <p className="text-ink-2">{view.withheldExplanation}</p> : null}
       {view.wouldHelpText ? <p className="text-sm text-ink-3">{view.wouldHelpText}</p> : null}
-      <div className="flex flex-wrap items-center gap-2 text-sm">
-        <span className="rounded-full bg-sleep-soft px-2.5 py-1 font-semibold text-ink">
-          {view.profileLabel}
-        </span>
-        <InfoTip>
-          {view.profileDescription ? <p>{view.profileDescription}</p> : null}
-          <p>{view.coverageText}</p>
-        </InfoTip>
-      </div>
       {view.components.length > 0 ? (
-        <div className="grid gap-3">
+        <div className="grid gap-1">
           <h3 className="text-base text-ink-2">
             <Trans>Breakdown</Trans>
           </h3>
-          <ul className="grid gap-2.5 sm:grid-cols-2">
-            {view.components.map((component) => (
-              <ScoreRow
-                key={component.key}
-                label={component.label}
-                state={component.stateLabel}
-                counted={component.used}
-                lines={[component.detail]}
-                figure={component.scoreText}
-                tone="sleep"
-                accessibilityLabel={component.accessibilityLabel}
-              />
+          <ul className="grid divide-y divide-rule">
+            {rows.map((component) => (
+              <BreakdownRow key={component.key} component={component} />
             ))}
           </ul>
+          {view.notCountedText ? (
+            <div className="flex flex-wrap items-center gap-1 border-t border-rule pt-3 text-sm text-ink-3">
+              <span className="min-w-0">{view.notCountedText}</span>
+              <InfoTip>
+                {notYet.map((component) => (
+                  <p key={component.key}>
+                    <span className="font-medium text-ink">{component.label}:</span>{" "}
+                    {component.stateLabel}. {component.detail}
+                  </p>
+                ))}
+              </InfoTip>
+            </div>
+          ) : null}
         </div>
       ) : null}
     </section>

@@ -135,7 +135,8 @@ export type PreventiveEngineOutput = Pick<PreventiveCareResult, "items" | "notSh
 /**
  * Evaluates the region's items. Items that do not match are listed in
  * `notShown` (title and reason) rather than silently dropped. Criteria are
- * asked only when an item in the region names them.
+ * asked only when an item in the region that fits the person's age and sex
+ * names them, or when they were already answered.
  */
 export function evaluatePreventiveCare(
   pack: PreventivePack,
@@ -158,11 +159,18 @@ export function evaluatePreventiveCare(
       notShown.push({ id: item.id, title: item.title, applicability: view.applicability });
     else items.push(view);
   }
+  // A question is asked only when it matters: an item that names it is not
+  // already ruled out by age or sex (the answer cannot change that). One the
+  // person has answered stays, so the answer can always be changed or cleared.
   const asked = new Set(
-    regionItems.flatMap((item) => item.population.criteria.map((entry) => entry.criterion)),
+    regionItems
+      .filter((item) => applicabilityFor(item, input) !== "outside_age_or_sex")
+      .flatMap((item) => item.population.criteria.map((entry) => entry.criterion)),
   );
   const criteria = pack.criteria
-    .filter((criterion) => asked.has(criterion.id))
+    .filter(
+      (criterion) => asked.has(criterion.id) || input.declarations[criterion.id] !== undefined,
+    )
     .map((criterion) => ({
       id: criterion.id,
       question: criterion.question,

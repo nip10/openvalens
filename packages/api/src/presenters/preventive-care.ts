@@ -395,10 +395,8 @@ export const CERTAINTY_LABELS: Record<EvidenceCertainty, MessageDescriptor> = {
     message: "Very low certainty (“the evidence is very uncertain”)",
     comment: "safety",
   }),
-  not_graded: msg({
-    message: "Authority grade or consensus (no certainty rating)",
-    comment: "safety",
-  }),
+  // No certainty rating: say what it is rather than what it lacks.
+  not_graded: msg({ message: "Guideline statement", comment: "safety" }),
 };
 
 export const VERDICT_LABELS: Record<EvidenceVerdict, MessageDescriptor> = {
@@ -417,6 +415,21 @@ export const VERDICT_LABELS: Record<EvidenceVerdict, MessageDescriptor> = {
   investigational: msg({ message: "Investigational", comment: "safety" }),
 };
 
+/**
+ * A verdict's tone, so the list can be scanned: guideline-backed or a small
+ * benefit reads positive, little or no benefit and not recommended read as a
+ * caution, the rest neutral. Always shown with its words, never colour alone.
+ */
+export const VERDICT_TONES: Record<EvidenceVerdict, "good" | "neutral" | "warn"> = {
+  guideline_backed: "good",
+  may_help_slightly: "good",
+  clinician_decision: "neutral",
+  evidence_uncertain: "neutral",
+  investigational: "neutral",
+  little_or_no_benefit: "warn",
+  not_recommended: "warn",
+};
+
 export const LIBRARY_COPY = {
   title: msg`Evidence check`,
   intro: msg({
@@ -432,6 +445,7 @@ export type EvidenceEntryCard = {
   key: string;
   title: string;
   verdictLabel: string;
+  verdictTone: "good" | "neutral" | "warn";
   certaintyLabel: string;
   lines: string[];
   sources: { citation: string; url: string; note: string | null }[];
@@ -444,6 +458,7 @@ export function evidenceEntryCard(i18n: I18n, entry: EvidenceEntry): EvidenceEnt
     key: entry.id,
     title: entry.title,
     verdictLabel: i18n._(VERDICT_LABELS[entry.verdict]),
+    verdictTone: VERDICT_TONES[entry.verdict],
     certaintyLabel: i18n._(CERTAINTY_LABELS[entry.certainty]),
     lines: [
       entry.summary,

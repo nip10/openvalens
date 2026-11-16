@@ -30,6 +30,8 @@ describe("score panels (web)", () => {
     expect(html).toContain("Experimental");
     expect(html).toContain("not enough recent data");
     expect(html).toContain("Experimental readiness index not available.");
+    // HRV and the check-in fold into one line; their state stays behind its ⓘ.
+    expect(html).toContain("Not counted yet: Heart rate variability and How you feel (check-in)");
     expect(html).toContain("Not recorded by OpenValens yet");
     for (const label of [
       "Sleep",
@@ -40,9 +42,9 @@ describe("score panels (web)", () => {
     ]) {
       expect(html).toContain(label);
     }
-    expect(html).toContain("grid-cols-[minmax(0,1fr)_auto]");
-    expect(html).toContain("whitespace-normal break-words");
-    expect(html).toContain("shrink-0 text-right");
+    // Compact rows: name, bar and figure on one line, the figure in a reserved column.
+    expect(html).toContain("grid-cols-[minmax(0,9.5rem)_minmax(0,1fr)_2.75rem]");
+    expect(html).toContain("break-words");
     expect(html).toContain("—");
     expect(html).not.toContain("out of 100</span>");
   });
@@ -64,7 +66,12 @@ describe("score panels (web)", () => {
       />,
     );
     expect(html).toContain("42");
-    expect(html).toContain("grid-cols-[minmax(0,1fr)_auto]");
-    expect(html).toContain("shrink-0 text-right");
+    expect(html).toContain("grid-cols-[minmax(0,9.5rem)_minmax(0,1fr)_2.75rem]");
+    expect(html).toContain("Uses heart data from your watch");
+    // Each counted part says which way it moves the index and its share.
+    expect(html).toContain(
+      "Less sleep than your usual, so it lowers readiness. 1 of 3 equal parts.",
+    );
+    expect(html).toContain("Higher than your usual, so it lowers readiness.");
   });
 });

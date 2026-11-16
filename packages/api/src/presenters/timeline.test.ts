@@ -4,6 +4,7 @@ import { createAppI18n } from "@openvalens/i18n";
 import { englishI18n, inEnglish } from "@openvalens/i18n/testing";
 
 import {
+  collapseTimelineSamples,
   domainLabel,
   groupTimelineByDay,
   severityTone,
@@ -55,6 +56,42 @@ describe("timeline presenter", () => {
     expect(inEnglish(domainLabel("vitals"))).toBe("Vitals");
     expect(inEnglish(domainLabel("something_new"))).toBe("Other");
     expect(inEnglish(domainLabel("custom"))).toBe("Trackers");
+    // Heart-rate samples are in the cardiac domain; the app calls that area Vitals.
+    expect(inEnglish(domainLabel("cardiac"))).toBe("Vitals");
+  });
+
+  test("a device's readings of one measure fold into one row; logged entries stay", () => {
+    const heart = (id: string, at: string, value: number) =>
+      item(id, at, {
+        kind: "metric",
+        domain: "cardiac",
+        title: "Heart rate",
+        sourceRefs: [{ type: "data_source", label: "Phone", provider: "health_connect" }],
+        canonical: { metricCode: "heart_rate", value, unit: "bpm" },
+      });
+    const [day] = groupTimelineByDay(
+      [
+        heart("h1", "2026-10-01T15:45:00.000Z", 52),
+        item("w", "2026-10-01T15:00:00.000Z", {
+          kind: "metric",
+          sourceRefs: [{ type: "manual", label: "Manual", provider: "manual" }],
+          canonical: { metricCode: "weight", value: 66.6, unit: "kg" },
+        }),
+        heart("h2", "2026-10-01T15:30:00.000Z", 95),
+        heart("h3", "2026-10-01T05:00:00.000Z", 60),
+      ],
+      "UTC",
+    );
+    const rows = collapseTimelineSamples(day!.items, englishI18n);
+    expect(rows.map((row) => row.type)).toEqual(["samples", "entry"]);
+    const samples = rows[0]!;
+    if (samples.type !== "samples") throw new Error("expected samples");
+    expect(samples.items.map((reading) => reading.id)).toEqual(["h1", "h2", "h3"]);
+    expect(samples.summary).toBe("3 readings · 52–95 bpm");
+    expect(samples.timeRange).toBe("05:00–15:45");
+    // A single reading stays an ordinary entry.
+    const single = collapseTimelineSamples([day!.items[0]!], englishI18n);
+    expect(single.map((row) => row.type)).toEqual(["entry"]);
   });
 
   test("custom tracker entries read as their value and note (#441)", () => {

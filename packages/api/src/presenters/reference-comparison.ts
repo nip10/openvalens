@@ -287,7 +287,25 @@ export function guidelineSentences(
   ];
 }
 
-function ownTrendLines(comparison: MetricComparison, i18n: I18n): string[] {
+/** How the view names a date: "Today", "8 Oct", … (the app's own formatter); ISO when absent. */
+export type ComparisonViewOptions = { formatDate?: (isoDate: string) => string };
+
+/** "median of the last 28 days" / "median of 20 days in the last 28". */
+function usualWindowText(ownTrend: MetricComparison["ownTrend"], i18n: I18n): string {
+  const window = ownTrend.usualWindowDays;
+  const days = ownTrend.usualDays;
+  return days === window
+    ? i18n._(msg`median of the last ${window} days`)
+    : i18n._(
+        msg`median of ${plural(days, { one: "# day", other: "# days" })} in the last ${window}`,
+      );
+}
+
+function ownTrendLines(
+  comparison: MetricComparison,
+  i18n: I18n,
+  options: ComparisonViewOptions,
+): string[] {
   const { ownTrend, metric } = comparison;
   if (metric === "active_minutes") {
     if (ownTrend.recentValue === null)
@@ -300,7 +318,10 @@ function ownTrendLines(comparison: MetricComparison, i18n: I18n): string[] {
   else {
     const date = ownTrend.recentDate ?? "";
     const recent = formatComparisonValue(ownTrend.recentValue, metric, i18n);
-    lines.push(i18n._(msg`Latest (${date}): ${recent}.`));
+    if (options.formatDate && date) {
+      const day = options.formatDate(date);
+      lines.push(i18n._(msg({ message: `${day}: ${recent}.`, comment: "e.g. Today: 54 bpm." })));
+    } else lines.push(i18n._(msg`Latest (${date}): ${recent}.`));
   }
   const window = ownTrend.usualWindowDays;
   if (ownTrend.usualValue === null) {
@@ -310,13 +331,63 @@ function ownTrendLines(comparison: MetricComparison, i18n: I18n): string[] {
     );
   } else {
     const usual = formatComparisonValue(ownTrend.usualValue, metric, i18n);
-    lines.push(
-      i18n._(
-        msg`Your usual: ${usual} (median of ${plural(ownTrend.usualDays, { one: "# day", other: "# days" })} in the last ${window}).`,
-      ),
-    );
+    const median = usualWindowText(ownTrend, i18n);
+    lines.push(i18n._(msg`Your usual: ${usual} (${median}).`));
   }
   return lines;
+}
+
+/** A figure of your own trend: its label, the value set large, and an optional small note. */
+export type TrendFigureView = { label: string; value: string; note: string | null };
+
+/** "54 bpm" / "8h 50m" / "106 min": the figure alone, its label says what it is. */
+function shortValue(value: number, metric: ComparisonMetric, i18n: I18n): string {
+  if (metric === "resting_heart_rate") return `${Math.round(value)} bpm`;
+  if (metric === "sleep_duration") return formatSleepMinutes(value);
+  const minutes = Math.round(value);
+  return i18n._(msg({ message: `${minutes} min`, comment: "Active minutes, short." }));
+}
+
+/** Latest value then your usual (active minutes: the last 7 days), each as a figure. */
+function trendFigures(
+  comparison: MetricComparison,
+  i18n: I18n,
+  options: ComparisonViewOptions,
+): TrendFigureView[] {
+  const { ownTrend, metric } = comparison;
+  if (metric === "active_minutes")
+    return [
+      {
+        label: i18n._(msg`Last 7 days`),
+        value: ownTrend.recentValue === null ? "—" : shortValue(ownTrend.recentValue, metric, i18n),
+        note:
+          ownTrend.recentValue === null ? i18n._(msg`No sessions with a recorded intensity`) : null,
+      },
+    ];
+  const date = ownTrend.recentDate;
+  const latest: TrendFigureView =
+    ownTrend.recentValue === null
+      ? { label: i18n._(msg`Latest`), value: "—", note: i18n._(msg`Nothing in the last 7 days`) }
+      : {
+          label: date && options.formatDate ? options.formatDate(date) : i18n._(msg`Latest`),
+          value: shortValue(ownTrend.recentValue, metric, i18n),
+          note: date && !options.formatDate ? date : null,
+        };
+  const minimum = ownTrend.usualMinDays;
+  const window = ownTrend.usualWindowDays;
+  const usual: TrendFigureView =
+    ownTrend.usualValue === null
+      ? {
+          label: i18n._(msg`Your usual`),
+          value: "—",
+          note: i18n._(msg`Needs ${minimum} days with data in the last ${window}`),
+        }
+      : {
+          label: i18n._(msg`Your usual`),
+          value: shortValue(ownTrend.usualValue, metric, i18n),
+          note: usualWindowText(ownTrend, i18n),
+        };
+  return [latest, usual];
 }
 
 /** Descriptions of the shipped reference datasets, translatable; unknown ids keep the dataset's own text. */
@@ -389,6 +460,8 @@ export type MetricComparisonView = {
   key: ComparisonMetric;
   title: string;
   ownTrendLines: string[];
+  /** The same trend as figures: the latest value then your usual (active minutes: the last 7 days). */
+  trendFigures: TrendFigureView[];
   /** "Comparison off." / the reason / null when shown. */
   statusText: string | null;
   comparisonLines: string[];
@@ -403,10 +476,11 @@ export type MetricComparisonView = {
 export function metricComparisonView(
   comparison: MetricComparison,
   i18n: I18n,
+  options: ComparisonViewOptions = {},
 ): MetricComparisonView {
   const metric = comparison.metric;
   const title = i18n._(COMPARISON_METRIC_LABELS[metric]);
-  const trend = ownTrendLines(comparison, i18n);
+  const trend = ownTrendLines(comparison, i18n, options);
   let statusText: string | null = null;
   const comparisonLines: string[] = [];
   if (comparison.status === "off") statusText = i18n._(COMPARISON_COPY.off);
@@ -432,6 +506,7 @@ export function metricComparisonView(
     key: metric,
     title,
     ownTrendLines: trend,
+    trendFigures: trendFigures(comparison, i18n, options),
     statusText,
     comparisonLines,
     notes,
@@ -456,11 +531,14 @@ export type ReferenceComparisonsView = {
 export function referenceComparisonsView(
   result: ReferenceComparisonsResult,
   i18n: I18n,
+  options: ComparisonViewOptions = {},
 ): ReferenceComparisonsView {
   const version = result.referenceDataVersion;
   return {
     withheldText: result.status === "withheld" ? i18n._(COMPARISON_COPY.withheldAdultsOnly) : null,
-    metrics: result.comparisons.map((comparison) => metricComparisonView(comparison, i18n)),
+    metrics: result.comparisons.map((comparison) =>
+      metricComparisonView(comparison, i18n, options),
+    ),
     notCompared: result.notCompared.map((topic) => i18n._(NOT_COMPARED_COPY[topic])),
     versionText: i18n._(msg`Reference data ${version}`),
   };

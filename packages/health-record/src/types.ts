@@ -58,6 +58,8 @@ export type TimelineFilters = {
   from?: string;
   to?: string;
   domain?: CanonicalTimelineDomain;
+  /** Any of these domains (a screen's filter chip can span two, e.g. vitals and cardiac). */
+  domains?: CanonicalTimelineDomain[];
   source?: string;
   severity?: CanonicalTimelineSeverity;
   confidence?: CanonicalTimelineConfidence;

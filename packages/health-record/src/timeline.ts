@@ -56,6 +56,7 @@ export function buildTimelineFilter(filters?: TimelineFilters) {
   const dateRange = normalizeTimelineDateRange(filters);
   return (item: TimelineEvent): boolean => {
     if (filters?.domain && item.domain !== filters.domain) return false;
+    if (filters?.domains?.length && !filters.domains.includes(item.domain)) return false;
     if (filters?.severity && item.severity !== filters.severity) return false;
     if (filters?.confidence && item.confidence !== filters.confidence) return false;
     if (filters?.reviewState && item.reviewState !== filters.reviewState) return false;
@@ -155,6 +156,9 @@ export function validateTimelineFiltersShape(filters: TimelineFilters): string |
     return "from must be before to.";
   if (filters.domain !== undefined && !isDomain(filters.domain)) {
     return `domain must be one of: ${CANONICAL_TIMELINE_DOMAINS.join(", ")}.`;
+  }
+  if (filters.domains !== undefined && !filters.domains.every(isDomain)) {
+    return `domains must be from: ${CANONICAL_TIMELINE_DOMAINS.join(", ")}.`;
   }
   if (filters.severity !== undefined && !isSeverity(filters.severity)) {
     return `severity must be one of: ${CANONICAL_TIMELINE_SEVERITIES.join(", ")}.`;
