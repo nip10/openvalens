@@ -7,12 +7,18 @@ import {
   imagingTypeLabel,
   summaryText,
 } from "@openvalens/api/presenters/clinical-records";
+import {
+  CARE_LINK_COPY,
+  familyCareLinksView,
+  type CareLinkView,
+  type FamilyCareLinksView,
+} from "@openvalens/api/presenters/care-links";
 import { deviceTimeZone, localDateIn } from "@openvalens/api/presenters/nutrition-diary";
 import { Button } from "@openvalens/ui/components/button";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { type ReactNode, useMemo, useState } from "react";
 import { HeartPulse, type LucideIcon, Pencil, Plus, ScanLine, Trash2, Users } from "lucide-react";
 import { toast } from "sonner";
 
@@ -28,6 +34,7 @@ import {
   type ClinicalDraft,
   type ClinicalRecordKind,
 } from "@/utils/clinical-records";
+import { useModuleEnabled } from "@/utils/modules";
 import { client, orpc } from "@/utils/orpc";
 import { ModuleHiddenNote } from "@/components/module-hidden-note";
 
@@ -66,6 +73,24 @@ export function ClinicalPage() {
   const cardiac = useQuery(orpc.clinical.listCardiacExams.queryOptions({ input: {} }));
   const imaging = useQuery(orpc.clinical.listImagingStudies.queryOptions({ input: {} }));
   const family = useQuery(orpc.clinical.listFamilyHistory.queryOptions({ input: {} }));
+  // clinical#7: screening links point only at preventive items that exist for
+  // the person's region (shown or not shown for their age and sex). Without a
+  // region, or with Preventive care hidden, no screening link shows.
+  const careOn = useModuleEnabled("care");
+  const preventive = useQuery({
+    ...orpc.preventiveCare.get.queryOptions({ input: {} }),
+    enabled: careOn,
+  });
+  const preventiveItemIds = useMemo(
+    () =>
+      careOn && preventive.data?.status === "available"
+        ? [
+            ...preventive.data.items.map((item) => item.id),
+            ...preventive.data.notShown.map((item) => item.id),
+          ]
+        : [],
+    [careOn, preventive.data],
+  );
   const today = useMemo(() => localDateIn(deviceTimeZone()), []);
   const [draft, setDraft] = useState<ClinicalDraft | null>(null);
   const refresh = () => void qc.invalidateQueries({ queryKey: orpc.clinical.key() });
@@ -188,8 +213,13 @@ export function ClinicalPage() {
         icon={Users}
         title={t`Family history`}
         rows={family.data}
-        renderItem={(row) => renderFamily(row, i18n)}
+        renderItem={(row) => renderFamily(row, i18n, preventiveItemIds)}
         emptyText={t`No family history entries.`}
+        info={
+          family.data.some((row) => familyCareLinksView(row.condition, i18n, preventiveItemIds)) ? (
+            <p>{i18n._(CARE_LINK_COPY.familyInfo)}</p>
+          ) : undefined
+        }
         onOpen={(row) => open(familyDraft(row))}
         onDelete={(row) => confirmDelete("family", row.id)}
       />
@@ -230,6 +260,8 @@ type RecordItem = {
   note: string | null;
   /** Where it was done, if anywhere, and what it concluded. */
   secondary: readonly string[];
+  /** clinical#7: a family history entry's links to related records and guidance. */
+  links?: FamilyCareLinksView | null;
 };
 
 type RecordSectionProps<T> = {
@@ -238,6 +270,8 @@ type RecordSectionProps<T> = {
   rows: readonly T[];
   renderItem: (row: T) => RecordItem;
   emptyText: string;
+  /** The section's one ⓘ, beside its title. */
+  info?: ReactNode;
   /** Opens the record with every recorded field, ready to edit (#clinical-3). */
   onOpen: (row: T) => void;
   onDelete: (row: T) => void;
@@ -250,6 +284,7 @@ function RecordSection<T extends { id: number }>({
   rows,
   renderItem,
   emptyText,
+  info,
   onOpen,
   onDelete,
 }: RecordSectionProps<T>) {
@@ -258,6 +293,7 @@ function RecordSection<T extends { id: number }>({
     <Section
       icon={icon}
       tone="water"
+      info={info}
       title={
         <>
           {title} <span className="num text-ink-3">({rows.length})</span>
@@ -296,6 +332,7 @@ function RecordSection<T extends { id: number }>({
                       {part}
                     </span>
                   ))}
+                  {item.links ? <CareLinks view={item.links} /> : null}
                 </div>
                 {item.date ? (
                   <span className="num shrink-0 rounded-full bg-water-soft px-2.5 py-1 text-sm font-semibold text-ink">
@@ -366,11 +403,53 @@ type FamilyRow = {
   ageOfOnset: number | null;
   notes: string | null;
 };
-function renderFamily(row: FamilyRow, i18n: I18n): RecordItem {
+function renderFamily(
+  row: FamilyRow,
+  i18n: I18n,
+  preventiveItemIds: readonly string[],
+): RecordItem {
   return {
     headline: [familyRelationLabel(row.relation, i18n), row.condition],
     date: null,
     note: onsetNote(row.ageOfOnset, i18n),
     secondary: presentParts(row.notes ? summaryText(row.notes) : null),
+    links: familyCareLinksView(row.condition, i18n, preventiveItemIds),
   };
+}
+
+const CARE_LINK_CLASS =
+  "rounded-sm font-medium text-ink underline decoration-signal underline-offset-[0.15em] hover:decoration-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
+
+/** One link: a lab marker's row on Labs, the Vitals screen, or Preventive care. */
+function CareLinkAnchor({ link }: { link: CareLinkView }) {
+  if (link.target.kind === "lab")
+    return (
+      <Link to="/records/labs" hash={`marker-${link.target.code}`} className={CARE_LINK_CLASS}>
+        {link.label}
+      </Link>
+    );
+  return (
+    <Link
+      to={link.target.kind === "vitals" ? "/records/vitals" : "/preventive-care"}
+      className={CARE_LINK_CLASS}
+    >
+      {link.label}
+    </Link>
+  );
+}
+
+/** clinical#7: "Relevant to: HbA1c · Glucose", each a link; the why sits in the section ⓘ. */
+function CareLinks({ view }: { view: FamilyCareLinksView }) {
+  const { i18n } = useLingui();
+  return (
+    <p className="mt-1 text-sm break-words text-ink-3">
+      {i18n._(CARE_LINK_COPY.relevantTo)}{" "}
+      {view.links.map((link, index) => (
+        <span key={link.key}>
+          {index > 0 ? <span aria-hidden="true"> · </span> : null}
+          <CareLinkAnchor link={link} />
+        </span>
+      ))}
+    </p>
+  );
 }

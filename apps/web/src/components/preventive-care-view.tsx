@@ -17,12 +17,18 @@ import {
   preventiveItemCard,
   preventivePageNotes,
 } from "@openvalens/api/presenters/preventive-care";
+import {
+  loggedSupplementText,
+  pinEvidenceEntries,
+  PINNED_EVIDENCE_COPY,
+  type LoggedSupplementLike,
+} from "@openvalens/api/presenters/care-links";
 import { Button } from "@openvalens/ui/components/button";
 import { Label } from "@openvalens/ui/components/label";
 import { Switch } from "@openvalens/ui/components/switch";
 import { useState, type ReactNode } from "react";
 
-import { BookOpen, ChevronRight, MessageCircleQuestion, ShieldCheck } from "lucide-react";
+import { BookOpen, ChevronRight, MessageCircleQuestion, Pill, ShieldCheck } from "lucide-react";
 
 import { friendlyDate } from "@/utils/friendly";
 
@@ -359,10 +365,27 @@ function Criteria({
   );
 }
 
-export function EvidenceLibraryView({ library }: { library: EvidenceLibraryResult }) {
+/**
+ * The person's logged supplements, for pinning their evidence cards
+ * (preventive-care#8), and how to link to one (router-specific, so passed in).
+ */
+export type LoggedSupplements = {
+  supplements: readonly LoggedSupplementLike[];
+  link: (supplement: LoggedSupplementLike) => ReactNode;
+};
+
+export function EvidenceLibraryView({
+  library,
+  logged,
+}: {
+  library: EvidenceLibraryResult;
+  logged?: LoggedSupplements;
+}) {
   const { i18n } = useLingui();
   const version = library.version;
   if (!library.enabled) return <p className="text-sm text-ink-3">{i18n._(LIBRARY_COPY.off)}</p>;
+  const entries = pinEvidenceEntries(library.entries, logged?.supplements ?? []);
+  const anyPinned = entries.some((item) => item.supplement !== null);
   return (
     <section aria-labelledby="pc-library" className="grid content-start gap-3">
       <div className="flex items-center gap-2">
@@ -372,6 +395,7 @@ export function EvidenceLibraryView({ library }: { library: EvidenceLibraryResul
         </h2>
         <InfoTip>
           <p>{i18n._(LIBRARY_COPY.intro)}</p>
+          {anyPinned ? <p>{i18n._(PINNED_EVIDENCE_COPY.info)}</p> : null}
           <p className="text-ink-3">
             <Trans>Library {version}.</Trans>
           </p>
@@ -379,7 +403,7 @@ export function EvidenceLibraryView({ library }: { library: EvidenceLibraryResul
       </div>
       {/* A compact list: the title and its verdict on one line, the rest on tap. */}
       <ul className="sheet grid divide-y divide-rule px-2">
-        {library.entries.map((entry) => {
+        {entries.map(({ entry, supplement }) => {
           const card = evidenceEntryCard(i18n, entry);
           return (
             <li key={card.key}>
@@ -398,6 +422,13 @@ export function EvidenceLibraryView({ library }: { library: EvidenceLibraryResul
                   <StatusPill tone={card.verdictTone} className="whitespace-normal">
                     {card.verdictLabel}
                   </StatusPill>
+                  {supplement ? (
+                    // preventive-care#8: pinned because the person logs a matching supplement.
+                    <span className="flex basis-full items-center gap-1.5 pl-7 text-sm text-ink-2">
+                      <Pill className="size-3.5 shrink-0 text-food" aria-hidden="true" />
+                      {loggedSupplementText(supplement, i18n)}
+                    </span>
+                  ) : null}
                 </summary>
                 <article
                   role="article"
@@ -405,6 +436,9 @@ export function EvidenceLibraryView({ library }: { library: EvidenceLibraryResul
                   className="grid min-w-0 gap-2.5 px-3 pb-4 pl-10"
                 >
                   <p className="text-sm text-ink-3">{card.certaintyLabel}</p>
+                  {supplement && logged ? (
+                    <p className="text-sm">{logged.link(supplement)}</p>
+                  ) : null}
                   <div className="grid max-w-[70ch] gap-2 text-sm text-ink-2">
                     {card.lines.map((line) => (
                       <p key={line}>{line}</p>
@@ -436,12 +470,15 @@ export function PreventiveCareView({
   result,
   library,
   profileLink,
+  logged,
   ...handlers
 }: {
   result: PreventiveCareResult;
   library: EvidenceLibraryResult | null;
   /** Link to the profile screen (router-specific, so passed in). */
   profileLink?: ReactNode;
+  /** Supplements the person logs, to pin their evidence cards (preventive-care#8). */
+  logged?: LoggedSupplements;
 } & Handlers) {
   const { t, i18n } = useLingui();
   const page = preventivePageNotes(i18n, result);
@@ -568,7 +605,7 @@ export function PreventiveCareView({
               </div>
             </div>
           ) : null}
-          {library ? <EvidenceLibraryView library={library} /> : null}
+          {library ? <EvidenceLibraryView library={library} logged={logged} /> : null}
         </>
       )}
     </>

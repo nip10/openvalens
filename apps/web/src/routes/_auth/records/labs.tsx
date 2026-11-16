@@ -30,7 +30,7 @@ import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { cn } from "@openvalens/ui/lib/utils";
 import { useMutation } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FlaskConical, TestTube } from "lucide-react";
 
 import { LabMarkerHistoryDialog } from "@/components/lab-marker-history";
@@ -262,7 +262,10 @@ function MarkerRangeRow({
   const flag = position === "above" ? t`Above range` : position === "below" ? t`Below range` : null;
 
   return (
-    <li className="relative -mx-5 grid gap-x-6 gap-y-2 px-5 py-4 transition-colors duration-[var(--dur-short)] hover:bg-paper-2/60 sm:grid-cols-[minmax(0,13rem)_minmax(0,1fr)] sm:items-center">
+    <li
+      id={`marker-${marker.code}`}
+      className="relative -mx-5 grid scroll-mt-24 gap-x-6 gap-y-2 px-5 py-4 transition-colors duration-[var(--dur-short)] hover:bg-paper-2/60 sm:grid-cols-[minmax(0,13rem)_minmax(0,1fr)] sm:items-center"
+    >
       <div className="grid min-w-0 gap-0.5">
         <span className="flex flex-wrap items-baseline gap-x-2 font-semibold break-words text-ink">
           {/* The whole row opens the history; the name is its one tab stop. */}
@@ -400,6 +403,14 @@ function LabsPage() {
   // The "+" opens the lab result form while there is a marker to log to.
   useLogDialog("lab_result", list.length > 0 ? () => setLogOpen(true) : null);
   // The lab's own range stored with the latest reading, shown as recorded.
+  // A link to one marker (clinical#7, "#marker-blood_marker_hba1c") lands on its
+  // row once the list has loaded, not on the skeleton.
+  const loaded = markers.data !== undefined;
+  useEffect(() => {
+    if (!loaded || typeof window === "undefined" || !window.location.hash) return;
+    const id = decodeURIComponent(window.location.hash.slice(1));
+    document.getElementById(id)?.scrollIntoView({ block: "start" });
+  }, [loaded]);
   const rangeOf = (marker: MarkerRow) =>
     marker.latestValue === null ? null : displayLabRange(marker, marker.referenceRange, labUnits);
 

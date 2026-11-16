@@ -30,9 +30,13 @@ clinician reviewed the floors and exclusions before the owner's sign-off.
   ("1,450 of 1,700–2,100 kcal"; D1 in #390). The member can switch the day
   summary to what remains to each target ("250–650 kcal remaining to
   1,700–2,100 kcal"); once nothing remains it shows the logged total with the
-  target beside it. No rings or bars, no "over"/"under", no colours that
-  judge (the protein/carbs/fat colours are identity only), no "met"
-  highlight, no verdicts. A day with missing or partial logging is shown as
+  target beside it. Under each total with a target, a thin band shows the
+  target range and where the day's total sits on it (nutrition#10; owner
+  decision 2026-11-16, which reversed the earlier "no bars" rule). The band
+  keeps the same colours below, inside or past the range and is left out in
+  hide-numbers mode. No rings, no "over"/"under", no colours that judge (the
+  protein/carbs/fat colours are identity only), no "met" highlight, no
+  verdicts. A day with missing or partial logging is shown as
   such, never as being below a target.
 - New members have no targets and the default direction is **maintain**.
   There is no automated deficit.

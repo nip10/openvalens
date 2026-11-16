@@ -158,4 +158,28 @@ describe("preventive care (web)", () => {
     expect(on).toContain("Guideline statement");
     expect(on).not.toContain("Authority grade or consensus");
   });
+
+  test("a supplement you log pins its evidence card with a link to it (preventive-care#8)", () => {
+    const html = renderToStaticMarkup(
+      <PreventiveCareView
+        result={result({ libraryEnabled: true })}
+        library={{
+          enabled: true,
+          version: EVIDENCE_CHECK_LIBRARY.version,
+          entries: EVIDENCE_CHECK_LIBRARY.entries,
+        }}
+        logged={{
+          supplements: [{ id: 12, name: "Creatine monohydrate" }],
+          link: (supplement) => <a href={`/supplements#supplement-${supplement.id}`}>Open</a>,
+        }}
+        {...handlers}
+      />,
+    );
+    expect(html).toContain("You log Creatine monohydrate");
+    expect(html).toContain('href="/supplements#supplement-12"');
+    expect(html).toContain("Cards for supplements you log come first.");
+    // Creatine leads the list though the library lists it fifth.
+    const first = html.indexOf('id="ev-');
+    expect(html.slice(first, first + 20)).toContain('id="ev-creatine"');
+  });
 });

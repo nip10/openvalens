@@ -34,7 +34,7 @@ import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Check, History, ListChecks, Pencil, Pill, Plus, Tablets, Trash2 } from "lucide-react";
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { toast } from "sonner";
 
 import { DecimalHint } from "@/components/decimal-hint";
@@ -442,6 +442,14 @@ function SupplementsPage() {
   const [adding, setAdding] = useState<"supplement" | "medication" | null>(null);
   const supplements = useQuery(orpc.plans.listSupplements.queryOptions({ input: {} }));
   const medications = useQuery(orpc.plans.listMedications.queryOptions({ input: {} }));
+  // A link from the evidence check ("#supplement-12") lands on its card once loaded.
+  const supplementsLoaded = supplements.data !== undefined;
+  useEffect(() => {
+    if (!supplementsLoaded || typeof window === "undefined" || !window.location.hash) return;
+    document
+      .getElementById(decodeURIComponent(window.location.hash.slice(1)))
+      ?.scrollIntoView({ block: "start" });
+  }, [supplementsLoaded]);
   // The list carries each schedule's cadence only; time of day and amount come per supplement.
   const scheduleQueries = useQueries({
     queries: (supplements.data ?? []).map((supplement) =>
@@ -817,7 +825,11 @@ function SupplementCard({
     })
     .join(" · ");
   return (
-    <li className="sheet flex min-w-0 flex-col gap-3 p-4">
+    // The id lets the evidence check link to this card (preventive-care#8).
+    <li
+      id={`supplement-${supplement.id}`}
+      className="sheet flex min-w-0 scroll-mt-24 flex-col gap-3 p-4"
+    >
       <div className="flex items-start gap-3">
         <ToneIcon icon={Pill} tone="food" />
         <div className="grid min-w-0 flex-1 gap-0.5">

@@ -400,6 +400,7 @@ export function StatTile({
   note,
   status,
   meter,
+  bar,
   to,
   compact = false,
   pressed,
@@ -414,6 +415,8 @@ export function StatTile({
   note?: ReactNode;
   status?: { label: ReactNode; tone: StatusTone };
   meter?: { value: number; label?: string };
+  /** A custom bar under the figure, in place of `meter` (e.g. a target band). */
+  bar?: ReactNode;
   to?: string;
   /** On phones: a small tile (no icon, a smaller figure) so a row of three fits. */
   compact?: boolean;
@@ -440,6 +443,7 @@ export function StatTile({
         {unit ? <span className="text-sm text-ink-3">{unit}</span> : null}
       </div>
       {meter ? <Meter value={meter.value} tone={tone} label={meter.label} /> : null}
+      {bar}
       {status || note ? (
         <div
           className={cn(

@@ -14,6 +14,8 @@ import {
   describeDisplayedTotal,
   displayTotalValue,
   formatTarget,
+  targetBand,
+  type TargetBand,
 } from "@openvalens/api/presenters/nutrition-targets";
 import { Beef, Droplet, Leaf, type LucideIcon, Wheat, Zap } from "lucide-react";
 import { useState, type ReactNode } from "react";
@@ -28,6 +30,49 @@ const NUTRIENT_ICONS: Partial<Record<NutrientKey, LucideIcon>> = {
   fiberG: Leaf,
 };
 
+/** Each macro's identity colour for its band's fill; energy and fibre take the food tone. */
+const BAND_FILL: Partial<Record<NutrientKey, string>> = {
+  proteinG: "bg-protein",
+  carbohydrateG: "bg-carbs",
+  fatG: "bg-fat",
+};
+
+/**
+ * nutrition#10: a thin band under a total. The target range is shaded with a
+ * tick at each edge, and the fill runs from 0 to today's total, so the room
+ * left before the range ends shows without arithmetic. Position only: the
+ * same colours whether the total is below, inside or past the range.
+ */
+export function TargetBandBar({ band, nutrient }: { band: TargetBand; nutrient: NutrientKey }) {
+  const pct = (value: number) => `${Math.round(value * 1000) / 10}%`;
+  const edges = [band.bandStart, band.bandEnd].filter((edge) => edge > 0 && edge < 1);
+  return (
+    <div
+      role="img"
+      aria-label={band.label}
+      data-testid={`target-band-${nutrient}`}
+      className="relative h-2 w-full rounded-full bg-paper-2"
+    >
+      <div
+        className="absolute inset-y-0 rounded-full bg-rule-2"
+        style={{ left: pct(band.bandStart), width: pct(band.bandEnd - band.bandStart) }}
+      />
+      <div
+        className={`absolute inset-y-0 left-0 rounded-full ${BAND_FILL[nutrient] ?? "bg-food"}`}
+        style={{ width: pct(band.position) }}
+      />
+      {edges.map((edge) => (
+        <div
+          key={edge}
+          aria-hidden="true"
+          className="absolute -inset-y-1 w-0.5 -translate-x-1/2 rounded-full bg-ink-3"
+          style={{ left: pct(edge) }}
+        />
+      ))}
+    </div>
+  );
+}
+
 /**
  * Day totals with per-nutrient coverage (Issue #79), with hide-numbers mode
  * (#80). Values come from the server's `getDay.summary`; a nutrient no logged
@@ -35,9 +80,10 @@ const NUTRIENT_ICONS: Partial<Record<NutrientKey, LucideIcon>> = {
  * entries it covers. With hide-numbers on, every numeric value is replaced
  * but the coverage line stays, so logging still works and a total is never
  * read as a verdict. A target that applies on the day is shown on its tile as
- * a soft bar, never as a judgement; the bar is left out while numbers are hidden.
- * "All nutrients" also holds the day's vitamins and minerals (micronutrients#4),
- * mounted only once it is opened so their summary loads on demand.
+ * text and a thin band (nutrition#10), never as a judgement; the band is left
+ * out while numbers are hidden. "All nutrients" also holds the day's vitamins
+ * and minerals (micronutrients#4), mounted only once it is opened so their
+ * summary loads on demand.
  */
 export function NutritionDayTotals({
   totals,
@@ -67,6 +113,7 @@ export function NutritionDayTotals({
           const total = totals[key];
           const target = targets.find((item) => item.nutrient === key);
           const targetText = target ? formatTarget(target, hideNumbers, i18n) : null;
+          const band = targetBand(key, total, target, hideNumbers, i18n);
           return (
             <div
               key={key}
@@ -87,6 +134,7 @@ export function NutritionDayTotals({
                     {displayTotalValue(key, total, hideNumbers, i18n)}
                   </span>
                 }
+                bar={band ? <TargetBandBar band={band} nutrient={key} /> : null}
                 note={
                   <>
                     {i18n._(formatCoverage(total))}

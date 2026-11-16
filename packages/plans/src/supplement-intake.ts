@@ -1,6 +1,11 @@
 import { createHash } from "node:crypto";
 import type { Database, DbTransaction } from "@openvalens/db";
-import { supplement, supplementIntake, goalMutation } from "@openvalens/db/schema/plans";
+import {
+  supplement,
+  supplementIntake,
+  supplementSchedule,
+  goalMutation,
+} from "@openvalens/db/schema/plans";
 import { and, asc, eq, gte, isNull, lte, sql } from "drizzle-orm";
 
 export type SupplementIntake = {
@@ -219,6 +224,42 @@ export function createSupplementIntakeRepository(db: Database, scope: OwnerScope
         )
         .orderBy(asc(supplementIntake.occurredAt), asc(supplementIntake.id));
       return rows.map(toIntake);
+    },
+
+    /**
+     * preventive-care#8: the supplements this member logs, by name. Only their
+     * own rows count: an intake in the last `days` days, or one of their own
+     * active schedules. Never another member's, so a pinned evidence card can
+     * only come from the viewer's own records.
+     */
+    async loggedSupplements(days = 30): Promise<Array<{ id: number; name: string }>> {
+      const since = new Date(Date.now() - days * 86_400_000);
+      const taken = await db
+        .selectDistinct({ id: supplement.id, name: supplement.name })
+        .from(supplementIntake)
+        .innerJoin(supplement, eq(supplement.id, supplementIntake.supplementId))
+        .where(
+          and(
+            eq(supplementIntake.organizationId, scope.organizationId),
+            eq(supplementIntake.userId, scope.userId),
+            isNull(supplementIntake.deletedAt),
+            gte(supplementIntake.occurredAt, since),
+          ),
+        );
+      const scheduled = await db
+        .selectDistinct({ id: supplement.id, name: supplement.name })
+        .from(supplementSchedule)
+        .innerJoin(supplement, eq(supplement.id, supplementSchedule.supplementId))
+        .where(
+          and(
+            eq(supplementSchedule.organizationId, scope.organizationId),
+            eq(supplementSchedule.userId, scope.userId),
+            eq(supplementSchedule.status, "active"),
+          ),
+        );
+      const byId = new Map<number, { id: number; name: string }>();
+      for (const row of [...taken, ...scheduled]) byId.set(row.id, row);
+      return [...byId.values()].sort((a, b) => a.id - b.id);
     },
 
     async create(

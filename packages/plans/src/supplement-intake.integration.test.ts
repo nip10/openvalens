@@ -190,4 +190,40 @@ describe.skipIf(!url)("actual supplement intake repository on disposable Postgre
       SupplementIntakeNotFoundError,
     );
   });
+
+  test("logged supplements are the member's own only, never a workspace mate's (preventive-care#8)", async () => {
+    await db.execute(
+      sql.raw(`
+      insert into supplement (id, name) values (784301, 'Vitamin D3'), (784302, 'Magnesium'), (784303, 'Creatine');
+      insert into supplement_schedule (organization_id, user_id, supplement_id, time_of_day, status) values
+        ('intake-org-a', 'intake-user-a', 784302, 'morning', 'active'),
+        ('intake-org-a', 'intake-user-a', 784303, 'morning', 'stopped');
+    `),
+    );
+    // Member A takes Vitamin D3 today and has an active Magnesium schedule.
+    await intakeA.create({
+      supplementId: 784301,
+      occurredAt: new Date(Date.now() - 3_600_000).toISOString(),
+      timeZone: "UTC",
+      dose: "1 capsule",
+      clientMutationId: uuid(40),
+    });
+    // An intake older than 30 days no longer counts as logging it.
+    await intakeA.create({
+      supplementId: 784303,
+      occurredAt: new Date(Date.now() - 40 * 86_400_000).toISOString(),
+      timeZone: "UTC",
+      dose: "5 g",
+      clientMutationId: uuid(41),
+    });
+
+    const own = await intakeA.loggedSupplements();
+    expect(own.filter((row) => row.id >= 784301)).toEqual([
+      { id: 784301, name: "Vitamin D3" },
+      { id: 784302, name: "Magnesium" },
+    ]);
+    // Member B in the same workspace sees none of A's supplements, so no
+    // evidence card can be pinned for B because of A's records.
+    expect(await intakeA2.loggedSupplements()).toEqual([]);
+  });
 });
