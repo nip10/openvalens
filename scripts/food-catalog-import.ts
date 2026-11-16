@@ -228,6 +228,14 @@ async function main(): Promise<void> {
     process.stdout.write(`${describeResult(result)}\n`);
   } catch (error) {
     if (error instanceof InputError) process.stderr.write(`${error.message}\n`);
+    else {
+      // A database or I/O error: its code and first message line, from the
+      // driver's error rather than the query wrapper, so no row data is printed.
+      const cause = (error as { cause?: unknown }).cause ?? error;
+      const code = (cause as { code?: unknown }).code;
+      const line = (cause instanceof Error ? cause.message : String(cause)).split("\n")[0];
+      process.stderr.write(`${typeof code === "string" ? `${code}: ` : ""}${line}\n`);
+    }
     process.stderr.write("Import failed; no rows were changed.\n");
     process.exitCode = 1;
   } finally {

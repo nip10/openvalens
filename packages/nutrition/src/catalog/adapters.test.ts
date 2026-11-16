@@ -188,6 +188,15 @@ describe("readJsonLines", () => {
     for await (const item of readJsonLines(chunks())) items.push(item);
     expect(items).toEqual([{ a: 1 }, { b: 2 }, null, { c: 3 }]);
   });
+
+  test("drops NUL escapes, which Postgres can't store, and keeps an escaped backslash", async () => {
+    async function* chunks() {
+      yield '{"name":"Choco\\u0000late","note":"path\\\\u0000x"}\n';
+    }
+    const items: unknown[] = [];
+    for await (const item of readJsonLines(chunks())) items.push(item);
+    expect(items).toEqual([{ name: "Chocolate", note: "path\\u0000x" }]);
+  });
 });
 
 describe("readJsonArrayItems", () => {
@@ -196,6 +205,13 @@ describe("readJsonArrayItems", () => {
     for await (const item of readJsonArrayItems(chunks)) items.push(item);
     return items;
   };
+
+  test("drops NUL escapes inside items", async () => {
+    async function* chunks() {
+      yield '{"Foods":[{"d":"a\\u0000b"}]}';
+    }
+    expect(await collect(chunks())).toEqual([{ d: "ab" }]);
+  });
   async function* oneCharAtATime(text: string) {
     for (const ch of text) yield new TextEncoder().encode(ch);
   }
