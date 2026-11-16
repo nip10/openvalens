@@ -57,6 +57,75 @@ export type UpsertFamilyHistoryResult = {
   created: boolean;
 };
 
+/**
+ * The fields a person records for a cardiac exam (#clinical-3). Measurements
+ * and the import-only `sourceFile` are left as they are on an edit.
+ */
+export type CardiacExamInput = {
+  date: string;
+  type: string;
+  facility?: string | null;
+  physician?: string | null;
+  reason?: string | null;
+  report?: string | null;
+  conclusion?: string | null;
+};
+
+/** The fields a person records for an imaging study (#clinical-3). */
+export type ImagingStudyInput = {
+  date: string;
+  type: string;
+  bodyPart: string;
+  facility?: string | null;
+  physician?: string | null;
+  technique?: string | null;
+  findings?: string | null;
+  conclusion?: string | null;
+};
+
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+/** A real calendar day as `YYYY-MM-DD`; throws otherwise. */
+function requireIsoDay(value: string): string {
+  const day = value.trim();
+  const parsed = ISO_DAY.test(day) ? new Date(`${day}T00:00:00Z`) : null;
+  if (!parsed || Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== day) {
+    throw new Error("date must be a calendar day (YYYY-MM-DD)");
+  }
+  return day;
+}
+
+function requireText(value: string, field: string): string {
+  const text = trimOrNull(value);
+  if (!text) throw new Error(`${field} is required`);
+  return text;
+}
+
+function cardiacValues(input: CardiacExamInput) {
+  return {
+    date: requireIsoDay(input.date),
+    type: requireText(input.type, "type"),
+    facility: trimOrNull(input.facility),
+    physician: trimOrNull(input.physician),
+    reason: trimOrNull(input.reason),
+    report: trimOrNull(input.report),
+    conclusion: trimOrNull(input.conclusion),
+  };
+}
+
+function imagingValues(input: ImagingStudyInput) {
+  return {
+    date: requireIsoDay(input.date),
+    type: requireText(input.type, "type"),
+    bodyPart: requireText(input.bodyPart, "bodyPart"),
+    facility: trimOrNull(input.facility),
+    physician: trimOrNull(input.physician),
+    technique: trimOrNull(input.technique),
+    findings: trimOrNull(input.findings),
+    conclusion: trimOrNull(input.conclusion),
+  };
+}
+
 export type Repository = ReturnType<typeof createClinicalRepository>;
 
 export function createClinicalRepository(db: Database) {
@@ -165,6 +234,54 @@ export function createClinicalRepository(db: Database) {
       return { exam, measurements };
     },
 
+    async createCardiacExam(
+      organizationId: string,
+      input: CardiacExamInput,
+    ): Promise<{ id: number }> {
+      const [row] = (await db
+        .insert(cardiacExam)
+        .values({ organizationId, ...cardiacValues(input) })
+        .returning()) as CardiacExam[];
+      if (!row) throw new Error("Cardiac exam insert did not return a row");
+      return { id: row.id };
+    },
+
+    /** Null when the exam is not this organization's. */
+    async updateCardiacExam(
+      organizationId: string,
+      id: number,
+      input: CardiacExamInput,
+    ): Promise<{ id: number } | null> {
+      const values = cardiacValues(input);
+      const existing = await this.getCardiacExam(organizationId, id);
+      if (!existing) return null;
+      await db
+        .update(cardiacExam)
+        .set(values)
+        .where(and(eq(cardiacExam.organizationId, organizationId), eq(cardiacExam.id, id)));
+      return { id };
+    },
+
+    /** Deletes the exam with its measurements; null when it is not this organization's. */
+    async deleteCardiacExam(organizationId: string, id: number): Promise<{ id: number } | null> {
+      const existing = await this.getCardiacExam(organizationId, id);
+      if (!existing) return null;
+      await db.transaction(async (tx) => {
+        await tx
+          .delete(cardiacMeasurement)
+          .where(
+            and(
+              eq(cardiacMeasurement.organizationId, organizationId),
+              eq(cardiacMeasurement.examId, id),
+            ),
+          );
+        await tx
+          .delete(cardiacExam)
+          .where(and(eq(cardiacExam.organizationId, organizationId), eq(cardiacExam.id, id)));
+      });
+      return { id };
+    },
+
     // ─── imaging ───────────────────────────────────────────────
 
     async listImagingStudies(organizationId: string, limit = 50): Promise<ImagingStudy[]> {
@@ -183,6 +300,44 @@ export function createClinicalRepository(db: Database) {
         .where(and(eq(imagingStudy.organizationId, organizationId), eq(imagingStudy.id, studyId)))
         .limit(1)) as ImagingStudy[];
       return rows[0] ?? null;
+    },
+
+    async createImagingStudy(
+      organizationId: string,
+      input: ImagingStudyInput,
+    ): Promise<{ id: number }> {
+      const [row] = (await db
+        .insert(imagingStudy)
+        .values({ organizationId, ...imagingValues(input) })
+        .returning()) as ImagingStudy[];
+      if (!row) throw new Error("Imaging study insert did not return a row");
+      return { id: row.id };
+    },
+
+    /** Null when the study is not this organization's. */
+    async updateImagingStudy(
+      organizationId: string,
+      id: number,
+      input: ImagingStudyInput,
+    ): Promise<{ id: number } | null> {
+      const values = imagingValues(input);
+      const existing = await this.getImagingStudy(organizationId, id);
+      if (!existing) return null;
+      await db
+        .update(imagingStudy)
+        .set(values)
+        .where(and(eq(imagingStudy.organizationId, organizationId), eq(imagingStudy.id, id)));
+      return { id };
+    },
+
+    /** Null when the study is not this organization's. */
+    async deleteImagingStudy(organizationId: string, id: number): Promise<{ id: number } | null> {
+      const existing = await this.getImagingStudy(organizationId, id);
+      if (!existing) return null;
+      await db
+        .delete(imagingStudy)
+        .where(and(eq(imagingStudy.organizationId, organizationId), eq(imagingStudy.id, id)));
+      return { id };
     },
 
     // ─── consultation ──────────────────────────────────────────

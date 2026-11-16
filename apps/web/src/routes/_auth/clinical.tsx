@@ -7,26 +7,120 @@ import {
   imagingTypeLabel,
   summaryText,
 } from "@openvalens/api/presenters/clinical-records";
+import { deviceTimeZone, localDateIn } from "@openvalens/api/presenters/nutrition-diary";
 import { Button } from "@openvalens/ui/components/button";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { useMemo, useState } from "react";
+import { HeartPulse, type LucideIcon, Pencil, Plus, ScanLine, Trash2, Users } from "lucide-react";
+import { toast } from "sonner";
 
-import { HeartPulse, type LucideIcon, ScanLine, Users } from "lucide-react";
-
+import { ClinicalRecordDialog } from "@/components/clinical-record-dialog";
+import { MoreMenu } from "@/components/more-menu";
 import { EmptyState, ErrorState, Page, PageHeader, Section, ToneIcon } from "@/components/page";
-import { orpc } from "@/utils/orpc";
+import {
+  cardiacDraft,
+  clinicalPayload,
+  emptyClinicalDraft,
+  familyDraft,
+  imagingDraft,
+  type ClinicalDraft,
+  type ClinicalRecordKind,
+} from "@/utils/clinical-records";
+import { client, orpc } from "@/utils/orpc";
 import { ModuleHiddenNote } from "@/components/module-hidden-note";
 
 export const Route = createFileRoute("/_auth/clinical")({
   component: ClinicalPage,
 });
 
-function ClinicalPage() {
+/** Saves a draft through the write procedure for its kind (#clinical-3). */
+async function saveClinicalRecord(draft: ClinicalDraft) {
+  const payload = clinicalPayload(draft);
+  if (!payload) throw new Error("The record is not complete.");
+  switch (payload.kind) {
+    case "cardiac":
+      return client.clinical.upsertCardiacExam(payload.input);
+    case "imaging":
+      return client.clinical.upsertImagingStudy(payload.input);
+    case "family":
+      return client.clinical.upsertFamilyHistoryEntry(payload.input);
+  }
+}
+
+async function deleteClinicalRecord(target: { kind: ClinicalRecordKind; id: number }) {
+  switch (target.kind) {
+    case "cardiac":
+      return client.clinical.deleteCardiacExam({ id: target.id });
+    case "imaging":
+      return client.clinical.deleteImagingStudy({ id: target.id });
+    case "family":
+      return client.clinical.deleteFamilyHistoryEntry({ id: target.id });
+  }
+}
+
+export function ClinicalPage() {
   const { t, i18n } = useLingui();
+  const qc = useQueryClient();
   const cardiac = useQuery(orpc.clinical.listCardiacExams.queryOptions({ input: {} }));
   const imaging = useQuery(orpc.clinical.listImagingStudies.queryOptions({ input: {} }));
   const family = useQuery(orpc.clinical.listFamilyHistory.queryOptions({ input: {} }));
+  const today = useMemo(() => localDateIn(deviceTimeZone()), []);
+  const [draft, setDraft] = useState<ClinicalDraft | null>(null);
+  const refresh = () => void qc.invalidateQueries({ queryKey: orpc.clinical.key() });
+  const save = useMutation({
+    mutationFn: saveClinicalRecord,
+    onSuccess: () => {
+      setDraft(null);
+      toast.success(t`Record saved.`);
+      refresh();
+    },
+  });
+  const remove = useMutation({
+    mutationFn: deleteClinicalRecord,
+    onSuccess: () => {
+      toast.success(t`Record deleted.`);
+      refresh();
+    },
+    onError: () =>
+      toast.error(t`Could not delete this record. Check your connection and try again.`),
+  });
+  const open = (next: ClinicalDraft) => {
+    save.reset();
+    setDraft(next);
+  };
+  const confirmDelete = (kind: ClinicalRecordKind, id: number) => {
+    const question =
+      kind === "cardiac"
+        ? t`Delete this cardiac exam and its measurements? This cannot be undone.`
+        : kind === "imaging"
+          ? t`Delete this imaging study? This cannot be undone.`
+          : t`Delete this family history entry? This cannot be undone.`;
+    if (window.confirm(question) && !remove.isPending) remove.mutate({ kind, id });
+  };
+  const header = (
+    <PageHeader
+      title={<Trans>Clinical</Trans>}
+      actions={
+        <Button onClick={() => open(emptyClinicalDraft("cardiac", today))}>
+          <Plus aria-hidden="true" />
+          <Trans>Add record</Trans>
+        </Button>
+      }
+    />
+  );
+  const dialog = (
+    <ClinicalRecordDialog
+      draft={draft}
+      today={today}
+      onDraftChange={setDraft}
+      onClose={() => setDraft(null)}
+      onSave={(next) => save.mutate(next)}
+      saving={save.isPending}
+      failed={save.isError}
+    />
+  );
 
   if (cardiac.isPending || imaging.isPending || family.isPending) {
     return (
@@ -69,7 +163,7 @@ function ClinicalPage() {
   return (
     <Page>
       <ModuleHiddenNote module="labs" />
-      <PageHeader title={<Trans>Clinical</Trans>} />
+      {header}
 
       {/* #clinical-4: the counts sit in each section head; no tiles repeating them. */}
       <RecordSection
@@ -78,6 +172,8 @@ function ClinicalPage() {
         rows={cardiac.data}
         renderItem={(row) => renderCardiac(row, i18n)}
         emptyText={t`No cardiac exams recorded.`}
+        onOpen={(row) => open(cardiacDraft(row))}
+        onDelete={(row) => confirmDelete("cardiac", row.id)}
       />
       <RecordSection
         icon={ScanLine}
@@ -85,6 +181,8 @@ function ClinicalPage() {
         rows={imaging.data}
         renderItem={(row) => renderImaging(row, i18n)}
         emptyText={t`No imaging studies recorded.`}
+        onOpen={(row) => open(imagingDraft(row))}
+        onDelete={(row) => confirmDelete("imaging", row.id)}
       />
       <RecordSection
         icon={Users}
@@ -92,7 +190,10 @@ function ClinicalPage() {
         rows={family.data}
         renderItem={(row) => renderFamily(row, i18n)}
         emptyText={t`No family history entries.`}
+        onOpen={(row) => open(familyDraft(row))}
+        onDelete={(row) => confirmDelete("family", row.id)}
       />
+      {dialog}
     </Page>
   );
 }
@@ -137,11 +238,22 @@ type RecordSectionProps<T> = {
   rows: readonly T[];
   renderItem: (row: T) => RecordItem;
   emptyText: string;
+  /** Opens the record with every recorded field, ready to edit (#clinical-3). */
+  onOpen: (row: T) => void;
+  onDelete: (row: T) => void;
 };
 
 /** One kind of clinical record, as cards: what and where, with when in a chip. */
-function RecordSection<T>({ icon, title, rows, renderItem, emptyText }: RecordSectionProps<T>) {
-  const { i18n } = useLingui();
+function RecordSection<T extends { id: number }>({
+  icon,
+  title,
+  rows,
+  renderItem,
+  emptyText,
+  onOpen,
+  onDelete,
+}: RecordSectionProps<T>) {
+  const { t, i18n } = useLingui();
   return (
     <Section
       icon={icon}
@@ -157,13 +269,19 @@ function RecordSection<T>({ icon, title, rows, renderItem, emptyText }: RecordSe
       ) : (
         // #clinical-6: one record per row across the width, like a medical record.
         <ul className="grid gap-3">
-          {rows.map((row, index) => {
+          {rows.map((row) => {
             const item = renderItem(row);
+            const name = item.headline.join(", ");
             return (
-              <li key={index} className="sheet flex min-w-0 items-start gap-3 p-4">
+              <li key={row.id} className="sheet flex min-w-0 items-start gap-3 p-4">
                 <ToneIcon icon={icon} tone="water" />
                 <div className="grid min-w-0 flex-1 gap-0.5">
-                  <span className="font-semibold break-words text-ink">
+                  <button
+                    type="button"
+                    onClick={() => onOpen(row)}
+                    aria-label={t`Open ${name}`}
+                    className="rounded-sm text-left font-semibold break-words text-ink hover:text-signal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                  >
                     {item.headline.map((part, partIndex) => (
                       <span
                         key={partIndex}
@@ -172,7 +290,7 @@ function RecordSection<T>({ icon, title, rows, renderItem, emptyText }: RecordSe
                         {part}
                       </span>
                     ))}
-                  </span>
+                  </button>
                   {item.secondary.map((part, partIndex) => (
                     <span key={partIndex} className="block text-sm break-words text-ink-3">
                       {part}
@@ -188,6 +306,20 @@ function RecordSection<T>({ icon, title, rows, renderItem, emptyText }: RecordSe
                     {item.note}
                   </span>
                 ) : null}
+                <div className="-my-1 -mr-1 shrink-0">
+                  <MoreMenu
+                    label={t`More for ${name}`}
+                    items={[
+                      { label: t`Edit`, icon: Pencil, onSelect: () => onOpen(row) },
+                      {
+                        label: t`Delete`,
+                        icon: Trash2,
+                        destructive: true,
+                        onSelect: () => onDelete(row),
+                      },
+                    ]}
+                  />
+                </div>
               </li>
             );
           })}
