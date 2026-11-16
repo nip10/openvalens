@@ -34,8 +34,10 @@ describe("section tabs (#app-shell-2)", () => {
 
   test("the food screens follow the meal diary", () => {
     const html = render(<SectionTabsView links={sectionTabs("/nutrition")} enabled={() => true} />);
-    for (const name of ["Meal diary", "My foods", "Recipe draft", "Micronutrients"])
+    for (const name of ["Meal diary", "My foods", "Recipe draft"])
       expect(html).toContain(`>${name}<`);
+    // Micronutrients are part of the diary's All nutrients (micronutrients#4).
+    expect(html).not.toContain(">Micronutrients<");
   });
 
   test("a hidden module's tabs drop out, and one tab left renders nothing", () => {
