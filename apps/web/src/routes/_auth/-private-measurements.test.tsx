@@ -34,7 +34,7 @@ mock.module("@tanstack/react-query", () => ({
   useMutation: () => ({ mutate: () => {}, isPending: false, isError: false }),
 }));
 
-const { PrivateMeasurements } = await import("./private-measurements");
+const { PrivateMeasurements, draftPayloads } = await import("./private-measurements");
 
 /** Renders in English through Lingui (#67). */
 function renderToStaticMarkup(node: ReactNode): string {
@@ -92,6 +92,38 @@ describe("PrivateMeasurements query-state wiring", () => {
     displayState = { isSuccess: false, isError: true, data: undefined };
     expect(render()).not.toInclude("61 kg");
     displayState = { isSuccess: false, data: undefined };
+  });
+
+  test("a kind with two entries draws its trend line, only while values show", () => {
+    preferenceState = { data: { enabled: true }, isPending: false, isError: false };
+    const later = { ...row, id: "entry-b", value: 60, measuredAt: "2026-11-01T10:30:00.000Z" };
+    historyState = { data: [row, later], isPending: false, isError: false, refetch: () => {} };
+    displayState = { isSuccess: true, data: { settings: { hideNumbers: false } } };
+    expect(render()).toInclude("<polyline");
+    displayState = { isSuccess: true, data: { settings: { hideNumbers: true } } };
+    expect(render()).not.toInclude("<polyline");
+    displayState = { isSuccess: false, data: undefined };
+  });
+
+  test("waist and hip save as two entries at the same time and unit", () => {
+    const draft = {
+      id: null,
+      kind: "waist" as const,
+      unit: "cm" as const,
+      value: "80",
+      measuredAt: "2026-11-15T08:00",
+      withHip: true,
+      hipValue: "98.5",
+    };
+    const payloads = draftPayloads(draft);
+    expect(payloads?.map((p) => [p.kind, p.value, p.unit])).toEqual([
+      ["waist", 80, "cm"],
+      ["hip", 98.5, "cm"],
+    ]);
+    expect(payloads?.[0]?.measuredAt).toBe(payloads?.[1]?.measuredAt);
+    // Both figures are needed; an edit saves only its own entry.
+    expect(draftPayloads({ ...draft, hipValue: "" })).toBeNull();
+    expect(draftPayloads({ ...draft, id: "entry-a" })).toHaveLength(1);
   });
 
   test("disabled preference renders the opt-in prompt", () => {

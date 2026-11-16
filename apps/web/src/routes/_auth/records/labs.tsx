@@ -3,8 +3,10 @@ import { displayLabValue } from "@openvalens/api/presenters/clinical-units";
 import {
   displayLabRange,
   formatLabDate,
-  formatLabRange,
+  formatLabRangeShort,
   formatLabValue,
+  groupLabMarkersByPanel,
+  LAB_PANEL_LABELS,
   labRangeLine,
   labRangePosition,
   type LabRangeDisplay,
@@ -30,6 +32,8 @@ import { useMutation } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { FlaskConical, TestTube } from "lucide-react";
+
+import { LabMarkerHistoryDialog } from "@/components/lab-marker-history";
 
 import { DecimalHint } from "@/components/decimal-hint";
 import { FormDialog } from "@/components/form-dialog";
@@ -218,11 +222,14 @@ function MarkerRangeRow({
   range,
   settings,
   showDate,
+  onOpen,
 }: {
   marker: MarkerRow;
   range: LabRangeDisplay | null;
   settings: Parameters<typeof formatLabDate>[1];
   showDate: boolean;
+  /** Opens the marker's full history. */
+  onOpen: () => void;
 }) {
   const { t, i18n } = useLingui();
   const { labUnits } = useDisplayPreferences();
@@ -246,7 +253,7 @@ function MarkerRangeRow({
     unit,
     numericRange,
   );
-  const rangeText = range ? formatLabRange(i18n, range) : null;
+  const rangeText = range ? formatLabRangeShort(i18n, range, unit) : null;
   const latestText = latest ? formatLabValue(latest.value, null) : "—";
   const previousValue = previous ? formatLabValue(previous.value, null) : "";
   const previousDate = previous ? friendlyDate(i18n, previous.sampledAt) : "";
@@ -255,10 +262,18 @@ function MarkerRangeRow({
   const flag = position === "above" ? t`Above range` : position === "below" ? t`Below range` : null;
 
   return (
-    <li className="grid gap-x-6 gap-y-2 py-4 sm:grid-cols-[minmax(0,13rem)_minmax(0,1fr)] sm:items-center">
+    <li className="relative -mx-5 grid gap-x-6 gap-y-2 px-5 py-4 transition-colors duration-[var(--dur-short)] hover:bg-paper-2/60 sm:grid-cols-[minmax(0,13rem)_minmax(0,1fr)] sm:items-center">
       <div className="grid min-w-0 gap-0.5">
         <span className="flex flex-wrap items-baseline gap-x-2 font-semibold break-words text-ink">
-          {marker.displayName}
+          {/* The whole row opens the history; the name is its one tab stop. */}
+          <button
+            type="button"
+            aria-haspopup="dialog"
+            onClick={onOpen}
+            className="text-left after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:rounded-2xl focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-ring"
+          >
+            {marker.displayName}
+          </button>
           {unit ? <span className="text-sm font-normal text-ink-3">{unit}</span> : null}
           {flag ? <StatusPill tone="warn">{flag}</StatusPill> : null}
         </span>
@@ -380,6 +395,7 @@ function LabsPage() {
   const { labUnits } = useDisplayPreferences();
   const { t, i18n } = useLingui();
   const [logOpen, setLogOpen] = useState(false);
+  const [openMarker, setOpenMarker] = useState<MarkerRow | null>(null);
   const list = (markers.data ?? []) as MarkerRow[];
   // The "+" opens the lab result form while there is a marker to log to.
   useLogDialog("lab_result", list.length > 0 ? () => setLogOpen(true) : null);
@@ -422,18 +438,24 @@ function LabsPage() {
 
   const withResults = list.filter((marker) => marker.latestValue !== null);
   const waiting = list.filter((marker) => marker.latestValue === null);
-  // Markers grouped by the day of their latest reading, newest draw first.
-  const draws = new Map<string, MarkerRow[]>();
-  for (const marker of withResults) {
-    const day = drawDay(marker.latestSampledAt);
-    draws.set(day, [...(draws.get(day) ?? []), marker]);
-  }
-  const groups = [...draws.entries()].sort(([a], [b]) => b.localeCompare(a));
+  // Markers grouped by panel (Lipids, Metabolic, …). The latest draw's date is
+  // said once; a marker last measured on another day shows its own date.
+  const panels = groupLabMarkersByPanel(withResults);
+  const latestDraw = withResults
+    .map((marker) => drawDay(marker.latestSampledAt))
+    .filter(Boolean)
+    .sort()
+    .at(-1);
+  const when = latestDraw ? friendlyDate(i18n, latestDraw) : "";
 
   return (
     <Page>
       <ModuleHiddenNote module="labs" />
-      {header}
+      <PageHeader
+        title={<Trans>Labs</Trans>}
+        description={latestDraw ? <Trans>Latest draw · {when}</Trans> : undefined}
+        actions={<SyncStatusBadge />}
+      />
 
       <ProductSettingsStatus />
 
@@ -453,22 +475,19 @@ function LabsPage() {
         />
       ) : (
         <>
-          {groups.map(([day, rows], index) => {
-            const when = day ? friendlyDate(i18n, day) : "";
+          {panels.map(({ panel, markers: rows }, index) => {
             return (
               <Section
-                key={day || "undated"}
+                key={panel}
                 icon={FlaskConical}
                 tone="water"
-                title={
-                  index === 0 ? <Trans>Latest draw · {when}</Trans> : <Trans>Drawn {when}</Trans>
-                }
+                title={i18n._(LAB_PANEL_LABELS[panel])}
                 info={
                   index === 0 ? (
                     <Trans comment="safety">
                       The shaded band is the range your lab printed with the result. Faint dots are
-                      your earlier readings. OpenValens shows where a value sits and does not judge
-                      it.
+                      your earlier readings; open a marker for all of them. OpenValens shows where a
+                      value sits and does not judge it.
                     </Trans>
                   ) : undefined
                 }
@@ -480,7 +499,8 @@ function LabsPage() {
                       marker={marker}
                       range={rangeOf(marker)}
                       settings={settings}
-                      showDate={false}
+                      showDate={drawDay(marker.latestSampledAt) !== latestDraw}
+                      onOpen={() => setOpenMarker(marker)}
                     />
                   ))}
                 </ul>
@@ -511,6 +531,8 @@ function LabsPage() {
           ) : null}
         </>
       )}
+
+      <LabMarkerHistoryDialog marker={openMarker} onClose={() => setOpenMarker(null)} />
 
       {list.length > 0 ? (
         <LabResultDialog

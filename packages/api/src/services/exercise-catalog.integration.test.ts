@@ -324,4 +324,80 @@ describe.skipIf(!url)("exercise catalog localized RPC against disposable Postgre
       ).body,
     ).toEqual([]);
   });
+
+  test("a custom exercise takes muscles and equipment the library already lists", async () => {
+    await db.execute(
+      sql`insert into exercise_muscle (exercise_id, external_muscle_id, name, role, location) values (${exerciseId}, 'm-10', 'Quadriceps femoris', 'primary', 'front')`,
+    );
+    await db.execute(
+      sql`insert into exercise_equipment (exercise_id, external_equipment_id, name) values (${exerciseId}, 'e-3', 'Sled')`,
+    );
+    const request = {
+      clientMutationId: "8ab1e3f3-13a4-4e62-91d8-998a11fe0021",
+      name: "Sled push",
+      language: "en",
+      muscleExternalIds: ["m-10", "m-unknown"],
+      equipmentExternalIds: ["e-3"],
+    };
+    const created = await call<{ id: number; name: string }>(
+      "exerciseCatalog/createCustom",
+      request,
+    );
+    expect(created.status).toBe(200);
+    const detail = await call<{
+      muscles: Array<{ externalMuscleId: string; name: string; role: string; location: string }>;
+      equipment: Array<{ externalEquipmentId: string; name: string }>;
+    }>("exerciseCatalog/get", { id: created.body.id, language: "en" });
+    expect(detail.body.muscles).toEqual([
+      { externalMuscleId: "m-10", name: "Quadriceps femoris", role: "primary", location: "front" },
+    ]);
+    expect(detail.body.equipment).toEqual([{ externalEquipmentId: "e-3", name: "Sled" }]);
+    // It now shows under the muscle filter, and a replay creates nothing new.
+    const byMuscle = await call<Array<{ id: number }>>("exerciseCatalog/search", {
+      muscleExternalId: "m-10",
+      language: "en",
+    });
+    expect(byMuscle.body.map((row) => row.id)).toContain(created.body.id);
+    const replay = await call<{ id: number }>("exerciseCatalog/createCustom", request);
+    expect(replay.body.id).toBe(created.body.id);
+    const conflict = await call("exerciseCatalog/createCustom", {
+      ...request,
+      equipmentExternalIds: [],
+    });
+    expect(conflict.status).toBe(409);
+  });
+
+  test("the mine filter lists exercises from your own routines and sessions only", async () => {
+    const [routineOnly] = await db
+      .insert(exercise)
+      .values({ organizationId: members["catalog-a"].org, source: "user", name: "Routine lift" })
+      .returning({ id: exercise.id });
+    const [unused] = await db
+      .insert(exercise)
+      .values({ organizationId: members["catalog-a"].org, source: "user", name: "Unused lift" })
+      .returning({ id: exercise.id });
+    const routine = await db.execute(
+      sql`insert into workout_routine (organization_id, user_id, name) values (${members["catalog-a"].org}, 'catalog-a', 'Plan') returning id`,
+    );
+    const routineId = (routine.rows[0] as { id: number }).id;
+    await db.execute(
+      sql`insert into workout_routine_exercise (key, routine_id, organization_id, sort_order, exercise_id, name, target_sets, reps_min, reps_max) values (gen_random_uuid(), ${routineId}, ${members["catalog-a"].org}, 0, ${routineOnly!.id}, 'Routine lift', 3, 8, 10)`,
+    );
+    // The first test logged the wger fixture in a session through addFromLibrary.
+    const mine = await call<Array<{ id: number }>>("exerciseCatalog/search", {
+      mine: true,
+      language: "en",
+    });
+    expect(mine.status).toBe(200);
+    const ids = mine.body.map((row) => row.id);
+    expect(ids).toContain(exerciseId);
+    expect(ids).toContain(routineOnly!.id);
+    expect(ids).not.toContain(unused!.id);
+    const other = await call<Array<{ id: number }>>(
+      "exerciseCatalog/search",
+      { mine: true, language: "en" },
+      "catalog-b",
+    );
+    expect(other.body).toEqual([]);
+  });
 });

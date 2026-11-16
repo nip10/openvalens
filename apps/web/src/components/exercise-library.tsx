@@ -9,7 +9,7 @@ import { Label } from "@openvalens/ui/components/label";
 import { Textarea } from "@openvalens/ui/components/textarea";
 import { useMutation, useQueries, useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
 import { ArrowLeft, Dumbbell, Plus, Scale, Search } from "lucide-react";
 
@@ -46,7 +46,13 @@ type CatalogIntent =
   | {
       scope: string;
       operation: "createCustom";
-      payload: { name: string; language: string; instructions?: string };
+      payload: {
+        name: string;
+        language: string;
+        instructions?: string;
+        muscleExternalIds?: string[];
+        equipmentExternalIds?: string[];
+      };
       clientMutationId: string;
     }
   | {
@@ -353,6 +359,51 @@ function useWideLayout() {
 
 const PAGE_SIZE = 50;
 
+/** Toggle chips for picking several options, e.g. the muscles a new exercise works. */
+function ChipPicker({
+  legend,
+  options,
+  selected,
+  onChange,
+  disabled,
+}: {
+  legend: ReactNode;
+  options: Array<{ id: string; label: string }>;
+  selected: string[];
+  onChange: (next: string[]) => void;
+  disabled?: boolean;
+}) {
+  // One chip per label: the library can list a muscle under two ids.
+  const seen = new Set<string>();
+  const unique = options.filter((option) =>
+    seen.has(option.label) ? false : (seen.add(option.label), true),
+  );
+  return (
+    <fieldset className="grid gap-2">
+      <legend className="mb-2 text-sm text-ink-3">{legend}</legend>
+      <div className="flex flex-wrap gap-1.5">
+        {unique.map((option) => {
+          const on = selected.includes(option.id);
+          return (
+            <button
+              key={option.id}
+              type="button"
+              disabled={disabled}
+              aria-pressed={on}
+              onClick={() =>
+                onChange(on ? selected.filter((id) => id !== option.id) : [...selected, option.id])
+              }
+              className={`min-h-9 rounded-full border px-3 text-sm transition-colors duration-[var(--dur-short)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-55 ${on ? "border-steps bg-steps-soft font-semibold text-ink" : "border-rule-2 bg-card text-ink-2 hover:bg-muted"}`}
+            >
+              {option.label}
+            </button>
+          );
+        })}
+      </div>
+    </fieldset>
+  );
+}
+
 type CatalogRow = {
   id: number;
   name: string;
@@ -373,7 +424,11 @@ export function ExerciseLibraryPage() {
   const [workoutId, setWorkoutId] = useState("");
   const [name, setName] = useState("");
   const [instructions, setInstructions] = useState("");
+  const [customMuscles, setCustomMuscles] = useState<string[]>([]);
+  const [customEquipment, setCustomEquipment] = useState<string[]>([]);
   const [createOpen, setCreateOpen] = useState(false);
+  // "Your exercises": only those in your routines or logged sessions.
+  const [mine, setMine] = useState(false);
   // Pages after the first, by the last id of the page before (keyset paging).
   const [cursors, setCursors] = useState<number[]>([]);
   const wide = useWideLayout();
@@ -408,7 +463,10 @@ export function ExerciseLibraryPage() {
     setWorkoutId("");
     setName("");
     setInstructions("");
+    setCustomMuscles([]);
+    setCustomEquipment([]);
     setCreateOpen(false);
+    setMine(false);
     setCursors([]);
     setMuscleExternalId("");
     setEquipmentExternalId("");
@@ -429,9 +487,10 @@ export function ExerciseLibraryPage() {
       language: CATALOG_LANGUAGE,
       muscleExternalId: scopeChanging ? undefined : muscleExternalId || undefined,
       equipmentExternalId: scopeChanging ? undefined : equipmentExternalId || undefined,
+      ...(mine && !scopeChanging ? { mine: true } : {}),
       limit: 50,
     }),
-    [query, muscleExternalId, equipmentExternalId, scopeChanging],
+    [query, muscleExternalId, equipmentExternalId, mine, scopeChanging],
   );
   const catalog = useQuery({
     ...orpc.exerciseCatalog.search.queryOptions({ input }),
@@ -529,6 +588,8 @@ export function ExerciseLibraryPage() {
         ) {
           setName("");
           setInstructions("");
+          setCustomMuscles([]);
+          setCustomEquipment([]);
         }
         void catalog.refetch();
       } else void workouts.refetch();
@@ -551,6 +612,8 @@ export function ExerciseLibraryPage() {
       name: name.trim(),
       language: language.trim(),
       ...(instructions.trim() ? { instructions: instructions.trim() } : {}),
+      ...(customMuscles.length ? { muscleExternalIds: customMuscles } : {}),
+      ...(customEquipment.length ? { equipmentExternalIds: customEquipment } : {}),
     };
     const clientMutationId = secureClientMutationId();
     if (!clientMutationId) {
@@ -889,6 +952,25 @@ export function ExerciseLibraryPage() {
                 placeholder={t`Search exercises`}
               />
             </div>
+            <div className="flex flex-wrap gap-2" role="group" aria-label={t`Show`}>
+              {(
+                [
+                  [false, t`All exercises`],
+                  [true, t`Your exercises`],
+                ] as const
+              ).map(([value, label]) => (
+                <button
+                  key={label}
+                  type="button"
+                  disabled={fieldDisabled}
+                  aria-pressed={mine === value}
+                  onClick={() => setMine(value)}
+                  className={`min-h-10 rounded-full border px-4 text-sm transition-colors duration-[var(--dur-short)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-55 ${mine === value ? "border-steps bg-steps-soft font-semibold text-ink" : "border-rule-2 bg-card text-ink-2 hover:bg-muted"}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
             {filters.isPending ? (
               <p role="status" className="text-sm text-ink-3">
                 <Trans>Loading muscle and equipment filters…</Trans>
@@ -971,7 +1053,18 @@ export function ExerciseLibraryPage() {
                 }
               />
             ) : empty ? (
-              query.trim() ? (
+              mine && !query.trim() && !muscleExternalId && !equipmentExternalId ? (
+                <EmptyState
+                  icon={Dumbbell}
+                  title={<Trans>None of your exercises yet</Trans>}
+                  description={
+                    <Trans>
+                      Exercises from the library show here once they are in a routine or a logged
+                      session.
+                    </Trans>
+                  }
+                />
+              ) : query.trim() || mine ? (
                 <EmptyState
                   icon={Search}
                   title={<Trans>No exercises match this search. Try another name.</Trans>}
@@ -1129,6 +1222,31 @@ export function ExerciseLibraryPage() {
               onChange={(event) => setInstructions(event.target.value)}
             />
           </div>
+          {/* Muscles and equipment from the library's own lists, so the filters find it. */}
+          {filters.data?.muscles.length ? (
+            <ChipPicker
+              legend={<Trans>Muscles (optional)</Trans>}
+              options={filters.data.muscles.map((muscle) => ({
+                id: muscle.externalId,
+                label: plainMuscleName(muscle.name),
+              }))}
+              selected={customMuscles}
+              onChange={setCustomMuscles}
+              disabled={fieldDisabled}
+            />
+          ) : null}
+          {filters.data?.equipment.length ? (
+            <ChipPicker
+              legend={<Trans>Equipment (optional)</Trans>}
+              options={filters.data.equipment.map((equipment) => ({
+                id: equipment.externalId,
+                label: equipment.name,
+              }))}
+              selected={customEquipment}
+              onChange={setCustomEquipment}
+              disabled={fieldDisabled}
+            />
+          ) : null}
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <Button
               type="button"

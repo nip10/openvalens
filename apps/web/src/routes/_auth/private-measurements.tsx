@@ -37,6 +37,7 @@ import {
 } from "@/components/page";
 import { ProgressPhotos } from "@/components/progress-photos";
 import { useLogDialog } from "@/components/quick-log/log-launcher";
+import { Sparkline } from "@/components/sparkline";
 import { authClient } from "@/lib/auth-client";
 import { friendlyDate } from "@/utils/friendly";
 import { client, orpc } from "@/utils/orpc";
@@ -111,8 +112,43 @@ export function PrivateMeasurements() {
   );
 }
 
-/** The add or edit form, in a dialog: measurement, value with unit, and time. */
-type Draft = { id: string | null; kind: Kind; unit: Unit; value: string; measuredAt: string };
+/**
+ * The add or edit form, in a dialog: measurement, value with unit, and time.
+ * A new entry can be "Waist and hip", measured at the same sitting: `kind` is
+ * then `waist`, `withHip` is set and `hipValue` holds the second figure, in
+ * the same unit and at the same time.
+ */
+type Draft = {
+  id: string | null;
+  kind: Kind;
+  unit: Unit;
+  value: string;
+  measuredAt: string;
+  withHip?: boolean;
+  hipValue?: string;
+};
+const WAIST_AND_HIP = "waist_hip";
+
+/** The entries one draft saves: one, or waist then hip for the pair. */
+export function draftPayloads(draft: Draft) {
+  const one = (kind: Kind, value: string) =>
+    makePrivateMeasurementPayload({
+      kind,
+      unit: draft.unit,
+      value,
+      measuredAtLocal: draft.measuredAt,
+    });
+  if (draft.withHip && !draft.id) {
+    const waist = one("waist", draft.value);
+    const hip = one("hip", draft.hipValue ?? "");
+    return waist && hip ? [waist, hip] : null;
+  }
+  const single = one(draft.kind, draft.value);
+  return single ? [single] : null;
+}
+
+/** Thrown when the waist of a pair saved and the hip did not. */
+class HipNotSaved extends Error {}
 
 function MeasurementDialog({
   draft,
@@ -127,17 +163,40 @@ function MeasurementDialog({
   onClose: () => void;
   onSave: (draft: Draft) => void;
   saving: boolean;
-  failed: boolean;
+  /** "partial" when a pair's waist saved and its hip did not. */
+  failed: boolean | "partial";
 }) {
   const { t, i18n } = useLingui();
   if (!draft) return null;
   const label = i18n._(KIND_LABELS[draft.kind]);
-  const payload = makePrivateMeasurementPayload({
-    kind: draft.kind,
-    unit: draft.unit,
-    value: draft.value,
-    measuredAtLocal: draft.measuredAt,
-  });
+  const payload = draftPayloads(draft);
+  const pair = Boolean(draft.withHip && !draft.id);
+  const hipLabel = i18n._(KIND_LABELS.hip);
+  const unitSelect = (
+    <Select
+      value={draft.unit}
+      onValueChange={(next) => {
+        const reset = nextUnitDraft(next);
+        onDraftChange({
+          ...draft,
+          unit: reset.unit as Unit,
+          value: reset.value,
+          ...(pair ? { hipValue: reset.value } : {}),
+        });
+      }}
+    >
+      <SelectTrigger aria-label={t`Unit`} className="w-24 shrink-0">
+        <SelectValue>{draft.unit}</SelectValue>
+      </SelectTrigger>
+      <SelectContent>
+        {unitsForMeasurement(draft.kind).map((unit) => (
+          <SelectItem key={unit} value={unit}>
+            {unit}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
   return (
     <FormDialog
       open
@@ -159,11 +218,19 @@ function MeasurementDialog({
             <Trans>Measurement</Trans>
           </Label>
           <Select
-            value={draft.kind}
+            value={pair ? WAIST_AND_HIP : draft.kind}
             onValueChange={(next) => {
-              const kind = next as Kind;
+              const both = next === WAIST_AND_HIP;
+              const kind = both ? "waist" : (next as Kind);
               const reset = nextKindDraft(kind);
-              onDraftChange({ ...draft, kind: reset.kind, unit: reset.unit, value: reset.value });
+              onDraftChange({
+                ...draft,
+                kind: reset.kind,
+                unit: reset.unit,
+                value: reset.value,
+                withHip: both,
+                hipValue: both ? reset.value : undefined,
+              });
             }}
           >
             <SelectTrigger
@@ -171,7 +238,7 @@ function MeasurementDialog({
               className="w-full"
               aria-label={t`Measurement type`}
             >
-              <SelectValue>{label}</SelectValue>
+              <SelectValue>{pair ? t`Waist and hip` : label}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               {kinds.map((kind) => (
@@ -179,6 +246,12 @@ function MeasurementDialog({
                   {i18n._(KIND_LABELS[kind])}
                 </SelectItem>
               ))}
+              {/* Measured at the same sitting, so offered as one entry too. */}
+              {draft.id ? null : (
+                <SelectItem value={WAIST_AND_HIP}>
+                  <Trans>Waist and hip</Trans>
+                </SelectItem>
+              )}
             </SelectContent>
           </Select>
         </div>
@@ -195,26 +268,26 @@ function MeasurementDialog({
               value={draft.value}
               onChange={(event) => onDraftChange({ ...draft, value: event.target.value })}
             />
-            <Select
-              value={draft.unit}
-              onValueChange={(next) => {
-                const reset = nextUnitDraft(next);
-                onDraftChange({ ...draft, unit: reset.unit as Unit, value: reset.value });
-              }}
-            >
-              <SelectTrigger aria-label={t`Unit`} className="w-24 shrink-0">
-                <SelectValue>{draft.unit}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {unitsForMeasurement(draft.kind).map((unit) => (
-                  <SelectItem key={unit} value={unit}>
-                    {unit}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {unitSelect}
           </div>
         </div>
+        {pair ? (
+          <div className="grid gap-2 sm:col-start-2">
+            <Label htmlFor="measurement-hip-value">{t`${hipLabel} value`}</Label>
+            <div className="flex items-center gap-2">
+              <Input
+                id="measurement-hip-value"
+                type="number"
+                min="0"
+                step="any"
+                inputMode="decimal"
+                value={draft.hipValue ?? ""}
+                onChange={(event) => onDraftChange({ ...draft, hipValue: event.target.value })}
+              />
+              <span className="num w-24 shrink-0 px-3 text-sm text-ink-3">{draft.unit}</span>
+            </div>
+          </div>
+        ) : null}
         <div className="grid gap-2 sm:col-span-2">
           <Label htmlFor="measurement-time">
             <Trans>Observed at</Trans>
@@ -239,7 +312,11 @@ function MeasurementDialog({
           <Button type="button" variant="ghost" onClick={onClose}>
             <Trans>Cancel</Trans>
           </Button>
-          {failed ? (
+          {failed === "partial" ? (
+            <span role="alert" className="text-sm text-destructive">
+              <Trans>Your waist is saved. Could not save the hip, so try it again.</Trans>
+            </span>
+          ) : failed ? (
             <span role="alert" className="text-sm text-destructive">
               <Trans>Could not save. Check your connection and try again.</Trans>
             </span>
@@ -306,22 +383,31 @@ function PrivateMeasurementsForSubject({
     onSuccess: invalidate,
   });
   const save = useMutation({
-    mutationFn: (entry: Draft) => {
-      const input = makePrivateMeasurementPayload({
-        kind: entry.kind,
-        unit: entry.unit,
-        value: entry.value,
-        measuredAtLocal: entry.measuredAt,
-      });
-      if (!input) throw new Error(t`Enter a valid measurement and observed time.`);
-      return entry.id
-        ? client.privateBody.update({ id: entry.id, value: input })
-        : client.privateBody.create(input);
+    mutationFn: async (entry: Draft) => {
+      const inputs = draftPayloads(entry);
+      if (!inputs) throw new Error(t`Enter a valid measurement and observed time.`);
+      if (entry.id) return client.privateBody.update({ id: entry.id, value: inputs[0]! });
+      const [first, second] = inputs;
+      await client.privateBody.create(first!);
+      if (second) {
+        try {
+          await client.privateBody.create(second);
+        } catch {
+          throw new HipNotSaved();
+        }
+      }
     },
-    onSuccess: () => {
+    onSuccess: (_result, entry) => {
       setDraft(null);
-      setNotice(t`Entry saved.`);
+      setNotice(entry.withHip && !entry.id ? t`Waist and hip saved.` : t`Entry saved.`);
       invalidate();
+    },
+    onError: (error, entry) => {
+      // The waist is saved: keep only the hip in the form, so a retry adds just that.
+      if (error instanceof HipNotSaved) {
+        invalidate();
+        setDraft({ ...entry, kind: "hip", value: entry.hipValue ?? "", withHip: false });
+      }
     },
   });
   const remove = useMutation({
@@ -342,13 +428,27 @@ function PrivateMeasurementsForSubject({
     }
   };
 
-  // A new entry starts at the kind logged last.
+  // A new entry starts at the kind logged last, or at waist and hip when the
+  // last sitting logged both.
   const openNew = () => {
     save.reset();
-    const last = (entries[0]?.kind as Kind | undefined) ?? "weight";
+    const latest = entries[0];
+    const last = (latest?.kind as Kind | undefined) ?? "weight";
     const kind = (kinds as readonly string[]).includes(last) ? last : "weight";
-    const reset = nextKindDraft(kind);
-    setDraft({ id: null, kind, unit: reset.unit, value: "", measuredAt: nowLocal() });
+    const pairedWith = kind === "waist" ? "hip" : kind === "hip" ? "waist" : null;
+    const bothLast = Boolean(
+      pairedWith &&
+      entries.some((entry) => entry.kind === pairedWith && entry.measuredAt === latest?.measuredAt),
+    );
+    const reset = nextKindDraft(bothLast ? "waist" : kind);
+    setDraft({
+      id: null,
+      kind: bothLast ? "waist" : kind,
+      unit: reset.unit,
+      value: "",
+      measuredAt: nowLocal(),
+      ...(bothLast ? { withHip: true, hipValue: "" } : {}),
+    });
   };
   const enabled = accessState === "enabled";
   useLogDialog("private_measurement", enabled ? openNew : null);
@@ -496,20 +596,30 @@ function PrivateMeasurementsForSubject({
                 <div className="grid items-start gap-6 lg:grid-cols-2">
                   {groups.map(([kind, rows]) => {
                     const label = labelOf(kind);
+                    // The trend, oldest first, in the latest entry's unit.
+                    const trend = canDisplayStoredValues
+                      ? rows
+                          .filter((row) => row.unit === rows[0]?.unit)
+                          .map((row) => row.value)
+                          .reverse()
+                      : [];
                     return (
                       <section
                         key={kind}
                         aria-label={label}
                         className="sheet grid min-w-0 content-start gap-1 px-5 pt-4 pb-1"
                       >
-                        <h3 className="flex items-center gap-2.5 font-body text-base font-semibold tracking-normal text-ink-2">
-                          <ToneIcon
-                            icon={kind === "weight" ? Scale : Ruler}
-                            tone="weight"
-                            size="sm"
-                          />
-                          {label}
-                        </h3>
+                        <div className="flex items-center justify-between gap-3">
+                          <h3 className="flex items-center gap-2.5 font-body text-base font-semibold tracking-normal text-ink-2">
+                            <ToneIcon
+                              icon={kind === "weight" ? Scale : Ruler}
+                              tone="weight"
+                              size="sm"
+                            />
+                            {label}
+                          </h3>
+                          <Sparkline values={trend} tone="weight" />
+                        </div>
                         <ul className="grid divide-y divide-rule">
                           {rows.map((row, index) => {
                             const when = new Date(row.measuredAt).toLocaleString();
@@ -633,7 +743,7 @@ function PrivateMeasurementsForSubject({
         onClose={() => setDraft(null)}
         onSave={(entry) => save.mutate(entry)}
         saving={save.isPending}
-        failed={save.isError}
+        failed={save.error instanceof HipNotSaved ? "partial" : save.isError}
       />
     </Page>
   );

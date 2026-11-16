@@ -35,6 +35,7 @@ export const exerciseCatalogRouter = {
       createExerciseCatalogService(context.db, context.exerciseCatalogMediaReader).search({
         ...input,
         organizationId: context.authz.activeOrganizationId,
+        userId: context.authz.user.id,
       }),
     ),
 
