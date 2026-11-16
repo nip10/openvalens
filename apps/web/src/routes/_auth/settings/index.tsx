@@ -32,9 +32,11 @@ import {
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { INSIGHT_DELIVERY_COPY } from "@openvalens/api/presenters/insights";
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useLocation, useNavigate } from "@tanstack/react-router";
 import {
   Bell,
+  Bot,
+  ChevronLeft,
   ChevronRight,
   CreditCard,
   Download,
@@ -54,8 +56,9 @@ import { type ReactNode, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { AboutSection } from "@/components/about-section";
-import { AiAppsSettingsSection, useAiAppsEnabled } from "@/components/ai-apps-settings-section";
+import { useAiAppsEnabled } from "@/components/ai-apps-settings-section";
 import { AiConsentSection } from "@/components/ai-consent-section";
+import { AiOffNotice } from "@/components/ai-off-notice";
 import { AiWorkspaceConsentSection } from "@/components/ai-workspace-consent-section";
 import { AnalyticsConsentSection } from "@/components/analytics-consent-section";
 import { InsightNotificationsSection } from "@/components/insight-notifications-section";
@@ -68,6 +71,7 @@ import { CoachIcon } from "@/components/coach-icon";
 import { ErrorState, InfoTip, Page, PageHeader, Section } from "@/components/page";
 import { ProfileSummarySection } from "@/components/profile-summary-card";
 import { DisplayNameField } from "@/components/display-name-field";
+import { settingsPaneFor } from "@/components/settings-panes";
 import { SettingsGroup, SettingsIcon } from "@/components/settings-rows";
 import { authClient } from "@/lib/auth-client";
 import { avatarInitial, displayNameOf } from "@/utils/display-name";
@@ -86,12 +90,20 @@ const LINK =
 type SettingsBlock = { key: string; id?: string; label?: string; node: ReactNode };
 
 /** A settings category: one heading, then its blocks. */
-type SettingsCategory = { id: string; label: string; icon: LucideIcon; blocks: SettingsBlock[] };
+type SettingsCategory = {
+  id: string;
+  label: string;
+  icon: LucideIcon;
+  /** One line under the category in the phone's list. */
+  summary: string;
+  blocks: SettingsBlock[];
+};
 
 /**
  * #settings-0 — the settings in six categories. This list is the one place
- * that orders the page and both indexes (the sticky one on wide screens, the
- * chips on phones): add a setting by adding a block to its category.
+ * that orders the panes, the index on wide screens and the list on phones:
+ * add a setting by adding a block to its category. A block's `id` is its
+ * anchor (`/settings#delete-account` opens its pane).
  */
 function useSettingsCategories(): SettingsCategory[] {
   const { t, i18n } = useLingui();
@@ -110,6 +122,7 @@ function useSettingsCategories(): SettingsCategory[] {
     {
       id: "account",
       label: t`Account`,
+      summary: t`Your name, sign-in, plan and profile`,
       icon: UserRound,
       blocks: [
         { key: "account", node: <AccountSection /> },
@@ -146,6 +159,7 @@ function useSettingsCategories(): SettingsCategory[] {
     {
       id: "preferences",
       label: t`Preferences`,
+      summary: t`Language, appearance, modules and devices`,
       icon: SlidersHorizontal,
       blocks: [
         { key: "language", id: "language", label: t`Language`, node: <LanguageSection /> },
@@ -202,6 +216,7 @@ function useSettingsCategories(): SettingsCategory[] {
     {
       id: "notifications",
       label: t`Notifications`,
+      summary: t`Phone alerts, weekly email and reminders`,
       icon: Bell,
       blocks: [
         {
@@ -214,8 +229,11 @@ function useSettingsCategories(): SettingsCategory[] {
     {
       id: "ai",
       label: t`AI`,
+      summary: t`Coach style and AI consent`,
       icon: Sparkles,
       blocks: [
+        // #settings-2 — no index entry: it shows only while AI is off.
+        { key: "ai-off", node: <AiOffNotice /> },
         { key: "coach", id: "coach", label: t`Coach`, node: <CoachSection /> },
         {
           key: "ai-workspace",
@@ -233,13 +251,24 @@ function useSettingsCategories(): SettingsCategory[] {
           key: "ai-apps",
           id: "ai-apps",
           label: t`Connected AI apps`,
-          node: <AiAppsSettingsSection />,
+          // #settings-ai-apps-2: the workspace switch sits on that page now.
+          node: (
+            <LinkRows>
+              <IntegrationLink
+                to="/settings/ai-apps"
+                icon={Bot}
+                label={<Trans>Connected AI apps</Trans>}
+                description={<Trans>Connections, personal keys and recent activity</Trans>}
+              />
+            </LinkRows>
+          ),
         }),
       ],
     },
     {
       id: "privacy",
       label: t`Privacy & data`,
+      summary: t`Consent, analytics, export and deleting your account`,
       icon: ShieldCheck,
       blocks: [
         {
@@ -278,6 +307,7 @@ function useSettingsCategories(): SettingsCategory[] {
     {
       id: "about",
       label: t`About`,
+      summary: t`Licence and source code`,
       icon: Info,
       blocks: [{ key: "about", node: <AboutSection bare /> }],
     },
@@ -285,78 +315,113 @@ function useSettingsCategories(): SettingsCategory[] {
 }
 
 const INDEX_LINK =
-  "block rounded-full px-3 py-1.5 text-sm text-ink-2 transition-colors duration-[var(--dur-short)] hover:bg-paper-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
+  "block rounded-full px-3 py-1.5 text-sm text-ink-2 no-underline transition-colors duration-[var(--dur-short)] hover:bg-paper-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
 
+/**
+ * #settings-0 — one category at a time. On wide screens the index on the
+ * left switches the pane (Account opens first); on phones /settings is a
+ * list of the six categories and each opens on its own. The hash keeps the
+ * choice, so links such as `/settings#delete-account` open the right pane.
+ */
 function SettingsPage() {
   const { t } = useLingui();
   const categories = useSettingsCategories();
+  const hash = useLocation({ select: (location) => location.hash });
+  const chosen = settingsPaneFor(categories, hash);
+  const pane = chosen ?? categories[0]!;
 
   return (
     <Page>
-      <div className="grid gap-4">
-        <PageHeader title={<Trans>Settings</Trans>} />
-        {/* #settings-1 — on phones, the six categories as jump links under the title. */}
-        <nav aria-label={t`Settings categories`} className="lg:hidden">
-          <ul className="flex flex-wrap gap-2">
-            {categories.map((category) => (
-              <li key={category.id}>
-                <a
-                  href={`#${category.id}`}
-                  className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-rule bg-sheet px-3 text-sm font-medium text-ink-2 no-underline transition-colors duration-[var(--dur-short)] hover:bg-paper-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-                >
-                  <category.icon className="size-4 text-ink-3" aria-hidden="true" />
-                  {category.label}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </nav>
-      </div>
-      <div className="grid gap-10 lg:grid-cols-[13rem_minmax(0,1fr)] lg:gap-14">
+      <PageHeader title={<Trans>Settings</Trans>} />
+      <div className="grid gap-8 lg:grid-cols-[13rem_minmax(0,1fr)] lg:gap-14">
         <nav aria-label={t`Settings`} className="hidden lg:block">
-          <ul className="sticky top-10 grid gap-3">
-            {categories.map((category) => (
-              <li key={category.id} className="grid gap-0.5">
-                <a href={`#${category.id}`} className={`${INDEX_LINK} font-semibold text-ink`}>
-                  {category.label}
-                </a>
-                <ul className="grid gap-0.5 pl-3">
-                  {category.blocks
-                    .filter((block) => block.id && block.label)
-                    .map((block) => (
-                      <li key={block.key}>
-                        <a href={`#${block.id}`} className={INDEX_LINK}>
-                          {block.label}
-                        </a>
-                      </li>
-                    ))}
-                </ul>
-              </li>
-            ))}
+          <ul className="sticky top-10 grid gap-1">
+            {categories.map((category) => {
+              const current = category.id === pane.id;
+              return (
+                <li key={category.id} className="grid gap-0.5">
+                  <Link
+                    to="/settings"
+                    hash={category.id}
+                    aria-current={current ? "page" : undefined}
+                    className={`${INDEX_LINK} flex items-center gap-2 font-semibold ${current ? "bg-sidebar-accent text-signal" : "text-ink"}`}
+                  >
+                    <category.icon className="size-4 shrink-0" aria-hidden="true" />
+                    {category.label}
+                  </Link>
+                  {current ? (
+                    <ul className="grid gap-0.5 pb-2 pl-6">
+                      {category.blocks
+                        .filter((block) => block.id && block.label)
+                        .map((block) => (
+                          <li key={block.key}>
+                            <Link to="/settings" hash={block.id} className={INDEX_LINK}>
+                              {block.label}
+                            </Link>
+                          </li>
+                        ))}
+                    </ul>
+                  ) : null}
+                </li>
+              );
+            })}
           </ul>
         </nav>
-        <div className="grid min-w-0 max-w-3xl content-start gap-14">
-          {categories.map((category) => (
-            <section
-              key={category.id}
-              id={category.id}
-              aria-labelledby={`${category.id}-heading`}
-              className="grid scroll-mt-10 content-start gap-8"
-            >
-              <h2
-                id={`${category.id}-heading`}
-                className="flex items-center gap-2.5 border-b border-rule pb-3 text-2xl leading-tight text-ink"
-              >
-                <category.icon className="size-5 shrink-0 text-ink-3" aria-hidden="true" />
-                {category.label}
-              </h2>
-              {category.blocks.map((block) => (
-                <div key={block.key} id={block.id} className="min-w-0 scroll-mt-10 empty:hidden">
-                  {block.node}
-                </div>
+
+        {chosen === null ? (
+          // Phones: the six categories as one list.
+          <nav aria-label={t`Settings categories`} className="lg:hidden">
+            <SettingsGroup className="px-0">
+              {categories.map((category) => (
+                <Link
+                  key={category.id}
+                  to="/settings"
+                  hash={category.id}
+                  className="flex min-h-16 items-center gap-4 px-5 py-3 no-underline transition-colors duration-[var(--dur-short)] first:rounded-t-3xl last:rounded-b-3xl hover:bg-paper-2 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+                >
+                  <SettingsIcon icon={category.icon} />
+                  <span className="grid min-w-0 flex-1 gap-0.5">
+                    <span className="font-medium text-ink">{category.label}</span>
+                    <span className="text-sm text-ink-3">{category.summary}</span>
+                  </span>
+                  <ChevronRight className="size-4 shrink-0 text-ink-3" aria-hidden="true" />
+                </Link>
               ))}
-            </section>
-          ))}
+            </SettingsGroup>
+          </nav>
+        ) : null}
+
+        <div
+          className={`min-w-0 max-w-3xl content-start gap-4 ${chosen === null ? "hidden lg:grid" : "grid"}`}
+        >
+          {chosen === null ? null : (
+            <Link
+              to="/settings"
+              className="inline-flex w-fit items-center gap-1 rounded-full px-1 text-sm font-medium text-ink-2 underline decoration-signal underline-offset-[0.15em] hover:text-ink hover:decoration-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring lg:hidden"
+            >
+              <ChevronLeft className="size-4" aria-hidden="true" />
+              <Trans>All settings</Trans>
+            </Link>
+          )}
+          <section
+            key={pane.id}
+            id={pane.id}
+            aria-labelledby={`${pane.id}-heading`}
+            className="grid scroll-mt-10 content-start gap-8"
+          >
+            <h2
+              id={`${pane.id}-heading`}
+              className="flex items-center gap-2.5 border-b border-rule pb-3 text-2xl leading-tight text-ink"
+            >
+              <pane.icon className="size-5 shrink-0 text-ink-3" aria-hidden="true" />
+              {pane.label}
+            </h2>
+            {pane.blocks.map((block) => (
+              <div key={block.key} id={block.id} className="min-w-0 scroll-mt-10 empty:hidden">
+                {block.node}
+              </div>
+            ))}
+          </section>
         </div>
       </div>
     </Page>
@@ -380,6 +445,7 @@ function IntegrationLink({
     | "/settings/nutrition"
     | "/settings/billing"
     | "/settings/whats-new"
+    | "/settings/ai-apps"
     | "/exports";
   icon: LucideIcon;
   label: React.ReactNode;

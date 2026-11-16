@@ -70,16 +70,42 @@ function viewProps(overrides: Partial<AiAppsViewProps> = {}): AiAppsViewProps {
 }
 
 describe("AiAppsView", () => {
-  test("empty lists explain what this is in plain words", () => {
+  test("#settings-ai-apps-4: with nothing connected, the how-to leads and one line replaces both empty lists", () => {
     const html = render(<AiAppsView {...viewProps()} />);
-    expect(html).toInclude("No apps connected yet");
-    expect(html).toInclude("No personal keys");
-    expect(html).toInclude("answer questions about your sleep, training and labs");
+    expect(html).toInclude("No apps or keys yet.");
+    expect(html).not.toInclude("No apps connected yet");
+    expect(html).not.toInclude("No personal keys");
     expect(html).toInclude("Create key");
+    expect(html.indexOf("How to connect an app")).toBeLessThan(
+      html.indexOf("No apps or keys yet."),
+    );
     // Help pages for every client, and the server address.
     expect(html).toInclude("docs/help/ai-apps/claude-ai.md");
     expect(html).toInclude("docs/help/ai-apps/local-model.md");
     expect(html).toInclude("https://health.example/api/mcp");
+  });
+
+  test("once something is connected, both lists show and their empty states explain them", () => {
+    const html = render(
+      <AiAppsView {...viewProps({ grants: [grant({ kind: "oauth", displayPrefix: null })] })} />,
+    );
+    expect(html).toInclude("No personal keys");
+    expect(html).toInclude("answer questions about your sleep, training and labs");
+    expect(html).not.toInclude("No apps or keys yet.");
+    expect(html.indexOf("Connections")).toBeLessThan(html.indexOf("How to connect an app"));
+  });
+
+  test("#settings-ai-apps-1: a 'Pick your app' tab bar swaps the steps", () => {
+    const html = render(<AiAppsView {...viewProps()} />);
+    expect(html).toInclude("Pick your app");
+    expect(html.match(/role="tab"/g)?.length).toBe(6);
+    // claude.ai starts selected; every other app's steps are in the page, hidden.
+    expect(html).toMatch(/role="tab" aria-selected="true"[^>]*>claude\.ai</);
+    expect(html.match(/aria-selected="false"/g)?.length).toBe(5);
+    expect(html.match(/role="tabpanel"/g)?.length).toBe(6);
+    expect(html.match(/role="tabpanel"[^>]*hidden=""/g)?.length).toBe(5);
+    expect(html).toInclude("open Customize › Connectors");
+    expect(html).toInclude("Step-by-step guide");
   });
 
   test("a connection shows the app as unverified with its client host and Revoke", () => {
@@ -206,8 +232,19 @@ describe("AiAppsView", () => {
     const html = render(
       <AiAppsView {...viewProps({ status: { ...STATUS, oauthEnabled: false } })} />,
     );
-    expect(html).toInclude("Use a personal key instead.");
-    expect(html).not.toInclude("Claude Code, signing in from the app");
+    expect(html).toInclude("which this server doesn&#x27;t offer");
+    expect(html).not.toInclude("claude mcp add");
+    // It starts at an app that works with a key.
+    expect(html).toMatch(/role="tab" aria-selected="true"[^>]*>Claude Code</);
+    const listed = render(
+      <AiAppsView
+        {...viewProps({
+          status: { ...STATUS, oauthEnabled: false },
+          grants: [grant()],
+        })}
+      />,
+    );
+    expect(listed).toInclude("Use a personal key instead.");
   });
 });
 

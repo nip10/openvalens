@@ -73,6 +73,7 @@ mock.module("@tanstack/react-router", () => ({
   createFileRoute: () => (options: unknown) => options,
   Link: ({ children }: { children: ReactNode }) => <a href="/">{children}</a>,
   useNavigate: () => () => {},
+  useLocation: () => "",
 }));
 mock.module("@tanstack/react-query", () => ({
   useQueryClient: () => ({ invalidateQueries: () => Promise.resolve() }),
