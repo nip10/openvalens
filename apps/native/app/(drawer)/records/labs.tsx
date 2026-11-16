@@ -6,6 +6,7 @@ import {
   formatLabDate,
   formatLabRange,
   formatLabValue,
+  labRangePosition,
 } from "@openvalens/api/presenters/labs";
 import {
   defaultObservedAt,
@@ -180,6 +181,10 @@ export default function LabsScreen() {
     // The lab's own range stored with the latest reading, shown as recorded.
     const range =
       marker.latestValue === null ? null : displayLabRange(marker, marker.referenceRange, labUnits);
+    const position =
+      display.value === null ? null : labRangePosition(display.value, display.unit, range);
+    const flag =
+      position === "above" ? t`Above range` : position === "below" ? t`Below range` : null;
     return (
       <ListCard
         key={marker.code}
@@ -197,6 +202,7 @@ export default function LabsScreen() {
             valueText={formatLabValue(display.value, display.unit)}
             rangeText={range ? formatLabRange(i18n, range) : null}
             bar={labRangeBar(display.value, display.unit, range)}
+            flag={flag}
             testID={`lab-reading-${marker.code}`}
           />
         )}
