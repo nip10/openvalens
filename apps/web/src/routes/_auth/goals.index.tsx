@@ -282,16 +282,16 @@ function GoalCard({
       </div>
       <RuleProgress goal={goal} />
       {cue ? <p className="text-sm text-ink-3">{cue}</p> : null}
-      <div className="mt-auto flex flex-wrap items-center gap-2 border-t border-rule pt-3">
+      <div className="mt-auto flex items-center gap-2 border-t border-rule pt-3">
         <Link
           to="/goals/$goalId"
           params={{ goalId: String(goal.id) }}
-          className="inline-flex min-h-9 items-center gap-1 rounded-full px-1 text-sm font-medium text-signal hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          className="inline-flex min-h-9 shrink-0 items-center gap-1 rounded-full px-1 text-sm font-medium text-signal hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         >
           {t`Progress and history`}
           <ChevronRight className="size-4" aria-hidden="true" />
         </Link>
-        <div className="ml-auto flex items-center gap-1">
+        <div className="ml-auto flex min-w-0 items-center gap-1">
           <GoalAction goal={goal} onSaved={onRefresh} onCheckin={onCheckin} />
           <MoreMenu label={t`More for ${goal.title}`} items={menu} />
         </div>
@@ -409,7 +409,9 @@ function GoalAction({
         </Button>
       </span>
     );
-  return <span className="text-xs text-ink-3">{t`Updates from your records`}</span>;
+  return (
+    <span className="min-w-0 text-right text-xs text-ink-3">{t`Updates from your records`}</span>
+  );
 }
 
 function GoalGroup({
