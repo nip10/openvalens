@@ -29,6 +29,7 @@ const payload = {
 const listInput = z
   .strictObject({ from: isoInstant.optional(), to: isoInstant.optional() })
   .optional();
+const loggedInput = z.strictObject({});
 const createInput = z.strictObject({ ...payload, clientMutationId: uuid });
 const updateInput = z.strictObject({
   id: z.number().int().positive(),
@@ -132,6 +133,17 @@ export const supplementIntakeRouter = {
     .handler(({ input, context }) =>
       run(() => repository(context, context.authz).list(input ?? {})),
     ),
+
+  /**
+   * preventive-care#8: the signed-in member's own logged supplements (an
+   * intake in the last 30 days or an active schedule of theirs), by name.
+   * Owner-scoped like `list`: another member's supplements never appear.
+   */
+  logged: permissionedProcedure({ resource: "supplements", action: "read" })
+    .use(validateInput(loggedInput))
+    .input(loggedInput)
+    .output(z.array(z.object({ id: z.number(), name: z.string() })))
+    .handler(({ context }) => run(() => repository(context, context.authz).loggedSupplements())),
 
   create: protectedProcedure
     .use(validateInput(createInput))

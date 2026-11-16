@@ -81,4 +81,32 @@ describe("NutritionDayTotals", () => {
     // Coverage is never hidden, and a verdict word never appears.
     expect(html).not.toMatch(/\b(over|under|good|bad)\b/i);
   });
+
+  test("a macro with a target gets a band under its figure (nutrition#10)", () => {
+    const targets = [
+      {
+        id: 1,
+        nutrient: "energyKcal" as const,
+        minAmount: 1700,
+        maxAmount: 2100,
+        source: "entered" as const,
+        effectiveFrom: "2026-10-01",
+        effectiveTo: null,
+      },
+    ];
+    const dayTotals = totals(
+      { energyKcal: { known: 1503, reported: 3, missing: 0, coverage: "full" } },
+      { known: 40, reported: 3, missing: 0, coverage: "full" },
+    );
+    const html = render(<NutritionDayTotals totals={dayTotals} sources={null} targets={targets} />);
+    expect(html).toContain('data-testid="target-band-energyKcal"');
+    expect(html).toContain('aria-label="1,503 kcal of a 1,700–2,100 kcal target"');
+    expect(html).toContain("width:57.3%");
+    // Only nutrients with a target get one, and never while numbers are hidden.
+    expect(html).not.toContain("target-band-proteinG");
+    const hidden = render(
+      <NutritionDayTotals totals={dayTotals} sources={null} targets={targets} hideNumbers />,
+    );
+    expect(hidden).not.toContain("target-band-");
+  });
 });

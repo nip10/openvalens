@@ -867,6 +867,7 @@ msgstr "{failures, plural, one {# incomplete session} other {# incomplete sessio
 msgid "{figureValue} in 7 days"
 msgstr "{figureValue} in 7 days"
 
+#: packages/api/src/presenters/care-links.ts
 #: packages/api/src/presenters/score.ts
 msgid "{first} and {last}"
 msgstr "{first} and {last}"
@@ -1491,6 +1492,10 @@ msgstr "{value} from {reported} of {count, plural, one {# entry} other {# entrie
 #: packages/api/src/presenters/energy-estimate.ts
 msgid "{value} kcal/day"
 msgstr "{value} kcal/day"
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "{value} of a {goal} target"
+msgstr "{value} of a {goal} target"
 
 #. After a tap on the home-screen widget for a kind the member has turned off.
 #: apps/native/app/quick-log.tsx
@@ -2985,6 +2990,10 @@ msgstr "Anything this connection reads goes to that app, under the app's own ter
 msgid "Anything this key reads goes to the AI app or script that uses it, under that app's own terms."
 msgstr "Anything this key reads goes to the AI app or script that uses it, under that app's own terms."
 
+#: packages/api/src/presenters/care-links.ts
+msgid "Aortic aneurysm screening"
+msgstr "Aortic aneurysm screening"
+
 #: apps/native/app/(drawer)/index.tsx
 msgid "API Disconnected"
 msgstr "API Disconnected"
@@ -3588,8 +3597,13 @@ msgid "Blood pressure"
 msgstr "Blood pressure"
 
 #: apps/web/src/components/blood-pressure-section.tsx
+#: packages/api/src/presenters/care-links.ts
 msgid "Blood pressure readings"
 msgstr "Blood pressure readings"
+
+#: packages/api/src/presenters/care-links.ts
+msgid "Blood pressure screening"
+msgstr "Blood pressure screening"
 
 #: apps/native/components/direct-device-settings.tsx
 msgid "Bluetooth isn't available on this device."
@@ -3661,6 +3675,10 @@ msgstr "Bodyweight"
 msgid "Bone density"
 msgstr "Bone density"
 
+#: packages/api/src/presenters/care-links.ts
+msgid "Bone density screening"
+msgstr "Bone density screening"
+
 #: apps/web/src/components/wellness-profile-editor.tsx
 msgid "Born {born}"
 msgstr "Born {born}"
@@ -3668,6 +3686,10 @@ msgstr "Born {born}"
 #: packages/api/src/presenters/wellness-profile.ts
 msgid "Both"
 msgstr "Both"
+
+#: packages/api/src/presenters/care-links.ts
+msgid "Bowel cancer screening"
+msgstr "Bowel cancer screening"
 
 #. Unit symbol; keep as is.
 #. Unit symbol; keep as is.
@@ -3688,6 +3710,10 @@ msgstr "Breakdown"
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Breakfast"
 msgstr "Breakfast"
+
+#: packages/api/src/presenters/care-links.ts
+msgid "Breast screening"
+msgstr "Breast screening"
 
 #: apps/web/src/routes/_auth/records/sleep.tsx
 msgid "Breathing"
@@ -3960,6 +3986,10 @@ msgstr "Cardiac"
 msgid "Cardiac exam"
 msgstr "Cardiac exam"
 
+#: packages/api/src/presenters/care-links.ts
+msgid "Cards for supplements you log come first. They are matched by name, so a brand name may not match."
+msgstr "Cards for supplements you log come first. They are matched by name, so a brand name may not match."
+
 #: apps/web/src/components/nav-links.ts
 msgid "Care"
 msgstr "Care"
@@ -3984,6 +4014,10 @@ msgstr "Catalog results"
 #: apps/web/src/components/workout-session-editor.tsx
 msgid "Catalog search is unavailable. You can still add an exercise by name."
 msgstr "Catalog search is unavailable. You can still add an exercise by name."
+
+#: packages/api/src/presenters/care-links.ts
+msgid "Cervical screening"
+msgstr "Cervical screening"
 
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 #: apps/native/components/ai-app-drafts.tsx
@@ -6407,6 +6441,10 @@ msgstr "Creating a replacement ends this goal. Its history and source records re
 #: apps/web/src/routes/_auth/trackers.index.tsx
 msgid "Creating…"
 msgstr "Creating…"
+
+#: packages/api/src/presenters/care-links.ts
+msgid "Creatinine"
+msgstr "Creatinine"
 
 #: apps/native/app/(drawer)/(tabs)/index.tsx
 msgid "Cron secret"
@@ -8975,6 +9013,10 @@ msgstr "Glass of wine"
 msgid "GloryFit history (steps, heart rate and sleep) syncs automatically while connected. Records are saved in batches and sent only when you tap “Retry upload”."
 msgstr "GloryFit history (steps, heart rate and sleep) syncs automatically while connected. Records are saved in batches and sent only when you tap “Retry upload”."
 
+#: packages/api/src/presenters/care-links.ts
+msgid "Glucose"
+msgstr "Glucose"
+
 #: packages/api/src/presenters/body-map.ts
 msgid "Glutes"
 msgstr "Glutes"
@@ -9188,6 +9230,10 @@ msgstr "Harms: {harms}"
 #: apps/web/src/components/magic-link-form.tsx
 msgid "Have a sign-in code?"
 msgstr "Have a sign-in code?"
+
+#: packages/api/src/presenters/care-links.ts
+msgid "HbA1c"
+msgstr "HbA1c"
 
 #: packages/api/src/presenters/body-map.ts
 msgctxt "dexa region"
@@ -10696,6 +10742,10 @@ msgstr "lb-reps"
 msgid "lb, miles"
 msgstr "lb, miles"
 
+#: packages/api/src/presenters/care-links.ts
+msgid "LDL cholesterol"
+msgstr "LDL cholesterol"
+
 #: apps/web/src/routes/_auth/body.tsx
 #: packages/api/src/presenters/body-map.ts
 msgid "Lean mass"
@@ -11494,6 +11544,10 @@ msgstr "Lowest {0}% overnight"
 #: packages/api/src/presenters/supplements.ts
 msgid "Lunch"
 msgstr "Lunch"
+
+#: packages/api/src/presenters/care-links.ts
+msgid "Lung screening"
+msgstr "Lung screening"
 
 #. Unit symbol; keep as is.
 #: packages/api/src/presenters/manual-entry.ts
@@ -14038,6 +14092,10 @@ msgstr "Open check-in"
 msgid "Open Goals"
 msgstr "Open Goals"
 
+#: packages/api/src/presenters/care-links.ts
+msgid "Open in Supplements"
+msgstr "Open in Supplements"
+
 #: apps/native/app/(drawer)/settings/telegram.tsx
 #: apps/web/src/components/telegram-channel.tsx
 msgid "Open in Telegram"
@@ -15166,6 +15224,10 @@ msgstr "Proposed"
 msgid "Proposed target for next week"
 msgstr "Proposed target for next week"
 
+#: packages/api/src/presenters/care-links.ts
+msgid "Prostate (PSA) testing"
+msgstr "Prostate (PSA) testing"
+
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Protein"
 msgstr "Protein"
@@ -15770,6 +15832,10 @@ msgstr "Relative"
 #: apps/web/src/components/whats-new-changelog.tsx
 msgid "Releases"
 msgstr "Releases"
+
+#: packages/api/src/presenters/care-links.ts
+msgid "Relevant to:"
+msgstr "Relevant to:"
 
 #: apps/native/app/(drawer)/goals/[goalId].tsx
 msgid "Reliable sleep imports count automatically."
@@ -19661,6 +19727,11 @@ msgstr "These describe changes in your own records compared with your own usual.
 msgid "These items in your region do not match the age, sex or answers you gave."
 msgstr "These items in your region do not match the age, sex or answers you gave."
 
+#. safety
+#: packages/api/src/presenters/care-links.ts
+msgid "These links appear because the condition you wrote matches a short list of names. They take you to your own records and to the public guidance you already see. They do not change which screenings are listed for you or when, and they say nothing about your own health."
+msgstr "These links appear because the condition you wrote matches a short list of names. They take you to your own records and to the public guidance you already see. They do not change which screenings are listed for you or when, and they say nothing about your own health."
+
 #: apps/web/src/routes/_auth/private-measurements.tsx
 msgid "These manual entries are private to your account. Workspace owners and other members cannot view them. They are separate from shared workspace body records."
 msgstr "These manual entries are private to your account. Workspace owners and other members cannot view them. They are separate from shared workspace body records."
@@ -20402,6 +20473,10 @@ msgstr "Total"
 msgid "Total body fat {0}"
 msgstr "Total body fat {0}"
 
+#: packages/api/src/presenters/care-links.ts
+msgid "Total cholesterol"
+msgstr "Total cholesterol"
+
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Total sugars"
 msgstr "Total sugars"
@@ -20562,6 +20637,10 @@ msgstr "Try delete again"
 #: packages/api/src/presenters/food-lookup.ts
 msgid "Try lookup again"
 msgstr "Try lookup again"
+
+#: packages/api/src/presenters/care-links.ts
+msgid "TSH"
+msgstr "TSH"
 
 #: apps/web/src/routes/_auth/coach/route.tsx
 msgid "Turn it on to ask about your own records. You can turn it off any time."
@@ -22207,6 +22286,10 @@ msgstr "You have used this month's AI coach allowance. It resets on {date}."
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "You haven't added this yet."
 msgstr "You haven't added this yet."
+
+#: packages/api/src/presenters/care-links.ts
+msgid "You log {name}"
+msgstr "You log {name}"
 
 #: packages/api/src/presenters/goal-ideas.ts
 msgid "You logged it on {days} of the last {window} days"

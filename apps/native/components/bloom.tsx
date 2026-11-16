@@ -517,6 +517,7 @@ export function StatTile({
   note,
   status,
   meter,
+  bar,
   href,
   className,
   accessibilityLabel,
@@ -530,6 +531,8 @@ export function StatTile({
   note?: ReactNode;
   status?: { label: ReactNode; tone: StatusTone };
   meter?: { value: number; label?: string };
+  /** A custom bar under the figure, in place of `meter` (e.g. a target band). */
+  bar?: ReactNode;
   href?: Href;
   className?: string;
   accessibilityLabel?: string;
@@ -563,6 +566,7 @@ export function StatTile({
         {unit ? <Text className="font-sans text-sm text-ink-3">{unit}</Text> : null}
       </View>
       {meter ? <Meter value={meter.value} tone={tone} label={meter.label} /> : null}
+      {bar}
       {status ? (
         <View className="flex-row flex-wrap items-center gap-x-2 gap-y-1">
           <StatusPill tone={status.tone}>{status.label}</StatusPill>

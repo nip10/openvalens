@@ -74,8 +74,8 @@
   --color-food: var(--tone-food);
   --color-food-soft: var(--tone-food-soft);
   /* Nutrient identity (#393): energy stays in ink; protein, carbs and fat
-     each keep one colour beside their P/C/F letter. Identity only, never a
-     verdict or progress against a target. */
+     each keep one colour beside their P/C/F letter and as the fill of their
+     target band (nutrition#10). Identity only, never a verdict. */
   --color-protein: var(--nutrient-protein);
   --color-carbs: var(--nutrient-carbs);
   --color-fat: var(--nutrient-fat);

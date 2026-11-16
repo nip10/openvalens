@@ -52,6 +52,7 @@ import {
 } from "@/utils/preventive-care-screen";
 import { useThemeColor } from "@/utils/theme";
 import { ModuleHiddenNote } from "@/components/module-hidden-note";
+import { useModuleEnabled } from "@/lib/modules/use-modules";
 
 /**
  * Issue #97 — preventive care on mobile, parity with the web page: the same
@@ -374,6 +375,13 @@ export default function PreventiveCareScreen() {
     ...orpc.preventiveCare.library.queryOptions({ input: {} }),
     enabled: result.data?.libraryEnabled === true,
   });
+  // preventive-care#8: supplements you log pin their evidence cards. Only your
+  // own: the server scopes `supplementIntake.logged` to the signed-in member.
+  const supplementsOn = useModuleEnabled("supplements");
+  const supplements = useQuery({
+    ...orpc.supplementIntake.logged.queryOptions({ input: {} }),
+    enabled: result.data?.libraryEnabled === true && supplementsOn,
+  });
   const onSuccess = () => {
     setMessage(null);
     void queryClient.invalidateQueries({ queryKey: orpc.preventiveCare.key() });
@@ -433,7 +441,11 @@ export default function PreventiveCareScreen() {
     );
 
   const model = preventiveScreenModel(i18n, result.data);
-  const lib = libraryModel(i18n, model.libraryEnabled ? library.data : undefined);
+  const lib = libraryModel(
+    i18n,
+    model.libraryEnabled ? library.data : undefined,
+    supplements.data ?? [],
+  );
   const dueCount = model.items.filter(({ view }) => view.dateReached).length;
 
   return (
@@ -650,6 +662,11 @@ export default function PreventiveCareScreen() {
                         <StatusPill tone="neutral">{entry.verdictLabel}</StatusPill>
                         <Text className="font-sans text-sm text-ink-3">{entry.certaintyLabel}</Text>
                       </View>
+                      {entry.loggedText ? (
+                        <Text className="font-sans text-sm font-medium text-ink-2">
+                          {entry.loggedText}
+                        </Text>
+                      ) : null}
                       {entry.lines.map((line) => (
                         <Text key={line} className="font-sans text-sm leading-relaxed text-ink-2">
                           {line}

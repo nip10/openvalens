@@ -47,6 +47,7 @@ import {
   resolveScopedHideNumbers,
   parseHeight,
   parseTargetForm,
+  targetBand,
 } from "./nutrition-targets";
 
 describe("scoped hide-numbers overrides", () => {
@@ -430,5 +431,81 @@ describe("weekly check-in copy (#397)", () => {
       .join(" ");
     expect(findBannedCopy(text)).toEqual([]);
     expect(text).toContain("Nothing changes until you accept");
+  });
+});
+
+describe("target band (nutrition#10)", () => {
+  const total = (known: number | null) => ({ known, reported: known === null ? 0 : 2, missing: 0 });
+  const round = (band: ReturnType<typeof targetBand>) =>
+    band && {
+      bandStart: Math.round(band.bandStart * 1000) / 1000,
+      bandEnd: Math.round(band.bandEnd * 1000) / 1000,
+      position: Math.round(band.position * 1000) / 1000,
+    };
+
+  test("a range sits on a scale a quarter past its top", () => {
+    const band = targetBand(
+      "energyKcal",
+      total(1503),
+      target({ minAmount: 1700, maxAmount: 2100 }),
+      false,
+      englishI18n,
+    );
+    // Scale 2,625 kcal: 1,700 → 0.648, 2,100 → 0.8, 1,503 → 0.573.
+    expect(round(band)).toEqual({ bandStart: 0.648, bandEnd: 0.8, position: 0.573 });
+    expect(band?.label).toBe("1,503 kcal of a 1,700–2,100 kcal target");
+  });
+
+  test("an at-least target runs to the end, an up-to target starts at 0", () => {
+    expect(
+      round(
+        targetBand(
+          "proteinG",
+          total(40),
+          target({ nutrient: "proteinG", minAmount: 80, maxAmount: null }),
+          false,
+          englishI18n,
+        ),
+      ),
+    ).toEqual({ bandStart: 0.667, bandEnd: 1, position: 0.333 });
+    expect(
+      round(
+        targetBand(
+          "fatG",
+          total(50),
+          target({ nutrient: "fatG", minAmount: null, maxAmount: 80 }),
+          false,
+          englishI18n,
+        ),
+      ),
+    ).toEqual({ bandStart: 0, bandEnd: 0.8, position: 0.5 });
+  });
+
+  test("a total past the scale widens it, so the position stays at the end", () => {
+    const band = targetBand(
+      "energyKcal",
+      total(3000),
+      target({ minAmount: 1700, maxAmount: 2100 }),
+      false,
+      englishI18n,
+    );
+    expect(band?.position).toBe(1);
+    expect(round(band)?.bandEnd).toBe(0.7);
+  });
+
+  test("no band while numbers are hidden, without a target, or with no known total", () => {
+    const range = target({ minAmount: 1700, maxAmount: 2100 });
+    expect(targetBand("energyKcal", total(1500), range, true, englishI18n)).toBeNull();
+    expect(targetBand("energyKcal", total(1500), undefined, false, englishI18n)).toBeNull();
+    expect(targetBand("energyKcal", total(null), range, false, englishI18n)).toBeNull();
+    expect(
+      targetBand(
+        "energyKcal",
+        total(1500),
+        target({ minAmount: null, maxAmount: null }),
+        false,
+        englishI18n,
+      ),
+    ).toBeNull();
   });
 });

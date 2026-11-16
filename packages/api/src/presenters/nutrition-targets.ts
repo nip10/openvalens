@@ -6,8 +6,10 @@
  * Copy rules (CONTRIBUTING health-copy rules, docs/nutrition-targets.md):
  * a target is written as text beside the total ("1,450 of 1,700–2,100 kcal",
  * D1 in #390), or as what remains to it when the member picks that reading.
- * No rings or bars, no "over"/"under", no colours that judge, no "met"
- * highlight, no verdicts, no moral food words. Refusals
+ * A thin band under a day total shows where the total sits against its target
+ * range (nutrition#10; owner decision 2026-11-16 reversed "no bars"). Still no
+ * rings, no "over"/"under", no colours that judge, no "met" highlight, no
+ * verdicts, no moral food words. Refusals
  * say what the app won't do, never a floor, BMI or weight. In hide-numbers
  * mode no intake or target number is shown anywhere.
  */
@@ -202,6 +204,49 @@ export function formatTarget(
     return i18n._(msg`Up to ${value} ${unit}`);
   }
   return "—";
+}
+
+/**
+ * Where a day's total sits against its target, on one 0–1 scale for a thin
+ * band (nutrition#10). The target range is `bandStart`–`bandEnd`; an
+ * "at least" target runs to the end of the scale and an "up to" target starts
+ * at 0. The scale reaches a quarter past the target's top (half past an "at
+ * least" target) or the total, whichever is higher, so the band never moves
+ * while the total is below it. Plain arithmetic, no verdict: null in
+ * hide-numbers mode, without a target, or while the total is unknown.
+ */
+export type TargetBand = {
+  bandStart: number;
+  bandEnd: number;
+  /** Today's total on the scale, 0 to 1. */
+  position: number;
+  /** "1,503 kcal of a 1,700–2,100 kcal target", for screen readers. */
+  label: string;
+};
+
+export function targetBand(
+  key: NutrientKey,
+  total: Pick<NutrientTotal, "known" | "reported" | "missing">,
+  target: Pick<NutritionTargetWire, "nutrient" | "minAmount" | "maxAmount"> | undefined,
+  hideNumbers: boolean,
+  i18n: I18n,
+): TargetBand | null {
+  if (hideNumbers || !target || total.known === null || !Number.isFinite(total.known)) return null;
+  const { minAmount: min, maxAmount: max } = target;
+  if (min === null && max === null) return null;
+  const top = max ?? min!;
+  if (!(top > 0)) return null;
+  const known = Math.max(0, total.known);
+  const scale = Math.max(max === null ? top * 1.5 : top * 1.25, known);
+  const clamp = (value: number) => Math.max(0, Math.min(1, value / scale));
+  const value = formatTotalValue(key, total, i18n);
+  const goal = formatTarget(target, false, i18n);
+  return {
+    bandStart: min === null ? 0 : clamp(min),
+    bandEnd: max === null ? 1 : clamp(max),
+    position: clamp(known),
+    label: i18n._(msg`${value} of a ${goal} target`),
+  };
 }
 
 /** `"Entered by you, from 2026-10-01"` (and `"until …"` once ended). */

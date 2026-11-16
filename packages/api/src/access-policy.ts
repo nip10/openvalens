@@ -340,6 +340,7 @@ export const PROCEDURE_ACCESS: Readonly<Record<string, ProcedureAccessClass>> = 
   "goals.listUnassignedLegacy": R,
   "goals.assignLegacy": W,
   "supplementIntake.list": R,
+  "supplementIntake.logged": R,
   "supplementIntake.create": W,
   "supplementIntake.update": W,
   "supplementIntake.delete": W,

@@ -1,4 +1,5 @@
 import { Trans, useLingui } from "@lingui/react/macro";
+import { PINNED_EVIDENCE_COPY } from "@openvalens/api/presenters/care-links";
 import { PREVENTIVE_COPY } from "@openvalens/api/presenters/preventive-care";
 import { Button } from "@openvalens/ui/components/button";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
@@ -10,6 +11,7 @@ import { ErrorState, Page, PageHeader } from "@/components/page";
 import { PreventiveCareView } from "@/components/preventive-care-view";
 import { orpc } from "@/utils/orpc";
 import { ModuleHiddenNote } from "@/components/module-hidden-note";
+import { useModuleEnabled } from "@/utils/modules";
 
 export const Route = createFileRoute("/_auth/preventive-care")({
   component: PreventiveCarePage,
@@ -29,6 +31,15 @@ function PreventiveCarePage() {
     ...orpc.preventiveCare.library.queryOptions({ input: {} }),
     enabled: result.data?.libraryEnabled === true,
   });
+  // preventive-care#8: the supplements you log pin their evidence cards. Only
+  // read while the library is on and Supplements is a module you use, and only
+  // your own: the server scopes `supplementIntake.logged` to the signed-in member.
+  const supplementsOn = useModuleEnabled("supplements");
+  const supplements = useQuery({
+    ...orpc.supplementIntake.logged.queryOptions({ input: {} }),
+    enabled: result.data?.libraryEnabled === true && supplementsOn,
+  });
+  const logged = supplements.data ?? [];
   const invalidate = () =>
     void queryClient.invalidateQueries({ queryKey: orpc.preventiveCare.key() });
   const onError = () => toast.error(t`Could not save. Nothing was changed.`);
@@ -69,6 +80,18 @@ function PreventiveCarePage() {
         <PreventiveCareView
           result={result.data}
           library={result.data.libraryEnabled ? (library.data ?? null) : null}
+          logged={{
+            supplements: logged,
+            link: (supplement) => (
+              <Link
+                to="/supplements"
+                hash={`supplement-${supplement.id}`}
+                className="font-medium text-ink underline decoration-signal underline-offset-[0.15em] hover:decoration-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              >
+                {i18n._(PINNED_EVIDENCE_COPY.openSupplement)}
+              </Link>
+            ),
+          }}
           pending={declare.isPending || updateItem.isPending || settings.isPending}
           profileLink={
             <Link

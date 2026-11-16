@@ -7,6 +7,7 @@ import {
   imagingTypeLabel,
   summaryText,
 } from "@openvalens/api/presenters/clinical-records";
+import { CARE_LINK_COPY, familyCareLinksView } from "@openvalens/api/presenters/care-links";
 import { useQuery } from "@tanstack/react-query";
 import { Button, Spinner } from "heroui-native";
 import { HeartPulse, ScanLine, Users } from "lucide-react-native";
@@ -26,6 +27,7 @@ import {
 } from "@/components/bloom";
 import { Container } from "@/components/container";
 import { friendlyDate } from "@/utils/friendly";
+import { useModuleEnabled } from "@/lib/modules/use-modules";
 import { orpc } from "@/utils/orpc";
 import { useThemeColor } from "@/utils/theme";
 import { ModuleHiddenNote } from "@/components/module-hidden-note";
@@ -36,6 +38,19 @@ export default function ClinicalScreen() {
   const cardiac = useQuery(orpc.clinical.listCardiacExams.queryOptions({ input: {} }));
   const imaging = useQuery(orpc.clinical.listImagingStudies.queryOptions({ input: {} }));
   const family = useQuery(orpc.clinical.listFamilyHistory.queryOptions({ input: {} }));
+  // clinical#7: a screening link only for preventive items in the person's region.
+  const careOn = useModuleEnabled("care");
+  const preventive = useQuery({
+    ...orpc.preventiveCare.get.queryOptions({ input: {} }),
+    enabled: careOn,
+  });
+  const preventiveItemIds =
+    careOn && preventive.data?.status === "available"
+      ? [
+          ...preventive.data.items.map((item) => item.id),
+          ...preventive.data.notShown.map((item) => item.id),
+        ]
+      : [];
   const refetchAll = () => {
     void cardiac.refetch();
     void imaging.refetch();
@@ -123,8 +138,13 @@ export default function ClinicalScreen() {
           icon={Users}
           title={`${t`Family history`} (${family.data.length})`}
           rows={family.data}
-          renderItem={(row) => renderFamily(row, i18n)}
+          renderItem={(row) => renderFamily(row, i18n, preventiveItemIds)}
           emptyText={t`No family history entries.`}
+          info={
+            family.data.some((row) => familyCareLinksView(row.condition, i18n, preventiveItemIds))
+              ? i18n._(CARE_LINK_COPY.familyInfo)
+              : undefined
+          }
         />
       </Page>
     </Container>
@@ -168,12 +188,21 @@ type RecordSectionProps<T> = {
   rows: readonly T[];
   renderItem: (row: T) => RecordItem;
   emptyText: string;
+  /** The section's one ⓘ (why family history shows "Relevant to" links). */
+  info?: string;
 };
 
-function RecordSection<T>({ icon, title, rows, renderItem, emptyText }: RecordSectionProps<T>) {
+function RecordSection<T>({
+  icon,
+  title,
+  rows,
+  renderItem,
+  emptyText,
+  info,
+}: RecordSectionProps<T>) {
   const { i18n } = useLingui();
   return (
-    <Section icon={icon} tone="water" title={title}>
+    <Section icon={icon} tone="water" title={title} info={info}>
       {rows.length === 0 ? (
         <EmptyState icon={icon} tone="water" title={emptyText} />
       ) : (
@@ -234,11 +263,17 @@ type FamilyRow = {
   ageOfOnset: number | null;
   notes: string | null;
 };
-function renderFamily(row: FamilyRow, i18n: I18n): RecordItem {
+function renderFamily(
+  row: FamilyRow,
+  i18n: I18n,
+  preventiveItemIds: readonly string[],
+): RecordItem {
+  // clinical#7: the same "Relevant to: …" line as the web card, from the shared table.
+  const links = familyCareLinksView(row.condition, i18n, preventiveItemIds);
   return {
     headline: `${familyRelationLabel(row.relation, i18n)}, ${row.condition}`,
     date: formatYear(row.ageOfOnset),
     isDate: false,
-    secondary: summaryText(row.notes),
+    secondary: links ? `${summaryText(row.notes)}\n${links.text}` : summaryText(row.notes),
   };
 }

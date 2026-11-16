@@ -13,6 +13,8 @@ import {
   describeDisplayedTotal,
   displayTotalValue,
   formatTarget,
+  targetBand,
+  type TargetBand,
 } from "@openvalens/api/presenters/nutrition-targets";
 import { useLingui } from "@lingui/react/macro";
 import { Beef, Droplet, Leaf, type LucideIcon, Wheat, Zap } from "lucide-react-native";
@@ -29,6 +31,47 @@ const NUTRIENT_ICONS: Partial<Record<NutrientKey, LucideIcon>> = {
   fiberG: Leaf,
 };
 
+/** Each macro's identity colour for its band's fill; energy and fibre take the food tone. */
+const BAND_FILL: Partial<Record<NutrientKey, string>> = {
+  proteinG: "bg-protein",
+  carbohydrateG: "bg-carbs",
+  fatG: "bg-fat",
+};
+
+/**
+ * nutrition#10, as on the web: the target range shaded with a tick at each
+ * edge, and a fill from 0 to today's total. Position only, never a verdict.
+ */
+function TargetBandBar({ band, nutrient }: { band: TargetBand; nutrient: NutrientKey }) {
+  const pct = (value: number) => `${Math.round(value * 1000) / 10}%` as const;
+  const edges = [band.bandStart, band.bandEnd].filter((edge) => edge > 0 && edge < 1);
+  return (
+    <View
+      accessible
+      accessibilityRole="image"
+      accessibilityLabel={band.label}
+      testID={`target-band-${nutrient}`}
+      className="h-2 w-full rounded-full bg-paper-2"
+    >
+      <View
+        className="absolute bottom-0 top-0 rounded-full bg-rule-2"
+        style={{ left: pct(band.bandStart), width: pct(band.bandEnd - band.bandStart) }}
+      />
+      <View
+        className={`absolute bottom-0 left-0 top-0 rounded-full ${BAND_FILL[nutrient] ?? "bg-food"}`}
+        style={{ width: pct(band.position) }}
+      />
+      {edges.map((edge) => (
+        <View
+          key={edge}
+          className="absolute -bottom-1 -top-1 w-0.5 rounded-full bg-ink-3"
+          style={{ left: pct(edge), marginLeft: -1 }}
+        />
+      ))}
+    </View>
+  );
+}
+
 /** Tiles two to a row on a phone. */
 function pairs<T>(items: readonly T[]): T[][] {
   const rows: T[][] = [];
@@ -43,7 +86,8 @@ function pairs<T>(items: readonly T[]): T[][] {
  * hide-numbers on every numeric value is replaced but coverage stays, so a
  * total is never read as a verdict and a day with nothing logged is never
  * shown as zero. A target that applies on the day is written beside its total
- * as text, never as a bar or ring.
+ * as text with a thin band under the figure (nutrition#10), never a ring; the
+ * band is left out while numbers are hidden.
  */
 export function NutritionDayTotals({
   totals,
@@ -91,6 +135,7 @@ export function NutritionDayTotals({
                   const total = totals[key];
                   const target = targets.find((item) => item.nutrient === key);
                   const targetText = target ? formatTarget(target, hideNumbers, i18n) : null;
+                  const band = targetBand(key, total, target, hideNumbers, i18n);
                   return (
                     <View
                       key={key}
@@ -102,6 +147,7 @@ export function NutritionDayTotals({
                         tone="food"
                         label={i18n._(NUTRIENT_LABELS[key].label)}
                         value={displayTotalValue(key, total, hideNumbers, i18n)}
+                        bar={band ? <TargetBandBar band={band} nutrient={key} /> : null}
                         note={
                           targetText
                             ? `${i18n._(formatCoverage(total))}\n${t`Target: ${targetText}`}`
@@ -168,6 +214,7 @@ export function NutritionDayTotals({
                 const total = totals[key];
                 const target = targets.find((item) => item.nutrient === key);
                 const targetText = target ? formatTarget(target, hideNumbers, i18n) : null;
+                const band = targetBand(key, total, target, hideNumbers, i18n);
                 return (
                   <View
                     key={key}
@@ -179,6 +226,7 @@ export function NutritionDayTotals({
                       tone="food"
                       label={i18n._(NUTRIENT_LABELS[key].label)}
                       value={displayTotalValue(key, total, hideNumbers, i18n)}
+                      bar={band ? <TargetBandBar band={band} nutrient={key} /> : null}
                       note={
                         targetText
                           ? `${i18n._(formatCoverage(total))}\n${t`Target: ${targetText}`}`

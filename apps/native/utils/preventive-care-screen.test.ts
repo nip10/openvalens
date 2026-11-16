@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { englishI18n } from "@openvalens/i18n/testing";
+import { EVIDENCE_CHECK_LIBRARY } from "@openvalens/api/evidence-check-library";
 import type { PreventiveCareResult } from "@openvalens/api/preventive-care-contract";
 import { evaluatePreventiveCare } from "@openvalens/api/preventive-care-engine";
 import { PREVENTIVE_CARE_PACK } from "@openvalens/api/preventive-care-pack";
@@ -55,6 +56,16 @@ describe("preventive-care screen (native)", () => {
 
   test("library off by default; typed dates validated", () => {
     expect(libraryModel(englishI18n, undefined).cards).toEqual([]);
+    // preventive-care#8: a supplement you log pins its card first, with its own name.
+    const pinned = libraryModel(
+      englishI18n,
+      { enabled: true, version: "v", entries: EVIDENCE_CHECK_LIBRARY.entries },
+      [{ id: 3, name: "Magnesium glycinate" }],
+    );
+    expect(pinned.cards[0]?.key).toBe("magnesium_sleep");
+    expect(pinned.cards[0]?.loggedText).toBe("You log Magnesium glycinate");
+    expect(pinned.cards[1]?.loggedText).toBeNull();
+    expect(pinned.text).toContain("Cards for supplements you log come first.");
     expect(parseTypedDate("")).toBeNull();
     expect(parseTypedDate("2027-02-28")).toBe("2027-02-28");
     expect(parseTypedDate("2027-02-30")).toBeUndefined();

@@ -14,6 +14,12 @@ import {
   type EvidenceEntryCard,
   type PreventiveItemCard,
 } from "@openvalens/api/presenters/preventive-care";
+import {
+  loggedSupplementText,
+  pinEvidenceEntries,
+  PINNED_EVIDENCE_COPY,
+  type LoggedSupplementLike,
+} from "@openvalens/api/presenters/care-links";
 
 /**
  * Issue #97 — native layout model for the preventive-care screen.
@@ -65,17 +71,32 @@ export function preventiveScreenModel(
   };
 }
 
+/** A library card, with "You log Vitamin D3" when a logged supplement pinned it. */
+export type LibraryCard = EvidenceEntryCard & { loggedText: string | null };
+
+/**
+ * The library, cards for the supplements you log first (preventive-care#8),
+ * matched by the shared synonym table in `@openvalens/api/presenters/care-links`.
+ */
 export function libraryModel(
   i18n: I18n,
   library: EvidenceLibraryResult | undefined,
+  supplements: readonly LoggedSupplementLike[] = [],
 ): {
   text: string;
-  cards: EvidenceEntryCard[];
+  cards: LibraryCard[];
 } {
   if (!library || !library.enabled) return { text: i18n._(LIBRARY_COPY.off), cards: [] };
+  const pinned = pinEvidenceEntries(library.entries, supplements);
+  const anyPinned = pinned.some((item) => item.supplement !== null);
   return {
-    text: i18n._(LIBRARY_COPY.intro),
-    cards: library.entries.map((entry) => evidenceEntryCard(i18n, entry)),
+    text: anyPinned
+      ? `${i18n._(LIBRARY_COPY.intro)}\n\n${i18n._(PINNED_EVIDENCE_COPY.info)}`
+      : i18n._(LIBRARY_COPY.intro),
+    cards: pinned.map(({ entry, supplement }) => ({
+      ...evidenceEntryCard(i18n, entry),
+      loggedText: supplement ? loggedSupplementText(supplement, i18n) : null,
+    })),
   };
 }
 
