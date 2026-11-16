@@ -1,4 +1,22 @@
 /**
+ * The JSON escape for U+0000, not preceded by an escaped backslash
+ * (`\\u0000` is the literal text "\u0000" and stays). Postgres text and
+ * jsonb can't store NUL, and some Open Food Facts records carry one, which
+ * failed a whole import ("invalid byte sequence for encoding UTF8: 0x00"),
+ * so it is dropped before parsing.
+ */
+const NUL_ESCAPE = /(?<!\\)((?:\\\\)*)\\u0000/g;
+
+/** Parses one JSON value; malformed text gives `null`, which every adapter rejects. */
+function parseJsonValue(text: string): unknown {
+  try {
+    return JSON.parse(text.includes("\\u0000") ? text.replace(NUL_ESCAPE, "$1") : text);
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Streams JSON Lines (one JSON value per line) without loading the artifact
  * into memory. A malformed line yields `null`, which every adapter rejects,
  * so it is counted rather than aborting the import or being logged.
@@ -8,13 +26,7 @@ export async function* readJsonLines(
 ): AsyncGenerator<unknown> {
   const decoder = new TextDecoder();
   let buffer = "";
-  const parse = (line: string): unknown => {
-    try {
-      return JSON.parse(line);
-    } catch {
-      return null;
-    }
-  };
+  const parse = parseJsonValue;
   for await (const chunk of chunks) {
     buffer += typeof chunk === "string" ? chunk : decoder.decode(chunk, { stream: true });
     let newline = buffer.indexOf("\n");
@@ -43,13 +55,7 @@ export async function* readJsonArrayItems(
   chunks: AsyncIterable<Uint8Array | string>,
 ): AsyncGenerator<unknown> {
   const decoder = new TextDecoder();
-  const parse = (text: string): unknown => {
-    try {
-      return JSON.parse(text);
-    } catch {
-      return null;
-    }
-  };
+  const parse = parseJsonValue;
   let depth = 0;
   let itemsDepth = -1;
   let inString = false;
