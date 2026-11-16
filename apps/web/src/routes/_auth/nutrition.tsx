@@ -81,6 +81,7 @@ import { LogFoodSheet, type LogFoodRequest, type LogFoodTab } from "@/components
 import { MicronutrientSummary } from "@/components/micronutrient-summary";
 import { NutritionDayTotals } from "@/components/nutrition-day-totals";
 import { Details, ErrorState, InfoTip, Page, PageHeader, ToneIcon } from "@/components/page";
+import { SectionTabs } from "@/components/section-tabs";
 import { DecimalHint } from "@/components/decimal-hint";
 import { DrinksSection } from "@/components/drinks-section";
 import { PlainWaterSection } from "@/components/plain-water-section";
@@ -276,6 +277,7 @@ function NutritionPage() {
 
   return (
     <Page>
+      <SectionTabs parent="/nutrition" />
       <ModuleHiddenNote module="food" />
       {region}
       {/* nutrition#1: the title with a ⋯ menu, then the day switcher with its check. */}

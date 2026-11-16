@@ -26,6 +26,7 @@ import {
   ADMIN_LINK,
   filterChildren,
   flattenGroups,
+  isInSection,
   isWithin,
   NAV_GROUPS,
   type NavGroup,
@@ -43,7 +44,7 @@ import UserMenu from "./user-menu";
 import { WhatsNewDialog } from "./whats-new-dialog";
 
 const linkClasses =
-  "flex items-center gap-3 rounded-2xl px-3 font-body font-medium text-ink-2 whitespace-nowrap transition-colors duration-[var(--dur-short)] hover:bg-muted hover:text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring active:bg-paper-2 aria-[current=page]:bg-sidebar-accent aria-[current=page]:font-semibold aria-[current=page]:text-sidebar-accent-foreground [&>svg]:shrink-0 [&>svg]:text-ink-3 aria-[current=page]:[&>svg]:text-signal";
+  "flex items-center gap-3 rounded-2xl px-3 font-body font-medium text-ink-2 whitespace-nowrap transition-colors duration-[var(--dur-short)] hover:bg-muted hover:text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring active:bg-paper-2 aria-[current]:bg-sidebar-accent aria-[current]:font-semibold aria-[current]:text-sidebar-accent-foreground [&>svg]:shrink-0 [&>svg]:text-ink-3 aria-[current]:[&>svg]:text-signal";
 
 function useNavGroups() {
   const { data: session, isPending: sessionPending } = authClient.useSession();
@@ -160,32 +161,22 @@ function NavGroups({
             {_(group.label)}
           </p>
           <ul aria-labelledby={`nav-${label.length}-${group.label.id}`} className="grid gap-px">
-            {group.links.map(({ to, label: linkLabel, icon: Icon, children }) => {
-              const open =
-                !!children?.length &&
-                (isWithin(pathname, to) || children.some((child) => isWithin(pathname, child.to)));
+            {group.links.map((link) => {
+              const { to, label: linkLabel, icon: Icon } = link;
+              // #app-shell-2: sub-screens are tabs on the page; the parent
+              // stays marked while one of them is open.
+              const inSubScreen = !isWithin(pathname, to) && isInSection(pathname, link);
               return (
                 <li key={to}>
-                  <Link to={to} className={cn(linkClasses, row)} onClick={onNavigate}>
+                  <Link
+                    to={to}
+                    className={cn(linkClasses, row)}
+                    aria-current={inSubScreen ? "true" : undefined}
+                    onClick={onNavigate}
+                  >
                     <Icon aria-hidden="true" />
                     {_(linkLabel)}
                   </Link>
-                  {open ? (
-                    <ul className="grid gap-px py-px pl-5">
-                      {children!.map((child) => (
-                        <li key={child.to}>
-                          <Link
-                            to={child.to}
-                            className={cn(linkClasses, row, "text-ink-3")}
-                            onClick={onNavigate}
-                          >
-                            <child.icon aria-hidden="true" />
-                            {_(child.label)}
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : null}
                 </li>
               );
             })}
@@ -205,7 +196,7 @@ function SidebarNav({ groups }: { groups: readonly NavGroup[] }) {
   const navRef = useRef<HTMLElement>(null);
   const { pathname } = useLocation();
   useEffect(() => {
-    const current = navRef.current?.querySelector<HTMLElement>('a[aria-current="page"]');
+    const current = navRef.current?.querySelector<HTMLElement>("a[aria-current]");
     current?.scrollIntoView?.({ block: "nearest" });
   }, [pathname]);
   return (
@@ -374,7 +365,7 @@ function AppFrame({ children }: { children: ReactNode }) {
                   event.preventDefault();
                   const nav = mobileNavRef.current;
                   const target =
-                    nav?.querySelector<HTMLElement>('a[aria-current="page"]') ??
+                    nav?.querySelector<HTMLElement>("a[aria-current]") ??
                     nav?.querySelector<HTMLElement>("a");
                   target?.focus();
                 }}

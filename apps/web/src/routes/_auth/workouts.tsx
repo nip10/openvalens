@@ -61,6 +61,7 @@ import {
   Section,
   ToneIcon,
 } from "@/components/page";
+import { SectionTabs } from "@/components/section-tabs";
 import { friendlyDate } from "@/utils/friendly";
 import { orpc } from "@/utils/orpc";
 import { ModuleHiddenNote } from "@/components/module-hidden-note";
@@ -450,6 +451,7 @@ function WorkoutsPage() {
 
   return (
     <Page>
+      <SectionTabs parent="/records/activity" />
       <ModuleHiddenNote module="activity" />
       <PageHeader
         title={<Trans>Workouts</Trans>}

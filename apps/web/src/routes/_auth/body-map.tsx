@@ -41,6 +41,7 @@ import { useState } from "react";
 import { CalendarRange, Dumbbell, MousePointerClick, PersonStanding, ScanLine } from "lucide-react";
 
 import { Details, ErrorState, Page, PageHeader, Section, ToneIcon } from "@/components/page";
+import { SectionTabs } from "@/components/section-tabs";
 import { friendlyDate } from "@/utils/friendly";
 import { client } from "@/utils/orpc";
 import { ModuleHiddenNote } from "@/components/module-hidden-note";
@@ -430,6 +431,7 @@ export function BodyMapPage({
 
   return (
     <Page>
+      <SectionTabs parent="/body" />
       <ModuleHiddenNote module="body" />
       <PageHeader
         title={<Trans>Body map</Trans>}
