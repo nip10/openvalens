@@ -1,11 +1,5 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Button } from "@openvalens/ui/components/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-} from "@openvalens/ui/components/dialog";
 import { Input } from "@openvalens/ui/components/input";
 import { cn } from "@openvalens/ui/lib/utils";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -13,6 +7,7 @@ import { ShieldAlert } from "lucide-react";
 import { useId, useState } from "react";
 import { toast } from "sonner";
 
+import { LogDialog } from "@/components/log-dialog";
 import { orpc } from "@/utils/orpc";
 
 export type InviteRole = "member" | "owner";
@@ -177,7 +172,7 @@ export function InviteForm({
         </p>
       ) : null}
       <div className="flex justify-end">
-        <Button type="submit" className="max-sm:w-full" disabled={!valid || pending}>
+        <Button type="submit" disabled={!valid || pending}>
           {pending ? t`Inviting…` : t`Send invite`}
         </Button>
       </div>
@@ -185,7 +180,7 @@ export function InviteForm({
   );
 }
 
-/** {@link InviteForm} in a dialog (a bottom sheet on phones), wired to `sharing.createInvitation`. */
+/** {@link InviteForm} in a {@link LogDialog} (a bottom sheet on phones), wired to `sharing.createInvitation`. */
 export function InviteDialog({
   open,
   onOpenChange,
@@ -218,32 +213,21 @@ export function InviteDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={close}>
-      <DialogContent
-        className={cn(
-          "sheet grid max-h-[90dvh] gap-5 overflow-y-auto border-rule p-6 sm:max-w-lg",
-          // A bottom sheet on phones: full width, flush with the bottom edge, clear of the safe area.
-          "max-sm:top-auto max-sm:bottom-0 max-sm:max-w-full max-sm:translate-y-0 max-sm:rounded-b-none max-sm:pb-[max(1.5rem,env(safe-area-inset-bottom))]",
-        )}
-      >
-        <div className="grid gap-1 pr-8">
-          <DialogTitle className="font-display text-2xl font-medium text-ink">
-            <Trans>Invite someone</Trans>
-          </DialogTitle>
-          <DialogDescription className="text-sm text-ink-3">
-            <Trans>They get an email and accept it in OpenValens.</Trans>
-          </DialogDescription>
-        </div>
-        {open ? (
-          <InviteForm
-            pending={invite.isPending}
-            failed={invite.isError}
-            delivery={delivery}
-            onSubmit={(input) => invite.mutate(input)}
-            onDone={() => close(false)}
-          />
-        ) : null}
-      </DialogContent>
-    </Dialog>
+    <LogDialog
+      open={open}
+      onOpenChange={close}
+      title={<Trans>Invite someone</Trans>}
+      description={<Trans>They get an email and accept it in OpenValens.</Trans>}
+    >
+      {open ? (
+        <InviteForm
+          pending={invite.isPending}
+          failed={invite.isError}
+          delivery={delivery}
+          onSubmit={(input) => invite.mutate(input)}
+          onDone={() => close(false)}
+        />
+      ) : null}
+    </LogDialog>
   );
 }

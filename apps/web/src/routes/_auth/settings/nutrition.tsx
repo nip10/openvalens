@@ -45,7 +45,8 @@ import { useEffect, useId, useState } from "react";
 
 import { MicronutrientReference } from "@/components/micronutrient-reference";
 import { ModuleHiddenNote } from "@/components/module-hidden-note";
-import { ErrorState, Page, PageHeader, Section } from "@/components/page";
+import { ErrorState, Page, Section } from "@/components/page";
+import { SettingsPageHeader } from "@/components/settings-back-link";
 import { SettingsGroup, SettingsRow } from "@/components/settings-rows";
 import { useNutritionSettings, type SettingsPatch } from "@/utils/nutrition-settings";
 
@@ -87,7 +88,7 @@ function NutritionSettingsPage() {
   return (
     <Page width="narrow">
       <ModuleHiddenNote module="food" />
-      <PageHeader
+      <SettingsPageHeader
         title={i18n._(NUTRITION_SETTINGS_COPY.title)}
         description={i18n._(NUTRITION_SETTINGS_COPY.description)}
         info={i18n._(CUSTOM_FOOD_COPY.privacy)}
