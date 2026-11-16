@@ -132,6 +132,42 @@ describe("cycle", () => {
     expect(html).not.toInclude("No periods logged yet.");
   });
 
+  test("the current and past cycles show as day strips, with no form on the page", () => {
+    queries = {
+      "cycle.periods": ok([
+        {
+          id: "p2",
+          startDate: "2026-10-24",
+          endDate: "2026-10-27",
+          flow: "heavy",
+          source: "manual",
+        },
+        { id: "p1", startDate: "2026-09-26", endDate: null, flow: null, source: "manual" },
+      ]),
+      "cycle.imports": ok([]),
+      "cycle.estimates": ok({
+        state: "estimated",
+        current: { startDate: "2026-10-24", dayOfCycle: 24, confidence: "low" },
+        cycles: [
+          { startDate: "2026-10-24", nextStartDate: null, lengthDays: null, lutealEstimate: null },
+          {
+            startDate: "2026-09-26",
+            nextStartDate: "2026-10-24",
+            lengthDays: 28,
+            lutealEstimate: { from: "2026-10-10", likelyFrom: "2026-10-12", to: "2026-10-23" },
+          },
+        ],
+      }),
+    };
+    const html = renderCycle();
+    expect(html).toInclude("Current cycle");
+    expect(html).toInclude("Past cycles");
+    expect(html).toInclude("Your recent cycles: 28 days");
+    expect(html).toInclude("Flow not recorded");
+    // Logging is the "+": the period form is a dialog, not on the page.
+    expect(html).not.toInclude('id="cycle-start"');
+  });
+
   test("loaded but empty periods still show the empty state", () => {
     queries = { "cycle.periods": ok([]), "cycle.imports": ok([]), "cycle.estimates": failed };
     const html = renderCycle();

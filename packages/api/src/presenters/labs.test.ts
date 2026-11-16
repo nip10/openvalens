@@ -6,6 +6,7 @@ import {
   formatLabDate,
   formatLabRange,
   formatLabValue,
+  labRangeLine,
   labSparkline,
   type LabRangeDisplay,
 } from "./labs";
@@ -207,5 +208,52 @@ describe("lab reference range", () => {
       displayLabRange(glucose, { low: 70, high: null, text: null, unit: "mg/dL" }, "as_reported"),
     ])
       expect(line(range)).not.toMatch(words);
+  });
+});
+
+describe("labRangeLine", () => {
+  const between: LabRangeDisplay = {
+    kind: "between",
+    low: "30",
+    high: "100",
+    unit: "ng/mL",
+    converted: false,
+  };
+
+  test("places readings and the lab's band on one scale, latest last", () => {
+    const placed = labRangeLine([22, 31, 44], "ng/mL", between)!;
+    expect(placed.min).toBe(0);
+    expect(placed.max).toBe(135);
+    expect(placed.band).toEqual({
+      start: (30 / 135) * 100,
+      end: (100 / 135) * 100,
+      low: "30",
+      high: "100",
+    });
+    expect(placed.points.map(Math.round)).toEqual([16, 23, 33]);
+  });
+
+  test("widens the scale so a reading beyond it still fits", () => {
+    const placed = labRangeLine([150], "ng/mL", between)!;
+    expect(placed.max).toBeGreaterThan(150);
+    expect(placed.points[0]).toBeLessThan(100);
+  });
+
+  test("an up-to range is shaded from the start with only its upper limit", () => {
+    const placed = labRangeLine([98], "mg/dL", {
+      kind: "upTo",
+      high: "100",
+      unit: "mg/dL",
+      converted: false,
+    })!;
+    expect(placed.band).toMatchObject({ start: 0, low: null, high: "100" });
+  });
+
+  test("no band for a text range or another unit; readings still placed", () => {
+    const text: LabRangeDisplay = { kind: "text", text: "negative", unit: "", converted: false };
+    expect(labRangeLine([1, 2], "mg/L", text)?.band).toBeNull();
+    expect(labRangeLine([1, 2], "mmol/L", between)?.band).toBeNull();
+    expect(labRangeLine([5], "mg/L", null)).toBeNull();
+    expect(labRangeLine([], "mg/L", between)).toBeNull();
   });
 });

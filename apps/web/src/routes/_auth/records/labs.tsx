@@ -5,6 +5,7 @@ import {
   formatLabDate,
   formatLabRange,
   formatLabValue,
+  labRangeLine,
   type LabRangeDisplay,
 } from "@openvalens/api/presenters/labs";
 import {
@@ -26,18 +27,12 @@ import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { useMutation } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { FlaskConical, Plus, TestTube } from "lucide-react";
+import { FlaskConical, TestTube } from "lucide-react";
 
 import { DecimalHint } from "@/components/decimal-hint";
-import {
-  EmptyState,
-  ErrorState,
-  Page,
-  PageHeader,
-  Section,
-  StatusPill,
-  ToneIcon,
-} from "@/components/page";
+import { LogDialog } from "@/components/log-dialog";
+import { EmptyState, ErrorState, Page, PageHeader, Section } from "@/components/page";
+import { useLogDialog } from "@/components/quick-log/log-launcher";
 import { SyncStatusBadge } from "@/components/sync-status-badge";
 import { ProductSettingsStatus } from "@/components/product-settings-status";
 import { friendlyDate } from "@/utils/friendly";
@@ -52,15 +47,30 @@ export const Route = createFileRoute("/_auth/records/labs")({
   component: LabsPage,
 });
 
+type MarkerRow = {
+  code: string;
+  displayName: string;
+  unit: string | null;
+  latestValue: number | null;
+  latestSampledAt: string | null;
+  sampleCount: number;
+  recentValues: { sampledAt: string; value: number }[];
+  referenceRange?: Parameters<typeof displayLabRange>[1];
+};
+
+/**
+ * A lab result typed in by hand: the marker, the value in the marker's unit
+ * and when it was taken. There is no default marker: a reading saved to the
+ * wrong marker reads as a real result.
+ */
 export function AddReadingForm({
   markers,
   onSaved,
 }: {
-  markers: Array<Pick<MarkerRow, "code" | "displayName" | "unit">>;
+  markers: ReadonlyArray<Pick<MarkerRow, "code" | "displayName" | "unit">>;
   onSaved: () => void;
 }) {
   const { t, i18n } = useLingui();
-  // No default marker: a reading saved to the wrong marker reads as a real result.
   const [markerCode, setMarkerCode] = useState("");
   const marker = markers.find((option) => option.code === markerCode);
   const [value, setValue] = useState("");
@@ -83,40 +93,47 @@ export function AddReadingForm({
   const submit = () => {
     if (numeric === null || !marker) return;
     save.mutate({
-      metricCode: markerCode as never,
+      metricCode: marker.code as never,
       observedAt,
       valueNumeric: numeric,
-      dedupeHash: makeManualEntryHash(markerCode as never, observedAt, numeric),
+      dedupeHash: makeManualEntryHash(marker.code as never, observedAt, numeric),
     });
   };
 
   return (
-    <Section icon={Plus} tone="water" title={<Trans>Add reading</Trans>} sheet>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
-        <div className="grid gap-2 sm:col-span-2 lg:col-span-1">
-          <Label className="text-sm font-medium">
-            <Trans>Marker</Trans>
-          </Label>
-          <Select value={markerCode} onValueChange={setMarkerCode}>
-            <SelectTrigger className="w-full" aria-label={t`Marker`}>
-              <SelectValue placeholder={t`Choose a marker`}>{marker?.displayName}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {markers.map((option) => (
-                <SelectItem key={option.code} value={option.code}>
-                  {option.displayName}
-                  {option.unit ? <span className="text-ink-3"> · {option.unit}</span> : null}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+    <form
+      className="grid gap-4"
+      onSubmit={(event) => {
+        event.preventDefault();
+        submit();
+      }}
+    >
+      <div className="grid gap-2">
+        <Label className="text-sm font-medium">
+          <Trans>Marker</Trans>
+        </Label>
+        <Select value={markerCode} onValueChange={setMarkerCode}>
+          <SelectTrigger className="w-full" aria-label={t`Marker`}>
+            <SelectValue placeholder={t`Choose a marker`}>{marker?.displayName}</SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {markers.map((option) => (
+              <SelectItem key={option.code} value={option.code}>
+                {option.displayName}
+                {option.unit ? <span className="text-ink-3"> · {option.unit}</span> : null}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
         <div className="grid gap-2">
-          <Label className="text-sm font-medium">
+          <Label htmlFor="lab-value" className="text-sm font-medium">
             <Trans>Value</Trans>
           </Label>
           <div className="flex items-center gap-2">
             <Input
+              id="lab-value"
               inputMode="decimal"
               value={value}
               onChange={(event) => setValue(event.target.value)}
@@ -133,125 +150,218 @@ export function AddReadingForm({
           <DecimalHint value={value} />
         </div>
         <div className="grid gap-2">
-          <Label className="text-sm font-medium">
+          <Label htmlFor="lab-observed-at" className="text-sm font-medium">
             <Trans>Observed at</Trans>
           </Label>
           <Input
+            id="lab-observed-at"
             type="datetime-local"
             value={observedAt}
             onChange={(event) => setObservedAt(event.target.value)}
           />
         </div>
-        <div className="flex flex-wrap items-center gap-3 sm:col-span-2 lg:col-span-1">
-          <Button onClick={submit} disabled={numeric === null || !marker || save.isPending}>
-            {save.isPending ? <Trans>Saving…</Trans> : <Trans>Save</Trans>}
-          </Button>
-          {numeric === null && value.length > 0 ? (
-            <span className="text-sm text-destructive">
-              <Trans>Value must be between 0 and 100,000.</Trans>
-            </span>
-          ) : save.isSuccess ? (
-            <span className="text-sm text-success">
-              <Trans>Saved</Trans>
-            </span>
-          ) : save.isError ? (
-            <span className="text-sm text-destructive">
-              <Trans>Could not save.</Trans>
-            </span>
-          ) : null}
-        </div>
       </div>
-    </Section>
+      <div className="flex flex-wrap items-center gap-3">
+        <Button type="submit" disabled={numeric === null || !marker || save.isPending}>
+          {save.isPending ? <Trans>Saving…</Trans> : <Trans>Save</Trans>}
+        </Button>
+        {numeric === null && value.length > 0 ? (
+          <span className="text-sm text-destructive">
+            <Trans>Value must be between 0 and 100,000.</Trans>
+          </span>
+        ) : save.isError ? (
+          <span className="text-sm text-destructive">
+            <Trans>Could not save.</Trans>
+          </span>
+        ) : null}
+      </div>
+    </form>
   );
 }
 
-type MarkerRow = {
-  code: string;
-  displayName: string;
-  unit: string | null;
-  latestValue: number | null;
-  latestSampledAt: string | null;
-  sampleCount: number;
-};
+/** The form in a dialog, opened from the "+" (`useLogDialog`). */
+function LabResultDialog({
+  markers,
+  open,
+  onOpenChange,
+  onSaved,
+}: {
+  markers: readonly MarkerRow[];
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSaved: () => void;
+}) {
+  return (
+    <LogDialog open={open} onOpenChange={onOpenChange} title={<Trans>Log a lab result</Trans>}>
+      <AddReadingForm
+        markers={markers}
+        onSaved={() => {
+          onSaved();
+          onOpenChange(false);
+        }}
+      />
+    </LogDialog>
+  );
+}
 
-function MarkerCard({
+/**
+ * One marker as one row: its name, then a line with the lab's printed range
+ * shaded and its limits labelled, the latest reading as a dot with its
+ * number, and earlier readings as faint dots. Placement only, in the labs
+ * tone throughout: the row never calls a reading high, low or abnormal
+ * (Legal and clinical gate decisions, never-add item 1).
+ */
+function MarkerRangeRow({
   marker,
-  display,
   range,
   settings,
+  showDate,
 }: {
   marker: MarkerRow;
-  display: { value: number | null; unit: string | null; converted: boolean };
   range: LabRangeDisplay | null;
   settings: Parameters<typeof formatLabDate>[1];
+  showDate: boolean;
 }) {
   const { t, i18n } = useLingui();
-  const hasValue = marker.latestValue !== null;
+  const { labUnits } = useDisplayPreferences();
+  const shown = marker.recentValues.map((point) => ({
+    sampledAt: point.sampledAt,
+    ...displayLabValue(marker, point.value, labUnits),
+  }));
+  const latest = shown.at(-1) ?? null;
+  const previous = shown.length > 1 ? shown.at(-2)! : null;
+  const unit = latest?.unit ?? marker.unit;
+  // A printed text range ("< 100") that came with numeric bounds is drawn from
+  // the bounds; the text itself is still shown as recorded.
+  const numericRange =
+    range?.kind === "text" &&
+    marker.referenceRange &&
+    (marker.referenceRange.low !== null || marker.referenceRange.high !== null)
+      ? displayLabRange(marker, { ...marker.referenceRange, text: null }, labUnits)
+      : range;
+  const line = labRangeLine(
+    shown.map((point) => point.value),
+    unit,
+    numericRange,
+  );
+  const rangeText = range ? formatLabRange(i18n, range) : null;
+  const latestText = latest ? formatLabValue(latest.value, null) : "—";
+  const previousValue = previous ? formatLabValue(previous.value, null) : "";
+  const previousDate = previous ? friendlyDate(i18n, previous.sampledAt) : "";
+  const latestPoint = line?.points.at(-1) ?? null;
+
   return (
-    <li className="sheet grid min-w-0 content-start gap-3 p-4">
-      <div className="flex items-start gap-3">
-        <ToneIcon icon={TestTube} tone="water" />
-        <div className="grid min-w-0 flex-1 gap-0.5">
-          <span className="font-semibold break-words text-ink">
-            <span className="sr-only">
-              <Trans>Name</Trans>:{" "}
-            </span>
-            {marker.displayName}
-          </span>
-          <span className="text-sm text-ink-3">
-            <span className="sr-only">
-              <Trans>Date</Trans>:{" "}
-            </span>
-            {hasValue && marker.latestSampledAt ? (
+    <li className="grid gap-x-6 gap-y-2 py-4 sm:grid-cols-[minmax(0,13rem)_minmax(0,1fr)] sm:items-center">
+      <div className="grid min-w-0 gap-0.5">
+        <span className="flex flex-wrap items-baseline gap-x-2 font-semibold break-words text-ink">
+          {marker.displayName}
+          {unit ? <span className="text-sm font-normal text-ink-3">{unit}</span> : null}
+        </span>
+        <span className="text-sm text-ink-3">
+          {previous ? (
+            <Trans>
+              was {previousValue} on {previousDate}
+            </Trans>
+          ) : null}
+          {showDate && marker.latestSampledAt ? (
+            <>
+              {previous ? " · " : null}
               <time
                 dateTime={marker.latestSampledAt}
                 title={formatLabDate(marker.latestSampledAt, settings)}
               >
                 {friendlyDate(i18n, marker.latestSampledAt)}
               </time>
-            ) : (
-              t`No readings yet`
-            )}
-          </span>
-        </div>
-        {hasValue ? (
-          <span className="num shrink-0 rounded-full bg-water-soft px-2.5 py-1 text-sm font-semibold text-ink">
-            <span className="sr-only">
-              <Trans>Value</Trans>:{" "}
-            </span>
-            {formatLabValue(display.value, null)}
-            {display.unit ? (
-              <span className="font-normal text-ink-2">
-                <span className="sr-only">
-                  {" "}
-                  <Trans>Unit</Trans>:
-                </span>{" "}
-                {display.unit}
-              </span>
-            ) : null}
+            </>
+          ) : null}
+        </span>
+        {latest?.converted ? (
+          <span className="text-sm text-ink-3">
+            {t({ message: `Converted from ${marker.unit ?? ""}`, comment: "safety" })}
           </span>
         ) : null}
       </div>
-      {range ? <span className="num text-sm text-ink-2">{formatLabRange(i18n, range)}</span> : null}
-      {display.converted || marker.sampleCount > 0 ? (
-        <div className="flex flex-wrap items-center gap-2 text-sm">
-          {marker.sampleCount > 0 ? (
-            <StatusPill tone="neutral">
-              <Trans>Samples</Trans>&nbsp;<span className="num">{marker.sampleCount}</span>
-            </StatusPill>
-          ) : null}
-          {display.converted ? (
-            <span className="text-ink-3">
-              {t({
-                message: `Converted from ${marker.unit ?? ""}`,
-                comment: "safety",
-              })}
+
+      <div className="grid min-w-0 gap-1">
+        <span className="sr-only">
+          {[
+            t`Latest ${latestText}`,
+            previous ? t`was ${previousValue} on ${previousDate}` : null,
+            rangeText,
+          ]
+            .filter(Boolean)
+            .join(". ")}
+        </span>
+        {line && latestPoint !== null ? (
+          <div className="relative mx-3 h-14" aria-hidden="true">
+            {/* The latest figure above its dot. */}
+            <span
+              className="num absolute top-0 -translate-x-1/2 font-display text-lg leading-none font-medium whitespace-nowrap text-ink"
+              style={{ left: `${latestPoint}%` }}
+            >
+              {latestText}
             </span>
-          ) : null}
-        </div>
-      ) : null}
+            <div className="absolute inset-x-0 top-8 h-2 rounded-full bg-paper-2">
+              {line.band ? (
+                <div
+                  className="absolute inset-y-0 rounded-full bg-water-soft"
+                  style={{
+                    left: `${line.band.start}%`,
+                    width: `${Math.max(line.band.end - line.band.start, 1)}%`,
+                  }}
+                />
+              ) : null}
+            </div>
+            {line.points.slice(0, -1).map((point, index) => (
+              <span
+                key={shown[index]?.sampledAt ?? index}
+                className="absolute top-8 size-2.5 -translate-x-1/2 -translate-y-[1px] rounded-full bg-water opacity-30"
+                style={{ left: `${point}%` }}
+              />
+            ))}
+            <span
+              className="absolute top-8 size-4 -translate-x-1/2 -translate-y-1 rounded-full border-2 border-[var(--sheet)] bg-water"
+              style={{ left: `${latestPoint}%` }}
+            />
+            {line.band?.low ? (
+              <span
+                className="num absolute top-11 -translate-x-1/2 text-xs text-ink-3"
+                style={{ left: `${line.band.start}%` }}
+              >
+                {line.band.low}
+              </span>
+            ) : null}
+            {line.band?.high ? (
+              <span
+                className="num absolute top-11 -translate-x-1/2 text-xs text-ink-3"
+                style={{ left: `${line.band.end}%` }}
+              >
+                {line.band.high}
+              </span>
+            ) : null}
+          </div>
+        ) : (
+          <span className="num font-display text-lg font-medium text-ink" aria-hidden="true">
+            {latestText}
+          </span>
+        )}
+        {rangeText && (!line?.band || range?.kind === "text") ? (
+          <span className="num text-sm text-ink-3" aria-hidden="true">
+            {rangeText}
+          </span>
+        ) : null}
+      </div>
     </li>
   );
+}
+
+/** Local calendar date of a reading, for grouping by draw. */
+function drawDay(iso: string | null): string {
+  if (!iso) return "";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
+  return date.toISOString().slice(0, 10);
 }
 
 function LabsPage() {
@@ -259,19 +369,13 @@ function LabsPage() {
   const settingsQuery = useProductSettings();
   const settings = settingsQuery.data;
   const { labUnits } = useDisplayPreferences();
-  const { t } = useLingui();
-  // Display only (#67): the stored reading and its reported unit never change.
-  const shown = (marker: { code: string; unit: string | null; latestValue: number | null }) =>
-    marker.latestValue === null
-      ? { value: null, unit: marker.unit, converted: false }
-      : displayLabValue(marker, marker.latestValue, labUnits);
+  const { t, i18n } = useLingui();
+  const [logOpen, setLogOpen] = useState(false);
+  const list = (markers.data ?? []) as MarkerRow[];
+  // The "+" opens the lab result form while there is a marker to log to.
+  useLogDialog("lab_result", list.length > 0 ? () => setLogOpen(true) : null);
   // The lab's own range stored with the latest reading, shown as recorded.
-  const rangeOf = (marker: {
-    code: string;
-    unit: string | null;
-    latestValue: number | null;
-    referenceRange?: Parameters<typeof displayLabRange>[1];
-  }) =>
+  const rangeOf = (marker: MarkerRow) =>
     marker.latestValue === null ? null : displayLabRange(marker, marker.referenceRange, labUnits);
 
   const header = <PageHeader title={<Trans>Labs</Trans>} actions={<SyncStatusBadge />} />;
@@ -281,9 +385,9 @@ function LabsPage() {
       <Page>
         <ModuleHiddenNote module="labs" />
         {header}
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3">
           {Array.from({ length: 6 }, (_, i) => (
-            <Skeleton key={i} className="h-24 w-full rounded-3xl" />
+            <Skeleton key={i} className="h-16 w-full rounded-3xl" />
           ))}
         </div>
       </Page>
@@ -307,9 +411,15 @@ function LabsPage() {
     );
   }
 
-  const list = markers.data;
   const withResults = list.filter((marker) => marker.latestValue !== null);
   const waiting = list.filter((marker) => marker.latestValue === null);
+  // Markers grouped by the day of their latest reading, newest draw first.
+  const draws = new Map<string, MarkerRow[]>();
+  for (const marker of withResults) {
+    const day = drawDay(marker.latestSampledAt);
+    draws.set(day, [...(draws.get(day) ?? []), marker]);
+  }
+  const groups = [...draws.entries()].sort(([a], [b]) => b.localeCompare(a));
 
   return (
     <Page>
@@ -333,52 +443,74 @@ function LabsPage() {
           }
         />
       ) : (
-        <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,8fr)_minmax(0,4fr)]">
-          <div className="grid min-w-0 content-start gap-8">
-            {withResults.length > 0 ? (
-              <Section icon={FlaskConical} tone="water" title={<Trans>Your results</Trans>}>
-                <ul className="grid min-w-0 gap-3 sm:grid-cols-2">
-                  {withResults.map((marker) => (
-                    <MarkerCard
-                      key={marker.code}
-                      marker={marker}
-                      display={shown(marker)}
-                      range={rangeOf(marker)}
-                      settings={settings}
-                    />
-                  ))}
-                </ul>
-              </Section>
-            ) : null}
-            {waiting.length > 0 ? (
+        <>
+          {groups.map(([day, rows], index) => {
+            const when = day ? friendlyDate(i18n, day) : "";
+            return (
               <Section
-                icon={TestTube}
+                key={day || "undated"}
+                icon={FlaskConical}
                 tone="water"
-                title={t`No readings yet`}
+                title={
+                  index === 0 ? <Trans>Latest draw · {when}</Trans> : <Trans>Drawn {when}</Trans>
+                }
                 info={
-                  <Trans>
-                    Markers appear here once a lab reading is recorded for your account. Importing
-                    lab reports is not available yet.
-                  </Trans>
+                  index === 0 ? (
+                    <Trans comment="safety">
+                      The shaded band is the range your lab printed with the result. Faint dots are
+                      your earlier readings. OpenValens shows where a value sits and does not judge
+                      it.
+                    </Trans>
+                  ) : undefined
                 }
               >
-                <ul className="grid min-w-0 gap-3 sm:grid-cols-2">
-                  {waiting.map((marker) => (
-                    <MarkerCard
+                <ul className="sheet grid divide-y divide-rule px-5 py-1">
+                  {rows.map((marker) => (
+                    <MarkerRangeRow
                       key={marker.code}
                       marker={marker}
-                      display={shown(marker)}
                       range={rangeOf(marker)}
                       settings={settings}
+                      showDate={false}
                     />
                   ))}
                 </ul>
               </Section>
-            ) : null}
-          </div>
-          <AddReadingForm markers={list} onSaved={() => void markers.refetch()} />
-        </div>
+            );
+          })}
+          {waiting.length > 0 ? (
+            <Section
+              icon={TestTube}
+              tone="water"
+              title={t`No readings yet`}
+              info={
+                <Trans>
+                  Markers appear here once a lab reading is recorded for your account. Importing lab
+                  reports is not available yet.
+                </Trans>
+              }
+            >
+              <ul className="sheet grid divide-y divide-rule px-5 py-1">
+                {waiting.map((marker) => (
+                  <li key={marker.code} className="flex items-baseline justify-between gap-4 py-3">
+                    <span className="font-semibold text-ink">{marker.displayName}</span>
+                    {marker.unit ? <span className="text-sm text-ink-3">{marker.unit}</span> : null}
+                  </li>
+                ))}
+              </ul>
+            </Section>
+          ) : null}
+        </>
       )}
+
+      {list.length > 0 ? (
+        <LabResultDialog
+          markers={list}
+          open={logOpen}
+          onOpenChange={setLogOpen}
+          onSaved={() => void markers.refetch()}
+        />
+      ) : null}
     </Page>
   );
 }

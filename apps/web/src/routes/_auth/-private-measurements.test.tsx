@@ -62,10 +62,13 @@ describe("PrivateMeasurements query-state wiring", () => {
     };
     historyState = { data: [row], isPending: false, isError: false, refetch: () => {} };
     const html = render();
-    expect(html).toInclude("Add an entry");
+    // No form on the page: the header button (and the "+") open it in a dialog.
+    expect(html).toInclude("Add a measurement");
+    expect(html).not.toInclude('id="measurement-value"');
     expect(html).toInclude("History");
     expect(html).toInclude("Edit Weight entry");
-    expect(html).toInclude("Delete Weight entry");
+    // Delete sits behind the row's overflow menu.
+    expect(html).toInclude("More for Weight entry");
     expect(html).not.toInclude("Could not check this setting");
     expect(html).not.toInclude("Could not load entries");
     expect(html).not.toInclude("61 kg");

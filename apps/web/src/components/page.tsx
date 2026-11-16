@@ -401,6 +401,9 @@ export function StatTile({
   status,
   meter,
   to,
+  compact = false,
+  pressed,
+  onPress,
   className,
 }: {
   icon: LucideIcon;
@@ -412,30 +415,65 @@ export function StatTile({
   status?: { label: ReactNode; tone: StatusTone };
   meter?: { value: number; label?: string };
   to?: string;
+  /** On phones: a small tile (no icon, a smaller figure) so a row of three fits. */
+  compact?: boolean;
+  /** With `onPress`, the tile is a toggle (e.g. which measure a chart shows). */
+  pressed?: boolean;
+  onPress?: () => void;
   className?: string;
 }) {
   const body = (
     <>
       <div className="flex items-center justify-between gap-2">
-        <span className="font-semibold text-ink-2">{label}</span>
-        <ToneIcon icon={icon} tone={tone} />
+        <span className={cn("font-semibold text-ink-2", compact && "max-sm:text-sm")}>{label}</span>
+        <ToneIcon icon={icon} tone={tone} className={compact ? "max-sm:hidden" : undefined} />
       </div>
       <div className="flex items-baseline gap-1.5">
-        <span className="num font-display text-[2.125rem] leading-none font-medium tracking-[-0.02em] whitespace-nowrap text-ink">
+        <span
+          className={cn(
+            "num font-display text-[2.125rem] leading-none font-medium tracking-[-0.02em] whitespace-nowrap text-ink",
+            compact && "max-sm:text-[1.375rem]",
+          )}
+        >
           {value}
         </span>
         {unit ? <span className="text-sm text-ink-3">{unit}</span> : null}
       </div>
       {meter ? <Meter value={meter.value} tone={tone} label={meter.label} /> : null}
       {status || note ? (
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+        <div
+          className={cn(
+            "flex flex-wrap items-center gap-x-2 gap-y-1 text-sm",
+            compact && "max-sm:text-xs",
+          )}
+        >
           {status ? <StatusPill tone={status.tone}>{status.label}</StatusPill> : null}
           {note ? <span className="text-ink-3">{note}</span> : null}
         </div>
       ) : null}
     </>
   );
-  const classes = cn("sheet group grid min-w-0 content-start gap-3 p-5", className);
+  const classes = cn(
+    "sheet group grid min-w-0 content-start gap-3 p-5",
+    compact && "max-sm:gap-2 max-sm:p-3.5",
+    className,
+  );
+  if (onPress) {
+    return (
+      <button
+        type="button"
+        aria-pressed={pressed ?? false}
+        onClick={onPress}
+        className={cn(
+          classes,
+          "cursor-pointer text-left outline-2 outline-offset-2 outline-transparent transition-[outline-color,transform] duration-[var(--dur-short)] hover:-translate-y-0.5 focus-visible:outline-ring motion-reduce:transition-none",
+          pressed && "outline-rule-2",
+        )}
+      >
+        {body}
+      </button>
+    );
+  }
   return to ? (
     <Link
       to={to}

@@ -43,6 +43,23 @@ export function summarizeDailyWeights(rows: readonly DailyWeightLike[]): WeightS
 }
 
 /**
+ * Evenly spaced chart ticks covering `min` to `max` with a round step, so a
+ * weight axis reads 65, 67.5, 70 rather than 65, 67, 70. Values are in the
+ * displayed unit; an empty or invalid range gives no ticks.
+ */
+export function evenAxisTicks(min: number, max: number, count = 4): number[] {
+  if (!Number.isFinite(min) || !Number.isFinite(max) || max < min) return [];
+  const rough = Math.max(max - min, 1) / Math.max(count - 1, 1);
+  const step = [0.5, 1, 2, 2.5, 5, 10, 20, 25, 50, 100].find((size) => size >= rough) ?? 100;
+  const start = Math.floor(min / step) * step;
+  const end = Math.ceil(max / step) * step;
+  const ticks: number[] = [];
+  for (let index = 0; start + index * step <= end + step / 1000; index++)
+    ticks.push(Math.round((start + index * step) * 100) / 100);
+  return ticks;
+}
+
+/**
  * "72.4 kg" (metric, default) or "159.6 lb" (imperial). The stored value stays
  * in kilograms; conversion happens here only.
  */
