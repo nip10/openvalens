@@ -14,6 +14,9 @@ import {
   BODY_MAP_VIEWBOX,
   bodyMapArtwork,
   compositionLayer,
+  dexaRegionLabel,
+  dexaRegionRows,
+  formatDexaValue,
   dexaMeasurementTypes,
   normalizeDexaRegion,
   PAIN_JOINT_LABELS,
@@ -168,6 +171,42 @@ describe("compositionLayer", () => {
     expect(
       dexaMeasurementTypes([...scan, { region: "x", measurementType: "zzz", value: 1 }]),
     ).toEqual(["fat_pct", "bmd", "zzz"]);
+  });
+});
+
+describe("dexaRegionRows", () => {
+  test("one row per reported region for the measurement, total last, with the change", () => {
+    const rows = dexaRegionRows({
+      measurementType: "fat_pct",
+      values: [{ region: "Total", measurementType: "fat_pct", value: 25 }, ...scan],
+      compareValues: [
+        { region: "left_arm", measurementType: "fat_pct", value: 21 },
+        { region: "total", measurementType: "fat_pct", value: 26 },
+      ],
+    });
+    expect(rows.map((row) => row.region)).toEqual([
+      "left_arm",
+      "right_arm",
+      "trunk",
+      "android",
+      "total",
+    ]);
+    expect(rows[0]!.change).toBe(-1);
+    expect(rows[1]!.change).toBeNull();
+    expect(dexaRegionLabel(rows[0]!, englishI18n)).toBe("Left arm");
+    expect(dexaRegionLabel({ region: "x_y", name: "X y" }, englishI18n)).toBe("X y");
+    expect(rows.at(-1)!).toMatchObject({ name: "Total", change: -1, mapRegionIds: [] });
+    expect(rows[0]!.mapRegionIds.length).toBeGreaterThan(0);
+    for (const id of rows[0]!.mapRegionIds)
+      expect(BODY_MAP_REGIONS.find((region) => region.id === id)?.dexaSources).toContain(
+        "left_arm",
+      );
+  });
+
+  test("formatDexaValue matches the map's formatting", () => {
+    expect(formatDexaValue(24.12, "fat_pct")).toBe("24.1%");
+    expect(formatDexaValue(0.4, "fat_pct", true)).toBe("+0.4%");
+    expect(formatDexaValue(1.1234, "bmd")).toBe("1.123 g/cm²");
   });
 });
 

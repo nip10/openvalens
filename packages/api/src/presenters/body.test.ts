@@ -2,7 +2,33 @@ import { createAppI18n } from "@openvalens/i18n";
 import { englishI18n, inEnglish } from "@openvalens/i18n/testing";
 import { describe, expect, test } from "bun:test";
 
-import { formatKg, formatKgDelta, summarizeDailyWeights, weightSourceLabel } from "./body";
+import {
+  evenAxisTicks,
+  formatKg,
+  formatKgDelta,
+  summarizeDailyWeights,
+  weightSourceLabel,
+} from "./body";
+
+describe("evenAxisTicks", () => {
+  test("a round step with even gaps", () => {
+    expect(evenAxisTicks(64.6, 70.4)).toEqual([64, 66, 68, 70, 72]);
+    expect(evenAxisTicks(66.2, 69.8)).toEqual([66, 68, 70]);
+    expect(evenAxisTicks(65.1, 69.4, 3)).toEqual([65, 67.5, 70]);
+  });
+
+  test("every gap is the same and the range is covered", () => {
+    const ticks = evenAxisTicks(140.2, 156.9);
+    const gaps = ticks.slice(1).map((tick, index) => Math.round((tick - ticks[index]!) * 100));
+    expect(new Set(gaps).size).toBe(1);
+    expect(ticks[0]).toBeLessThanOrEqual(140.2);
+    expect(ticks.at(-1)).toBeGreaterThanOrEqual(156.9);
+  });
+
+  test("no ticks for an empty range", () => {
+    expect(evenAxisTicks(Infinity, -Infinity)).toEqual([]);
+  });
+});
 
 const row = (date: string, weightKg: number, source = "auto") => ({ date, weightKg, source });
 

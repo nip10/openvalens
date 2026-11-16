@@ -3,14 +3,28 @@ import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { deviceTimeZone, localDateIn } from "@openvalens/api/presenters/nutrition-diary";
 import { Button } from "@openvalens/ui/components/button";
-import { Skeleton } from "@openvalens/ui/components/skeleton";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@openvalens/ui/components/dropdown-menu";
 import { Input } from "@openvalens/ui/components/input";
 import { Label } from "@openvalens/ui/components/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@openvalens/ui/components/select";
+import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { History, Lock, Plus, Ruler, Scale, ShieldCheck } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { Lock, MoreHorizontal, Plus, Ruler, Scale, ShieldCheck } from "lucide-react";
 
+import { LogDialog } from "@/components/log-dialog";
 import {
   EmptyState,
   ErrorState,
@@ -22,6 +36,7 @@ import {
   ToneIcon,
 } from "@/components/page";
 import { ProgressPhotos } from "@/components/progress-photos";
+import { useLogDialog } from "@/components/quick-log/log-launcher";
 import { authClient } from "@/lib/auth-client";
 import { friendlyDate } from "@/utils/friendly";
 import { client, orpc } from "@/utils/orpc";
@@ -46,6 +61,7 @@ export const Route = createFileRoute("/_auth/private-measurements")({
 
 type Kind = PrivateMeasurementKind;
 type Unit = "kg" | "lb" | "cm" | "in";
+type Entry = { id: string; kind: string; value: number; unit: string; measuredAt: string };
 const kinds = PRIVATE_MEASUREMENT_KINDS;
 const KIND_LABELS: Record<Kind, MessageDescriptor> = {
   weight: msg`Weight`,
@@ -56,12 +72,14 @@ const KIND_LABELS: Record<Kind, MessageDescriptor> = {
   upper_arm: msg`Upper arm`,
   thigh: msg`Thigh`,
 };
-const NATIVE_SELECT =
-  "h-9 rounded-md border border-input bg-card px-3 text-ink hover:bg-muted focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-55";
 const nowLocal = () => {
   const d = new Date();
   d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
   return d.toISOString().slice(0, 16);
+};
+const toLocalInput = (iso: string) => {
+  const d = new Date(iso);
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 };
 
 export function PrivateMeasurements() {
@@ -72,7 +90,7 @@ export function PrivateMeasurements() {
       : null;
   if (isPending || !subject) {
     return (
-      <Page width="narrow">
+      <Page>
         <ModuleHiddenNote module="body" />
         <PageHeader title={<Trans>Private measurements</Trans>} />
         <p role="status" className="text-sm text-ink-3">
@@ -90,6 +108,145 @@ export function PrivateMeasurements() {
       key={`${subject.organizationId}:${subject.userId}`}
       subject={subject}
     />
+  );
+}
+
+/** The add or edit form, in a dialog: measurement, value with unit, and time. */
+type Draft = { id: string | null; kind: Kind; unit: Unit; value: string; measuredAt: string };
+
+function MeasurementDialog({
+  draft,
+  onDraftChange,
+  onClose,
+  onSave,
+  saving,
+  failed,
+}: {
+  draft: Draft | null;
+  onDraftChange: (draft: Draft) => void;
+  onClose: () => void;
+  onSave: (draft: Draft) => void;
+  saving: boolean;
+  failed: boolean;
+}) {
+  const { t, i18n } = useLingui();
+  if (!draft) return null;
+  const label = i18n._(KIND_LABELS[draft.kind]);
+  const payload = makePrivateMeasurementPayload({
+    kind: draft.kind,
+    unit: draft.unit,
+    value: draft.value,
+    measuredAtLocal: draft.measuredAt,
+  });
+  return (
+    <LogDialog
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+      title={draft.id ? <Trans>Edit entry</Trans> : <Trans>Add a measurement</Trans>}
+      description={<Trans>Private to you. Workspace owners and members cannot see it.</Trans>}
+    >
+      <form
+        className="grid gap-4 sm:grid-cols-2"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (payload && !saving) onSave(draft);
+        }}
+      >
+        <div className="grid gap-2">
+          <Label htmlFor="measurement-kind">
+            <Trans>Measurement</Trans>
+          </Label>
+          <Select
+            value={draft.kind}
+            onValueChange={(next) => {
+              const kind = next as Kind;
+              const reset = nextKindDraft(kind);
+              onDraftChange({ ...draft, kind: reset.kind, unit: reset.unit, value: reset.value });
+            }}
+          >
+            <SelectTrigger
+              id="measurement-kind"
+              className="w-full"
+              aria-label={t`Measurement type`}
+            >
+              <SelectValue>{label}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {kinds.map((kind) => (
+                <SelectItem key={kind} value={kind}>
+                  {i18n._(KIND_LABELS[kind])}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="measurement-value">{t`${label} value`}</Label>
+          <div className="flex gap-2">
+            <Input
+              id="measurement-value"
+              type="number"
+              min="0"
+              step="any"
+              inputMode="decimal"
+              autoFocus
+              value={draft.value}
+              onChange={(event) => onDraftChange({ ...draft, value: event.target.value })}
+            />
+            <Select
+              value={draft.unit}
+              onValueChange={(next) => {
+                const reset = nextUnitDraft(next);
+                onDraftChange({ ...draft, unit: reset.unit as Unit, value: reset.value });
+              }}
+            >
+              <SelectTrigger aria-label={t`Unit`} className="w-24 shrink-0">
+                <SelectValue>{draft.unit}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {unitsForMeasurement(draft.kind).map((unit) => (
+                  <SelectItem key={unit} value={unit}>
+                    {unit}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <div className="grid gap-2 sm:col-span-2">
+          <Label htmlFor="measurement-time">
+            <Trans>Observed at</Trans>
+          </Label>
+          <Input
+            id="measurement-time"
+            type="datetime-local"
+            value={draft.measuredAt}
+            onChange={(event) => onDraftChange({ ...draft, measuredAt: event.target.value })}
+          />
+        </div>
+        <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
+          <Button type="submit" disabled={!payload || saving}>
+            {saving ? (
+              <Trans>Saving…</Trans>
+            ) : draft.id ? (
+              <Trans>Save changes</Trans>
+            ) : (
+              <Trans>Save entry</Trans>
+            )}
+          </Button>
+          <Button type="button" variant="ghost" onClick={onClose}>
+            <Trans>Cancel</Trans>
+          </Button>
+          {failed ? (
+            <span role="alert" className="text-sm text-destructive">
+              <Trans>Could not save. Check your connection and try again.</Trans>
+            </span>
+          ) : null}
+        </div>
+      </form>
+    </LogDialog>
   );
 }
 
@@ -133,18 +290,13 @@ function PrivateMeasurementsForSubject({
     status: history.isPending ? "pending" : history.isError ? "error" : "success",
     count: history.data?.length,
   });
-  const [kind, setKind] = useState<Kind>("weight");
-  const [unit, setUnit] = useState<Unit>("kg");
-  const [value, setValue] = useState("");
-  const [measuredAt, setMeasuredAt] = useState(nowLocal);
-  const [editing, setEditing] = useState<string | null>(null);
+  const entries = ((history.data ?? []) as Entry[])
+    .slice()
+    .sort((a, b) => b.measuredAt.localeCompare(a.measuredAt));
+  const [draft, setDraft] = useState<Draft | null>(null);
   const [notice, setNotice] = useState("");
   const [deleteErrorId, setDeleteErrorId] = useState<string | null>(null);
-  const valueInputRef = useRef<HTMLInputElement>(null);
   const historyHeadingRef = useRef<HTMLHeadingElement>(null);
-  useEffect(() => {
-    if (editing) valueInputRef.current?.focus();
-  }, [editing]);
   const invalidate = () => {
     void qc.invalidateQueries({ queryKey: keys.preference });
     void qc.invalidateQueries({ queryKey: keys.list });
@@ -154,26 +306,23 @@ function PrivateMeasurementsForSubject({
     onSuccess: invalidate,
   });
   const save = useMutation({
-    mutationFn: (id?: string) => {
+    mutationFn: (entry: Draft) => {
       const input = makePrivateMeasurementPayload({
-        kind,
-        unit,
-        value,
-        measuredAtLocal: measuredAt,
+        kind: entry.kind,
+        unit: entry.unit,
+        value: entry.value,
+        measuredAtLocal: entry.measuredAt,
       });
       if (!input) throw new Error(t`Enter a valid measurement and observed time.`);
-      return id
-        ? client.privateBody.update({ id, value: input })
+      return entry.id
+        ? client.privateBody.update({ id: entry.id, value: input })
         : client.privateBody.create(input);
     },
     onSuccess: () => {
-      setValue("");
-      setEditing(null);
-      setMeasuredAt(nowLocal());
+      setDraft(null);
       setNotice(t`Entry saved.`);
       invalidate();
     },
-    onError: () => setNotice(t`Could not save. Check your connection and try again.`),
   });
   const remove = useMutation({
     mutationFn: (id: string) => client.privateBody.delete({ id }),
@@ -192,17 +341,29 @@ function PrivateMeasurementsForSubject({
       if (!remove.isPending) remove.mutate(id);
     }
   };
-  const draftPayload = makePrivateMeasurementPayload({
-    kind,
-    unit,
-    value,
-    measuredAtLocal: measuredAt,
-  });
+
+  // A new entry starts at the kind logged last.
+  const openNew = () => {
+    save.reset();
+    const last = (entries[0]?.kind as Kind | undefined) ?? "weight";
+    const kind = (kinds as readonly string[]).includes(last) ? last : "weight";
+    const reset = nextKindDraft(kind);
+    setDraft({ id: null, kind, unit: reset.unit, value: "", measuredAt: nowLocal() });
+  };
+  const enabled = accessState === "enabled";
+  useLogDialog("private_measurement", enabled ? openNew : null);
+
   const canDisplayStoredValues = mayShowStoredMeasurementValue(
     displaySettings.isSuccess ? displaySettings.data?.settings.hideNumbers : undefined,
   );
+  const byKind = new Map<string, Entry[]>();
+  for (const entry of entries) byKind.set(entry.kind, [...(byKind.get(entry.kind) ?? []), entry]);
+  const groups = [...byKind.entries()].sort(
+    ([a], [b]) => (kinds as readonly string[]).indexOf(a) - (kinds as readonly string[]).indexOf(b),
+  );
+
   return (
-    <Page width="narrow">
+    <Page>
       <ModuleHiddenNote module="body" />
       <PageHeader
         title={<Trans>Private measurements</Trans>}
@@ -211,6 +372,14 @@ function PrivateMeasurementsForSubject({
             These manual entries are private to your account. Workspace owners and other members
             cannot view them. They are separate from shared workspace body records.
           </Trans>
+        }
+        actions={
+          enabled ? (
+            <Button onClick={openNew}>
+              <Plus aria-hidden="true" />
+              <Trans>Add a measurement</Trans>
+            </Button>
+          ) : undefined
         }
       />
       {accessState === "identity-pending" ? (
@@ -239,6 +408,7 @@ function PrivateMeasurementsForSubject({
           tone="weight"
           title={<Trans>Private measurements are off</Trans>}
           sheet
+          className="max-w-3xl"
         >
           <div className="grid justify-items-start gap-4">
             <p className="max-w-[65ch] text-ink-2">
@@ -263,13 +433,17 @@ function PrivateMeasurementsForSubject({
         </Section>
       ) : (
         <>
-          <div className="sheet flex flex-wrap items-center justify-between gap-3 px-5 py-4">
-            <span className="flex items-center gap-3 font-semibold text-ink-2">
-              <ToneIcon icon={ShieldCheck} tone="weight" />
-              <Trans>Private measurements are on</Trans>
+          <div className="sheet flex items-center justify-between gap-3 px-5 py-3">
+            <span className="flex min-w-0 items-center gap-3 font-semibold text-ink-2">
+              <ToneIcon icon={ShieldCheck} tone="weight" size="sm" />
+              <span className="min-w-0">
+                <Trans>Private measurements are on</Trans>
+              </span>
             </span>
             <Button
-              variant="outline"
+              variant="ghost"
+              size="sm"
+              className="shrink-0"
               onClick={() => toggle.mutate(false)}
               disabled={toggle.isPending}
             >
@@ -281,114 +455,8 @@ function PrivateMeasurementsForSubject({
               <Trans>Could not update this setting. Try again.</Trans>
             </p>
           )}
-          <Section
-            icon={Plus}
-            tone="weight"
-            title={editing ? <Trans>Edit entry</Trans> : <Trans>Add an entry</Trans>}
-            sheet
-          >
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="grid gap-2">
-                <Label htmlFor="measurement-kind">
-                  <Trans>Measurement</Trans>
-                </Label>
-                <select
-                  id="measurement-kind"
-                  className={NATIVE_SELECT}
-                  value={kind}
-                  onChange={(e) => {
-                    const next = e.target.value as Kind;
-                    const draft = nextKindDraft(next);
-                    setEditing(null);
-                    setKind(draft.kind);
-                    setUnit(draft.unit);
-                    setValue(draft.value);
-                  }}
-                  aria-label={t`Measurement type`}
-                >
-                  {kinds.map((k) => (
-                    <option key={k} value={k}>
-                      {i18n._(KIND_LABELS[k])}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="measurement-value">{t`${labelOf(kind)} value`}</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="measurement-value"
-                    ref={valueInputRef}
-                    type="number"
-                    min="0"
-                    step="any"
-                    inputMode="decimal"
-                    value={value}
-                    onChange={(e) => setValue(e.target.value)}
-                  />
-                  <select
-                    aria-label={t`Unit`}
-                    className={NATIVE_SELECT}
-                    value={unit}
-                    onChange={(e) => {
-                      const draft = nextUnitDraft(e.target.value);
-                      setEditing(null);
-                      setUnit(draft.unit as Unit);
-                      setValue(draft.value);
-                    }}
-                  >
-                    {unitsForMeasurement(kind).map((u) => (
-                      <option key={u}>{u}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <div className="grid gap-2 sm:col-span-2">
-                <Label htmlFor="measurement-time">
-                  <Trans>Observed at</Trans>
-                </Label>
-                <Input
-                  id="measurement-time"
-                  type="datetime-local"
-                  value={measuredAt}
-                  onChange={(e) => setMeasuredAt(e.target.value)}
-                />
-              </div>
-              <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
-                <Button
-                  onClick={() => save.mutate(editing ?? undefined)}
-                  disabled={!draftPayload || save.isPending}
-                >
-                  {save.isPending ? (
-                    <Trans>Saving…</Trans>
-                  ) : editing ? (
-                    <Trans>Save changes</Trans>
-                  ) : (
-                    <Trans>Save entry</Trans>
-                  )}
-                </Button>
-                {editing && (
-                  <Button
-                    variant="ghost"
-                    onClick={() => {
-                      setEditing(null);
-                      setValue("");
-                    }}
-                  >
-                    <Trans>Cancel</Trans>
-                  </Button>
-                )}
-                {save.isError && (
-                  <span role="alert" className="text-sm text-destructive">
-                    {notice}
-                  </span>
-                )}
-              </div>
-            </div>
-          </Section>
           <section className="grid min-w-0 content-start gap-3">
             <div className="flex items-center gap-2">
-              <ToneIcon icon={History} tone="weight" size="sm" />
               <h2
                 ref={historyHeadingRef}
                 tabIndex={-1}
@@ -425,107 +493,148 @@ function PrivateMeasurementsForSubject({
               ) : historyState === "empty" ? (
                 <EmptyState icon={Ruler} title={<Trans>No private entries yet.</Trans>} />
               ) : (
-                <ul className="grid min-w-0 gap-3 sm:grid-cols-2">
-                  {(history.data ?? []).map((row) => {
-                    const label = labelOf(row.kind);
-                    const when = new Date(row.measuredAt).toLocaleString();
-                    const measured = new Date(row.measuredAt);
-                    const localIso = new Date(
-                      measured.getTime() - measured.getTimezoneOffset() * 60000,
-                    ).toISOString();
+                <div className="grid items-start gap-6 lg:grid-cols-2">
+                  {groups.map(([kind, rows]) => {
+                    const label = labelOf(kind);
                     return (
-                      <li key={row.id} className="sheet grid min-w-0 content-start gap-3 p-4">
-                        <div className="flex items-start gap-3">
-                          <ToneIcon icon={row.kind === "weight" ? Scale : Ruler} tone="weight" />
-                          <div className="grid min-w-0 flex-1 gap-0.5">
-                            <span className="font-semibold text-ink">{label}</span>
-                            <span className="text-sm text-ink-3">
-                              <time dateTime={row.measuredAt} title={when}>
-                                {`${friendlyDate(i18n, localIso)} ${localIso.slice(11, 16)}`}
-                              </time>
-                            </span>
-                          </div>
-                          {canDisplayStoredValues ? (
-                            <span className="num shrink-0 rounded-full bg-weight-soft px-2.5 py-1 text-sm font-semibold text-ink">
-                              {row.value} {row.unit}
-                            </span>
-                          ) : (
-                            <StatusPill tone="neutral">
-                              <Lock className="mr-1 size-3" aria-hidden="true" />
-                              <Trans>Hidden</Trans>
-                            </StatusPill>
-                          )}
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          <Button
+                      <section
+                        key={kind}
+                        aria-label={label}
+                        className="sheet grid min-w-0 content-start gap-1 px-5 pt-4 pb-1"
+                      >
+                        <h3 className="flex items-center gap-2.5 font-body text-base font-semibold tracking-normal text-ink-2">
+                          <ToneIcon
+                            icon={kind === "weight" ? Scale : Ruler}
+                            tone="weight"
                             size="sm"
-                            variant="outline"
-                            aria-label={t`Edit ${label} entry from ${when}`}
-                            onClick={() => {
-                              setEditing(row.id);
-                              setKind(row.kind as Kind);
-                              setUnit(row.unit as Unit);
-                              // Start from the stored value, unless numbers are hidden.
-                              setValue(canDisplayStoredValues ? String(row.value) : "");
-                              setMeasuredAt(
-                                new Date(
-                                  new Date(row.measuredAt).getTime() -
-                                    new Date(row.measuredAt).getTimezoneOffset() * 60000,
-                                )
-                                  .toISOString()
-                                  .slice(0, 16),
-                              );
-                            }}
-                          >
-                            <Trans>Edit</Trans>
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            aria-label={t`Delete ${label} entry from ${when}`}
-                            onClick={() => deleteEntry(row.id)}
-                            disabled={remove.isPending}
-                          >
-                            <Trans>Delete</Trans>
-                          </Button>
-                        </div>
-                        {shouldShowPrivateMeasurementDeleteError({
-                          rowId: row.id,
-                          failedRowId: deleteErrorId,
-                          isError: remove.isError,
-                        }) && (
-                          <div role="alert">
-                            <p className="text-sm text-destructive">
-                              <Trans>
-                                Could not delete this entry. It is still in your history.
-                              </Trans>
-                            </p>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="mt-2"
-                              onClick={() => remove.mutate(row.id)}
-                              disabled={remove.isPending}
-                            >
-                              <Trans>Try delete again</Trans>
-                            </Button>
-                          </div>
-                        )}
-                      </li>
+                          />
+                          {label}
+                        </h3>
+                        <ul className="grid divide-y divide-rule">
+                          {rows.map((row, index) => {
+                            const when = new Date(row.measuredAt).toLocaleString();
+                            const localIso = toLocalInput(row.measuredAt);
+                            const before = rows[index + 1];
+                            const change =
+                              canDisplayStoredValues && before && before.unit === row.unit
+                                ? Math.round((row.value - before.value) * 10) / 10
+                                : null;
+                            return (
+                              <li key={row.id} className="grid gap-1 py-2.5">
+                                <div className="flex items-center gap-3">
+                                  <time
+                                    dateTime={row.measuredAt}
+                                    title={when}
+                                    className="num min-w-0 flex-1 text-sm text-ink-2"
+                                  >
+                                    {`${friendlyDate(i18n, localIso)} ${localIso.slice(11, 16)}`}
+                                  </time>
+                                  {canDisplayStoredValues ? (
+                                    <span className="num font-semibold text-ink">
+                                      {row.value} {row.unit}
+                                      {change !== null ? (
+                                        <span className="ml-2 text-sm font-normal text-ink-3">
+                                          {change > 0 ? `+${change}` : `${change}`}
+                                        </span>
+                                      ) : null}
+                                    </span>
+                                  ) : (
+                                    <StatusPill tone="neutral">
+                                      <Lock className="mr-1 size-3" aria-hidden="true" />
+                                      <Trans>Hidden</Trans>
+                                    </StatusPill>
+                                  )}
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    aria-label={t`Edit ${label} entry from ${when}`}
+                                    onClick={() => {
+                                      save.reset();
+                                      setDraft({
+                                        id: row.id,
+                                        kind: row.kind as Kind,
+                                        unit: row.unit as Unit,
+                                        // Start from the stored value, unless numbers are hidden.
+                                        value: canDisplayStoredValues ? String(row.value) : "",
+                                        measuredAt: localIso,
+                                      });
+                                    }}
+                                  >
+                                    <Trans>Edit</Trans>
+                                  </Button>
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="size-8"
+                                        aria-label={t`More for ${label} entry from ${when}`}
+                                      >
+                                        <MoreHorizontal className="size-4" aria-hidden="true" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                      <DropdownMenuItem
+                                        variant="destructive"
+                                        disabled={remove.isPending}
+                                        aria-label={t`Delete ${label} entry from ${when}`}
+                                        onSelect={() => deleteEntry(row.id)}
+                                      >
+                                        <Trans>Delete</Trans>
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                </div>
+                                {shouldShowPrivateMeasurementDeleteError({
+                                  rowId: row.id,
+                                  failedRowId: deleteErrorId,
+                                  isError: remove.isError,
+                                }) && (
+                                  <div role="alert">
+                                    <p className="text-sm text-destructive">
+                                      <Trans>
+                                        Could not delete this entry. It is still in your history.
+                                      </Trans>
+                                    </p>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="mt-2"
+                                      onClick={() => remove.mutate(row.id)}
+                                      disabled={remove.isPending}
+                                    >
+                                      <Trans>Try delete again</Trans>
+                                    </Button>
+                                  </div>
+                                )}
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </section>
                     );
                   })}
-                </ul>
+                </div>
               )}
-              {notice && !save.isError && (
+              {notice ? (
                 <p role="status" className="sr-only">
                   {notice}
                 </p>
-              )}
+              ) : null}
             </div>
           </section>
           <ProgressPhotos subject={subject} />
         </>
       )}
+
+      <MeasurementDialog
+        draft={draft}
+        onDraftChange={setDraft}
+        onClose={() => setDraft(null)}
+        onSave={(entry) => save.mutate(entry)}
+        saving={save.isPending}
+        failed={save.isError}
+      />
     </Page>
   );
 }

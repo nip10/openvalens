@@ -32,6 +32,24 @@ export function friendlyDate(i18n: I18n, iso: string, now: Date = new Date()): s
   }).format(date);
 }
 
+/**
+ * A night as the two days it spans, from its wake-up date: "Sun 15 → Mon 16"
+ * in the reader's locale.
+ */
+export function nightSpan(i18n: I18n, wakeIso: string): string {
+  const [y, m, d] = wakeIso.slice(0, 10).split("-").map(Number);
+  if (!y || !m || !d) return wakeIso;
+  const format = new Intl.DateTimeFormat(i18n.locale, { weekday: "short", day: "numeric" });
+  return `${format.format(new Date(y, m - 1, d - 1))} → ${format.format(new Date(y, m - 1, d))}`;
+}
+
+/** Local calendar date as YYYY-MM-DD, `days` from `now` (negative for the past). */
+export function localIsoDay(now: Date = new Date(), days = 0): string {
+  const date = new Date(now);
+  date.setDate(date.getDate() + days);
+  return isoDay(date);
+}
+
 /** A presenter's tone ("success" / "warning" / "destructive" / null) as a pill tone. */
 export function pillTone(
   tone: "success" | "warning" | "destructive" | null | undefined,

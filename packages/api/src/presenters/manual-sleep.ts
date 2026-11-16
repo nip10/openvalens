@@ -112,6 +112,27 @@ export function defaultManualSleepWindow(now: Date = new Date()): {
 }
 
 /**
+ * The night to offer when logging one: the most recent of the last
+ * `lookback` nights with no recorded sleep (by wake-up date, YYYY-MM-DD),
+ * else last night as `defaultManualSleepWindow` gives it. Never in the future.
+ */
+export function defaultNightToLog(
+  recordedWakeDates: ReadonlySet<string>,
+  now: Date = new Date(),
+  lookback = 7,
+): { bedtime: string; wakeAt: string } {
+  const latest = defaultManualSleepWindow(now);
+  const [y, m, d] = latest.wakeAt.slice(0, 10).split("-").map(Number);
+  for (let back = 0; back < lookback; back++) {
+    const wake = new Date(y!, m! - 1, d! - back, 7, 0);
+    if (recordedWakeDates.has(localMinute(wake).slice(0, 10))) continue;
+    const bed = new Date(wake.getFullYear(), wake.getMonth(), wake.getDate() - 1, 23, 0);
+    return { bedtime: localMinute(bed), wakeAt: localMinute(wake) };
+  }
+  return latest;
+}
+
+/**
  * Stable id for one member's manual night, so a double-tap or a retry of
  * "Save" keeps a single row: the same member, bedtime and wake time are the
  * same entry. The member is part of it (#509): two members of one workspace

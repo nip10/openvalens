@@ -4,6 +4,7 @@ import { englishI18n } from "@openvalens/i18n/testing";
 import {
   checkManualSleepWindow,
   defaultManualSleepWindow,
+  defaultNightToLog,
   isSleepQuality,
   MANUAL_SLEEP_ERROR_MESSAGES,
   manualSleepDedupeHash,
@@ -89,6 +90,34 @@ describe("the form", () => {
     });
     const defaults = defaultManualSleepWindow(afternoon);
     expect(parseManualSleepForm(defaults.bedtime, defaults.wakeAt, afternoon).ok).toBe(true);
+  });
+});
+
+describe("defaultNightToLog", () => {
+  const afternoon = new Date(2026, 10, 16, 15, 0);
+
+  test("offers last night when it has no recorded sleep", () => {
+    expect(defaultNightToLog(new Set(), afternoon)).toEqual({
+      bedtime: "2026-11-15T23:00",
+      wakeAt: "2026-11-16T07:00",
+    });
+  });
+
+  test("steps back to the most recent night with nothing recorded", () => {
+    expect(defaultNightToLog(new Set(["2026-11-16", "2026-11-15"]), afternoon)).toEqual({
+      bedtime: "2026-11-13T23:00",
+      wakeAt: "2026-11-14T07:00",
+    });
+  });
+
+  test("falls back to last night when every recent night is recorded", () => {
+    const all = new Set(Array.from({ length: 7 }, (_, i) => `2026-11-${String(16 - i)}`));
+    expect(defaultNightToLog(all, afternoon)).toEqual(defaultManualSleepWindow(afternoon));
+  });
+
+  test("never offers a night that has not ended", () => {
+    const night = defaultNightToLog(new Set(), new Date(2026, 10, 16, 1, 30));
+    expect(night.wakeAt).toBe("2026-11-15T07:00");
   });
 });
 

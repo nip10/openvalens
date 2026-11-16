@@ -8,7 +8,11 @@ import {
   DEXA_MEASUREMENT_LABELS,
   compositionLayer,
   dexaMeasurementTypes,
+  dexaRegionLabel,
+  dexaRegionRows,
+  formatDexaValue,
   formatSets,
+  normalizeDexaRegion,
   painLayer,
   painRegionLabel,
   trainingLayer,
@@ -23,6 +27,13 @@ import { PAIN_COPY } from "@openvalens/api/presenters/pain";
 import { browserTimeZone } from "@openvalens/api/presenters/tracker-draft";
 import { isPainRegion, type PainMapWindow } from "@openvalens/pain/model";
 import { Button } from "@openvalens/ui/components/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@openvalens/ui/components/select";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
@@ -30,6 +41,7 @@ import { useState } from "react";
 import { CalendarRange, Dumbbell, MousePointerClick, PersonStanding, ScanLine } from "lucide-react";
 
 import { Details, ErrorState, Page, PageHeader, Section, ToneIcon } from "@/components/page";
+import { friendlyDate } from "@/utils/friendly";
 import { client } from "@/utils/orpc";
 import { ModuleHiddenNote } from "@/components/module-hidden-note";
 import {
@@ -82,9 +94,6 @@ type Layer = "composition" | "training" | "pain";
  * the wellness profile, which this page does not load.
  */
 const ARTWORK = bodyMapArtwork("male");
-
-const NATIVE_SELECT =
-  "h-9 rounded-md border border-input bg-card px-3 text-ink hover:bg-muted focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-55";
 
 function localToday(): string {
   const now = new Date();
@@ -148,6 +157,7 @@ function BodyFigure({
   fills,
   spots = [],
   selected,
+  highlighted,
   onSelect,
 }: {
   view: BodyMapView;
@@ -155,6 +165,8 @@ function BodyFigure({
   /** Pain-only joint spots (#442), drawn above the regions. */
   spots?: readonly PainSpot[];
   selected: string | null;
+  /** Regions to outline, e.g. while a row of the regional table is hovered. */
+  highlighted?: ReadonlySet<string>;
   onSelect: (id: string) => void;
 }) {
   const { t, i18n } = useLingui();
@@ -165,7 +177,7 @@ function BodyFigure({
   return (
     <svg
       viewBox={BODY_MAP_VIEWBOX}
-      className="mx-auto h-[34rem] w-auto max-w-full text-ink"
+      className="mx-auto h-[24rem] w-auto max-w-full text-ink sm:h-[34rem]"
       role="group"
       aria-label={view === "front" ? t`Body map, front view` : t`Body map, back view`}
     >
@@ -183,8 +195,10 @@ function BodyFigure({
             key={`${region.view}:${region.id}`}
             d={region.path}
             fill={fill.colour}
-            stroke={selected === region.id ? "var(--ink)" : "var(--ink-3)"}
-            strokeWidth={selected === region.id ? 2 : 0.75}
+            stroke={
+              selected === region.id || highlighted?.has(region.id) ? "var(--ink)" : "var(--ink-3)"
+            }
+            strokeWidth={selected === region.id || highlighted?.has(region.id) ? 2 : 0.75}
             strokeLinejoin="round"
             vectorEffect="non-scaling-stroke"
             tabIndex={0}
@@ -208,11 +222,69 @@ function BodyFigure({
   );
 }
 
+const LAYER_KEY = "openvalens.bodyMap.layer";
+
+/** The layer the member looked at last, on this browser only. */
+function rememberedLayer(): Layer | null {
+  try {
+    const value = window.localStorage.getItem(LAYER_KEY);
+    return value === "composition" || value === "training" || value === "pain" ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function rememberLayer(layer: Layer) {
+  try {
+    window.localStorage.setItem(LAYER_KEY, layer);
+  } catch {
+    // Storage can be off (private window); the page works without it.
+  }
+}
+
+/** The shared picker in a labelled column. */
+function Picker({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: readonly { value: string; label: string }[];
+}) {
+  return (
+    <div className="grid min-w-0 gap-1.5 text-ink-3">
+      <span>{label}</span>
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger className="w-full" aria-label={label}>
+          <SelectValue>{options.find((option) => option.value === value)?.label}</SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
 export function BodyMapPage({
   initialLayer,
   initialRegion,
 }: { initialLayer?: Layer; initialRegion?: string } = {}) {
-  const [layer, setLayer] = useState<Layer>(initialLayer ?? "composition");
+  const [layer, setLayerState] = useState<Layer>(
+    () =>
+      initialLayer ?? (typeof window === "undefined" ? null : rememberedLayer()) ?? "composition",
+  );
+  const setLayer = (next: Layer) => {
+    setLayerState(next);
+    rememberLayer(next);
+  };
   // A back region (back.lower_back_left) shows the back view.
   const [view, setView] = useState<BodyMapView>(
     initialRegion?.startsWith("back.") ? "back" : "front",
@@ -220,8 +292,10 @@ export function BodyMapPage({
   const [selected, setSelected] = useState<string | null>(
     initialLayer === "pain" ? (initialRegion ?? null) : null,
   );
+  const [hovered, setHovered] = useState<readonly string[]>([]);
   const [scanId, setScanId] = useState<number | null>(null);
-  const [compareScanId, setCompareScanId] = useState<number | null>(null);
+  // Undefined: the default, which compares with the scan before when there is one.
+  const [compareChoice, setCompareChoice] = useState<number | null | undefined>(undefined);
   const [measurementType, setMeasurementType] = useState<string | null>(null);
   const [painDays, setPainDays] = useState<PainMapWindow>(7);
   const today = localToday();
@@ -235,12 +309,27 @@ export function BodyMapPage({
   const scans = useQuery({
     queryKey: ["bodyMap", "scans"],
     queryFn: async () =>
-      ((await client.body.listDexaScans({})) as { id: number; date: string }[])
-        .map((scan) => ({ id: scan.id, date: scan.date }))
+      (
+        (await client.body.listDexaScans({})) as {
+          id: number;
+          date: string;
+          bodyFatPct?: unknown;
+        }[]
+      )
+        .map((scan) => ({
+          id: scan.id,
+          date: scan.date,
+          bodyFatPct: typeof scan.bodyFatPct === "number" ? scan.bodyFatPct : null,
+        }))
         .sort((a, b) => b.date.localeCompare(a.date)),
     enabled: layer === "composition",
   });
-  const activeScanId = scanId ?? scans.data?.[0]?.id ?? null;
+  const activeScan = scans.data?.find((scan) => scan.id === scanId) ?? scans.data?.[0] ?? null;
+  const activeScanId = activeScan?.id ?? null;
+  const earlierScans = (scans.data ?? []).filter(
+    (scan) => activeScan && scan.id !== activeScan.id && scan.date <= activeScan.date,
+  );
+  const compareScanId = compareChoice === undefined ? (earlierScans[0]?.id ?? null) : compareChoice;
   const composition = useQuery({
     queryKey: ["bodyMap", "composition", activeScanId, compareScanId],
     queryFn: () =>
@@ -275,23 +364,45 @@ export function BodyMapPage({
   const types = composition.data ? dexaMeasurementTypes(composition.data.values) : [];
   const activeType =
     measurementType && types.includes(measurementType) ? measurementType : types[0];
+  const compareValues = composition.data?.compare?.values;
   const compositionResult =
     composition.data && activeType
       ? compositionLayer(
           {
             measurementType: activeType,
             values: composition.data.values,
-            ...(composition.data.compare ? { compareValues: composition.data.compare.values } : {}),
+            ...(compareValues ? { compareValues } : {}),
           },
           i18n,
         )
       : null;
+  const regionRows =
+    composition.data && activeType
+      ? dexaRegionRows({
+          measurementType: activeType,
+          values: composition.data.values,
+          ...(compareValues ? { compareValues } : {}),
+        })
+      : [];
   const trainingResult = training.data ? trainingLayer(training.data.exercises, i18n) : null;
   const painResult =
     painOn && painMap.data ? painLayer(painMap.data.regions, painDays, i18n) : null;
   const scanSource = composition.data?.scan.source ?? "";
-  const scanDate = composition.data?.scan.date ?? "";
-  const compareDate = composition.data?.compare?.scan.date ?? null;
+  const scanDate = composition.data?.scan.date
+    ? friendlyDate(i18n, composition.data.scan.date)
+    : "";
+  const compareDate = composition.data?.compare?.scan.date
+    ? friendlyDate(i18n, composition.data.compare.scan.date)
+    : null;
+  // The caption says something the pickers do not: the scan's total body fat.
+  const totalFat =
+    composition.data?.values.find(
+      (row) =>
+        row.measurementType === "fat_pct" &&
+        ["total", "whole_body"].includes(normalizeDexaRegion(row.region)),
+    )?.value ??
+    activeScan?.bodyFatPct ??
+    null;
   const trainingFrom = training.data?.from ?? "…";
   const trainingTo = training.data?.to ?? today;
   const result =
@@ -315,6 +426,7 @@ export function BodyMapPage({
       : layer === "training"
         ? training.isPending
         : painPreference.isPending || (painOn && painMap.isPending);
+  const selectedRow = regionRows.find((row) => selected && row.mapRegionIds.includes(selected));
 
   return (
     <Page>
@@ -323,54 +435,25 @@ export function BodyMapPage({
         title={<Trans>Body map</Trans>}
         info={i18n._(BODY_MAP_COPY.intro)}
         actions={
-          <>
-            <Toggle
-              label={t`Layer`}
-              value={layer}
-              onChange={(value) => {
-                setLayer(value);
-                setSelected(null);
-              }}
-              options={[
-                { value: "composition", label: t`Composition` },
-                { value: "training", label: t`Training` },
-                { value: "pain", label: t`Pain` },
-              ]}
-            />
-            <Toggle
-              label={t`Side`}
-              value={view}
-              onChange={(value) => {
-                setView(value);
-                setSelected(null);
-              }}
-              options={[
-                { value: "front", label: t`Front` },
-                { value: "back", label: t`Back` },
-              ]}
-            />
-          </>
+          <Toggle
+            label={t`Layer`}
+            value={layer}
+            onChange={(value) => {
+              setLayer(value);
+              setSelected(null);
+            }}
+            options={[
+              { value: "composition", label: t`Composition` },
+              { value: "training", label: t`Training` },
+              { value: "pain", label: t`Pain` },
+            ]}
+          />
         }
       />
 
-      <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
-        {result || figurePending ? (
-          <div className="sheet grid min-h-[36rem] place-items-center gap-5 px-5 py-6">
-            {result ? (
-              <BodyFigure
-                view={view}
-                fills={result.fills}
-                spots={layer === "pain" ? ARTWORK.painSpots : []}
-                selected={selected}
-                onSelect={setSelected}
-              />
-            ) : (
-              <Skeleton className="h-[34rem] w-full max-w-64" />
-            )}
-          </div>
-        ) : null}
-
-        <div className="grid min-w-0 content-start gap-8">
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:gap-8">
+        {/* Pickers and layer controls: above the figure on phones, beside it on desktop. */}
+        <div className="grid min-w-0 content-start gap-6 lg:col-start-2 lg:row-start-1">
           {layer === "composition" ? (
             <Section
               icon={ScanLine}
@@ -393,58 +476,42 @@ export function BodyMapPage({
                     <Trans>No DEXA scans yet. Import a scan to see measured regions here.</Trans>
                   </p>
                 ) : (
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <label className="grid gap-1.5 text-ink-3">
-                      <Trans>Scan</Trans>
-                      <select
-                        className={NATIVE_SELECT}
-                        value={activeScanId ?? ""}
-                        onChange={(event) => {
-                          setScanId(Number(event.target.value));
-                          setCompareScanId(null);
-                        }}
-                      >
-                        {scans.data.map((scan) => (
-                          <option key={scan.id} value={scan.id}>
-                            {scan.date}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="grid gap-1.5 text-ink-3">
-                      <Trans>Compare with</Trans>
-                      <select
-                        className={NATIVE_SELECT}
-                        value={compareScanId ?? ""}
-                        onChange={(event) =>
-                          setCompareScanId(event.target.value ? Number(event.target.value) : null)
-                        }
-                      >
-                        <option value="">{t`No comparison`}</option>
-                        {scans.data
-                          .filter((scan) => scan.id !== activeScanId)
-                          .map((scan) => (
-                            <option key={scan.id} value={scan.id}>
-                              {scan.date}
-                            </option>
-                          ))}
-                      </select>
-                    </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Picker
+                      label={t`Scan`}
+                      value={String(activeScanId ?? "")}
+                      onChange={(value) => {
+                        setScanId(Number(value));
+                        setCompareChoice(undefined);
+                      }}
+                      options={scans.data.map((scan) => ({
+                        value: String(scan.id),
+                        label: friendlyDate(i18n, scan.date),
+                      }))}
+                    />
+                    <Picker
+                      label={t`Compare with`}
+                      value={String(compareScanId ?? "none")}
+                      onChange={(value) =>
+                        setCompareChoice(value === "none" ? null : Number(value))
+                      }
+                      options={[
+                        { value: "none", label: t`No comparison` },
+                        ...earlierScans.map((scan) => ({
+                          value: String(scan.id),
+                          label: friendlyDate(i18n, scan.date),
+                        })),
+                      ]}
+                    />
                     {types.length > 1 ? (
-                      <label className="grid gap-1.5 text-ink-3 sm:col-span-2">
-                        <Trans>Measurement</Trans>
-                        <select
-                          className={NATIVE_SELECT}
-                          value={activeType}
-                          onChange={(event) => setMeasurementType(event.target.value)}
-                        >
-                          {types.map((type) => (
-                            <option key={type} value={type}>
-                              {typeLabel(type)}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
+                      <div className="col-span-2">
+                        <Picker
+                          label={t`Measurement`}
+                          value={activeType ?? ""}
+                          onChange={setMeasurementType}
+                          options={types.map((type) => ({ value: type, label: typeLabel(type) }))}
+                        />
+                      </div>
                     ) : null}
                   </div>
                 )}
@@ -463,8 +530,10 @@ export function BodyMapPage({
                     {compareDate
                       ? t`${scanSource}, ${scanDate}, compared with ${compareDate}`
                       : `${scanSource}, ${scanDate}`}
-                    {activeType ? (
-                      <span className="block text-ink-3">{typeLabel(activeType)}</span>
+                    {totalFat !== null ? (
+                      <span className="num block text-ink-3">
+                        {t`Total body fat ${formatDexaValue(totalFat, "fat_pct")}`}
+                      </span>
                     ) : null}
                   </p>
                 ) : null}
@@ -543,44 +612,123 @@ export function BodyMapPage({
               ) : null}
             </Section>
           )}
+        </div>
 
-          {result ? (
-            <>
-              <div
-                role="status"
-                aria-live="polite"
-                className="sheet flex items-start gap-3 p-5 text-sm"
-              >
-                <ToneIcon
-                  icon={selectedLabel && selectedFill ? PersonStanding : MousePointerClick}
-                  tone="weight"
-                />
-                <div className="grid min-w-0 gap-0.5">
-                  {selectedLabel && selectedFill ? (
-                    <>
-                      <p className="font-semibold text-ink-2">{i18n._(selectedLabel)}</p>
-                      <p className="num font-display text-[1.75rem] leading-tight font-medium text-ink">
-                        {selectedFill.valueText ?? t`No value`}
-                      </p>
-                      {selectedFill.sourceText ? (
-                        <p className="text-ink-3">{selectedFill.sourceText}</p>
-                      ) : null}
-                      {layer === "composition" && composition.data ? (
-                        <p className="text-ink-3">
-                          <Trans>Scan {scanDate}</Trans>
-                        </p>
-                      ) : null}
-                    </>
-                  ) : (
-                    <p className="pt-2 text-ink-3">
-                      <Trans>Select a region to see its value.</Trans>
-                    </p>
-                  )}
-                </div>
-              </div>
-              <Legend steps={result.legend} />
-            </>
+        {result || figurePending ? (
+          <div className="sheet relative grid place-items-center gap-5 px-5 pt-14 pb-6 sm:min-h-[36rem] lg:col-start-1 lg:row-span-2 lg:row-start-1">
+            {/* Front and back belong to the figure, so they sit on its card. */}
+            <div className="absolute top-4 right-4">
+              <Toggle
+                label={t`Side`}
+                value={view}
+                onChange={(value) => {
+                  setView(value);
+                  setSelected(null);
+                }}
+                options={[
+                  { value: "front", label: t`Front` },
+                  { value: "back", label: t`Back` },
+                ]}
+              />
+            </div>
+            {result ? (
+              <BodyFigure
+                view={view}
+                fills={result.fills}
+                spots={layer === "pain" ? ARTWORK.painSpots : []}
+                selected={selected}
+                highlighted={new Set(hovered)}
+                onSelect={setSelected}
+              />
+            ) : (
+              <Skeleton className="h-[24rem] w-full max-w-64 sm:h-[34rem]" />
+            )}
+          </div>
+        ) : null}
+
+        <div className="grid min-w-0 content-start gap-6 lg:col-start-2 lg:row-start-2">
+          {layer === "composition" && result && regionRows.length > 0 ? (
+            <div className="sheet min-w-0 px-2 pt-2 pb-1">
+              <table className="w-full text-sm">
+                <caption className="sr-only">
+                  {activeType ? typeLabel(activeType) : <Trans>Regions</Trans>}
+                </caption>
+                <thead>
+                  <tr className="text-left text-ink-3">
+                    <th scope="col" className="px-3 py-2 font-medium">
+                      <Trans>Region</Trans>
+                    </th>
+                    <th scope="col" className="num px-3 py-2 text-right font-medium">
+                      {activeType ? typeLabel(activeType) : null}
+                    </th>
+                    {compareValues ? (
+                      <th scope="col" className="num px-3 py-2 text-right font-medium">
+                        <Trans>Change</Trans>
+                      </th>
+                    ) : null}
+                  </tr>
+                </thead>
+                <tbody>
+                  {regionRows.map((row) => {
+                    const active = row === selectedRow;
+                    return (
+                      <tr
+                        key={row.region}
+                        className={`border-t border-rule transition-colors duration-[var(--dur-short)] hover:bg-paper-2 ${active ? "bg-paper-2" : ""} ${row.region === "total" ? "font-semibold" : ""}`}
+                        onMouseEnter={() => setHovered(row.mapRegionIds)}
+                        onMouseLeave={() => setHovered([])}
+                      >
+                        <th scope="row" className="px-3 py-2 text-left font-medium text-ink-2">
+                          {dexaRegionLabel(row, i18n)}
+                        </th>
+                        <td className="num px-3 py-2 text-right text-ink">
+                          {formatDexaValue(row.value, activeType!)}
+                        </td>
+                        {compareValues ? (
+                          <td className="num px-3 py-2 text-right text-ink-2">
+                            {row.change === null
+                              ? "—"
+                              : formatDexaValue(row.change, activeType!, true)}
+                          </td>
+                        ) : null}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           ) : null}
+
+          {result && layer !== "composition" ? (
+            <div
+              role="status"
+              aria-live="polite"
+              className="sheet flex items-start gap-3 p-5 text-sm"
+            >
+              <ToneIcon
+                icon={selectedLabel && selectedFill ? PersonStanding : MousePointerClick}
+                tone="weight"
+              />
+              <div className="grid min-w-0 gap-0.5">
+                {selectedLabel && selectedFill ? (
+                  <>
+                    <p className="font-semibold text-ink-2">{i18n._(selectedLabel)}</p>
+                    <p className="num font-display text-[1.75rem] leading-tight font-medium text-ink">
+                      {selectedFill.valueText ?? t`No value`}
+                    </p>
+                    {selectedFill.sourceText ? (
+                      <p className="text-ink-3">{selectedFill.sourceText}</p>
+                    ) : null}
+                  </>
+                ) : (
+                  <p className="pt-2 text-ink-3">
+                    <Trans>Select a region to see its value.</Trans>
+                  </p>
+                )}
+              </div>
+            </div>
+          ) : null}
+          {result ? <Legend steps={result.legend} /> : null}
 
           {layer === "pain" && painOn && painPreference.data ? (
             <>

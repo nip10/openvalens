@@ -157,6 +157,46 @@ export function heartRateSeries(days: readonly DailyVitalsLike[]): {
   }));
 }
 
+/** The daily vitals a trend chart can plot, one value per day. */
+export type VitalsTrendMetric = "heart_rate" | "resting_heart_rate" | "hrv" | "spo2" | "breathing";
+
+/** One day's value for `metric`, or null when the day has none. */
+export function vitalsDayValue(day: DailyVitalsLike, metric: VitalsTrendMetric): number | null {
+  switch (metric) {
+    case "heart_rate":
+      return day.heartRate.avgBpm;
+    case "resting_heart_rate":
+      return day.restingHeartRate.avgBpm;
+    case "hrv":
+      return day.hrv?.avgMs ?? null;
+    case "spo2":
+      return day.oxygenSaturation?.avgPercent ?? null;
+    case "breathing":
+      return day.respiratoryRate?.avgBreathsPerMinute ?? null;
+  }
+}
+
+/** Chart series for one metric: oldest first, null on days without a value. */
+export function vitalsTrendSeries(
+  days: readonly DailyVitalsLike[],
+  metric: VitalsTrendMetric,
+): { date: string; value: number | null }[] {
+  return days.map((day) => ({ date: day.date, value: vitalsDayValue(day, metric) }));
+}
+
+/** Mean of the last seven days that have a value (one decimal), or null. */
+export function vitalsSevenDayAverage(
+  days: readonly DailyVitalsLike[],
+  metric: VitalsTrendMetric,
+): number | null {
+  const values = days
+    .slice(-7)
+    .map((day) => vitalsDayValue(day, metric))
+    .filter((value): value is number => value !== null);
+  if (values.length === 0) return null;
+  return Math.round((values.reduce((sum, value) => sum + value, 0) / values.length) * 10) / 10;
+}
+
 /**
  * "Health Connect" / "Apple Health" / "Other" — sentence-case source label.
  * Source names are brand names and stay as they are; only "Other" is

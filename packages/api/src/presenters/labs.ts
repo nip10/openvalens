@@ -132,6 +132,93 @@ export function displayLabRange(
   return null;
 }
 
+/**
+ * Where a marker's readings and the lab's printed range sit on one line, as
+ * percentages of its width. Placement only: nothing here judges a reading
+ * against the range (never-add item 1), so there is no inside/outside result.
+ *
+ * The scale runs from the range with some room either side (as on mobile,
+ * `labRangeBar`), widened so every reading fits. `band` is null when the range
+ * cannot be drawn on the readings' scale: a text range, another unit, or no
+ * range at all; the readings are still placed, on a scale of their own.
+ * Returns null when there is nothing to draw (no readings, or one reading and
+ * no range).
+ */
+export type LabRangeLine = {
+  min: number;
+  max: number;
+  band: { start: number; end: number; low: string | null; high: string | null } | null;
+  /** Position of each value, in the order given (oldest first, latest last). */
+  points: number[];
+};
+
+function sameUnit(a: string | null | undefined, b: string | null | undefined): boolean {
+  return (a ?? "").trim().toLowerCase() === (b ?? "").trim().toLowerCase();
+}
+
+export function labRangeLine(
+  values: readonly number[],
+  valueUnit: string | null | undefined,
+  range: LabRangeDisplay | null,
+): LabRangeLine | null {
+  const finite = values.filter((value) => Number.isFinite(value));
+  if (finite.length === 0) return null;
+  let min: number | null = null;
+  let max: number | null = null;
+  let low: number | null = null;
+  let high: number | null = null;
+  let lowText: string | null = null;
+  let highText: string | null = null;
+  if (range && range.kind !== "text" && sameUnit(valueUnit, range.unit)) {
+    if (range.kind === "between") {
+      const l = Number(range.low);
+      const h = Number(range.high);
+      if (Number.isFinite(l) && Number.isFinite(h) && h > l) {
+        const pad = (h - l) / 2;
+        [min, max, low, high, lowText, highText] = [
+          l >= 0 ? Math.max(0, l - pad) : l - pad,
+          h + pad,
+          l,
+          h,
+          range.low,
+          range.high,
+        ];
+      }
+    } else if (range.kind === "upTo") {
+      const h = Number(range.high);
+      // A one-sided "up to" range is shaded from the start of the scale.
+      if (Number.isFinite(h) && h > 0)
+        [min, max, low, high, highText] = [0, h * 1.5, 0, h, range.high];
+    } else {
+      const l = Number(range.low);
+      if (Number.isFinite(l) && l > 0)
+        [min, max, low, high, lowText] = [l / 2, l * 2, l, null, range.low];
+    }
+  }
+  const lowest = Math.min(...finite);
+  const highest = Math.max(...finite);
+  if (min === null || max === null) {
+    if (highest === lowest) return null;
+    const pad = (highest - lowest) * 0.25;
+    min = lowest - pad;
+    max = highest + pad;
+  } else {
+    const room = (max - min) * 0.08;
+    if (lowest < min) min = lowest - room;
+    if (highest > max) max = highest + room;
+  }
+  const at = (value: number) => ((value - min!) / (max! - min!)) * 100;
+  return {
+    min,
+    max,
+    band:
+      low === null
+        ? null
+        : { start: at(low), end: high === null ? 100 : at(high), low: lowText, high: highText },
+    points: finite.map(at),
+  };
+}
+
 /** The translated line for a range: "Lab range 30 to 100 ng/mL". */
 export function labRangeMessage(range: LabRangeDisplay): MessageDescriptor {
   switch (range.kind) {

@@ -694,6 +694,89 @@ export function compositionLayer(
   return { fills, legend };
 }
 
+/** "24.1%", "1.123 g/cm²", or signed ("+0.4%") for a change. */
+export function formatDexaValue(value: number, measurementType: string, signed = false): string {
+  return formatMeasurement(value, measurementType, signed);
+}
+
+/** Names for the DEXA regions scans report, in the order the table lists them. */
+export const DEXA_REGION_LABELS: Readonly<Record<string, MessageDescriptor>> = Object.freeze({
+  head: msg({ message: "Head", context: "dexa region" }),
+  arms: msg({ message: "Arms", context: "dexa region" }),
+  left_arm: msg({ message: "Left arm", context: "dexa region" }),
+  right_arm: msg({ message: "Right arm", context: "dexa region" }),
+  trunk: msg({ message: "Trunk", context: "dexa region" }),
+  android: msg({ message: "Android (belly)", context: "dexa region" }),
+  gynoid: msg({ message: "Gynoid (hips)", context: "dexa region" }),
+  legs: msg({ message: "Legs", context: "dexa region" }),
+  left_leg: msg({ message: "Left leg", context: "dexa region" }),
+  right_leg: msg({ message: "Right leg", context: "dexa region" }),
+  total: msg({ message: "Total", context: "dexa region" }),
+  whole_body: msg({ message: "Total", context: "dexa region" }),
+});
+
+/** A region's name: a known label, else the scan's own name. */
+export function dexaRegionLabel(row: Pick<DexaRegionRow, "region" | "name">, i18n: I18n): string {
+  const known = DEXA_REGION_LABELS[row.region];
+  return known ? i18n._(known) : row.name;
+}
+
+export type DexaRegionRow = {
+  /** Normalized DEXA region (`left_arm`, `trunk`, `total`). */
+  region: string;
+  /** The region as the scan named it. */
+  name: string;
+  value: number;
+  /** Change since the compared scan, when both report the region. */
+  change: number | null;
+  /** Map regions that draw this DEXA region (none for `total`). */
+  mapRegionIds: string[];
+};
+
+/**
+ * The scan's regional values for one measurement, as rows beside the figure:
+ * every region the scan reported, the total last, with the change since the
+ * compared scan. Values are as measured; nothing is estimated.
+ */
+export function dexaRegionRows(input: {
+  measurementType: string;
+  values: readonly DexaValue[];
+  compareValues?: readonly DexaValue[];
+}): DexaRegionRow[] {
+  const earlier = input.compareValues
+    ? valuesByRegion(input.compareValues, input.measurementType)
+    : null;
+  const seen = new Set<string>();
+  const rows: DexaRegionRow[] = [];
+  for (const row of input.values) {
+    if (row.measurementType !== input.measurementType || !Number.isFinite(row.value)) continue;
+    const region = normalizeDexaRegion(row.region);
+    if (seen.has(region)) continue;
+    seen.add(region);
+    const before = earlier?.get(region);
+    rows.push({
+      region,
+      name: row.region,
+      value: row.value,
+      change: before === undefined ? null : row.value - before,
+      mapRegionIds: BODY_MAP_REGIONS.filter((mapRegion) =>
+        mapRegion.dexaSources.includes(region),
+      ).map((mapRegion) => mapRegion.id),
+    });
+  }
+  // Known regions in body order (the total last), then any others as the scan listed them.
+  const order = Object.keys(DEXA_REGION_LABELS);
+  const rank = (row: DexaRegionRow) => {
+    const index = order.indexOf(row.region);
+    if (row.region === "total" || row.region === "whole_body") return order.length + 1;
+    return index === -1 ? order.length : index;
+  };
+  return rows
+    .map((row, index) => ({ row, index }))
+    .sort((a, b) => rank(a.row) - rank(b.row) || a.index - b.index)
+    .map(({ row }) => row);
+}
+
 // ─── Training layer ──────────────────────────────────────────────
 
 /**

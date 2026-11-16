@@ -1,16 +1,23 @@
 import type { MessageDescriptor } from "@lingui/core";
 import { msg, plural } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { CYCLE_COPY } from "@openvalens/api/presenters/cycle";
+import {
+  CYCLE_COPY,
+  cycleStrips,
+  recentCycleLengths,
+  type CycleStrip,
+  type StripDay,
+} from "@openvalens/api/presenters/cycle";
 import { Button } from "@openvalens/ui/components/button";
 import { Input } from "@openvalens/ui/components/input";
 import { Label } from "@openvalens/ui/components/label";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
-import { CalendarHeart, Droplet, History, Lock, Plus, Settings2 } from "lucide-react";
+import { type CSSProperties, useState } from "react";
+import { CalendarHeart, Droplet, History, Lock, Rows3, Settings2 } from "lucide-react";
 
+import { LogDialog } from "@/components/log-dialog";
 import {
   Details,
   EmptyState,
@@ -22,6 +29,7 @@ import {
   StatusPill,
   ToneIcon,
 } from "@/components/page";
+import { useLogDialog } from "@/components/quick-log/log-launcher";
 import { authClient } from "@/lib/auth-client";
 import { friendlyDate } from "@/utils/friendly";
 import { client } from "@/utils/orpc";
@@ -32,11 +40,13 @@ export const Route = createFileRoute("/_auth/cycle")({ component: CyclePage });
 /**
  * Optional cycle logging (#91). Off until the member accepts its own consent.
  * Phases are estimates counted back from the next logged period; nothing here
- * predicts ovulation or fertility, and nothing changes nutrition targets.
+ * predicts ovulation or fertility, and nothing changes nutrition targets. The
+ * day strips colour only what was logged and the existing luteal estimate.
  */
 
 const FLOWS = ["spotting", "light", "medium", "heavy"] as const;
-const FLOW_LABELS: Record<(typeof FLOWS)[number], MessageDescriptor> = {
+type Flow = (typeof FLOWS)[number];
+const FLOW_LABELS: Record<Flow, MessageDescriptor> = {
   spotting: msg`Spotting`,
   light: msg({ message: "Light", context: "period flow" }),
   medium: msg`Medium`,
@@ -49,9 +59,6 @@ function localToday(): string {
   return now.toISOString().slice(0, 10);
 }
 
-const NATIVE_SELECT =
-  "h-9 rounded-md border border-input bg-card px-3 text-ink hover:bg-muted focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-55";
-
 function CyclePage() {
   const { data: auth, isPending } = authClient.useSession();
   const scope =
@@ -60,7 +67,7 @@ function CyclePage() {
       : null;
   if (isPending || !scope)
     return (
-      <Page width="narrow">
+      <Page>
         <ModuleHiddenNote module="cycle" />
         <PageHeader title={<Trans>Cycle</Trans>} />
         <p role="status" className="text-sm text-ink-3">
@@ -92,7 +99,7 @@ function CycleForMember({ scope }: { scope: string }) {
   });
 
   return (
-    <Page width="narrow">
+    <Page>
       <ModuleHiddenNote module="cycle" />
       <PageHeader
         title={<Trans>Cycle</Trans>}
@@ -115,7 +122,13 @@ function CycleForMember({ scope }: { scope: string }) {
           }
         />
       ) : !settings.data.enabled ? (
-        <Section icon={Lock} tone="heart" title={<Trans>Cycle logging is off</Trans>} sheet>
+        <Section
+          icon={Lock}
+          tone="heart"
+          title={<Trans>Cycle logging is off</Trans>}
+          sheet
+          className="max-w-3xl"
+        >
           <div className="grid justify-items-start gap-4">
             <p className="max-w-[65ch] text-ink-2">{i18n._(CYCLE_COPY.consentText)}</p>
             <label className="flex items-start gap-2 text-ink-2">
@@ -150,6 +163,260 @@ function CycleForMember({ scope }: { scope: string }) {
   );
 }
 
+// Flow shades: the heavier the flow, the stronger the cycle tone.
+const FLOW_FILL: Record<Flow, string> = {
+  heavy: "var(--tone-heart)",
+  medium: "color-mix(in oklab, var(--tone-heart) 70%, var(--sheet))",
+  light: "color-mix(in oklab, var(--tone-heart) 45%, var(--sheet))",
+  spotting: "color-mix(in oklab, var(--tone-heart) 22%, var(--sheet))",
+};
+const HATCH =
+  "repeating-linear-gradient(135deg, color-mix(in oklab, var(--tone-heart) 35%, var(--sheet)) 0 2px, var(--paper-2) 2px 6px)";
+
+function cellStyle(day: Pick<StripDay, "period" | "estimated">): CSSProperties {
+  if (day.period === "unrecorded")
+    return {
+      background: "var(--paper-2)",
+      boxShadow: "inset 0 0 0 2px var(--tone-heart)",
+    };
+  if (day.period) return { background: FLOW_FILL[day.period] };
+  if (day.estimated) return { background: HATCH };
+  return { background: "var(--paper-2)" };
+}
+
+/** What one cell shows, for its tooltip and the strip's description. */
+function useDayText() {
+  const { t, i18n } = useLingui();
+  return (day: StripDay) => {
+    const date = friendlyDate(i18n, day.date);
+    const what =
+      day.period === "unrecorded"
+        ? t`Period, flow not recorded`
+        : day.period
+          ? t`Period, ${i18n._(FLOW_LABELS[day.period])}`
+          : day.estimated
+            ? i18n._(CYCLE_COPY.estimateLabel)
+            : null;
+    return what ? t`Day ${day.day}, ${date}: ${what}` : t`Day ${day.day}, ${date}`;
+  };
+}
+
+/** One cycle as a row of day cells, aligned by day number across rows. */
+function DayStrip({
+  strip,
+  columns,
+  label,
+}: {
+  strip: CycleStrip;
+  columns: number;
+  label: string;
+}) {
+  const dayText = useDayText();
+  const periodDays = strip.days.filter((day) => day.period).length;
+  const { t } = useLingui();
+  const summary = `${label}. ${t`${plural(periodDays, { one: "# period day logged", other: "# period days logged" })}`}`;
+  return (
+    <div
+      role="img"
+      aria-label={summary}
+      className="grid gap-0.5"
+      style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+    >
+      {strip.days.map((day) => (
+        <span
+          key={day.date}
+          title={dayText(day)}
+          className={
+            day.today
+              ? "h-5 rounded-[4px] outline-2 outline-offset-1 outline-ink sm:h-6"
+              : "h-5 rounded-[4px] sm:h-6"
+          }
+          style={cellStyle(day)}
+        />
+      ))}
+    </div>
+  );
+}
+
+/** Day numbers above the strips: 1, 7, 14, 21, 28, … */
+function DayAxis({ columns }: { columns: number }) {
+  const marks = [1, ...Array.from({ length: Math.floor(columns / 7) }, (_, i) => (i + 1) * 7)];
+  return (
+    <div
+      aria-hidden="true"
+      className="grid gap-0.5 text-xs text-ink-3"
+      style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+    >
+      {marks.map((mark) => (
+        <span key={mark} className="num" style={{ gridColumn: `${mark} / span 1` }}>
+          {mark}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function StripLegend() {
+  const { t, i18n } = useLingui();
+  const items: { label: string; style: CSSProperties }[] = [
+    ...(["light", "medium", "heavy"] as const).map((flow) => ({
+      label: i18n._(FLOW_LABELS[flow]),
+      style: cellStyle({ period: flow, estimated: false }),
+    })),
+    {
+      label: t`Flow not recorded`,
+      style: cellStyle({ period: "unrecorded", estimated: false }),
+    },
+    {
+      label: t`Estimated luteal phase`,
+      style: cellStyle({ period: null, estimated: true }),
+    },
+  ];
+  return (
+    <ul className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-ink-2" aria-label={t`Legend`}>
+      {items.map((item) => (
+        <li key={item.label} className="flex items-center gap-2">
+          <span
+            aria-hidden="true"
+            className="inline-block size-3.5 rounded-[4px]"
+            style={item.style}
+          />
+          {item.label}
+        </li>
+      ))}
+      <li className="flex items-center gap-2">
+        <span
+          aria-hidden="true"
+          className="inline-block size-3.5 rounded-[4px] bg-paper-2 outline-2 outline-offset-1 outline-ink"
+        />
+        <Trans>Today</Trans>
+      </li>
+    </ul>
+  );
+}
+
+/**
+ * The page's own "Log a period" form, opened from the "+" (`useLogDialog`):
+ * start, an optional end, flow and notes.
+ */
+function PeriodDialog({
+  open,
+  onOpenChange,
+  today,
+  onSaved,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  today: string;
+  onSaved: (message: string) => void;
+}) {
+  const { t, i18n } = useLingui();
+  const [startDate, setStartDate] = useState(today);
+  const [endDate, setEndDate] = useState("");
+  const [flow, setFlow] = useState<Flow | null>(null);
+  const [notes, setNotes] = useState("");
+  const log = useMutation({
+    mutationFn: () =>
+      client.cycle.logPeriod({
+        startDate,
+        endDate: endDate || null,
+        flow,
+        notes: notes.trim() || null,
+      }),
+    onSuccess: () => {
+      setEndDate("");
+      setFlow(null);
+      setNotes("");
+      onSaved(t`Period saved.`);
+      onOpenChange(false);
+    },
+  });
+
+  return (
+    <LogDialog open={open} onOpenChange={onOpenChange} title={<Trans>Log a period</Trans>}>
+      <form
+        className="grid gap-4"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (startDate) log.mutate();
+        }}
+      >
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-1.5">
+            <Label htmlFor="cycle-start">
+              <Trans>Start date</Trans>
+            </Label>
+            <Input
+              id="cycle-start"
+              type="date"
+              max={today}
+              value={startDate}
+              onChange={(event) => setStartDate(event.target.value)}
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="cycle-end">
+              <Trans>End date (optional)</Trans>
+            </Label>
+            <Input
+              id="cycle-end"
+              type="date"
+              min={startDate}
+              value={endDate}
+              onChange={(event) => setEndDate(event.target.value)}
+            />
+          </div>
+        </div>
+        <fieldset className="grid gap-2">
+          <legend className="text-sm font-medium">
+            <Trans>Flow (optional)</Trans>
+          </legend>
+          <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={t`Flow`}>
+            {FLOWS.map((value) => {
+              const selected = flow === value;
+              return (
+                <Button
+                  key={value}
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="aria-checked:border-heart aria-checked:bg-heart-soft"
+                  role="radio"
+                  aria-checked={selected}
+                  onClick={() => setFlow(selected ? null : value)}
+                >
+                  {i18n._(FLOW_LABELS[value])}
+                </Button>
+              );
+            })}
+          </div>
+        </fieldset>
+        <div className="grid gap-1.5">
+          <Label htmlFor="cycle-notes">
+            <Trans>Notes (optional)</Trans>
+          </Label>
+          <Input
+            id="cycle-notes"
+            maxLength={500}
+            value={notes}
+            onChange={(event) => setNotes(event.target.value)}
+          />
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button type="submit" disabled={!startDate || log.isPending}>
+            {log.isPending ? <Trans>Saving…</Trans> : <Trans>Save period</Trans>}
+          </Button>
+          {log.isError ? (
+            <span role="alert" className="text-sm text-destructive">
+              <Trans>Could not save. Check the dates and try again.</Trans>
+            </span>
+          ) : null}
+        </div>
+      </form>
+    </LogDialog>
+  );
+}
+
 export function CycleEnabled({
   noNaturalCycle,
   keyFor,
@@ -173,30 +440,12 @@ export function CycleEnabled({
     queryKey: keyFor("estimates", today),
     queryFn: () => client.cycle.estimates({ today }),
   });
-  const [startDate, setStartDate] = useState(today);
-  const [endDate, setEndDate] = useState("");
-  const [flow, setFlow] = useState<"" | (typeof FLOWS)[number]>("");
-  const [notes, setNotes] = useState("");
   const [notice, setNotice] = useState("");
   const [confirmErase, setConfirmErase] = useState(false);
+  const [logOpen, setLogOpen] = useState(false);
+  // The "+" on this screen opens the period form.
+  useLogDialog("period", () => setLogOpen(true));
 
-  const log = useMutation({
-    mutationFn: () =>
-      client.cycle.logPeriod({
-        startDate,
-        endDate: endDate || null,
-        flow: flow || null,
-        notes: notes.trim() || null,
-      }),
-    onSuccess: () => {
-      setEndDate("");
-      setFlow("");
-      setNotes("");
-      setNotice(t`Period saved.`);
-      refresh();
-    },
-    onError: () => setNotice(t`Could not save. Check the dates and try again.`),
-  });
   const remove = useMutation({
     mutationFn: (id: string) => client.cycle.deletePeriod({ id }),
     onSuccess: () => {
@@ -226,154 +475,112 @@ export function CycleEnabled({
 
   const estimated = estimates.data?.state === "estimated" ? estimates.data : null;
   const current = estimated?.current ?? null;
-  const pastCycles = estimated?.cycles.filter((cycle) => cycle.nextStartDate) ?? [];
+  const strips = estimated ? cycleStrips(estimated.cycles, periods.data ?? [], today) : [];
+  const currentStrip = strips.find((strip) => strip.current) ?? null;
+  const pastStrips = strips.filter((strip) => !strip.current).slice(0, 12);
+  const columns = Math.max(28, ...strips.map((strip) => strip.days.length));
+  const lengths = estimated ? recentCycleLengths(estimated.cycles) : null;
+  const lengthsText = lengths
+    ? lengths.shortest === lengths.longest
+      ? t`Your recent cycles: ${lengths.shortest} days`
+      : t`Your recent cycles: ${lengths.shortest}–${lengths.longest} days`
+    : null;
 
   return (
     <>
-      <section aria-labelledby="cycle-now" className="sheet grid gap-6 p-6 md:p-7">
-        <div className="grid content-start gap-3">
-          <h2
-            id="cycle-now"
-            className="flex items-center gap-2.5 font-body text-base font-semibold tracking-normal text-ink-2"
-          >
-            <ToneIcon icon={CalendarHeart} tone="heart" />
-            <Trans>Estimates</Trans>
-          </h2>
-          {estimates.isPending ? (
-            <div className="grid gap-2">
-              <p role="status" className="text-sm text-ink-3">
-                <Trans>Loading…</Trans>
-              </p>
-              <Skeleton className="h-14 w-40 rounded-xl" />
-            </div>
-          ) : estimates.isError ? (
-            <p role="alert" className="text-destructive">
-              <Trans>Could not load estimates.</Trans>
-            </p>
-          ) : estimates.data.state === "off" ? (
-            <p className="max-w-[48ch] text-ink-2">{i18n._(CYCLE_COPY.noNaturalCycle)}</p>
-          ) : estimates.data.state === "no_data" ? (
-            <p className="text-ink-3">
-              <Trans>Log a period to see your cycle history.</Trans>
-            </p>
-          ) : current ? (
-            <>
-              <p className="num font-display text-[3.25rem] leading-none font-medium tracking-[-0.02em] text-ink">
-                <Trans>Day {current.dayOfCycle}</Trans>
-              </p>
-              <div className="flex flex-wrap items-center gap-2 text-sm text-ink-3">
-                <StatusPill tone="neutral">{i18n._(CYCLE_COPY.estimateLabel)}</StatusPill>
-                <span>
-                  <Trans>Started {friendlyDate(i18n, current.startDate)}</Trans>
-                </span>
-                <InfoTip>
-                  <p>
-                    {t`Day ${current.dayOfCycle} of the current cycle (started ${current.startDate}).`}
-                  </p>
-                  <p>{i18n._(CYCLE_COPY.currentLowConfidence)}</p>
-                </InfoTip>
-              </div>
-            </>
-          ) : (
-            <p className="text-ink-3">
-              <Trans>Log a period to see your cycle history.</Trans>
-            </p>
-          )}
-        </div>
-      </section>
-
-      <Section icon={Plus} tone="heart" title={<Trans>Log a period</Trans>} sheet>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="grid gap-1.5">
-            <Label htmlFor="cycle-start">
-              <Trans>Start date</Trans>
-            </Label>
-            <Input
-              id="cycle-start"
-              type="date"
-              max={today}
-              value={startDate}
-              onChange={(event) => setStartDate(event.target.value)}
-            />
-          </div>
-          <div className="grid gap-1.5">
-            <Label htmlFor="cycle-end">
-              <Trans>End date (optional)</Trans>
-            </Label>
-            <Input
-              id="cycle-end"
-              type="date"
-              min={startDate}
-              value={endDate}
-              onChange={(event) => setEndDate(event.target.value)}
-            />
-          </div>
-          <div className="grid gap-1.5">
-            <Label htmlFor="cycle-flow">
-              <Trans>Flow (optional)</Trans>
-            </Label>
-            <select
-              id="cycle-flow"
-              className={NATIVE_SELECT}
-              value={flow}
-              onChange={(event) => setFlow(event.target.value as typeof flow)}
+      <section aria-labelledby="cycle-now" className="sheet grid gap-5 p-6 md:p-7">
+        <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+          <div className="grid content-start gap-3">
+            <h2
+              id="cycle-now"
+              className="flex items-center gap-2.5 font-body text-base font-semibold tracking-normal text-ink-2"
             >
-              <option value="">{t`Not recorded`}</option>
-              {FLOWS.map((value) => (
-                <option key={value} value={value}>
-                  {i18n._(FLOW_LABELS[value])}
-                </option>
-              ))}
-            </select>
+              <ToneIcon icon={CalendarHeart} tone="heart" />
+              <Trans>Current cycle</Trans>
+            </h2>
+            {estimates.isPending ? (
+              <div className="grid gap-2">
+                <p role="status" className="text-sm text-ink-3">
+                  <Trans>Loading…</Trans>
+                </p>
+                <Skeleton className="h-14 w-40 rounded-xl" />
+              </div>
+            ) : estimates.isError ? (
+              <p role="alert" className="text-destructive">
+                <Trans>Could not load estimates.</Trans>
+              </p>
+            ) : estimates.data.state === "off" ? (
+              <p className="max-w-[48ch] text-ink-2">{i18n._(CYCLE_COPY.noNaturalCycle)}</p>
+            ) : current ? (
+              <>
+                <p className="num font-display text-[3.25rem] leading-none font-medium tracking-[-0.02em] text-ink">
+                  <Trans>Day {current.dayOfCycle}</Trans>
+                </p>
+                <div className="flex flex-wrap items-center gap-2 text-sm text-ink-3">
+                  <StatusPill tone="neutral">{i18n._(CYCLE_COPY.estimateLabel)}</StatusPill>
+                  <span>
+                    <Trans>Started {friendlyDate(i18n, current.startDate)}</Trans>
+                  </span>
+                  <InfoTip>
+                    <p>
+                      {t`Day ${current.dayOfCycle} of the current cycle (started ${current.startDate}).`}
+                    </p>
+                    <p>{i18n._(CYCLE_COPY.currentLowConfidence)}</p>
+                    <p>{i18n._(CYCLE_COPY.lutealLabel)}</p>
+                  </InfoTip>
+                </div>
+              </>
+            ) : (
+              <p className="text-ink-3">
+                <Trans>Log a period with + to see your cycle here.</Trans>
+              </p>
+            )}
           </div>
-          <div className="grid gap-1.5">
-            <Label htmlFor="cycle-notes">
-              <Trans>Notes (optional)</Trans>
-            </Label>
-            <Input
-              id="cycle-notes"
-              maxLength={500}
-              value={notes}
-              onChange={(event) => setNotes(event.target.value)}
+          {lengthsText ? <p className="num text-sm text-ink-2">{lengthsText}</p> : null}
+        </div>
+        {currentStrip ? (
+          <div className="grid gap-1.5 sm:grid-cols-[8.5rem_minmax(0,1fr)] sm:items-center sm:gap-x-4">
+            <span className="max-sm:hidden" />
+            <DayAxis columns={columns} />
+            <span className="num text-sm font-semibold text-ink-2">
+              {t`Now · day ${currentStrip.days.length}`}
+            </span>
+            <DayStrip
+              strip={currentStrip}
+              columns={columns}
+              label={t`Current cycle, started ${friendlyDate(i18n, currentStrip.startDate)}`}
             />
           </div>
-          <Button
-            className="w-fit"
-            disabled={!startDate || log.isPending}
-            onClick={() => log.mutate()}
-          >
-            {log.isPending ? <Trans>Saving…</Trans> : <Trans>Save period</Trans>}
-          </Button>
-        </div>
-      </Section>
-
-      <Details summary={<Trans>History</Trans>}>
-        <div className="grid gap-6">
-          {pastCycles.length ? (
-            <ul className="sheet grid divide-y divide-rule px-5 py-1">
-              {pastCycles.map((cycle) => {
-                const luteal = i18n._(CYCLE_COPY.lutealLabel);
+        ) : null}
+        {pastStrips.length > 0 ? (
+          <div className="grid gap-3 border-t border-rule pt-5">
+            <h3 className="flex items-center gap-2 font-body text-sm font-semibold tracking-normal text-ink-2">
+              <Rows3 className="size-4 text-ink-3" aria-hidden="true" />
+              <Trans>Past cycles</Trans>
+            </h3>
+            <ul className="grid gap-3">
+              {pastStrips.map((strip) => {
+                const start = friendlyDate(i18n, strip.startDate);
+                const length = strip.lengthDays ?? strip.days.length;
+                const heading = t`${start} · ${plural(length, { one: "# day", other: "# days" })}`;
                 return (
                   <li
-                    key={cycle.startDate}
-                    className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-0.5 py-3"
+                    key={strip.startDate}
+                    className="grid gap-1.5 sm:grid-cols-[8.5rem_minmax(0,1fr)] sm:items-center sm:gap-x-4"
                   >
-                    <span className="num text-ink">
-                      {t`${cycle.startDate} to ${cycle.nextStartDate}`}
-                    </span>
-                    <span className="num rounded-full bg-heart-soft px-2.5 py-0.5 text-right text-sm font-semibold text-ink">
-                      {t`${plural(cycle.lengthDays ?? 0, { one: "# day", other: "# days" })}`}
-                    </span>
-                    {cycle.lutealEstimate ? (
-                      <span className="col-span-2 text-sm text-ink-3">
-                        {t`${luteal}: ${cycle.lutealEstimate.from} to ${cycle.lutealEstimate.to}`}
-                      </span>
-                    ) : null}
+                    <span className="num text-sm text-ink-2">{heading}</span>
+                    <DayStrip strip={strip} columns={columns} label={heading} />
                   </li>
                 );
               })}
             </ul>
-          ) : null}
+          </div>
+        ) : null}
+        {strips.length > 0 ? <StripLegend /> : null}
+      </section>
+
+      <Details summary={<Trans>Logged periods</Trans>}>
+        <div className="grid gap-6">
           {periods.isError ? (
             <ErrorState
               title={<Trans>Could not load your periods.</Trans>}
@@ -394,8 +601,8 @@ export function CycleEnabled({
                     <ToneIcon icon={Droplet} tone="heart" size="sm" />
                     <span className="num">
                       {period.endDate
-                        ? t`${period.startDate} to ${period.endDate}`
-                        : period.startDate}
+                        ? t`${friendlyDate(i18n, period.startDate)} to ${friendlyDate(i18n, period.endDate)}`
+                        : friendlyDate(i18n, period.startDate)}
                     </span>
                   </span>
                   <span className="text-sm text-ink-2 max-sm:col-start-1">
@@ -406,7 +613,7 @@ export function CycleEnabled({
                   </span>
                   <Button
                     size="sm"
-                    variant="destructive"
+                    variant="ghost"
                     className="max-sm:col-start-2 max-sm:row-span-3 max-sm:row-start-1"
                     disabled={remove.isPending}
                     onClick={() => {
@@ -524,6 +731,16 @@ export function CycleEnabled({
           {notice}
         </p>
       ) : null}
+
+      <PeriodDialog
+        open={logOpen}
+        onOpenChange={setLogOpen}
+        today={today}
+        onSaved={(message) => {
+          setNotice(message);
+          refresh();
+        }}
+      />
     </>
   );
 }

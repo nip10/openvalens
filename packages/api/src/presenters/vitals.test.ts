@@ -9,6 +9,8 @@ import {
   formatPercent,
   formatBpmRange,
   heartRateSeries,
+  vitalsSevenDayAverage,
+  vitalsTrendSeries,
   summarizeVitals,
   vitalsSourceLabel,
 } from "./vitals";
@@ -127,6 +129,31 @@ describe("vitals presenter", () => {
     expect(series.map((s) => s.label)).toEqual(["09-30", "10-01"]);
     expect(series[0]?.avgBpm).toBe(68);
     expect(series[1]?.avgBpm).toBe(70);
+  });
+
+  test("vitalsTrendSeries and vitalsSevenDayAverage read the chosen metric", () => {
+    const days = [
+      {
+        ...day("2026-10-01", 70),
+        oxygenSaturation: { avgPercent: 95, minPercent: 92, sampleCount: 3 },
+      },
+      {
+        ...day("2026-10-02", 72),
+        oxygenSaturation: { avgPercent: null, minPercent: null, sampleCount: 0 },
+      },
+      {
+        ...day("2026-10-03", 74),
+        oxygenSaturation: { avgPercent: 98, minPercent: 96, sampleCount: 3 },
+      },
+    ];
+    expect(vitalsTrendSeries(days, "spo2")).toEqual([
+      { date: "2026-10-01", value: 95 },
+      { date: "2026-10-02", value: null },
+      { date: "2026-10-03", value: 98 },
+    ]);
+    expect(vitalsSevenDayAverage(days, "spo2")).toBe(96.5);
+    expect(vitalsSevenDayAverage(days, "heart_rate")).toBe(72);
+    expect(vitalsSevenDayAverage(days, "hrv")).toBeNull();
   });
 
   test("vitalsSourceLabel: maps provider keys to human labels", () => {
