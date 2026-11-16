@@ -37,6 +37,20 @@ Which tone: sleep (sleep, rest, readiness), steps (activity, workouts, effort), 
 - One filled primary per screen; the rest `outline` / `ghost` / `link`. Destructive actions `variant="destructive"`.
 - States for each region that loads: `Skeleton` (rounded-3xl for cards), `EmptyState icon title description action`, `ErrorState`, full.
 
+## Forms and logging
+
+The owner's rule: no inline forms.
+
+- **Records are logged from the round "+" at the bottom right** of every signed-in screen (`LogFab`, clear of the phone's safe area). It opens the quick log palette at the screen's subject: Body → weight, Vitals → heart rate (blood pressure one tap away), Activity → steps, Sleep → a night, Meal diary → food for the meal of the hour and the day on screen, Supplements → a dose. Elsewhere the palette opens unfiltered. On desktop the sidebar "Log…" and ⌘K open the full palette too; on phones the "+" is the only way in. It is app chrome, so it does not count against the one filled primary per screen.
+- **New things are created in a dialog** (a bottom sheet on phones) opened by one button in the page header: a supplement, medication, exercise, invite, goal, target or private measurement. Never a form left open on the page.
+- Settings pages keep their inline controls, and one-tap actions stay on their cards (a tracker's 1–5 rating, a supplement's "Taken").
+
+The page API lives in `apps/web/src/components/quick-log/log-launcher.tsx`; the screen defaults are `ROUTE_LOG_TARGETS` in `log-targets.ts`.
+
+- `useLogTarget(target)` points the "+" at something else while the component is mounted, e.g. `useLogTarget({ kind: "food", date })` on the meal diary. A target is a palette kind (`weight`, `heart_rate`, `food`, `tracker:<id>`, …) with optional `values` (quick-form fields), `related` kinds, or for food a `meal` and `date`.
+- `useLogDialog(kind, open)` registers the page's own dialog, reusing its existing form, for a kind the palette has no quick form for (lab result, workout, goal check-in, private measurement, `period` on Cycle). The "+", `useOpenLog()` and the palette's row for that kind then call `open(target)` instead. Pass `null` while the page cannot log it.
+- `useOpenLog()` returns the function the "+" calls. Any button on the page can use it: `openLog()` for the screen's subject, or `openLog({ kind: "food", meal: "lunch", date })` from a meal's "+ Add".
+
 ## Charts
 
 - One series in its measure's tone: `color: "var(--tone-<measure>)"` in the ChartConfig. Lines are `AreaChart` + `Area type="monotone"` with a soft vertical gradient fill (the tone at 0.28 opacity fading to 0), `strokeWidth={3}`. Bars `radius={[8,8,8,8]}`, `maxBarSize={18}`.

@@ -51,6 +51,12 @@ import { adminAccessQueryOptions } from "@/utils/admin-settings";
 import { filterNavByModules, useEnabledModules } from "@/utils/modules";
 
 import { ModeToggle } from "./mode-toggle";
+import {
+  LogFab,
+  LogLauncherProvider,
+  type PaletteRenderProps,
+  useLogLauncher,
+} from "./quick-log/log-launcher";
 import { QuickLogPalette, useQuickLogHotkey } from "./quick-log/quick-log-palette";
 import UserMenu from "./user-menu";
 
@@ -155,8 +161,9 @@ function Wordmark() {
 }
 
 /**
- * Opens the quick log palette (#440). The shortcut is shown to sighted
- * keyboard users; screen readers get it from `aria-keyshortcuts`.
+ * Opens the full quick log palette (#440); the log "+" opens the screen's
+ * subject instead. The shortcut is shown to sighted keyboard users; screen
+ * readers get it from `aria-keyshortcuts`.
  */
 function LogButton({ onOpen, className }: { onOpen: () => void; className?: string }) {
   const { _ } = useLingui();
@@ -218,18 +225,41 @@ function NavGroups({
 }
 
 /**
- * The app's frame. Signed in: a grouped sidebar from 60rem up, and a top bar
- * with a menu sheet below it. Signed out: a top bar with the wordmark only.
+ * The app's frame inside the log launcher, which holds the quick log palette
+ * and what each page registered for the log "+" (DESIGN.md "Forms and logging").
  */
 export default function AppShell({ children }: { children: ReactNode }) {
+  const location = useLocation();
+  return (
+    <LogLauncherProvider pathname={location.pathname} Palette={ShellPalette}>
+      <AppFrame>{children}</AppFrame>
+    </LogLauncherProvider>
+  );
+}
+
+/** The palette, on signed-in screens only (not the first-run flow). */
+function ShellPalette(props: PaletteRenderProps) {
+  const { groups, signedIn } = useNavGroups();
+  const location = useLocation();
+  if (!signedIn || location.pathname === "/welcome") return null;
+  return <QuickLogPalette {...props} navGroups={groups} />;
+}
+
+/**
+ * The app's frame. Signed in: a grouped sidebar from 60rem up, a top bar with
+ * a menu sheet below it, and the log "+". Signed out: a top bar with the
+ * wordmark only.
+ */
+function AppFrame({ children }: { children: ReactNode }) {
   const { groups, signedIn, sessionPending } = useNavGroups();
   const [mobileOpen, setMobileOpen] = useState(false);
   const mobileNavRef = useRef<HTMLElement>(null);
   const location = useLocation();
   const { _ } = useLingui();
-  const [paletteOpen, setPaletteOpen] = useState(false);
-  const openPalette = useCallback(() => setPaletteOpen(true), []);
-  const togglePalette = useCallback(() => setPaletteOpen((open) => !open), []);
+  const { openPalette: openAt, togglePalette } = useLogLauncher();
+  const openPalette = useCallback(() => openAt(null), [openAt]);
+  // A conversation's composer holds the bottom of the screen, so the log "+" steps aside there.
+  const showLogFab = !location.pathname.startsWith("/coach/");
 
   useEffect(() => {
     setMobileOpen(false);
@@ -341,15 +371,15 @@ export default function AppShell({ children }: { children: ReactNode }) {
             <Wordmark />
           </div>
           <div className="flex items-center gap-2">
-            <LogButton onOpen={openPalette} />
             <UserMenu />
           </div>
         </header>
-        <div id="content" className="min-w-0">
+        {/* Room under the last card for the log "+". */}
+        <div id="content" className={showLogFab ? "min-w-0 pb-14" : "min-w-0"}>
           {children}
         </div>
       </div>
-      <QuickLogPalette open={paletteOpen} onOpenChange={setPaletteOpen} navGroups={groups} />
+      {showLogFab ? <LogFab /> : null}
     </div>
   );
 }

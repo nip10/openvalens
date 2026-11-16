@@ -50,7 +50,8 @@ function RootComponent() {
         <AppShell>
           <Outlet />
         </AppShell>
-        <Toaster />
+        {/* Toasts sit above the log "+" at the bottom right. */}
+        <Toaster offset={{ bottom: "6rem" }} mobileOffset={{ bottom: "6rem" }} />
       </ThemeProvider>
       <TanStackRouterDevtools position="bottom-left" />
       <ReactQueryDevtools position="bottom" buttonPosition="bottom-right" />

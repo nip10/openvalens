@@ -958,6 +958,11 @@ msgstr "{luteal}: {from} a {to}"
 msgid "{marker}, from {app}"
 msgstr "{marker}, de {app}"
 
+#. Where food from the log button goes: a meal, then a day such as Today.
+#: apps/web/src/components/quick-log/quick-log-palette.tsx
+msgid "{meal} · {day}"
+msgstr "{meal} · {day}"
+
 #: packages/api/src/presenters/insights.ts
 msgid "{metric, select, sleep_duration {Sleep} resting_heart_rate {Resting heart rate} steps {Steps} other {Weight}} {direction, select, higher {higher} other {lower}} than your usual"
 msgstr "{metric, select, sleep_duration {Sono} resting_heart_rate {Frequência cardíaca em repouso} steps {Passos} other {Peso}} {direction, select, higher {acima} other {abaixo}} do seu habitual"
@@ -10267,8 +10272,13 @@ msgid "Log session"
 msgstr "Registar sessão"
 
 #: apps/native/app/(drawer)/(tabs)/_layout.tsx
+#: apps/web/src/components/quick-log/log-launcher.tsx
 msgid "Log something"
 msgstr "Registar algo"
+
+#: apps/web/src/components/quick-log/quick-form.tsx
+msgid "Log something else"
+msgstr "Registar outra coisa"
 
 #: apps/web/src/components/quick-log/quick-log-palette.tsx
 msgid "Log something in a tap, repeat a recent entry or open a screen."
@@ -10311,6 +10321,10 @@ msgstr "Registar sessões de treino com exercícios do catálogo de exercícios.
 #: packages/api/src/presenters/onboarding.ts
 msgid "Log your first entry"
 msgstr "Faça o seu primeiro registo"
+
+#: apps/web/src/components/quick-log/log-launcher.tsx
+msgid "Log: {what}"
+msgstr "Registar: {what}"
 
 #. Home-screen widget button: opens the log picker.
 #. Opens the quick log palette.
@@ -13239,6 +13253,11 @@ msgstr "Os passos minuto a minuto e a frequência cardíaca sincronizam quando i
 msgid "Performance"
 msgstr "Desempenho"
 
+#: apps/web/src/components/quick-log/log-targets.ts
+msgctxt "menstrual cycle"
+msgid "Period"
+msgstr "Período"
+
 #: apps/web/src/routes/_auth/cycle.tsx
 msgid "Period deleted."
 msgstr "Período eliminado."
@@ -16135,6 +16154,7 @@ msgstr "Mostrar alimentos arquivados"
 msgid "Show archived trackers"
 msgstr "Mostrar acompanhamentos arquivados"
 
+#: apps/web/src/components/quick-log/quick-log-palette.tsx
 #: apps/web/src/routes/_auth/records/timeline.tsx
 msgid "Show everything"
 msgstr "Mostrar tudo"

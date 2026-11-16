@@ -958,6 +958,11 @@ msgstr "{luteal}: {from} to {to}"
 msgid "{marker}, from {app}"
 msgstr "{marker}, from {app}"
 
+#. Where food from the log button goes: a meal, then a day such as Today.
+#: apps/web/src/components/quick-log/quick-log-palette.tsx
+msgid "{meal} · {day}"
+msgstr "{meal} · {day}"
+
 #: packages/api/src/presenters/insights.ts
 msgid "{metric, select, sleep_duration {Sleep} resting_heart_rate {Resting heart rate} steps {Steps} other {Weight}} {direction, select, higher {higher} other {lower}} than your usual"
 msgstr "{metric, select, sleep_duration {Sleep} resting_heart_rate {Resting heart rate} steps {Steps} other {Weight}} {direction, select, higher {higher} other {lower}} than your usual"
@@ -10267,8 +10272,13 @@ msgid "Log session"
 msgstr "Log session"
 
 #: apps/native/app/(drawer)/(tabs)/_layout.tsx
+#: apps/web/src/components/quick-log/log-launcher.tsx
 msgid "Log something"
 msgstr "Log something"
+
+#: apps/web/src/components/quick-log/quick-form.tsx
+msgid "Log something else"
+msgstr "Log something else"
 
 #: apps/web/src/components/quick-log/quick-log-palette.tsx
 msgid "Log something in a tap, repeat a recent entry or open a screen."
@@ -10311,6 +10321,10 @@ msgstr "Log workout sessions with exercises from the exercise catalog. A workout
 #: packages/api/src/presenters/onboarding.ts
 msgid "Log your first entry"
 msgstr "Log your first entry"
+
+#: apps/web/src/components/quick-log/log-launcher.tsx
+msgid "Log: {what}"
+msgstr "Log: {what}"
 
 #. Home-screen widget button: opens the log picker.
 #. Opens the quick log palette.
@@ -13239,6 +13253,11 @@ msgstr "Per-minute steps and heart rate sync when you enter the watch's 16-byte 
 msgid "Performance"
 msgstr "Performance"
 
+#: apps/web/src/components/quick-log/log-targets.ts
+msgctxt "menstrual cycle"
+msgid "Period"
+msgstr "Period"
+
 #: apps/web/src/routes/_auth/cycle.tsx
 msgid "Period deleted."
 msgstr "Period deleted."
@@ -16135,6 +16154,7 @@ msgstr "Show archived foods"
 msgid "Show archived trackers"
 msgstr "Show archived trackers"
 
+#: apps/web/src/components/quick-log/quick-log-palette.tsx
 #: apps/web/src/routes/_auth/records/timeline.tsx
 msgid "Show everything"
 msgstr "Show everything"

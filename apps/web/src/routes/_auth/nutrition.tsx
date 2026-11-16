@@ -110,6 +110,7 @@ import {
 import { DecimalHint } from "@/components/decimal-hint";
 import { DrinksSection } from "@/components/drinks-section";
 import { PlainWaterSection } from "@/components/plain-water-section";
+import { useLogTarget } from "@/components/quick-log/log-launcher";
 import { friendlyDate } from "@/utils/friendly";
 import { orpc } from "@/utils/orpc";
 import { ModuleHiddenNote } from "@/components/module-hidden-note";
@@ -165,6 +166,8 @@ function NutritionPage() {
   const { data: session } = authClient.useSession();
   const scope = offlineScope(session as Parameters<typeof offlineScope>[0]);
   const [localDate, setLocalDate] = useState(() => localDateIn(timeZone));
+  // The log "+" adds food to the day on screen, in the meal of the hour.
+  useLogTarget({ kind: "food", date: localDate });
   const { announce, region } = useAnnouncer();
   const queryClient = useQueryClient();
   const { t, i18n } = useLingui();

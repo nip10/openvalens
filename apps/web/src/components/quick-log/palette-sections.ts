@@ -264,3 +264,24 @@ export function buildPaletteSections(
 
   return sections;
 }
+
+/** Log rows that stay when the palette opens on food (the meal diary's "+"). */
+const FOOD_SCOPE_KIND_ROWS = new Set(["kind:food", "kind:water"]);
+
+/**
+ * Pure: the sections for food in one meal and day: food favourites, recents
+ * and copies, drink presets (only for today, since they save now), and the
+ * food and water rows. Supplements, recents of other kinds and screens leave.
+ */
+export function foodScopedSections(
+  sections: readonly PaletteSection[],
+  options: { drinks: boolean },
+): PaletteSection[] {
+  return sections.flatMap((section) => {
+    if (section.id === "food") return [section];
+    if (section.id === "drinks") return options.drinks ? [section] : [];
+    if (section.id !== "log") return [];
+    const items = section.items.filter((item) => FOOD_SCOPE_KIND_ROWS.has(item.id));
+    return items.length > 0 ? [{ ...section, items }] : [];
+  });
+}
