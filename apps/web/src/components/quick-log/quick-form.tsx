@@ -35,7 +35,8 @@ const unitLabel = (code: string) =>
  * A log kind's quick form, built from its `fields` (#440): numbers with their
  * unit (and the other units the member may type), times, a 1–5 rating, the
  * member's own supplements and, for custom trackers (#441), yes/no, a typed
- * duration and an optional note. Enter saves.
+ * duration and an optional note. Enter saves. `related` kinds sit one tap
+ * away under the title (vitals: blood pressure next to heart rate).
  */
 export function QuickForm({
   kind,
@@ -43,6 +44,8 @@ export function QuickForm({
   errors,
   showErrors,
   supplements,
+  related = [],
+  onSwitch,
   pending,
   failed,
   onChange,
@@ -54,6 +57,8 @@ export function QuickForm({
   errors: readonly string[];
   showErrors: boolean;
   supplements: readonly SupplementOption[] | null;
+  related?: readonly LogKind[];
+  onSwitch?: (kind: LogKind) => void;
   pending: boolean;
   failed: boolean;
   onChange: (id: string, value: string) => void;
@@ -272,6 +277,25 @@ export function QuickForm({
         <ToneIcon icon={LOG_KIND_ICONS[kind.icon]} tone={LOG_KIND_TONES[kind.icon]} size="sm" />
         <h2 className="font-display text-xl text-ink">{i18n._(kind.label)}</h2>
       </div>
+      {related.length > 0 && onSwitch ? (
+        <div role="group" aria-label={t`Log something else`} className="flex flex-wrap gap-2">
+          {related.map((other) => {
+            const Icon = LOG_KIND_ICONS[other.icon];
+            return (
+              <Button
+                key={other.id}
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => onSwitch(other)}
+              >
+                <Icon aria-hidden="true" />
+                {i18n._(other.label)}
+              </Button>
+            );
+          })}
+        </div>
+      ) : null}
       <div ref={firstField} className="grid gap-4 sm:grid-cols-2">
         {kind.fields.map(renderField)}
       </div>

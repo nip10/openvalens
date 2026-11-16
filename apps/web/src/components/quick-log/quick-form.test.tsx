@@ -160,6 +160,31 @@ describe("QuickForm", () => {
   });
 });
 
+test("related kinds sit one tap away under the title (vitals)", () => {
+  const kind = findLogKind("heart_rate")!;
+  const form = (related: Parameters<typeof QuickForm>[0]["related"]) =>
+    render(
+      <QuickForm
+        kind={kind}
+        values={quickFormDefaults(kind)}
+        errors={[]}
+        showErrors={false}
+        supplements={null}
+        related={related}
+        onSwitch={noop}
+        pending={false}
+        failed={false}
+        onChange={noop}
+        onSubmit={noop}
+        onBack={noop}
+      />,
+    );
+  const html = form([findLogKind("blood_pressure")!]);
+  expect(html).toContain('role="group" aria-label="Log something else"');
+  expect(html).toContain("Blood pressure");
+  expect(form([])).not.toContain("Log something else");
+});
+
 test("Command renders a labelled combobox with grouped options", () => {
   const html = render(
     <Command label="Log or go to">

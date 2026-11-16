@@ -3,6 +3,7 @@ import { useLingui } from "@lingui/react/macro";
 import type { DueSupplement, RecentLogEntry } from "@openvalens/api/contracts/quick-log";
 import type { DiaryEntry, FoodChoice, MealSlot } from "@openvalens/api/contracts/nutrition-diary";
 import { candidateFromChoice, defaultFoodPortion } from "@openvalens/api/presenters/food-lookup";
+import { Button } from "@openvalens/ui/components/button";
 import {
   availableLogKinds,
   drinkLogKinds,
@@ -24,6 +25,7 @@ import {
   mealSlotForLocalTime,
   newClientMutationId,
   shiftLocalDate,
+  SLOT_LABELS,
 } from "@openvalens/api/presenters/nutrition-diary";
 import {
   buildQuickLogWrite,
@@ -57,13 +59,16 @@ import { toast } from "sonner";
 
 import { PAIN_KEYS } from "@/components/pain/pain-keys";
 import { ToneIcon } from "@/components/page";
+import { friendlyDate } from "@/utils/friendly";
 import { useEnabledModules } from "@/utils/modules";
 import { client, orpc } from "@/utils/orpc";
 import { useProductSettings } from "@/utils/product-settings";
 import { enqueueMetricSample } from "@/utils/sync-engine";
 
+import { LOG_KIND_ICONS } from "./log-kind-icons";
+import { type LogTarget, paletteStart } from "./log-targets";
 import { buildOneLinerSection, paletteFilter, paletteItemValue } from "./one-liner-section";
-import { buildPaletteSections, type PaletteNavGroup } from "./palette-sections";
+import { buildPaletteSections, foodScopedSections, type PaletteNavGroup } from "./palette-sections";
 import { performQuickLogWrite } from "./perform-write";
 import { QuickForm, type SupplementOption } from "./quick-form";
 
@@ -83,6 +88,11 @@ const COPY = {
   undoFailed: msg`Could not remove it. Open the screen to change it.`,
   failed: msg`Could not save. Try again.`,
   copied: msg({ message: "{count, plural, one {Copied # item} other {Copied # items}}" }),
+  foodFor: msg({
+    message: "{meal} · {day}",
+    comment: "Where food from the log button goes: a meal, then a day such as Today.",
+  }),
+  showAll: msg`Show everything`,
 };
 
 /** ⌘K on a Mac, Ctrl+K elsewhere, toggles the palette. */
@@ -100,7 +110,20 @@ export function useQuickLogHotkey(toggle: () => void, enabled: boolean) {
   }, [toggle, enabled]);
 }
 
-type View = { type: "list" } | { type: "form"; kind: LogKind; preset?: Record<string, string> };
+/** Food logged from the palette goes to this meal and day (the meal diary's "+"). */
+type FoodScope = { meal?: MealSlot; date?: string };
+
+type View =
+  /** Not chosen yet: where the palette opens follows its `target`. */
+  | { type: "start" }
+  | { type: "list"; food?: FoodScope }
+  | {
+      type: "form";
+      kind: LogKind;
+      preset?: Readonly<Record<string, string>>;
+      /** The kinds one tap away, this one included (vitals: heart rate, blood pressure). */
+      group?: readonly LogKind[];
+    };
 
 /**
  * The quick log command palette (#440): due supplements with one-tap "Taken",
@@ -110,27 +133,35 @@ type View = { type: "list" } | { type: "form"; kind: LogKind; preset?: Record<st
  * app's screens. Turned-off features never appear. Typed one-liners (#440d)
  * show a preview of what was understood at the top ("Water · 500 ml · now",
  * "Pain · Left knee · 4 of 10 · now"); Enter logs it.
+ *
+ * Opened from the log "+" with a `target`, it starts at that kind's quick
+ * form, or at the food list for a meal and a day. A kind the page logs in its
+ * own dialog opens that dialog from its row (`openPageDialog`).
  */
 export function QuickLogPalette({
   open,
   onOpenChange,
   navGroups,
+  target = null,
+  openPageDialog,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   navGroups: readonly PaletteNavGroup[];
+  target?: LogTarget | null;
+  openPageDialog?: (kindId: string) => boolean;
 }) {
   const { i18n } = useLingui();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const [view, setView] = useState<View>({ type: "list" });
+  const [chosenView, setView] = useState<View>({ type: "start" });
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState("");
   const timeZone = useMemo(() => deviceTimeZone(), []);
 
   useEffect(() => {
     if (open) return;
-    setView({ type: "list" });
+    setView({ type: "start" });
     setSearch("");
   }, [open]);
 
@@ -191,6 +222,8 @@ export function QuickLogPalette({
   );
   const has = (id: string) => kinds.some((kind) => kind.id === id);
   const canRecords = kinds.some((kind) => kind.permission.resource === "records");
+  // Until the member moves, the palette follows its target as the kinds load.
+  const view = chosenView.type === "start" ? startView(target, kinds) : chosenView;
 
   const recents = useQuery({
     ...orpc.quickLog.recents.queryOptions({ input: {} }),
@@ -201,6 +234,9 @@ export function QuickLogPalette({
     enabled: open && has("supplement_intake"),
   });
   const today = localDateIn(timeZone);
+  const foodScope = view.type === "list" ? view.food : undefined;
+  const foodDate = foodScope?.date ?? today;
+  const foodSlot = foodScope?.meal ?? mealSlotForLocalTime();
   const foods = useQuery({
     ...orpc.nutritionDiary.listFoods.queryOptions({ input: {} }),
     enabled: open && has("food"),
@@ -383,9 +419,9 @@ export function QuickLogPalette({
     void runFood(food.name, async () => {
       const result = await client.nutritionDiary.logEntry({
         clientMutationId: newClientMutationId(),
-        localDate: today,
+        localDate: foodDate,
         timeZone,
-        slot: mealSlotForLocalTime(),
+        slot: foodSlot,
         food: food.ref,
         amount: portion.amount,
         unit: portion.unit,
@@ -416,6 +452,8 @@ export function QuickLogPalette({
   };
 
   const openKind = (kind: LogKind) => {
+    // The page logs this kind in its own dialog (the provider closes the palette).
+    if (openPageDialog?.(kind.id)) return;
     if (drinkPresetKeyOfLogKind(kind.id) !== null) {
       logDrink(kind);
       return;
@@ -441,19 +479,22 @@ export function QuickLogPalette({
     void navigate({ to });
   };
 
-  const sections = buildPaletteSections(
+  // "Copy yesterday" and drink presets save to today, so a past day leaves them out.
+  const forToday = foodDate === today;
+  const allSections = buildPaletteSections(
     {
       kinds,
       recents: recents.data?.entries ?? [],
       due: due.data?.items ?? [],
       foods: foods.data ?? null,
-      yesterday: (yesterday.data?.entries ?? []).filter((entry) => !entry.deleted),
-      slot: mealSlotForLocalTime(),
+      yesterday: forToday ? (yesterday.data?.entries ?? []).filter((entry) => !entry.deleted) : [],
+      slot: foodSlot,
       navGroups,
     },
     { repeat, takeSupplement, openKind, logDrink, logFood, copyMeals, navigate: go },
     i18n,
   );
+  const sections = foodScope ? foodScopedSections(allSections, { drinks: forToday }) : allSections;
 
   const supplementOptions: SupplementOption[] | null = supplements.data
     ? supplements.data.map((item) => ({ id: item.id, name: item.name, dose: item.dose }))
@@ -521,6 +562,8 @@ export function QuickLogPalette({
             key={view.kind.id}
             kind={view.kind}
             preset={view.preset}
+            related={view.group?.filter((kind) => kind.id !== view.kind.id) ?? []}
+            onSwitch={(kind) => setView({ type: "form", kind, group: view.group })}
             weightUnit={weightUnit}
             supplements={supplementOptions}
             saving={saving}
@@ -546,6 +589,20 @@ export function QuickLogPalette({
               value={search}
               onValueChange={setSearch}
             />
+            {/* After the search box, so focus still lands there first. */}
+            {foodScope ? (
+              <FoodScopeBar
+                label={i18n._({
+                  ...COPY.foodFor,
+                  values: {
+                    meal: i18n._(SLOT_LABELS[foodSlot]),
+                    day: friendlyDate(i18n, foodDate),
+                  },
+                })}
+                showAll={i18n._(COPY.showAll)}
+                onShowAll={() => setView({ type: "list" })}
+              />
+            ) : null}
             <CommandList>
               <CommandEmpty>{i18n._(COPY.empty)}</CommandEmpty>
               {rows.map((section) => (
@@ -588,9 +645,58 @@ export function QuickLogPalette({
   );
 }
 
+/** Where food goes when the palette opened on food ("Lunch · Today"), and the way out. */
+function FoodScopeBar({
+  label,
+  showAll,
+  onShowAll,
+}: {
+  label: string;
+  showAll: string;
+  onShowAll: () => void;
+}) {
+  return (
+    // Keys stay here: the list's Enter would otherwise log the highlighted row.
+    <div
+      className="flex items-center gap-3 border-b border-rule px-4 py-2.5"
+      onKeyDown={(event) => event.stopPropagation()}
+    >
+      <ToneIcon icon={LOG_KIND_ICONS.utensils} tone="food" size="sm" />
+      <p className="min-w-0 flex-1 truncate text-sm font-medium text-ink-2">{label}</p>
+      <Button variant="ghost" size="sm" onClick={onShowAll}>
+        {showAll}
+      </Button>
+    </div>
+  );
+}
+
+/** The palette's first view for a target (see `paletteStart`). */
+function startView(target: LogTarget | null, kinds: readonly LogKind[]): View {
+  const byId = (id: string) => kinds.find((kind) => kind.id === id);
+  const start = paletteStart(target, {
+    has: (id) => byId(id) !== undefined,
+    hasQuickForm: (id) => {
+      const kind = byId(id);
+      return kind !== undefined && hasQuickForm(kind);
+    },
+  });
+  if (start.type === "food") return { type: "list", food: { meal: start.meal, date: start.date } };
+  if (start.type === "list") return { type: "list" };
+  const kind = byId(start.kindId)!;
+  const related = start.related.flatMap((id) => byId(id) ?? []);
+  return {
+    type: "form",
+    kind,
+    preset: start.values,
+    group: related.length > 0 ? [kind, ...related] : undefined,
+  };
+}
+
 function QuickFormView({
   kind,
   preset,
+  related,
+  onSwitch,
   weightUnit,
   supplements,
   saving,
@@ -600,7 +706,9 @@ function QuickFormView({
   onSave,
 }: {
   kind: LogKind;
-  preset?: Record<string, string>;
+  preset?: Readonly<Record<string, string>>;
+  related: readonly LogKind[];
+  onSwitch: (kind: LogKind) => void;
   weightUnit: "kg" | "lb";
   supplements: readonly SupplementOption[] | null;
   saving: boolean;
@@ -631,6 +739,8 @@ function QuickFormView({
       errors={parsed.ok ? [] : parsed.errors}
       showErrors={showErrors}
       supplements={kind.id === "supplement_intake" ? supplements : null}
+      related={related}
+      onSwitch={onSwitch}
       pending={saving}
       failed={failed}
       onChange={(id, value) => setValues((current) => ({ ...current, [id]: value }))}

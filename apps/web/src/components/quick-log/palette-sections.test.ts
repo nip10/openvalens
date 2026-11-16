@@ -11,7 +11,12 @@ import { englishI18n } from "@openvalens/i18n/testing";
 import { FlaskConical } from "lucide-react";
 
 import { LOG_KIND_ICONS, LOG_KIND_TONES } from "./log-kind-icons";
-import { buildPaletteSections, type PaletteActions, type PaletteData } from "./palette-sections";
+import {
+  buildPaletteSections,
+  foodScopedSections,
+  type PaletteActions,
+  type PaletteData,
+} from "./palette-sections";
 
 const actions = (): PaletteActions => ({
   repeat: mock(),
@@ -201,6 +206,51 @@ describe("drink presets (#443) and pain (#442)", () => {
     // A drink the server cannot log now is not offered as a recent either.
     const noBeer = buildPaletteSections(data({ recents: [recent] }), actions(), englishI18n);
     expect(noBeer.some((section) => section.id === "recent")).toBe(false);
+  });
+});
+
+describe("foodScopedSections (the meal diary's log +)", () => {
+  const drinks = drinkLogKinds([{ key: "beer", available: true }]);
+  const kinds = availableLogKinds({ enabledModules: null, preferences: { plain_water: true } }, [
+    ...LOG_KINDS,
+    ...drinks,
+  ] as LogKind[]);
+  const choice = {
+    ref: { kind: "snapshot" as const, snapshotId: 1 },
+    name: "Oats",
+    brand: null,
+  } as never;
+  const all = buildPaletteSections(
+    data({
+      kinds,
+      foods: { favorites: [choice], recents: [] },
+      recents: [{ kind: "water", at: "2026-11-13T08:00:00Z", quantityMl: 500 }],
+      due: [
+        {
+          supplementId: 3,
+          name: "Magnesium",
+          dose: "200 mg",
+          scheduleId: 9,
+          timeOfDay: "morning",
+          pending: 1,
+        },
+      ],
+    }),
+    actions(),
+    englishI18n,
+  );
+
+  test("keeps food, drinks and the food and water rows only", () => {
+    const scoped = foodScopedSections(all, { drinks: true });
+    expect(scoped.map((section) => section.id)).toEqual(["food", "drinks", "log"]);
+    expect(scoped.at(-1)!.items.map((item) => item.label)).toEqual(["Food", "Water"]);
+  });
+
+  test("a past day leaves out the drink presets, which save now", () => {
+    expect(foodScopedSections(all, { drinks: false }).map((section) => section.id)).toEqual([
+      "food",
+      "log",
+    ]);
   });
 });
 
