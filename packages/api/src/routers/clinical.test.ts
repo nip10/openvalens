@@ -290,6 +290,7 @@ function fakeDb(store: RowStore): { db: Database; calls: CapturedCall[] } {
     insert,
     update,
     delete: del,
+    transaction: async (fn: (tx: unknown) => Promise<unknown>) => fn(db),
   } as unknown as Database;
 
   return { db, calls };
@@ -632,6 +633,175 @@ describe("clinical — family history write", () => {
       }),
     ).rejects.toMatchObject({ code: "UNAUTHENTICATED" });
     expect(state.calls.filter((c) => c.kind === "insert")).toEqual([]);
+  });
+});
+
+describe("clinical — cardiac and imaging writes (#clinical-3)", () => {
+  const exam = {
+    id: 5,
+    organizationId: "org-1",
+    date: "2026-03-07",
+    type: "ecg",
+    facility: null,
+    physician: null,
+    reason: null,
+    report: null,
+    conclusion: null,
+    sourceFile: "import.pdf",
+    createdAt: "2026-03-07T10:00:00.000Z",
+  };
+
+  test("upsertCardiacExam creates with trimmed fields and a PHI-free RECORD_CREATED audit", async () => {
+    role = "owner";
+    const state = fakeDb(emptyStore());
+    const result = await appRouter.clinical.upsertCardiacExam.callable({
+      context: context(state.db),
+    })({
+      date: "2026-04-01",
+      type: " echocardiogram ",
+      facility: "  ",
+      conclusion: "SECRET_CONCLUSION",
+    });
+    expect(result.created).toBe(true);
+    const insert = state.calls.find((c) => c.kind === "insert" && c.table === cardiacExam);
+    if (insert?.kind !== "insert") throw new Error("expected insert call");
+    expect(insert.payload).toMatchObject({
+      organizationId: "org-1",
+      date: "2026-04-01",
+      type: "echocardiogram",
+      facility: null,
+      conclusion: "SECRET_CONCLUSION",
+    });
+    const audit = state.calls.find((c) => c.kind === "insert" && c.table === accessAuditLog);
+    if (audit?.kind !== "insert") throw new Error("expected audit insert");
+    expect(audit.payload).toMatchObject({
+      eventType: "RECORD_CREATED",
+      targetType: "cardiac_exam",
+      targetId: String(result.id),
+    });
+    expect(JSON.stringify(audit.payload)).not.toContain("SECRET_CONCLUSION");
+  });
+
+  test("upsertCardiacExam update keeps sourceFile and audits RECORD_UPDATED", async () => {
+    role = "owner";
+    const state = fakeDb({ ...emptyStore(), cardiacExams: [{ ...exam }] });
+    const result = await appRouter.clinical.upsertCardiacExam.callable({
+      context: context(state.db),
+    })({ id: 5, date: "2026-03-08", type: "ecg", conclusion: "Normal rhythm" });
+    expect(result).toEqual({ id: 5, created: false, targetId: "5" });
+    const update = state.calls.find((c) => c.kind === "update" && c.table === cardiacExam);
+    if (update?.kind !== "update") throw new Error("expected update call");
+    expect(update.params).toContain("org-1");
+    expect(update.payload).not.toHaveProperty("sourceFile");
+    expect(update.payload).not.toHaveProperty("organizationId");
+    const audit = state.calls.find((c) => c.kind === "insert" && c.table === accessAuditLog);
+    if (audit?.kind !== "insert") throw new Error("expected audit insert");
+    expect(audit.payload).toMatchObject({ eventType: "RECORD_UPDATED", targetId: "5" });
+  });
+
+  test("upsertCardiacExam update of another organization's exam is NOT_FOUND, with no write", async () => {
+    role = "owner";
+    const state = fakeDb({
+      ...emptyStore(),
+      cardiacExams: [{ ...exam, organizationId: "org-2" }],
+    });
+    await expect(
+      appRouter.clinical.upsertCardiacExam.callable({ context: context(state.db) })({
+        id: 5,
+        date: "2026-03-08",
+        type: "ecg",
+      }),
+    ).rejects.toMatchObject({ code: "NOT_FOUND", status: 404 });
+    expect(state.calls.filter((c) => c.kind === "update" || c.kind === "insert")).toEqual([]);
+  });
+
+  test("deleteCardiacExam removes its measurements first and audits RECORD_DELETED", async () => {
+    role = "owner";
+    const state = fakeDb({ ...emptyStore(), cardiacExams: [{ ...exam }] });
+    expect(
+      await appRouter.clinical.deleteCardiacExam.callable({ context: context(state.db) })({
+        id: 5,
+      }),
+    ).toEqual({ id: 5, targetId: "5" });
+    const deletes = state.calls.filter((c) => c.kind === "delete");
+    expect(deletes.map((c) => c.table)).toEqual([cardiacMeasurement, cardiacExam]);
+    const audit = state.calls.find((c) => c.kind === "insert" && c.table === accessAuditLog);
+    if (audit?.kind !== "insert") throw new Error("expected audit insert");
+    expect(audit.payload).toMatchObject({
+      eventType: "RECORD_DELETED",
+      targetType: "cardiac_exam",
+    });
+  });
+
+  test("deleteImagingStudy returns null when the study is missing for this org", async () => {
+    role = "owner";
+    const state = fakeDb(emptyStore());
+    expect(
+      await appRouter.clinical.deleteImagingStudy.callable({ context: context(state.db) })({
+        id: 404,
+      }),
+    ).toBeNull();
+    expect(state.calls.filter((c) => c.kind === "delete" || c.kind === "insert")).toEqual([]);
+  });
+
+  test("upsertImagingStudy creates and audits imaging_study", async () => {
+    role = "owner";
+    const state = fakeDb(emptyStore());
+    const result = await appRouter.clinical.upsertImagingStudy.callable({
+      context: context(state.db),
+    })({ date: "2026-02-10", type: "mri", bodyPart: "Right knee", findings: null });
+    expect(result.created).toBe(true);
+    const insert = state.calls.find((c) => c.kind === "insert" && c.table === imagingStudy);
+    if (insert?.kind !== "insert") throw new Error("expected insert call");
+    expect(insert.payload).toMatchObject({ type: "mri", bodyPart: "Right knee", findings: null });
+    const audit = state.calls.find((c) => c.kind === "insert" && c.table === accessAuditLog);
+    if (audit?.kind !== "insert") throw new Error("expected audit insert");
+    expect(audit.payload).toMatchObject({
+      eventType: "RECORD_CREATED",
+      targetType: "imaging_study",
+    });
+  });
+
+  test("inputs reject impossible days, blank required fields and ownership overrides", async () => {
+    role = "owner";
+    const state = fakeDb(emptyStore());
+    const cardiac = appRouter.clinical.upsertCardiacExam.callable({ context: context(state.db) });
+    const imaging = appRouter.clinical.upsertImagingStudy.callable({ context: context(state.db) });
+    for (const attempt of [
+      () => cardiac({ date: "2026-02-31", type: "ecg" }),
+      () => cardiac({ date: "07/03/2026", type: "ecg" }),
+      () => cardiac({ date: "2026-03-07", type: "   " }),
+      () => cardiac({ date: "2026-03-07", type: "ecg", organizationId: "org-2" } as never),
+      () => imaging({ date: "2026-03-07", type: "ct", bodyPart: "" }),
+      () =>
+        imaging({ date: "2026-03-07", type: "ct", bodyPart: "Chest", sourceFile: "x" } as never),
+    ]) {
+      await expect(attempt()).rejects.toMatchObject({ code: "INVALID_INPUT", status: 400 });
+    }
+    expect(state.calls.filter((c) => c.kind === "insert")).toEqual([]);
+  });
+
+  test("viewer cannot write cardiac or imaging records", async () => {
+    role = "viewer";
+    const state = fakeDb({ ...emptyStore(), cardiacExams: [{ ...exam }] });
+    const ctx = { context: context(state.db) };
+    await expect(
+      appRouter.clinical.upsertCardiacExam.callable(ctx)({ date: "2026-03-07", type: "ecg" }),
+    ).rejects.toMatchObject({ code: "PERMISSION_DENIED", status: 403 });
+    await expect(
+      appRouter.clinical.deleteCardiacExam.callable(ctx)({ id: 5 }),
+    ).rejects.toMatchObject({ code: "PERMISSION_DENIED" });
+    await expect(
+      appRouter.clinical.upsertImagingStudy.callable(ctx)({
+        date: "2026-03-07",
+        type: "ct",
+        bodyPart: "Chest",
+      }),
+    ).rejects.toMatchObject({ code: "PERMISSION_DENIED" });
+    await expect(
+      appRouter.clinical.deleteImagingStudy.callable(ctx)({ id: 5 }),
+    ).rejects.toMatchObject({ code: "PERMISSION_DENIED" });
+    expect(state.calls.filter((c) => c.kind !== "select")).toEqual([]);
   });
 });
 

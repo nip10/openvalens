@@ -93,6 +93,7 @@ SUITES=(
   "SCORE_TEST_DATABASE_URL|score_test|packages/api/src/score.integration.test.ts"
   "ACTIVITY_LOAD_TEST_DATABASE_URL|activity_load_test|packages/api/src/activity-load.integration.test.ts"
   "INSIGHTS_TEST_DATABASE_URL|insights_test|packages/api/src/insights.integration.test.ts"
+  "CLINICAL_RECORDS_TEST_DATABASE_URL|clinical_records_test|packages/api/src/clinical-records.integration.test.ts"
   "PREVENTIVE_CARE_TEST_DATABASE_URL|preventive_care_test|packages/api/src/preventive-care.integration.test.ts"
   "REFERENCE_COMPARISON_TEST_DATABASE_URL|reference_comparison_test|packages/api/src/reference-comparison.integration.test.ts"
   "ONBOARDING_MEASUREMENT_TEST_DATABASE_URL|onboarding_measurement_test|packages/api/src/onboarding-measurement.integration.test.ts"

@@ -81,6 +81,7 @@ mock.module("@tanstack/react-query", () => ({
 }));
 
 const { BodyMapPage } = await import("./body-map");
+const { ClinicalPage } = await import("./clinical");
 const { CycleEnabled } = await import("./cycle");
 const { TelegramSettingsPage } = await import("./settings/telegram");
 const { DeleteAccountSection } = await import("./settings/index");
@@ -240,5 +241,58 @@ describe("settings", () => {
     expect(html).toInclude("Email link");
     queries = { "signIn.options": ok({ oidc: null, google: false, apple: false }) };
     expect(render(<OidcConnectSection />)).toBe("");
+  });
+});
+
+describe("clinical (#clinical-3)", () => {
+  const exam = {
+    id: 5,
+    organizationId: "org-a",
+    date: "2026-03-07",
+    type: "ecg",
+    facility: "Synthetic Clinic",
+    physician: null,
+    reason: null,
+    report: null,
+    conclusion: "Normal rhythm",
+    sourceFile: null,
+    createdAt: "2026-03-07T10:00:00.000Z",
+  };
+  const relative = {
+    id: 9,
+    organizationId: "org-a",
+    relation: "Mother",
+    condition: "High blood pressure",
+    ageOfOnset: 52,
+    notes: null,
+    createdAt: "2026-03-07T10:00:00.000Z",
+  };
+
+  test("records open from their card, with edit and delete behind the card's menu", () => {
+    queries = {
+      "clinical.listCardiacExams": ok([exam]),
+      "clinical.listImagingStudies": ok([]),
+      "clinical.listFamilyHistory": ok([relative]),
+    };
+    const html = render(<ClinicalPage />);
+    // One header button adds any kind; no form is left open on the page.
+    expect(html).toInclude("Add record");
+    expect(html).not.toInclude('id="clinical-type"');
+    expect(html).toInclude('aria-label="Open ECG"');
+    expect(html).toInclude('aria-label="More for ECG"');
+    expect(html).toInclude('aria-label="Open Mother, High blood pressure"');
+    expect(html).toInclude("No imaging studies recorded.");
+  });
+
+  test("a failed list shows an error with Retry, not an empty section", () => {
+    queries = {
+      "clinical.listCardiacExams": failed,
+      "clinical.listImagingStudies": ok([]),
+      "clinical.listFamilyHistory": ok([]),
+    };
+    const html = render(<ClinicalPage />);
+    expect(html).toInclude("Could not load clinical records.");
+    expect(html).toInclude("Retry");
+    expect(html).not.toInclude("No cardiac exams recorded.");
   });
 });

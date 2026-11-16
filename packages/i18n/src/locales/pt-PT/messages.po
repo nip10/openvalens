@@ -46,6 +46,10 @@ msgstr "“{typed}” pode ser {whole} ou {decimal}. Escreva {whole} ou {decimal
 msgid "(done)"
 msgstr "(concluído)"
 
+#: apps/web/src/components/clinical-record-dialog.tsx
+msgid "(optional)"
+msgstr "(opcional)"
+
 #: apps/native/app/(drawer)/sharing.tsx
 #: apps/web/src/routes/_auth/sharing.tsx
 msgid "(you)"
@@ -2194,6 +2198,10 @@ msgstr "Adicionar uma nota"
 msgid "Add a photo (JPEG or PNG, up to 10 MB)"
 msgstr "Adicionar uma fotografia (JPEG ou PNG, até 10 MB)"
 
+#: apps/web/src/components/clinical-record-dialog.tsx
+msgid "Add a record"
+msgstr "Adicionar um registo"
+
 #: apps/native/components/pain/pain-panel.tsx
 #: apps/web/src/components/pain/pain-panel.tsx
 msgid "Add a region"
@@ -2301,6 +2309,10 @@ msgstr "Adicionar água simples"
 #: apps/native/app/(drawer)/records/vitals.tsx
 msgid "Add reading"
 msgstr "Adicionar leitura"
+
+#: apps/web/src/routes/_auth/clinical.tsx
+msgid "Add record"
+msgstr "Adicionar registo"
 
 #: apps/native/components/active-workout.tsx
 #: apps/web/src/components/workout-session-editor.tsx
@@ -2478,6 +2490,10 @@ msgstr "A idade e o sexo só são usados por funcionalidades para adultos, por i
 #: packages/api/src/presenters/wellness-profile.ts
 msgid "Age and sex for guidance"
 msgstr "Idade e sexo para orientação"
+
+#: apps/web/src/components/clinical-record-dialog.tsx
+msgid "Age at onset"
+msgstr "Idade de início"
 
 #: packages/api/src/presenters/wellness-profile.ts
 msgid "Age check"
@@ -3494,6 +3510,10 @@ msgstr "Mapa corporal, vista de costas"
 msgid "Body map, front view"
 msgstr "Mapa corporal, vista de frente"
 
+#: apps/web/src/components/clinical-record-dialog.tsx
+msgid "Body part"
+msgstr "Parte do corpo"
+
 #: packages/api/src/presenters/clinical-export.ts
 msgid "Body summary"
 msgstr "Resumo corporal"
@@ -3561,6 +3581,10 @@ msgstr "Traga o que o telemóvel e os dispositivos já registam. Pode fazê-lo m
 #: apps/web/src/routes/_auth/exports.tsx
 msgid "Bring to an appointment"
 msgstr "Levar a uma consulta"
+
+#: apps/web/src/components/clinical-record-dialog.tsx
+msgid "Brother"
+msgstr "Irmão"
 
 #: apps/native/components/exercise-library.tsx
 msgid "Browse"
@@ -3715,6 +3739,7 @@ msgstr "Canadá"
 #: apps/web/src/components/ai-app-key-form.tsx
 #: apps/web/src/components/ai-apps-view.tsx
 #: apps/web/src/components/ai-consent-card.tsx
+#: apps/web/src/components/clinical-record-dialog.tsx
 #: apps/web/src/components/complete-export-card.tsx
 #: apps/web/src/components/display-name-field.tsx
 #: apps/web/src/components/exercise-library.tsx
@@ -3796,6 +3821,10 @@ msgstr "Hidratos"
 #: packages/api/src/presenters/clinical-export.ts
 msgid "Cardiac"
 msgstr "Cardíaco"
+
+#: apps/web/src/components/clinical-record-dialog.tsx
+msgid "Cardiac exam"
+msgstr "Exame cardíaco"
 
 #: apps/web/src/components/nav-links.ts
 msgid "Care"
@@ -4569,6 +4598,14 @@ msgstr "Concluída por si."
 msgid "Composition"
 msgstr "Composição"
 
+#: apps/web/src/components/clinical-record-dialog.tsx
+msgid "Conclusion"
+msgstr "Conclusão"
+
+#: apps/web/src/components/clinical-record-dialog.tsx
+msgid "Condition"
+msgstr "Doença"
+
 #: apps/web/src/routes/_auth/admin/settings.tsx
 msgid "Configuration"
 msgstr "Configuração"
@@ -5218,6 +5255,10 @@ msgstr "Não foi possível eliminar esta fotografia. Tente novamente."
 #: apps/web/src/components/pain/pain-panel.tsx
 msgid "Could not delete this rating. Try again."
 msgstr "Não foi possível eliminar esta classificação. Tente novamente."
+
+#: apps/web/src/routes/_auth/clinical.tsx
+msgid "Could not delete this record. Check your connection and try again."
+msgstr "Não foi possível eliminar este registo. Verifique a ligação e tente novamente."
 
 #: apps/native/components/workout-session-detail.tsx
 msgid "Could not delete workout"
@@ -5871,6 +5912,7 @@ msgid "Could not save. Check the fields and try again."
 msgstr "Não foi possível guardar. Verifique os campos e tente novamente."
 
 #: apps/native/components/pain/pain-panel.tsx
+#: apps/web/src/components/clinical-record-dialog.tsx
 #: apps/web/src/components/pain/pain-panel.tsx
 #: apps/web/src/routes/_auth/private-measurements.tsx
 msgid "Could not save. Check your connection and try again."
@@ -6394,6 +6436,7 @@ msgstr "Conjunto de dados {datasetVersion}."
 
 #: apps/native/app/(drawer)/goals/[goalId].tsx
 #: apps/native/components/goal-editor.tsx
+#: apps/web/src/components/clinical-record-dialog.tsx
 #: apps/web/src/components/workout-session-editor.tsx
 #: apps/web/src/routes/_auth/-goal-checkin-dialog.tsx
 #: apps/web/src/routes/_auth/body.tsx
@@ -6567,6 +6610,7 @@ msgstr "Degradado"
 #: apps/native/components/workout-session-detail.tsx
 #: apps/web/src/components/pain/pain-panel.tsx
 #: apps/web/src/components/workout-routines.tsx
+#: apps/web/src/routes/_auth/clinical.tsx
 #: apps/web/src/routes/_auth/cycle.tsx
 #: apps/web/src/routes/_auth/goals.index.tsx
 #: apps/web/src/routes/_auth/nutrition.tsx
@@ -6686,6 +6730,10 @@ msgstr "Apagar a série {0}?"
 msgid "Delete the held-back {confirmName} records?"
 msgstr "Eliminar os registos retidos de {confirmName}?"
 
+#: apps/web/src/routes/_auth/clinical.tsx
+msgid "Delete this cardiac exam and its measurements? This cannot be undone."
+msgstr "Eliminar este exame cardíaco e as suas medições? Esta ação não pode ser anulada."
+
 #: apps/web/src/routes/_auth/goals.$goalId.tsx
 msgid "Delete this check-in? Progress will be recalculated."
 msgstr "Eliminar este registo? O progresso será recalculado."
@@ -6699,6 +6747,10 @@ msgstr "Eliminar este registo?"
 msgid "Delete this entry? This cannot be undone."
 msgstr "Apagar esta entrada? Não é possível anular."
 
+#: apps/web/src/routes/_auth/clinical.tsx
+msgid "Delete this family history entry? This cannot be undone."
+msgstr "Eliminar esta entrada dos antecedentes familiares? Esta ação não pode ser anulada."
+
 #: apps/native/app/(drawer)/goals.tsx
 #: apps/native/app/(drawer)/goals/[goalId].tsx
 msgid "Delete this goal?"
@@ -6708,6 +6760,10 @@ msgstr "Eliminar esta meta?"
 #: apps/web/src/routes/_auth/goals.index.tsx
 msgid "Delete this goal? Its source records will remain."
 msgstr "Eliminar esta meta? Os registos de origem serão mantidos."
+
+#: apps/web/src/routes/_auth/clinical.tsx
+msgid "Delete this imaging study? This cannot be undone."
+msgstr "Eliminar este exame de imagem? Esta ação não pode ser anulada."
 
 #: apps/native/app/(drawer)/cycle.tsx
 #: apps/web/src/routes/_auth/cycle.tsx
@@ -7040,6 +7096,10 @@ msgstr "Distância / dia"
 msgid "Distance, 30 days"
 msgstr "Distância, 30 dias"
 
+#: apps/web/src/components/clinical-record-dialog.tsx
+msgid "Doctor"
+msgstr "Médico"
+
 #: apps/native/app/(drawer)/exports.tsx
 msgid "Domains"
 msgstr "Domínios"
@@ -7306,12 +7366,21 @@ msgstr "Versões anteriores do registo"
 msgid "Earliest delivery time"
 msgstr "Hora mais cedo de envio"
 
+#: apps/web/src/components/clinical-record-dialog.tsx
+msgid "ECG, echocardiogram…"
+msgstr "ECG, ecocardiograma…"
+
+#: apps/web/src/components/clinical-record-dialog.tsx
+msgid "Echocardiogram"
+msgstr "Ecocardiograma"
+
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 #: apps/native/app/(drawer)/goals/[goalId].tsx
 #: apps/native/app/(drawer)/private-measurements.tsx
 #: apps/native/components/workout-routines.tsx
 #: apps/web/src/components/wellness-profile-editor.tsx
 #: apps/web/src/components/workout-routines.tsx
+#: apps/web/src/routes/_auth/clinical.tsx
 #: apps/web/src/routes/_auth/nutrition.tsx
 #: apps/web/src/routes/_auth/private-measurements.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
@@ -7350,17 +7419,29 @@ msgstr "Editar {name}"
 msgid "Edit {name} target"
 msgstr "Editar objetivo de {name}"
 
+#: apps/web/src/components/clinical-record-dialog.tsx
+msgid "Edit cardiac exam"
+msgstr "Editar exame cardíaco"
+
 #: apps/native/app/(drawer)/private-measurements.tsx
 #: apps/web/src/routes/_auth/private-measurements.tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 msgid "Edit entry"
 msgstr "Editar registo"
 
+#: apps/web/src/components/clinical-record-dialog.tsx
+msgid "Edit family history"
+msgstr "Editar antecedentes familiares"
+
 #: apps/native/app/(drawer)/goals/[goalId].tsx
 #: apps/native/components/goal-editor.tsx
 #: apps/web/src/routes/_auth/goals.$goalId.tsx
 msgid "Edit goal"
 msgstr "Editar meta"
+
+#: apps/web/src/components/clinical-record-dialog.tsx
+msgid "Edit imaging study"
+msgstr "Editar exame de imagem"
 
 #: apps/web/src/components/display-name-field.tsx
 msgid "Edit name"
@@ -7971,6 +8052,7 @@ msgstr "Evidência incerta"
 msgid "Evidence uncertain (USPSTF I)"
 msgstr "Evidência incerta (USPSTF I)"
 
+#: apps/web/src/components/clinical-record-dialog.tsx
 #: packages/api/src/presenters/clinical-records.ts
 msgid "Exam"
 msgstr "Exame"
@@ -8153,6 +8235,10 @@ msgctxt "fat letter"
 msgid "F"
 msgstr "L"
 
+#: apps/web/src/components/clinical-record-dialog.tsx
+msgid "Facility"
+msgstr "Local"
+
 #: packages/api/src/presenters/ai-apps.ts
 msgctxt "ai app call"
 msgid "Failed"
@@ -8177,6 +8263,7 @@ msgid "Failures before deload"
 msgstr "Falhas antes da redução de carga"
 
 #: apps/native/app/(drawer)/clinical.tsx
+#: apps/web/src/components/clinical-record-dialog.tsx
 #: apps/web/src/routes/_auth/clinical.tsx
 #: packages/api/src/presenters/clinical-export.ts
 msgid "Family history"
@@ -8196,6 +8283,10 @@ msgstr "Lípidos"
 #: packages/api/src/presenters/body-map.ts
 msgid "Fat mass"
 msgstr "Massa gorda"
+
+#: apps/web/src/components/clinical-record-dialog.tsx
+msgid "Father"
+msgstr "Pai"
 
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Favorite"
@@ -8286,6 +8377,10 @@ msgstr "A procurar “{0}” do seu rascunho."
 #: apps/native/components/direct-device-settings.tsx
 msgid "Finding nearby devices…"
 msgstr "A procurar dispositivos próximos…"
+
+#: apps/web/src/components/clinical-record-dialog.tsx
+msgid "Findings"
+msgstr "Achados"
 
 #: apps/native/components/onboarding/steps.tsx
 msgid "Fine-tune what appears. Hidden parts keep their data."
@@ -8599,6 +8694,10 @@ msgstr "Controlo total, incluindo convidar e remover pessoas e eliminar dados."
 msgid "Full log"
 msgstr "Registo completo"
 
+#: apps/web/src/components/clinical-record-dialog.tsx
+msgid "Full report"
+msgstr "Relatório completo"
+
 #: apps/web/src/routes/_auth/dashboard.tsx
 msgid "Full timeline"
 msgstr "Cronologia completa"
@@ -8815,6 +8914,14 @@ msgstr "Bom dia"
 #: apps/web/src/components/whats-new-dialog.tsx
 msgid "Got it"
 msgstr "Entendido"
+
+#: apps/web/src/components/clinical-record-dialog.tsx
+msgid "Grandfather"
+msgstr "Avô"
+
+#: apps/web/src/components/clinical-record-dialog.tsx
+msgid "Grandmother"
+msgstr "Avó"
 
 #. safety
 #: apps/native/components/ai-section.tsx
@@ -9202,6 +9309,10 @@ msgstr "Manter o peso e os hábitos atuais."
 msgid "Holds the line on targets and habits."
 msgstr "Mantém-se firme nas metas e nos hábitos."
 
+#: apps/web/src/components/clinical-record-dialog.tsx
+msgid "Holter"
+msgstr "Holter"
+
 #: apps/native/components/home-widget-settings.tsx
 msgid "Home-screen widget"
 msgstr "Widget do ecrã principal"
@@ -9527,6 +9638,10 @@ msgstr "Imagem indisponível"
 #: packages/api/src/presenters/timeline.ts
 msgid "Imaging"
 msgstr "Imagiologia"
+
+#: apps/web/src/components/clinical-record-dialog.tsx
+msgid "Imaging study"
+msgstr "Exame de imagem"
 
 #: apps/web/src/components/product-settings-form.tsx
 msgid "Imperial"
@@ -10074,6 +10189,10 @@ msgstr "quilogramas"
 #: apps/web/src/components/insight-notifications-section.tsx
 msgid "Kind"
 msgstr "Tipo"
+
+#: apps/web/src/components/clinical-record-dialog.tsx
+msgid "Kind of record"
+msgstr "Tipo de registo"
 
 #: apps/native/components/language-section.tsx
 #: apps/web/src/components/language-section.tsx
@@ -11702,6 +11821,10 @@ msgstr "Mais opções para {foodName}"
 msgid "More for {label} entry from {when}"
 msgstr "Mais opções para o registo de {label} de {when}"
 
+#: apps/web/src/routes/_auth/clinical.tsx
+msgid "More for {name}"
+msgstr "Mais opções para {name}"
+
 #: apps/web/src/routes/_auth/nutrition.tsx
 msgid "More for the meal diary"
 msgstr "Mais opções do diário de refeições"
@@ -11754,6 +11877,14 @@ msgstr "a maioria"
 msgid "Most reps at {0}"
 msgstr "Mais repetições a {0}"
 
+#: apps/web/src/components/clinical-record-dialog.tsx
+msgid "Mother"
+msgstr "Mãe"
+
+#: apps/web/src/components/clinical-record-dialog.tsx
+msgid "Mother, father…"
+msgstr "Mãe, pai…"
+
 #: apps/native/components/nutrition-selection-bar.tsx
 msgid "Move"
 msgstr "Mover"
@@ -11801,6 +11932,10 @@ msgstr "Afastou-se do alvo no último check-in"
 #: apps/native/components/direct-device-settings.tsx
 msgid "Moyoung history (heart rate and sleep) syncs automatically while connected. Steps are not synced because the watch only reports daily totals. Records are saved in batches and sent only when you tap “Retry upload”."
 msgstr "O histórico Moyoung (frequência cardíaca e sono) sincroniza automaticamente enquanto ligado. Os passos não são sincronizados porque o relógio só reporta totais diários. Os registos são guardados em lotes e só são enviados quando toca em “Tentar enviar novamente”."
+
+#: apps/web/src/components/clinical-record-dialog.tsx
+msgid "MRI, X-ray…"
+msgstr "RM, raio-X…"
 
 #. Unit symbol; keep as is.
 #: packages/api/src/presenters/timeline.ts
@@ -13014,6 +13149,7 @@ msgid "Note (optional)"
 msgstr "Nota (opcional)"
 
 #: apps/native/components/active-workout.tsx
+#: apps/web/src/components/clinical-record-dialog.tsx
 #: apps/web/src/components/oauth-consent-view.tsx
 #: packages/api/src/presenters/ai-apps.ts
 msgid "Notes"
@@ -13542,6 +13678,10 @@ msgstr "Abrir {0}"
 #: apps/native/app/(drawer)/exports.tsx
 msgid "Open {fileName}"
 msgstr "Abrir {fileName}"
+
+#: apps/web/src/routes/_auth/clinical.tsx
+msgid "Open {name}"
+msgstr "Abrir {name}"
 
 #: apps/native/app/server.tsx
 msgid "Open another server?"
@@ -14940,6 +15080,10 @@ msgstr "A ler o histórico de passos…"
 msgid "Ready"
 msgstr "Pronto"
 
+#: apps/web/src/components/clinical-record-dialog.tsx
+msgid "Reason"
+msgstr "Motivo"
+
 #: packages/api/src/presenters/insights.ts
 msgid "Rebuilding your usual after a new source"
 msgstr "A restabelecer o seu habitual após uma nova fonte"
@@ -15066,6 +15210,10 @@ msgstr "Registo"
 msgid "Record an amount"
 msgstr "Registar um valor"
 
+#: apps/web/src/routes/_auth/clinical.tsx
+msgid "Record deleted."
+msgstr "Registo eliminado."
+
 #: apps/web/src/routes/_auth/supplements.tsx
 msgid "Record each dose when you take it."
 msgstr "Registe cada dose quando a tomar."
@@ -15073,6 +15221,10 @@ msgstr "Registe cada dose quando a tomar."
 #: apps/native/components/active-workout.tsx
 msgid "Record RPE"
 msgstr "Registar RPE"
+
+#: apps/web/src/routes/_auth/clinical.tsx
+msgid "Record saved."
+msgstr "Registo guardado."
 
 #: apps/web/src/components/workout-session-editor.tsx
 msgid "Record the session as it happened. Exercise and set details are optional."
@@ -15198,6 +15350,10 @@ msgstr "recusado"
 #: packages/api/src/presenters/clinical-records.ts
 msgid "Relation"
 msgstr "Parentesco"
+
+#: apps/web/src/components/clinical-record-dialog.tsx
+msgid "Relative"
+msgstr "Familiar"
 
 #: apps/web/src/components/whats-new-changelog.tsx
 msgid "Releases"
@@ -16121,6 +16277,7 @@ msgstr "Gravação cancelada. A criação do alimento já enviada ainda pode ser
 #: apps/native/app/(drawer)/private-measurements.tsx
 #: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/native/components/active-workout.tsx
+#: apps/web/src/components/clinical-record-dialog.tsx
 #: apps/web/src/routes/_auth/private-measurements.tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 #: packages/api/src/presenters/nutrition-diary.ts
@@ -16206,6 +16363,10 @@ msgstr "Guardar período"
 #: apps/native/app/(drawer)/workouts.tsx
 msgid "Save rating"
 msgstr "Guardar avaliação"
+
+#: apps/web/src/components/clinical-record-dialog.tsx
+msgid "Save record"
+msgstr "Guardar registo"
 
 #: apps/native/components/workout-routines.tsx
 #: apps/web/src/components/workout-routines.tsx
@@ -16382,6 +16543,7 @@ msgstr "A guardar fotografia…"
 #: apps/native/components/routine-editor.tsx
 #: apps/native/components/trackers/tracker-log-form.tsx
 #: apps/native/components/workout-routines.tsx
+#: apps/web/src/components/clinical-record-dialog.tsx
 #: apps/web/src/components/display-name-field.tsx
 #: apps/web/src/components/exercise-library.tsx
 #: apps/web/src/components/health-data-consent-prompt.tsx
@@ -17374,6 +17536,10 @@ msgstr "desde {from}"
 msgid "single sign-on"
 msgstr "início de sessão único"
 
+#: apps/web/src/components/clinical-record-dialog.tsx
+msgid "Sister"
+msgstr "Irmã"
+
 #: apps/native/components/recipe-draft-editor.tsx
 #: apps/web/src/components/recipe-draft-editor.tsx
 msgid "Site: {site}"
@@ -17913,9 +18079,17 @@ msgstr "Volume de força: sem séries com peso registadas."
 msgid "Stress"
 msgstr "Stress"
 
+#: apps/web/src/components/clinical-record-dialog.tsx
+msgid "Stress test"
+msgstr "Prova de esforço"
+
 #: packages/api/src/presenters/coach-settings.ts
 msgid "Strict"
 msgstr "Rigoroso"
+
+#: apps/web/src/components/clinical-record-dialog.tsx
+msgid "Study"
+msgstr "Exame"
 
 #: apps/web/src/components/billing-plan-view.tsx
 msgid "Subscribe"
@@ -18402,6 +18576,10 @@ msgstr "Os objetivos são seus para definir, alterar ou limpar. São mostrados a
 #: packages/api/src/presenters/drinks.ts
 msgid "Tea"
 msgstr "Chá"
+
+#: apps/web/src/components/clinical-record-dialog.tsx
+msgid "Technique"
+msgstr "Técnica"
 
 #. A question put in the coach's message box from an insight; the person edits it before sending
 #. placeholder {0}: view.title
@@ -20070,6 +20248,10 @@ msgctxt "data source"
 msgid "Typed in"
 msgstr "Introduzido à mão"
 
+#: apps/web/src/components/clinical-record-dialog.tsx
+msgid "Ultrasound"
+msgstr "Ecografia"
+
 #: apps/native/app/(drawer)/(tabs)/index.tsx
 #: apps/native/components/energy-estimate-card.tsx
 #: apps/web/src/components/energy-estimate-card.tsx
@@ -21205,6 +21387,10 @@ msgstr "Convite para espaço de trabalho"
 #: apps/native/app/(drawer)/preventive-care.tsx
 msgid "Worth a look"
 msgstr "Vale a pena ver"
+
+#: apps/web/src/components/clinical-record-dialog.tsx
+msgid "X-ray"
+msgstr "Raio-X"
 
 #: apps/native/app/(drawer)/records/vitals.tsx
 msgid "Y-axis: avg bpm"

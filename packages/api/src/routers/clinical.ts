@@ -24,8 +24,10 @@ import { permissionedProcedure, protectedProcedure, raiseApiError, validateInput
  *
  * - `blood`    — listBloodPanels, getBloodPanel (with computed
  *   out-of-range flags + marker info).
- * - `cardiac`  — listCardiacExams, getCardiacExam (with measurements).
- * - `imaging`  — listImagingStudies, getImagingStudy.
+ * - `cardiac`  — listCardiacExams, getCardiacExam (with measurements),
+ *   upsertCardiacExam, deleteCardiacExam.
+ * - `imaging`  — listImagingStudies, getImagingStudy, upsertImagingStudy,
+ *   deleteImagingStudy.
  * - `family`   — listFamilyHistory, upsertFamilyHistoryEntry,
  *   deleteFamilyHistoryEntry.
  * - `records`  — listConsultations, getConsultation.
@@ -186,6 +188,42 @@ const familyUpsertUpdateSchema = z.strictObject({
 });
 const familyUpsertSchema = z.union([familyUpsertCreateSchema, familyUpsertUpdateSchema]);
 
+/** A calendar day, `YYYY-MM-DD`, that exists (no 31 February). */
+const recordDaySchema = z
+  .string()
+  .trim()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .refine((day) => {
+    const parsed = new Date(`${day}T00:00:00Z`);
+    return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === day;
+  }, "Not a calendar day.");
+const optionalText = (max: number) => z.string().trim().max(max).nullish();
+
+// #clinical-3: a person records and corrects exams and studies by hand.
+// Without `id` it creates; with `id` it replaces the recorded fields. The
+// measurements and the import-only `sourceFile` are never touched here.
+const cardiacUpsertSchema = z.strictObject({
+  id: z.number().int().positive().optional(),
+  date: recordDaySchema,
+  type: z.string().trim().min(1).max(80),
+  facility: optionalText(200),
+  physician: optionalText(200),
+  reason: optionalText(2000),
+  report: optionalText(20000),
+  conclusion: optionalText(4000),
+});
+const imagingUpsertSchema = z.strictObject({
+  id: z.number().int().positive().optional(),
+  date: recordDaySchema,
+  type: z.string().trim().min(1).max(80),
+  bodyPart: z.string().trim().min(1).max(120),
+  facility: optionalText(200),
+  physician: optionalText(200),
+  technique: optionalText(2000),
+  findings: optionalText(20000),
+  conclusion: optionalText(4000),
+});
+
 const upsertResult = z.object({
   id: z.number(),
   created: z.boolean(),
@@ -214,6 +252,26 @@ async function requireAuthz(
     }
     throw raiseApiError("INTERNAL", "Authorization failed.");
   }
+}
+
+async function auditRecordWrite(
+  context: { db: Parameters<typeof writeAuditLog>[0]["db"]; correlationId: string },
+  authz: { activeOrganizationId: string; user: { id: string } },
+  eventType: AuditEventType,
+  targetType: "cardiac_exam" | "imaging_study",
+  resource: "cardiac" | "imaging",
+  id: number,
+) {
+  await writeAuditLog({
+    db: context.db,
+    organizationId: authz.activeOrganizationId,
+    actorUserId: authz.user.id,
+    eventType,
+    targetType,
+    targetId: String(id),
+    correlationId: context.correlationId,
+    metadata: { resource, action: "write" },
+  });
 }
 
 export const clinicalRouter = {
@@ -257,6 +315,56 @@ export const clinicalRouter = {
       ),
     ),
 
+  upsertCardiacExam: protectedProcedure
+    .use(validateInput(cardiacUpsertSchema))
+    .input(cardiacUpsertSchema)
+    .output(upsertResult)
+    .handler(async ({ input, context }) => {
+      const authz = await requireAuthz(context, "cardiac", "write");
+      const repo = createClinicalRepository(context.db);
+      const { id, ...fields } = input;
+      let savedId: number;
+      if (id === undefined) {
+        savedId = (await repo.createCardiacExam(authz.activeOrganizationId, fields)).id;
+      } else {
+        const updated = await repo.updateCardiacExam(authz.activeOrganizationId, id, fields);
+        if (!updated) throw raiseApiError("NOT_FOUND", "Cardiac exam not found.");
+        savedId = updated.id;
+      }
+      const created = id === undefined;
+      await auditRecordWrite(
+        context,
+        authz,
+        created ? "RECORD_CREATED" : "RECORD_UPDATED",
+        "cardiac_exam",
+        "cardiac",
+        savedId,
+      );
+      return { id: savedId, created, targetId: String(savedId) };
+    }),
+
+  deleteCardiacExam: protectedProcedure
+    .use(validateInput(examIdSchema))
+    .input(examIdSchema)
+    .output(deleteResult.nullable())
+    .handler(async ({ input, context }) => {
+      const authz = await requireAuthz(context, "cardiac", "write");
+      const result = await createClinicalRepository(context.db).deleteCardiacExam(
+        authz.activeOrganizationId,
+        input.id,
+      );
+      if (!result) return null;
+      await auditRecordWrite(
+        context,
+        authz,
+        "RECORD_DELETED",
+        "cardiac_exam",
+        "cardiac",
+        result.id,
+      );
+      return { id: result.id, targetId: String(result.id) };
+    }),
+
   // ─── imaging ───────────────────────────────────────────────
 
   listImagingStudies: permissionedProcedure({ resource: "imaging", action: "read" })
@@ -276,6 +384,56 @@ export const clinicalRouter = {
         input.id,
       ),
     ),
+
+  upsertImagingStudy: protectedProcedure
+    .use(validateInput(imagingUpsertSchema))
+    .input(imagingUpsertSchema)
+    .output(upsertResult)
+    .handler(async ({ input, context }) => {
+      const authz = await requireAuthz(context, "imaging", "write");
+      const repo = createClinicalRepository(context.db);
+      const { id, ...fields } = input;
+      let savedId: number;
+      if (id === undefined) {
+        savedId = (await repo.createImagingStudy(authz.activeOrganizationId, fields)).id;
+      } else {
+        const updated = await repo.updateImagingStudy(authz.activeOrganizationId, id, fields);
+        if (!updated) throw raiseApiError("NOT_FOUND", "Imaging study not found.");
+        savedId = updated.id;
+      }
+      const created = id === undefined;
+      await auditRecordWrite(
+        context,
+        authz,
+        created ? "RECORD_CREATED" : "RECORD_UPDATED",
+        "imaging_study",
+        "imaging",
+        savedId,
+      );
+      return { id: savedId, created, targetId: String(savedId) };
+    }),
+
+  deleteImagingStudy: protectedProcedure
+    .use(validateInput(studyIdSchema))
+    .input(studyIdSchema)
+    .output(deleteResult.nullable())
+    .handler(async ({ input, context }) => {
+      const authz = await requireAuthz(context, "imaging", "write");
+      const result = await createClinicalRepository(context.db).deleteImagingStudy(
+        authz.activeOrganizationId,
+        input.id,
+      );
+      if (!result) return null;
+      await auditRecordWrite(
+        context,
+        authz,
+        "RECORD_DELETED",
+        "imaging_study",
+        "imaging",
+        result.id,
+      );
+      return { id: result.id, targetId: String(result.id) };
+    }),
 
   // ─── consultations (records) ────────────────────────────────
 
