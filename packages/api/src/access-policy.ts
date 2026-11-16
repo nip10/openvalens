@@ -326,6 +326,7 @@ export const PROCEDURE_ACCESS: Readonly<Record<string, ProcedureAccessClass>> = 
   // Personal goals and actual supplement intake have explicit workspace
   // access classes; reads remain available after a plan ends, writes do not.
   "goals.list": R,
+  "goals.suggestions": R,
   "goals.detail": R,
   "goals.create": W,
   "goals.update": W,

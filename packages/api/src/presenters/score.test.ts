@@ -51,7 +51,7 @@ describe("readinessView", () => {
     );
     expect(view.profileLabel).toBe("Uses heart data from your watch");
     expect(view.coverageText).toBe(
-      "Uses 2 of 3 inputs for this profile: Sleep and Resting heart rate.",
+      "Uses 2 of 5 inputs for this profile: Sleep and Resting heart rate.",
     );
     expect(view.wouldHelpText).toBe("More data for Recent activity load would help.");
     expect(view.withheldExplanation).toBeNull();
@@ -67,9 +67,9 @@ describe("readinessView", () => {
     expect(heart.effectText).toBe("Higher than your usual, so it lowers readiness.");
     expect(view.components.find((c) => c.key === "activity_load")?.effectText).toBeNull();
     expect(view.notCountedText).toBe(
-      "Not counted yet: Heart rate variability and How you feel (check-in)",
+      "Not part of this score yet: Heart rate variability and How you feel (check-in)",
     );
-    expect(view.versionText).toBe("Method readiness-0.1.0-experimental, as of 2026-10-15.");
+    expect(view.versionText).toBe("Method readiness-0.2.0-experimental, as of 2026-10-15.");
   });
 
   test("a part above its usual adds to readiness; a short window is named", () => {
@@ -107,9 +107,47 @@ describe("readinessView", () => {
     expect(view.wouldHelpText).toBe(
       "More data for Sleep, Resting heart rate and Recent activity load would help.",
     );
-    expect(view.components.find((c) => c.key === "hrv")?.stateLabel).toBe(
-      "Not recorded by OpenValens yet",
+    // scores#2: the optional parts share one footnote line, not two empty rows.
+    const hrv = view.components.find((c) => c.key === "hrv")!;
+    expect(hrv).toMatchObject({ inFootnote: true, stateLabel: "No recent data" });
+    expect(hrv.detail).toMatch(/watch or ring/);
+    const checkIn = view.components.find((c) => c.key === "check_in")!;
+    expect(checkIn.inFootnote).toBe(true);
+    expect(checkIn.detail).toBe(
+      "Counts when you rate today on your Mood tracker (Trackers). One rating serves both.",
     );
+    expect(view.components.find((c) => c.key === "sleep")?.inFootnote).toBe(false);
+  });
+
+  test("0.2.0: HRV and today's Mood rating show as counted parts", () => {
+    const view = readinessView(
+      computeReadiness(
+        {
+          sleepMinutes: [...flat(1, 28, 450), { date: AS_OF, value: 450 }],
+          restingHeartRate: [...flat(1, 28, 60), { date: AS_OF, value: 60 }],
+          steps: [],
+          hrv: [...flat(1, 28, 50), { date: AS_OF, value: 55 }],
+          checkIn: [{ date: AS_OF, value: 4 }],
+        },
+        AS_OF,
+      ),
+      englishI18n,
+    );
+    expect(view.notCountedText).toBeNull();
+    const hrv = view.components.find((c) => c.key === "hrv")!;
+    expect(hrv).toMatchObject({ used: true, inFootnote: false, scoreText: "60" });
+    expect(hrv.detail).toBe(
+      "Recent 55 ms vs usual 50 ms (median of the 28 days before), 10% above your usual.",
+    );
+    expect(hrv.effectText).toBe("Higher than your usual, so it adds to readiness.");
+    const checkIn = view.components.find((c) => c.key === "check_in")!;
+    expect(checkIn).toMatchObject({ used: true, scoreText: "75" });
+    expect(checkIn.detail).toBe("Your Mood rating today: 4 of 5, from your Mood tracker.");
+    expect(checkIn.effectText).toBe(
+      "You rated how you feel above the middle, so it adds to readiness.",
+    );
+    expect(checkIn.weightText).toBe("1 of 4 equal parts.");
+    expect(formatReadinessValue(3.5, "rating", englishI18n)).toBe("3.5 of 5");
   });
 
   test("adults-only result explains itself", () => {

@@ -183,9 +183,9 @@ function BreakdownRow({ component }: { component: ReadinessComponentView }) {
 export function ReadinessCard({ result, trend }: { result: ReadinessResult; trend?: ReactNode }) {
   const { i18n } = useLingui();
   const view = readinessView(result, i18n);
-  // HRV and the check-in are not recorded yet: one line, not two empty rows.
-  const rows = view.components.filter((component) => component.state !== "not_supported_yet");
-  const notYet = view.components.filter((component) => component.state === "not_supported_yet");
+  // HRV and the check-in, when they did not count: one line, not two empty rows (scores#2).
+  const rows = view.components.filter((component) => !component.inFootnote);
+  const notYet = view.components.filter((component) => component.inFootnote);
   return (
     <section
       aria-labelledby="readiness-title"

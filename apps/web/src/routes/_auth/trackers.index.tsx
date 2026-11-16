@@ -3,7 +3,9 @@ import {
   formatTrackerTarget,
   formatTrackerTotal,
   formatTrackerValue,
+  TRACKER_CHECK_IN_COPY,
   TRACKER_TEMPLATE_COPY,
+  trackerIsReadinessCheckIn,
 } from "@openvalens/api/presenters/trackers";
 import {
   TRACKER_LIMITS,
@@ -21,6 +23,7 @@ import { toast } from "sonner";
 import {
   EmptyState,
   ErrorState,
+  InfoTip,
   Meter,
   Page,
   PageHeader,
@@ -279,6 +282,19 @@ function TrackerCard({ tracker, onLogged }: { tracker: TrackerSummary; onLogged:
       {recent ? <WeekStrip tracker={tracker} days={recent.window} /> : null}
       {progress && targetText ? (
         <TargetBar tracker={tracker} progress={progress} targetText={targetText} />
+      ) : null}
+      {trackerIsReadinessCheckIn(tracker) ? (
+        <p className="flex flex-wrap items-center gap-1 text-sm text-ink-3">
+          <Link
+            to="/scores"
+            className="rounded-full hover:text-signal hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          >
+            {i18n._(TRACKER_CHECK_IN_COPY.label)}
+          </Link>
+          <InfoTip>
+            <p>{i18n._(TRACKER_CHECK_IN_COPY.explanation)}</p>
+          </InfoTip>
+        </p>
       ) : null}
       {tracker.canLog ? (
         <div className="mt-auto">

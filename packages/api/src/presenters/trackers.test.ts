@@ -8,8 +8,10 @@ import {
   formatTrackerValue,
   matchTrackerOneLiner,
   parseTrackerInput,
+  TRACKER_CHECK_IN_COPY,
   TRACKER_TEMPLATE_COPY,
   trackerIdFromLogKind,
+  trackerIsReadinessCheckIn,
   trackerLogKind,
   trackerLogKinds,
   type TrackerForLogKind,
@@ -136,5 +138,24 @@ describe("log kinds", () => {
     expect(
       availableLogKinds({ ...everything, can: () => false }, kinds).map((kind) => kind.id),
     ).not.toContain(`tracker:${sauna.id}`);
+  });
+});
+
+describe("readiness check-in (trackers#5)", () => {
+  const mood = { template: "mood" as const, type: "scale" as const, owner: { isYou: true } };
+
+  test("only your own, live Mood tracker is the check-in", () => {
+    expect(trackerIsReadinessCheckIn(mood)).toBe(true);
+    expect(trackerIsReadinessCheckIn({ ...mood, owner: { isYou: false } })).toBe(false);
+    expect(trackerIsReadinessCheckIn({ ...mood, template: "energy" })).toBe(false);
+    expect(trackerIsReadinessCheckIn({ ...mood, template: null })).toBe(false);
+    expect(trackerIsReadinessCheckIn({ ...mood, archivedAt: "2026-11-01T00:00:00.000Z" })).toBe(
+      false,
+    );
+  });
+
+  test("the card copy says what counts, in plain words", () => {
+    expect(inEnglish(TRACKER_CHECK_IN_COPY.label)).toBe("Also your readiness check-in");
+    expect(inEnglish(TRACKER_CHECK_IN_COPY.explanation)).toMatch(/Only today's rating counts/);
   });
 });

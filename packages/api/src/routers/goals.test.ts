@@ -16,6 +16,7 @@ describe("canonical goals API", () => {
       "listNeedsConfiguration",
       "listUnassignedLegacy",
       "setStatus",
+      "suggestions",
       "update",
       "updateCheckin",
     ]);

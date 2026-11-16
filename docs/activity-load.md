@@ -149,7 +149,7 @@ budget.
 - `load.context` — `steps`, `stepDays`, `strengthVolumeKg`, `strengthSessions`.
 
 Server-side consumers can call `computeWeeklyActivityLoad` directly with
-`listActivitySessions` output. The readiness index (`readiness-0.1.0-experimental`)
+`listActivitySessions` output. The readiness index (`readiness-0.2.0-experimental`)
 still uses daily steps for its `activity_load` input; switching it to effort
 points would be a new readiness version and is left to #95 follow-up work.
 

@@ -30,6 +30,11 @@ export type ScoreCard = {
   scoreAccessibilityLabel: string;
   notes: string[];
   rows: ScoreRow[];
+  /**
+   * Optional parts that did not count (HRV, the check-in) in one line under
+   * the breakdown, each one's reason behind its ⓘ (scores#2).
+   */
+  footnote: { text: string; tip: string[] } | null;
   method: string;
   limits: string;
   versionText: string;
@@ -52,13 +57,23 @@ export function readinessCard(result: ReadinessResult, i18n: I18n): ScoreCard {
       view.profileDescription,
       view.coverageText,
     ].filter((line): line is string => line !== null),
-    rows: view.components.map((component) => ({
-      key: component.key,
-      label: component.label,
-      value: component.scoreText,
-      lines: [component.stateLabel, component.detail],
-      accessibilityLabel: component.accessibilityLabel,
-    })),
+    rows: view.components
+      .filter((component) => !component.inFootnote)
+      .map((component) => ({
+        key: component.key,
+        label: component.label,
+        value: component.scoreText,
+        lines: [component.stateLabel, component.detail],
+        accessibilityLabel: component.accessibilityLabel,
+      })),
+    footnote: view.notCountedText
+      ? {
+          text: view.notCountedText,
+          tip: view.components
+            .filter((component) => component.inFootnote)
+            .map((component) => `${component.label}: ${component.detail}`),
+        }
+      : null,
     method: i18n._(SCORE_COPY.readinessMethod),
     limits: i18n._(SCORE_COPY.readinessLimits),
     versionText: view.versionText,
@@ -90,6 +105,7 @@ export function goalProgressCard(result: GoalProgressResult, i18n: I18n): ScoreC
       ],
       accessibilityLabel: goal.accessibilityLabel,
     })),
+    footnote: null,
     method: i18n._(SCORE_COPY.goalProgressMethod),
     limits: i18n._(SCORE_COPY.goalProgressLimits),
     versionText: view.versionText,
