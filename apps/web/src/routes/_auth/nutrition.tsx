@@ -78,6 +78,7 @@ import { nativeSelectClass, textLinkClass } from "@/components/food-classes";
 import { LoggingStreakCard } from "@/components/logging-streak-card";
 import { FormDialog } from "@/components/form-dialog";
 import { LogFoodSheet, type LogFoodRequest, type LogFoodTab } from "@/components/log-food-sheet";
+import { MicronutrientSummary } from "@/components/micronutrient-summary";
 import { NutritionDayTotals } from "@/components/nutrition-day-totals";
 import { Details, ErrorState, InfoTip, Page, PageHeader, ToneIcon } from "@/components/page";
 import { DecimalHint } from "@/components/decimal-hint";
@@ -100,6 +101,8 @@ type DiarySearch = {
   describe?: string;
   /** Opens Log food on this tab. */
   log?: LogFoodTab;
+  /** Opens "All nutrients", vitamins and minerals included (the old /micronutrients). */
+  nutrients?: "all";
 };
 
 /**
@@ -122,6 +125,7 @@ export const Route = createFileRoute("/_auth/nutrition")({
     ...(typeof search.log === "string" && (LOG_TABS as readonly string[]).includes(search.log)
       ? { log: search.log as LogFoodTab }
       : {}),
+    ...(search.nutrients === "all" ? { nutrients: "all" as const } : {}),
   }),
 });
 
@@ -164,7 +168,7 @@ function networkFailure(retry: () => void, announce: (text: string) => void, i18
 }
 
 function NutritionPage() {
-  const { food: draftFood, describe, log: logTab } = Route.useSearch();
+  const { food: draftFood, describe, log: logTab, nutrients: nutrientsSearch } = Route.useSearch();
   const navigate = useNavigate({ from: "/nutrition" });
   const timeZone = useMemo(() => deviceTimeZone(), []);
   const { data: session } = authClient.useSession();
@@ -403,6 +407,8 @@ function NutritionPage() {
                 sources={day.summary.sources}
                 hideNumbers={hideNumbers}
                 targets={targetsQuery.data?.targetsOn.targets ?? []}
+                micronutrients={<MicronutrientSummary localDate={localDate} />}
+                allNutrientsOpen={nutrientsSearch === "all"}
               />
             ) : null}
             <TargetsOnDay

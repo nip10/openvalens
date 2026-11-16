@@ -97,17 +97,28 @@ const write = (auditAction: "RECORD_CREATED" | "RECORD_UPDATED" | "RECORD_DELETE
 const read = () => permissionedProcedure({ resource: "records", action: "read" });
 
 export const nutritionCustomFoodsRouter = {
-  /** The member's custom foods by name; archived ones only with `includeArchived`. */
+  /**
+   * The member's custom foods by name; archived ones only with
+   * `includeArchived`. Each carries its usage from the member's own diary.
+   */
   list: read()
     .use(validateInput(listCustomFoodsInput))
     .input(listCustomFoodsInput)
     .output(customFoodList)
     .handler(({ input, context }) =>
       run(async () => {
-        const foods = await foodsFor(context).list(scopeOf(context), {
-          includeArchived: input?.includeArchived ?? false,
-        });
-        return { foods: foods.map(toWireCustomFood) };
+        const repository = foodsFor(context);
+        const scope = scopeOf(context);
+        const [foods, usage] = await Promise.all([
+          repository.list(scope, { includeArchived: input?.includeArchived ?? false }),
+          repository.usage(scope),
+        ]);
+        return {
+          foods: foods.map((food) => ({
+            ...toWireCustomFood(food),
+            usage: usage.get(food.id) ?? { logCount: 0, lastLoggedOn: null },
+          })),
+        };
       }),
     ),
 

@@ -10,13 +10,15 @@ import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { ArrowLeft, Check, Pencil, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 
-import { ErrorState, Page, PageHeader, Section, StatusPill } from "@/components/page";
+import { ErrorState, Meter, Page, PageHeader, Section, StatusPill } from "@/components/page";
 import { orpc } from "@/utils/orpc";
 import { GoalEditor } from "./-goal-editor";
 import {
   checkinCorrectionPayload,
   formatGoalValue,
   goalDetailParams,
+  goalTargetGap,
+  goalTargetProgress,
   parseManualAmount,
 } from "./-goals-ui";
 
@@ -287,6 +289,12 @@ function TodayPanel({
     }),
   );
   const evaluation = goal.evaluation;
+  // goals#4: a one-time target shows the way from its start value to the target.
+  const progress = goalTargetProgress(goal.definition.rule, evaluation);
+  const gap = progress ? goalTargetGap(goal.definition.rule, evaluation.currentValue) : null;
+  const unit = goal.definition.unit;
+  const progressStart = progress ? formatGoalValue(progress.start, unit, i18n.locale) : "";
+  const progressPercent = progress ? Math.round(progress.fraction * 100) : 0;
   return (
     <Section
       title={<Trans>Today</Trans>}
@@ -311,6 +319,20 @@ function TodayPanel({
                 ? t`Past the target date. Still active until you choose otherwise.`
                 : t`Started ${goal.definition.startDate}.`}
         </p>
+        {progress ? (
+          <div className="grid gap-1.5">
+            <Meter
+              value={progress.fraction}
+              tone="weight"
+              label={t`${progressPercent}% of the way from ${progressStart}`}
+            />
+            <p className="text-sm text-ink-3">
+              {gap && !gap.met
+                ? t`${formatGoalValue(gap.gap, unit, i18n.locale)} to go · started at ${progressStart}`
+                : t`Started at ${progressStart}`}
+            </p>
+          </div>
+        ) : null}
         {evaluation.currentStreak > 0 ? (
           <p className="text-sm text-ink-3">{t`${evaluation.currentStreak} day streak · best ${evaluation.bestStreak}`}</p>
         ) : null}
@@ -397,6 +419,13 @@ function SourceAction({ goal }: { goal: GoalDetail }) {
       <p className="mt-3 text-sm text-ink-3">
         {t`Reliable sleep imports count automatically. Uncertain history is not included.`}{" "}
         <Link className="text-signal underline" to="/records/sleep">{t`View sleep records`}</Link>
+      </p>
+    );
+  if (goal.definition.source === "weight")
+    return (
+      <p className="mt-3 text-sm text-ink-3">
+        {t`Your weigh-ins count automatically, one a day, the same as on Body.`}{" "}
+        <Link className="text-signal underline" to="/body">{t`View weigh-ins`}</Link>
       </p>
     );
   if (goal.definition.source === "workout")
@@ -749,6 +778,7 @@ function sourceDescription(goal: GoalDetail, i18n: I18n) {
   if (source === "sleep") return i18n._(msg`Sleep imports · local wake dates`);
   if (source === "supplement") return i18n._(msg`Actual supplement intake`);
   if (source === "tracker") return i18n._(msg`Custom tracker · the tracker's days`);
+  if (source === "weight") return i18n._(msg`Weigh-ins · one a day`);
   return i18n._(msg`Matched exercise · actual lifts only`);
 }
 

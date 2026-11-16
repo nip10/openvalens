@@ -6,7 +6,11 @@ import { createDb, sql, type Database } from "@openvalens/db";
 import { RPCHandler } from "@orpc/server/fetch";
 
 import type { Context } from "../context";
-import type { CustomFood, CustomFoodContent } from "../contracts/nutrition-custom-foods";
+import type {
+  CustomFood,
+  CustomFoodContent,
+  CustomFoodListItem,
+} from "../contracts/nutrition-custom-foods";
 import type { DiaryEntry, FoodChoice } from "../contracts/nutrition-diary";
 import { appRouter } from "./index";
 
@@ -162,8 +166,13 @@ describe.skipIf(!url)("nutritionCustomFoods over HTTP against disposable Postgre
     )) as { status: number; body: { food: CustomFood; created: boolean } };
 
   const list = async (user = "user-a", includeArchived = false) =>
-    (await call<{ foods: CustomFood[] }>("nutritionCustomFoods/list", { includeArchived }, user))
-      .body.foods;
+    (
+      await call<{ foods: CustomFoodListItem[] }>(
+        "nutritionCustomFoods/list",
+        { includeArchived },
+        user,
+      )
+    ).body.foods;
 
   const logCustom = (foodId: number, clientMutationId: string, user = "user-a") =>
     call<{ entry: DiaryEntry }>(
@@ -545,6 +554,56 @@ describe.skipIf(!url)("nutritionCustomFoods over HTTP against disposable Postgre
     expect(other.body.food.id).not.toBe(breadId);
     expect((await list("user-a2")).map((food) => food.name)).toEqual(["Another member's bread"]);
     expect((await list()).map((food) => food.name)).not.toContain("Another member's bread");
+  });
+
+  test("the list carries each food's own diary usage: count and latest day (foods#0, #5)", async () => {
+    const oats = (await create("usage-oats", { ...bread, name: "Synthetic usage oats" })).body.food;
+    const never = (await create("usage-never", { ...bread, name: "Synthetic never logged" })).body
+      .food;
+    const log = (localDate: string, clientMutationId: string, user = "user-a") =>
+      call<{ entry: DiaryEntry }>(
+        "nutritionDiary/logEntry",
+        {
+          clientMutationId,
+          localDate,
+          timeZone: "Europe/Lisbon",
+          slot: "lunch",
+          food: { kind: "custom", foodId: oats.id },
+          amount: 1,
+          unit: "serving",
+          method: "manual",
+        },
+        user,
+      );
+    expect((await log("2026-10-01", "usage-1")).status).toBe(200);
+    expect((await log("2026-10-05", "usage-2")).status).toBe(200);
+    // An edit makes a new snapshot; entries of every revision still count.
+    await call("nutritionCustomFoods/update", {
+      foodId: oats.id,
+      expectedRevision: 1,
+      food: { ...bread, name: "Synthetic usage oats", nutrients: { energyKcal: 380 } },
+    });
+    const removed = await log("2026-10-09", "usage-3");
+    expect(removed.status).toBe(200);
+    // A deleted entry never counts.
+    expect(
+      (
+        await call("nutritionDiary/deleteEntry", {
+          clientMutationId: "usage-3-delete",
+          entryId: removed.body.entry.id,
+        })
+      ).status,
+    ).toBe(200);
+    // Another member cannot log this food, so their diary adds nothing.
+    expect((await log("2026-10-10", "usage-other", "user-a2")).status).not.toBe(200);
+
+    const byName = new Map((await list()).map((food) => [food.name, food]));
+    expect(byName.get("Synthetic usage oats")?.usage).toEqual({
+      logCount: 2,
+      lastLoggedOn: "2026-10-05",
+    });
+    expect(byName.get(never.name)?.usage).toEqual({ logCount: 0, lastLoggedOn: null });
+    for (const food of await list("user-a2")) expect(food.usage.logCount).toBe(0);
   });
 
   test("audit rows carry ids only, never food names or values", async () => {

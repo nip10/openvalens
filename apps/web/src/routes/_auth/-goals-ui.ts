@@ -70,6 +70,7 @@ export function quickActionKind(
   | "supplement-intake"
   | "sleep-records"
   | "workout-records"
+  | "weight-records"
   | "tracker-entries" {
   if (status !== "active") return "none";
   if (source === "tracker") return "tracker-entries";
@@ -80,6 +81,7 @@ export function quickActionKind(
   if (source === "water") return "water-diary";
   if (source === "supplement") return "supplement-intake";
   if (source === "sleep") return "sleep-records";
+  if (source === "weight") return "weight-records";
   return "workout-records";
 }
 
@@ -156,4 +158,45 @@ export function goalDateLabel(date: string, locale: string): string {
     year: "numeric",
     timeZone: "UTC",
   }).format(parsed);
+}
+
+/**
+ * How far a one-time target has come since the goal started (goals#4): the
+ * first recorded day on or after the start date is the start value, and the
+ * fraction is the share of the distance from it to the target covered so far
+ * (0 to 1). Plain arithmetic on the member's own records: no projection, no
+ * date. Null without a start and a later value, or when the start already met
+ * the target.
+ */
+export function goalTargetProgress(
+  rule: GoalDefinition["rule"],
+  evaluation: Pick<GoalEvaluation, "currentValue" | "days">,
+): { start: number; fraction: number } | null {
+  if (rule.kind !== "target") return null;
+  const current = evaluation.currentValue;
+  if (current === null || !Number.isFinite(current)) return null;
+  const first = [...evaluation.days]
+    .filter((day) => day.value !== null && Number.isFinite(day.value))
+    .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))[0];
+  if (!first || first.value === null) return null;
+  const start = first.value;
+  const target = rule.target;
+  // A range is reached at its nearer edge.
+  const goal =
+    target.kind === "range"
+      ? start < target.minimum
+        ? target.minimum
+        : start > target.maximum
+          ? target.maximum
+          : null
+      : target.kind === "minimum"
+        ? start < target.value
+          ? target.value
+          : null
+        : start > target.value
+          ? target.value
+          : null;
+  if (goal === null) return null;
+  const fraction = (current - start) / (goal - start);
+  return { start, fraction: Math.max(0, Math.min(1, fraction)) };
 }

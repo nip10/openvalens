@@ -36,8 +36,8 @@ describe("the sidebar (#app-shell-1, #app-shell-2)", () => {
       "/private-measurements",
       "/records/timeline",
       "/nutrition",
-      "/recipe-drafts",
-      "/micronutrients",
+      // Recipe draft opens from My foods, micronutrients from the diary.
+      "/foods",
       "/workouts",
       "/goals",
       "/trackers",

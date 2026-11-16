@@ -223,8 +223,22 @@ export function GoalEditor({ initial, seed, replacesId, replacesVersion, onSaved
       id: initial?.definition.id ?? globalThis.crypto.randomUUID(),
       title: title.trim(),
       source,
-      metric: source === "water" ? "water_ml" : source === "sleep" ? "sleep_hours" : metric,
-      unit: source === "water" ? "ml" : source === "sleep" ? "h" : unit.trim() || null,
+      metric:
+        source === "water"
+          ? "water_ml"
+          : source === "sleep"
+            ? "sleep_hours"
+            : source === "weight"
+              ? "weight_kg"
+              : metric,
+      unit:
+        source === "water"
+          ? "ml"
+          : source === "sleep"
+            ? "h"
+            : source === "weight"
+              ? "kg"
+              : unit.trim() || null,
       rule,
       startDate,
       timeZone,
@@ -259,6 +273,10 @@ export function GoalEditor({ initial, seed, replacesId, replacesVersion, onSaved
       setUnit("ml");
     }
     if (next === "sleep") setUnit("h");
+    if (next === "weight") {
+      setMetric("weight_kg");
+      setUnit("kg");
+    }
     if (next === "supplement") setMode("completion");
     if (next === "workout") setUnit("kg");
     if (next === "tracker") {
@@ -322,6 +340,7 @@ export function GoalEditor({ initial, seed, replacesId, replacesVersion, onSaved
           ["manual", t`Manual`],
           ["water", t`Water diary`],
           ["sleep", t`Sleep records`],
+          ["weight", t`Weigh-ins`],
           ["supplement", t`Supplement intake`],
           ["workout", t`Workout lift`],
           ["tracker", t`My tracker`],

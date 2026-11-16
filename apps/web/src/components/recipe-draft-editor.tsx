@@ -10,13 +10,25 @@ import { Input } from "@openvalens/ui/components/input";
 import { Label } from "@openvalens/ui/components/label";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { Textarea } from "@openvalens/ui/components/textarea";
-import { useMutation } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
-import { Carrot, ChefHat, ClipboardPaste, Plus, ShieldCheck, Sparkles, Trash2 } from "lucide-react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Link, useNavigate } from "@tanstack/react-router";
+import {
+  Bookmark,
+  Carrot,
+  ChefHat,
+  ClipboardPaste,
+  Plus,
+  ShieldCheck,
+  Sparkles,
+  Trash2,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 
 import { offlineScope } from "@openvalens/api/presenters/offline";
+import { CustomFoodForm } from "@/components/custom-food-form";
 import { nativeSelectClass, textLinkClass } from "@/components/food-classes";
+import { FormDialog } from "@/components/form-dialog";
 import { Details, Page, PageHeader, Section, ToneIcon } from "@/components/page";
 import { authClient } from "@/lib/auth-client";
 import { orpc } from "@/utils/orpc";
@@ -74,6 +86,10 @@ export function RecipeDraftEditor() {
   const [dirty, setDirty] = useState(false);
   const [replacePending, setReplacePending] = useState(false);
   const [showPaste, setShowPaste] = useState(false);
+  // recipe-drafts#3: the reviewed recipe is saved as one of the member's foods.
+  const [saving, setSaving] = useState(false);
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   // recipe-drafts#2: importing from a web address is a setting; while it is off the choice says so.
   const nutritionSettings = useNutritionSettings().settings;
   const importOff = nutritionSettings !== undefined && !nutritionSettings.recipeImportEnabled;
@@ -221,7 +237,7 @@ export function RecipeDraftEditor() {
       <Page width="narrow">
         <ModuleHiddenNote module="food" />
         <PageHeader
-          title={<Trans>Recipe draft</Trans>}
+          title={<Trans>New recipe</Trans>}
           description={<Trans>Sign in to create a private, session-only draft.</Trans>}
         />
       </Page>
@@ -238,11 +254,12 @@ export function RecipeDraftEditor() {
     <Page width="narrow">
       <ModuleHiddenNote module="food" />
       <PageHeader
-        title={<Trans>Recipe draft</Trans>}
+        title={<Trans>New recipe</Trans>}
         info={
           <Trans>
             Paste an ingredient list or a recipe page's code, or import one recipe page if you
-            turned that on in nutrition settings. Nothing is saved.
+            turned that on in nutrition settings. Nothing is saved until you save it as one of your
+            foods.
           </Trans>
         }
         description={
@@ -574,6 +591,10 @@ export function RecipeDraftEditor() {
               </section>
             </Details>
             <div className="flex flex-wrap gap-2">
+              <Button onClick={() => setSaving(true)}>
+                <Bookmark aria-hidden="true" />
+                <Trans>Save as a food</Trans>
+              </Button>
               <Button
                 variant="outline"
                 onClick={() => {
@@ -590,6 +611,43 @@ export function RecipeDraftEditor() {
           </div>
         </Section>
       ) : null}
+      <FormDialog
+        open={saving && draft !== null}
+        onOpenChange={setSaving}
+        title={<Trans>Save as a food</Trans>}
+        description={
+          draft?.servingsText ? (
+            <Trans>
+              Enter the nutrients for one serving. The recipe says: {draft.servingsText}.
+            </Trans>
+          ) : (
+            <Trans>Enter the nutrients for one serving.</Trans>
+          )
+        }
+        className="sm:max-w-2xl"
+      >
+        {saving && draft ? (
+          <CustomFoodForm
+            food={null}
+            initial={{
+              name: (draft.title ?? "").slice(0, 200),
+              basisAmount: "1",
+              basisUnit: "serving",
+            }}
+            announce={setMessage}
+            onDone={(text) => {
+              setSaving(false);
+              if (!text) return;
+              toast(text);
+              void queryClient.invalidateQueries({ queryKey: orpc.nutritionCustomFoods.key() });
+              void queryClient.invalidateQueries({ queryKey: orpc.nutritionDiary.listFoods.key() });
+              setDraft(null);
+              setDirty(false);
+              void navigate({ to: "/foods" });
+            }}
+          />
+        ) : null}
+      </FormDialog>
     </Page>
   );
 }

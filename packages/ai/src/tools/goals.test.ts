@@ -149,6 +149,7 @@ const METRICS: Record<GoalDefinition["source"], string> = {
   supplement: "supplement:7",
   workout: "exercise:9",
   tracker: `tracker:${READABLE_TRACKER}`,
+  weight: "weight_kg",
 };
 
 /** A personal goal (#500) evaluated over synthetic days, as the repository returns it. */
@@ -433,6 +434,8 @@ describe("isPersonalGoalAiVisible", () => {
       ["sleep", "sleep_hours", { enabledModules: new Set(["food"]) }, false],
       ["supplement", "supplement:1", { enabledModules: new Set(["activity"]) }, false],
       ["workout", "exercise:1", { enabledModules: new Set(["activity"]) }, true],
+      ["weight", "weight_kg", { enabledModules: new Set(["body"]) }, true],
+      ["weight", "weight_kg", { enabledModules: new Set(["sleep"]) }, false],
       ["tracker", `tracker:${READABLE_TRACKER}`, { enabledModules: new Set() }, true],
       ["tracker", `tracker:${HIDDEN_TRACKER}`, {}, false],
     ];
@@ -455,7 +458,7 @@ describe("isPersonalGoalAiVisible", () => {
 
   test("every goal source has a module mapping", () => {
     expect(Object.keys(GOAL_SOURCE_MODULES).sort()).toEqual(
-      ["manual", "sleep", "supplement", "tracker", "water", "workout"].sort(),
+      ["manual", "sleep", "supplement", "tracker", "water", "weight", "workout"].sort(),
     );
   });
 });

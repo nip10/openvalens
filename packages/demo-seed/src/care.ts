@@ -17,7 +17,7 @@ import { round, type Random } from "./random";
 
 type DemoGoal = {
   title: string;
-  source: "manual" | "sleep";
+  source: "weight" | "sleep";
   metric: string;
   unit: string;
   rule: Record<string, unknown>;
@@ -27,11 +27,11 @@ type DemoGoal = {
 
 /**
  * Two personal goals in the goal model the Goals screens read (`goals.*`,
- * GLOSSARY.md "Goal"): a weight target with milestones and weekly manual
- * check-ins, and a rolling sleep average whose evidence is the watch's sleep
- * sessions (`device.ts`). `skipTitles` (lower-cased, trimmed) leaves out a
- * goal the workspace already has under that title (an onboarding goal), with
- * its check-ins; the random draws stay the same either way.
+ * GLOSSARY.md "Goal"): a weight target with milestones whose evidence is the
+ * smart scale's daily weigh-ins (goals#2), and a rolling sleep average whose
+ * evidence is the watch's sleep sessions (both in `device.ts`). `skipTitles`
+ * (lower-cased, trimmed) leaves out a goal the workspace already has under
+ * that title (an onboarding goal); the random draws stay the same either way.
  */
 export async function seedGoals(
   api: DemoApi,
@@ -64,17 +64,18 @@ export async function seedGoals(
     );
   };
   // A one-time target: under 65 kg two months from now. The first checkpoint
-  // was met on time; the second is still ahead.
-  const weight = await create("weight", {
+  // was met on time; the second is still ahead (below the lowest daily
+  // weigh-in the scale can draw, 65.6 kg today).
+  await create("weight", {
     title: "Reach 65 kg",
-    source: "manual",
-    metric: "personal",
+    source: "weight",
+    metric: "weight_kg",
     unit: "kg",
     rule: { kind: "target", target: { kind: "maximum", value: 65 }, targetDate: calendar.day(-60) },
     startDate: calendar.day(84),
     milestones: [
       { key: "first", value: 67.5, targetDate: calendar.day(42) },
-      { key: "second", value: 66, targetDate: calendar.day(-21) },
+      { key: "second", value: 65.5, targetDate: calendar.day(-21) },
     ],
   });
   // The better last week lifts the rolling average over the target.
@@ -87,18 +88,11 @@ export async function seedGoals(
     startDate: calendar.day(56),
     milestones: [],
   });
+  // The weekly weight check-ins of the earlier seed, and the steps check-ins
+  // before them, drew here. The goal now reads the scale's weigh-ins; the
+  // draws stay so every later value keeps its place.
   for (let offset = 84; offset >= 0; offset -= 7) {
-    const date = calendar.day(offset);
-    const kg = demoWeightKg(offset, random);
-    // Today's check-in waits for the morning weigh-in.
-    if (weight && calendar.past(calendar.at(offset, 7.5)))
-      await api.call(
-        "goals/createCheckin",
-        { goalId: weight.id, date, value: kg, clientMutationId: demoUuid(`goal-weight-${date}`) },
-        actor,
-      );
-    // The weekly steps check-in of the earlier goal list drew here; the draw
-    // stays so the weight check-ins keep their values.
+    demoWeightKg(offset, random);
     random.normal(0, 300, -600, 600);
   }
 }

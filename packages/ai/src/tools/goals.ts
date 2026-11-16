@@ -231,6 +231,7 @@ export const GOAL_SOURCE_MODULES: Record<GoalSource, string | null> = {
   workout: "activity",
   sleep: "sleep",
   tracker: null,
+  weight: "body",
 };
 
 /** What the caller may read, for {@link aiVisiblePersonalGoals}. */

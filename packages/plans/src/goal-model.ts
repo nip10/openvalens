@@ -6,8 +6,11 @@ export const GOAL_SOURCES = [
   "workout",
   "sleep",
   "tracker",
+  "weight",
 ] as const;
 export type GoalSource = (typeof GOAL_SOURCES)[number];
+/** A `weight` goal's one metric: the member's canonical daily weigh-in, in kg (goals#2). */
+export const WEIGHT_GOAL_METRIC = "weight_kg";
 export const GOAL_RULE_KINDS = ["target", "recurring", "average", "streak"] as const;
 export type GoalRuleKind = (typeof GOAL_RULE_KINDS)[number];
 export type GoalLifecycleStatus = "active" | "paused" | "completed" | "deleted";

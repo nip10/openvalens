@@ -1,8 +1,8 @@
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import {
+  Bookmark,
   CalendarHeart,
-  ChefHat,
   Dumbbell,
   FileDown,
   FlaskConical,
@@ -12,7 +12,6 @@ import {
   History,
   KeyRound,
   LayoutDashboard,
-  Leaf,
   ListChecks,
   Lock,
   type LucideIcon,
@@ -89,10 +88,9 @@ export const NAV_GROUPS: readonly NavGroup[] = [
         to: "/nutrition",
         label: msg`Meal diary`,
         icon: UtensilsCrossed,
-        children: [
-          { to: "/recipe-drafts", label: msg`Recipe draft`, icon: ChefHat },
-          { to: "/micronutrients", label: msg`Micronutrients`, icon: Leaf },
-        ],
+        // Micronutrients live in the diary's All nutrients (micronutrients#4);
+        // a new recipe starts from My foods (recipe-drafts#3).
+        children: [{ to: "/foods", label: msg`My foods`, icon: Bookmark }],
       },
       { to: "/supplements", label: msg`Supplements`, icon: Pill },
       { to: "/goals", label: msg`Goals`, icon: Target },

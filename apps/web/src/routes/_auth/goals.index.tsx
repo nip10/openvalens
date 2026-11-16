@@ -31,6 +31,7 @@ import {
   goalDateLabel,
   goalListGroup,
   goalTargetGap,
+  goalTargetProgress,
   quickActionKind,
 } from "./-goals-ui";
 
@@ -350,7 +351,24 @@ function RuleProgress({ goal }: { goal: GoalSummary }) {
         : null;
     return box(figure, [gapLine, partial].filter(Boolean).join(" · ") || null);
   }
-  return box(figure, gapLine);
+  // goals#4: a one-time target shows the way from its start value to the target.
+  const progress = goalTargetProgress(rule, evaluation);
+  if (!progress) return box(figure, gapLine);
+  const start = formatGoalValue(progress.start, unit, i18n.locale);
+  const percent = Math.round(progress.fraction * 100);
+  return (
+    <div className="grid gap-1.5 rounded-xl bg-paper-2 p-3">
+      <p className="num font-display text-xl font-medium text-ink">{figure}</p>
+      <Meter
+        value={progress.fraction}
+        tone="weight"
+        label={t`${percent}% of the way from ${start}`}
+      />
+      <p className="text-xs text-ink-3">
+        {[gapLine, t`Started at ${start}`].filter(Boolean).join(" · ")}
+      </p>
+    </div>
+  );
 }
 
 /**

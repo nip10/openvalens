@@ -1,41 +1,29 @@
 import type { CustomFood } from "@openvalens/api/contracts/nutrition-custom-foods";
-import {
-  AMOUNT_UNITS,
-  type AmountUnit,
-  type NutrientKey,
-} from "@openvalens/api/contracts/nutrition-diary";
+import type { NutrientKey } from "@openvalens/api/contracts/nutrition-diary";
 import {
   CUSTOM_FOOD_COPY,
-  CUSTOM_FOOD_NUTRIENTS,
-  EMPTY_CUSTOM_FOOD_FIELDS,
   describeBasis,
   describeCoverage,
-  fieldsFromCustomFood,
-  nutrientFieldLabel,
-  parseCustomFood,
-  type CustomFoodFields,
 } from "@openvalens/api/presenters/custom-foods";
 import {
   DIARY_COPY,
   NUTRIENT_LABELS,
-  UNIT_LABELS,
   formatNutrientValue,
   localDateIn,
-  newClientMutationId,
 } from "@openvalens/api/presenters/nutrition-diary";
 import { HIDDEN_VALUE, resolveHideNumbers } from "@openvalens/api/presenters/nutrition-targets";
 import { msg } from "@lingui/core/macro";
-import { Trans, useLingui } from "@lingui/react/macro";
+import { useLingui } from "@lingui/react/macro";
 import { Button, buttonVariants } from "@openvalens/ui/components/button";
 import { Input } from "@openvalens/ui/components/input";
-import { Label } from "@openvalens/ui/components/label";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { useId, useMemo, useState } from "react";
-import { Archive, ArchiveRestore, Bookmark, Check, Pencil, Plus, Search } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Archive, ArchiveRestore, Bookmark, ChefHat, Pencil, Plus, Search } from "lucide-react";
 import { toast } from "sonner";
 
+import { CustomFoodForm } from "@/components/custom-food-form";
 import { nativeSelectClass } from "@/components/food-classes";
 import { FormDialog } from "@/components/form-dialog";
 import {
@@ -47,7 +35,14 @@ import {
   StatusPill,
   ToneIcon,
 } from "@/components/page";
-import { enteredValues, shortBasis } from "@/utils/food-display";
+import {
+  FOOD_SORTS,
+  enteredValues,
+  foodUsageLine,
+  shortBasis,
+  sortFoods,
+  type FoodSort,
+} from "@/utils/food-display";
 import { orpc } from "@/utils/orpc";
 import { ModuleHiddenNote } from "@/components/module-hidden-note";
 
@@ -66,11 +61,20 @@ const FOODS_COPY = Object.freeze({
   search: msg`Search my foods`,
   noMatch: msg`No foods match.`,
   log: msg`Log`,
+  sort: msg`Sort`,
+  newRecipe: msg`New recipe`,
+  notLogged: msg`Not logged yet`,
   fewValues: msg({
     message: "{count, plural, one {Only # nutrient} other {Only # nutrients}}",
     comment: "A saved food that has few nutrient values filled in.",
   }),
 });
+
+const SORT_LABELS = {
+  used: msg`Most used`,
+  name: msg`A to Z`,
+  added: msg`Recently added`,
+} as const satisfies Record<FoodSort, unknown>;
 
 /** Fewer values than this, and the card says how few (foods#2). */
 const FEW_VALUES = 5;
@@ -81,22 +85,12 @@ const MACROS = [
   ["fatG", "F", "text-fat"],
 ] as const satisfies readonly (readonly [NutrientKey, string, string])[];
 
-function Field({ label, children }: { label: string; children: (id: string) => React.ReactNode }) {
-  const id = useId();
-  return (
-    <div className="grid gap-1.5">
-      <Label htmlFor={id} className="text-sm font-medium text-ink-3">
-        {label}
-      </Label>
-      {children(id)}
-    </div>
-  );
-}
-
 function FoodsPage() {
   const [showArchived, setShowArchived] = useState(false);
   const [editing, setEditing] = useState<CustomFood | "new" | null>(null);
   const [needle, setNeedle] = useState("");
+  // foods#0: the foods people log most come first.
+  const [sort, setSort] = useState<FoodSort>("used");
   const [message, setMessage] = useState("");
   const queryClient = useQueryClient();
   const { t, i18n } = useLingui();
@@ -155,11 +149,11 @@ function FoodsPage() {
       : formatNutrientValue(key, food.nutrientsPerBasis[key], i18n);
 
   const shown = useMemo(() => {
-    const all = foods.data?.foods ?? [];
+    const all = sortFoods(foods.data?.foods ?? [], sort, i18n.locale);
     const query = needle.trim().toLowerCase();
     if (!query) return all;
     return all.filter((food) => `${food.name} ${food.brand ?? ""}`.toLowerCase().includes(query));
-  }, [foods.data, needle]);
+  }, [foods.data, needle, sort, i18n.locale]);
 
   return (
     <Page>
@@ -177,10 +171,17 @@ function FoodsPage() {
           </>
         }
         actions={
-          <Button onClick={() => setEditing("new")}>
-            <Plus aria-hidden="true" />
-            {i18n._(CUSTOM_FOOD_COPY.create)}
-          </Button>
+          <>
+            {/* recipe-drafts#3: a recipe is pasted, reviewed, then saved here as a food. */}
+            <Link to="/recipe-drafts" className={buttonVariants({ variant: "outline" })}>
+              <ChefHat aria-hidden="true" />
+              {i18n._(FOODS_COPY.newRecipe)}
+            </Link>
+            <Button onClick={() => setEditing("new")}>
+              <Plus aria-hidden="true" />
+              {i18n._(CUSTOM_FOOD_COPY.create)}
+            </Button>
+          </>
         }
       />
 
@@ -201,6 +202,20 @@ function FoodsPage() {
               onChange={(event) => setNeedle(event.target.value)}
             />
           </div>
+          <label className="flex items-center gap-2 text-sm text-ink-2">
+            {i18n._(FOODS_COPY.sort)}
+            <select
+              className={`w-auto ${nativeSelectClass}`}
+              value={sort}
+              onChange={(event) => setSort(event.target.value as FoodSort)}
+            >
+              {FOOD_SORTS.map((value) => (
+                <option key={value} value={value}>
+                  {i18n._(SORT_LABELS[value])}
+                </option>
+              ))}
+            </select>
+          </label>
           <label className="flex cursor-pointer items-center gap-2 text-sm text-ink-2">
             <input
               type="checkbox"
@@ -247,6 +262,7 @@ function FoodsPage() {
             {shown.map((food) => {
               const count = enteredValues(food);
               const basis = describeBasis(food.basis, i18n);
+              const usage = foodUsageLine(food.usage, i18n);
               return (
                 <li key={food.id} className="sheet flex min-w-0 flex-col gap-3 p-4">
                   <div className="flex items-start gap-3">
@@ -283,6 +299,8 @@ function FoodsPage() {
                       {i18n._({ ...FOODS_COPY.fewValues, values: { count } })}
                     </p>
                   ) : null}
+                  {/* foods#5: how often it is logged, to spot the staples. */}
+                  <p className="text-sm text-ink-3">{usage ?? i18n._(FOODS_COPY.notLogged)}</p>
                   <div className="mt-auto flex items-center justify-between gap-2">
                     <span className="flex min-w-0 items-center gap-2">
                       <span className="num shrink-0 rounded-full bg-food-soft px-2.5 py-1 text-sm font-semibold text-ink">
@@ -354,7 +372,7 @@ function FoodsPage() {
         className="sm:max-w-2xl"
       >
         {editing ? (
-          <FoodForm
+          <CustomFoodForm
             key={editing === "new" ? "new" : `${editing.id}:${editing.revision}`}
             food={editing === "new" ? null : editing}
             onDone={(text) => {
@@ -375,234 +393,5 @@ function FoodsPage() {
         ) : null}
       </FormDialog>
     </Page>
-  );
-}
-
-function FoodForm({
-  food,
-  onDone,
-  onArchive,
-  announce,
-}: {
-  food: CustomFood | null;
-  onDone: (message: string | null) => void;
-  /** Archive this food (foods#4: the action lives here, not on the card). */
-  onArchive?: () => void;
-  announce: (text: string) => void;
-}) {
-  const [fields, setFields] = useState<CustomFoodFields>(() =>
-    food ? fieldsFromCustomFood(food) : EMPTY_CUSTOM_FOOD_FIELDS,
-  );
-  const [revision, setRevision] = useState(food?.revision ?? 1);
-  const [conflict, setConflict] = useState<CustomFood | null>(null);
-  // One id per form: a retry after a lost response returns the food already saved.
-  const [clientMutationId] = useState(newClientMutationId);
-  const create = useMutation(orpc.nutritionCustomFoods.create.mutationOptions());
-  const update = useMutation(orpc.nutritionCustomFoods.update.mutationOptions());
-  const { t, i18n } = useLingui();
-  const parsed = parseCustomFood(fields, i18n.locale);
-  const pending = create.isPending || update.isPending;
-
-  const failed = (retry: () => void) => {
-    const error = i18n._(CUSTOM_FOOD_COPY.networkError);
-    announce(error);
-    toast.error(error, {
-      action: { label: i18n._(CUSTOM_FOOD_COPY.retry), onClick: retry },
-    });
-  };
-  const savedText = (name: string) => t`${name}: Food saved.`;
-
-  const save = (expectedRevision = revision) => {
-    if (!parsed.ok) return;
-    if (!food) {
-      const input = { clientMutationId, food: parsed.food };
-      const send = () =>
-        create.mutate(input, {
-          onSuccess: (result) => onDone(savedText(result.food.name)),
-          onError: () => failed(send),
-        });
-      return send();
-    }
-    const input = { foodId: food.id, expectedRevision, food: parsed.food };
-    const send = () =>
-      update.mutate(input, {
-        onSuccess: (result) => {
-          if (result.outcome === "conflict") {
-            setConflict(result.server);
-            announce(i18n._(CUSTOM_FOOD_COPY.conflictTitle));
-            return;
-          }
-          onDone(
-            result.outcome === "unchanged"
-              ? i18n._(CUSTOM_FOOD_COPY.unchanged)
-              : savedText(result.food.name),
-          );
-        },
-        onError: () => failed(send),
-      });
-    send();
-  };
-
-  const set = (patch: Partial<CustomFoodFields>) => setFields({ ...fields, ...patch });
-
-  return (
-    <div className="grid min-w-0 gap-4">
-      {conflict ? (
-        <div className="grid gap-2 rounded-2xl bg-warning/10 px-4 py-3 text-sm" role="alert">
-          <p className="font-display font-medium text-ink">
-            {i18n._(
-              conflict.archived
-                ? CUSTOM_FOOD_COPY.conflictArchived
-                : CUSTOM_FOOD_COPY.conflictTitle,
-            )}
-          </p>
-          {conflict.archived ? null : (
-            <p className="text-ink-2">
-              <Trans>Other version:</Trans> {conflict.name}, {describeBasis(conflict.basis, i18n)},{" "}
-              {i18n._(describeCoverage(conflict))}
-            </p>
-          )}
-          <div className="flex flex-wrap gap-2">
-            {conflict.archived ? null : (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  setRevision(conflict.revision);
-                  setConflict(null);
-                  save(conflict.revision);
-                }}
-              >
-                {i18n._(CUSTOM_FOOD_COPY.keepMine)}
-              </Button>
-            )}
-            <Button size="sm" variant="outline" onClick={() => onDone(null)}>
-              {i18n._(CUSTOM_FOOD_COPY.keepServer)}
-            </Button>
-          </div>
-        </div>
-      ) : null}
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Field label={t`Food name`}>
-          {(id) => (
-            <Input id={id} value={fields.name} onChange={(e) => set({ name: e.target.value })} />
-          )}
-        </Field>
-        <Field label={t`Brand (optional)`}>
-          {(id) => (
-            <Input id={id} value={fields.brand} onChange={(e) => set({ brand: e.target.value })} />
-          )}
-        </Field>
-        <Field label={t`Values per`}>
-          {(id) => (
-            <Input
-              id={id}
-              inputMode="decimal"
-              value={fields.basisAmount}
-              onChange={(e) => set({ basisAmount: e.target.value })}
-            />
-          )}
-        </Field>
-        <Field label={t`Per unit`}>
-          {(id) => (
-            <select
-              id={id}
-              className={nativeSelectClass}
-              value={fields.basisUnit}
-              onChange={(e) => set({ basisUnit: e.target.value as AmountUnit })}
-            >
-              {AMOUNT_UNITS.map((option) => (
-                <option key={option} value={option}>
-                  {i18n._(UNIT_LABELS[option])}
-                </option>
-              ))}
-            </select>
-          )}
-        </Field>
-        <Field label={t`Serving name (optional, e.g. 1 slice)`}>
-          {(id) => (
-            <Input
-              id={id}
-              value={fields.servingLabel}
-              onChange={(e) => set({ servingLabel: e.target.value })}
-            />
-          )}
-        </Field>
-        <div className="grid grid-cols-2 gap-2">
-          <Field label={t`Serving size (optional)`}>
-            {(id) => (
-              <Input
-                id={id}
-                inputMode="decimal"
-                value={fields.servingSizeAmount}
-                onChange={(e) => set({ servingSizeAmount: e.target.value })}
-              />
-            )}
-          </Field>
-          <Field label={t`Serving unit`}>
-            {(id) => (
-              <select
-                id={id}
-                className={nativeSelectClass}
-                value={fields.servingSizeUnit}
-                onChange={(e) => set({ servingSizeUnit: e.target.value as "g" | "ml" })}
-              >
-                <option value="g">g</option>
-                <option value="ml">ml</option>
-              </select>
-            )}
-          </Field>
-        </div>
-        <Field label={t`Barcode (optional)`}>
-          {(id) => (
-            <Input
-              id={id}
-              inputMode="numeric"
-              autoComplete="off"
-              value={fields.barcode}
-              onChange={(e) => set({ barcode: e.target.value })}
-            />
-          )}
-        </Field>
-      </div>
-      <fieldset className="grid gap-3 border-t border-rule pt-4 sm:grid-cols-2">
-        <legend className="float-left mb-1 font-display font-medium text-ink sm:col-span-2">
-          <Trans>Nutrients</Trans>
-        </legend>
-        {CUSTOM_FOOD_NUTRIENTS.map((key) => (
-          <Field key={key} label={i18n._(nutrientFieldLabel(key))}>
-            {(id) => (
-              <Input
-                id={id}
-                inputMode="decimal"
-                value={fields.nutrients[key] ?? ""}
-                onChange={(e) => set({ nutrients: { ...fields.nutrients, [key]: e.target.value } })}
-              />
-            )}
-          </Field>
-        ))}
-      </fieldset>
-      <p className="text-sm text-ink-3">{i18n._(CUSTOM_FOOD_COPY.blankNote)}</p>
-      {!parsed.ok && fields.name ? (
-        <p className="text-sm text-destructive" role="alert">
-          {i18n._(parsed.error)}
-        </p>
-      ) : null}
-      <div className="flex flex-wrap gap-2">
-        <Button onClick={() => save()} disabled={!parsed.ok || pending}>
-          <Check aria-hidden="true" />
-          {i18n._(pending ? CUSTOM_FOOD_COPY.saving : CUSTOM_FOOD_COPY.save)}
-        </Button>
-        <Button variant="ghost" onClick={() => onDone(null)}>
-          {i18n._(CUSTOM_FOOD_COPY.cancel)}
-        </Button>
-        {onArchive ? (
-          <Button variant="ghost" className="ml-auto text-ink-3" onClick={onArchive}>
-            <Archive aria-hidden="true" />
-            {i18n._(CUSTOM_FOOD_COPY.archive)}
-          </Button>
-        ) : null}
-      </div>
-    </div>
   );
 }

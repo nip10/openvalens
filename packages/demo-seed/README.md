@@ -88,7 +88,7 @@ Both entry points run the same list of module seeders, `seedPersonData` in
   meals (`nutritionTemplates`), and a morning coffee with the caffeine totals
   on, so the drinks summary and the sleep screen's caffeine note show.
 - Two goals in the goal model the Goals screens read (`goals.*`): "Reach 65 kg"
-  (a manual target with two milestones and weekly check-ins) and "Sleep 7.5
+  (a target with two milestones that reads the scale's weigh-ins) and "Sleep 7.5
   hours a night" (a rolling average fed by the synced sleep).
 - Supplements and a medication with four weeks of actual intakes
   (`supplementIntake`), cycle logging, preventive care, family history and

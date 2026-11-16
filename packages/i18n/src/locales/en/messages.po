@@ -564,6 +564,11 @@ msgstr "{0} to {1}"
 msgid "{0} to go"
 msgstr "{0} to go"
 
+#. placeholder {0}: formatGoalValue(gap.gap, unit, i18n.locale)
+#: apps/web/src/routes/_auth/goals.$goalId.tsx
+msgid "{0} to go · started at {progressStart}"
+msgstr "{0} to go · started at {progressStart}"
+
 #. placeholder {0}: labelOf(kind)
 #: apps/native/app/(drawer)/private-measurements.tsx
 msgid "{0} value"
@@ -709,6 +714,10 @@ msgstr "{count, plural, one {# reading} other {# readings}}"
 #: apps/web/src/components/quick-log/quick-log-palette.tsx
 msgid "{count, plural, one {Copied # item} other {Copied # items}}"
 msgstr "{count, plural, one {Copied # item} other {Copied # items}}"
+
+#: apps/web/src/utils/food-display.ts
+msgid "{count, plural, one {once} other {# times}}"
+msgstr "{count, plural, one {once} other {# times}}"
 
 #. A saved food that has few nutrient values filled in.
 #: apps/web/src/routes/_auth/foods.tsx
@@ -988,10 +997,6 @@ msgstr "{label}, {count, plural, one {# food} other {# foods}}"
 msgid "{label}, {value}"
 msgstr "{label}, {value}"
 
-#: apps/web/src/routes/_auth/micronutrients.tsx
-msgid "{label}: {amount}"
-msgstr "{label}: {amount}"
-
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "{label}: {figure}, {note}"
 msgstr "{label}: {figure}, {note}"
@@ -1026,10 +1031,6 @@ msgstr "{label}: {value}"
 msgid "{label}: {value}, {coverage}"
 msgstr "{label}: {value}, {coverage}"
 
-#: apps/web/src/routes/_auth/micronutrients.tsx
-msgid "{label}: at least {amount}"
-msgstr "{label}: at least {amount}"
-
 #: packages/api/src/presenters/activity-load.ts
 msgid "{label}: no rated sessions."
 msgstr "{label}: no rated sessions."
@@ -1046,10 +1047,6 @@ msgstr "{label}: now {now}, proposed {proposed}"
 #: packages/api/src/presenters/activity-load.ts
 msgid "{label}: sessions not rated."
 msgstr "{label}: sessions not rated."
-
-#: apps/web/src/routes/_auth/micronutrients.tsx
-msgid "{label}: unknown"
-msgstr "{label}: unknown"
 
 #: packages/api/src/presenters/nutrition-diary.ts
 #: packages/api/src/presenters/nutrition-targets.ts
@@ -1215,7 +1212,7 @@ msgid "{name}: Food restored."
 msgstr "{name}: Food restored."
 
 #: apps/native/app/(drawer)/foods.tsx
-#: apps/web/src/routes/_auth/foods.tsx
+#: apps/web/src/components/custom-food-form.tsx
 msgid "{name}: Food saved."
 msgstr "{name}: Food saved."
 
@@ -1251,6 +1248,14 @@ msgstr "{percent}% above your usual"
 msgid "{percent}% below your usual"
 msgstr "{percent}% below your usual"
 
+#: apps/web/src/components/micronutrient-summary.tsx
+msgid "{percent}% of reference"
+msgstr "{percent}% of reference"
+
+#: apps/web/src/routes/_auth/goals.index.tsx
+msgid "{percent}% of the way from {start}"
+msgstr "{percent}% of the way from {start}"
+
 #: apps/web/src/routes/_auth/cycle.tsx
 msgid "{periodDays, plural, one {# period day logged} other {# period days logged}}"
 msgstr "{periodDays, plural, one {# period day logged} other {# period days logged}}"
@@ -1278,6 +1283,10 @@ msgstr "{priority, select, low {Low priority} normal {Normal priority} other {Hi
 #: packages/api/src/presenters/score.ts
 msgid "{priority, select, low {Low priority} normal {Normal priority} other {High priority}}, {share}% of the total"
 msgstr "{priority, select, low {Low priority} normal {Normal priority} other {High priority}}, {share}% of the total"
+
+#: apps/web/src/routes/_auth/goals.$goalId.tsx
+msgid "{progressPercent}% of the way from {progressStart}"
+msgstr "{progressPercent}% of the way from {progressStart}"
 
 #: apps/native/components/training-home.tsx
 msgid "{prs, plural, one {PR} other {# PRs}}"
@@ -1505,7 +1514,6 @@ msgid "%"
 msgstr "%"
 
 #: apps/native/app/(drawer)/micronutrients.tsx
-#: apps/web/src/routes/_auth/micronutrients.tsx
 msgid "% of reference"
 msgstr "% of reference"
 
@@ -1921,6 +1929,10 @@ msgstr "A short note with the highlights the first time you open a new version."
 msgid "A suggestion to eat less needs your height, so it can stay within safe limits. It is saved in your nutrition settings."
 msgstr "A suggestion to eat less needs your height, so it can stay within safe limits. It is saved in your nutrition settings."
 
+#: apps/web/src/routes/_auth/foods.tsx
+msgid "A to Z"
+msgstr "A to Z"
+
 #: apps/native/app/(drawer)/settings/devices.tsx
 msgid "A watch, ring or scale nearby over Bluetooth, or a wearable account such as Oura or WHOOP."
 msgstr "A watch, ring or scale nearby over Bluetooth, or a wearable account such as Oura or WHOOP."
@@ -1941,6 +1953,10 @@ msgstr "About"
 msgid "About {0} min"
 msgstr "About {0} min"
 
+#: apps/web/src/components/micronutrient-summary.tsx
+msgid "About {label}"
+msgstr "About {label}"
+
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "About 1 in 4 people in that group had a resting pulse above {upper} bpm."
 msgstr "About 1 in 4 people in that group had a resting pulse above {upper} bpm."
@@ -1957,6 +1973,10 @@ msgstr "About 5 in 10 people in that group had a resting pulse between {lower} a
 #: apps/web/src/components/nutrition-day-totals.tsx
 msgid "About these totals"
 msgstr "About these totals"
+
+#: apps/web/src/components/micronutrient-summary.tsx
+msgid "About vitamins and minerals"
+msgstr "About vitamins and minerals"
 
 #: apps/web/src/routes/_auth/settings/nutrition.tsx
 #: packages/api/src/presenters/nutrition-targets.ts
@@ -3243,7 +3263,6 @@ msgstr "Back to draft checklist"
 #: apps/native/app/(drawer)/micronutrients.tsx
 #: apps/native/app/(drawer)/nutrition-targets.tsx
 #: apps/native/components/recipe-draft-editor.tsx
-#: apps/web/src/routes/_auth/micronutrients.tsx
 msgid "Back to meal diary"
 msgstr "Back to meal diary"
 
@@ -3349,7 +3368,7 @@ msgid "Barcode (kept with this food), optional"
 msgstr "Barcode (kept with this food), optional"
 
 #: apps/native/app/(drawer)/foods.tsx
-#: apps/web/src/routes/_auth/foods.tsx
+#: apps/web/src/components/custom-food-form.tsx
 msgid "Barcode (optional)"
 msgstr "Barcode (optional)"
 
@@ -3609,7 +3628,7 @@ msgid "bpm"
 msgstr "bpm"
 
 #: apps/native/app/(drawer)/foods.tsx
-#: apps/web/src/routes/_auth/foods.tsx
+#: apps/web/src/components/custom-food-form.tsx
 msgid "Brand (optional)"
 msgstr "Brand (optional)"
 
@@ -5618,7 +5637,7 @@ msgid "Could not load the selected supplement. Open Supplements to retry."
 msgstr "Could not load the selected supplement. Open Supplements to retry."
 
 #: apps/native/app/(drawer)/micronutrients.tsx
-#: apps/web/src/routes/_auth/micronutrients.tsx
+#: apps/web/src/components/micronutrient-summary.tsx
 msgid "Could not load the summary."
 msgstr "Could not load the summary."
 
@@ -6241,6 +6260,7 @@ msgstr "Counts days with at least one diary entry. It is about the habit of logg
 msgid "Counts the days with a yes."
 msgstr "Counts the days with a yes."
 
+#: apps/web/src/components/micronutrient-summary.tsx
 #: apps/web/src/components/nutrition-day-totals.tsx
 msgid "Coverage"
 msgstr "Coverage"
@@ -6510,7 +6530,7 @@ msgid "Database"
 msgstr "Database"
 
 #: apps/native/app/(drawer)/micronutrients.tsx
-#: apps/web/src/routes/_auth/micronutrients.tsx
+#: apps/web/src/components/micronutrient-summary.tsx
 msgid "Dataset {datasetVersion}."
 msgstr "Dataset {datasetVersion}."
 
@@ -6551,7 +6571,6 @@ msgid "Date unavailable"
 msgstr "Date unavailable"
 
 #: apps/native/app/(drawer)/micronutrients.tsx
-#: apps/web/src/routes/_auth/micronutrients.tsx
 msgid "Day"
 msgstr "Day"
 
@@ -7852,6 +7871,15 @@ msgid "Enter the food from its label instead."
 msgstr "Enter the food from its label instead."
 
 #: apps/web/src/components/recipe-draft-editor.tsx
+msgid "Enter the nutrients for one serving."
+msgstr "Enter the nutrients for one serving."
+
+#. placeholder {0}: draft.servingsText
+#: apps/web/src/components/recipe-draft-editor.tsx
+msgid "Enter the nutrients for one serving. The recipe says: {0}."
+msgstr "Enter the nutrients for one serving. The recipe says: {0}."
+
+#: apps/web/src/components/recipe-draft-editor.tsx
 msgid "Enter the recipe's web address first."
 msgstr "Enter the recipe's web address first."
 
@@ -8569,8 +8597,8 @@ msgstr "food logged"
 
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 #: apps/native/app/(drawer)/foods.tsx
+#: apps/web/src/components/custom-food-form.tsx
 #: apps/web/src/components/log-food-sheet.tsx
-#: apps/web/src/routes/_auth/foods.tsx
 msgid "Food name"
 msgstr "Food name"
 
@@ -9222,7 +9250,7 @@ msgstr "Hi coach, give me a one-line summary of where I am today and one concret
 
 #: apps/native/app/(drawer)/micronutrients.tsx
 #: apps/native/app/(drawer)/private-measurements.tsx
-#: apps/web/src/routes/_auth/micronutrients.tsx
+#: apps/web/src/components/micronutrient-summary.tsx
 #: apps/web/src/routes/_auth/private-measurements.tsx
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Hidden"
@@ -10428,6 +10456,22 @@ msgstr "Last done: {date}"
 msgid "Last failure"
 msgstr "Last failure"
 
+#: apps/web/src/utils/food-display.ts
+msgid "Last logged {days, plural, one {# day ago} other {# days ago}}"
+msgstr "Last logged {days, plural, one {# day ago} other {# days ago}}"
+
+#: apps/web/src/utils/food-display.ts
+msgid "Last logged {on}"
+msgstr "Last logged {on}"
+
+#: apps/web/src/utils/food-display.ts
+msgid "Last logged today"
+msgstr "Last logged today"
+
+#: apps/web/src/utils/food-display.ts
+msgid "Last logged yesterday"
+msgstr "Last logged yesterday"
+
 #: apps/native/app/(drawer)/records/sleep.tsx
 #: apps/web/src/routes/_auth/records/sleep.tsx
 msgid "Last night"
@@ -10967,10 +11011,10 @@ msgstr "Loading your workspace…"
 #: apps/native/components/plain-water-section.tsx
 #: apps/native/components/workout-history.tsx
 #: apps/web/src/components/exercise-library.tsx
+#: apps/web/src/components/micronutrient-summary.tsx
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
 #: apps/web/src/components/pain/pain-panel.tsx
 #: apps/web/src/routes/_auth/cycle.tsx
-#: apps/web/src/routes/_auth/micronutrients.tsx
 #: apps/web/src/routes/_auth/records/timeline.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Loading…"
@@ -11765,8 +11809,6 @@ msgstr "Metric name"
 
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/micronutrients.tsx
-#: apps/web/src/components/nav-links.ts
-#: apps/web/src/routes/_auth/micronutrients.tsx
 msgid "Micronutrients"
 msgstr "Micronutrients"
 
@@ -12009,6 +12051,10 @@ msgstr "most"
 msgid "Most reps at {0}"
 msgstr "Most reps at {0}"
 
+#: apps/web/src/routes/_auth/foods.tsx
+msgid "Most used"
+msgstr "Most used"
+
 #: apps/web/src/components/clinical-record-dialog.tsx
 msgid "Mother"
 msgstr "Mother"
@@ -12106,6 +12152,7 @@ msgid "My food"
 msgstr "My food"
 
 #: apps/native/app/(drawer)/_layout.tsx
+#: apps/web/src/components/nav-links.ts
 #: apps/web/src/routes/_auth/nutrition.tsx
 #: packages/api/src/presenters/custom-foods.ts
 msgid "My foods"
@@ -12275,6 +12322,11 @@ msgstr "New personal API key"
 #: apps/native/components/goal-editor.tsx
 msgid "New personal goal"
 msgstr "New personal goal"
+
+#: apps/web/src/components/recipe-draft-editor.tsx
+#: apps/web/src/routes/_auth/foods.tsx
+msgid "New recipe"
+msgstr "New recipe"
 
 #: apps/web/src/routes/_auth/goals.$goalId.tsx
 msgid "New replacement goal"
@@ -13038,7 +13090,7 @@ msgid "Not available with your workspace role"
 msgstr "Not available with your workspace role"
 
 #: apps/native/app/(drawer)/micronutrients.tsx
-#: apps/web/src/routes/_auth/micronutrients.tsx
+#: apps/web/src/components/micronutrient-summary.tsx
 msgid "Not compared"
 msgstr "Not compared"
 
@@ -13122,6 +13174,10 @@ msgstr "Not granted"
 #: apps/native/components/direct-device-settings.tsx
 msgid "Not listed in the Gadgetbridge catalog."
 msgstr "Not listed in the Gadgetbridge catalog."
+
+#: apps/web/src/routes/_auth/foods.tsx
+msgid "Not logged yet"
+msgstr "Not logged yet"
 
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Not marked complete"
@@ -13369,7 +13425,7 @@ msgid "Nothing logged on this day yet."
 msgstr "Nothing logged on this day yet."
 
 #: apps/native/app/(drawer)/micronutrients.tsx
-#: apps/web/src/routes/_auth/micronutrients.tsx
+#: apps/web/src/components/micronutrient-summary.tsx
 msgid "Nothing logged on this day."
 msgstr "Nothing logged on this day."
 
@@ -13481,13 +13537,14 @@ msgid "Numbers are hidden. You can still log water."
 msgstr "Numbers are hidden. You can still log water."
 
 #: apps/native/app/(drawer)/nutrition-targets.tsx
+#: apps/web/src/components/micronutrient-summary.tsx
 #: apps/web/src/components/nutrition-day-totals.tsx
 #: apps/web/src/routes/_auth/nutrition-targets.tsx
 msgid "Nutrient"
 msgstr "Nutrient"
 
 #: apps/native/app/(drawer)/foods.tsx
-#: apps/web/src/routes/_auth/foods.tsx
+#: apps/web/src/components/custom-food-form.tsx
 msgid "Nutrients"
 msgstr "Nutrients"
 
@@ -13514,7 +13571,7 @@ msgstr "Nutrition observations"
 
 #: apps/native/app/(drawer)/micronutrients.tsx
 #: apps/web/src/components/food-draft-panel.tsx
-#: apps/web/src/routes/_auth/micronutrients.tsx
+#: apps/web/src/components/micronutrient-summary.tsx
 #: apps/web/src/routes/_auth/nutrition-targets.tsx
 #: apps/web/src/routes/_auth/nutrition.tsx
 #: apps/web/src/routes/_auth/settings/nutrition.tsx
@@ -14045,7 +14102,7 @@ msgid "Other version"
 msgstr "Other version"
 
 #: apps/native/app/(drawer)/foods.tsx
-#: apps/web/src/routes/_auth/foods.tsx
+#: apps/web/src/components/custom-food-form.tsx
 msgid "Other version:"
 msgstr "Other version:"
 
@@ -14220,8 +14277,8 @@ msgid "Paste a recipe to review its ingredients and servings."
 msgstr "Paste a recipe to review its ingredients and servings."
 
 #: apps/web/src/components/recipe-draft-editor.tsx
-msgid "Paste an ingredient list or a recipe page's code, or import one recipe page if you turned that on in nutrition settings. Nothing is saved."
-msgstr "Paste an ingredient list or a recipe page's code, or import one recipe page if you turned that on in nutrition settings. Nothing is saved."
+msgid "Paste an ingredient list or a recipe page's code, or import one recipe page if you turned that on in nutrition settings. Nothing is saved until you save it as one of your foods."
+msgstr "Paste an ingredient list or a recipe page's code, or import one recipe page if you turned that on in nutrition settings. Nothing is saved until you save it as one of your foods."
 
 #: apps/native/components/recipe-draft-editor.tsx
 #: apps/web/src/components/recipe-draft-editor.tsx
@@ -14369,8 +14426,8 @@ msgid "per serving"
 msgstr "per serving"
 
 #: apps/native/app/(drawer)/foods.tsx
+#: apps/web/src/components/custom-food-form.tsx
 #: apps/web/src/components/log-food-sheet.tsx
-#: apps/web/src/routes/_auth/foods.tsx
 msgid "Per unit"
 msgstr "Per unit"
 
@@ -15328,10 +15385,12 @@ msgstr "Recent samples"
 msgid "Recent sessions"
 msgstr "Recent sessions"
 
+#: apps/web/src/routes/_auth/foods.tsx
+msgid "Recently added"
+msgstr "Recently added"
+
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/components/recipe-draft-editor.tsx
-#: apps/web/src/components/nav-links.ts
-#: apps/web/src/components/recipe-draft-editor.tsx
 msgid "Recipe draft"
 msgstr "Recipe draft"
 
@@ -15495,7 +15554,7 @@ msgstr "Reference values here are for adults only, so they are not shown."
 msgid "Reference: {sourceOrg}, {populationLabel}. {licenceNote}"
 msgstr "Reference: {sourceOrg}, {populationLabel}. {licenceNote}"
 
-#: apps/web/src/routes/_auth/micronutrients.tsx
+#: apps/web/src/components/micronutrient-summary.tsx
 msgid "Reference: {sourceOrg}, {populationLabel}. <0>Source</0>. {licenceNote}"
 msgstr "Reference: {sourceOrg}, {populationLabel}. <0>Source</0>. {licenceNote}"
 
@@ -16455,6 +16514,10 @@ msgstr "Save a routine to start it here in one tap."
 msgid "Save and ask again"
 msgstr "Save and ask again"
 
+#: apps/web/src/components/recipe-draft-editor.tsx
+msgid "Save as a food"
+msgstr "Save as a food"
+
 #: apps/native/components/workout-routines.tsx
 msgid "Save as a routine"
 msgstr "Save as a routine"
@@ -16953,7 +17016,7 @@ msgstr "See it by region on Body map"
 msgid "See the full breakdown"
 msgstr "See the full breakdown"
 
-#: apps/web/src/routes/_auth/micronutrients.tsx
+#: apps/web/src/components/micronutrient-summary.tsx
 msgid "See vitamins and minerals from the foods you logged against EFSA or NASEM references. A value a food does not report counts as unknown, never as zero."
 msgstr "See vitamins and minerals from the foods you logged against EFSA or NASEM references. A value a food does not report counts as unknown, never as zero."
 
@@ -17135,12 +17198,12 @@ msgid "serving ({formattedAmount} {unit})"
 msgstr "serving ({formattedAmount} {unit})"
 
 #: apps/native/app/(drawer)/foods.tsx
-#: apps/web/src/routes/_auth/foods.tsx
+#: apps/web/src/components/custom-food-form.tsx
 msgid "Serving name (optional, e.g. 1 slice)"
 msgstr "Serving name (optional, e.g. 1 slice)"
 
 #: apps/native/app/(drawer)/foods.tsx
-#: apps/web/src/routes/_auth/foods.tsx
+#: apps/web/src/components/custom-food-form.tsx
 msgid "Serving size (optional)"
 msgstr "Serving size (optional)"
 
@@ -17149,7 +17212,7 @@ msgid "Serving size must be a positive amount, or left blank."
 msgstr "Serving size must be a positive amount, or left blank."
 
 #: apps/native/app/(drawer)/foods.tsx
-#: apps/web/src/routes/_auth/foods.tsx
+#: apps/web/src/components/custom-food-form.tsx
 msgid "Serving unit"
 msgstr "Serving unit"
 
@@ -17934,6 +17997,10 @@ msgstr "Something went wrong. Try again."
 msgid "Something you are grateful for, with a note."
 msgstr "Something you are grateful for, with a note."
 
+#: apps/web/src/routes/_auth/foods.tsx
+msgid "Sort"
+msgstr "Sort"
+
 #: apps/native/app/(drawer)/micronutrients.tsx
 #: apps/native/app/(drawer)/records/vitals.tsx
 #: apps/web/src/components/micronutrient-reference.tsx
@@ -18118,6 +18185,14 @@ msgstr "Started {0}"
 #: apps/web/src/routes/_auth/goals.$goalId.tsx
 msgid "Started {0}."
 msgstr "Started {0}."
+
+#: apps/web/src/routes/_auth/goals.$goalId.tsx
+msgid "Started at {progressStart}"
+msgstr "Started at {progressStart}"
+
+#: apps/web/src/routes/_auth/goals.index.tsx
+msgid "Started at {start}"
+msgstr "Started at {start}"
 
 #: packages/api/src/presenters/workouts.ts
 msgid "Starting value must be {max} characters or fewer."
@@ -19114,10 +19189,6 @@ msgstr "The maximum must be at least the minimum."
 msgid "The micronutrient summary is hidden because of an answer in your nutrition settings. Logging is not affected."
 msgstr "The micronutrient summary is hidden because of an answer in your nutrition settings. Logging is not affected."
 
-#: apps/web/src/routes/_auth/micronutrients.tsx
-msgid "The micronutrient summary is off"
-msgstr "The micronutrient summary is off"
-
 #: packages/api/src/presenters/micronutrients.ts
 msgid "The micronutrient summary is off. Turn it on in nutrition settings."
 msgstr "The micronutrient summary is off. Turn it on in nutrition settings."
@@ -20098,6 +20169,7 @@ msgstr "Top set, {lastDate}"
 msgid "Top weight"
 msgstr "Top weight"
 
+#: apps/web/src/components/micronutrient-summary.tsx
 #: apps/web/src/components/nutrition-day-totals.tsx
 msgid "Total"
 msgstr "Total"
@@ -20345,7 +20417,7 @@ msgstr "Turn on food drafts"
 msgid "Turn on food drafts in your nutrition settings first."
 msgstr "Turn on food drafts in your nutrition settings first."
 
-#: apps/web/src/routes/_auth/micronutrients.tsx
+#: apps/web/src/components/micronutrient-summary.tsx
 msgid "Turn on micronutrient summary"
 msgstr "Turn on micronutrient summary"
 
@@ -20611,9 +20683,9 @@ msgstr "unknown"
 #: apps/native/app/(drawer)/settings.tsx
 #: apps/native/components/recipe-draft-editor.tsx
 #: apps/web/src/components/admin-backup-status.tsx
+#: apps/web/src/components/micronutrient-summary.tsx
 #: apps/web/src/components/recipe-draft-editor.tsx
 #: apps/web/src/routes/_auth/goals.$goalId.tsx
-#: apps/web/src/routes/_auth/micronutrients.tsx
 #: packages/api/src/presenters/drinks.ts
 #: packages/api/src/presenters/nutrition-diary.ts
 #: packages/api/src/presenters/nutrition-targets.ts
@@ -20934,8 +21006,8 @@ msgstr "Values are per a positive amount, for example 100 g."
 
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 #: apps/native/app/(drawer)/foods.tsx
+#: apps/web/src/components/custom-food-form.tsx
 #: apps/web/src/components/log-food-sheet.tsx
-#: apps/web/src/routes/_auth/foods.tsx
 msgid "Values per"
 msgstr "Values per"
 
@@ -21046,6 +21118,11 @@ msgstr "View replacement goal"
 msgid "View sleep records"
 msgstr "View sleep records"
 
+#: apps/native/app/(drawer)/goals/[goalId].tsx
+#: apps/web/src/routes/_auth/goals.$goalId.tsx
+msgid "View weigh-ins"
+msgstr "View weigh-ins"
+
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "View workout details"
 msgstr "View workout details"
@@ -21094,6 +21171,10 @@ msgstr "Vitamin D"
 msgctxt "lab panel"
 msgid "Vitamins"
 msgstr "Vitamins"
+
+#: apps/web/src/components/micronutrient-summary.tsx
+msgid "Vitamins and minerals"
+msgstr "Vitamins and minerals"
 
 #: packages/api/src/presenters/micronutrients.ts
 msgid "Vitamins and minerals from the foods you logged that day. Foods that don't report a value are counted as unknown, never as zero."
@@ -21335,9 +21416,16 @@ msgstr "Weekly tracking starts next Monday."
 msgid "Weeks on target"
 msgstr "Weeks on target"
 
+#: apps/native/components/goal-editor.tsx
+#: apps/web/src/routes/_auth/-goal-editor.tsx
 #: packages/api/src/presenters/clinical-export.ts
 msgid "Weigh-ins"
 msgstr "Weigh-ins"
+
+#: apps/native/app/(drawer)/goals/[goalId].tsx
+#: apps/web/src/routes/_auth/goals.$goalId.tsx
+msgid "Weigh-ins · one a day"
+msgstr "Weigh-ins · one a day"
 
 #: apps/native/app/(drawer)/(tabs)/body.tsx
 #: apps/native/app/(drawer)/(tabs)/index.tsx
@@ -22447,6 +22535,18 @@ msgstr "Your weekly insights"
 #: packages/api/src/presenters/insights.ts
 msgid "Your weekly insights summary"
 msgstr "Your weekly insights summary"
+
+#: apps/web/src/routes/_auth/goals.$goalId.tsx
+msgid "Your weigh-ins count automatically, one a day, the same as on Body."
+msgstr "Your weigh-ins count automatically, one a day, the same as on Body."
+
+#: apps/native/app/(drawer)/goals/[goalId].tsx
+msgid "Your weigh-ins count automatically, one a day."
+msgstr "Your weigh-ins count automatically, one a day."
+
+#: apps/native/app/(drawer)/goals.tsx
+msgid "Your weigh-ins count automatically."
+msgstr "Your weigh-ins count automatically."
 
 #: apps/web/src/components/workout-routines.tsx
 msgid "Your workout form changed while a save may still be in progress. Retry the original request or cancel and start a new save."

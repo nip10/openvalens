@@ -16,6 +16,7 @@ import {
 } from "@openvalens/db/schema/plans";
 import { member } from "@openvalens/db/schema/auth";
 import { exercise } from "@openvalens/db/schema/exercises";
+import { dailyWeight } from "@openvalens/db/schema/body";
 import { plainWaterEntry } from "@openvalens/db/schema/nutrition";
 import { customTracker, customTrackerEntry } from "@openvalens/db/schema/trackers";
 import type { TrackerAggregation, TrackerType } from "@openvalens/trackers/model";
@@ -37,6 +38,7 @@ import {
   isIsoDate,
   isIsoInstant,
   validateGoalDefinition,
+  WEIGHT_GOAL_METRIC,
   type GoalComparator,
   type GoalDefinition,
   type GoalEvidence,
@@ -604,6 +606,31 @@ export function createPersonalGoalRepository(
           );
         evidence.push(...trackerGoalEvidence({ metric: def.metric, tracker, entries: rows }));
       }
+    } else if (def.source === "weight" && def.metric === WEIGHT_GOAL_METRIC) {
+      // goals#2: the member's own canonical weigh-in for each local day, the
+      // same row Body and the dashboard show. Never another member's.
+      const rows = await queryDb
+        .select({ id: dailyWeight.id, date: dailyWeight.date, weightKg: dailyWeight.weightKg })
+        .from(dailyWeight)
+        .where(
+          and(
+            eq(dailyWeight.organizationId, organizationId),
+            eq(dailyWeight.userId, userId),
+            gte(dailyWeight.date, def.startDate),
+            lte(dailyWeight.date, asOf),
+          ),
+        );
+      evidence.push(
+        ...rows.map((w) => ({
+          id: `weight:${w.id}`,
+          source: "weight" as const,
+          metric: WEIGHT_GOAL_METRIC,
+          dateOnly: w.date,
+          value: w.weightKg,
+          authoritative: true,
+          sourceRecordId: String(w.id),
+        })),
+      );
     } else if (def.source === "sleep" && def.metric === "sleep_hours" && sleepEvidence) {
       const revisions = [
         def,
@@ -755,6 +782,21 @@ export function createPersonalGoalRepository(
             gte(customTrackerEntry.localDate, def.startDate),
             lte(customTrackerEntry.localDate, asOf),
             lte(customTrackerEntry.loggedAt, clock()),
+          ),
+        )
+        .limit(1);
+      return rows.length > 0;
+    }
+    if (def.source === "weight") {
+      const rows = await queryDb
+        .select({ id: dailyWeight.id })
+        .from(dailyWeight)
+        .where(
+          and(
+            eq(dailyWeight.organizationId, organizationId),
+            eq(dailyWeight.userId, userId),
+            gte(dailyWeight.date, def.startDate),
+            lte(dailyWeight.date, asOf),
           ),
         )
         .limit(1);
@@ -971,6 +1013,8 @@ export function createPersonalGoalRepository(
       );
     if (def.source === "sleep" && (def.metric !== "sleep_hours" || def.unit !== "h"))
       throw new PersonalGoalValidationError("Sleep source requires sleep_hours in h");
+    if (def.source === "weight" && (def.metric !== WEIGHT_GOAL_METRIC || def.unit !== "kg"))
+      throw new PersonalGoalValidationError("Weight source requires weight_kg in kg");
     if (
       def.source === "supplement" &&
       (!/^supplement:[1-9]\d*$/.test(def.metric) ||

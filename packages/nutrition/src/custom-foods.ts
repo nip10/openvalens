@@ -1,6 +1,11 @@
 import type { Database } from "@openvalens/db";
-import { nutritionFood } from "@openvalens/db/schema/nutrition";
-import { and, asc, eq, isNull } from "drizzle-orm";
+import {
+  nutritionFood,
+  nutritionFoodSnapshot,
+  nutritionMeal,
+  nutritionMealEntry,
+} from "@openvalens/db/schema/nutrition";
+import { and, asc, count, eq, isNotNull, isNull, max } from "drizzle-orm";
 
 import { NutritionError } from "./errors";
 import { DRINK_NUTRIENT_KEYS, NUTRIENT_KEYS } from "./nutrients";
@@ -44,6 +49,14 @@ export type UpdateCustomFoodInput = {
   /** Revision the client last saw; `null`/omitted applies without a conflict check. */
   expectedRevision?: number | null;
   food: CustomFoodInput;
+};
+
+/** How often the member logged one of their foods (foods#0, #5). */
+export type CustomFoodUsage = {
+  /** Diary entries of this food that are not deleted, across every revision. */
+  logCount: number;
+  /** The latest diary day (YYYY-MM-DD) with such an entry, or null when never logged. */
+  lastLoggedOn: string | null;
 };
 
 export type CustomFoodOutcome =
@@ -123,6 +136,54 @@ export function createCustomFoods(db: Database) {
           ),
         )
         .orderBy(asc(nutritionFood.name), asc(nutritionFood.id));
+    },
+
+    /**
+     * Per-food usage from the member's own diary (foods#0, #5): a count and
+     * the latest day, keyed by food id. Foods never logged are absent. Only
+     * the member's entries count, never another member's, and deleted
+     * entries never count.
+     */
+    async usage(scope: NutritionScope): Promise<Map<number, CustomFoodUsage>> {
+      const rows = await db
+        .select({
+          foodId: nutritionFoodSnapshot.customFoodId,
+          logCount: count(nutritionMealEntry.id),
+          lastLoggedOn: max(nutritionMeal.localDate),
+        })
+        .from(nutritionMealEntry)
+        .innerJoin(
+          nutritionFoodSnapshot,
+          and(
+            eq(nutritionFoodSnapshot.organizationId, nutritionMealEntry.organizationId),
+            eq(nutritionFoodSnapshot.id, nutritionMealEntry.snapshotId),
+          ),
+        )
+        .innerJoin(
+          nutritionMeal,
+          and(
+            eq(nutritionMeal.organizationId, nutritionMealEntry.organizationId),
+            eq(nutritionMeal.userId, nutritionMealEntry.userId),
+            eq(nutritionMeal.id, nutritionMealEntry.mealId),
+          ),
+        )
+        .where(
+          and(
+            eq(nutritionMealEntry.organizationId, scope.organizationId),
+            eq(nutritionMealEntry.userId, scope.userId),
+            isNull(nutritionMealEntry.deletedAt),
+            isNotNull(nutritionFoodSnapshot.customFoodId),
+          ),
+        )
+        .groupBy(nutritionFoodSnapshot.customFoodId);
+      const usage = new Map<number, CustomFoodUsage>();
+      for (const row of rows)
+        if (row.foodId !== null)
+          usage.set(row.foodId, {
+            logCount: Number(row.logCount),
+            lastLoggedOn: row.lastLoggedOn ?? null,
+          });
+      return usage;
     },
 
     /** One food (archived included, so a management screen can restore it). */
