@@ -47,7 +47,7 @@ import { authClient } from "@/lib/auth-client";
 import { orpc } from "@/utils/orpc";
 import { EnergyEstimateCard, HOW_WORKED_OUT } from "@/components/energy-estimate-card";
 import { nativeSelectClass, textLinkClass } from "@/components/food-classes";
-import { LogDialog } from "@/components/log-dialog";
+import { FormDialog } from "@/components/form-dialog";
 import {
   Details,
   EmptyState,
@@ -374,7 +374,7 @@ function TargetDialog({
 }) {
   const { i18n } = useLingui();
   return (
-    <LogDialog
+    <FormDialog
       open={editing !== null}
       onOpenChange={(open) => {
         if (!open) onClose();
@@ -394,7 +394,7 @@ function TargetDialog({
           }}
         />
       ) : null}
-    </LogDialog>
+    </FormDialog>
   );
 }
 

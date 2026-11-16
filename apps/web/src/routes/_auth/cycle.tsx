@@ -17,7 +17,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { type CSSProperties, useState } from "react";
 import { CalendarHeart, Droplet, History, Lock, Rows3, Settings2 } from "lucide-react";
 
-import { LogDialog } from "@/components/log-dialog";
+import { FormDialog } from "@/components/form-dialog";
 import {
   Details,
   EmptyState,
@@ -333,7 +333,7 @@ function PeriodDialog({
   });
 
   return (
-    <LogDialog open={open} onOpenChange={onOpenChange} title={<Trans>Log a period</Trans>}>
+    <FormDialog open={open} onOpenChange={onOpenChange} title={<Trans>Log a period</Trans>}>
       <form
         className="grid gap-4"
         onSubmit={(event) => {
@@ -413,7 +413,7 @@ function PeriodDialog({
           ) : null}
         </div>
       </form>
-    </LogDialog>
+    </FormDialog>
   );
 }
 

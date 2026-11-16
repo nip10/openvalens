@@ -24,7 +24,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useRef, useState } from "react";
 import { Lock, MoreHorizontal, Plus, Ruler, Scale, ShieldCheck } from "lucide-react";
 
-import { LogDialog } from "@/components/log-dialog";
+import { FormDialog } from "@/components/form-dialog";
 import {
   EmptyState,
   ErrorState,
@@ -139,7 +139,7 @@ function MeasurementDialog({
     measuredAtLocal: draft.measuredAt,
   });
   return (
-    <LogDialog
+    <FormDialog
       open
       onOpenChange={(open) => {
         if (!open) onClose();
@@ -246,7 +246,7 @@ function MeasurementDialog({
           ) : null}
         </div>
       </form>
-    </LogDialog>
+    </FormDialog>
   );
 }
 

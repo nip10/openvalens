@@ -76,7 +76,7 @@ import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
 import { nativeSelectClass, textLinkClass } from "@/components/food-classes";
 import { LoggingStreakCard } from "@/components/logging-streak-card";
-import { LogDialog } from "@/components/log-dialog";
+import { FormDialog } from "@/components/form-dialog";
 import { LogFoodSheet, type LogFoodRequest, type LogFoodTab } from "@/components/log-food-sheet";
 import { NutritionDayTotals } from "@/components/nutrition-day-totals";
 import { Details, ErrorState, InfoTip, Page, PageHeader, ToneIcon } from "@/components/page";
@@ -910,7 +910,7 @@ function CopyDay({
           {i18n._(DIARY_COPY.copyFrom)}
         </Button>
       </div>
-      <LogDialog
+      <FormDialog
         open={open}
         onOpenChange={setOpen}
         title={i18n._(DIARY_COPY.copyFrom)}
@@ -979,7 +979,7 @@ function CopyDay({
             </Button>
           </div>
         </div>
-      </LogDialog>
+      </FormDialog>
     </>
   );
 }

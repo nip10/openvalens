@@ -53,7 +53,7 @@ import { toast } from "sonner";
 import { DecimalHint } from "@/components/decimal-hint";
 import { inlineButtonClass, nativeSelectClass } from "@/components/food-classes";
 import { FoodDraftPanel, type DraftItem } from "@/components/food-draft-panel";
-import { LogDialog } from "@/components/log-dialog";
+import { FormDialog } from "@/components/form-dialog";
 import { draftAmount } from "@/utils/food-display";
 import { friendlyDate } from "@/utils/friendly";
 import { client, orpc } from "@/utils/orpc";
@@ -111,7 +111,7 @@ export function LogFoodSheet({
 }) {
   const { i18n } = useLingui();
   return (
-    <LogDialog
+    <FormDialog
       open={request !== null}
       onOpenChange={(next) => {
         if (!next) onClose();
@@ -133,7 +133,7 @@ export function LogFoodSheet({
           announce={announce}
         />
       ) : null}
-    </LogDialog>
+    </FormDialog>
   );
 }
 

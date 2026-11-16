@@ -30,7 +30,7 @@ import { useState } from "react";
 import { FlaskConical, TestTube } from "lucide-react";
 
 import { DecimalHint } from "@/components/decimal-hint";
-import { LogDialog } from "@/components/log-dialog";
+import { FormDialog } from "@/components/form-dialog";
 import { EmptyState, ErrorState, Page, PageHeader, Section } from "@/components/page";
 import { useLogDialog } from "@/components/quick-log/log-launcher";
 import { SyncStatusBadge } from "@/components/sync-status-badge";
@@ -192,7 +192,7 @@ function LabResultDialog({
   onSaved: () => void;
 }) {
   return (
-    <LogDialog open={open} onOpenChange={onOpenChange} title={<Trans>Log a lab result</Trans>}>
+    <FormDialog open={open} onOpenChange={onOpenChange} title={<Trans>Log a lab result</Trans>}>
       <AddReadingForm
         markers={markers}
         onSaved={() => {
@@ -200,7 +200,7 @@ function LabResultDialog({
           onOpenChange(false);
         }}
       />
-    </LogDialog>
+    </FormDialog>
   );
 }
 
