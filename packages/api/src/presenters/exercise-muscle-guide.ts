@@ -43,3 +43,26 @@ export function resolveExerciseGuideMuscle(muscle: ExerciseGuideMuscle) {
     return null;
   return mapped;
 }
+
+/**
+ * wger lists a few muscles only by their anatomical name ("Obliquus externus
+ * abdominis"). These are the plain names wger itself uses for the rest
+ * ("Obliques"), so a list reads the same throughout. Unknown names pass through.
+ */
+const PLAIN_MUSCLE_NAMES: Record<string, string> = {
+  "anterior deltoid": "Shoulders",
+  "biceps brachii": "Biceps",
+  "biceps femoris": "Hamstrings",
+  gastrocnemius: "Calves",
+  "gluteus maximus": "Glutes",
+  "latissimus dorsi": "Lats",
+  "obliquus externus abdominis": "Obliques",
+  "pectoralis major": "Chest",
+  "quadriceps femoris": "Quads",
+  "rectus abdominis": "Abs",
+  "serratus anterior": "Serratus",
+  "triceps brachii": "Triceps",
+};
+export function plainMuscleName(name: string): string {
+  return PLAIN_MUSCLE_NAMES[norm(name)] ?? name;
+}

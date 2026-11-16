@@ -48,12 +48,14 @@ import {
 import { ActivityLoadCard } from "@/components/activity-load-panel";
 import {
   Activity,
+  ArrowRight,
   Bike,
   BookOpen,
+  ChevronRight,
   Dumbbell,
   Footprints,
   type LucideIcon,
-  Plus,
+  Target,
   Trophy,
   Waves,
 } from "lucide-react";
@@ -65,7 +67,6 @@ import {
   Page,
   PageHeader,
   Section,
-  StatusPill,
   ToneIcon,
 } from "@/components/page";
 import { friendlyDate } from "@/utils/friendly";
@@ -74,6 +75,13 @@ import { ModuleHiddenNote } from "@/components/module-hidden-note";
 import { AiAppWorkoutDrafts } from "@/components/ai-app-drafts";
 import { WorkoutSessionEditor, type WorkoutEditorValue } from "@/components/workout-session-editor";
 import { WorkoutRoutines, SaveWorkoutAsRoutine } from "@/components/workout-routines";
+import { FormDialog } from "@/components/form-dialog";
+import { useLogDialog } from "@/components/quick-log/log-launcher";
+import {
+  sessionFromRoutine,
+  sessionRoutineName,
+  type StartableRoutine,
+} from "@/components/workout-from-routine";
 import { authClient } from "@/lib/auth-client";
 import { useProductSettings } from "@/utils/product-settings";
 import { Dialog, DialogContent, DialogTitle } from "@openvalens/ui/components/dialog";
@@ -210,13 +218,22 @@ function WorkoutsPage() {
   const visibleEditing = privateStateCurrent ? editing : null;
   const visibleSelected = privateStateCurrent ? selected : null;
   const visibleDeleting = privateStateCurrent ? deleting : null;
-  const startNewSession = (notes: string | null) => {
+  const [choosingRoutine, setChoosingRoutine] = useState(false);
+  const [startingRoutine, setStartingRoutine] = useState<number | null>(null);
+  const [startError, setStartError] = useState<string | null>(null);
+  const [sessionKey, setSessionKey] = useState(0);
+  const openSession = (value: WorkoutEditorValue) => {
     pendingCreate.current = null;
     pendingUpdate.current = null;
     pendingDelete.current = null;
+    createWorkout.reset();
     setMutationId(globalThis.crypto?.randomUUID?.() ?? "");
     setSelected(null);
-    setEditing({
+    setSessionKey((key) => key + 1);
+    setEditing(value);
+  };
+  const startNewSession = (notes: string | null) =>
+    openSession({
       date: todayIso(),
       type: "weights",
       duration: null,
@@ -225,6 +242,34 @@ function WorkoutsPage() {
       effortRating: null,
       exercises: [],
     } as WorkoutEditorValue);
+  const routinesBase = orpc.plans.routines.listRoutines.queryOptions({ input: {} });
+  const routines = useQuery({
+    ...routinesBase,
+    queryKey: [...routinesBase.queryKey, { scope }],
+    enabled: Boolean(scope),
+  });
+  const routinePreview = useMutation(orpc.plans.routines.startPreview.mutationOptions());
+  /** "Start session" on a routine: the session entry, prefilled with its sets (workouts#4). */
+  const startFromRoutine = (routine: StartableRoutine) => {
+    if (!scope || !privateStateCurrent) return;
+    setStartingRoutine(routine.id);
+    setStartError(null);
+    const startScope = scope;
+    routinePreview
+      .mutateAsync({ id: routine.id })
+      .catch(() => null)
+      .then((preview) => {
+        if (scopeRef.current !== startScope) return;
+        // Offline or a failed preview: start from the routine's own targets.
+        const source = (preview?.routine ?? routine) as StartableRoutine;
+        openSession(sessionFromRoutine(source, preview?.suggestions ?? [], todayIso()));
+      })
+      .finally(() => setStartingRoutine(null));
+  };
+  /** The "+" on this screen: pick a routine first when there are any (workouts#2). */
+  const openLogEntry = () => {
+    if ((routines.data?.length ?? 0) > 0) setChoosingRoutine(true);
+    else startNewSession(null);
   };
   // A one-liner from the palette ("ran 5 km", #440d) opens a new session with it as the notes.
   const { log: typedSession } = Route.useSearch();
@@ -316,9 +361,18 @@ function WorkoutsPage() {
     });
     void queryClient.invalidateQueries({ queryKey: [["activity"]] });
   };
+  useLogDialog("workout", scope && privateStateCurrent ? openLogEntry : null);
+
   const workoutSummary = summarizeWorkouts(workouts.data ?? []);
   const today = todayIso();
-  const recent = (workouts.data ?? []).slice(0, 6);
+  const recent = (workouts.data ?? []).slice(0, 9);
+  const routineList = routines.data ?? [];
+  const weightUnit = units === "imperial" ? "lb" : "kg";
+  const volumeLabel = (kg: number) =>
+    `${Math.round(units === "imperial" ? kg * 2.2046226218 : kg).toLocaleString(i18n.locale)} ${weightUnit}`;
+  const editingExisting = visibleEditing !== null && visibleSelected !== null;
+  const editingRoutine =
+    visibleEditing && !editingExisting ? sessionRoutineName(visibleEditing, routineList) : null;
 
   return (
     <Page>
@@ -328,7 +382,7 @@ function WorkoutsPage() {
         actions={
           <Link
             to="/exercise-library"
-            className="inline-flex h-9 items-center gap-2 rounded-full border border-border bg-card px-4 text-sm font-medium text-ink no-underline transition-colors duration-[var(--dur-short)] hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            className="inline-flex h-9 items-center gap-2 rounded-full border border-rule-2 bg-sheet px-4 text-sm font-medium text-ink no-underline transition-colors duration-[var(--dur-short)] hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >
             <BookOpen className="size-4" aria-hidden="true" />
             <Trans>Exercise library</Trans>
@@ -338,6 +392,208 @@ function WorkoutsPage() {
 
       {/* Workouts a connected AI app sent with a non-catalog exercise (#439, M2c). */}
       <AiAppWorkoutDrafts onSaved={reloadWorkouts} />
+
+      <WorkoutRoutines
+        onStart={startFromRoutine}
+        startingId={startingRoutine}
+        startError={startError}
+      />
+
+      <Section
+        icon={Dumbbell}
+        tone="steps"
+        title={<Trans>Session log</Trans>}
+        description={
+          workoutSummary.count > 0
+            ? t`${plural(workoutSummary.count, { one: "# session", other: "# sessions" })}, ${workoutSummary.totalDurationLabel}`
+            : undefined
+        }
+      >
+        {workouts.isPending ? (
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3" aria-hidden="true">
+            {["a", "b", "c"].map((key) => (
+              <Skeleton key={key} className="h-28 w-full rounded-3xl" />
+            ))}
+          </div>
+        ) : workouts.isError || !workouts.data ? (
+          <ErrorState
+            title={<Trans>Could not load workouts.</Trans>}
+            action={
+              <Button variant="outline" size="sm" onClick={() => void workouts.refetch()}>
+                <Trans>Retry</Trans>
+              </Button>
+            }
+          />
+        ) : workouts.data.length === 0 ? (
+          <EmptyState
+            icon={Dumbbell}
+            title={<Trans>No workouts yet</Trans>}
+            description={<Trans>Start a routine, or log a session with the + button.</Trans>}
+          />
+        ) : (
+          <div className="grid gap-4">
+            <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {recent.map((workout) => {
+                const rating = workout.effortRating;
+                const canRate =
+                  rating === null &&
+                  workout.canEdit === true &&
+                  workout.ownership === "mine" &&
+                  workout.id > 0 &&
+                  canRateEffortToday(workout.date, today);
+                const routineName = sessionRoutineName(workout, routineList);
+                const typeLabel = _(workoutTypeLabel(workout.type));
+                const summary = workout.summary;
+                const meta = [
+                  friendlyDate(i18n, workout.date),
+                  workout.intensity ? _(INTENSITY_LABELS[workout.intensity]) : null,
+                  rating !== null ? t`Effort ${rating}/10` : null,
+                ].filter(Boolean);
+                return (
+                  <li key={workout.id} className="sheet flex min-w-0 flex-col gap-3 p-4">
+                    <button
+                      type="button"
+                      className="rounded-2xl text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                      onClick={() => setSelected(workout.id)}
+                      aria-label={t`View workout details`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <ToneIcon icon={workoutIcon(workout.type)} tone="steps" />
+                        <div className="grid min-w-0 flex-1 gap-0.5">
+                          {routineName ? (
+                            <span className="text-xs text-ink-3">{typeLabel}</span>
+                          ) : null}
+                          <span className="font-semibold break-words text-ink">
+                            {routineName ?? typeLabel}
+                          </span>
+                          <span className="text-sm text-ink-3">{meta.join(" · ")}</span>
+                        </div>
+                        <span className="num shrink-0 rounded-full bg-steps-soft px-2.5 py-1 text-sm font-semibold text-ink">
+                          <span className="sr-only">{t`Duration`}: </span>
+                          {workoutDurationLabel(workout.duration)}
+                        </span>
+                      </div>
+                    </button>
+                    {summary && summary.exerciseCount > 0 ? (
+                      <p className="text-sm text-ink-2">
+                        {t`${plural(summary.exerciseCount, { one: "# exercise", other: "# exercises" })}, ${plural(summary.setCount, { one: "# set", other: "# sets" })}`}
+                        {summary.volumeKg > 0 ? `, ${volumeLabel(summary.volumeKg)}` : ""}
+                      </p>
+                    ) : null}
+                    {workout.notes ? (
+                      <p className="line-clamp-2 text-sm break-words text-ink-3">{workout.notes}</p>
+                    ) : null}
+                    {canRate ? (
+                      <div className="mt-auto">
+                        <RateEffort workoutId={workout.id} onSaved={reloadWorkouts} />
+                      </div>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
+            <Details summary={<Trans>Full log</Trans>}>
+              <div className="sheet min-w-0 px-2 pt-2 pb-1">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>
+                        <Trans>Date</Trans>
+                      </TableHead>
+                      <TableHead>
+                        <Trans>Session</Trans>
+                      </TableHead>
+                      <TableHead>
+                        <Trans>Intensity</Trans>
+                      </TableHead>
+                      <TableHead className="num">
+                        <Trans>Effort</Trans>
+                      </TableHead>
+                      <TableHead className="num">
+                        <Trans>Effort points</Trans>
+                      </TableHead>
+                      <TableHead className="num">
+                        <Trans>Duration</Trans>
+                      </TableHead>
+                      <TableHead>
+                        <Trans>Details</Trans>
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {workouts.data.map((workout) => {
+                      const rating = workout.effortRating;
+                      const points =
+                        rating !== null && workout.duration !== null && workout.duration > 0
+                          ? rating * workout.duration
+                          : null;
+                      const canRate =
+                        rating === null &&
+                        workout.canEdit === true &&
+                        workout.ownership === "mine" &&
+                        workout.id > 0 &&
+                        canRateEffortToday(workout.date, today);
+                      const routineName = sessionRoutineName(workout, routineList);
+                      return (
+                        <TableRow key={workout.id} className="align-top">
+                          <TableCell className="text-left whitespace-nowrap text-ink-3">
+                            {friendlyDate(i18n, workout.date)}
+                          </TableCell>
+                          <TableCell className="min-w-40 whitespace-normal">
+                            <span className="block font-medium text-ink">
+                              {routineName ?? _(workoutTypeLabel(workout.type))}
+                            </span>
+                            {workout.notes ? (
+                              <span className="block text-ink-3">{workout.notes}</span>
+                            ) : null}
+                          </TableCell>
+                          <TableCell className="text-ink-2">
+                            {workout.intensity ? (
+                              _(INTENSITY_LABELS[workout.intensity])
+                            ) : (
+                              <span className="text-ink-3">
+                                <Trans>No intensity</Trans>
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell className="num">
+                            {rating !== null ? (
+                              `${rating}/10`
+                            ) : canRate ? (
+                              <div className="flex justify-end font-body">
+                                <RateEffort workoutId={workout.id} onSaved={reloadWorkouts} />
+                              </div>
+                            ) : (
+                              <span className="font-body text-ink-3">
+                                <Trans>Not rated</Trans>
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell className="num">
+                            {points !== null ? points.toLocaleString(i18n.locale) : "–"}
+                          </TableCell>
+                          <TableCell className="num">
+                            {workoutDurationLabel(workout.duration)}
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setSelected(workout.id)}
+                            >
+                              <Trans>View details</Trans>
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </Details>
+          </div>
+        )}
+      </Section>
 
       {load.isPending ? (
         <div className="grid gap-4 sm:grid-cols-2" aria-hidden="true">
@@ -357,308 +613,180 @@ function WorkoutsPage() {
         <ActivityLoadCard result={load.data} />
       )}
 
-      <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
-        <Section
-          icon={Dumbbell}
-          tone="steps"
-          title={<Trans>Session log</Trans>}
-          description={
-            workoutSummary.count > 0
-              ? t`${plural(workoutSummary.count, { one: "# session", other: "# sessions" })}, ${workoutSummary.totalDurationLabel}`
-              : undefined
-          }
-        >
-          {workouts.isPending ? (
-            <div className="grid gap-3 sm:grid-cols-2" aria-hidden="true">
-              {["a", "b", "c", "d"].map((key) => (
-                <Skeleton key={key} className="h-28 w-full rounded-3xl" />
-              ))}
-            </div>
-          ) : workouts.isError || !workouts.data ? (
-            <ErrorState
-              title={<Trans>Could not load workouts.</Trans>}
-              action={
-                <Button variant="outline" size="sm" onClick={() => void workouts.refetch()}>
-                  <Trans>Retry</Trans>
-                </Button>
-              }
-            />
-          ) : visibleEditing && visibleSelected !== null ? (
-            <>
-              <WorkoutSessionEditor
-                initial={visibleEditing}
-                units={units}
-                onCancel={() => setEditing(null)}
-                busy={saveWorkout.isPending}
-                error={saveWorkout.isError ? t`Could not save. Please retry.` : null}
-                onSave={(value) => {
-                  if (!scope || !privateStateCurrent || !selected) return;
-                  const expectedVersion =
-                    editSnapshot?.id === selected ? editSnapshot.version : null;
-                  if (expectedVersion === null) return;
-                  const fingerprint = JSON.stringify({
-                    scope,
-                    id: selected,
-                    expectedVersion,
-                    value,
-                  });
-                  if (pendingUpdate.current && pendingUpdate.current.fingerprint !== fingerprint)
-                    return;
-                  const input = pendingUpdate.current?.input ?? {
-                    id: selected,
-                    expectedVersion,
-                    expectedScope: scope,
-                    clientMutationId: mutationId || globalThis.crypto?.randomUUID?.() || "",
-                    workout: value,
-                  };
-                  if (!input.clientMutationId) return;
-                  pendingUpdate.current = { fingerprint, input };
-                  setMutationId(input.clientMutationId);
-                  saveWorkout.mutate(input as any);
-                }}
-              />
-              {saveWorkout.isError && definitiveWorkoutFailure(saveWorkout.error) ? (
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      pendingUpdate.current = null;
-                      saveWorkout.reset();
-                      setMutationId(globalThis.crypto?.randomUUID?.() ?? "");
-                    }}
-                  >
-                    <Trans>Revise and try again</Trans>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      pendingUpdate.current = null;
-                      saveWorkout.reset();
-                      setEditing(null);
-                      setEditSnapshot(null);
-                      void detail.refetch();
-                    }}
-                  >
-                    <Trans>Reload latest</Trans>
-                  </Button>
-                </div>
-              ) : null}
-            </>
-          ) : workouts.data.length === 0 ? (
-            <EmptyState
-              icon={Dumbbell}
-              title={<Trans>No workouts yet</Trans>}
-              description={<Trans>Add a session to start tracking.</Trans>}
-            />
-          ) : (
-            <div className="grid gap-4">
-              <ul className="grid gap-3 sm:grid-cols-2">
-                {recent.map((workout) => {
-                  const rating = workout.effortRating;
-                  const canRate =
-                    rating === null &&
-                    workout.canEdit === true &&
-                    workout.ownership === "mine" &&
-                    workout.id > 0 &&
-                    canRateEffortToday(workout.date, today);
-                  return (
-                    <li key={workout.id} className="sheet grid min-w-0 content-start gap-3 p-4">
-                      <button
-                        type="button"
-                        className="text-left"
-                        onClick={() => setSelected(workout.id)}
-                        aria-label={t`View workout details`}
-                      >
-                        <div className="flex items-start gap-3">
-                          <ToneIcon icon={workoutIcon(workout.type)} tone="steps" />
-                          <div className="grid min-w-0 flex-1 gap-0.5">
-                            <span className="font-semibold break-words text-ink">
-                              {_(workoutTypeLabel(workout.type))}
-                            </span>
-                            <span className="text-sm text-ink-3">
-                              {friendlyDate(i18n, workout.date)}
-                              {workout.intensity
-                                ? `, ${_(INTENSITY_LABELS[workout.intensity])}`
-                                : ""}
-                            </span>
-                          </div>
-                          <span className="num shrink-0 rounded-full bg-steps-soft px-2.5 py-1 text-sm font-semibold text-ink">
-                            <span className="sr-only">{t`Duration`}: </span>
-                            {workoutDurationLabel(workout.duration)}
-                          </span>
-                        </div>
-                      </button>
-                      {workout.notes ? (
-                        <p className="text-sm break-words text-ink-2">{workout.notes}</p>
-                      ) : null}
-                      {rating !== null ? (
-                        <span>
-                          <StatusPill tone="neutral">
-                            <span className="sr-only">{t`Effort`}: </span>
-                            {`${rating}/10`}
-                          </StatusPill>
-                        </span>
-                      ) : canRate ? (
-                        <RateEffort workoutId={workout.id} onSaved={reloadWorkouts} />
-                      ) : (
-                        <span>
-                          <StatusPill tone="neutral">
-                            <Trans>Not rated</Trans>
-                          </StatusPill>
-                        </span>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-              <Details summary={<Trans>Full log</Trans>}>
-                <div className="sheet min-w-0 px-2 pt-2 pb-1">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>
-                          <Trans>Date</Trans>
-                        </TableHead>
-                        <TableHead>
-                          <Trans>Type</Trans>
-                        </TableHead>
-                        <TableHead>
-                          <Trans>Intensity</Trans>
-                        </TableHead>
-                        <TableHead className="num">
-                          <Trans>Effort</Trans>
-                        </TableHead>
-                        <TableHead className="num">
-                          <Trans>Effort points</Trans>
-                        </TableHead>
-                        <TableHead className="num">
-                          <Trans>Duration</Trans>
-                        </TableHead>
-                        <TableHead>
-                          <Trans>Details</Trans>
-                        </TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {workouts.data.map((workout) => {
-                        const rating = workout.effortRating;
-                        const points =
-                          rating !== null && workout.duration !== null && workout.duration > 0
-                            ? rating * workout.duration
-                            : null;
-                        const canRate =
-                          rating === null &&
-                          workout.canEdit === true &&
-                          workout.ownership === "mine" &&
-                          workout.id > 0 &&
-                          canRateEffortToday(workout.date, today);
-                        return (
-                          <TableRow key={workout.id} className="align-top">
-                            <TableCell className="text-left whitespace-nowrap text-ink-3">
-                              {friendlyDate(i18n, workout.date)}
-                            </TableCell>
-                            <TableCell className="min-w-40 whitespace-normal">
-                              <span className="block font-medium text-ink">
-                                {_(workoutTypeLabel(workout.type))}
-                              </span>
-                              {workout.notes ? (
-                                <span className="block text-ink-3">{workout.notes}</span>
-                              ) : null}
-                            </TableCell>
-                            <TableCell className="text-ink-2">
-                              {workout.intensity ? (
-                                _(INTENSITY_LABELS[workout.intensity])
-                              ) : (
-                                <span className="text-ink-3">
-                                  <Trans>No intensity</Trans>
-                                </span>
-                              )}
-                            </TableCell>
-                            <TableCell className="num">
-                              {rating !== null ? (
-                                `${rating}/10`
-                              ) : canRate ? (
-                                <div className="flex justify-end font-body">
-                                  <RateEffort workoutId={workout.id} onSaved={reloadWorkouts} />
-                                </div>
-                              ) : (
-                                <span className="font-body text-ink-3">
-                                  <Trans>Not rated</Trans>
-                                </span>
-                              )}
-                            </TableCell>
-                            <TableCell className="num">
-                              {points !== null ? points.toLocaleString(i18n.locale) : "—"}
-                            </TableCell>
-                            <TableCell className="num">
-                              {workoutDurationLabel(workout.duration)}
-                            </TableCell>
-                            <TableCell>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => setSelected(workout.id)}
-                              >
-                                <Trans>View details</Trans>
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
-              </Details>
-            </div>
-          )}
-        </Section>
+      <Section icon={Target} tone="weight" title={<Trans>Personal goals</Trans>}>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-ink-3">
+            <Trans>Track personal goals separately from workout sessions.</Trans>
+          </p>
+          <Link
+            to="/goals"
+            className="inline-flex h-9 items-center gap-2 rounded-full border border-rule-2 bg-sheet px-4 text-sm font-medium text-ink no-underline transition-colors duration-[var(--dur-short)] hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          >
+            <Trans>Open Goals</Trans>
+            <ArrowRight className="size-4" aria-hidden="true" />
+          </Link>
+        </div>
+      </Section>
 
-        <Section sheet icon={Plus} tone="steps" title={<Trans>Add a session</Trans>}>
-          {!visibleEditing && (
-            <Button onClick={() => startNewSession(null)}>
-              <Trans>Log session</Trans>
-            </Button>
-          )}
-          {visibleEditing && visibleSelected === null ? (
-            <>
-              <WorkoutSessionEditor
-                initial={visibleEditing}
-                units={units}
-                busy={createWorkout.isPending}
-                error={createWorkout.isError ? t`Could not save. Please retry.` : null}
-                onCancel={() => setEditing(null)}
-                onSave={(value) => {
-                  if (!scope || !privateStateCurrent) return;
-                  const fingerprint = JSON.stringify({ scope, value });
-                  if (pendingCreate.current && pendingCreate.current.fingerprint !== fingerprint)
-                    return;
-                  const input = pendingCreate.current?.input ?? {
-                    expectedScope: scope,
-                    clientMutationId: mutationId || globalThis.crypto?.randomUUID?.() || "",
-                    ...value,
-                  };
-                  if (!input.clientMutationId) return;
-                  pendingCreate.current = { fingerprint, input };
-                  setMutationId(input.clientMutationId);
-                  createWorkout.mutate(input as any);
+      {/* The "+" asks for a routine first. */}
+      <FormDialog
+        open={choosingRoutine}
+        onOpenChange={setChoosingRoutine}
+        title={<Trans>Log a session</Trans>}
+        description={<Trans>Which routine did you do?</Trans>}
+      >
+        <ul className="grid gap-2">
+          {routineList.map((routine) => (
+            <li key={routine.id}>
+              <button
+                type="button"
+                disabled={startingRoutine !== null}
+                onClick={() => {
+                  setChoosingRoutine(false);
+                  startFromRoutine(routine);
                 }}
-              />
-              {createWorkout.isError && definitiveWorkoutFailure(createWorkout.error) ? (
+                className="flex w-full items-center gap-3 rounded-2xl border border-rule bg-sheet p-3 text-left transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-55"
+              >
+                <ToneIcon icon={Dumbbell} tone="steps" size="sm" />
+                <span className="grid min-w-0 flex-1">
+                  <span className="font-semibold break-words text-ink">{routine.name}</span>
+                  <span className="text-sm text-ink-3">
+                    {t`${plural(routine.exercises.length, { one: "# exercise", other: "# exercises" })}`}
+                  </span>
+                </span>
+                <ChevronRight className="size-4 text-ink-3" aria-hidden="true" />
+              </button>
+            </li>
+          ))}
+        </ul>
+        <Button
+          variant="outline"
+          onClick={() => {
+            setChoosingRoutine(false);
+            startNewSession(null);
+          }}
+        >
+          <Trans>Without a routine</Trans>
+        </Button>
+      </FormDialog>
+
+      <FormDialog
+        open={visibleEditing !== null}
+        onOpenChange={(open) => {
+          if (!open) setEditing(null);
+        }}
+        size="lg"
+        title={
+          editingExisting ? (
+            <Trans>Edit session</Trans>
+          ) : editingRoutine ? (
+            editingRoutine
+          ) : (
+            <Trans>Log a session</Trans>
+          )
+        }
+      >
+        {visibleEditing && editingExisting ? (
+          <>
+            <WorkoutSessionEditor
+              initial={visibleEditing}
+              units={units}
+              onCancel={() => setEditing(null)}
+              busy={saveWorkout.isPending}
+              error={saveWorkout.isError ? t`Could not save. Please retry.` : null}
+              onSave={(value) => {
+                if (!scope || !privateStateCurrent || !selected) return;
+                const expectedVersion = editSnapshot?.id === selected ? editSnapshot.version : null;
+                if (expectedVersion === null) return;
+                const fingerprint = JSON.stringify({
+                  scope,
+                  id: selected,
+                  expectedVersion,
+                  value,
+                });
+                if (pendingUpdate.current && pendingUpdate.current.fingerprint !== fingerprint)
+                  return;
+                const input = pendingUpdate.current?.input ?? {
+                  id: selected,
+                  expectedVersion,
+                  expectedScope: scope,
+                  clientMutationId: mutationId || globalThis.crypto?.randomUUID?.() || "",
+                  workout: value,
+                };
+                if (!input.clientMutationId) return;
+                pendingUpdate.current = { fingerprint, input };
+                setMutationId(input.clientMutationId);
+                saveWorkout.mutate(input as any);
+              }}
+            />
+            {saveWorkout.isError && definitiveWorkoutFailure(saveWorkout.error) ? (
+              <div className="flex flex-wrap gap-2">
                 <Button
                   variant="outline"
                   onClick={() => {
-                    pendingCreate.current = null;
-                    createWorkout.reset();
+                    pendingUpdate.current = null;
+                    saveWorkout.reset();
                     setMutationId(globalThis.crypto?.randomUUID?.() ?? "");
                   }}
                 >
                   <Trans>Revise and try again</Trans>
                 </Button>
-              ) : null}
-            </>
-          ) : null}
-        </Section>
-      </div>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    pendingUpdate.current = null;
+                    saveWorkout.reset();
+                    setEditing(null);
+                    setEditSnapshot(null);
+                    void detail.refetch();
+                  }}
+                >
+                  <Trans>Reload latest</Trans>
+                </Button>
+              </div>
+            ) : null}
+          </>
+        ) : visibleEditing ? (
+          <>
+            <WorkoutSessionEditor
+              // A fresh editor per start, so a routine's prefill replaces the last draft.
+              key={sessionKey}
+              initial={visibleEditing}
+              units={units}
+              busy={createWorkout.isPending}
+              error={createWorkout.isError ? t`Could not save. Please retry.` : null}
+              onCancel={() => setEditing(null)}
+              onSave={(value) => {
+                if (!scope || !privateStateCurrent) return;
+                const fingerprint = JSON.stringify({ scope, value });
+                if (pendingCreate.current && pendingCreate.current.fingerprint !== fingerprint)
+                  return;
+                const input = pendingCreate.current?.input ?? {
+                  expectedScope: scope,
+                  clientMutationId: mutationId || globalThis.crypto?.randomUUID?.() || "",
+                  ...value,
+                };
+                if (!input.clientMutationId) return;
+                pendingCreate.current = { fingerprint, input };
+                setMutationId(input.clientMutationId);
+                createWorkout.mutate(input as any);
+              }}
+            />
+            {createWorkout.isError && definitiveWorkoutFailure(createWorkout.error) ? (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  pendingCreate.current = null;
+                  createWorkout.reset();
+                  setMutationId(globalThis.crypto?.randomUUID?.() ?? "");
+                }}
+              >
+                <Trans>Revise and try again</Trans>
+              </Button>
+            ) : null}
+          </>
+        ) : null}
+      </FormDialog>
 
       {visibleSelected !== null && !visibleEditing ? (
         <Dialog
@@ -805,19 +933,6 @@ function WorkoutsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      <WorkoutRoutines />
-
-      <Section title={<Trans>Personal goals</Trans>}>
-        <p className="text-sm text-ink-3">
-          <Trans>Track personal goals separately from workout sessions.</Trans>
-        </p>
-        <Link
-          to="/goals"
-          className="mt-3 inline-flex min-h-10 items-center rounded-xl bg-weight-soft px-4 font-semibold text-ink hover:bg-muted"
-        >
-          <Trans>Open Goals</Trans>
-        </Link>
-      </Section>
     </Page>
   );
 }

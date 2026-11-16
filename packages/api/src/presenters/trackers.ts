@@ -36,8 +36,9 @@ export const TRACKER_TEMPLATE_COPY: Record<TrackerTemplateId, TrackerTemplateCop
   mood: {
     name: msg`Mood`,
     description: msg`Rate your mood yourself, from 1 to 5.`,
-    scaleLow: msg`Low`,
-    scaleHigh: msg`Good`,
+    // Opposite ends (trackers#4): not "Low" against "Good".
+    scaleLow: msg`Very low`,
+    scaleHigh: msg`Very good`,
   },
   energy: {
     name: msg`Energy`,

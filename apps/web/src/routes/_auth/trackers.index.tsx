@@ -5,12 +5,16 @@ import {
   formatTrackerValue,
   TRACKER_TEMPLATE_COPY,
 } from "@openvalens/api/presenters/trackers";
-import { TRACKER_LIMITS, TRACKER_TEMPLATES } from "@openvalens/trackers/model";
+import {
+  TRACKER_LIMITS,
+  TRACKER_TEMPLATES,
+  type TrackerTemplateId,
+} from "@openvalens/trackers/model";
 import { Button } from "@openvalens/ui/components/button";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ChevronRight, ListChecks, Plus, Users, X } from "lucide-react";
+import { ChevronDown, ChevronRight, ChevronUp, ListChecks, Plus, Users } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -24,6 +28,7 @@ import {
   StatusPill,
   ToneIcon,
 } from "@/components/page";
+import { FormDialog } from "@/components/form-dialog";
 import { trackerIcon } from "@/components/tracker-icons";
 import {
   blankTrackerDraft,
@@ -34,6 +39,8 @@ import {
 } from "@openvalens/api/presenters/tracker-draft";
 import { TrackerEditor } from "@/components/trackers/tracker-editor";
 import { TrackerLogForm } from "@/components/trackers/tracker-log-form";
+import { recentTrackerUse, stripHeight } from "@/components/trackers/recent-use";
+import { friendlyDate } from "@/utils/friendly";
 import { client, orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute("/_auth/trackers/")({ component: TrackersPage });
@@ -42,10 +49,11 @@ type TrackerSummary = Awaited<ReturnType<typeof client.trackers.list>>[number];
 
 /** Custom trackers (#441): the member's own and the workspace's shared ones. */
 function TrackersPage() {
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const queryClient = useQueryClient();
   const [showArchived, setShowArchived] = useState(false);
-  const [creating, setCreating] = useState(false);
+  // The new-tracker dialog: closed, at the template list, or started from one template.
+  const [creating, setCreating] = useState<null | "pick" | TrackerTemplateId>(null);
   const timeZone = browserTimeZone();
   const list = useQuery(
     orpc.trackers.list.queryOptions({ input: { timeZone, includeArchived: showArchived } }),
@@ -65,12 +73,10 @@ function TrackersPage() {
         </Trans>
       }
       actions={
-        !creating ? (
-          <Button onClick={() => setCreating(true)}>
-            <Plus aria-hidden="true" />
-            <Trans>New tracker</Trans>
-          </Button>
-        ) : null
+        <Button onClick={() => setCreating("pick")}>
+          <Plus aria-hidden="true" />
+          <Trans>New tracker</Trans>
+        </Button>
       }
     />
   );
@@ -105,22 +111,25 @@ function TrackersPage() {
   const shared = active.filter((tracker) => !tracker.owner.isYou);
   const archived = list.data.filter((tracker) => tracker.archivedAt);
   const atLimit = mine.length >= TRACKER_LIMITS.activePerMember;
+  // Templates the member has not started yet, offered as one-tap ideas (trackers#6).
+  const usedTemplates = new Set(active.map((tracker) => tracker.template));
+  const ideas = TRACKER_TEMPLATES.filter((template) => !usedTemplates.has(template.id));
 
   return (
     <Page>
       {header}
-      {creating ? (
-        <NewTracker
-          atLimit={atLimit}
-          onClose={() => setCreating(false)}
-          onCreated={() => {
-            setCreating(false);
-            refresh();
-          }}
-        />
-      ) : null}
+      <NewTracker
+        open={creating !== null}
+        template={creating === null || creating === "pick" ? null : creating}
+        atLimit={atLimit}
+        onClose={() => setCreating(null)}
+        onCreated={() => {
+          setCreating(null);
+          refresh();
+        }}
+      />
 
-      {mine.length === 0 && shared.length === 0 && !creating ? (
+      {mine.length === 0 && shared.length === 0 ? (
         <EmptyState
           icon={ListChecks}
           title={<Trans>No trackers yet</Trans>}
@@ -128,7 +137,7 @@ function TrackersPage() {
             <Trans>Start from a template such as Mood or Sauna, or make your own.</Trans>
           }
           action={
-            <Button onClick={() => setCreating(true)}>
+            <Button variant="outline" onClick={() => setCreating("pick")}>
               <Trans>New tracker</Trans>
             </Button>
           }
@@ -155,13 +164,41 @@ function TrackersPage() {
         </Section>
       ) : null}
 
+      {mine.length > 0 && !atLimit && ideas.length > 0 ? (
+        <section aria-labelledby="tracker-ideas" className="grid gap-2">
+          <h2 id="tracker-ideas" className="font-body text-sm font-normal text-ink-3">
+            <Trans>More to track</Trans>
+          </h2>
+          <ul className="flex flex-wrap gap-2">
+            {ideas.map((template) => {
+              const Icon = trackerIcon(template.icon);
+              const name = i18n._(TRACKER_TEMPLATE_COPY[template.id].name);
+              return (
+                <li key={template.id}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    aria-label={t`Add a ${name} tracker`}
+                    onClick={() => setCreating(template.id)}
+                  >
+                    <Icon aria-hidden="true" />
+                    {name}
+                  </Button>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ) : null}
+
       <div className="grid gap-3">
         <Button
-          variant="ghost"
+          variant="outline"
           className="justify-self-start"
           aria-expanded={showArchived}
           onClick={() => setShowArchived((value) => !value)}
         >
+          {showArchived ? <ChevronUp aria-hidden="true" /> : <ChevronDown aria-hidden="true" />}
           {showArchived ? (
             <Trans>Hide archived trackers</Trans>
           ) : (
@@ -188,19 +225,34 @@ function TrackerCard({ tracker, onLogged }: { tracker: TrackerSummary; onLogged:
   const { t, i18n } = useLingui();
   const Icon = trackerIcon(tracker.icon);
   const progress = tracker.progress;
-  const todayText =
-    tracker.today === null
-      ? t`Nothing logged today`
-      : formatTrackerValue(i18n, tracker, tracker.today);
-  const currentText =
-    progress && progress.current !== null
-      ? progress.period === "week"
-        ? formatTrackerTotal(i18n, tracker, progress.current)
-        : formatTrackerValue(i18n, tracker, progress.current)
+  // The last 30 days, for the last entry and the rolling week (trackers#0, #1).
+  const chart = useQuery(
+    orpc.trackers.chart.queryOptions({
+      input: { trackerId: tracker.id, days: 30, timeZone: browserTimeZone() },
+    }),
+  );
+  const recent = chart.data ? recentTrackerUse(chart.data.days, tracker) : null;
+  const lastDay = recent?.last ? friendlyDate(i18n, recent.last.date) : null;
+  const lastValue = recent?.last ? formatTrackerValue(i18n, tracker, recent.last.value) : null;
+  const lastText =
+    lastDay && lastValue ? t`${lastDay}: ${lastValue}` : recent ? t`Nothing logged lately` : null;
+  const figure = recent?.figure ?? null;
+  const figureValue = figure
+    ? figure.kind === "total"
+      ? formatTrackerTotal(i18n, tracker, figure.value)
+      : formatTrackerValue(i18n, tracker, figure.value)
+    : null;
+  const figureText =
+    figure && figureValue
+      ? figure.kind === "average"
+        ? t`7-day average ${figureValue}`
+        : figure.kind === "total"
+          ? t`${figureValue} in 7 days`
+          : t`Yes on ${figure.value} of 7 days`
       : null;
   const targetText = tracker.target ? formatTrackerTarget(i18n, tracker, tracker.target) : null;
   return (
-    <li className="sheet grid content-start gap-4 p-5">
+    <li className="sheet flex flex-col gap-4 p-5">
       <div className="flex items-start gap-3">
         <ToneIcon icon={Icon} tone="signal" />
         <div className="grid min-w-0 flex-1 gap-0.5">
@@ -212,8 +264,9 @@ function TrackerCard({ tracker, onLogged }: { tracker: TrackerSummary; onLogged:
             <span className="truncate">{tracker.name}</span>
             <ChevronRight className="size-4 shrink-0 text-ink-3" aria-hidden="true" />
           </Link>
-          <p className="text-sm text-ink-3">
-            {todayText}
+          <p className="min-h-5 text-sm text-ink-3">
+            {lastText}
+            {figureText ? ` · ${figureText}` : ""}
             {!tracker.owner.isYou && tracker.owner.name ? ` · ${tracker.owner.name}` : ""}
           </p>
         </div>
@@ -223,28 +276,102 @@ function TrackerCard({ tracker, onLogged }: { tracker: TrackerSummary; onLogged:
           </StatusPill>
         ) : null}
       </div>
+      {recent ? <WeekStrip tracker={tracker} days={recent.window} /> : null}
       {progress && targetText ? (
-        <div className="grid gap-1.5">
-          <Meter
-            value={progress.current === null ? 0 : progress.current / progress.target}
-            tone="signal"
-            label={t`Target progress`}
-          />
-          <p className="text-sm text-ink-3">
-            {progress.met ? (
-              <Trans>Target reached: {targetText}</Trans>
-            ) : currentText ? (
-              <Trans>
-                {currentText} of {targetText}
-              </Trans>
-            ) : (
-              <Trans>Target: {targetText}</Trans>
-            )}
-          </p>
+        <TargetBar tracker={tracker} progress={progress} targetText={targetText} />
+      ) : null}
+      {tracker.canLog ? (
+        <div className="mt-auto">
+          <TrackerLogForm tracker={tracker} onLogged={onLogged} compact />
         </div>
       ) : null}
-      {tracker.canLog ? <TrackerLogForm tracker={tracker} onLogged={onLogged} compact /> : null}
     </li>
+  );
+}
+
+/** Seven small bars, one per day; a day with nothing logged is a dot, not a zero. */
+function WeekStrip({
+  tracker,
+  days,
+}: {
+  tracker: TrackerSummary;
+  days: readonly { date: string; value: number | null }[];
+}) {
+  const { t, i18n } = useLingui();
+  const max = Math.max(0, ...days.map((day) => day.value ?? 0));
+  const weekday = new Intl.DateTimeFormat(i18n.locale, { weekday: "narrow", timeZone: "UTC" });
+  return (
+    <ol className="grid grid-cols-7 gap-1.5" aria-label={t`Last 7 days`}>
+      {days.map((day) => {
+        const height = stripHeight(day.value, tracker.type, max);
+        const when = friendlyDate(i18n, day.date);
+        const what =
+          day.value === null ? t`nothing logged` : formatTrackerValue(i18n, tracker, day.value);
+        return (
+          <li key={day.date} className="grid justify-items-center gap-1">
+            <span className="flex h-8 w-full items-end justify-center" aria-hidden="true">
+              {height === null ? (
+                <span className="mb-0.5 size-1.5 rounded-full bg-paper-3" />
+              ) : (
+                <span
+                  className="w-full max-w-4 rounded-full bg-signal"
+                  style={{ height: `${Math.max(12, height * 100)}%` }}
+                />
+              )}
+            </span>
+            <span className="text-xs text-ink-3" aria-hidden="true">
+              {weekday.format(new Date(`${day.date}T00:00:00Z`))}
+            </span>
+            <span className="sr-only">{`${when}: ${what}`}</span>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+/** The target as a bar with its figures: "20 min of 1 h this week". */
+function TargetBar({
+  tracker,
+  progress,
+  targetText,
+}: {
+  tracker: TrackerSummary;
+  progress: NonNullable<TrackerSummary["progress"]>;
+  targetText: string;
+}) {
+  const { t, i18n } = useLingui();
+  const weekly = progress.period === "week";
+  const format = (value: number) =>
+    weekly ? formatTrackerTotal(i18n, tracker, value) : formatTrackerValue(i18n, tracker, value);
+  // Amounts that add up start from zero; an average or a rating has nothing to show yet.
+  const counts = tracker.type === "yes_no" || tracker.aggregation === "sum";
+  const current = progress.current ?? (counts ? 0 : null);
+  const amount = format(progress.target);
+  const currentText = current === null ? null : format(current);
+  return (
+    <div className="grid gap-1.5">
+      <Meter
+        value={current === null ? 0 : current / progress.target}
+        tone="signal"
+        label={t`Target progress`}
+      />
+      <p className="text-sm text-ink-3">
+        {progress.met ? (
+          <Trans>Target reached: {targetText}</Trans>
+        ) : currentText === null ? (
+          <Trans>Target: {targetText}</Trans>
+        ) : weekly ? (
+          <Trans>
+            {currentText} of {amount} this week
+          </Trans>
+        ) : (
+          <Trans>
+            {currentText} of {amount} today
+          </Trans>
+        )}
+      </p>
+    </div>
   );
 }
 
@@ -280,10 +407,15 @@ function ArchivedRow({ tracker, onChanged }: { tracker: TrackerSummary; onChange
 }
 
 function NewTracker({
+  open,
+  template,
   atLimit,
   onClose,
   onCreated,
 }: {
+  open: boolean;
+  /** Start from this template's form; null shows the template list first. */
+  template: TrackerTemplateId | null;
   atLimit: boolean;
   onClose: () => void;
   onCreated: () => void;
@@ -291,6 +423,18 @@ function NewTracker({
   const { t, i18n } = useLingui();
   const [draft, setDraft] = useState<TrackerDraft | null>(null);
   const [showErrors, setShowErrors] = useState(false);
+  const [openedFor, setOpenedFor] = useState<string | null>(null);
+  // Each opening starts fresh: at the list, or at the chosen template.
+  const opening = open ? (template ?? "pick") : null;
+  if (opening !== openedFor) {
+    setOpenedFor(opening);
+    setShowErrors(false);
+    setDraft(
+      open && template
+        ? templateTrackerDraft(template, i18n._(TRACKER_TEMPLATE_COPY[template].name))
+        : null,
+    );
+  }
   const create = useMutation({
     mutationFn: (input: NonNullable<ReturnType<typeof trackerCreatePayload>>) =>
       client.trackers.create(input),
@@ -303,14 +447,13 @@ function NewTracker({
   });
 
   return (
-    <Section
+    <FormDialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
       title={<Trans>New tracker</Trans>}
-      actions={
-        <Button variant="ghost" size="sm" onClick={onClose} aria-label={t`Close`}>
-          <X aria-hidden="true" />
-        </Button>
-      }
-      sheet
+      size="lg"
     >
       {atLimit ? (
         <p role="status" className="text-ink-2">
@@ -323,15 +466,15 @@ function NewTracker({
           <p className="text-ink-2">
             <Trans>Start from a template, or make your own.</Trans>
           </p>
-          <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {TRACKER_TEMPLATES.map((template) => {
-              const copy = TRACKER_TEMPLATE_COPY[template.id];
-              const Icon = trackerIcon(template.icon);
+          <ul className="grid gap-2 sm:grid-cols-2">
+            {TRACKER_TEMPLATES.map((item) => {
+              const copy = TRACKER_TEMPLATE_COPY[item.id];
+              const Icon = trackerIcon(item.icon);
               return (
-                <li key={template.id}>
+                <li key={item.id}>
                   <button
                     type="button"
-                    onClick={() => setDraft(templateTrackerDraft(template.id, i18n._(copy.name)))}
+                    onClick={() => setDraft(templateTrackerDraft(item.id, i18n._(copy.name)))}
                     className="flex w-full items-start gap-3 rounded-xl border border-rule bg-card p-3 text-left hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                   >
                     <Icon className="mt-0.5 size-5 shrink-0 text-ink-2" aria-hidden="true" />
@@ -383,6 +526,6 @@ function NewTracker({
           </div>
         </form>
       )}
-    </Section>
+    </FormDialog>
   );
 }

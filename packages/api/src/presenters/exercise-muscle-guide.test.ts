@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { resolveExerciseGuideMuscle } from "./exercise-muscle-guide";
+import { plainMuscleName, resolveExerciseGuideMuscle } from "./exercise-muscle-guide";
 
 const taxonomy = [
   ["Biceps", "Upper arms", "front"],
@@ -67,4 +67,11 @@ test("rejects unresolved, incomplete, conflicting, and guessed mappings regardle
       externalMuscleId: "11",
     }),
   ).toEqual({ region: "Upper arms", side: "front" });
+});
+
+test("plain muscle names replace the anatomical ones and leave the rest alone", () => {
+  expect(plainMuscleName("Obliquus externus abdominis")).toBe("Obliques");
+  expect(plainMuscleName("  quadriceps   femoris ")).toBe("Quads");
+  expect(plainMuscleName("Glutes")).toBe("Glutes");
+  expect(plainMuscleName("Brachialis")).toBe("Brachialis");
 });

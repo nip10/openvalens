@@ -85,6 +85,10 @@ test.skipIf(!mountedMode)("mounted strength-training contracts", async () => {
       workouts: {
         listWorkouts: input.handler(() => handlers.listWorkouts?.({})),
         getWorkout: input.handler(({ input: args }: any) => handlers.getWorkout?.(args)),
+        upsertWorkout: input.handler(({ input: args }: any) => {
+          requests.push({ path: "upsertWorkout", input: args });
+          return handlers.upsertWorkout?.(args);
+        }),
         updateWorkout: input.handler(({ input: args }: any) => {
           requests.push({ path: "updateWorkout", input: args });
           return handlers.updateWorkout?.(args);
@@ -377,6 +381,40 @@ test.skipIf(!mountedMode)("mounted strength-training contracts", async () => {
       },
     ]);
     cleanup();
+
+    // A routine's "Start session" opens the session entry prefilled from the routine
+    // (with its progression suggestion), and the saved session keeps the routine.
+    client.clear();
+    requests.length = 0;
+    const pageHandlers = handlers;
+    handlers = {
+      ...pageHandlers,
+      listWorkouts: () => [],
+      listRoutines: () => [savedRoutine],
+      startPreview: () => ({
+        routine: savedRoutine,
+        suggestions: [{ key: "fixed-key", suggestion: { weightKg: 82.5, reps: 9, reason: "up" } }],
+        previousPerformance: [],
+      }),
+      upsertWorkout: () => ({ id: 90, version: 1, exerciseCount: 1, setCount: 3, targetId: "w" }),
+    };
+    render(tree(React.createElement(WorkoutsPage)));
+    await user.click(await screen.findByRole("button", { name: "Start session" }));
+    const startDialog = await screen.findByRole("dialog", { name: "Base plan" });
+    expect(within(startDialog).getByLabelText("Exercise 1")).toHaveProperty("value", "Deadlift");
+    expect(within(startDialog).getAllByText(/^Set \d$/)).toHaveLength(3);
+    await user.click(within(startDialog).getByRole("button", { name: "Save workout" }));
+    await waitFor(() => expect(requests.some((r) => r.path === "upsertWorkout")).toBe(true));
+    const started = requests.find((r) => r.path === "upsertWorkout")!.input;
+    expect(started).toMatchObject({ routineId: 17, expectedScope: scope, type: "weights" });
+    expect(started.routineSnapshot).toMatchObject({ routineId: 17, version: 4, name: "Base plan" });
+    expect(started.exercises[0].sets).toEqual([
+      { reps: 9, weightKg: 82.5, rpe: null, notes: null },
+      { reps: 9, weightKg: 82.5, rpe: null, notes: null },
+      { reps: 9, weightKg: 82.5, rpe: null, notes: null },
+    ]);
+    cleanup();
+    handlers = pageHandlers;
 
     // Confirmation dispatches the versioned delete RPC and successful deletion hides detail.
     client.clear();

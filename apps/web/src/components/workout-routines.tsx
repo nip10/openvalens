@@ -1,12 +1,12 @@
-import { Trans, useLingui } from "@lingui/react/macro";
-import { i18n } from "@lingui/core";
+import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import { offlineScope } from "@openvalens/api/presenters/offline";
 import { Button } from "@openvalens/ui/components/button";
 import { Input } from "@openvalens/ui/components/input";
 import { Label } from "@openvalens/ui/components/label";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import { Dumbbell, Plus, Trash2 } from "lucide-react";
+import { ClipboardList, Dumbbell, Eye, Play, Plus, Trash2 } from "lucide-react";
+import { Skeleton } from "@openvalens/ui/components/skeleton";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,7 +17,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@openvalens/ui/components/alert-dialog";
-import { PageHeader, Section } from "@/components/page";
+import { EmptyState, ErrorState, Section, ToneIcon } from "@/components/page";
+import { FormDialog } from "@/components/form-dialog";
+import { MoreMenu } from "@/components/more-menu";
 import { authClient } from "@/lib/auth-client";
 import { orpc } from "@/utils/orpc";
 import { WorkoutRoutineExerciseEditor } from "@/components/workout-routine-exercise-editor";
@@ -182,8 +184,18 @@ export function SaveWorkoutAsRoutine({
   );
 }
 
-export function WorkoutRoutines() {
-  const { t } = useLingui();
+export function WorkoutRoutines({
+  onStart,
+  startingId = null,
+  startError = null,
+}: {
+  /** "Start session": opens the session entry prefilled from the routine. */
+  onStart?: (routine: Routine) => void;
+  /** The routine whose session is being prepared. */
+  startingId?: number | null;
+  startError?: string | null;
+} = {}) {
+  const { t, i18n } = useLingui();
   const session = authClient.useSession();
   const scope = offlineScope(session.data as Parameters<typeof offlineScope>[0]);
   const client = useQueryClient();
@@ -326,48 +338,57 @@ export function WorkoutRoutines() {
     else create.mutate(data);
   };
   return (
-    <div className="grid gap-6">
-      <PageHeader
-        title={<Trans>Workout routines</Trans>}
-        info={
-          <Trans>
-            Build a reusable plan. Progression suggestions are optional and never change past
-            workouts.
-          </Trans>
-        }
-        actions={
-          <Button onClick={() => startEdit()}>
-            <Plus className="size-4" aria-hidden="true" />
-            <Trans>New routine</Trans>
-          </Button>
-        }
-      />
+    <Section
+      icon={ClipboardList}
+      tone="steps"
+      title={<Trans>Workout routines</Trans>}
+      info={
+        <Trans>
+          Build a reusable plan. Progression suggestions are optional and never change past
+          workouts.
+        </Trans>
+      }
+      actions={
+        <Button onClick={() => startEdit()}>
+          <Plus className="size-4" aria-hidden="true" />
+          <Trans>New routine</Trans>
+        </Button>
+      }
+    >
       {message ? (
         <p role="status" aria-live="polite" className="text-sm text-ink-2">
           {message}
         </p>
       ) : null}
-      {query.isPending ? (
-        <p role="status">
-          <Trans>Loading routines…</Trans>
+      {startError ? (
+        <p role="alert" className="text-sm text-destructive">
+          {startError}
         </p>
-      ) : query.isError ? (
-        <div role="alert" className="flex items-center gap-3">
-          <p>
-            <Trans>Could not load routines.</Trans>
-          </p>
-          <Button variant="outline" onClick={() => void query.refetch()}>
-            <Trans>Retry</Trans>
-          </Button>
-        </div>
       ) : null}
-      {editing ? (
-        <Section
-          sheet
-          icon={Dumbbell}
-          tone="steps"
-          title={editing.id ? <Trans>Edit routine</Trans> : <Trans>New routine</Trans>}
-        >
+      {query.isPending ? (
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3" aria-hidden="true">
+          <Skeleton className="h-44 w-full rounded-3xl" />
+          <Skeleton className="h-44 w-full rounded-3xl" />
+        </div>
+      ) : query.isError ? (
+        <ErrorState
+          title={<Trans>Could not load routines.</Trans>}
+          action={
+            <Button variant="outline" size="sm" onClick={() => void query.refetch()}>
+              <Trans>Retry</Trans>
+            </Button>
+          }
+        />
+      ) : null}
+      <FormDialog
+        open={editing !== null}
+        onOpenChange={(open) => {
+          if (!open) setEditing(null);
+        }}
+        size="lg"
+        title={editing?.id ? <Trans>Edit routine</Trans> : <Trans>New routine</Trans>}
+      >
+        {editing ? (
           <div className="grid gap-4">
             <div className="grid gap-1.5">
               <Label htmlFor="routine-name">
@@ -504,62 +525,46 @@ export function WorkoutRoutines() {
               </Button>
             </div>
           </div>
-        </Section>
-      ) : null}
-      <ul className="grid gap-4 md:grid-cols-2">
+        ) : null}
+      </FormDialog>
+      <ul className="grid gap-4 md:grid-cols-[repeat(auto-fit,minmax(18rem,1fr))]">
         {query.data?.map((routine) => (
-          <li key={routine.id} className="sheet grid gap-4 p-5">
-            <div>
-              <h2 className="font-display text-xl text-ink">{routine.name}</h2>
-              <p className="text-sm text-ink-3">
-                {routine.exercises.length} <Trans>exercises</Trans>
-              </p>
+          <li key={routine.id} className="sheet flex min-w-0 flex-col gap-4 p-5">
+            <div className="flex items-start gap-3">
+              <ToneIcon icon={Dumbbell} tone="steps" />
+              <div className="grid min-w-0 flex-1 gap-0.5">
+                <h3 className="font-display text-lg leading-tight break-words text-ink">
+                  {routine.name}
+                </h3>
+                <p className="text-sm text-ink-3">
+                  <Plural value={routine.exercises.length} one="# exercise" other="# exercises" />
+                </p>
+              </div>
             </div>
-            <ol className="grid gap-1 text-sm">
-              {routine.exercises.map((exercise, index) => (
-                <li key={exercise.key}>
-                  {index + 1}. {exercise.name} · {exercise.targetSets} × {exercise.repsMin}
-                  {exercise.repsMax !== exercise.repsMin ? `–${exercise.repsMax}` : ""}
+            <ol className="grid gap-1 text-sm text-ink-2">
+              {routine.exercises.map((exercise) => (
+                <li key={exercise.key} className="flex items-baseline justify-between gap-3">
+                  <span className="min-w-0 truncate">{exercise.name}</span>
+                  <span className="num shrink-0 text-ink-3">
+                    {exercise.targetSets} × {exercise.repsMin}
+                    {exercise.repsMax !== exercise.repsMin ? `–${exercise.repsMax}` : ""}
+                  </span>
                 </li>
               ))}
             </ol>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant="outline"
-                onClick={async () => {
-                  try {
-                    await preview.mutateAsync({ id: routine.id });
-                    setMessage(
-                      t`Preview ready. Suggestions are read-only; edit the routine to change future targets.`,
-                    );
-                  } catch {
-                    setMessage(t`Could not load a preview. Your routine is unchanged.`);
-                  }
-                }}
-              >
-                <Trans>Preview</Trans>
-              </Button>
-              <Button variant="outline" onClick={() => startEdit(routine)}>
-                <Trans>Edit</Trans>
-              </Button>
-              <Button variant="destructive" onClick={() => setDeleteTarget(routine)}>
-                <Trash2 className="size-4" />
-                <Trans>Delete</Trans>
-              </Button>
-            </div>
             {preview.data?.routine.id === routine.id ? (
-              <div className="rounded-xl bg-paper-2 p-3 text-sm">
-                <h3 className="font-semibold">
+              <div className="grid gap-1 rounded-xl bg-paper-2 p-3 text-sm">
+                <h4 className="font-semibold text-ink">
                   <Trans>Suggested next session</Trans>
-                </h3>
+                </h4>
                 {preview.data.suggestions.map((item) => (
-                  <p key={item.key}>
+                  <p key={item.key} className="text-ink-2">
                     {routine.exercises.find((exercise) => exercise.key === item.key)?.name}:{" "}
                     {item.suggestion.reps} <Trans>reps</Trans>
                     {item.suggestion.weightKg === null
                       ? ""
-                      : ` · ${Number((units === "imperial" ? item.suggestion.weightKg * 2.2046226218 : item.suggestion.weightKg).toFixed(2))} ${units === "imperial" ? "lb" : "kg"}`}{" "}
-                    —{" "}
+                      : ` · ${Number((units === "imperial" ? item.suggestion.weightKg * 2.2046226218 : item.suggestion.weightKg).toFixed(2))} ${units === "imperial" ? "lb" : "kg"}`}
+                    {". "}
                     {i18n._(
                       progressionWhy(
                         item.suggestion,
@@ -569,7 +574,7 @@ export function WorkoutRoutines() {
                     )}
                   </p>
                 ))}
-                <p className="mt-2 text-ink-3">
+                <p className="mt-1 text-ink-3">
                   <Trans>
                     Suggestions are optional. Change future targets in Edit; recorded workouts stay
                     as they were.
@@ -577,13 +582,52 @@ export function WorkoutRoutines() {
                 </p>
               </div>
             ) : null}
+            <div className="mt-auto flex items-center gap-2 border-t border-rule pt-3">
+              {onStart ? (
+                <Button
+                  variant="outline"
+                  disabled={startingId === routine.id}
+                  onClick={() => onStart(routine)}
+                >
+                  <Play className="size-4" aria-hidden="true" />
+                  {startingId === routine.id ? t`Starting…` : t`Start session`}
+                </Button>
+              ) : null}
+              <Button variant="ghost" onClick={() => startEdit(routine)}>
+                <Trans>Edit</Trans>
+              </Button>
+              <div className="ml-auto">
+                <MoreMenu
+                  label={t`More for ${routine.name}`}
+                  items={[
+                    {
+                      label: t`Preview next session`,
+                      icon: Eye,
+                      onSelect: () => {
+                        void preview.mutateAsync({ id: routine.id }).catch(() => {
+                          setMessage(t`Could not load a preview. Your routine is unchanged.`);
+                        });
+                      },
+                    },
+                    {
+                      label: t`Delete`,
+                      icon: Trash2,
+                      destructive: true,
+                      onSelect: () => setDeleteTarget(routine),
+                    },
+                  ]}
+                />
+              </div>
+            </div>
           </li>
         ))}
       </ul>
       {query.data?.length === 0 ? (
-        <p className="rounded-2xl bg-paper-2 p-6 text-ink-3">
-          <Trans>No routines yet. Create one to reuse a plan.</Trans>
-        </p>
+        <EmptyState
+          icon={Dumbbell}
+          title={<Trans>No routines yet</Trans>}
+          description={<Trans>Create one to reuse a plan and start sessions from it.</Trans>}
+        />
       ) : null}
       <AlertDialog
         open={deleteTarget !== null}
@@ -626,6 +670,6 @@ export function WorkoutRoutines() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </Section>
   );
 }

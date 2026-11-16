@@ -36,6 +36,9 @@ export type LoggableTracker = {
  * Logs one entry into a custom tracker (#441): the value, an optional time
  * (now by default) and an optional note. Several entries a day combine by
  * the tracker's rule. Saves at once and offers an undo.
+ *
+ * On a card (`compact`), a 1-5 rating or a yes/no saves with one tap; "Time
+ * and note" opens the full form for a backdated entry or a note.
  */
 export function TrackerLogForm({
   tracker,
@@ -57,16 +60,17 @@ export function TrackerLogForm({
   const [touched, setTouched] = useState(false);
   const value = parseTrackerInput(tracker, text, i18n.locale);
   const invalid = touched && value === null;
+  const oneTap = compact && !showMore && (tracker.type === "scale" || tracker.type === "yes_no");
 
   const undo = useMutation({
     mutationFn: (entryId: string) => client.trackers.deleteEntry({ id: entryId }),
     onSuccess: onLogged,
   });
   const save = useMutation({
-    mutationFn: () =>
+    mutationFn: (entryValue: number) =>
       client.trackers.log({
         trackerId: tracker.id,
-        value: value!,
+        value: entryValue,
         timeZone: browserTimeZone(),
         ...(localInputToIso(when) ? { loggedAt: localInputToIso(when) } : {}),
         ...(note.trim() ? { note: note.trim() } : {}),
@@ -82,8 +86,10 @@ export function TrackerLogForm({
         action: { label: t`Undo`, onClick: () => undo.mutate(entry.id) },
       });
     },
-    onError: (error) =>
-      toast.error(error instanceof Error ? error.message : t`Could not save. Try again.`),
+    onError: (error) => {
+      if (oneTap) setText("");
+      toast.error(error instanceof Error ? error.message : t`Could not save. Try again.`);
+    },
   });
 
   return (
@@ -92,7 +98,7 @@ export function TrackerLogForm({
       onSubmit={(event) => {
         event.preventDefault();
         setTouched(true);
-        if (value !== null && !save.isPending) save.mutate();
+        if (value !== null && !save.isPending) save.mutate(value);
       }}
     >
       <div className="grid gap-1.5">
@@ -109,7 +115,14 @@ export function TrackerLogForm({
           unit={tracker.unit}
           template={tracker.template}
           text={text}
-          onText={setText}
+          onText={(next) => {
+            setText(next);
+            if (!oneTap || save.isPending) return;
+            const picked = parseTrackerInput(tracker, next, i18n.locale);
+            if (picked !== null) save.mutate(picked);
+          }}
+          instant={oneTap}
+          disabled={oneTap && save.isPending}
           invalid={invalid}
           describedBy={invalid ? `${id}-error` : undefined}
         />
@@ -154,13 +167,25 @@ export function TrackerLogForm({
         </div>
       ) : null}
       <div className="flex flex-wrap items-center gap-2">
-        <Button type="submit" disabled={save.isPending}>
-          {save.isPending ? <Trans>Saving…</Trans> : <Trans>Log</Trans>}
-        </Button>
+        {!oneTap ? (
+          <Button type="submit" disabled={save.isPending}>
+            {save.isPending ? <Trans>Saving…</Trans> : <Trans>Log</Trans>}
+          </Button>
+        ) : null}
         {!showMore ? (
-          <Button type="button" variant="ghost" onClick={() => setShowMore(true)}>
+          <Button
+            type="button"
+            variant={oneTap ? "outline" : "ghost"}
+            size={oneTap ? "sm" : "default"}
+            onClick={() => setShowMore(true)}
+          >
             <Trans>Time and note</Trans>
           </Button>
+        ) : null}
+        {oneTap && save.isPending ? (
+          <span role="status" className="text-sm text-ink-3">
+            <Trans>Saving…</Trans>
+          </span>
         ) : null}
       </div>
     </form>

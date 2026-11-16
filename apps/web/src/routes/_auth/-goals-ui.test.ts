@@ -6,9 +6,12 @@ import {
   canEditEvidenceSource,
   checkinCorrectionPayload,
   formatGoalValue,
+  goalDate,
+  goalDateLabel,
   goalDetailParams,
   goalListGroup,
   goalRuleName,
+  goalTargetGap,
   goalTodayMessage,
   parseManualAmount,
   quickActionKind,
@@ -178,5 +181,44 @@ describe("Goals presentation decisions", () => {
 
   test("replacement navigation carries the newly created goal id", () => {
     expect(goalDetailParams(42)).toEqual({ goalId: "42" });
+  });
+});
+
+describe("goal list helpers (goals#4, #6)", () => {
+  test("today in the goal's time zone, before the cutoff counts as yesterday", () => {
+    const now = new Date("2026-11-16T02:30:00Z");
+    expect(goalDate("UTC", null, now)).toBe("2026-11-16");
+    expect(goalDate("UTC", "04:00", now)).toBe("2026-11-15");
+    expect(goalDate("America/New_York", null, now)).toBe("2026-11-15");
+  });
+
+  test("distance to a target or an average target", () => {
+    const below = { kind: "target", target: { kind: "maximum", value: 65 } } as const;
+    expect(goalTargetGap(below, 66.2)).toEqual({ met: false, gap: 1.2 });
+    expect(goalTargetGap(below, 64)).toEqual({ met: true });
+    const sleep = {
+      kind: "average",
+      target: { kind: "minimum", value: 7.5 },
+      windowDays: 7,
+    } as const;
+    expect(goalTargetGap(sleep, 8.46)).toEqual({ met: true });
+    expect(goalTargetGap(sleep, 7)).toEqual({ met: false, gap: 0.5 });
+    const range = { kind: "target", target: { kind: "range", minimum: 2, maximum: 3 } } as const;
+    expect(goalTargetGap(range, 1.5)).toEqual({ met: false, gap: 0.5 });
+    expect(goalTargetGap(range, 2.5)).toEqual({ met: true });
+  });
+
+  test("no gap without a value, or for streaks and recurring goals", () => {
+    expect(
+      goalTargetGap({ kind: "target", target: { kind: "minimum", value: 1 } }, null),
+    ).toBeNull();
+    expect(
+      goalTargetGap({ kind: "streak", target: { kind: "minimum", value: 1 }, targetDays: 5 }, 3),
+    ).toBeNull();
+  });
+
+  test("dates read as people write them", () => {
+    expect(goalDateLabel("2027-01-15", "en-US")).toBe("Jan 15, 2027");
+    expect(goalDateLabel("not a date", "en-US")).toBe("not a date");
   });
 });
