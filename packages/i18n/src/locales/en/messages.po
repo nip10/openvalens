@@ -15546,6 +15546,7 @@ msgstr "Recently added"
 
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/components/recipe-draft-editor.tsx
+#: apps/web/src/components/nav-links.ts
 msgid "Recipe draft"
 msgstr "Recipe draft"
 
@@ -22267,13 +22268,13 @@ msgstr "Your {displayName} account uses a different email address than this acco
 msgid "Your {name} account uses a different email address than this account."
 msgstr "Your {name} account uses a different email address than this account."
 
-#: apps/web/src/components/readiness-trend.tsx
-msgid "Your 30-day line appears after a few days with a score."
-msgstr "Your 30-day line appears after a few days with a score."
-
 #: apps/web/src/components/billing-plan-view.tsx
 msgid "Your 14-day right to withdraw"
 msgstr "Your 14-day right to withdraw"
+
+#: apps/web/src/components/readiness-trend.tsx
+msgid "Your 30-day line appears after a few days with a score."
+msgstr "Your 30-day line appears after a few days with a score."
 
 #: packages/api/src/presenters/insights.ts
 msgid "Your 7-day average {metric, select, sleep_duration {sleep} resting_heart_rate {resting heart rate} steps {step count} other {weight}} was {recent}, {difference} {direction, select, higher {higher} other {lower}} than your usual of {usual}."
