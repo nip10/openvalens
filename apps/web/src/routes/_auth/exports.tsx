@@ -14,7 +14,7 @@ import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { cn } from "@openvalens/ui/lib/utils";
 import { useMutation } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Check, FileCheck, FolderDown, Package } from "lucide-react";
+import { Check, Download, FileCheck, Send, Stethoscope } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { Page, PageHeader, Section } from "@/components/page";
@@ -59,6 +59,7 @@ function ArtifactList({ artifacts }: { artifacts: ExportArtifact[] }) {
   );
 }
 
+/** #exports-6 "Move to another app": the clinical record as one JSON bundle. */
 function BundleCard() {
   const [artifacts, setArtifacts] = useState<ExportArtifact[]>([]);
   const bundle = useMutation(
@@ -74,13 +75,21 @@ function BundleCard() {
   return (
     <Section
       sheet
-      icon={Package}
+      icon={Send}
       tone="water"
-      title={<Trans>Download a bundle</Trans>}
-      info={<Trans>Download your clinical record as a single JSON bundle.</Trans>}
+      title={<Trans>Move to another app</Trans>}
+      info={
+        <Trans>
+          Your most recent health events and measurements in one structured file that another health
+          app can read. For everything, use the full backup.
+        </Trans>
+      }
     >
       <div className="grid gap-4">
-        <div className="flex items-center gap-3">
+        <p className="max-w-2xl text-sm text-ink-2">
+          <Trans>One JSON file for another health app.</Trans>
+        </p>
+        <div>
           <Button
             variant="outline"
             onClick={() => {
@@ -89,11 +98,9 @@ function BundleCard() {
             }}
             disabled={bundle.isPending}
           >
-            {bundle.isPending ? <Trans>Downloading…</Trans> : <Trans>Download bundle</Trans>}
+            <Download aria-hidden="true" />
+            {bundle.isPending ? <Trans>Downloading…</Trans> : <Trans>Download JSON</Trans>}
           </Button>
-          <span className="rounded-full bg-water-soft px-2.5 py-0.5 text-sm font-semibold text-ink">
-            JSON
-          </span>
         </div>
         {bundle.isPending ? <Skeleton className="h-4 w-48" /> : null}
         {bundle.isError ? (
@@ -107,14 +114,18 @@ function BundleCard() {
   );
 }
 
-function DomainCard() {
+/**
+ * #exports-6 "Bring to an appointment": the parts to show a doctor, as a
+ * printable page (chosen first) or spreadsheets.
+ */
+function AppointmentCard() {
   const { i18n } = useLingui();
   const options = useMemo(() => pickExportDomains(), []);
   const [selected, setSelected] = useState<Set<ExportDomain>>(
     () =>
       new Set(options.filter((option) => option.defaultSelected).map((option) => option.domain)),
   );
-  const [format, setFormat] = useState<"csv" | "pdf">("csv");
+  const [format, setFormat] = useState<"csv" | "pdf">("pdf");
   const [artifacts, setArtifacts] = useState<ExportArtifact[]>([]);
 
   const csv = useMutation(
@@ -157,16 +168,21 @@ function DomainCard() {
 
   return (
     <Section
-      icon={FolderDown}
+      icon={Stethoscope}
       tone="water"
-      title={<Trans>Download by domain</Trans>}
-      info={<Trans>Choose domains and a format, then download.</Trans>}
+      title={<Trans>Bring to an appointment</Trans>}
+      info={<Trans>Choose what to include and a format, then download.</Trans>}
       sheet
     >
       <div className="grid gap-6">
+        <p className="max-w-2xl text-sm text-ink-2">
+          <Trans>
+            A printable page or spreadsheets with the parts you choose, for your clinician.
+          </Trans>
+        </p>
         <fieldset className="grid gap-2">
           <legend className="mb-2 text-sm font-medium text-ink-3">
-            <Trans>Domains</Trans>
+            <Trans>What to include</Trans>
           </legend>
           <div className="flex flex-wrap gap-2">
             {options.map((option) => {
@@ -199,9 +215,13 @@ function DomainCard() {
               );
             })}
           </div>
+          {/* #exports-1 — say where the rest of the record is. */}
+          <p className="text-sm text-ink-3">
+            <Trans>Sleep, activity, vitals, cycle and meals are in the full backup below.</Trans>
+          </p>
           {selected.size === 0 ? (
             <span className="text-sm text-destructive">
-              <Trans>Select at least one domain.</Trans>
+              <Trans>Select at least one.</Trans>
             </span>
           ) : null}
         </fieldset>
@@ -211,7 +231,7 @@ function DomainCard() {
             <Trans>Format</Trans>
           </legend>
           <div className="flex w-fit gap-1 rounded-full bg-paper-2 p-1">
-            {(["csv", "pdf"] as const).map((value) => (
+            {(["pdf", "csv"] as const).map((value) => (
               <Button
                 key={value}
                 type="button"
@@ -226,23 +246,32 @@ function DomainCard() {
                 )}
                 onClick={() => setFormat(value)}
               >
-                {value === "csv" ? "CSV" : <Trans>Printable page</Trans>}
+                {value === "csv" ? (
+                  <Trans>Spreadsheets (CSV)</Trans>
+                ) : (
+                  <Trans>Printable page</Trans>
+                )}
               </Button>
             ))}
           </div>
         </fieldset>
 
-        <div className="flex items-center gap-3">
+        {/* #exports-3 — the format is in the button, not in a chip beside it. */}
+        <div>
           <Button
             onClick={submit}
             disabled={selected.size === 0 || active.isPending}
             className="focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >
-            {active.isPending ? <Trans>Downloading…</Trans> : <Trans>Download</Trans>}
+            <Download aria-hidden="true" />
+            {active.isPending ? (
+              <Trans>Downloading…</Trans>
+            ) : format === "csv" ? (
+              <Trans>Download CSV</Trans>
+            ) : (
+              <Trans>Download printable page</Trans>
+            )}
           </Button>
-          <span className="rounded-full bg-water-soft px-2.5 py-0.5 text-sm font-semibold text-ink">
-            {format.toUpperCase()}
-          </span>
         </div>
 
         {active.isPending ? <Skeleton className="h-4 w-48" /> : null}
@@ -257,16 +286,18 @@ function DomainCard() {
   );
 }
 
+/** #exports-5, #exports-6 — one column of three purposes: a doctor, a backup, another app. */
 function ExportsPage() {
   return (
-    <Page>
+    <Page width="narrow">
       <ModuleHiddenNote module="labs" />
-      <PageHeader title={<Trans>Clinical export</Trans>} />
-      <CompleteExportCard />
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
-        <DomainCard />
-        <BundleCard />
-      </div>
+      <PageHeader
+        title={<Trans>Export your data</Trans>}
+        description={<Trans>Choose what the export is for.</Trans>}
+      />
+      <AppointmentCard />
+      <CompleteExportCard primary={false} />
+      <BundleCard />
     </Page>
   );
 }

@@ -34,17 +34,23 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { INSIGHT_DELIVERY_COPY } from "@openvalens/api/presenters/insights";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
-  Megaphone,
+  Bell,
   ChevronRight,
   CreditCard,
+  Download,
+  Info,
   LayoutGrid,
-  Plug,
-  Send,
+  Megaphone,
+  type LucideIcon,
+  ShieldCheck,
+  SlidersHorizontal,
+  Sparkles,
   Trash2,
   UserRound,
+  Utensils,
   Watch,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { AboutSection } from "@/components/about-section";
@@ -61,8 +67,10 @@ import { AppearanceSection } from "@/components/appearance-section";
 import { CoachIcon } from "@/components/coach-icon";
 import { ErrorState, InfoTip, Page, PageHeader, Section } from "@/components/page";
 import { ProfileSummarySection } from "@/components/profile-summary-card";
+import { DisplayNameField } from "@/components/display-name-field";
 import { SettingsGroup, SettingsIcon } from "@/components/settings-rows";
 import { authClient } from "@/lib/auth-client";
+import { avatarInitial, displayNameOf } from "@/utils/display-name";
 import { prepareOfflineSignOut } from "@/utils/sync-engine";
 import { orpc } from "@/utils/orpc";
 import { signUpOptionsQueryOptions } from "@/utils/sign-up";
@@ -74,7 +82,18 @@ export const Route = createFileRoute("/_auth/settings/")({
 const LINK =
   "underline decoration-signal underline-offset-[0.15em] hover:decoration-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:decoration-2";
 
-function SettingsPage() {
+/** One block of a settings category. `id` and `label` make it an entry in the index. */
+type SettingsBlock = { key: string; id?: string; label?: string; node: ReactNode };
+
+/** A settings category: one heading, then its blocks. */
+type SettingsCategory = { id: string; label: string; icon: LucideIcon; blocks: SettingsBlock[] };
+
+/**
+ * #settings-0 — the settings in six categories. This list is the one place
+ * that orders the page and both indexes (the sticky one on wide screens, the
+ * chips on phones): add a setting by adding a block to its category.
+ */
+function useSettingsCategories(): SettingsCategory[] {
   const { t, i18n } = useLingui();
   // Issue #297 — Plan & billing exists only on OpenValens Cloud.
   const cloud = useQuery(signUpOptionsQueryOptions()).data?.mode === "cloud";
@@ -84,174 +103,269 @@ function SettingsPage() {
   const showAnalytics = !analytics || analytics.available || analytics.enabled;
   // Issue #439 — hidden entirely while the server has AI apps off.
   const showAiApps = useAiAppsEnabled();
-  // The in-page index: each entry anchors a section below. Sign-in methods
-  // sits under Account, the two AI switches under one entry.
-  const index = [
-    { id: "account", label: t`Account` },
-    ...(cloud ? [{ id: "plan", label: t`Plan & billing` }] : []),
-    { id: "language", label: t`Language` },
-    { id: "appearance", label: t`Appearance` },
-    { id: "profile", label: t`Profile` },
-    { id: "modules", label: t`Modules` },
-    { id: "notifications", label: i18n._(INSIGHT_DELIVERY_COPY.settingsTitle) },
-    { id: "whats-new", label: t`What's new` },
-    { id: "integrations", label: t`Integrations` },
-    ...(showAiApps ? [{ id: "ai-apps", label: t`Connected AI apps` }] : []),
-    ...(showAnalytics ? [{ id: "analytics", label: t`Usage analytics` }] : []),
-    { id: "coach", label: t`Coach` },
-    { id: "ai", label: t`AI processing` },
-    { id: "delete-account", label: t`Delete account and all data` },
-    { id: "about", label: t`About` },
+
+  const when = (show: boolean, block: SettingsBlock): SettingsBlock[] => (show ? [block] : []);
+
+  return [
+    {
+      id: "account",
+      label: t`Account`,
+      icon: UserRound,
+      blocks: [
+        { key: "account", node: <AccountSection /> },
+        ...when(cloud, {
+          key: "plan",
+          id: "plan",
+          label: t`Plan & billing`,
+          node: (
+            <LinkRows>
+              <IntegrationLink
+                to="/settings/billing"
+                icon={CreditCard}
+                label={<Trans>Plan & billing</Trans>}
+                description={<Trans>Your free trial and plan</Trans>}
+              />
+            </LinkRows>
+          ),
+        }),
+        // No index entry: the section hides itself when there is nothing to link.
+        { key: "sign-in", id: "sign-in", node: <SignInMethodsSection /> },
+        {
+          key: "profile",
+          id: "profile",
+          label: t`Profile`,
+          node: (
+            <div className="grid gap-4">
+              <ProfileSummarySection />
+              <SetupCardSetting />
+            </div>
+          ),
+        },
+      ],
+    },
+    {
+      id: "preferences",
+      label: t`Preferences`,
+      icon: SlidersHorizontal,
+      blocks: [
+        { key: "language", id: "language", label: t`Language`, node: <LanguageSection /> },
+        {
+          key: "appearance",
+          id: "appearance",
+          label: t`Appearance`,
+          node: <AppearanceSection />,
+        },
+        {
+          key: "modules",
+          id: "modules",
+          label: t`Modules and devices`,
+          node: (
+            <LinkRows>
+              <IntegrationLink
+                to="/settings/modules"
+                icon={LayoutGrid}
+                label={<Trans>Modules</Trans>}
+                description={<Trans>Choose the parts of the app you use.</Trans>}
+              />
+              <IntegrationLink
+                to="/settings/nutrition"
+                icon={Utensils}
+                label={<Trans>Nutrition</Trans>}
+                description={<Trans>How the food screens look and what they offer.</Trans>}
+              />
+              <IntegrationLink
+                to="/settings/devices"
+                icon={Watch}
+                label={<Trans>Devices</Trans>}
+                description={<Trans>Apple Health or Health Connect, through the mobile app</Trans>}
+              />
+            </LinkRows>
+          ),
+        },
+        {
+          key: "whats-new",
+          id: "whats-new",
+          label: t`What's new`,
+          node: (
+            <LinkRows>
+              <IntegrationLink
+                to="/settings/whats-new"
+                icon={Megaphone}
+                label={<Trans>What's new</Trans>}
+                description={<Trans>Every update, newest first</Trans>}
+              />
+            </LinkRows>
+          ),
+        },
+      ],
+    },
+    {
+      id: "notifications",
+      label: t`Notifications`,
+      icon: Bell,
+      blocks: [
+        {
+          key: "notifications",
+          label: i18n._(INSIGHT_DELIVERY_COPY.settingsTitle),
+          node: <InsightNotificationsSection />,
+        },
+      ],
+    },
+    {
+      id: "ai",
+      label: t`AI`,
+      icon: Sparkles,
+      blocks: [
+        { key: "coach", id: "coach", label: t`Coach`, node: <CoachSection /> },
+        {
+          key: "ai-workspace",
+          id: "ai-workspace",
+          label: t`AI for this workspace`,
+          node: <AiWorkspaceConsentSection />,
+        },
+        {
+          key: "ai-processing",
+          id: "ai-processing",
+          label: t`AI processing`,
+          node: <AiConsentSection />,
+        },
+        ...when(showAiApps, {
+          key: "ai-apps",
+          id: "ai-apps",
+          label: t`Connected AI apps`,
+          node: <AiAppsSettingsSection />,
+        }),
+      ],
+    },
+    {
+      id: "privacy",
+      label: t`Privacy & data`,
+      icon: ShieldCheck,
+      blocks: [
+        {
+          key: "consent",
+          id: "health-consent",
+          label: t`Health data consent`,
+          node: <HealthDataConsentStatus />,
+        },
+        ...when(showAnalytics, {
+          key: "analytics",
+          id: "analytics",
+          label: t`Usage analytics`,
+          node: <AnalyticsConsentSection />,
+        }),
+        {
+          key: "export",
+          node: (
+            <LinkRows>
+              <IntegrationLink
+                to="/exports"
+                icon={Download}
+                label={<Trans>Export your data</Trans>}
+                description={<Trans>For a doctor, a backup or another app</Trans>}
+              />
+            </LinkRows>
+          ),
+        },
+        {
+          key: "delete",
+          id: "delete-account",
+          label: t`Delete account`,
+          node: <DeleteAccountSection />,
+        },
+      ],
+    },
+    {
+      id: "about",
+      label: t`About`,
+      icon: Info,
+      blocks: [{ key: "about", node: <AboutSection bare /> }],
+    },
   ];
+}
+
+const INDEX_LINK =
+  "block rounded-full px-3 py-1.5 text-sm text-ink-2 transition-colors duration-[var(--dur-short)] hover:bg-paper-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
+
+function SettingsPage() {
+  const { t } = useLingui();
+  const categories = useSettingsCategories();
 
   return (
     <Page>
-      <PageHeader title={<Trans>Settings</Trans>} />
-      <div className="grid gap-10 lg:grid-cols-[12rem_minmax(0,1fr)] lg:gap-14">
-        <nav aria-label={t`Settings`} className="hidden lg:block">
-          <ul className="sticky top-10 grid gap-0.5">
-            {index.map((item) => (
-              <li key={item.id}>
+      <div className="grid gap-4">
+        <PageHeader title={<Trans>Settings</Trans>} />
+        {/* #settings-1 — on phones, the six categories as jump links under the title. */}
+        <nav aria-label={t`Settings categories`} className="lg:hidden">
+          <ul className="flex flex-wrap gap-2">
+            {categories.map((category) => (
+              <li key={category.id}>
                 <a
-                  href={`#${item.id}`}
-                  className="block rounded-full px-3 py-1.5 text-sm text-ink-2 transition-colors duration-[var(--dur-short)] hover:bg-paper-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                  href={`#${category.id}`}
+                  className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-rule bg-sheet px-3 text-sm font-medium text-ink-2 no-underline transition-colors duration-[var(--dur-short)] hover:bg-paper-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                 >
-                  {item.label}
+                  <category.icon className="size-4 text-ink-3" aria-hidden="true" />
+                  {category.label}
                 </a>
               </li>
             ))}
           </ul>
         </nav>
-        <div className="grid min-w-0 max-w-3xl content-start gap-10">
-          <div id="account" className="grid scroll-mt-10 gap-10">
-            <AccountSection />
-            <HealthDataConsentStatus />
-            <SignInMethodsSection />
-          </div>
-          {cloud ? (
-            <div id="plan" className="scroll-mt-10">
-              <PlanSection />
-            </div>
-          ) : null}
-          <div id="language" className="scroll-mt-10">
-            <LanguageSection />
-          </div>
-          <div id="appearance" className="scroll-mt-10">
-            <AppearanceSection />
-          </div>
-          <div id="profile" className="grid scroll-mt-10 gap-4">
-            <ProfileSummarySection />
-            <SetupCardSetting />
-          </div>
-          <div id="modules" className="scroll-mt-10">
-            <ModulesSection />
-          </div>
-          <div id="notifications" className="scroll-mt-10">
-            <InsightNotificationsSection />
-          </div>
-          <div id="whats-new" className="scroll-mt-10">
-            <WhatsNewLinkSection />
-          </div>
-          <div id="integrations" className="scroll-mt-10">
-            <IntegrationsSection />
-          </div>
-          {showAiApps ? (
-            <div id="ai-apps" className="scroll-mt-10">
-              <AiAppsSettingsSection />
-            </div>
-          ) : null}
-          {showAnalytics ? (
-            <div id="analytics" className="scroll-mt-10">
-              <AnalyticsConsentSection />
-            </div>
-          ) : null}
-          <div id="coach" className="scroll-mt-10">
-            <CoachSection />
-          </div>
-          <div id="ai" className="grid scroll-mt-10 gap-10">
-            <AiWorkspaceConsentSection />
-            <AiConsentSection />
-          </div>
-          <div id="delete-account" className="scroll-mt-10">
-            <DeleteAccountSection />
-          </div>
-          <div id="about" className="scroll-mt-10">
-            <AboutSection />
-          </div>
+      </div>
+      <div className="grid gap-10 lg:grid-cols-[13rem_minmax(0,1fr)] lg:gap-14">
+        <nav aria-label={t`Settings`} className="hidden lg:block">
+          <ul className="sticky top-10 grid gap-3">
+            {categories.map((category) => (
+              <li key={category.id} className="grid gap-0.5">
+                <a href={`#${category.id}`} className={`${INDEX_LINK} font-semibold text-ink`}>
+                  {category.label}
+                </a>
+                <ul className="grid gap-0.5 pl-3">
+                  {category.blocks
+                    .filter((block) => block.id && block.label)
+                    .map((block) => (
+                      <li key={block.key}>
+                        <a href={`#${block.id}`} className={INDEX_LINK}>
+                          {block.label}
+                        </a>
+                      </li>
+                    ))}
+                </ul>
+              </li>
+            ))}
+          </ul>
+        </nav>
+        <div className="grid min-w-0 max-w-3xl content-start gap-14">
+          {categories.map((category) => (
+            <section
+              key={category.id}
+              id={category.id}
+              aria-labelledby={`${category.id}-heading`}
+              className="grid scroll-mt-10 content-start gap-8"
+            >
+              <h2
+                id={`${category.id}-heading`}
+                className="flex items-center gap-2.5 border-b border-rule pb-3 text-2xl leading-tight text-ink"
+              >
+                <category.icon className="size-5 shrink-0 text-ink-3" aria-hidden="true" />
+                {category.label}
+              </h2>
+              {category.blocks.map((block) => (
+                <div key={block.key} id={block.id} className="min-w-0 scroll-mt-10 empty:hidden">
+                  {block.node}
+                </div>
+              ))}
+            </section>
+          ))}
         </div>
       </div>
     </Page>
   );
 }
 
-/** Issue #297 — the link to Settings › Plan & billing (OpenValens Cloud only). */
-function PlanSection() {
-  return (
-    <Section title={<Trans>Plan & billing</Trans>} icon={CreditCard} tone="signal">
-      <SettingsGroup className="px-0">
-        <IntegrationLink
-          to="/settings/billing"
-          icon={CreditCard}
-          label={<Trans>Plan & billing</Trans>}
-          description={<Trans>Your free trial, plan and invoices</Trans>}
-        />
-      </SettingsGroup>
-    </Section>
-  );
-}
-
-/** Onboarding stage 1: the link to Settings › Modules. */
-function ModulesSection() {
-  return (
-    <Section title={<Trans>Modules</Trans>} icon={LayoutGrid} tone="signal">
-      <SettingsGroup className="px-0">
-        <IntegrationLink
-          to="/settings/modules"
-          icon={LayoutGrid}
-          label={<Trans>Modules</Trans>}
-          description={<Trans>Choose the parts of the app you use.</Trans>}
-        />
-      </SettingsGroup>
-    </Section>
-  );
-}
-
-/** #dashboard-6: the link to Settings › What's new, the full changelog. */
-function WhatsNewLinkSection() {
-  return (
-    <Section title={<Trans>What's new</Trans>} icon={Megaphone} tone="signal">
-      <SettingsGroup className="px-0">
-        <IntegrationLink
-          to="/settings/whats-new"
-          icon={Megaphone}
-          label={<Trans>What's new</Trans>}
-          description={<Trans>Every update, newest first</Trans>}
-        />
-      </SettingsGroup>
-    </Section>
-  );
-}
-
-/** Links to the per-integration pages under /settings. */
-function IntegrationsSection() {
-  return (
-    <Section title={<Trans>Integrations</Trans>} icon={Plug} tone="signal">
-      <SettingsGroup className="px-0">
-        <IntegrationLink
-          to="/settings/devices"
-          icon={Watch}
-          label={<Trans>Devices</Trans>}
-          description={<Trans>Connect a wearable vendor account such as Oura or WHOOP</Trans>}
-        />
-        <IntegrationLink
-          to="/settings/telegram"
-          icon={Send}
-          label="Telegram"
-          description={<Trans>Daily reminders</Trans>}
-        />
-      </SettingsGroup>
-    </Section>
-  );
+/** #settings-5 — link-out rows in one card with no heading above, so each title shows once. */
+function LinkRows({ children }: { children: ReactNode }) {
+  return <SettingsGroup className="px-0">{children}</SettingsGroup>;
 }
 
 function IntegrationLink({
@@ -262,11 +376,12 @@ function IntegrationLink({
 }: {
   to:
     | "/settings/devices"
-    | "/settings/telegram"
     | "/settings/modules"
+    | "/settings/nutrition"
     | "/settings/billing"
-    | "/settings/whats-new";
-  icon: typeof Watch;
+    | "/settings/whats-new"
+    | "/exports";
+  icon: LucideIcon;
   label: React.ReactNode;
   description: React.ReactNode;
 }) {
@@ -285,46 +400,50 @@ function IntegrationLink({
   );
 }
 
+/** #settings-4 — the name once (or the email once), a way to set the name, and sign out. */
 function AccountSection() {
   const navigate = useNavigate();
   const { data: session, isPending } = authClient.useSession();
 
   if (isPending) return <Skeleton className="h-24 w-full rounded-3xl" />;
   if (!session) return null;
-  const displayName = session.user.name ?? session.user.email;
+  const name = displayNameOf(session.user.name, session.user.email);
 
   return (
-    <Section title={<Trans>Account</Trans>} icon={UserRound} tone="signal">
-      <SettingsGroup>
-        <div className="flex flex-wrap items-center gap-4 py-4">
-          <span
-            className="grid size-12 shrink-0 place-items-center rounded-full bg-sidebar-accent font-display text-xl font-medium text-signal"
-            aria-hidden="true"
-          >
-            {(displayName ?? "?").trim().charAt(0).toUpperCase()}
+    <SettingsGroup>
+      <div className="flex flex-wrap items-center gap-4 py-4">
+        <span
+          className="grid size-12 shrink-0 place-items-center rounded-full bg-sidebar-accent font-display text-xl font-medium text-signal"
+          aria-hidden="true"
+        >
+          {avatarInitial(session.user.name, session.user.email)}
+        </span>
+        <div className="grid min-w-0 flex-1 basis-40 gap-0.5">
+          <span className="font-display text-lg font-medium break-all text-ink">
+            {name ?? session.user.email}
           </span>
-          <div className="grid min-w-0 flex-1 basis-40 gap-0.5">
-            <span className="font-display text-lg font-medium text-ink">{displayName}</span>
-            {session.user.email && (
-              <span className="text-sm break-all text-ink-3">{session.user.email}</span>
-            )}
-          </div>
-          <Button
-            variant="outline"
-            onClick={async () => {
-              await prepareOfflineSignOut();
-              await authClient.signOut({
-                fetchOptions: {
-                  onSuccess: () => navigate({ to: "/" }),
-                },
-              });
-            }}
-          >
-            <Trans>Sign out</Trans>
-          </Button>
+          {name && session.user.email ? (
+            <span className="text-sm break-all text-ink-3">{session.user.email}</span>
+          ) : null}
         </div>
-      </SettingsGroup>
-    </Section>
+        <Button
+          variant="outline"
+          onClick={async () => {
+            await prepareOfflineSignOut();
+            await authClient.signOut({
+              fetchOptions: {
+                onSuccess: () => navigate({ to: "/" }),
+              },
+            });
+          }}
+        >
+          <Trans>Sign out</Trans>
+        </Button>
+      </div>
+      <div className="py-3 text-sm">
+        <DisplayNameField showCurrent={false} />
+      </div>
+    </SettingsGroup>
   );
 }
 
@@ -351,52 +470,69 @@ function CoachSection() {
   return <CoachForm initial={config.data} onSaved={() => void queryClient.invalidateQueries()} />;
 }
 
+type CoachConfig = {
+  tone: CoachTone;
+  assertiveness: number;
+  riskTolerance: CoachRiskTolerance;
+  medicalDisclaimerMode: CoachDisclaimerMode;
+  selectedTemplateKey: CoachTemplateId;
+};
+
+function configFrom(profile: CoachProfileLike): CoachConfig {
+  return {
+    tone: profile.tone,
+    assertiveness: profile.assertiveness,
+    riskTolerance: profile.riskTolerance,
+    medicalDisclaimerMode: profile.medicalDisclaimerMode,
+    selectedTemplateKey: profile.selectedTemplateKey,
+  };
+}
+
+/**
+ * #settings-7 — each Coach choice saves as soon as it changes, with a toast,
+ * like every other setting on the page. A failed save goes back to the
+ * saved value.
+ */
 function CoachForm({ initial, onSaved }: { initial: CoachProfileLike; onSaved: () => void }) {
-  const [tone, setTone] = useState<CoachTone>(initial.tone);
-  const [assertiveness, setAssertiveness] = useState<number>(initial.assertiveness);
-  const [risk, setRisk] = useState<CoachRiskTolerance>(initial.riskTolerance);
-  const [disclaimer, setDisclaimer] = useState<CoachDisclaimerMode>(initial.medicalDisclaimerMode);
-  const [template, setTemplate] = useState<CoachTemplateId>(initial.selectedTemplateKey);
+  const [config, setConfig] = useState<CoachConfig>(() => configFrom(initial));
   const { t, i18n } = useLingui();
   const hint = (message: MessageDescriptor | null) => (message ? i18n._(message) : undefined);
   const assertivenessText = (value: number) => i18n._(assertivenessLabel(value));
 
   useEffect(() => {
-    setTone(initial.tone);
-    setAssertiveness(initial.assertiveness);
-    setRisk(initial.riskTolerance);
-    setDisclaimer(initial.medicalDisclaimerMode);
-    setTemplate(initial.selectedTemplateKey);
+    setConfig(configFrom(initial));
   }, [initial]);
 
   const save = useMutation(
     orpc.coach.upsertConfig.mutationOptions({
-      onSuccess: () => onSaved(),
+      onSuccess: () => {
+        toast.success(t`Coach settings saved`);
+        onSaved();
+      },
+      onError: () => {
+        toast.error(t`Could not save. Try again.`);
+        setConfig(configFrom(initial));
+      },
     }),
   );
 
-  const dirty =
-    tone !== initial.tone ||
-    assertiveness !== initial.assertiveness ||
-    risk !== initial.riskTolerance ||
-    disclaimer !== initial.medicalDisclaimerMode ||
-    template !== initial.selectedTemplateKey;
-
-  const handleSave = () => {
-    save.mutate({
-      tone,
-      assertiveness,
-      riskTolerance: risk,
-      medicalDisclaimerMode: disclaimer,
-      selectedTemplateKey: template,
-    });
+  const change = (patch: Partial<CoachConfig>) => {
+    const next = { ...config, ...patch };
+    setConfig(next);
+    save.mutate(next);
   };
+  const { tone, assertiveness, riskTolerance: risk, medicalDisclaimerMode: disclaimer } = config;
+  const template = config.selectedTemplateKey;
 
   return (
     <Section title={<Trans>Coach</Trans>} icon={CoachIcon} tone="signal" sheet>
       <div className="grid gap-5 sm:grid-cols-2">
         <Field label={t`Tone`} hint={hint(toneDescription(tone))}>
-          <Select value={tone} onValueChange={(Value) => setTone(Value as CoachTone)}>
+          <Select
+            value={tone}
+            disabled={save.isPending}
+            onValueChange={(value) => change({ tone: value as CoachTone })}
+          >
             <SelectTrigger>
               <SelectValue>{i18n._(toneLabel(tone))}</SelectValue>
             </SelectTrigger>
@@ -410,13 +546,11 @@ function CoachForm({ initial, onSaved }: { initial: CoachProfileLike; onSaved: (
           </Select>
         </Field>
 
-        <Field
-          label={t`Assertiveness (${assertivenessText(assertiveness)})`}
-          hint={t`1 = very gentle, 5 = very forceful. Currently ${assertiveness} of 5.`}
-        >
+        <Field label={t`Assertiveness`} hint={t`1 is very gentle, 5 is very forceful.`}>
           <Select
             value={String(assertiveness)}
-            onValueChange={(Value) => setAssertiveness(Number(Value) as 1 | 2 | 3 | 4 | 5)}
+            disabled={save.isPending}
+            onValueChange={(value) => change({ assertiveness: Number(value) as 1 | 2 | 3 | 4 | 5 })}
           >
             <SelectTrigger>
               <SelectValue>
@@ -434,7 +568,11 @@ function CoachForm({ initial, onSaved }: { initial: CoachProfileLike; onSaved: (
         </Field>
 
         <Field label={t`Risk tolerance`} hint={hint(riskDescription(risk))}>
-          <Select value={risk} onValueChange={(Value) => setRisk(Value as CoachRiskTolerance)}>
+          <Select
+            value={risk}
+            disabled={save.isPending}
+            onValueChange={(value) => change({ riskTolerance: value as CoachRiskTolerance })}
+          >
             <SelectTrigger>
               <SelectValue>{i18n._(riskLabel(risk))}</SelectValue>
             </SelectTrigger>
@@ -451,7 +589,10 @@ function CoachForm({ initial, onSaved }: { initial: CoachProfileLike; onSaved: (
         <Field label={t({ message: "Medical disclaimer", comment: "safety" })}>
           <Select
             value={disclaimer}
-            onValueChange={(Value) => setDisclaimer(Value as CoachDisclaimerMode)}
+            disabled={save.isPending}
+            onValueChange={(value) =>
+              change({ medicalDisclaimerMode: value as CoachDisclaimerMode })
+            }
           >
             <SelectTrigger>
               <SelectValue>{i18n._(disclaimerLabel(disclaimer))}</SelectValue>
@@ -466,34 +607,35 @@ function CoachForm({ initial, onSaved }: { initial: CoachProfileLike; onSaved: (
           </Select>
         </Field>
 
-        <Field label={t`Template`} hint={hint(templateDescription(template))}>
-          <Select value={template} onValueChange={(Value) => setTemplate(Value as CoachTemplateId)}>
+        <Field
+          label={t`Coaching focus`}
+          hint={t`What the coach plans around. You can change it at any time.`}
+        >
+          <Select
+            value={template}
+            disabled={save.isPending}
+            onValueChange={(value) => change({ selectedTemplateKey: value as CoachTemplateId })}
+          >
             <SelectTrigger>
               <SelectValue>{i18n._(templateLabel(template))}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               {COACH_TEMPLATE_VALUES.map((value) => (
                 <SelectItem key={value} value={value}>
-                  {i18n._(templateLabel(value))}
+                  <span className="grid gap-0.5">
+                    <span>{i18n._(templateLabel(value))}</span>
+                    {templateDescription(value) ? (
+                      <span className="text-xs text-ink-3">{hint(templateDescription(value))}</span>
+                    ) : null}
+                  </span>
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
+          {templateDescription(template) ? (
+            <p className="text-sm text-ink-3">{hint(templateDescription(template))}</p>
+          ) : null}
         </Field>
-      </div>
-      <div className="mt-5 flex items-center gap-3">
-        <Button onClick={handleSave} disabled={!dirty || save.isPending}>
-          {save.isPending ? t`Saving…` : t`Save`}
-        </Button>
-        {save.isSuccess && !dirty ? (
-          <span className="text-sm text-success">
-            <Trans>Saved</Trans>
-          </span>
-        ) : save.isError ? (
-          <span className="text-sm text-destructive">
-            <Trans>Could not save.</Trans>
-          </span>
-        ) : null}
       </div>
     </Section>
   );
@@ -547,7 +689,7 @@ export function DeleteAccountSection() {
   if (preview.isPending) return <Skeleton className="h-40 w-full rounded-3xl" />;
   if (preview.isError || !preview.data) {
     return (
-      <Section title={<Trans>Delete account and all data</Trans>} icon={Trash2}>
+      <Section title={<Trans>Delete account and all data</Trans>} icon={Trash2} tone="neutral">
         <ErrorState
           title={<Trans>Could not load what would be deleted.</Trans>}
           action={
@@ -578,23 +720,22 @@ export function DeleteAccountSection() {
   };
 
   return (
-    <Section title={<Trans>Delete account and all data</Trans>} icon={Trash2}>
+    <Section title={<Trans>Delete account and all data</Trans>} icon={Trash2} tone="neutral">
       <div className="sheet grid gap-4 p-5">
         <p className="max-w-[65ch] text-ink-2">
           {organizationCount === 1 ? (
             <Trans comment="safety">
-              This permanently deletes your account and {rows} stored rows across your health record
-              ({organizationNames}). It can't be undone.
+              This permanently deletes your account and all {rows} records in your health record. It
+              can't be undone.
             </Trans>
           ) : organizationCount > 0 ? (
             <Trans comment="safety">
-              This permanently deletes your account and {rows} stored rows across{" "}
+              This permanently deletes your account and all {rows} records across{" "}
               {organizationCount} health records ({organizationNames}). It can't be undone.
             </Trans>
           ) : (
             <Trans comment="safety">
-              This permanently deletes your account and {rows} stored rows across{" "}
-              {organizationCount} health records. It can't be undone.
+              This permanently deletes your account and all {rows} records. It can't be undone.
             </Trans>
           )}{" "}
           <Trans>

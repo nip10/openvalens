@@ -11,14 +11,21 @@ import { orpc } from "@/utils/orpc";
  * network service to offer its users the source; the server reports the
  * operator's `SOURCE_CODE_URL`, which points at a fork for modified versions.
  */
-export function AboutSection() {
+export function AboutSection({ bare = false }: { bare?: boolean }) {
   const about = useQuery(orpc.about.info.queryOptions({ input: {} }));
-  return <AboutCard sourceCodeUrl={about.data?.sourceCodeUrl ?? null} />;
+  return <AboutCard sourceCodeUrl={about.data?.sourceCodeUrl ?? null} bare={bare} />;
 }
 
-export function AboutCard({ sourceCodeUrl }: { sourceCodeUrl: string | null }) {
+export function AboutCard({
+  sourceCodeUrl,
+  bare = false,
+}: {
+  sourceCodeUrl: string | null;
+  /** Leave out the heading (Settings shows it as the category title). */
+  bare?: boolean;
+}) {
   return (
-    <Section title={<Trans>About</Trans>} icon={Info} tone="signal">
+    <Section title={bare ? undefined : <Trans>About</Trans>} icon={Info} tone="signal">
       <SettingsGroup>
         <SettingsRow
           icon={Scale}

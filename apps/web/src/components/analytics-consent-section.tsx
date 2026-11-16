@@ -1,5 +1,6 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Button } from "@openvalens/ui/components/button";
+import { Switch } from "@openvalens/ui/components/switch";
 import { ChartNoAxesColumn, ChartPie } from "lucide-react";
 import { useMemo } from "react";
 
@@ -78,20 +79,20 @@ export function AnalyticsConsentSection() {
       </div>
       <SettingsGroup>
         <div className="grid gap-2 py-3">
-          <label className="flex min-h-11 flex-wrap items-center gap-x-4 gap-y-2">
+          <div className="flex min-h-11 flex-wrap items-center gap-x-4 gap-y-2">
             <SettingsIcon icon={ChartNoAxesColumn} />
             <span className="grid min-w-0 flex-1 basis-40 gap-0.5">
-              <span className="font-medium text-ink">
+              <label htmlFor="analytics-consent" className="font-medium text-ink">
                 <Trans comment="safety">Share optional usage analytics</Trans>
-              </span>
+              </label>
               <span role="status" className="text-sm text-ink-3">
                 {status}
               </span>
             </span>
-            <input
+            {/* #settings-6 — a switch, like every other instant on/off setting. */}
+            <Switch
+              id="analytics-consent"
               aria-label={t({ message: "Share optional usage analytics", comment: "safety" })}
-              type="checkbox"
-              className="size-5 shrink-0 accent-primary disabled:cursor-not-allowed disabled:opacity-55"
               checked={checked}
               disabled={
                 busy ||
@@ -100,9 +101,9 @@ export function AnalyticsConsentSection() {
                 !preference ||
                 (!preference.available && !preference.enabled && error !== "revoke")
               }
-              onChange={(event) => void consent.setPreference(event.currentTarget.checked)}
+              onCheckedChange={(next) => void consent.setPreference(next)}
             />
-          </label>
+          </div>
           {(error || (pending === null && !preference)) && (
             <div className="pl-13">
               <Button

@@ -68,9 +68,13 @@ describe("MyInvitationsView (Issue #243)", () => {
   });
 
   test("empty, loading and error states", () => {
-    expect(renderToStaticMarkup(<MyInvitationsView {...props({ invitations: [] })} />)).toInclude(
-      "You have no pending workspace invitations.",
-    );
+    // #sharing-5 — nothing addressed to you: no section at all.
+    expect(renderToStaticMarkup(<MyInvitationsView {...props({ invitations: [] })} />)).toBe("");
+    expect(
+      renderToStaticMarkup(
+        <MyInvitationsView {...props({ invitations: [], message: "Invitation declined." })} />,
+      ),
+    ).toInclude("Invitation declined.");
     expect(
       renderToStaticMarkup(<MyInvitationsView {...props({ listState: "error" })} />),
     ).toInclude("Could not load invitations.");

@@ -1,6 +1,7 @@
 import type { MessageDescriptor } from "@lingui/core";
 import { Trans, useLingui } from "@lingui/react/macro";
 import {
+  draftFromSnapshot,
   isAdultConfirmed,
   isSectionAnswered,
   isSectionDirty,
@@ -35,7 +36,9 @@ import {
   UserRound,
   type LucideIcon,
 } from "lucide-react";
-import { useId, type ReactNode } from "react";
+import type { I18n } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+import { useEffect, useId, useState, type ReactNode } from "react";
 
 import { InfoTip, StatusPill } from "@/components/page";
 
@@ -67,6 +70,8 @@ export type WellnessProfileEditorProps = {
   onUndo: (section: SetupSection) => void;
   /** Rendered as the optional goal section (uses the existing Goals feature). */
   goalSection?: ReactNode;
+  /** A section to open on arrival (the page's `?section=`), even when answered. */
+  initialOpen?: SetupSection | null;
   now: Date;
 };
 
@@ -410,7 +415,154 @@ export function answerValue(answer: { state: string; value?: unknown }): string 
   return answer.state === "recorded" ? String(answer.value) : answer.state;
 }
 
-function Section({
+/**
+ * #profile-1 — a saved answer in a few words ("United Kingdom", "Born 1990,
+ * Female"), for the collapsed section. Unanswered fields are left out.
+ */
+export function sectionSummary(
+  section: SetupSection,
+  snapshot: WellnessProfileSnapshot,
+  i18n: I18n,
+): string {
+  const labels = WELLNESS_CHOICE_LABELS;
+  const decline = i18n._(labels.decline);
+  const answers = draftFromSnapshot(snapshot).answers;
+  switch (section) {
+    case "eligibility": {
+      const answer = answers.eligibility;
+      if (answer.state === "recorded") return i18n._(labels.eligibility[answer.value]);
+      return answer.state === "declined" ? decline : "";
+    }
+    case "focus": {
+      const answer = answers.focus;
+      if (answer.state === "recorded") {
+        return answer.value.map((area) => i18n._(labels.focus[area])).join(", ");
+      }
+      return answer.state === "just_exploring" ? i18n._(labels.justExploring) : "";
+    }
+    case "inputMethod": {
+      const answer = answers.inputMethod;
+      if (answer.state === "recorded") return i18n._(labels.inputMethod[answer.value]);
+      return answer.state === "declined" ? i18n._(labels.notSureYet) : "";
+    }
+    case "region": {
+      const answer = answers.region;
+      if (answer.state === "recorded") return i18n._(labels.region[answer.value]);
+      return answer.state === "declined" ? decline : "";
+    }
+    case "ageAndSex": {
+      const parts: string[] = [];
+      const year = answers.birthYear;
+      if (year.state === "recorded") {
+        const born = year.value;
+        parts.push(i18n._(msg`Born ${born}`));
+      } else if (year.state === "declined") {
+        parts.push(i18n._(msg`Birth year: ${decline}`));
+      }
+      const sex = answers.sex;
+      if (sex.state === "recorded") parts.push(i18n._(labels.sex[sex.value]));
+      else if (sex.state === "not_applicable") parts.push(i18n._(labels.sexNotApplicable));
+      else if (sex.state === "declined") parts.push(i18n._(msg`Sex: ${decline}`));
+      return parts.join(", ");
+    }
+    case "goal":
+      return "";
+  }
+}
+
+function Section(
+  props: WellnessProfileEditorProps & {
+    section: SetupSection;
+    field: WellnessProfileField;
+    extraField?: WellnessProfileField;
+    children: ReactNode;
+  },
+) {
+  const { section, snapshot, draft, saveState, onUndo, initialOpen } = props;
+  const dirty = isSectionDirty(snapshot, draft, section);
+  const state = saveState[section] ?? { status: "idle" };
+  const answered = isSectionAnswered(section, snapshot);
+  const [editing, setEditing] = useState(initialOpen === section);
+  const { i18n } = useLingui();
+
+  // A saved edit folds back into its summary.
+  useEffect(() => {
+    if (state.status === "saved") setEditing(false);
+  }, [state.status]);
+
+  const open =
+    !answered || editing || dirty || state.status === "saving" || state.status === "error";
+  if (!open) {
+    return (
+      <SectionSummary
+        section={section}
+        summary={sectionSummary(section, snapshot, i18n)}
+        saved={state.status === "saved"}
+        onEdit={() => setEditing(true)}
+      />
+    );
+  }
+  return (
+    <SectionForm
+      {...props}
+      onCancel={
+        answered
+          ? () => {
+              onUndo(section);
+              setEditing(false);
+            }
+          : undefined
+      }
+    />
+  );
+}
+
+/** An answered section, folded: its number, title, the answer and Edit. */
+function SectionSummary({
+  section,
+  summary,
+  saved,
+  onEdit,
+}: {
+  section: SetupSection;
+  summary: string;
+  saved: boolean;
+  onEdit: () => void;
+}) {
+  const titleId = useId();
+  const { i18n } = useLingui();
+  const Icon = SECTION_ICONS[section];
+  return (
+    <section
+      id={`section-${section}`}
+      aria-labelledby={titleId}
+      role="region"
+      className="sheet flex scroll-mt-10 items-center gap-x-4 gap-y-2 p-4 md:px-6"
+    >
+      <span
+        className="num grid size-9 shrink-0 place-items-center rounded-full bg-sidebar-accent font-display text-base font-medium text-signal"
+        aria-hidden="true"
+      >
+        {(NUMBERED_SECTIONS as readonly SetupSection[]).indexOf(section) + 1}
+      </span>
+      <div className="grid min-w-0 flex-1 basis-0 gap-0.5">
+        <h2 id={titleId} className="flex items-center gap-2 text-lg leading-tight text-ink">
+          <Icon className="size-4 shrink-0 text-ink-3" aria-hidden="true" />
+          {i18n._(SECTION_TITLES[section])}
+        </h2>
+        <p className="text-sm text-ink-2">{summary}</p>
+      </div>
+      <span role="status" aria-live="polite" className="text-sm text-success">
+        {saved ? <Trans>Saved</Trans> : null}
+      </span>
+      <Button variant="outline" size="sm" onClick={onEdit}>
+        <Trans>Edit</Trans>
+      </Button>
+    </section>
+  );
+}
+
+function SectionForm({
   section,
   field,
   extraField,
@@ -421,11 +573,14 @@ function Section({
   saveState,
   onSave,
   onUndo,
+  onCancel,
   children,
 }: WellnessProfileEditorProps & {
   section: SetupSection;
   field: WellnessProfileField;
   extraField?: WellnessProfileField;
+  /** For an answered section being edited: discard the edit and fold it again. */
+  onCancel?: () => void;
   children: ReactNode;
 }) {
   const copy = WELLNESS_FIELD_COPY[field];
@@ -472,14 +627,21 @@ function Section({
         >
           {state.status === "saving" ? t`Saving…` : t`Save`}
         </Button>
-        {dirty ? (
+        {onCancel ? (
+          <Button variant="ghost" onClick={onCancel}>
+            <Trans>Cancel</Trans>
+          </Button>
+        ) : dirty ? (
           <Button variant="ghost" onClick={() => onUndo(section)}>
             <Trans>Undo changes</Trans>
           </Button>
         ) : null}
         {hasAnswer ? (
+          // #profile-2 — the destructive choice stays quiet.
           <Button
-            variant="outline"
+            variant="link"
+            size="sm"
+            className="text-ink-3"
             onClick={() => {
               let next = draft;
               for (const f of fields) next = setAnswer(next, f, { state: "unknown" });

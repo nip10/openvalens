@@ -20,7 +20,7 @@ const STATUS_KEY = ["dataRights", "exportStatus"] as const;
 function failureMessage(failure: CompleteExportStatus["failure"]) {
   switch (failure) {
     case "LIMIT_EXCEEDED":
-      return <Trans>This export is too large to prepare. Try the exports below.</Trans>;
+      return <Trans>This export is too large to prepare. Try the exports above.</Trans>;
     case "ATTACHMENT_UNAVAILABLE":
       return <Trans>Some stored attachments could not be included. You can try again.</Trans>;
     case "STORAGE_UNAVAILABLE":
@@ -32,7 +32,11 @@ function failureMessage(failure: CompleteExportStatus["failure"]) {
   }
 }
 
-export function CompleteExportCard() {
+/**
+ * The full backup: one ZIP of every record and attachment (#exports-6 "Keep a
+ * full backup"). `primary` makes "Prepare export" the screen's filled button.
+ */
+export function CompleteExportCard({ primary = true }: { primary?: boolean } = {}) {
   const { t } = useLingui();
   const queryClient = useQueryClient();
   const [actionError, setActionError] = useState<"generic" | "auth" | null>(null);
@@ -78,14 +82,18 @@ export function CompleteExportCard() {
       sheet
       icon={Archive}
       tone="water"
-      title={<Trans>Download everything</Trans>}
-      info={<Trans>Prepare one ZIP file with your JSON records and stored attachments.</Trans>}
+      title={<Trans>Keep a full backup</Trans>}
+      info={
+        <Trans>
+          Preparation runs in the background. When it is ready, the download is available for 24
+          hours.
+        </Trans>
+      }
     >
       <div className="grid gap-4">
         <p className="max-w-2xl text-sm text-ink-2">
           <Trans>
-            Preparation runs in the background. When it is ready, the download is available for 24
-            hours.
+            Everything in one ZIP file: all your records and stored attachments, to keep or to move.
           </Trans>
         </p>
         {status.isPending ? (
@@ -191,7 +199,7 @@ export function CompleteExportCard() {
           ) : null}
           {!pending && !status.isPending && !status.isError ? (
             <Button
-              variant={current ? "outline" : "default"}
+              variant={current || !primary ? "outline" : "default"}
               disabled={request.isPending}
               onClick={() => {
                 setActionError(null);

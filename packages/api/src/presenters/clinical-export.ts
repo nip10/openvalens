@@ -17,20 +17,20 @@ export type { ExportDomain } from "@openvalens/clinical-export/domains";
 
 /** Sentence-case label for every domain in the closed export enum. */
 const EXPORT_DOMAIN_LABELS: Record<ExportDomain, MessageDescriptor> = {
-  blood: msg`Blood`,
-  body: msg`Body`,
+  blood: msg`Labs`,
+  body: msg`Body summary`,
   medications: msg`Medications`,
   supplements: msg`Supplements`,
   workouts: msg`Workouts`,
   goals: msg`Goals`,
   familyHistory: msg`Family history`,
-  calendar: msg`Calendar`,
+  calendar: msg`Scheduled events`,
   insights: msg`Insights`,
   imaging: msg`Imaging`,
   cardiac: msg`Cardiac`,
   dexa: msg`DEXA`,
-  weight: msg`Weight`,
-  audit: msg`Audit`,
+  weight: msg`Weigh-ins`,
+  audit: msg`Access history`,
 };
 
 export type ExportDomainOption = {

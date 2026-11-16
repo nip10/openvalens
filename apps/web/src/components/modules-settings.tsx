@@ -16,10 +16,13 @@ import type { WellnessProfileSnapshot } from "@openvalens/api/wellness-profile-c
 import { Button } from "@openvalens/ui/components/button";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { Switch } from "@openvalens/ui/components/switch";
+import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 
 import { MODULE_ICON_COMPONENTS } from "@/components/module-icons";
-import { ErrorState, InfoTip, StatusPill, ToneIcon } from "@/components/page";
+import { ErrorState, InfoTip, ToneIcon } from "@/components/page";
+import { orpc } from "@/utils/orpc";
 import { useUpdateWellnessProfile, useWellnessProfile } from "@/utils/wellness-profile";
 
 /**
@@ -32,11 +35,17 @@ export function ModulesSettingsForm({
   saving,
   message,
   onToggle,
+  coachAiOff = null,
 }: {
   snapshot: Pick<WellnessProfileSnapshot, "enabledModules">;
   saving: PersonModule | null;
   message: MessageDescriptor | null;
   onToggle: (module: PersonModule, on: boolean) => void;
+  /**
+   * #settings-modules-2 — why the coach can't answer even while its module is
+   * on: AI is off for the workspace, or this person hasn't agreed to AI.
+   */
+  coachAiOff?: "workspace" | "personal" | null;
 }) {
   const { t, i18n } = useLingui();
   return (
@@ -73,16 +82,31 @@ export function ModulesSettingsForm({
                   ) : null}
                 </span>
                 <span className="text-sm text-ink-3">{i18n._(MODULE_DESCRIPTIONS[module])}</span>
+                {module === "coach" && on && coachAiOff ? (
+                  <span className="text-sm text-ink-2">
+                    {coachAiOff === "workspace" ? (
+                      <Trans>AI is off for this workspace.</Trans>
+                    ) : (
+                      <Trans>AI processing is off for you.</Trans>
+                    )}{" "}
+                    <Link
+                      to="/settings"
+                      hash="ai"
+                      className="font-medium text-ink underline decoration-signal underline-offset-2"
+                    >
+                      <Trans>AI settings</Trans>
+                    </Link>
+                  </span>
+                ) : null}
               </div>
-              <span className="flex shrink-0 items-center gap-2">
-                <StatusPill tone={on ? "good" : "neutral"}>{on ? t`On` : t`Hidden`}</StatusPill>
-                <Switch
-                  id={id}
-                  checked={on}
-                  disabled={saving !== null}
-                  onCheckedChange={(next) => onToggle(module, next)}
-                />
-              </span>
+              {/* #settings-modules-1 — the switch alone shows the state. */}
+              <Switch
+                id={id}
+                className="shrink-0"
+                checked={on}
+                disabled={saving !== null}
+                onCheckedChange={(next) => onToggle(module, next)}
+              />
             </li>
           );
         })}
@@ -97,6 +121,14 @@ export function ModulesSettings() {
   const update = useUpdateWellnessProfile(profile.userId);
   const [saving, setSaving] = useState<PersonModule | null>(null);
   const [message, setMessage] = useState<MessageDescriptor | null>(null);
+  const workspaceAi = useQuery(orpc.ai.workspaceConsent.get.queryOptions({ input: {} })).data;
+  const personalAi = useQuery(orpc.ai.consent.get.queryOptions({ input: {} })).data;
+  const coachAiOff =
+    workspaceAi && !workspaceAi.enabled
+      ? "workspace"
+      : personalAi && !(personalAi.granted && personalAi.revokedAt === null)
+        ? "personal"
+        : null;
 
   if (profile.isPending) {
     return (
@@ -143,6 +175,7 @@ export function ModulesSettings() {
       snapshot={snapshot}
       saving={saving}
       message={message}
+      coachAiOff={coachAiOff}
       onToggle={(module, on) => void onToggle(module, on)}
     />
   );

@@ -6,7 +6,6 @@ import {
   type WorkspaceInvitation,
 } from "@openvalens/api/presenters/workspace-invitation";
 import { Button } from "@openvalens/ui/components/button";
-import { Skeleton } from "@openvalens/ui/components/skeleton";
 
 import { MailOpen } from "lucide-react";
 
@@ -52,6 +51,12 @@ export function MyInvitationsView({
 }: MyInvitationsViewProps) {
   const { t, i18n } = useLingui();
 
+  // #sharing-5 — nothing addressed to you: no section at all (and none while
+  // it loads, so it doesn't flash in and out).
+  if (listState === "loading" || (listState === "ready" && invitations.length === 0 && !message)) {
+    return null;
+  }
+
   return (
     <Section
       icon={MailOpen}
@@ -69,9 +74,7 @@ export function MyInvitationsView({
           {message}
         </p>
       ) : null}
-      {listState === "loading" ? (
-        <Skeleton className="h-24 w-full rounded-3xl" />
-      ) : listState === "error" ? (
+      {listState === "error" ? (
         <ErrorState
           title={<Trans>Could not load invitations.</Trans>}
           action={

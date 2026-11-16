@@ -49,7 +49,7 @@ export function AiAppsSettingsCard(props: AiAppsSettingsCardProps) {
           <SettingsIcon icon={Bot} />
           <span className="grid min-w-0 flex-1 gap-0.5">
             <span className="font-medium text-ink">
-              <Trans>Connected AI apps</Trans>
+              <Trans>Manage connections</Trans>
             </span>
             <span className="text-sm text-ink-3">
               <Trans>Connections, personal keys and recent activity</Trans>

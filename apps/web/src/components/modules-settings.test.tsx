@@ -59,7 +59,43 @@ describe("Settings › Modules", () => {
       />,
     );
     expect(html.match(/aria-checked="true"/g)?.length).toBe(2);
-    expect(html.match(/>Hidden</g)?.length).toBe(8);
+    expect(html.match(/aria-checked="false"/g)?.length).toBe(8);
+  });
+
+  test("the switch alone shows the state: no On or Hidden pill", () => {
+    const html = render(
+      <ModulesSettingsForm
+        snapshot={{ enabledModules: ["sleep"] }}
+        saving={null}
+        message={null}
+        onToggle={noop}
+      />,
+    );
+    expect(html).not.toContain(">On<");
+    expect(html).not.toContain(">Hidden<");
+  });
+
+  test("an on Coach says when AI is off and links to the AI settings", () => {
+    const html = render(
+      <ModulesSettingsForm
+        snapshot={{ enabledModules: null }}
+        saving={null}
+        message={null}
+        onToggle={noop}
+        coachAiOff="workspace"
+      />,
+    );
+    expect(html).toContain("AI is off for this workspace.");
+    expect(html).toContain('href="/settings"');
+    const quiet = render(
+      <ModulesSettingsForm
+        snapshot={{ enabledModules: null }}
+        saving={null}
+        message={null}
+        onToggle={noop}
+      />,
+    );
+    expect(quiet).not.toContain("AI is off");
   });
 });
 

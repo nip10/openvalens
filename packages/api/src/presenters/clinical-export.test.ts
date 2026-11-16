@@ -14,10 +14,10 @@ import {
 
 describe("clinical export presenter", () => {
   test("formatExportDomainLabel: sentence-case labels for the closed enum", () => {
-    expect(inEnglish(formatExportDomainLabel("blood"))).toBe("Blood");
+    expect(inEnglish(formatExportDomainLabel("blood"))).toBe("Labs");
     expect(inEnglish(formatExportDomainLabel("familyHistory"))).toBe("Family history");
     expect(inEnglish(formatExportDomainLabel("dexa"))).toBe("DEXA");
-    expect(inEnglish(formatExportDomainLabel("audit"))).toBe("Audit");
+    expect(inEnglish(formatExportDomainLabel("audit"))).toBe("Access history");
   });
 
   test("formatBytes: base-1024 sizes and '—' for invalid input", () => {

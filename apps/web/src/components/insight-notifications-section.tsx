@@ -23,6 +23,7 @@ import { toast } from "sonner";
 
 import { Details, ErrorState, InfoTip, StatusPill, ToneIcon } from "@/components/page";
 import { SETTINGS_SELECT, SettingsGroup, SettingsIcon } from "@/components/settings-rows";
+import { TelegramChannel } from "@/components/telegram-channel";
 import { withBrowserTimeZone } from "@/utils/insight-time-zone";
 import { orpc } from "@/utils/orpc";
 
@@ -139,18 +140,20 @@ export function InsightNotificationsForm({
   preferences,
   pending,
   onUpdate,
+  telegram,
 }: {
   preferences: InsightPreferences;
   pending: boolean;
   onUpdate: (patch: InsightPreferencesUpdate) => void;
+  /** The Telegram channel row, shown with the daily reminders (#settings-telegram-0). */
+  telegram?: ReactNode;
 }) {
   const [acknowledged, setAcknowledged] = useState(
     preferences.email.acknowledgedVersion === EMAIL_DIGEST_ACKNOWLEDGEMENT_VERSION,
   );
   const canDeliver = preferences.canConfigureDelivery;
   const browserZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const { t, i18n } = useLingui();
-  const pushTitle = i18n._(INSIGHT_DELIVERY_COPY.pushTitle);
+  const { i18n } = useLingui();
 
   return (
     <section
@@ -181,14 +184,9 @@ export function InsightNotificationsForm({
           ) : (
             <>
               <SwitchLine>
-                <span className="flex items-center gap-2">
-                  <Label htmlFor="insight-push" className="text-ink-2">
-                    {pushTitle}
-                  </Label>
-                  <StatusPill tone={preferences.push.enabled ? "good" : "neutral"}>
-                    {preferences.push.enabled ? t`On` : t`Off`}
-                  </StatusPill>
-                </span>
+                <Label htmlFor="insight-push" className="text-ink-2">
+                  <Trans>Send to my phone (mobile app)</Trans>
+                </Label>
                 <Switch
                   id="insight-push"
                   checked={preferences.push.enabled}
@@ -277,7 +275,7 @@ export function InsightNotificationsForm({
               <p id="daily-reminder-email-note">
                 {i18n._(INSIGHT_DELIVERY_COPY.dailyRemindersEmailNote)}
               </p>
-              <p>{i18n._(INSIGHT_DELIVERY_COPY.dailyRemindersTelegram)}</p>
+              {telegram ? null : <p>{i18n._(INSIGHT_DELIVERY_COPY.dailyRemindersTelegram)}</p>}
             </>
           }
           disabled={pending}
@@ -297,6 +295,7 @@ export function InsightNotificationsForm({
               />
             </SwitchLine>
           )}
+          {telegram}
           {preferences.dailyReminders.email || preferences.dailyReminders.telegramConnected ? (
             <DailyReminderTime
               preferences={preferences}
@@ -413,6 +412,7 @@ export function InsightNotificationsSection() {
   return (
     <InsightNotificationsForm
       preferences={preferences.data}
+      telegram={<TelegramChannel />}
       pending={update.isPending}
       onUpdate={(patch) =>
         update.mutate(
