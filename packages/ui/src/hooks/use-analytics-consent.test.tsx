@@ -353,6 +353,9 @@ describe("mounted analytics consent hook", () => {
       const { I18nProvider } = await import(Bun.resolveSync("@lingui/react", webRoot));
       const { englishI18n } = await import(Bun.resolveSync("@openvalens/i18n/testing", webRoot));
       globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+      // The section's switch (Radix) checks for an enclosing form; the test
+      // renderer has no DOM, so give that check a class to test against.
+      globalThis.HTMLFormElement ??= class HTMLFormElement {};
       let renderer;
       act(() => {
         renderer = create(

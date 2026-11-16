@@ -2,12 +2,12 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { Button } from "@openvalens/ui/components/button";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { createFileRoute, Link, notFound } from "@tanstack/react-router";
-import { ChevronLeft } from "lucide-react";
+import { createFileRoute, notFound } from "@tanstack/react-router";
 import { z } from "zod";
 
 import { BillingPlanView, type BillingPlan } from "@/components/billing-plan-view";
-import { ErrorState, Page, PageHeader } from "@/components/page";
+import { ErrorState, Page } from "@/components/page";
+import { SettingsPageHeader } from "@/components/settings-back-link";
 import { orpc } from "@/utils/orpc";
 import { signUpOptionsQueryOptions } from "@/utils/sign-up";
 
@@ -57,20 +57,7 @@ function BillingSettingsPage() {
     }),
   );
 
-  const header = (
-    <PageHeader
-      title={<Trans>Plan & billing</Trans>}
-      actions={
-        <Link
-          to="/settings"
-          className="inline-flex items-center gap-1 rounded-full px-1 text-sm font-medium text-ink-2 underline decoration-signal underline-offset-[0.15em] hover:text-ink hover:decoration-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:decoration-2"
-        >
-          <ChevronLeft className="size-4" aria-hidden="true" />
-          <Trans>Settings</Trans>
-        </Link>
-      }
-    />
-  );
+  const header = <SettingsPageHeader title={<Trans>Plan & billing</Trans>} />;
 
   if (status.isPending) {
     return (

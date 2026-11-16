@@ -5,7 +5,7 @@ import { I18nProvider } from "@lingui/react";
 import { englishI18n } from "@openvalens/i18n/testing";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { BillingPlanView, type BillingStatus } from "./billing-plan-view";
+import { annualSaving, BillingPlanView, type BillingStatus } from "./billing-plan-view";
 
 /** Issue #297 — Settings › Plan & billing. */
 
@@ -160,5 +160,28 @@ describe("BillingPlanView", () => {
       expect(html).not.toInclude("Manage billing");
       expect(html).not.toInclude("€");
     }
+  });
+});
+
+describe("BillingPlanView plan choice (#settings-billing)", () => {
+  test("the annual row says what it costs a month and what it saves", () => {
+    const html = render({});
+    expect(html).toInclude("€69.00 per year (€5.75 a month, save 28%)");
+    expect(annualSaving(PRICES)).toEqual({
+      percent: 28,
+      perMonth: { amount: 575, currency: "eur" },
+    });
+  });
+
+  test("no saving line when a price is missing or annual is not cheaper", () => {
+    expect(annualSaving({ monthly: null, annual: PRICES.annual })).toBeNull();
+    expect(
+      annualSaving({ monthly: PRICES.monthly, annual: { amount: 9588, currency: "eur" } }),
+    ).toBeNull();
+  });
+
+  test("until both boxes are ticked, a line says why Subscribe is off", () => {
+    expect(render({})).toInclude("Tick both boxes above to subscribe.");
+    expect(render({ checkoutAcknowledgement: null })).not.toInclude("Tick both boxes");
   });
 });

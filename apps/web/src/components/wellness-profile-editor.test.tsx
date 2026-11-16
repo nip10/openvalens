@@ -13,7 +13,11 @@ import { englishI18n } from "@openvalens/i18n/testing";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { ProfileSummaryList } from "./profile-summary-card";
-import { WellnessProfileEditor, type WellnessProfileEditorProps } from "./wellness-profile-editor";
+import {
+  sectionSummary,
+  WellnessProfileEditor,
+  type WellnessProfileEditorProps,
+} from "./wellness-profile-editor";
 
 const NOW = new Date("2026-10-15T12:00:00.000Z");
 
@@ -85,6 +89,57 @@ describe("WellnessProfileEditor (web)", () => {
     const html = render(adult);
     expect(html).toContain("<legend");
     expect(html).toMatch(/<label for="[^"]+"[^>]*>Birth year<\/label>/);
+  });
+});
+
+describe("WellnessProfileEditor answered sections (#profile-1)", () => {
+  const answered: WellnessProfileSnapshot = {
+    ...adult,
+    region: { state: "recorded", value: "uk" },
+    birthYear: { state: "recorded", value: 1990 },
+    sex: { state: "recorded", value: "female" },
+  };
+
+  test("an answered section folds into its answer with Edit", () => {
+    const html = render(answered);
+    expect(html).toContain("United Kingdom");
+    expect(html).toContain("Born 1990, Female");
+    expect(html).toContain("Yes, I&#x27;m 18 or older");
+    expect(html).not.toContain("What year were you born?");
+    expect(html).not.toContain("Are you 18 or older?");
+    expect(html.match(/>Edit</g)?.length).toBe(3);
+  });
+
+  test("unanswered sections stay open with their question", () => {
+    const html = render(answered);
+    expect(html).toContain(">Save<");
+  });
+
+  test("a section with unsaved edits stays open", () => {
+    const draft = draftFromSnapshot(answered);
+    draft.answers.region = { state: "recorded", value: "pt" };
+    const html = render(answered, { draft });
+    expect(html).toContain("Unsaved changes");
+    expect(html).toContain(">Cancel<");
+  });
+
+  test("the page's ?section= opens that section even when answered", () => {
+    const html = render(answered, { initialOpen: "ageAndSex" });
+    expect(html).toContain("What year were you born?");
+  });
+
+  test("summaries are short phrases", () => {
+    expect(sectionSummary("ageAndSex", answered, englishI18n)).toBe("Born 1990, Female");
+    expect(
+      sectionSummary(
+        "ageAndSex",
+        { ...answered, birthYear: { state: "declined" }, sex: { state: "not_applicable" } },
+        englishI18n,
+      ),
+    ).toBe("Birth year: Prefer not to say, Neither fits me");
+    expect(
+      sectionSummary("focus", { ...adult, focus: { state: "just_exploring" } }, englishI18n),
+    ).toBe("Just exploring");
   });
 });
 

@@ -1,9 +1,9 @@
 import type { I18n } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import {
   cardiacExamTypeLabel,
   familyRelationLabel,
-  formatYear,
   imagingTypeLabel,
   summaryText,
 } from "@openvalens/api/presenters/clinical-records";
@@ -14,16 +14,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { HeartPulse, type LucideIcon, ScanLine, Users } from "lucide-react";
 
-import {
-  EmptyState,
-  ErrorState,
-  Page,
-  PageHeader,
-  Section,
-  StatTile,
-  ToneIcon,
-} from "@/components/page";
-import { friendlyDate } from "@/utils/friendly";
+import { EmptyState, ErrorState, Page, PageHeader, Section, ToneIcon } from "@/components/page";
 import { orpc } from "@/utils/orpc";
 import { ModuleHiddenNote } from "@/components/module-hidden-note";
 
@@ -80,12 +71,7 @@ function ClinicalPage() {
       <ModuleHiddenNote module="labs" />
       <PageHeader title={<Trans>Clinical</Trans>} />
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <StatTile icon={HeartPulse} tone="water" label={t`Cardiac`} value={cardiac.data.length} />
-        <StatTile icon={ScanLine} tone="water" label={t`Imaging`} value={imaging.data.length} />
-        <StatTile icon={Users} tone="water" label={t`Family history`} value={family.data.length} />
-      </div>
-
+      {/* #clinical-4: the counts sit in each section head; no tiles repeating them. */}
       <RecordSection
         icon={HeartPulse}
         title={t`Cardiac`}
@@ -111,6 +97,24 @@ function ClinicalPage() {
   );
 }
 
+/** #clinical-5: a record's day, always with its year ("7 Sep 2026"). */
+function recordDate(i18n: I18n, iso: string): string {
+  const [y, m, d] = iso.slice(0, 10).split("-").map(Number);
+  if (!y || !m || !d) return iso;
+  return new Intl.DateTimeFormat(i18n.locale, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(y, m - 1, d));
+}
+
+/** #clinical-2: the age a condition started, labelled, or null when not recorded. */
+function onsetNote(ageOfOnset: number | null, i18n: I18n): string | null {
+  if (ageOfOnset === null || !Number.isFinite(ageOfOnset)) return null;
+  const age = Math.trunc(ageOfOnset);
+  return i18n._(msg`Onset at ${age}`);
+}
+
 /** The recorded parts only: a missing facility or note leaves no "—" line. */
 function presentParts(...parts: Array<string | null | undefined>): string[] {
   return parts.map((part) => part?.trim() ?? "").filter((part) => part.length > 0);
@@ -119,9 +123,10 @@ function presentParts(...parts: Array<string | null | undefined>): string[] {
 type RecordItem = {
   /** What the record is, then any qualifier (body part, condition). */
   headline: readonly string[];
-  date: string;
-  /** True when `date` is an ISO day (shown as people say it); false for an age or year. */
-  isDate: boolean;
+  /** An ISO day, shown with its year (clinical history spans decades), or null. */
+  date: string | null;
+  /** A label in place of a date, such as "Onset at 61" (#clinical-2), or null. */
+  note: string | null;
   /** Where it was done, if anywhere, and what it concluded. */
   secondary: readonly string[];
 };
@@ -150,7 +155,8 @@ function RecordSection<T>({ icon, title, rows, renderItem, emptyText }: RecordSe
       {rows.length === 0 ? (
         <EmptyState icon={icon} title={emptyText} />
       ) : (
-        <ul className="grid gap-3 sm:grid-cols-2">
+        // #clinical-6: one record per row across the width, like a medical record.
+        <ul className="grid gap-3">
           {rows.map((row, index) => {
             const item = renderItem(row);
             return (
@@ -173,9 +179,15 @@ function RecordSection<T>({ icon, title, rows, renderItem, emptyText }: RecordSe
                     </span>
                   ))}
                 </div>
-                <span className="num shrink-0 rounded-full bg-water-soft px-2.5 py-1 text-sm font-semibold text-ink">
-                  {item.isDate ? friendlyDate(i18n, item.date) : item.date}
-                </span>
+                {item.date ? (
+                  <span className="num shrink-0 rounded-full bg-water-soft px-2.5 py-1 text-sm font-semibold text-ink">
+                    {recordDate(i18n, item.date)}
+                  </span>
+                ) : item.note ? (
+                  <span className="shrink-0 rounded-full bg-paper-2 px-2.5 py-1 text-sm text-ink-2">
+                    {item.note}
+                  </span>
+                ) : null}
               </li>
             );
           })}
@@ -195,7 +207,7 @@ function renderCardiac(row: CardiacRow, i18n: I18n): RecordItem {
   return {
     headline: [cardiacExamTypeLabel(row.type, i18n)],
     date: row.date,
-    isDate: true,
+    note: null,
     secondary: presentParts(row.facility, row.conclusion ? summaryText(row.conclusion) : null),
   };
 }
@@ -211,7 +223,7 @@ function renderImaging(row: ImagingRow, i18n: I18n): RecordItem {
   return {
     headline: [imagingTypeLabel(row.type, i18n), row.bodyPart],
     date: row.date,
-    isDate: true,
+    note: null,
     secondary: presentParts(row.facility, row.conclusion ? summaryText(row.conclusion) : null),
   };
 }
@@ -225,8 +237,8 @@ type FamilyRow = {
 function renderFamily(row: FamilyRow, i18n: I18n): RecordItem {
   return {
     headline: [familyRelationLabel(row.relation, i18n), row.condition],
-    date: formatYear(row.ageOfOnset),
-    isDate: false,
+    date: null,
+    note: onsetNote(row.ageOfOnset, i18n),
     secondary: presentParts(row.notes ? summaryText(row.notes) : null),
   };
 }

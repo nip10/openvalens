@@ -1,4 +1,5 @@
 import { Trans, useLingui } from "@lingui/react/macro";
+import { Switch } from "@openvalens/ui/components/switch";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Megaphone } from "lucide-react";
 import { useId } from "react";
@@ -35,14 +36,12 @@ export function WhatsNewSection() {
           )
         }
       >
-        <input
+        <Switch
           id={id}
           aria-label={t`Show what's new after an update`}
-          type="checkbox"
-          className="size-5 shrink-0 accent-primary disabled:cursor-not-allowed disabled:opacity-55"
           checked={enabled ?? true}
           disabled={!query.data || update.isPending}
-          onChange={(event) => update.mutate({ enabled: event.currentTarget.checked })}
+          onCheckedChange={(next) => update.mutate({ enabled: next })}
         />
       </SettingsRow>
     </SettingsGroup>

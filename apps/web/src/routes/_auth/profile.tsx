@@ -26,12 +26,14 @@ import { Button } from "@openvalens/ui/components/button";
 import { Input } from "@openvalens/ui/components/input";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute, Link, useBlocker, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useBlocker, useNavigate } from "@tanstack/react-router";
 import { useEffect, useId, useRef, useState } from "react";
 
-import { ArrowRight, ListChecks, WifiOff } from "lucide-react";
+import { ArrowRight, UserRound, WifiOff } from "lucide-react";
 
-import { ErrorState, Meter, Page, PageHeader, ToneIcon } from "@/components/page";
+import { DisplayNameField } from "@/components/display-name-field";
+import { ErrorState, Meter, Page, PageHeader } from "@/components/page";
+import { SettingsPageHeader } from "@/components/settings-back-link";
 import {
   StepHead,
   WellnessProfileEditor,
@@ -71,12 +73,9 @@ function ProfilePage() {
 
   if (profile.isPending) {
     return (
-      <Page>
+      <Page width="narrow">
         <PageHeader title={<Trans>Your profile</Trans>} />
-        <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_16rem]">
-          <Skeleton className="h-96 w-full rounded-3xl" />
-          <Skeleton className="hidden h-40 w-full rounded-3xl lg:block" />
-        </div>
+        <Skeleton className="h-96 w-full rounded-3xl" />
       </Page>
     );
   }
@@ -188,111 +187,119 @@ function ProfileEditorPage({
   const progress = setupProgress(snapshot);
   const resume = nextSetupSection(snapshot);
   const inSetup = snapshot.setupStatus !== "completed";
+  const allAnswered = progress.available > 0 && progress.answered >= progress.available;
 
   return (
-    <Page>
-      <PageHeader
-        title={<Trans>Your profile</Trans>}
-        description={<Trans>All optional. Answer what helps you.</Trans>}
-        info={
-          <>
-            <p>{PROFILE_INTRO}</p>
-            <p>{PROFILE_STORAGE_NOTE}</p>
-          </>
-        }
-        actions={
-          inSetup ? (
+    <Page width="narrow">
+      <div className="grid gap-4">
+        <SettingsPageHeader
+          hideBack={inSetup}
+          title={<Trans>Your profile</Trans>}
+          description={<Trans>All optional. Answer what helps you.</Trans>}
+          info={
             <>
-              <Button variant="outline" onClick={() => void finish("skipped")}>
-                <Trans>Skip for now</Trans>
-              </Button>
-              <Button onClick={() => void finish("completed")} disabled={dirty.length > 0}>
-                <Trans>Done</Trans>
-              </Button>
+              <p>{PROFILE_INTRO}</p>
+              <p>{PROFILE_STORAGE_NOTE}</p>
             </>
-          ) : (
-            <Link
-              to="/settings"
-              className="font-display text-sm font-medium text-ink underline decoration-signal underline-offset-[0.15em] hover:decoration-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:decoration-2"
-            >
-              <Trans>Back to settings</Trans>
-            </Link>
-          )
-        }
-      />
-
-      <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_16rem]">
-        <aside className="grid gap-3 text-sm lg:sticky lg:top-10 lg:col-start-2 lg:row-start-1">
-          <div className="sheet grid gap-3 p-5">
-            <div className="flex items-center gap-3">
-              <ToneIcon icon={ListChecks} tone="signal" />
-              <p className="font-display font-medium text-ink">
+          }
+          actions={
+            inSetup ? (
+              <>
+                <Button variant="outline" onClick={() => void finish("skipped")}>
+                  <Trans>Skip for now</Trans>
+                </Button>
+                <Button onClick={() => void finish("completed")} disabled={dirty.length > 0}>
+                  <Trans>Done</Trans>
+                </Button>
+              </>
+            ) : undefined
+          }
+        />
+        {/* #profile-7 — progress is one line with a thin bar, gone once all is answered. */}
+        {!allAnswered ? (
+          <div className="grid max-w-md gap-2 text-sm">
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+              <span className="font-medium text-ink-2">
                 <Trans>
-                  {progress.answered} of {progress.available} sections answered
+                  {progress.answered} of {progress.available} answered
                 </Trans>
-              </p>
+              </span>
+              {resume ? (
+                <a
+                  href={`#section-${resume}`}
+                  className="inline-flex items-center gap-1 text-ink-2 underline decoration-signal underline-offset-[0.15em] hover:decoration-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:decoration-2"
+                >
+                  <Trans>Next: {i18n._(SECTION_TITLES[resume])}</Trans>
+                  <ArrowRight className="size-4 shrink-0" aria-hidden="true" />
+                </a>
+              ) : null}
             </div>
             <Meter
               value={progress.available > 0 ? progress.answered / progress.available : 0}
               tone="signal"
             />
-            {resume ? (
-              <a
-                href={`#section-${resume}`}
-                className="inline-flex w-fit items-center gap-1.5 font-medium text-ink-2 underline decoration-signal underline-offset-[0.15em] hover:decoration-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:decoration-2"
-              >
-                <Trans>Next unanswered: {i18n._(SECTION_TITLES[resume])}</Trans>
-                <ArrowRight className="size-4 shrink-0" aria-hidden="true" />
-              </a>
-            ) : null}
-            {dirty.length > 0 ? (
-              <p className="text-ink-3">
-                <Trans>Unsaved: {dirty.map((s) => i18n._(SECTION_TITLES[s])).join(", ")}</Trans>
-              </p>
-            ) : null}
           </div>
-          {pageMessage ? (
-            <p role="alert" className="text-destructive">
-              {i18n._(pageMessage)}
-            </p>
-          ) : null}
-          {!online ? (
-            <p
-              role="status"
-              className="flex items-start gap-2 rounded-2xl bg-warning/14 px-4 py-3 text-ink-2"
-            >
-              <WifiOff className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
-              <span>
-                <Trans>You are offline.</Trans> {PROFILE_OFFLINE_NOTE}
-              </span>
-            </p>
-          ) : null}
-        </aside>
+        ) : null}
+        {dirty.length > 0 ? (
+          <p className="text-sm text-ink-3">
+            <Trans>Unsaved: {dirty.map((s) => i18n._(SECTION_TITLES[s])).join(", ")}</Trans>
+          </p>
+        ) : null}
+        {pageMessage ? (
+          <p role="alert" className="text-sm text-destructive">
+            {i18n._(pageMessage)}
+          </p>
+        ) : null}
+        {!online ? (
+          <p
+            role="status"
+            className="flex items-start gap-2 rounded-2xl bg-warning/14 px-4 py-3 text-sm text-ink-2"
+          >
+            <WifiOff className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
+            <span>
+              <Trans>You are offline.</Trans> {PROFILE_OFFLINE_NOTE}
+            </span>
+          </p>
+        ) : null}
+      </div>
 
-        <div className="min-w-0 lg:col-start-1 lg:row-start-1">
-          <WellnessProfileEditor
-            snapshot={snapshot}
-            draft={draft}
-            onDraftChange={(next) => {
-              setDraft(next);
-              setSaveState({});
-            }}
-            birthYearText={birthYearText}
-            onBirthYearTextChange={setBirthYearText}
-            saveState={saveState}
-            onSave={(section) => void onSave(section)}
-            onUndo={(section) => {
-              setDraft((current) => resetSection(snapshot, current, section));
-              if (section === "ageAndSex") {
-                setBirthYearText(
-                  snapshot.birthYear.state === "recorded" ? String(snapshot.birthYear.value) : "",
-                );
-              }
-            }}
-            goalSection={<GoalSection />}
-            now={new Date()}
-          />
-        </div>
+      <div className="grid min-w-0 gap-4">
+        {/* #profile-4 — the name the app calls you by. */}
+        <section aria-labelledby="profile-name-title" className="sheet grid gap-2 p-4 md:px-6">
+          <h2
+            id="profile-name-title"
+            className="flex items-center gap-2 text-lg leading-tight text-ink"
+          >
+            <UserRound className="size-4 shrink-0 text-ink-3" aria-hidden="true" />
+            <Trans>Your name</Trans>
+          </h2>
+          <div className="text-sm">
+            <DisplayNameField />
+          </div>
+        </section>
+        <WellnessProfileEditor
+          snapshot={snapshot}
+          draft={draft}
+          initialOpen={requestedSection ?? null}
+          onDraftChange={(next) => {
+            setDraft(next);
+            setSaveState({});
+          }}
+          birthYearText={birthYearText}
+          onBirthYearTextChange={setBirthYearText}
+          saveState={saveState}
+          onSave={(section) => void onSave(section)}
+          onUndo={(section) => {
+            setDraft((current) => resetSection(snapshot, current, section));
+            if (section === "ageAndSex") {
+              setBirthYearText(
+                snapshot.birthYear.state === "recorded" ? String(snapshot.birthYear.value) : "",
+              );
+            }
+          }}
+          goalSection={<GoalSection />}
+          now={new Date()}
+        />
       </div>
     </Page>
   );

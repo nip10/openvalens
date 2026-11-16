@@ -2,15 +2,6 @@ import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Button } from "@openvalens/ui/components/button";
-import { Input } from "@openvalens/ui/components/input";
-import { Label } from "@openvalens/ui/components/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@openvalens/ui/components/select";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
@@ -18,6 +9,7 @@ import { useState, type ReactNode } from "react";
 
 import { Mail, ShieldCheck, UserPlus, Users } from "lucide-react";
 
+import { InviteDialog } from "@/components/invite-dialog";
 import { MyInvitationsCard } from "@/components/my-invitations-card";
 import {
   SharingConfirmDialog,
@@ -29,13 +21,12 @@ import {
   Page,
   PageHeader,
   Section,
-  StatTile,
   StatusPill,
   type StatusTone,
-  ToneIcon,
 } from "@/components/page";
 import { SharingAvatar } from "@/components/sharing-avatar";
 import { authClient } from "@/lib/auth-client";
+import { displayNameOf } from "@/utils/display-name";
 import { orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute("/_auth/sharing")({
@@ -81,16 +72,32 @@ function SharingContent({ myInvitations }: { myInvitations: ReactNode }) {
   const invitations = useQuery(orpc.sharing.listInvitations.queryOptions({ input: {} }));
   const me = useQuery(orpc.sharing.me.queryOptions({ input: {} }));
   const isOwner = me.data?.role === "owner";
-  const codeLabel = useCodeLabel();
+  const [inviting, setInviting] = useState(false);
+
+  const header = (
+    <PageHeader
+      title={<Trans>Sharing</Trans>}
+      description={<Trans>Share this health record with family or a coach.</Trans>}
+      actions={
+        isOwner ? (
+          // #sharing-6 — one header button opens the invite dialog.
+          <Button onClick={() => setInviting(true)}>
+            <UserPlus aria-hidden="true" />
+            <Trans>Invite someone</Trans>
+          </Button>
+        ) : undefined
+      }
+    />
+  );
 
   if (members.isPending || invitations.isPending || me.isPending) {
     return (
       <Page>
-        <PageHeader title={<Trans>Sharing</Trans>} />
+        {header}
         {myInvitations}
-        <div className="grid gap-4 sm:grid-cols-3" aria-hidden="true">
-          {["a", "b", "c"].map((key) => (
-            <Skeleton key={key} className="h-32 w-full rounded-3xl" />
+        <div className="grid gap-4 sm:grid-cols-2" aria-hidden="true">
+          {["a", "b"].map((key) => (
+            <Skeleton key={key} className="h-28 w-full rounded-3xl" />
           ))}
         </div>
       </Page>
@@ -107,7 +114,7 @@ function SharingContent({ myInvitations }: { myInvitations: ReactNode }) {
   ) {
     return (
       <Page>
-        <PageHeader title={<Trans>Sharing</Trans>} />
+        {header}
         {myInvitations}
         <ErrorState
           title={<Trans>Could not load sharing info.</Trans>}
@@ -130,142 +137,20 @@ function SharingContent({ myInvitations }: { myInvitations: ReactNode }) {
 
   return (
     <Page>
-      <PageHeader
-        title={<Trans>Sharing</Trans>}
-        description={
-          <Trans>
-            Your role:{" "}
-            <span className="font-medium text-ink">{codeLabel(ROLE_LABELS, me.data.role)}</span>
-          </Trans>
-        }
-      />
-
-      <div className="grid gap-4 sm:grid-cols-3">
-        <StatTile
-          icon={Users}
-          tone="signal"
-          label={<Trans>Members</Trans>}
-          value={members.data.length}
-        />
-        <StatTile
-          icon={Mail}
-          tone="signal"
-          label={<Trans>Pending invitations</Trans>}
-          value={invitations.data.length}
-        />
-        <StatTile
-          icon={ShieldCheck}
-          tone="signal"
-          label={<Trans>Role</Trans>}
-          value={<span className="text-[1.75rem]">{codeLabel(ROLE_LABELS, me.data.role)}</span>}
-        />
-      </div>
-
+      {header}
       {myInvitations}
-
-      <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
-        <div className="grid min-w-0 gap-8">
-          <MembersCard members={members.data} isOwner={isOwner} currentUserId={me.data.userId} />
-          <InvitationsCard invitations={invitations.data} isOwner={isOwner} />
-        </div>
-        {!isOwner ? (
-          <p className="sheet flex items-center gap-3 p-5 text-sm text-ink-3">
-            <ToneIcon icon={ShieldCheck} tone="signal" size="sm" />
-            <Trans>Only org owners can invite or remove members.</Trans>
-          </p>
-        ) : (
-          <InviteForm />
-        )}
-      </div>
+      <MembersCard members={members.data} isOwner={isOwner} currentUserId={me.data.userId} />
+      {invitations.data.length > 0 ? (
+        <InvitationsCard invitations={invitations.data} isOwner={isOwner} />
+      ) : null}
+      {!isOwner ? (
+        <p className="flex items-center gap-3 text-sm text-ink-3">
+          <ShieldCheck className="size-4 shrink-0" aria-hidden="true" />
+          <Trans>Only owners can invite or remove people.</Trans>
+        </p>
+      ) : null}
+      {isOwner ? <InviteDialog open={inviting} onOpenChange={setInviting} /> : null}
     </Page>
-  );
-}
-
-function InviteForm() {
-  const [email, setEmail] = useState("");
-  const [role, setRole] = useState<"owner" | "member">("member");
-  const { t, i18n } = useLingui();
-  const queryClient = useQueryClient();
-  const invite = useMutation(
-    orpc.sharing.createInvitation.mutationOptions({
-      onSuccess: () => {
-        setEmail("");
-        setRole("member");
-        void queryClient.invalidateQueries({ queryKey: orpc.sharing.listInvitations.key() });
-      },
-    }),
-  );
-
-  const valid = email.includes("@");
-  const submit = () => {
-    if (!valid) return;
-    invite.mutate({ email, role });
-  };
-
-  return (
-    <Section icon={UserPlus} tone="signal" title={<Trans>Invite a member</Trans>} sheet>
-      <div className="grid gap-4">
-        <div className="grid gap-2">
-          <Label className="text-sm font-medium text-ink-3">
-            <Trans>Email</Trans>
-          </Label>
-          <Input
-            type="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            placeholder="name@example.com"
-          />
-        </div>
-        <div className="grid gap-2">
-          <Label className="text-sm font-medium text-ink-3">
-            <Trans>Role</Trans>
-          </Label>
-          <Select value={role} onValueChange={(next) => setRole(next as "owner" | "member")}>
-            <SelectTrigger>
-              <SelectValue>{i18n._(ROLE_LABELS[role]!)}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="member">{i18n._(ROLE_LABELS.member!)}</SelectItem>
-              <SelectItem value="owner">{i18n._(ROLE_LABELS.owner!)}</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Button
-            onClick={submit}
-            disabled={!valid || invite.isPending}
-            className="focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-          >
-            {invite.isPending ? t`Inviting…` : t`Send invite`}
-          </Button>
-        </div>
-        {invite.isSuccess ? (
-          invite.data.emailDelivery === "sent" ? (
-            <p className="text-sm text-success" role="status">
-              <Trans>Invitation sent by email.</Trans>
-            </p>
-          ) : invite.data.emailDelivery === "unavailable" ? (
-            <p className="text-sm text-ink-3" role="status">
-              <Trans>
-                Invitation saved, but email is not configured on this server, so no email was sent.
-                Ask them to open Sharing (or Invitations in the mobile app) to accept it.
-              </Trans>
-            </p>
-          ) : (
-            <p className="text-sm text-destructive" role="status">
-              <Trans>
-                Invitation saved, but the email could not be sent. Ask them to open Sharing (or
-                Invitations in the mobile app) to accept it.
-              </Trans>
-            </p>
-          )
-        ) : invite.isError ? (
-          <p className="text-sm text-destructive">
-            <Trans>Could not send invite. Email may already be pending.</Trans>
-          </p>
-        ) : null}
-      </div>
-    </Section>
   );
 }
 
@@ -305,7 +190,7 @@ function MembersCard({
       tone="signal"
       title={
         <>
-          <Trans>Members</Trans> <span className="num text-ink-3">({members.length})</span>
+          <Trans>People</Trans> <span className="num text-ink-3">({members.length})</span>
         </>
       }
     >
@@ -315,7 +200,10 @@ function MembersCard({
         <ul className="grid gap-3 sm:grid-cols-2">
           {members.map((member) => {
             const isMe = member.userId === currentUserId;
-            const display = member.name ?? member.email ?? member.userId;
+            // #sharing-3 — the name as the title and the email once under it;
+            // without a name, the email once.
+            const name = displayNameOf(member.name, member.email);
+            const display = name ?? member.email ?? member.userId;
             return (
               <li key={member.id} className="sheet flex min-w-0 items-start gap-3 p-4">
                 <SharingAvatar name={display} />
@@ -328,10 +216,12 @@ function MembersCard({
                       </span>
                     ) : null}
                   </span>
-                  <span className="text-sm break-all text-ink-3">
-                    <span className="sr-only">{t`Email`}: </span>
-                    {member.email ?? "—"}
-                  </span>
+                  {name && member.email ? (
+                    <span className="text-sm break-all text-ink-3">
+                      <span className="sr-only">{t`Email`}: </span>
+                      {member.email}
+                    </span>
+                  ) : null}
                   <span className="flex flex-wrap items-center gap-2 pt-0.5">
                     <StatusPill tone={member.role === "owner" ? "good" : "neutral"}>
                       <span className="sr-only">{t`Role`}: </span>
@@ -403,7 +293,7 @@ function InvitationsCard({
       tone="signal"
       title={
         <>
-          <Trans>Pending invitations</Trans>{" "}
+          <Trans>Invitations you've sent</Trans>{" "}
           <span className="num text-ink-3">({invitations.length})</span>
         </>
       }

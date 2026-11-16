@@ -4,12 +4,13 @@ import { Button } from "@openvalens/ui/components/button";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Bot, ChevronLeft } from "lucide-react";
+import { Bot, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 
 import { AiAppKeyCreated, AiAppKeyForm, type AiAppKeyDraft } from "@/components/ai-app-key-form";
 import { AiAppActivity, AiAppsView } from "@/components/ai-apps-view";
-import { Details, EmptyState, ErrorState, Page, PageHeader } from "@/components/page";
+import { Details, EmptyState, ErrorState, Page } from "@/components/page";
+import { SettingsPageHeader } from "@/components/settings-back-link";
 import { orpc } from "@/utils/orpc";
 import { useIsCloud } from "@/utils/sign-up";
 
@@ -40,6 +41,12 @@ function AiAppsSettingsPage() {
     ...orpc.aiApps.listGrants.queryOptions({ input: {} }),
     enabled,
   });
+  // #settings-ai-apps-2: a workspace switch can block every app; say so here.
+  const workspaceSetting = useQuery({
+    ...orpc.aiApps.workspaceSetting.get.queryOptions({ input: {} }),
+    enabled,
+  });
+  const blocked = workspaceSetting.data?.membersCanConnect === false;
 
   const [confirmRevoke, setConfirmRevoke] = useState<AiAppGrantLike | null>(null);
   const [confirmDeleteWrites, setConfirmDeleteWrites] = useState<AiAppGrantLike | null>(null);
@@ -81,18 +88,9 @@ function AiAppsSettingsPage() {
   );
 
   const header = (
-    <PageHeader
+    <SettingsPageHeader
       title={<Trans>Connected AI apps</Trans>}
       description={<Trans>Let an AI app read your records to answer your questions.</Trans>}
-      actions={
-        <Link
-          to="/settings"
-          className="inline-flex items-center gap-1 rounded-full px-1 text-sm font-medium text-ink-2 underline decoration-signal underline-offset-[0.15em] hover:text-ink hover:decoration-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:decoration-2"
-        >
-          <ChevronLeft className="size-4" aria-hidden="true" />
-          <Trans>Settings</Trans>
-        </Link>
-      }
     />
   );
 
@@ -188,6 +186,30 @@ function AiAppsSettingsPage() {
   return (
     <Page width="narrow">
       {header}
+      {blocked ? (
+        <p
+          role="status"
+          className="flex items-start gap-2 rounded-2xl bg-warning/14 px-4 py-3 text-sm text-ink-2"
+        >
+          <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
+          <span>
+            <Trans>
+              AI apps are turned off for this workspace, so keys and connections don't work.
+            </Trans>{" "}
+            {workspaceSetting.data?.canManage ? (
+              <Link
+                to="/settings"
+                hash="ai-apps"
+                className="font-medium text-ink underline decoration-signal underline-offset-2"
+              >
+                <Trans>Turn them on in Settings</Trans>
+              </Link>
+            ) : (
+              <Trans>The workspace owner can turn them on.</Trans>
+            )}
+          </span>
+        </p>
+      ) : null}
       <AiAppsView
         status={info}
         grantsStatus={grants.isPending ? "pending" : grants.isError ? "error" : "ready"}

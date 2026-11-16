@@ -48,7 +48,7 @@ describe("complete export card", () => {
   test("offers the request section regardless of billing state", () => {
     queryState = { data: null, isPending: false, isError: false };
     const html = render();
-    expect(html).toContain("Download everything");
+    expect(html).toContain("Keep a full backup");
     expect(html).toContain("Prepare export");
     expect(html).toContain("stored attachments");
   });

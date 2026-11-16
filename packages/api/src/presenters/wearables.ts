@@ -80,6 +80,8 @@ export type WearableCallbackNotice = {
 export function wearableCallbackNotice(
   status: string | undefined | null,
   displayName: string,
+  /** OpenValens Cloud has no server operator to point the member at. */
+  options: { cloud?: boolean } = {},
 ): WearableCallbackNotice | null {
   switch (status) {
     case "connected":
@@ -100,7 +102,9 @@ export function wearableCallbackNotice(
     case "failed":
       return {
         tone: "error",
-        message: msg`${displayName} could not be connected. Try again, or ask your server operator if it keeps failing.`,
+        message: options.cloud
+          ? msg`${displayName} could not be connected. Try again in a little while.`
+          : msg`${displayName} could not be connected. Try again, or ask your server operator if it keeps failing.`,
       };
     default:
       return null;

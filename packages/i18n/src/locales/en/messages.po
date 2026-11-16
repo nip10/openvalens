@@ -402,6 +402,12 @@ msgstr "{0} not set"
 msgid "{0} of {1}"
 msgstr "{0} of {1}"
 
+#. placeholder {0}: progress.answered
+#. placeholder {1}: progress.available
+#: apps/web/src/routes/_auth/profile.tsx
+msgid "{0} of {1} answered"
+msgstr "{0} of {1} answered"
+
 #. placeholder {0}: evaluation.currentStreak
 #. placeholder {1}: rule.targetDays
 #: apps/native/app/(drawer)/goals.tsx
@@ -435,7 +441,6 @@ msgstr "{0} of {1} days this Monday–Sunday week"
 #. placeholder {0}: progress.answered
 #. placeholder {1}: progress.available
 #: apps/native/app/(drawer)/profile.tsx
-#: apps/web/src/routes/_auth/profile.tsx
 msgid "{0} of {1} sections answered"
 msgstr "{0} of {1} sections answered"
 
@@ -585,6 +590,11 @@ msgstr "{amount} per month"
 #: apps/web/src/components/billing-plan-view.tsx
 msgid "{amount} per year"
 msgstr "{amount} per year"
+
+#. placeholder {0}: saving.percent
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "{amount} per year ({perMonth} a month, save {0}%)"
+msgstr "{amount} per year ({perMonth} a month, save {0}%)"
 
 #: packages/api/src/presenters/insights.ts
 msgid "{amount} steps"
@@ -740,6 +750,10 @@ msgstr "{days} days left. Your free trial ends on {trialEnd}. No card needed unt
 #: packages/api/src/presenters/insights.ts
 msgid "{direction, select, higher {Weight trending up} other {Weight trending down}}"
 msgstr "{direction, select, higher {Weight trending up} other {Weight trending down}}"
+
+#: packages/api/src/presenters/wearables.ts
+msgid "{displayName} could not be connected. Try again in a little while."
+msgstr "{displayName} could not be connected. Try again in a little while."
 
 #: packages/api/src/presenters/wearables.ts
 msgid "{displayName} could not be connected. Try again, or ask your server operator if it keeps failing."
@@ -1509,9 +1523,12 @@ msgid "1 = {low}, 5 = {high}. Your own rating."
 msgstr "1 = {low}, 5 = {high}. Your own rating."
 
 #: apps/native/app/(drawer)/settings.tsx
-#: apps/web/src/routes/_auth/settings/index.tsx
 msgid "1 = very gentle, 5 = very forceful. Currently {assertiveness} of 5."
 msgstr "1 = very gentle, 5 = very forceful. Currently {assertiveness} of 5."
+
+#: apps/web/src/routes/_auth/settings/index.tsx
+msgid "1 is very gentle, 5 is very forceful."
+msgstr "1 is very gentle, 5 is very forceful."
 
 #: packages/api/src/presenters/drinks.ts
 msgid "1 standard drink = {grams} g of pure alcohol ({org}, {document})"
@@ -1756,6 +1773,10 @@ msgstr "A measure you enter"
 msgid "A measure you will enter"
 msgstr "A measure you will enter"
 
+#: apps/web/src/components/telegram-channel.tsx
+msgid "A message names the item, such as a medication, and never a measurement. Anyone who can read your Telegram can see it."
+msgstr "A message names the item, such as a medication, and never a measurement. Anyone who can read your Telegram can see it."
+
 #: packages/email/src/templates/ai-app-connected.tsx
 msgid "A new AI app was connected to {productName}"
 msgstr "A new AI app was connected to {productName}"
@@ -1797,6 +1818,10 @@ msgstr "A photo can be misread. Check each item, fix or remove anything wrong, t
 #: packages/api/src/presenters/micronutrients.ts
 msgid "A PRI or RDA covers the needs of nearly all people in the group; your own needs may be lower. An adequate intake (AI) is used when there is too little evidence for that; it is not a cutoff for deficiency. An upper level is not a goal."
 msgstr "A PRI or RDA covers the needs of nearly all people in the group; your own needs may be lower. An adequate intake (AI) is used when there is too little evidence for that; it is not a cutoff for deficiency. An upper level is not a goal."
+
+#: apps/web/src/routes/_auth/exports.tsx
+msgid "A printable page or spreadsheets with the parts you choose, for your clinician."
+msgstr "A printable page or spreadsheets with the parts you choose, for your clinician."
 
 #: apps/native/components/onboarding/steps.tsx
 #: apps/web/src/components/onboarding/welcome-flow.tsx
@@ -1941,6 +1966,10 @@ msgstr "Accepting…"
 #: apps/web/src/components/admin-settings-view.tsx
 msgid "Access denied"
 msgstr "Access denied"
+
+#: packages/api/src/presenters/clinical-export.ts
+msgid "Access history"
+msgstr "Access history"
 
 #: apps/web/src/components/wearable-devices-view.tsx
 msgid "Access is revoked at the vendor and the stored tokens are deleted. Choose whether the records this connection already brought in are kept or deleted."
@@ -2365,6 +2394,10 @@ msgstr "Add your birth year in your profile to use this."
 msgid "Add your height"
 msgstr "Add your height"
 
+#: apps/web/src/components/display-name-field.tsx
+msgid "Add your name"
+msgstr "Add your name"
+
 #: apps/web/src/components/exercise-library.tsx
 msgid "Add your own exercise"
 msgstr "Add your own exercise"
@@ -2470,6 +2503,10 @@ msgstr "Agree to send this text to the AI provider now"
 msgid "Agree to store cycle data"
 msgstr "Agree to store cycle data"
 
+#: apps/web/src/routes/_auth/settings/index.tsx
+msgid "AI"
+msgstr "AI"
+
 #. safety
 #: apps/web/src/components/ai-workspace-consent-section.tsx
 msgid "AI allowed in this workspace"
@@ -2478,6 +2515,10 @@ msgstr "AI allowed in this workspace"
 #: apps/web/src/components/ai-apps-settings-section.tsx
 msgid "AI apps allowed in this workspace"
 msgstr "AI apps allowed in this workspace"
+
+#: apps/web/src/routes/_auth/settings/ai-apps.tsx
+msgid "AI apps are turned off for this workspace, so keys and connections don't work."
+msgstr "AI apps are turned off for this workspace, so keys and connections don't work."
 
 #: apps/web/src/components/ai-apps-settings-section.tsx
 msgid "AI apps turned off for this workspace"
@@ -2499,8 +2540,13 @@ msgstr "AI features will stop processing your data until you turn consent back o
 
 #: apps/native/components/ai-section.tsx
 #: apps/web/src/components/ai-workspace-consent-card.tsx
+#: apps/web/src/routes/_auth/settings/index.tsx
 msgid "AI for this workspace"
 msgstr "AI for this workspace"
+
+#: apps/web/src/components/modules-settings.tsx
+msgid "AI is off for this workspace."
+msgstr "AI is off for this workspace."
 
 #: apps/native/components/ai-section.tsx
 #: apps/web/src/components/ai-consent-card.tsx
@@ -2525,10 +2571,18 @@ msgstr "AI processing disabled"
 msgid "AI processing enabled"
 msgstr "AI processing enabled"
 
+#: apps/web/src/components/modules-settings.tsx
+msgid "AI processing is off for you."
+msgstr "AI processing is off for you."
+
 #: apps/native/components/onboarding/steps.tsx
 #: apps/web/src/components/onboarding/server-checklist.tsx
 msgid "AI provider"
 msgstr "AI provider"
+
+#: apps/web/src/components/modules-settings.tsx
+msgid "AI settings"
+msgstr "AI settings"
 
 #. safety
 #: apps/web/src/components/ai-workspace-consent-section.tsx
@@ -2815,6 +2869,10 @@ msgstr "Appearance"
 msgid "Apple Health mindful minutes"
 msgstr "Apple Health mindful minutes"
 
+#: apps/web/src/routes/_auth/settings/index.tsx
+msgid "Apple Health or Health Connect, through the mobile app"
+msgstr "Apple Health or Health Connect, through the mobile app"
+
 #: packages/api/src/presenters/tracker-feeds.ts
 msgid "Apple Health State of Mind"
 msgstr "Apple Health State of Mind"
@@ -2926,9 +2984,12 @@ msgstr "Asleep"
 msgid "Asleep (min)"
 msgstr "Asleep (min)"
 
+#: apps/web/src/routes/_auth/settings/index.tsx
+msgid "Assertiveness"
+msgstr "Assertiveness"
+
 #. placeholder {0}: assertivenessText(assertiveness)
 #: apps/native/app/(drawer)/settings.tsx
-#: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Assertiveness ({0})"
 msgstr "Assertiveness ({0})"
 
@@ -2997,9 +3058,9 @@ msgstr "At most one a day, delivered quietly. The lock screen says only “You h
 msgid "At most one a day. The lock screen says only “You have a new insight”. You can change this any time in Settings."
 msgstr "At most one a day. The lock screen says only “You have a new insight”. You can change this any time in Settings."
 
-#: packages/api/src/presenters/clinical-export.ts
-msgid "Audit"
-msgstr "Audit"
+#: apps/web/src/components/telegram-channel.tsx
+msgid "At your reminder time, one message for each supplement, medication or scheduled event due that day. React with 👍 when it's done or 👎 to skip it."
+msgstr "At your reminder time, one message for each supplement, medication or scheduled event due that day. React with 👍 when it's done or 👎 to skip it."
 
 #: apps/native/app/(drawer)/(tabs)/index.tsx
 msgid "Auth secret"
@@ -3103,10 +3164,6 @@ msgstr "Back to draft checklist"
 #: apps/web/src/routes/_auth/micronutrients.tsx
 msgid "Back to meal diary"
 msgstr "Back to meal diary"
-
-#: apps/web/src/routes/_auth/profile.tsx
-msgid "Back to settings"
-msgstr "Back to settings"
 
 #: apps/native/app/(drawer)/trackers.tsx
 #: apps/web/src/routes/_auth/trackers.index.tsx
@@ -3349,14 +3406,14 @@ msgstr "Birth year and sex are only used for age- and sex-specific guidance and 
 msgid "Birth year and sex are optional."
 msgstr "Birth year and sex are optional."
 
+#: apps/web/src/components/wellness-profile-editor.tsx
+msgid "Birth year: {decline}"
+msgstr "Birth year: {decline}"
+
 #. safety
 #: packages/api/src/presenters/supplements.ts
 msgid "Biweekly"
 msgstr "Biweekly"
-
-#: packages/api/src/presenters/clinical-export.ts
-msgid "Blood"
-msgstr "Blood"
 
 #: apps/native/app/(drawer)/records/vitals.tsx
 #: apps/web/src/routes/_auth/records/vitals.tsx
@@ -3390,7 +3447,6 @@ msgstr "body"
 #: apps/web/src/routes/_auth/body.tsx
 #: apps/web/src/routes/_auth/records/timeline.tsx
 #: apps/web/src/utils/coach-ideas.ts
-#: packages/api/src/presenters/clinical-export.ts
 #: packages/api/src/presenters/timeline.ts
 msgid "Body"
 msgstr "Body"
@@ -3428,6 +3484,10 @@ msgstr "Body map, back view"
 msgid "Body map, front view"
 msgstr "Body map, front view"
 
+#: packages/api/src/presenters/clinical-export.ts
+msgid "Body summary"
+msgstr "Body summary"
+
 #: apps/native/components/workout-history.tsx
 #: apps/web/src/components/workout-history.tsx
 msgid "Bodyweight"
@@ -3436,6 +3496,10 @@ msgstr "Bodyweight"
 #: packages/api/src/presenters/body-map.ts
 msgid "Bone density"
 msgstr "Bone density"
+
+#: apps/web/src/components/wellness-profile-editor.tsx
+msgid "Born {born}"
+msgstr "Born {born}"
 
 #: packages/api/src/presenters/wellness-profile.ts
 msgid "Both"
@@ -3483,6 +3547,10 @@ msgstr "breaths/min"
 #: apps/web/src/components/onboarding/setup-steps.tsx
 msgid "Bring in what your phone and devices already record. You can do this later."
 msgstr "Bring in what your phone and devices already record. You can do this later."
+
+#: apps/web/src/routes/_auth/exports.tsx
+msgid "Bring to an appointment"
+msgstr "Bring to an appointment"
 
 #: apps/native/components/exercise-library.tsx
 msgid "Browse"
@@ -3550,7 +3618,6 @@ msgstr "Calculated fresh from your records each time; nothing is stored."
 msgid "Calculated fresh from your records each time; scores are not stored."
 msgstr "Calculated fresh from your records each time; scores are not stored."
 
-#: packages/api/src/presenters/clinical-export.ts
 #: packages/api/src/presenters/timeline.ts
 msgid "Calendar"
 msgstr "Calendar"
@@ -3639,9 +3706,11 @@ msgstr "Canada"
 #: apps/web/src/components/ai-apps-view.tsx
 #: apps/web/src/components/ai-consent-card.tsx
 #: apps/web/src/components/complete-export-card.tsx
+#: apps/web/src/components/display-name-field.tsx
 #: apps/web/src/components/exercise-library.tsx
 #: apps/web/src/components/sharing-confirm-dialog.tsx
 #: apps/web/src/components/wearable-devices-view.tsx
+#: apps/web/src/components/wellness-profile-editor.tsx
 #: apps/web/src/components/workout-routines.tsx
 #: apps/web/src/components/workout-session-editor.tsx
 #: apps/web/src/routes/_auth/-goal-checkin-dialog.tsx
@@ -4152,7 +4221,6 @@ msgid "Choose diary date"
 msgstr "Choose diary date"
 
 #: apps/native/app/(drawer)/exports.tsx
-#: apps/web/src/routes/_auth/exports.tsx
 msgid "Choose domains and a format, then download."
 msgstr "Choose domains and a format, then download."
 
@@ -4202,6 +4270,14 @@ msgstr "Choose the specific supplement entry"
 #: apps/native/components/goal-editor.tsx
 msgid "Choose weekdays (Monday–Sunday)"
 msgstr "Choose weekdays (Monday–Sunday)"
+
+#: apps/web/src/routes/_auth/exports.tsx
+msgid "Choose what the export is for."
+msgstr "Choose what the export is for."
+
+#: apps/web/src/routes/_auth/exports.tsx
+msgid "Choose what to include and a format, then download."
+msgstr "Choose what to include and a format, then download."
 
 #: packages/api/src/presenters/workouts.ts
 msgid "Choose whether the value should go up or down."
@@ -4290,7 +4366,6 @@ msgstr "Clinical"
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/exports.tsx
 #: apps/web/src/components/nav-links.ts
-#: apps/web/src/routes/_auth/exports.tsx
 msgid "Clinical export"
 msgstr "Clinical export"
 
@@ -4363,6 +4438,14 @@ msgstr "Coach and connected AI apps can read this"
 #: apps/web/src/routes/_auth/coach/$conversationId.tsx
 msgid "Coach is thinking…"
 msgstr "Coach is thinking…"
+
+#: apps/web/src/routes/_auth/settings/index.tsx
+msgid "Coach settings saved"
+msgstr "Coach settings saved"
+
+#: apps/web/src/routes/_auth/settings/index.tsx
+msgid "Coaching focus"
+msgstr "Coaching focus"
 
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/(tabs)/_layout.tsx
@@ -4525,8 +4608,8 @@ msgstr "Confirm your email to create your OpenValens account."
 #: apps/web/src/components/oauth-consent-view.tsx
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
 #: apps/web/src/components/sign-in-methods-section.tsx
+#: apps/web/src/components/telegram-channel.tsx
 #: apps/web/src/components/wearable-devices-view.tsx
-#: apps/web/src/routes/_auth/settings/telegram.tsx
 msgid "Connect"
 msgstr "Connect"
 
@@ -4540,17 +4623,12 @@ msgid "Connect {sourceName}"
 msgstr "Connect {sourceName}"
 
 #: apps/native/app/(drawer)/settings/telegram.tsx
-#: apps/web/src/routes/_auth/settings/telegram.tsx
 msgid "Connect a Telegram chat to receive daily reminders."
 msgstr "Connect a Telegram chat to receive daily reminders."
 
 #: apps/native/components/onboarding/steps.tsx
 msgid "Connect a watch or ring"
 msgstr "Connect a watch or ring"
-
-#: apps/web/src/routes/_auth/settings/index.tsx
-msgid "Connect a wearable vendor account such as Oura or WHOOP"
-msgstr "Connect a wearable vendor account such as Oura or WHOOP"
 
 #: apps/native/app/(drawer)/(tabs)/timeline.tsx
 msgid "Connect Health Connect or Apple Health in Settings to sync your data."
@@ -4579,7 +4657,7 @@ msgstr "Connect your data"
 #: apps/native/components/onboarding/steps.tsx
 #: apps/native/components/sign-in-methods.tsx
 #: apps/web/src/components/sign-in-methods-section.tsx
-#: apps/web/src/routes/_auth/settings/telegram.tsx
+#: apps/web/src/components/telegram-channel.tsx
 #: apps/web/src/routes/index.tsx
 msgid "Connected"
 msgstr "Connected"
@@ -4707,7 +4785,6 @@ msgstr "Consent is not required on this server."
 
 #. placeholder {0}: status.data.acceptedVersion
 #: apps/native/app/(drawer)/settings.tsx
-#: apps/web/src/components/health-data-consent-status.tsx
 msgid "Consent recorded for version {0}."
 msgstr "Consent recorded for version {0}."
 
@@ -4993,7 +5070,7 @@ msgstr "Could not check your export status."
 msgid "Could not check your sign-in methods."
 msgstr "Could not check your sign-in methods."
 
-#: apps/web/src/routes/_auth/settings/telegram.tsx
+#: apps/web/src/components/telegram-channel.tsx
 msgid "Could not check your Telegram connection."
 msgstr "Could not check your Telegram connection."
 
@@ -5174,7 +5251,7 @@ msgid "Could not export. Try again."
 msgstr "Could not export. Try again."
 
 #: apps/native/app/(drawer)/settings/telegram.tsx
-#: apps/web/src/routes/_auth/settings/telegram.tsx
+#: apps/web/src/components/telegram-channel.tsx
 msgid "Could not generate a connect link."
 msgstr "Could not generate a connect link."
 
@@ -5749,6 +5826,10 @@ msgstr "Could not save your feedback."
 msgid "Could not save your height. Try again."
 msgstr "Could not save your height. Try again."
 
+#: apps/web/src/components/display-name-field.tsx
+msgid "Could not save your name. Try again."
+msgstr "Could not save your name. Try again."
+
 #: apps/native/components/home-widget-settings.tsx
 #: apps/native/components/whats-new-settings.tsx
 #: apps/web/src/components/whats-new-section.tsx
@@ -5766,7 +5847,6 @@ msgstr "Could not save your setting. Try again."
 #: apps/native/components/manual-sleep-section.tsx
 #: apps/native/components/onboarding/steps.tsx
 #: apps/web/src/routes/_auth/records/labs.tsx
-#: apps/web/src/routes/_auth/settings/index.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Could not save."
@@ -5814,6 +5894,7 @@ msgstr "Could not save. Retry the same dose."
 #: apps/web/src/components/trackers/tracker-log-form.tsx
 #: apps/web/src/routes/_auth/-goal-checkin-dialog.tsx
 #: apps/web/src/routes/_auth/goals.index.tsx
+#: apps/web/src/routes/_auth/settings/index.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 #: apps/web/src/utils/product-settings-form-state.ts
@@ -5843,7 +5924,7 @@ msgid "Could not send invitation."
 msgstr "Could not send invitation."
 
 #: apps/native/app/(drawer)/sharing.tsx
-#: apps/web/src/routes/_auth/sharing.tsx
+#: apps/web/src/components/invite-dialog.tsx
 msgid "Could not send invite. Email may already be pending."
 msgstr "Could not send invite. Email may already be pending."
 
@@ -6146,7 +6227,6 @@ msgstr "Current target: {currentTarget}"
 
 #. placeholder {0}: status.data.currentVersion
 #: apps/native/app/(drawer)/settings.tsx
-#: apps/web/src/components/health-data-consent-status.tsx
 msgid "Current version: {0}."
 msgstr "Current version: {0}."
 
@@ -6245,7 +6325,6 @@ msgstr "Daily progress"
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/settings.tsx
 #: apps/native/app/(drawer)/settings/telegram.tsx
-#: apps/web/src/routes/_auth/settings/index.tsx
 #: packages/api/src/presenters/insights.ts
 msgid "Daily reminders"
 msgstr "Daily reminders"
@@ -6261,10 +6340,6 @@ msgstr "Daily reminders by email (supplements, medications, scheduled events)"
 #: apps/web/src/routes/_auth/settings/telegram.tsx
 msgid "Daily reminders over Telegram"
 msgstr "Daily reminders over Telegram"
-
-#: apps/web/src/routes/_auth/settings/telegram.tsx
-msgid "Daily reminders will be sent to your Telegram chat."
-msgstr "Daily reminders will be sent to your Telegram chat."
 
 #: packages/api/src/presenters/wearables.ts
 msgid "Daily steps, weight, resting heart rate, daily HRV and sleep sessions."
@@ -6518,6 +6593,7 @@ msgstr "Delete {summary}, {when}"
 #: apps/native/app/(drawer)/settings.tsx
 #: apps/web/src/components/health-data-consent-prompt.tsx
 #: apps/web/src/components/health-data-consent-status.tsx
+#: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Delete account"
 msgstr "Delete account"
 
@@ -6868,8 +6944,8 @@ msgstr "Discard workout?"
 #: apps/native/app/(drawer)/settings/telegram.tsx
 #: apps/native/components/sign-in-methods.tsx
 #: apps/web/src/components/sign-in-methods-section.tsx
+#: apps/web/src/components/telegram-channel.tsx
 #: apps/web/src/components/wearable-devices-view.tsx
-#: apps/web/src/routes/_auth/settings/telegram.tsx
 msgid "Disconnect"
 msgstr "Disconnect"
 
@@ -6903,7 +6979,7 @@ msgid "Disconnecting stops new reads at once but doesn't delete what the app alr
 msgstr "Disconnecting stops new reads at once but doesn't delete what the app already has."
 
 #: apps/native/app/(drawer)/settings/telegram.tsx
-#: apps/web/src/routes/_auth/settings/telegram.tsx
+#: apps/web/src/components/telegram-channel.tsx
 msgid "Disconnecting…"
 msgstr "Disconnecting…"
 
@@ -6955,7 +7031,6 @@ msgid "Distance, 30 days"
 msgstr "Distance, 30 days"
 
 #: apps/native/app/(drawer)/exports.tsx
-#: apps/web/src/routes/_auth/exports.tsx
 msgid "Domains"
 msgstr "Domains"
 
@@ -6969,6 +7044,7 @@ msgstr "Domains"
 #: apps/native/components/onboarding/steps.tsx
 #: apps/native/components/workout-overview-sheet.tsx
 #: apps/web/src/components/ai-app-key-form.tsx
+#: apps/web/src/components/invite-dialog.tsx
 #: apps/web/src/components/onboarding/setup-steps.tsx
 #: apps/web/src/routes/_auth/goals.$goalId.tsx
 #: apps/web/src/routes/_auth/profile.tsx
@@ -7016,22 +7092,18 @@ msgid "Double progression"
 msgstr "Double progression"
 
 #: apps/native/app/(drawer)/exports.tsx
-#: apps/web/src/routes/_auth/exports.tsx
 msgid "Download"
 msgstr "Download"
 
 #: apps/native/app/(drawer)/exports.tsx
-#: apps/web/src/routes/_auth/exports.tsx
 msgid "Download a bundle"
 msgstr "Download a bundle"
 
 #: apps/native/app/(drawer)/exports.tsx
-#: apps/web/src/routes/_auth/exports.tsx
 msgid "Download bundle"
 msgstr "Download bundle"
 
 #: apps/native/app/(drawer)/exports.tsx
-#: apps/web/src/routes/_auth/exports.tsx
 msgid "Download by domain"
 msgstr "Download by domain"
 
@@ -7039,8 +7111,11 @@ msgstr "Download by domain"
 msgid "Download complete export ZIP"
 msgstr "Download complete export ZIP"
 
+#: apps/web/src/routes/_auth/exports.tsx
+msgid "Download CSV"
+msgstr "Download CSV"
+
 #: apps/native/components/complete-export-card.tsx
-#: apps/web/src/components/complete-export-card.tsx
 msgid "Download everything"
 msgstr "Download everything"
 
@@ -7048,8 +7123,15 @@ msgstr "Download everything"
 msgid "Download is unavailable for this server address."
 msgstr "Download is unavailable for this server address."
 
-#: apps/native/app/(drawer)/exports.tsx
 #: apps/web/src/routes/_auth/exports.tsx
+msgid "Download JSON"
+msgstr "Download JSON"
+
+#: apps/web/src/routes/_auth/exports.tsx
+msgid "Download printable page"
+msgstr "Download printable page"
+
+#: apps/native/app/(drawer)/exports.tsx
 msgid "Download your clinical record as a single JSON bundle."
 msgstr "Download your clinical record as a single JSON bundle."
 
@@ -7218,6 +7300,7 @@ msgstr "Earliest delivery time"
 #: apps/native/app/(drawer)/goals/[goalId].tsx
 #: apps/native/app/(drawer)/private-measurements.tsx
 #: apps/native/components/workout-routines.tsx
+#: apps/web/src/components/wellness-profile-editor.tsx
 #: apps/web/src/components/workout-routines.tsx
 #: apps/web/src/routes/_auth/nutrition.tsx
 #: apps/web/src/routes/_auth/private-measurements.tsx
@@ -7268,6 +7351,10 @@ msgstr "Edit entry"
 #: apps/web/src/routes/_auth/goals.$goalId.tsx
 msgid "Edit goal"
 msgstr "Edit goal"
+
+#: apps/web/src/components/display-name-field.tsx
+msgid "Edit name"
+msgstr "Edit name"
 
 #: apps/web/src/components/profile-summary-card.tsx
 msgid "Edit profile"
@@ -7355,6 +7442,7 @@ msgstr "EFSA is the usual choice in the EU, EEA and UK; NASEM in the United Stat
 #: apps/native/components/sign-in.tsx
 #: apps/web/src/components/admin-invitations-view.tsx
 #: apps/web/src/components/admission-form.tsx
+#: apps/web/src/components/invite-dialog.tsx
 #: apps/web/src/components/magic-link-form.tsx
 #: apps/web/src/components/sign-up-form.tsx
 #: apps/web/src/routes/_auth/sharing.tsx
@@ -7841,6 +7929,10 @@ msgstr "Everything else"
 msgid "Everything else works as usual."
 msgstr "Everything else works as usual."
 
+#: apps/web/src/components/complete-export-card.tsx
+msgid "Everything in one ZIP file: all your records and stored attachments, to keep or to move."
+msgstr "Everything in one ZIP file: all your records and stored attachments, to keep or to move."
+
 #: packages/api/src/presenters/preventive-care.ts
 msgid "Evidence check"
 msgstr "Evidence check"
@@ -8009,7 +8101,7 @@ msgstr "Expires"
 #. placeholder {0}: expiresAt.toLocaleString()
 #. placeholder {0}: new Date(pendingLink.expiresAt).toLocaleString()
 #: apps/native/app/(drawer)/settings/telegram.tsx
-#: apps/web/src/routes/_auth/settings/telegram.tsx
+#: apps/web/src/components/telegram-channel.tsx
 msgid "Expires {0}."
 msgstr "Expires {0}."
 
@@ -8039,6 +8131,11 @@ msgstr "Export records"
 #: apps/web/src/components/complete-export-card.tsx
 msgid "Export storage is unavailable right now. Try again later."
 msgstr "Export storage is unavailable right now. Try again later."
+
+#: apps/web/src/routes/_auth/exports.tsx
+#: apps/web/src/routes/_auth/settings/index.tsx
+msgid "Export your data"
+msgstr "Export your data"
 
 #. Fat, one letter
 #: packages/api/src/presenters/nutrition-diary.ts
@@ -8319,6 +8416,10 @@ msgstr "For {sex, select, female {women} male {men} other {adults}} aged {minAge
 msgid "For {sex, select, female {women} male {men} other {adults}} aged {minAge} to {maxAge}"
 msgstr "For {sex, select, female {women} male {men} other {adults}} aged {minAge} to {maxAge}"
 
+#: apps/web/src/routes/_auth/settings/index.tsx
+msgid "For a doctor, a backup or another app"
+msgstr "For a doctor, a backup or another app"
+
 #: apps/native/components/trackers/tracker-editor.tsx
 #: apps/web/src/components/trackers/tracker-editor.tsx
 msgid "For example 20 min."
@@ -8327,6 +8428,10 @@ msgstr "For example 20 min."
 #: apps/native/components/server-choice.tsx
 msgid "For example https://health.example.org."
 msgstr "For example https://health.example.org."
+
+#: apps/web/src/components/display-name-field.tsx
+msgid "For example: Alex"
+msgstr "For example: Alex"
 
 #: apps/web/src/components/ai-app-key-form.tsx
 msgid "For example: Claude Code on my laptop"
@@ -8475,6 +8580,10 @@ msgstr "front view muscle illustration"
 msgid "Full changelog"
 msgstr "Full changelog"
 
+#: apps/web/src/components/invite-dialog.tsx
+msgid "Full control, including inviting and removing people and deleting data."
+msgstr "Full control, including inviting and removing people and deleting data."
+
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Full log"
@@ -8524,7 +8633,7 @@ msgstr "General public-health information, not personal medical advice."
 msgid "General references worked out from your own records. They are not targets and never change one on their own."
 msgstr "General references worked out from your own records. They are not targets and never change one on their own."
 
-#: apps/web/src/routes/_auth/settings/telegram.tsx
+#: apps/web/src/components/telegram-channel.tsx
 msgid "Generating link…"
 msgstr "Generating link…"
 
@@ -8564,6 +8673,10 @@ msgstr "GloryFit history (steps, heart rate and sleep) syncs automatically while
 #: packages/api/src/presenters/body-map.ts
 msgid "Glutes"
 msgstr "Glutes"
+
+#: apps/web/src/components/invite-dialog.tsx
+msgid "Go back"
+msgstr "Go back"
 
 #: packages/api/src/presenters/workouts.ts
 msgid "Go down"
@@ -8796,6 +8909,7 @@ msgstr "Health data"
 #: apps/web/src/components/health-data-consent-prompt.tsx
 #: apps/web/src/components/health-data-consent-status.tsx
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
+#: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Health data consent"
 msgstr "Health data consent"
 
@@ -8899,7 +9013,6 @@ msgstr "Hi coach, give me a one-line summary of where I am today and one concret
 
 #: apps/native/app/(drawer)/micronutrients.tsx
 #: apps/native/app/(drawer)/private-measurements.tsx
-#: apps/web/src/components/modules-settings.tsx
 #: apps/web/src/routes/_auth/micronutrients.tsx
 #: apps/web/src/routes/_auth/private-measurements.tsx
 #: packages/api/src/presenters/nutrition-targets.ts
@@ -9167,6 +9280,7 @@ msgstr "How it's calculated"
 msgid "How popular longevity practices and tests hold up in published trials and guidelines. For information only: no doses, no reminders, and not personal medical advice. Most trial participants were 50 or older, so results apply less directly to younger adults. Talk to your clinician before starting or stopping anything."
 msgstr "How popular longevity practices and tests hold up in published trials and guidelines. For information only: no doses, no reminders, and not personal medical advice. Most trial participants were 50 or older, so results apply less directly to younger adults. Talk to your clinician before starting or stopping anything."
 
+#: apps/web/src/routes/_auth/settings/index.tsx
 #: apps/web/src/routes/_auth/settings/nutrition.tsx
 msgid "How the food screens look and what they offer."
 msgstr "How the food screens look and what they offer."
@@ -9640,7 +9754,6 @@ msgstr "Instructions (optional)"
 
 #: apps/native/app/(drawer)/settings.tsx
 #: apps/native/app/(drawer)/settings/devices.tsx
-#: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Integrations"
 msgstr "Integrations"
 
@@ -9687,17 +9800,17 @@ msgid "Invitation revoked"
 msgstr "Invitation revoked"
 
 #: apps/native/app/(drawer)/sharing.tsx
-#: apps/web/src/routes/_auth/sharing.tsx
+#: apps/web/src/components/invite-dialog.tsx
 msgid "Invitation saved, but email is not configured on this server, so no email was sent. Ask them to open Sharing (or Invitations in the mobile app) to accept it."
 msgstr "Invitation saved, but email is not configured on this server, so no email was sent. Ask them to open Sharing (or Invitations in the mobile app) to accept it."
 
 #: apps/native/app/(drawer)/sharing.tsx
-#: apps/web/src/routes/_auth/sharing.tsx
+#: apps/web/src/components/invite-dialog.tsx
 msgid "Invitation saved, but the email could not be sent. Ask them to open Sharing (or Invitations in the mobile app) to accept it."
 msgstr "Invitation saved, but the email could not be sent. Ask them to open Sharing (or Invitations in the mobile app) to accept it."
 
 #: apps/native/app/(drawer)/sharing.tsx
-#: apps/web/src/routes/_auth/sharing.tsx
+#: apps/web/src/components/invite-dialog.tsx
 msgid "Invitation sent by email."
 msgstr "Invitation sent by email."
 
@@ -9720,8 +9833,16 @@ msgstr "Invitation unavailable"
 msgid "Invitations"
 msgstr "Invitations"
 
-#: apps/native/app/(drawer)/sharing.tsx
 #: apps/web/src/routes/_auth/sharing.tsx
+msgid "Invitations you've sent"
+msgstr "Invitations you've sent"
+
+#. placeholder {0}: email.trim()
+#: apps/web/src/components/invite-dialog.tsx
+msgid "Invite {0} as an owner? An owner has full control of this health record: they can invite and remove people, you included, and delete data."
+msgstr "Invite {0} as an owner? An owner has full control of this health record: they can invite and remove people, you included, and delete data."
+
+#: apps/native/app/(drawer)/sharing.tsx
 msgid "Invite a member"
 msgstr "Invite a member"
 
@@ -9738,6 +9859,11 @@ msgstr "Invite people"
 msgid "Invite people from the web app: Admin › Invitations."
 msgstr "Invite people from the web app: Admin › Invitations."
 
+#: apps/web/src/components/invite-dialog.tsx
+#: apps/web/src/routes/_auth/sharing.tsx
+msgid "Invite someone"
+msgstr "Invite someone"
+
 #: apps/web/src/components/admin-invitations-view.tsx
 msgid "Invite someone to create an account. They will receive an invitation token by email."
 msgstr "Invite someone to create an account. They will receive an invitation token by email."
@@ -9753,7 +9879,7 @@ msgstr "Invited email: {0}"
 msgid "Invited email: <0>{0}</0>"
 msgstr "Invited email: <0>{0}</0>"
 
-#: apps/web/src/routes/_auth/sharing.tsx
+#: apps/web/src/components/invite-dialog.tsx
 msgid "Inviting…"
 msgstr "Inviting…"
 
@@ -9852,6 +9978,10 @@ msgstr "kcal"
 #: apps/native/components/nutrition-trend-card.tsx
 msgid "kcal a day"
 msgstr "kcal a day"
+
+#: apps/web/src/components/complete-export-card.tsx
+msgid "Keep a full backup"
+msgstr "Keep a full backup"
 
 #: packages/api/src/presenters/pain.ts
 msgid "Keep a pain log"
@@ -9969,6 +10099,7 @@ msgstr "Lab result"
 #: apps/web/src/components/nav-links.ts
 #: apps/web/src/routes/_auth/records/labs.tsx
 #: apps/web/src/routes/_auth/records/timeline.tsx
+#: packages/api/src/presenters/clinical-export.ts
 #: packages/api/src/presenters/timeline.ts
 msgid "Labs"
 msgstr "Labs"
@@ -11012,6 +11143,10 @@ msgstr "Manage"
 msgid "Manage billing"
 msgstr "Manage billing"
 
+#: apps/web/src/components/ai-apps-settings-card.tsx
+msgid "Manage connections"
+msgstr "Manage connections"
+
 #: packages/api/src/presenters/custom-foods.ts
 msgid "Manage my foods"
 msgstr "Manage my foods"
@@ -11314,8 +11449,11 @@ msgstr "Meds and supplements"
 msgid "member"
 msgstr "member"
 
+#: apps/web/src/components/invite-dialog.tsx
+msgid "Member"
+msgstr "Member"
+
 #: apps/native/app/(drawer)/sharing.tsx
-#: apps/web/src/routes/_auth/sharing.tsx
 msgid "Members"
 msgstr "Members"
 
@@ -11505,6 +11643,10 @@ msgstr "Moderate: {moderate} min"
 msgid "Modules"
 msgstr "Modules"
 
+#: apps/web/src/routes/_auth/settings/index.tsx
+msgid "Modules and devices"
+msgstr "Modules and devices"
+
 #: apps/web/src/components/admin-ai-usage.tsx
 msgid "Month (UTC)"
 msgstr "Month (UTC)"
@@ -11630,6 +11772,10 @@ msgstr "Move to"
 msgid "Move to a date"
 msgstr "Move to a date"
 
+#: apps/web/src/routes/_auth/exports.tsx
+msgid "Move to another app"
+msgstr "Move to another app"
+
 #: apps/native/components/draggable-row.tsx
 msgid "Move up"
 msgstr "Move up"
@@ -11707,6 +11853,14 @@ msgstr "My tracker"
 #: packages/api/src/presenters/nutrition-templates.ts
 msgid "Name"
 msgstr "Name"
+
+#: apps/web/src/components/display-name-field.tsx
+msgid "Name saved"
+msgstr "Name saved"
+
+#: apps/web/src/components/display-name-field.tsx
+msgid "Name: {current}"
+msgstr "Name: {current}"
 
 #: packages/api/src/presenters/micronutrients.ts
 msgid "NASEM (US National Academies)"
@@ -11898,9 +12052,7 @@ msgid "Next scheduled backup"
 msgstr "Next scheduled backup"
 
 #. placeholder {0}: i18n._(SECTION_TITLES[next])
-#. placeholder {0}: i18n._(SECTION_TITLES[resume])
 #: apps/native/app/(drawer)/profile.tsx
-#: apps/web/src/routes/_auth/profile.tsx
 msgid "Next unanswered: {0}"
 msgstr "Next unanswered: {0}"
 
@@ -11908,8 +12060,10 @@ msgstr "Next unanswered: {0}"
 msgid "Next up"
 msgstr "Next up"
 
+#. placeholder {0}: i18n._(SECTION_TITLES[resume])
 #. placeholder {0}: next.name
 #: apps/native/components/active-workout.tsx
+#: apps/web/src/routes/_auth/profile.tsx
 msgid "Next: {0}"
 msgstr "Next: {0}"
 
@@ -12254,6 +12408,10 @@ msgstr "No messages yet. Say hello to start."
 #: apps/web/src/components/admin-ai-usage.tsx
 msgid "No monthly cap"
 msgstr "No monthly cap"
+
+#: apps/web/src/components/display-name-field.tsx
+msgid "No name yet. The app shows your email."
+msgstr "No name yet. The app shows your email."
 
 #: packages/api/src/presenters/score.ts
 msgid "No numbers recorded yet."
@@ -12603,7 +12761,7 @@ msgstr "Not configured"
 #: apps/native/app/(drawer)/settings/telegram.tsx
 #: apps/native/components/health-sync-settings.tsx
 #: apps/native/components/sign-in-methods.tsx
-#: apps/web/src/routes/_auth/settings/telegram.tsx
+#: apps/web/src/components/telegram-channel.tsx
 msgid "Not connected"
 msgstr "Not connected"
 
@@ -12966,6 +13124,10 @@ msgstr "nothing yet"
 msgid "Notification settings"
 msgstr "Notification settings"
 
+#: apps/web/src/routes/_auth/settings/index.tsx
+msgid "Notifications"
+msgstr "Notifications"
+
 #: apps/native/lib/push-notifications.ts
 msgid "Notifications are blocked for OpenValens in your phone settings, so none will arrive here."
 msgstr "Notifications are blocked for OpenValens in your phone settings, so none will arrive here."
@@ -13037,6 +13199,7 @@ msgid "Nutrients and source"
 msgstr "Nutrients and source"
 
 #: apps/web/src/components/oauth-consent-view.tsx
+#: apps/web/src/routes/_auth/settings/index.tsx
 #: packages/api/src/presenters/ai-apps.ts
 #: packages/api/src/presenters/wellness-profile.ts
 msgid "Nutrition"
@@ -13109,7 +13272,6 @@ msgstr "of {text}"
 #: apps/native/app/(drawer)/settings.tsx
 #: apps/native/components/health-sync-settings.tsx
 #: apps/native/components/onboarding/steps.tsx
-#: apps/web/src/components/insight-notifications-section.tsx
 #: apps/web/src/components/onboarding/server-checklist.tsx
 msgid "Off"
 msgstr "Off"
@@ -13249,7 +13411,6 @@ msgstr "Okay"
 #: apps/native/components/health-sync-settings.tsx
 #: apps/native/components/onboarding/steps.tsx
 #: apps/web/src/components/insight-notifications-section.tsx
-#: apps/web/src/components/modules-settings.tsx
 #: apps/web/src/components/onboarding/server-checklist.tsx
 msgid "On"
 msgstr "On"
@@ -13290,6 +13451,10 @@ msgstr "One goal"
 msgid "One goal (optional)"
 msgstr "One goal (optional)"
 
+#: apps/web/src/routes/_auth/exports.tsx
+msgid "One JSON file for another health app."
+msgstr "One JSON file for another health app."
+
 #: apps/web/src/routes/_auth/-goal-editor.tsx
 msgid "One of my trackers"
 msgstr "One of my trackers"
@@ -13303,9 +13468,12 @@ msgid "One-time target"
 msgstr "One-time target"
 
 #: apps/native/app/(drawer)/sharing.tsx
-#: apps/web/src/routes/_auth/sharing.tsx
 msgid "Only org owners can invite or remove members."
 msgstr "Only org owners can invite or remove members."
+
+#: apps/web/src/routes/_auth/sharing.tsx
+msgid "Only owners can invite or remove people."
+msgstr "Only owners can invite or remove people."
 
 #: packages/api/src/presenters/nutrition-templates.ts
 msgid "Only recipe details needed to create a draft are retained. Steps, photos and stories are not saved."
@@ -13341,6 +13509,10 @@ msgstr "Only you can see these photos. Location, camera and other hidden details
 msgid "Only you can see these photos. Workspace owners and other members cannot. Location, camera and other hidden details are removed before a photo is stored."
 msgstr "Only you can see these photos. Workspace owners and other members cannot. Location, camera and other hidden details are removed before a photo is stored."
 
+#: apps/web/src/routes/_auth/clinical.tsx
+msgid "Onset at {age}"
+msgstr "Onset at {age}"
+
 #: apps/native/app/(drawer)/exports.tsx
 #: apps/native/app/(drawer)/trackers.tsx
 #: apps/native/app/quick-log.tsx
@@ -13374,7 +13546,7 @@ msgid "Open Goals"
 msgstr "Open Goals"
 
 #: apps/native/app/(drawer)/settings/telegram.tsx
-#: apps/web/src/routes/_auth/settings/telegram.tsx
+#: apps/web/src/components/telegram-channel.tsx
 msgid "Open in Telegram"
 msgstr "Open in Telegram"
 
@@ -13413,7 +13585,7 @@ msgid "Open source URL"
 msgstr "Open source URL"
 
 #: apps/native/app/(drawer)/settings/telegram.tsx
-#: apps/web/src/routes/_auth/settings/telegram.tsx
+#: apps/web/src/components/telegram-channel.tsx
 msgid "Open the link in Telegram and press Start. This page updates once the chat is connected."
 msgstr "Open the link in Telegram and press Start. This page updates once the chat is connected."
 
@@ -13445,6 +13617,10 @@ msgstr "Opening…"
 #: apps/native/components/health-sync-settings.tsx
 msgid "Opens {sourceName} permissions"
 msgstr "Opens {sourceName} permissions"
+
+#: apps/web/src/components/telegram-channel.tsx
+msgid "Opens Telegram. Press Start in the chat with the OpenValens bot."
+msgstr "Opens Telegram. Press Start in the chat with the OpenValens bot."
 
 #: apps/native/components/date-field.tsx
 msgid "Opens the date picker"
@@ -13654,6 +13830,10 @@ msgstr "Overview"
 msgid "owner"
 msgstr "owner"
 
+#: apps/web/src/components/invite-dialog.tsx
+msgid "Owner"
+msgstr "Owner"
+
 #. Protein, one letter
 #: packages/api/src/presenters/nutrition-diary.ts
 msgctxt "protein letter"
@@ -13846,9 +14026,12 @@ msgstr "Pending"
 
 #: apps/native/app/(drawer)/invitations.tsx
 #: apps/native/app/(drawer)/sharing.tsx
-#: apps/web/src/routes/_auth/sharing.tsx
 msgid "Pending invitations"
 msgstr "Pending invitations"
+
+#: apps/web/src/routes/_auth/sharing.tsx
+msgid "People"
+msgstr "People"
 
 #: apps/web/src/components/admin-ai-usage.tsx
 msgid "People using AI"
@@ -14205,6 +14388,7 @@ msgid "Prefer not to say"
 msgstr "Prefer not to say"
 
 #: apps/native/app/(drawer)/settings.tsx
+#: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Preferences"
 msgstr "Preferences"
 
@@ -14234,7 +14418,6 @@ msgid "Prepare export"
 msgstr "Prepare export"
 
 #: apps/native/components/complete-export-card.tsx
-#: apps/web/src/components/complete-export-card.tsx
 msgid "Prepare one ZIP file with your JSON records and stored attachments."
 msgstr "Prepare one ZIP file with your JSON records and stored attachments."
 
@@ -14333,6 +14516,10 @@ msgstr "Primary: {primaryNames}"
 #: apps/web/src/routes/_auth/exports.tsx
 msgid "Printable page"
 msgstr "Printable page"
+
+#: apps/web/src/routes/_auth/settings/index.tsx
+msgid "Privacy & data"
+msgstr "Privacy & data"
 
 #: packages/api/src/presenters/onboarding.ts
 msgid "Privacy choices"
@@ -14893,10 +15080,8 @@ msgstr "Recorded activity energy"
 msgid "Recorded evidence"
 msgstr "Recorded evidence"
 
-#. placeholder {0}: new Date(status.data.acceptedAt).toLocaleDateString()
 #. placeholder {0}: new Date(status.data.acceptedAt).toLocaleDateString(i18n.locale)
 #: apps/native/app/(drawer)/settings.tsx
-#: apps/web/src/components/health-data-consent-status.tsx
 msgid "Recorded on {0}."
 msgstr "Recorded on {0}."
 
@@ -15411,6 +15596,7 @@ msgstr "Retired version"
 #: apps/web/src/components/profile-summary-card.tsx
 #: apps/web/src/components/reference-comparisons-card.tsx
 #: apps/web/src/components/sign-in-methods-section.tsx
+#: apps/web/src/components/telegram-channel.tsx
 #: apps/web/src/components/wearable-devices-view.tsx
 #: apps/web/src/components/whats-new-changelog.tsx
 #: apps/web/src/components/workout-routines.tsx
@@ -15434,7 +15620,6 @@ msgstr "Retired version"
 #: apps/web/src/routes/_auth/settings/ai-apps.tsx
 #: apps/web/src/routes/_auth/settings/billing.tsx
 #: apps/web/src/routes/_auth/settings/index.tsx
-#: apps/web/src/routes/_auth/settings/telegram.tsx
 #: apps/web/src/routes/_auth/setup.$item.tsx
 #: apps/web/src/routes/_auth/sharing.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
@@ -15726,6 +15911,7 @@ msgstr "Ring history (steps, heart rate and sleep) syncs automatically while con
 msgid "Risk tolerance"
 msgstr "Risk tolerance"
 
+#: apps/web/src/components/invite-dialog.tsx
 #: apps/web/src/routes/_auth/sharing.tsx
 msgid "Role"
 msgstr "Role"
@@ -15870,6 +16056,7 @@ msgstr "Sauna"
 #: apps/native/components/routine-editor.tsx
 #: apps/native/components/workout-exercise-tools.tsx
 #: apps/native/lib/quick-log/picker.ts
+#: apps/web/src/components/display-name-field.tsx
 #: apps/web/src/components/onboarding/setup-steps.tsx
 #: apps/web/src/components/pain/pain-panel.tsx
 #: apps/web/src/components/product-settings-form.tsx
@@ -15877,7 +16064,6 @@ msgstr "Sauna"
 #: apps/web/src/components/wellness-profile-editor.tsx
 #: apps/web/src/routes/_auth/nutrition.tsx
 #: apps/web/src/routes/_auth/records/labs.tsx
-#: apps/web/src/routes/_auth/settings/index.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 #: packages/api/src/presenters/nutrition-targets.ts
@@ -16059,7 +16245,6 @@ msgstr "Save workout"
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/native/components/blood-pressure-section.tsx
 #: apps/web/src/components/wellness-profile-editor.tsx
-#: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Saved"
 msgstr "Saved"
 
@@ -16187,6 +16372,7 @@ msgstr "Saving photo…"
 #: apps/native/components/routine-editor.tsx
 #: apps/native/components/trackers/tracker-log-form.tsx
 #: apps/native/components/workout-routines.tsx
+#: apps/web/src/components/display-name-field.tsx
 #: apps/web/src/components/exercise-library.tsx
 #: apps/web/src/components/health-data-consent-prompt.tsx
 #: apps/web/src/components/log-food-sheet.tsx
@@ -16206,7 +16392,6 @@ msgstr "Saving photo…"
 #: apps/web/src/routes/_auth/nutrition.tsx
 #: apps/web/src/routes/_auth/private-measurements.tsx
 #: apps/web/src/routes/_auth/records/labs.tsx
-#: apps/web/src/routes/_auth/settings/index.tsx
 #: apps/web/src/routes/_auth/settings/nutrition.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
@@ -16253,6 +16438,10 @@ msgstr "Scanning is not available on this device. Type the barcode digits instea
 #: apps/web/src/routes/_auth/-goal-editor.tsx
 msgid "Schedule"
 msgstr "Schedule"
+
+#: packages/api/src/presenters/clinical-export.ts
+msgid "Scheduled events"
+msgstr "Scheduled events"
 
 #: apps/web/src/routes/_auth/supplements.tsx
 msgid "Schedules are reminders, so only the doses you record count as taken. A goal counts the day once, while every dose stays in your history. For a dose at another time, use the + button."
@@ -16409,9 +16598,12 @@ msgid "Select all in meal"
 msgstr "Select all in meal"
 
 #: apps/native/app/(drawer)/exports.tsx
-#: apps/web/src/routes/_auth/exports.tsx
 msgid "Select at least one domain."
 msgstr "Select at least one domain."
+
+#: apps/web/src/routes/_auth/exports.tsx
+msgid "Select at least one."
+msgstr "Select at least one."
 
 #: apps/native/components/nutrition-day-menu.tsx
 msgid "Select foods"
@@ -16473,12 +16665,12 @@ msgstr "Send an invitation to each person who should have an account."
 msgid "Send invitation"
 msgstr "Send invitation"
 
-#: apps/web/src/routes/_auth/sharing.tsx
+#: apps/web/src/components/invite-dialog.tsx
 msgid "Send invite"
 msgstr "Send invite"
 
 #: apps/native/app/(drawer)/settings/telegram.tsx
-#: apps/web/src/routes/_auth/settings/telegram.tsx
+#: apps/web/src/components/telegram-channel.tsx
 msgid "Send this message to this server's Telegram bot:"
 msgstr "Send this message to this server's Telegram bot:"
 
@@ -16501,6 +16693,10 @@ msgstr "Send this text, and nothing else, to {provider} now."
 #: apps/web/src/components/food-draft-panel.tsx
 msgid "Send this text, and nothing else, to {providerName} now."
 msgstr "Send this text, and nothing else, to {providerName} now."
+
+#: apps/web/src/components/insight-notifications-section.tsx
+msgid "Send to my phone (mobile app)"
+msgstr "Send to my phone (mobile app)"
 
 #: apps/web/src/components/admission-form.tsx
 msgid "Sending code…"
@@ -16697,14 +16893,10 @@ msgstr "Sets from {trainingFrom} to {trainingTo}"
 #: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/web/src/components/header.tsx
 #: apps/web/src/components/nav-links.ts
+#: apps/web/src/components/settings-back-link.tsx
 #: apps/web/src/components/user-menu.tsx
 #: apps/web/src/routes/_auth/cycle.tsx
-#: apps/web/src/routes/_auth/settings/ai-apps.tsx
-#: apps/web/src/routes/_auth/settings/billing.tsx
-#: apps/web/src/routes/_auth/settings/devices.tsx
 #: apps/web/src/routes/_auth/settings/index.tsx
-#: apps/web/src/routes/_auth/settings/modules.tsx
-#: apps/web/src/routes/_auth/settings/telegram.tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 msgid "Settings"
 msgstr "Settings"
@@ -16712,6 +16904,10 @@ msgstr "Settings"
 #: apps/native/components/health-data-consent-prompt.tsx
 msgid "Settings and account deletion"
 msgstr "Settings and account deletion"
+
+#: apps/web/src/routes/_auth/settings/index.tsx
+msgid "Settings categories"
+msgstr "Settings categories"
 
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Settings saved."
@@ -16753,6 +16949,10 @@ msgstr "Several entries in a day are combined the way this tracker combines them
 msgid "Sex for reference tables is not available: {reason, select, not_provided {You haven't added this yet.} declined {You chose not to share this.} not_applicable {You said neither option fits you.} adult_confirmation_required {This is only available after you confirm you are 18 or older.} other {Your birth year falls on the edge of two age bands.}} Items published for one sex say so instead of guessing."
 msgstr "Sex for reference tables is not available: {reason, select, not_provided {You haven't added this yet.} declined {You chose not to share this.} not_applicable {You said neither option fits you.} adult_confirmation_required {This is only available after you confirm you are 18 or older.} other {Your birth year falls on the edge of two age bands.}} Items published for one sex say so instead of guessing."
 
+#: apps/web/src/components/wellness-profile-editor.tsx
+msgid "Sex: {decline}"
+msgstr "Sex: {decline}"
+
 #. safety
 #. safety
 #. safety
@@ -16760,6 +16960,10 @@ msgstr "Sex for reference tables is not available: {reason, select, not_provided
 #: apps/web/src/components/analytics-consent-section.tsx
 msgid "Share optional usage analytics"
 msgstr "Share optional usage analytics"
+
+#: apps/web/src/routes/_auth/sharing.tsx
+msgid "Share this health record with family or a coach."
+msgstr "Share this health record with family or a coach."
 
 #: apps/native/components/trackers/tracker-editor.tsx
 #: apps/web/src/components/trackers/tracker-editor.tsx
@@ -17250,6 +17454,10 @@ msgstr "Sleep records"
 msgid "Sleep session"
 msgstr "Sleep session"
 
+#: apps/web/src/routes/_auth/exports.tsx
+msgid "Sleep, activity, vitals, cycle and meals are in the full backup below."
+msgstr "Sleep, activity, vitals, cycle and meals are in the full backup below."
+
 #: packages/api/src/presenters/body-map.ts
 msgid "Slightly higher"
 msgstr "Slightly higher"
@@ -17426,6 +17634,10 @@ msgstr "SpO₂ {avg}, lowest {0}"
 #: apps/web/src/routes/_auth/cycle.tsx
 msgid "Spotting"
 msgstr "Spotting"
+
+#: apps/web/src/routes/_auth/exports.tsx
+msgid "Spreadsheets (CSV)"
+msgstr "Spreadsheets (CSV)"
 
 #: apps/native/app/(drawer)/records/sleep.tsx
 msgid "Stages"
@@ -18188,7 +18400,6 @@ msgid "Tell me more about this: {0}"
 msgstr "Tell me more about this: {0}"
 
 #: apps/native/app/(drawer)/settings.tsx
-#: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Template"
 msgstr "Template"
 
@@ -18196,6 +18407,11 @@ msgstr "Template"
 #: packages/api/src/presenters/workouts.ts
 msgid "Tennis"
 msgstr "Tennis"
+
+#. placeholder {0}: status.data.currentVersion
+#: apps/web/src/components/health-data-consent-status.tsx
+msgid "Terms version {0}."
+msgstr "Terms version {0}."
 
 #: apps/web/src/components/billing-plan-view.tsx
 msgid "Thank you. Your plan shows here as soon as Stripe confirms the payment."
@@ -18708,6 +18924,10 @@ msgstr "The weekly insights email is off. You can turn it on again in Settings."
 msgid "The widget logs only to your own record, so nothing was logged here. Pick what to log, or switch to your own workspace."
 msgstr "The widget logs only to your own record, so nothing was logged here. Pick what to log, or switch to your own workspace."
 
+#: apps/web/src/routes/_auth/settings/ai-apps.tsx
+msgid "The workspace owner can turn them on."
+msgstr "The workspace owner can turn them on."
+
 #. safety
 #. safety
 #: apps/native/components/ai-section.tsx
@@ -18778,10 +18998,18 @@ msgstr "These terms have been updated. Review them and confirm again."
 msgid "They can no longer use it to join. You can send a new one later."
 msgstr "They can no longer use it to join. You can send a new one later."
 
+#: apps/web/src/components/invite-dialog.tsx
+msgid "They get an email and accept it in OpenValens."
+msgstr "They get an email and accept it in OpenValens."
+
 #: apps/native/utils/sharing-confirm.ts
 #: apps/web/src/components/sharing-confirm-dialog.tsx
 msgid "They lose access to this workspace straight away. You can invite them again later."
 msgstr "They lose access to this workspace straight away. You can invite them again later."
+
+#: apps/web/src/components/invite-dialog.tsx
+msgid "They see this health record, except your workouts, sleep and body measurements, which stay private to you."
+msgstr "They see this health record, except your workouts, sleep and body measurements, which stay private to you."
 
 #: apps/native/app/(drawer)/private-measurements.tsx
 #: apps/web/src/routes/_auth/private-measurements.tsx
@@ -18891,8 +19119,11 @@ msgstr "This erases the tracker and all of its entries. Type <0>{0}</0> to confi
 msgid "This export has expired. Request a new one if you still need it."
 msgstr "This export has expired. Request a new one if you still need it."
 
-#: apps/native/components/complete-export-card.tsx
 #: apps/web/src/components/complete-export-card.tsx
+msgid "This export is too large to prepare. Try the exports above."
+msgstr "This export is too large to prepare. Try the exports above."
+
+#: apps/native/components/complete-export-card.tsx
 msgid "This export is too large to prepare. Try the exports below."
 msgstr "This export is too large to prepare. Try the exports below."
 
@@ -19091,18 +19322,18 @@ msgstr "This optional feature is off by default. Turning it on lets you record w
 
 #. safety
 #: apps/web/src/routes/_auth/settings/index.tsx
-msgid "This permanently deletes your account and {rows} stored rows across {organizationCount} health records ({organizationNames}). It can't be undone."
-msgstr "This permanently deletes your account and {rows} stored rows across {organizationCount} health records ({organizationNames}). It can't be undone."
+msgid "This permanently deletes your account and all {rows} records across {organizationCount} health records ({organizationNames}). It can't be undone."
+msgstr "This permanently deletes your account and all {rows} records across {organizationCount} health records ({organizationNames}). It can't be undone."
 
 #. safety
 #: apps/web/src/routes/_auth/settings/index.tsx
-msgid "This permanently deletes your account and {rows} stored rows across {organizationCount} health records. It can't be undone."
-msgstr "This permanently deletes your account and {rows} stored rows across {organizationCount} health records. It can't be undone."
+msgid "This permanently deletes your account and all {rows} records in your health record. It can't be undone."
+msgstr "This permanently deletes your account and all {rows} records in your health record. It can't be undone."
 
 #. safety
 #: apps/web/src/routes/_auth/settings/index.tsx
-msgid "This permanently deletes your account and {rows} stored rows across your health record ({organizationNames}). It can't be undone."
-msgstr "This permanently deletes your account and {rows} stored rows across your health record ({organizationNames}). It can't be undone."
+msgid "This permanently deletes your account and all {rows} records. It can't be undone."
+msgstr "This permanently deletes your account and all {rows} records. It can't be undone."
 
 #: apps/native/app/server.tsx
 msgid "This phone uses this server now"
@@ -19250,6 +19481,10 @@ msgstr "This workspace's OpenValens Cloud access has ended. Its records are stil
 msgctxt "pain type"
 msgid "Throbbing"
 msgstr "Throbbing"
+
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "Tick both boxes above to subscribe."
+msgstr "Tick both boxes above to subscribe."
 
 #: apps/web/src/components/trackers/tracker-log-form.tsx
 #: packages/api/src/presenters/log-kinds.ts
@@ -19730,6 +19965,10 @@ msgstr "Turn on the weekly email"
 #: apps/web/src/components/ai-consent-card.tsx
 msgid "Turn on to let AI features process your data."
 msgstr "Turn on to let AI features process your data."
+
+#: apps/web/src/routes/_auth/settings/ai-apps.tsx
+msgid "Turn them on in Settings"
+msgstr "Turn them on in Settings"
 
 #. safety
 #: apps/web/src/routes/_auth/private-measurements.tsx
@@ -20657,13 +20896,16 @@ msgstr "Weekly tracking starts next Monday."
 msgid "Weeks on target"
 msgstr "Weeks on target"
 
+#: packages/api/src/presenters/clinical-export.ts
+msgid "Weigh-ins"
+msgstr "Weigh-ins"
+
 #: apps/native/app/(drawer)/(tabs)/body.tsx
 #: apps/native/app/(drawer)/(tabs)/index.tsx
 #: apps/native/app/(drawer)/private-measurements.tsx
 #: apps/web/src/routes/_auth/body.tsx
 #: apps/web/src/routes/_auth/dashboard.tsx
 #: apps/web/src/routes/_auth/private-measurements.tsx
-#: packages/api/src/presenters/clinical-export.ts
 #: packages/api/src/presenters/cockpit.ts
 #: packages/api/src/presenters/insights.ts
 #: packages/api/src/presenters/manual-entry.ts
@@ -20751,6 +20993,10 @@ msgstr "What needs attention today, followed by your longer-term progress."
 msgid "What public-health authorities in your region publish for people of your age and sex, with the source of each item. This is general public-health information, not personal medical advice, and it may not apply to you. Talk to your clinician about what is right for you."
 msgstr "What public-health authorities in your region publish for people of your age and sex, with the source of each item. This is general public-health information, not personal medical advice, and it may not apply to you. Talk to your clinician about what is right for you."
 
+#: apps/web/src/components/display-name-field.tsx
+msgid "What should we call you?"
+msgstr "What should we call you?"
+
 #: apps/web/src/components/ai-app-key-form.tsx
 #: apps/web/src/components/oauth-consent-view.tsx
 msgid "What the app may add"
@@ -20761,11 +21007,16 @@ msgstr "What the app may add"
 msgid "What the app may read"
 msgstr "What the app may read"
 
+#: apps/web/src/routes/_auth/settings/index.tsx
+msgid "What the coach plans around. You can change it at any time."
+msgstr "What the coach plans around. You can change it at any time."
+
 #. safety
 #: packages/api/src/presenters/ai-apps.ts
 msgid "What they read includes data synced from Apple Health or Health Connect: steps, heart rate, sleep, weight, body composition, workouts, mindfulness and daily mood."
 msgstr "What they read includes data synced from Apple Health or Health Connect: steps, heart rate, sleep, weight, body composition, workouts, mindfulness and daily mood."
 
+#: apps/web/src/routes/_auth/exports.tsx
 #: packages/api/src/presenters/insights.ts
 msgid "What to include"
 msgstr "What to include"
@@ -20983,6 +21234,10 @@ msgstr "Yes or no"
 msgid "Yes, I'm 18 or older"
 msgstr "Yes, I'm 18 or older"
 
+#: apps/web/src/components/invite-dialog.tsx
+msgid "Yes, invite as owner"
+msgstr "Yes, invite as owner"
+
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 #: apps/native/utils/friendly.ts
 #: apps/web/src/utils/friendly.ts
@@ -20997,6 +21252,14 @@ msgstr "yesterday, {time}"
 #: apps/web/src/routes/_auth/coach/$conversationId.tsx
 msgid "You"
 msgstr "You"
+
+#: apps/web/src/components/health-data-consent-status.tsx
+msgid "You agreed to the current health data terms on {agreedOn}."
+msgstr "You agreed to the current health data terms on {agreedOn}."
+
+#: apps/web/src/components/health-data-consent-status.tsx
+msgid "You agreed to the current health data terms."
+msgstr "You agreed to the current health data terms."
 
 #: packages/email/src/templates/public-sign-up-existing.tsx
 msgid "You already have an OpenValens account"
@@ -21396,13 +21659,13 @@ msgstr "Your free OpenValens Cloud trial ends on {day}."
 msgid "Your free OpenValens Cloud trial has ended."
 msgstr "Your free OpenValens Cloud trial has ended."
 
+#: apps/web/src/routes/_auth/settings/index.tsx
+msgid "Your free trial and plan"
+msgstr "Your free trial and plan"
+
 #: apps/web/src/components/billing-plan-view.tsx
 msgid "Your free trial has ended. Choose a plan to keep adding and syncing records."
 msgstr "Your free trial has ended. Choose a plan to keep adding and syncing records."
-
-#: apps/web/src/routes/_auth/settings/index.tsx
-msgid "Your free trial, plan and invoices"
-msgstr "Your free trial, plan and invoices"
 
 #: apps/native/components/get-started-card.tsx
 msgid "Your goal"
@@ -21453,6 +21716,14 @@ msgstr "Your latest OpenValens Cloud payment didn’t go through."
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
 msgid "Your modules"
 msgstr "Your modules"
+
+#: apps/web/src/routes/_auth/exports.tsx
+msgid "Your most recent health events and measurements in one structured file that another health app can read. For everything, use the full backup."
+msgstr "Your most recent health events and measurements in one structured file that another health app can read. For everything, use the full backup."
+
+#: apps/web/src/routes/_auth/profile.tsx
+msgid "Your name"
+msgstr "Your name"
 
 #. placeholder {0}: props.label
 #: apps/web/src/components/ai-app-key-form.tsx
@@ -21606,11 +21877,6 @@ msgstr "Your role in this workspace can't add entries. You can still look around
 #: apps/native/app/(drawer)/sharing.tsx
 msgid "Your role: {0}"
 msgstr "Your role: {0}"
-
-#. placeholder {0}: codeLabel(ROLE_LABELS, me.data.role)
-#: apps/web/src/routes/_auth/sharing.tsx
-msgid "Your role: <0>{0}</0>"
-msgstr "Your role: <0>{0}</0>"
 
 #: packages/api/src/presenters/plain-water.ts
 msgid "Your saved amount is hidden. Enter a new amount to replace it."

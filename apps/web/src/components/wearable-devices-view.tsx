@@ -20,7 +20,8 @@ import {
 } from "@openvalens/ui/components/alert-dialog";
 import { Button } from "@openvalens/ui/components/button";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
-import { CircleCheck, Watch } from "lucide-react";
+import { PHONE_APP_STORES } from "@openvalens/api/presenters/onboarding";
+import { CircleCheck, Smartphone, Watch } from "lucide-react";
 
 import { EmptyState, ErrorState, StatusPill, type StatusTone, ToneIcon } from "@/components/page";
 
@@ -123,6 +124,7 @@ export function WearableDevicesView(props: WearableDevicesViewProps) {
                 Health or Health Connect in the mobile app.
               </Trans>
             }
+            action={<PhoneAppStoreLinks />}
           />
         ) : (
           <EmptyState
@@ -134,6 +136,7 @@ export function WearableDevicesView(props: WearableDevicesViewProps) {
                 Health and Health Connect.
               </Trans>
             }
+            action={<PhoneAppStoreLinks />}
           />
         )
       ) : (
@@ -332,5 +335,21 @@ function ProviderCard({
         </div>
       ) : null}
     </li>
+  );
+}
+
+/** #settings-devices-2: where to get the phone app that syncs Apple Health and Health Connect. */
+function PhoneAppStoreLinks() {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {PHONE_APP_STORES.map((store) => (
+        <Button key={store.id} asChild variant="outline" size="sm">
+          <a href={store.url} target="_blank" rel="noreferrer">
+            <Smartphone aria-hidden="true" />
+            {store.label}
+          </a>
+        </Button>
+      ))}
+    </div>
   );
 }

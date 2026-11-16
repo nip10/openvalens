@@ -46,6 +46,24 @@ export type BillingPlanViewProps = {
   onManage: () => void;
 };
 
+/**
+ * #settings-billing-2: what the annual plan saves against twelve monthly
+ * payments, or null when a price is missing, in another currency or not
+ * cheaper.
+ */
+export function annualSaving(prices: BillingStatus["prices"]): {
+  percent: number;
+  perMonth: NonNullable<BillingPrice>;
+} | null {
+  const { monthly, annual } = prices;
+  if (!monthly || !annual || monthly.currency !== annual.currency) return null;
+  const yearOfMonths = monthly.amount * 12;
+  if (yearOfMonths <= 0 || annual.amount >= yearOfMonths) return null;
+  const percent = Math.round((1 - annual.amount / yearOfMonths) * 100);
+  if (percent < 1) return null;
+  return { percent, perMonth: { ...annual, amount: Math.round(annual.amount / 12) } };
+}
+
 const TONE: Record<BillingStatus["status"], StatusTone> = {
   none: "neutral",
   trialing: "good",
@@ -288,6 +306,8 @@ export function BillingPlanView({
           <SettingsGroup>
             {(["monthly", "annual"] as const).map((plan) => {
               const amount = money(status.prices[plan]);
+              const saving = plan === "annual" ? annualSaving(status.prices) : null;
+              const perMonth = saving ? money(saving.perMonth) : null;
               return (
                 <SettingsRow
                   key={plan}
@@ -297,7 +317,9 @@ export function BillingPlanView({
                     amount
                       ? plan === "monthly"
                         ? t`${amount} per month`
-                        : t`${amount} per year`
+                        : saving && perMonth
+                          ? t`${amount} per year (${perMonth} a month, save ${saving.percent}%)`
+                          : t`${amount} per year`
                       : undefined
                   }
                 >
@@ -320,6 +342,13 @@ export function BillingPlanView({
               );
             })}
           </SettingsGroup>
+          {status.checkoutAcknowledgement &&
+          (!acceptedImmediateStart || !acceptedWithdrawalAcknowledgement) ? (
+            // #settings-billing-0: say why Subscribe can't be pressed yet.
+            <p className="mt-3 text-sm text-ink-3">
+              <Trans>Tick both boxes above to subscribe.</Trans>
+            </p>
+          ) : null}
         </Section>
       ) : null}
 

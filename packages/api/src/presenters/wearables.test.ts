@@ -26,6 +26,15 @@ describe("wearables presenter", () => {
     );
   });
 
+  test("callback notice: a failure on OpenValens Cloud names no server operator", () => {
+    expect(englishI18n._(wearableCallbackNotice("failed", "Oura")!.message)).toInclude(
+      "server operator",
+    );
+    expect(
+      englishI18n._(wearableCallbackNotice("failed", "Oura", { cloud: true })!.message),
+    ).not.toInclude("server operator");
+  });
+
   test("callback notice: unknown or missing status yields nothing", () => {
     expect(wearableCallbackNotice(undefined, "Oura")).toBeNull();
     expect(wearableCallbackNotice("<script>", "Oura")).toBeNull();
