@@ -262,7 +262,7 @@ export function BillingPlanView({
               return (
                 <label
                   key={plan}
-                  className={`sheet flex min-h-24 cursor-pointer items-start gap-3 p-4 outline-2 -outline-offset-2 transition-colors duration-[var(--dur-short)] has-[:focus-visible]:outline-ring ${
+                  className={`sheet flex cursor-pointer items-start gap-3 p-4 outline-2 -outline-offset-2 transition-colors duration-[var(--dur-short)] has-[:focus-visible]:outline-ring ${
                     checked ? "outline-signal" : "outline-transparent hover:bg-paper-2"
                   }`}
                 >

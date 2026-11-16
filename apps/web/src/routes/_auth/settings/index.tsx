@@ -329,6 +329,7 @@ function SettingsPage() {
   const hash = useLocation({ select: (location) => location.hash });
   const chosen = settingsPaneFor(categories, hash);
   const pane = chosen ?? categories[0]!;
+  useKeepAnchorInView(chosen && hash !== chosen.id ? hash : null);
 
   return (
     <Page>
@@ -426,6 +427,38 @@ function SettingsPage() {
       </div>
     </Page>
   );
+}
+
+/**
+ * A link to a block inside a pane (`#delete-account`) lands on it even while
+ * the sections above it are still loading and growing: for a moment after
+ * opening, the block is scrolled back to the top until the person scrolls.
+ */
+function useKeepAnchorInView(anchor: string | null) {
+  useEffect(() => {
+    if (!anchor || typeof ResizeObserver === "undefined") return;
+    const target = document.getElementById(anchor);
+    const pane = target?.closest("section");
+    if (!target || !pane) return;
+    const reveal = () => target.scrollIntoView({ block: "start" });
+    reveal();
+    // After the router's own scroll handling for the navigation has run.
+    const settle = window.setTimeout(reveal, 150);
+    const observer = new ResizeObserver(reveal);
+    observer.observe(pane);
+    const stop = () => {
+      observer.disconnect();
+      window.clearTimeout(settle);
+    };
+    const timer = window.setTimeout(stop, 2000);
+    const events = ["wheel", "touchstart", "keydown"] as const;
+    for (const name of events) window.addEventListener(name, stop, { once: true, passive: true });
+    return () => {
+      stop();
+      window.clearTimeout(timer);
+      for (const name of events) window.removeEventListener(name, stop);
+    };
+  }, [anchor]);
 }
 
 /** #settings-5 — link-out rows in one card with no heading above, so each title shows once. */
