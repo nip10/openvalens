@@ -236,6 +236,8 @@ export function LogFab({ className }: { className?: string }) {
   const subject = logTargetLabel(current);
   const what = subject ? i18n._(subject) : null;
   const label = what ? t`Log: ${what}` : t`Log something`;
+  // Hidden while a modal (dialog, sheet, the palette itself) holds the page: Radix marks <body>
+  // with data-scroll-locked, and dialogs sit below the sticky layer, so the "+" would cover them.
   return (
     <Button
       type="button"
@@ -246,7 +248,7 @@ export function LogFab({ className }: { className?: string }) {
       title={label}
       onClick={() => open()}
       className={cn(
-        "fixed right-[max(1.25rem,calc(env(safe-area-inset-right)+1rem))] bottom-[max(1.25rem,calc(env(safe-area-inset-bottom)+1rem))] z-[var(--z-sticky-nav)] size-14 hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0 [&_svg:not([class*='size-'])]:size-6",
+        "fixed right-[max(1.25rem,calc(env(safe-area-inset-right)+1rem))] bottom-[max(1.25rem,calc(env(safe-area-inset-bottom)+1rem))] z-[var(--z-sticky-nav)] size-14 hover:-translate-y-0.5 [body[data-scroll-locked]_&]:hidden motion-reduce:transition-none motion-reduce:hover:translate-y-0 [&_svg:not([class*='size-'])]:size-6",
         className,
       )}
     >
