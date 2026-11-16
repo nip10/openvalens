@@ -37,7 +37,7 @@ import { Archive, ArchiveRestore, Bookmark, Check, Pencil, Plus, Search } from "
 import { toast } from "sonner";
 
 import { nativeSelectClass } from "@/components/food-classes";
-import { LogDialog } from "@/components/log-dialog";
+import { FormDialog } from "@/components/form-dialog";
 import {
   EmptyState,
   ErrorState,
@@ -342,7 +342,7 @@ function FoodsPage() {
         )}
       </Section>
 
-      <LogDialog
+      <FormDialog
         open={editing !== null}
         onOpenChange={(open) => {
           if (!open) setEditing(null);
@@ -373,7 +373,7 @@ function FoodsPage() {
             announce={setMessage}
           />
         ) : null}
-      </LogDialog>
+      </FormDialog>
     </Page>
   );
 }

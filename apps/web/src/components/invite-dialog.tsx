@@ -7,7 +7,7 @@ import { ShieldAlert } from "lucide-react";
 import { useId, useState } from "react";
 import { toast } from "sonner";
 
-import { LogDialog } from "@/components/log-dialog";
+import { FormDialog } from "@/components/form-dialog";
 import { orpc } from "@/utils/orpc";
 
 export type InviteRole = "member" | "owner";
@@ -180,7 +180,7 @@ export function InviteForm({
   );
 }
 
-/** {@link InviteForm} in a {@link LogDialog} (a bottom sheet on phones), wired to `sharing.createInvitation`. */
+/** {@link InviteForm} in a {@link FormDialog} (a bottom sheet on phones), wired to `sharing.createInvitation`. */
 export function InviteDialog({
   open,
   onOpenChange,
@@ -213,7 +213,7 @@ export function InviteDialog({
   };
 
   return (
-    <LogDialog
+    <FormDialog
       open={open}
       onOpenChange={close}
       title={<Trans>Invite someone</Trans>}
@@ -228,6 +228,6 @@ export function InviteDialog({
           onDone={() => close(false)}
         />
       ) : null}
-    </LogDialog>
+    </FormDialog>
   );
 }
