@@ -5,7 +5,12 @@ import {
   displayLabRange,
   formatLabDate,
   formatLabRange,
+  formatLabRangeShort,
   formatLabValue,
+  groupLabMarkersByPanel,
+  LAB_PANEL_LABELS,
+  LAB_PANELS,
+  labMarkerPanel,
   labRangeLine,
   labRangePosition,
   labSparkline,
@@ -296,5 +301,74 @@ describe("labRangePosition", () => {
       }),
     ).toBeNull();
     expect(labRangePosition(Number.NaN, "ng/mL", between)).toBeNull();
+  });
+});
+
+describe("formatLabRangeShort", () => {
+  test("one pattern for every kind, without the reading's unit", () => {
+    const unit = "ng/mL";
+    const base = { unit, converted: false } as const;
+    expect(
+      formatLabRangeShort(englishI18n, { ...base, kind: "between", low: "30", high: "100" }, unit),
+    ).toBe("Range 30–100");
+    expect(formatLabRangeShort(englishI18n, { ...base, kind: "upTo", high: "100" }, unit)).toBe(
+      "Range up to 100",
+    );
+    expect(formatLabRangeShort(englishI18n, { ...base, kind: "from", low: "50" }, unit)).toBe(
+      "Range from 50",
+    );
+    expect(
+      formatLabRangeShort(
+        englishI18n,
+        { kind: "text", text: "< 100", unit: "", converted: false },
+        unit,
+      ),
+    ).toBe("Range < 100");
+  });
+
+  test("keeps the range's unit when it differs from the reading's", () => {
+    expect(
+      formatLabRangeShort(
+        englishI18n,
+        { kind: "between", low: "75", high: "250", unit: "nmol/L", converted: false },
+        "ng/mL",
+      ),
+    ).toBe("Range 75–250 nmol/L");
+  });
+});
+
+describe("lab panels", () => {
+  test("known marker codes map to their panel, unknown ones to Other", () => {
+    expect(labMarkerPanel("blood_marker_ldl")).toBe("lipids");
+    expect(labMarkerPanel("blood_marker_hba1c")).toBe("metabolic");
+    expect(labMarkerPanel("blood_marker_ferritin")).toBe("blood_count_iron");
+    expect(labMarkerPanel("blood_marker_hemoglobin")).toBe("blood_count_iron");
+    expect(labMarkerPanel("blood_marker_tsh")).toBe("thyroid");
+    expect(labMarkerPanel("blood_marker_vitamin_d")).toBe("vitamins");
+    expect(labMarkerPanel("blood_marker_hs_crp")).toBe("inflammation");
+    expect(labMarkerPanel("blood_marker_cortisol")).toBe("other");
+  });
+
+  test("groups in panel order and keeps the order inside a panel", () => {
+    const groups = groupLabMarkersByPanel([
+      { code: "blood_marker_vitamin_d" },
+      { code: "blood_marker_hdl" },
+      { code: "blood_marker_cortisol" },
+      { code: "blood_marker_ldl" },
+    ]);
+    expect(groups.map((group) => [group.panel, group.markers.map((m) => m.code)])).toEqual([
+      ["lipids", ["blood_marker_hdl", "blood_marker_ldl"]],
+      ["vitamins", ["blood_marker_vitamin_d"]],
+      ["other", ["blood_marker_cortisol"]],
+    ]);
+    expect(LAB_PANELS.map((panel) => englishI18n._(LAB_PANEL_LABELS[panel]))).toEqual([
+      "Lipids",
+      "Metabolic",
+      "Blood count and iron",
+      "Thyroid",
+      "Vitamins",
+      "Inflammation",
+      "Other",
+    ]);
   });
 });

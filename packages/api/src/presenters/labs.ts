@@ -281,3 +281,148 @@ export function labRangeMessage(range: LabRangeDisplay): MessageDescriptor {
 export function formatLabRange(i18n: I18n, range: LabRangeDisplay): string {
   return i18n._(labRangeMessage(range)).trim();
 }
+
+/**
+ * The short range line for a reading whose unit is already shown beside it:
+ * "Range 30–100", "Range up to 100", "Range from 50", or the lab's own text
+ * as printed ("Range < 100"). The range's unit is added only when it differs
+ * from the reading's. `labRangeMessage` keeps the long form for native.
+ */
+export function labRangeShortMessage(
+  range: LabRangeDisplay,
+  readingUnit: string | null | undefined,
+): MessageDescriptor {
+  const unit = sameUnit(range.unit, readingUnit) ? "" : range.unit;
+  switch (range.kind) {
+    case "between": {
+      const { low, high } = range;
+      return msg({ message: `Range ${low}–${high} ${unit}`, comment: "safety" });
+    }
+    case "upTo": {
+      const { high } = range;
+      return msg({ message: `Range up to ${high} ${unit}`, comment: "safety" });
+    }
+    case "from": {
+      const { low } = range;
+      return msg({ message: `Range from ${low} ${unit}`, comment: "safety" });
+    }
+    case "text": {
+      const { text } = range;
+      return msg({ message: `Range ${text} ${unit}`, comment: "safety" });
+    }
+  }
+}
+
+/** `labRangeShortMessage` in the active locale, without a trailing space. */
+export function formatLabRangeShort(
+  i18n: I18n,
+  range: LabRangeDisplay,
+  readingUnit: string | null | undefined,
+): string {
+  return i18n._(labRangeShortMessage(range, readingUnit)).trim();
+}
+
+/**
+ * The panels the labs screen groups markers under, in screen order. A static
+ * grouping by marker code, the way a lab report prints them; it says nothing
+ * about the values.
+ */
+export const LAB_PANELS = [
+  "lipids",
+  "metabolic",
+  "blood_count_iron",
+  "thyroid",
+  "vitamins",
+  "inflammation",
+  "other",
+] as const;
+export type LabPanel = (typeof LAB_PANELS)[number];
+
+export const LAB_PANEL_LABELS: Record<LabPanel, MessageDescriptor> = {
+  lipids: msg({ message: "Lipids", context: "lab panel" }),
+  metabolic: msg({ message: "Metabolic", context: "lab panel" }),
+  blood_count_iron: msg({ message: "Blood count and iron", context: "lab panel" }),
+  thyroid: msg({ message: "Thyroid", context: "lab panel" }),
+  vitamins: msg({ message: "Vitamins", context: "lab panel" }),
+  inflammation: msg({ message: "Inflammation", context: "lab panel" }),
+  other: msg({ message: "Other", context: "lab panel" }),
+};
+
+/** Marker codes (without `blood_marker_`) the app knows, by panel. */
+const PANEL_MARKERS: Record<Exclude<LabPanel, "other">, readonly string[]> = {
+  lipids: [
+    "total_cholesterol",
+    "cholesterol",
+    "ldl",
+    "hdl",
+    "non_hdl",
+    "triglycerides",
+    "apob",
+    "lipoprotein_a",
+  ],
+  metabolic: [
+    "glucose",
+    "hba1c",
+    "insulin",
+    "creatinine",
+    "egfr",
+    "urea",
+    "bun",
+    "uric_acid",
+    "alt",
+    "ast",
+    "ggt",
+    "alp",
+    "bilirubin",
+    "albumin",
+    "sodium",
+    "potassium",
+    "calcium",
+  ],
+  blood_count_iron: [
+    "hemoglobin",
+    "haemoglobin",
+    "hematocrit",
+    "rbc",
+    "wbc",
+    "platelets",
+    "mcv",
+    "ferritin",
+    "iron",
+    "transferrin",
+    "transferrin_saturation",
+    "tibc",
+  ],
+  thyroid: ["tsh", "free_t4", "ft4", "t4", "free_t3", "ft3", "t3"],
+  vitamins: ["vitamin_d", "vitamin_b12", "b12", "folate", "vitamin_b9"],
+  inflammation: ["hs_crp", "crp", "esr"],
+};
+
+const PANEL_BY_MARKER: ReadonlyMap<string, LabPanel> = new Map(
+  (Object.entries(PANEL_MARKERS) as [LabPanel, readonly string[]][]).flatMap(([panel, codes]) =>
+    codes.map((code) => [code, panel] as const),
+  ),
+);
+
+/** The panel a marker is listed under; "other" for a code the app doesn't know. */
+export function labMarkerPanel(code: string): LabPanel {
+  return PANEL_BY_MARKER.get(code.replace(/^blood_marker_/, "").toLowerCase()) ?? "other";
+}
+
+/**
+ * Markers grouped by panel in `LAB_PANELS` order, keeping the given order
+ * inside each panel. Empty panels are left out.
+ */
+export function groupLabMarkersByPanel<T extends { code: string }>(
+  markers: readonly T[],
+): { panel: LabPanel; markers: T[] }[] {
+  const byPanel = new Map<LabPanel, T[]>();
+  for (const marker of markers) {
+    const panel = labMarkerPanel(marker.code);
+    byPanel.set(panel, [...(byPanel.get(panel) ?? []), marker]);
+  }
+  return LAB_PANELS.flatMap((panel) => {
+    const rows = byPanel.get(panel);
+    return rows ? [{ panel, markers: rows }] : [];
+  });
+}

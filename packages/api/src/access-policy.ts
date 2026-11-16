@@ -235,6 +235,7 @@ export const PROCEDURE_ACCESS: Readonly<Record<string, ProcedureAccessClass>> = 
   "insights.unsubscribe": ALWAYS,
 
   "labs.latest": R,
+  "labs.history": R,
 
   // Phone sync: paused while ended (the app checks `access.status` first).
   "mobile.registerDevice": W,

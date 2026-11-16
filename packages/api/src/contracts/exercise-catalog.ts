@@ -5,6 +5,8 @@ export const exerciseCatalogSearchInput = z.strictObject({
   language: z.string().trim().min(2).max(16).optional(),
   muscleExternalId: z.string().trim().min(1).max(80).optional(),
   equipmentExternalId: z.string().trim().min(1).max(80).optional(),
+  /** Only exercises in the caller's own routines or logged sessions. */
+  mine: z.boolean().optional(),
   afterId: z.number().int().positive().optional(),
   limit: z.number().int().min(1).max(50).optional(),
 });
@@ -21,6 +23,9 @@ export const createCustomExerciseInput = z.strictObject({
   name: z.string().trim().min(1).max(200),
   language: z.string().trim().min(2).max(16),
   instructions: z.string().trim().max(5000).optional(),
+  /** Muscles and equipment picked from `exerciseCatalog.filters`, by their external ids. */
+  muscleExternalIds: z.array(z.string().trim().min(1).max(80)).max(20).optional(),
+  equipmentExternalIds: z.array(z.string().trim().min(1).max(80)).max(20).optional(),
 });
 
 export const addFromLibraryInput = z.strictObject({

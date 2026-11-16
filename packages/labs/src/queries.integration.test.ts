@@ -5,7 +5,7 @@ import { organization } from "@openvalens/db/schema/auth";
 import { metricDefinition, metricSample } from "@openvalens/db/schema/health-record";
 import { and, eq } from "drizzle-orm";
 
-import { listLabMarkerLatest } from "./queries";
+import { listLabMarkerHistory, listLabMarkerLatest } from "./queries";
 
 const url = process.env.LABS_TEST_DATABASE_URL;
 if (url) {
@@ -184,5 +184,27 @@ describe.skipIf(!url)("labs queries against disposable PostgreSQL", () => {
     });
     const markers = await listLabMarkerLatest(db, ORG_A, 5);
     expect(markers.find((m) => m.latestValue === 200)).toBeUndefined();
+  });
+
+  btest("history lists readings oldest first and drops the oldest past the limit", async () => {
+    const glucose = await defId("blood_marker_glucose");
+    const t0 = Date.now();
+    await db.insert(metricSample).values(
+      [110, 100, 95, 90].map((value, index) => ({
+        organizationId: ORG_A,
+        metricDefinitionId: glucose,
+        sampledAt: new Date(t0 - (4 - index) * 86_400_000),
+        numericValue: value,
+        dedupeHash: `hist-${index}`,
+      })),
+    );
+    const all = await listLabMarkerHistory(db, ORG_A, "blood_marker_glucose");
+    expect(all?.readings.map((r) => r.value)).toEqual([110, 100, 95, 90]);
+    expect(all?.truncated).toBe(false);
+    const limited = await listLabMarkerHistory(db, ORG_A, "blood_marker_glucose", 3);
+    expect(limited?.readings.map((r) => r.value)).toEqual([100, 95, 90]);
+    expect(limited?.truncated).toBe(true);
+    expect(await listLabMarkerHistory(db, ORG_A, "weight")).toBeNull();
+    expect(await listLabMarkerHistory(db, ORG_B, "blood_marker_hba1c")).toBeNull();
   });
 });

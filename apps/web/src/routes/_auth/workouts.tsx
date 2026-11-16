@@ -22,14 +22,6 @@ import {
   SelectValue,
 } from "@openvalens/ui/components/select";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@openvalens/ui/components/table";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
@@ -75,6 +67,7 @@ import { ModuleHiddenNote } from "@/components/module-hidden-note";
 import { AiAppWorkoutDrafts } from "@/components/ai-app-drafts";
 import { WorkoutSessionEditor, type WorkoutEditorValue } from "@/components/workout-session-editor";
 import { WorkoutRoutines, SaveWorkoutAsRoutine } from "@/components/workout-routines";
+import { routineLifts, WorkoutLifts } from "@/components/workout-lifts";
 import { FormDialog } from "@/components/form-dialog";
 import { useLogDialog } from "@/components/quick-log/log-launcher";
 import {
@@ -365,14 +358,95 @@ function WorkoutsPage() {
 
   const workoutSummary = summarizeWorkouts(workouts.data ?? []);
   const today = todayIso();
-  const recent = (workouts.data ?? []).slice(0, 9);
   const routineList = routines.data ?? [];
+  const lifts = routineLifts(routineList);
+  // The log is dense rows by week, newest first; weeks past the fourth fold away.
+  const weeks = sessionWeeks(workouts.data ?? []);
+  const recentWeeks = weeks.slice(0, 4);
+  const olderWeeks = weeks.slice(4);
   const weightUnit = units === "imperial" ? "lb" : "kg";
   const volumeLabel = (kg: number) =>
     `${Math.round(units === "imperial" ? kg * 2.2046226218 : kg).toLocaleString(i18n.locale)} ${weightUnit}`;
   const editingExisting = visibleEditing !== null && visibleSelected !== null;
   const editingRoutine =
     visibleEditing && !editingExisting ? sessionRoutineName(visibleEditing, routineList) : null;
+
+  /** One week of the log: its dates and totals, then a compact row per session. */
+  const renderWeek = (week: SessionWeek<(typeof weeks)[number]["sessions"][number]>) => {
+    const totals = summarizeWorkouts(week.sessions);
+    // A plain date: "Week of Today" would read oddly on a Monday.
+    const from = new Intl.DateTimeFormat(i18n.locale, {
+      day: "numeric",
+      month: "short",
+      timeZone: "UTC",
+    }).format(new Date(`${week.start}T00:00:00Z`));
+    return (
+      <section key={week.start} className="grid gap-2" aria-label={t`Week of ${from}`}>
+        <h3 className="flex flex-wrap items-baseline gap-x-2 font-body text-sm font-semibold tracking-normal text-ink-2">
+          <Trans>Week of {from}</Trans>
+          <span className="num font-normal text-ink-3">
+            {t`${plural(totals.count, { one: "# session", other: "# sessions" })}, ${totals.totalDurationLabel}`}
+          </span>
+        </h3>
+        <ul className="sheet grid divide-y divide-rule px-4 py-1">
+          {week.sessions.map((workout) => {
+            const rating = workout.effortRating;
+            const canRate =
+              rating === null &&
+              workout.canEdit === true &&
+              workout.ownership === "mine" &&
+              workout.id > 0 &&
+              canRateEffortToday(workout.date, today);
+            const routineName = sessionRoutineName(workout, routineList);
+            const typeLabel = _(workoutTypeLabel(workout.type));
+            const summary = workout.summary;
+            const meta = [
+              friendlyDate(i18n, workout.date),
+              routineName ? typeLabel : null,
+              workout.intensity ? _(INTENSITY_LABELS[workout.intensity]) : null,
+              rating !== null ? t`Effort ${rating}/10` : null,
+              summary && summary.exerciseCount > 0
+                ? t`${plural(summary.exerciseCount, { one: "# exercise", other: "# exercises" })}, ${plural(summary.setCount, { one: "# set", other: "# sets" })}`
+                : null,
+              summary && summary.volumeKg > 0 ? volumeLabel(summary.volumeKg) : null,
+            ].filter(Boolean);
+            return (
+              <li key={workout.id} className="grid gap-2 py-2.5">
+                <button
+                  type="button"
+                  className="-mx-2 flex items-center gap-3 rounded-2xl px-2 py-1 text-left transition-colors duration-[var(--dur-short)] hover:bg-paper-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                  onClick={() => setSelected(workout.id)}
+                  aria-label={t`View workout details`}
+                >
+                  <ToneIcon icon={workoutIcon(workout.type)} tone="steps" size="sm" />
+                  <span className="grid min-w-0 flex-1 gap-0.5">
+                    <span className="font-semibold break-words text-ink">
+                      {routineName ?? typeLabel}
+                    </span>
+                    <span className="text-sm text-ink-3">{meta.join(" · ")}</span>
+                    {workout.notes ? (
+                      <span className="line-clamp-1 text-sm break-words text-ink-3">
+                        {workout.notes}
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="num shrink-0 rounded-full bg-steps-soft px-2.5 py-1 text-sm font-semibold text-ink">
+                    <span className="sr-only">{t`Duration`}: </span>
+                    {workoutDurationLabel(workout.duration)}
+                  </span>
+                </button>
+                {canRate ? (
+                  <div className="pl-11">
+                    <RateEffort workoutId={workout.id} onSaved={reloadWorkouts} />
+                  </div>
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+    );
+  };
 
   return (
     <Page>
@@ -431,169 +505,18 @@ function WorkoutsPage() {
             description={<Trans>Start a routine, or log a session with the + button.</Trans>}
           />
         ) : (
-          <div className="grid gap-4">
-            <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {recent.map((workout) => {
-                const rating = workout.effortRating;
-                const canRate =
-                  rating === null &&
-                  workout.canEdit === true &&
-                  workout.ownership === "mine" &&
-                  workout.id > 0 &&
-                  canRateEffortToday(workout.date, today);
-                const routineName = sessionRoutineName(workout, routineList);
-                const typeLabel = _(workoutTypeLabel(workout.type));
-                const summary = workout.summary;
-                const meta = [
-                  friendlyDate(i18n, workout.date),
-                  workout.intensity ? _(INTENSITY_LABELS[workout.intensity]) : null,
-                  rating !== null ? t`Effort ${rating}/10` : null,
-                ].filter(Boolean);
-                return (
-                  <li key={workout.id} className="sheet flex min-w-0 flex-col gap-3 p-4">
-                    <button
-                      type="button"
-                      className="rounded-2xl text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-                      onClick={() => setSelected(workout.id)}
-                      aria-label={t`View workout details`}
-                    >
-                      <div className="flex items-start gap-3">
-                        <ToneIcon icon={workoutIcon(workout.type)} tone="steps" />
-                        <div className="grid min-w-0 flex-1 gap-0.5">
-                          {routineName ? (
-                            <span className="text-xs text-ink-3">{typeLabel}</span>
-                          ) : null}
-                          <span className="font-semibold break-words text-ink">
-                            {routineName ?? typeLabel}
-                          </span>
-                          <span className="text-sm text-ink-3">{meta.join(" · ")}</span>
-                        </div>
-                        <span className="num shrink-0 rounded-full bg-steps-soft px-2.5 py-1 text-sm font-semibold text-ink">
-                          <span className="sr-only">{t`Duration`}: </span>
-                          {workoutDurationLabel(workout.duration)}
-                        </span>
-                      </div>
-                    </button>
-                    {summary && summary.exerciseCount > 0 ? (
-                      <p className="text-sm text-ink-2">
-                        {t`${plural(summary.exerciseCount, { one: "# exercise", other: "# exercises" })}, ${plural(summary.setCount, { one: "# set", other: "# sets" })}`}
-                        {summary.volumeKg > 0 ? `, ${volumeLabel(summary.volumeKg)}` : ""}
-                      </p>
-                    ) : null}
-                    {workout.notes ? (
-                      <p className="line-clamp-2 text-sm break-words text-ink-3">{workout.notes}</p>
-                    ) : null}
-                    {canRate ? (
-                      <div className="mt-auto">
-                        <RateEffort workoutId={workout.id} onSaved={reloadWorkouts} />
-                      </div>
-                    ) : null}
-                  </li>
-                );
-              })}
-            </ul>
-            <Details summary={<Trans>Full log</Trans>}>
-              <div className="sheet min-w-0 px-2 pt-2 pb-1">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>
-                        <Trans>Date</Trans>
-                      </TableHead>
-                      <TableHead>
-                        <Trans>Session</Trans>
-                      </TableHead>
-                      <TableHead>
-                        <Trans>Intensity</Trans>
-                      </TableHead>
-                      <TableHead className="num">
-                        <Trans>Effort</Trans>
-                      </TableHead>
-                      <TableHead className="num">
-                        <Trans>Effort points</Trans>
-                      </TableHead>
-                      <TableHead className="num">
-                        <Trans>Duration</Trans>
-                      </TableHead>
-                      <TableHead>
-                        <Trans>Details</Trans>
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {workouts.data.map((workout) => {
-                      const rating = workout.effortRating;
-                      const points =
-                        rating !== null && workout.duration !== null && workout.duration > 0
-                          ? rating * workout.duration
-                          : null;
-                      const canRate =
-                        rating === null &&
-                        workout.canEdit === true &&
-                        workout.ownership === "mine" &&
-                        workout.id > 0 &&
-                        canRateEffortToday(workout.date, today);
-                      const routineName = sessionRoutineName(workout, routineList);
-                      return (
-                        <TableRow key={workout.id} className="align-top">
-                          <TableCell className="text-left whitespace-nowrap text-ink-3">
-                            {friendlyDate(i18n, workout.date)}
-                          </TableCell>
-                          <TableCell className="min-w-40 whitespace-normal">
-                            <span className="block font-medium text-ink">
-                              {routineName ?? _(workoutTypeLabel(workout.type))}
-                            </span>
-                            {workout.notes ? (
-                              <span className="block text-ink-3">{workout.notes}</span>
-                            ) : null}
-                          </TableCell>
-                          <TableCell className="text-ink-2">
-                            {workout.intensity ? (
-                              _(INTENSITY_LABELS[workout.intensity])
-                            ) : (
-                              <span className="text-ink-3">
-                                <Trans>No intensity</Trans>
-                              </span>
-                            )}
-                          </TableCell>
-                          <TableCell className="num">
-                            {rating !== null ? (
-                              `${rating}/10`
-                            ) : canRate ? (
-                              <div className="flex justify-end font-body">
-                                <RateEffort workoutId={workout.id} onSaved={reloadWorkouts} />
-                              </div>
-                            ) : (
-                              <span className="font-body text-ink-3">
-                                <Trans>Not rated</Trans>
-                              </span>
-                            )}
-                          </TableCell>
-                          <TableCell className="num">
-                            {points !== null ? points.toLocaleString(i18n.locale) : "–"}
-                          </TableCell>
-                          <TableCell className="num">
-                            {workoutDurationLabel(workout.duration)}
-                          </TableCell>
-                          <TableCell>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => setSelected(workout.id)}
-                            >
-                              <Trans>View details</Trans>
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-            </Details>
+          <div className="grid gap-5">
+            {recentWeeks.map(renderWeek)}
+            {olderWeeks.length > 0 ? (
+              <Details summary={<Trans>Older weeks</Trans>}>
+                <div className="grid gap-5">{olderWeeks.map(renderWeek)}</div>
+              </Details>
+            ) : null}
           </div>
         )}
       </Section>
+
+      <WorkoutLifts lifts={lifts} scope={scope} units={units} />
 
       {load.isPending ? (
         <div className="grid gap-4 sm:grid-cols-2" aria-hidden="true">
@@ -947,4 +870,25 @@ const WORKOUT_ICONS: Record<string, LucideIcon> = {
 
 function workoutIcon(type: string): LucideIcon {
   return WORKOUT_ICONS[type] ?? Activity;
+}
+
+export type SessionWeek<T> = { start: string; sessions: T[] };
+
+/**
+ * Sessions grouped by the week they fall in (weeks start on Monday), newest
+ * week first, keeping the given order inside a week. `start` is the Monday,
+ * as YYYY-MM-DD.
+ */
+export function sessionWeeks<T extends { date: string }>(sessions: readonly T[]): SessionWeek<T>[] {
+  const byWeek = new Map<string, T[]>();
+  for (const session of sessions) {
+    const day = new Date(`${session.date.slice(0, 10)}T00:00:00Z`);
+    if (Number.isNaN(day.getTime())) continue;
+    day.setUTCDate(day.getUTCDate() - ((day.getUTCDay() + 6) % 7));
+    const start = day.toISOString().slice(0, 10);
+    byWeek.set(start, [...(byWeek.get(start) ?? []), session]);
+  }
+  return [...byWeek.entries()]
+    .sort(([a], [b]) => b.localeCompare(a))
+    .map(([start, rows]) => ({ start, sessions: rows }));
 }

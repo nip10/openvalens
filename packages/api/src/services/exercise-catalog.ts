@@ -163,10 +163,30 @@ export function createExerciseCatalogService(
       language?: string;
       muscleExternalId?: string;
       equipmentExternalId?: string;
+      /** With `userId`: only exercises in this member's routines or logged sessions. */
+      mine?: boolean;
+      userId?: string;
       afterId?: number;
       limit?: number;
     }) {
       const filters = [catalogEligibility(input.organizationId)];
+      if (input.mine) {
+        // Without a member there is nothing of "yours" to match.
+        if (!input.userId) return [];
+        filters.push(
+          sql`${exercise.id} in (
+            select wre.exercise_id from workout_routine_exercise wre
+              join workout_routine wr on wr.id = wre.routine_id and wr.organization_id = wre.organization_id
+              where wr.organization_id = ${input.organizationId} and wr.user_id = ${input.userId}
+                and wre.exercise_id is not null
+            union
+            select we.exercise_id from workout_exercise we
+              join workout w on w.id = we.workout_id and w.organization_id = we.organization_id
+              where w.organization_id = ${input.organizationId} and w.user_id = ${input.userId}
+                and we.exercise_id is not null
+          )`,
+        );
+      }
       if (input.query) {
         const preferences = languagePreferences(input.language ?? "en");
         const locale = sql<string>`lower(replace(trim(${exerciseTranslation.languageCode}), '_', '-'))`;
@@ -274,12 +294,26 @@ export function createExerciseCatalogService(
       name: string;
       language: string;
       instructions?: string;
+      muscleExternalIds?: string[];
+      equipmentExternalIds?: string[];
     }) {
       const name = input.name.trim();
       const language = input.language.trim().replaceAll("_", "-").toLowerCase();
       const instructions = input.instructions?.trim() || null;
       const clientMutationId = input.clientMutationId?.toLowerCase();
-      const fingerprint = mutationFingerprint("create_custom", [name, language, instructions]);
+      const ids = (values: string[] | undefined) =>
+        [...new Set((values ?? []).map((value) => value.trim()).filter(Boolean))].sort();
+      const muscleIds = ids(input.muscleExternalIds);
+      const equipmentIds = ids(input.equipmentExternalIds);
+      // Requests without muscles or equipment keep the fingerprint they always had.
+      const fingerprint = mutationFingerprint("create_custom", [
+        name,
+        language,
+        instructions,
+        ...(muscleIds.length || equipmentIds.length
+          ? [`muscles:${muscleIds.join(",")}`, `equipment:${equipmentIds.join(",")}`]
+          : []),
+      ]);
       return db.transaction(async (tx) => {
         if (clientMutationId) {
           await tx.execute(
@@ -322,6 +356,59 @@ export function createExerciseCatalogService(
           await tx
             .insert(exerciseTranslation)
             .values({ exerciseId: created.id, languageCode: language, name, instructions });
+        // Muscles and equipment come from the ones the library already lists
+        // for this workspace (the filter options); an unknown id is skipped.
+        if (muscleIds.length) {
+          const muscles = await tx
+            .select({
+              externalId: exerciseMuscle.externalMuscleId,
+              name: min(exerciseMuscle.name),
+              location: min(exerciseMuscle.location),
+            })
+            .from(exerciseMuscle)
+            .innerJoin(exercise, eq(exercise.id, exerciseMuscle.exerciseId))
+            .where(
+              and(
+                catalogEligibility(input.organizationId),
+                inArray(exerciseMuscle.externalMuscleId, muscleIds),
+              ),
+            )
+            .groupBy(exerciseMuscle.externalMuscleId);
+          if (muscles.length)
+            await tx.insert(exerciseMuscle).values(
+              muscles.map((muscle) => ({
+                exerciseId: created.id,
+                externalMuscleId: muscle.externalId,
+                name: muscle.name!,
+                role: "primary" as const,
+                location: (muscle.location as "front" | "back" | null) ?? null,
+              })),
+            );
+        }
+        if (equipmentIds.length) {
+          const equipment = await tx
+            .select({
+              externalId: exerciseEquipment.externalEquipmentId,
+              name: min(exerciseEquipment.name),
+            })
+            .from(exerciseEquipment)
+            .innerJoin(exercise, eq(exercise.id, exerciseEquipment.exerciseId))
+            .where(
+              and(
+                catalogEligibility(input.organizationId),
+                inArray(exerciseEquipment.externalEquipmentId, equipmentIds),
+              ),
+            )
+            .groupBy(exerciseEquipment.externalEquipmentId);
+          if (equipment.length)
+            await tx.insert(exerciseEquipment).values(
+              equipment.map((item) => ({
+                exerciseId: created.id,
+                externalEquipmentId: item.externalId,
+                name: item.name!,
+              })),
+            );
+        }
         if (clientMutationId)
           await tx.insert(exerciseCatalogMutation).values({
             organizationId: input.organizationId,

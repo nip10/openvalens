@@ -14,7 +14,7 @@ import { Label } from "@openvalens/ui/components/label";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { type CSSProperties, useState } from "react";
+import { type CSSProperties, useRef, useState } from "react";
 import { CalendarHeart, Droplet, History, Lock, Rows3, Settings2 } from "lucide-react";
 
 import { FormDialog } from "@/components/form-dialog";
@@ -201,39 +201,123 @@ function useDayText() {
   };
 }
 
-/** One cycle as a row of day cells, aligned by day number across rows. */
-function DayStrip({
+const CELL = "h-5 rounded-[4px] sm:h-6";
+const TODAY_CELL = "outline-2 outline-offset-1 outline-ink";
+
+/**
+ * One cycle as a row of day cells, aligned by day number across rows. With
+ * `onPick`, tapping a day up to today opens the period form at that date. The
+ * strip is one tab stop: the arrow keys, Home and End move between its days
+ * and Enter or Space picks one, so the page is not 30 stops per cycle.
+ */
+export function DayStrip({
   strip,
   columns,
   label,
+  today,
+  onPick,
 }: {
   strip: CycleStrip;
   columns: number;
   label: string;
+  today: string;
+  onPick?: (date: string) => void;
 }) {
   const dayText = useDayText();
   const periodDays = strip.days.filter((day) => day.period).length;
   const { t } = useLingui();
   const summary = `${label}. ${t`${plural(periodDays, { one: "# period day logged", other: "# period days logged" })}`}`;
+  const pickable = strip.days.filter((day) => day.date <= today);
+  const [active, setActive] = useState<string | null>(null);
+  const cells = useRef(new Map<string, HTMLButtonElement>());
+  const grid = { gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` };
+
+  if (!onPick || pickable.length === 0)
+    return (
+      <div role="img" aria-label={summary} className="grid gap-0.5" style={grid}>
+        {strip.days.map((day) => (
+          <span
+            key={day.date}
+            title={dayText(day)}
+            className={day.today ? `${CELL} ${TODAY_CELL}` : CELL}
+            style={cellStyle(day)}
+          />
+        ))}
+      </div>
+    );
+
+  // The day that takes focus when the strip is tabbed to: the last one picked,
+  // else today, else the strip's last day so far.
+  const focusDate =
+    active && pickable.some((day) => day.date === active)
+      ? active
+      : (pickable.find((day) => day.today) ?? pickable.at(-1)!).date;
+  const move = (from: string, step: number | "first" | "last") => {
+    const index = pickable.findIndex((day) => day.date === from);
+    const next =
+      step === "first"
+        ? 0
+        : step === "last"
+          ? pickable.length - 1
+          : Math.min(pickable.length - 1, Math.max(0, index + step));
+    const date = pickable[next]!.date;
+    setActive(date);
+    cells.current.get(date)?.focus();
+  };
+
   return (
     <div
-      role="img"
-      aria-label={summary}
+      role="group"
+      aria-label={t`${summary}. Choose a day to log a period.`}
       className="grid gap-0.5"
-      style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+      style={grid}
     >
-      {strip.days.map((day) => (
-        <span
-          key={day.date}
-          title={dayText(day)}
-          className={
-            day.today
-              ? "h-5 rounded-[4px] outline-2 outline-offset-1 outline-ink sm:h-6"
-              : "h-5 rounded-[4px] sm:h-6"
-          }
-          style={cellStyle(day)}
-        />
-      ))}
+      {strip.days.map((day) => {
+        const text = dayText(day);
+        if (day.date > today)
+          return (
+            <span
+              key={day.date}
+              title={text}
+              aria-hidden="true"
+              className={CELL}
+              style={cellStyle(day)}
+            />
+          );
+        return (
+          <button
+            key={day.date}
+            ref={(node) => {
+              if (node) cells.current.set(day.date, node);
+              else cells.current.delete(day.date);
+            }}
+            type="button"
+            tabIndex={day.date === focusDate ? 0 : -1}
+            title={text}
+            aria-label={t`${text}. Log a period from this day.`}
+            aria-haspopup="dialog"
+            className={`${CELL} ${day.today ? TODAY_CELL : ""} cursor-pointer transition-[filter] duration-[var(--dur-short)] hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring`}
+            style={cellStyle(day)}
+            onFocus={() => setActive(day.date)}
+            onClick={() => onPick(day.date)}
+            onKeyDown={(event) => {
+              const step =
+                event.key === "ArrowRight" || event.key === "ArrowDown"
+                  ? 1
+                  : event.key === "ArrowLeft" || event.key === "ArrowUp"
+                    ? -1
+                    : event.key === "Home"
+                      ? "first"
+                      : event.key === "End"
+                        ? "last"
+                        : null;
+              if (step === null) return;
+              event.preventDefault();
+              move(day.date, step);
+            }}
+          />
+        );
+      })}
     </div>
   );
 }
@@ -303,15 +387,18 @@ function PeriodDialog({
   open,
   onOpenChange,
   today,
+  initialDate,
   onSaved,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   today: string;
+  /** The start date to begin from: a day tapped in a strip, else today. */
+  initialDate?: string;
   onSaved: (message: string) => void;
 }) {
   const { t, i18n } = useLingui();
-  const [startDate, setStartDate] = useState(today);
+  const [startDate, setStartDate] = useState(initialDate ?? today);
   const [endDate, setEndDate] = useState("");
   const [flow, setFlow] = useState<Flow | null>(null);
   const [notes, setNotes] = useState("");
@@ -443,8 +530,14 @@ export function CycleEnabled({
   const [notice, setNotice] = useState("");
   const [confirmErase, setConfirmErase] = useState(false);
   const [logOpen, setLogOpen] = useState(false);
+  // Each opening starts a fresh form, at a tapped day or today.
+  const [logFrom, setLogFrom] = useState<{ date: string; key: number }>({ date: today, key: 0 });
+  const openLog = (date: string = today) => {
+    setLogFrom((current) => ({ date, key: current.key + 1 }));
+    setLogOpen(true);
+  };
   // The "+" on this screen opens the period form.
-  useLogDialog("period", () => setLogOpen(true));
+  useLogDialog("period", () => openLog());
 
   const remove = useMutation({
     mutationFn: (id: string) => client.cycle.deletePeriod({ id }),
@@ -549,6 +642,8 @@ export function CycleEnabled({
               strip={currentStrip}
               columns={columns}
               label={t`Current cycle, started ${friendlyDate(i18n, currentStrip.startDate)}`}
+              today={today}
+              onPick={openLog}
             />
           </div>
         ) : null}
@@ -569,14 +664,27 @@ export function CycleEnabled({
                     className="grid gap-1.5 sm:grid-cols-[8.5rem_minmax(0,1fr)] sm:items-center sm:gap-x-4"
                   >
                     <span className="num text-sm text-ink-2">{heading}</span>
-                    <DayStrip strip={strip} columns={columns} label={heading} />
+                    <DayStrip
+                      strip={strip}
+                      columns={columns}
+                      label={heading}
+                      today={today}
+                      onPick={openLog}
+                    />
                   </li>
                 );
               })}
             </ul>
           </div>
         ) : null}
-        {strips.length > 0 ? <StripLegend /> : null}
+        {strips.length > 0 ? (
+          <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+            <StripLegend />
+            <p className="text-sm text-ink-3">
+              <Trans>Tap a day to log a period from it.</Trans>
+            </p>
+          </div>
+        ) : null}
       </section>
 
       <Details summary={<Trans>Logged periods</Trans>}>
@@ -733,9 +841,11 @@ export function CycleEnabled({
       ) : null}
 
       <PeriodDialog
+        key={logFrom.key}
         open={logOpen}
         onOpenChange={setLogOpen}
         today={today}
+        initialDate={logFrom.date}
         onSaved={(message) => {
           setNotice(message);
           refresh();

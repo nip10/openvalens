@@ -35,3 +35,14 @@ export type LabReferenceRange = {
   text: string | null;
   unit: string | null;
 };
+
+/** One lab marker with every reading on file, for its history view. */
+export type LabMarkerHistory = {
+  code: string;
+  displayName: string;
+  unit: string | null;
+  /** Oldest first. Each reading keeps the range the lab printed with it. */
+  readings: { sampledAt: string; value: number; referenceRange: LabReferenceRange | null }[];
+  /** True when there were more readings than the limit; the oldest are left out. */
+  truncated: boolean;
+};

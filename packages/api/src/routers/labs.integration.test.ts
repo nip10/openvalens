@@ -251,4 +251,56 @@ describe.skipIf(!url)("labs.latest reference ranges against disposable PostgreSQ
     const other = await latest("user-b");
     expect(other.get("blood_marker_vitamin_d")?.referenceRange).toMatchObject({ low: 1, high: 2 });
   });
+
+  type History = {
+    code: string;
+    displayName: string;
+    unit: string | null;
+    readings: { sampledAt: string; value: number; referenceRange: Marker["referenceRange"] }[];
+    truncated: boolean;
+  } | null;
+
+  test("history returns every reading oldest first, each with its own range", async () => {
+    const result = await call<History>("labs/history", { code: "blood_marker_vitamin_d" });
+    expect(result.status).toBe(200);
+    expect(result.body).toEqual({
+      code: "blood_marker_vitamin_d",
+      displayName: "Vitamin D",
+      unit: "ng/mL",
+      readings: [
+        {
+          sampledAt: "2026-01-14T08:15:00.000Z",
+          value: 19,
+          referenceRange: { low: 20, high: 80, text: null, unit: "ng/mL" },
+        },
+        {
+          sampledAt: "2026-10-08T08:15:00.000Z",
+          value: 41,
+          referenceRange: { low: 30, high: 100, text: "30–100", unit: "ng/mL" },
+        },
+      ],
+      truncated: false,
+    });
+  });
+
+  test("history keeps a reading without a range as null", async () => {
+    const result = await call<History>("labs/history", { code: "blood_marker_ferritin" });
+    expect(result.body?.readings.map((reading) => reading.referenceRange)).toEqual([
+      { low: 15, high: 150, text: null, unit: "ng/mL" },
+      null,
+    ]);
+  });
+
+  test("history is scoped to the workspace and null for an unknown marker", async () => {
+    const other = await call<History>("labs/history", { code: "blood_marker_vitamin_d" }, "user-b");
+    expect(other.body?.readings.map((reading) => reading.value)).toEqual([55]);
+    const missing = await call<History>("labs/history", { code: "blood_marker_hs_crp" }, "user-b");
+    expect(missing.status).toBe(200);
+    expect(missing.body).toBeNull();
+  });
+
+  test("history refuses a code that is not a lab marker", async () => {
+    const result = await call("labs/history", { code: "weight" });
+    expect(result.status).toBe(400);
+  });
 });

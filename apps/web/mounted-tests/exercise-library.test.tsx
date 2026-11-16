@@ -74,7 +74,7 @@ test.skipIf(!mountedMode)(
   async () => {
     if (!mounted) throw new Error("mounted setup missing");
     const [
-      { act, cleanup, fireEvent, render, screen, waitFor },
+      { act, cleanup, fireEvent, render, screen, waitFor, within },
       userModule,
       query,
       react,
@@ -512,6 +512,15 @@ test.skipIf(!mountedMode)(
       expect(screen.getByText("Showing 51 exercises, A to Z")).toBeTruthy();
       expect(screen.queryByRole("button", { name: "Show more" })).toBeNull();
 
+      // "Your exercises" asks only for the ones in your routines and sessions.
+      await user.click(screen.getByRole("button", { name: "Your exercises" }));
+      await waitFor(() => expect(searchInputs.at(-1)?.mine).toBe(true));
+      await user.click(screen.getByRole("button", { name: "All exercises" }));
+      expect(
+        screen.getByRole("button", { name: "All exercises" }).getAttribute("aria-pressed"),
+      ).toBe("true");
+      await screen.findByText("Lift 01");
+
       // Your own exercise is added in a dialog, in the app's language, with no language field.
       expect(screen.queryByLabelText("Name")).toBeNull();
       await user.click(screen.getByRole("button", { name: "Add your own exercise" }));
@@ -522,8 +531,33 @@ test.skipIf(!mountedMode)(
       await waitFor(() => expect(customInputs).toHaveLength(1));
       expect(customInputs[0]).toMatchObject({ name: "Sled push", language: "en" });
       expect(customInputs[0]).not.toHaveProperty("instructions");
+      expect(customInputs[0]).not.toHaveProperty("muscleExternalIds");
       await waitFor(() => expect(dialog.isConnected).toBe(false));
       await screen.findByText("Sled push is in your library now.");
+
+      // With the library's muscles and equipment listed, the dialog offers them as picks.
+      act(() =>
+        client.setQueryData(key(filterOptions.queryKey), {
+          muscles: [{ externalId: "m-10", name: "Quadriceps femoris" }],
+          equipment: [{ externalId: "e-3", name: "Sled" }],
+        }),
+      );
+      await user.click(screen.getByRole("button", { name: "Add your own exercise" }));
+      const picks = await screen.findByRole("dialog", { name: "Add your own exercise" });
+      await user.type(within(picks).getByLabelText("Name"), "Sled drag");
+      await user.click(within(picks).getByRole("button", { name: "Quads" }));
+      await user.click(within(picks).getByRole("button", { name: "Sled" }));
+      expect(
+        within(picks).getByRole("button", { name: "Quads" }).getAttribute("aria-pressed"),
+      ).toBe("true");
+      await user.click(within(picks).getByRole("button", { name: "Save exercise" }));
+      await waitFor(() => expect(customInputs).toHaveLength(2));
+      expect(customInputs[1]).toMatchObject({
+        name: "Sled drag",
+        muscleExternalIds: ["m-10"],
+        equipmentExternalIds: ["e-3"],
+      });
+      await waitFor(() => expect(picks.isConnected).toBe(false));
       cleanup();
 
       // On a phone the details open over the list as a sheet, not below it.
