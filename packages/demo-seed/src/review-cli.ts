@@ -16,7 +16,9 @@
  * running; see `refreshReviewAccount`.
  *
  * The newest data is on `--today`, or today in `--time-zone` (an IANA zone),
- * or today in UTC. See docs/store-review-account.md.
+ * or today in UTC. With `--time-zone`, clock times are that zone's wall clock
+ * (a night runs 22:00 to 07:00 there). Nothing is dated after the moment the
+ * command runs. See docs/store-review-account.md.
  */
 import { parseReviewSignInConfig, ReviewSignInConfigError } from "@openvalens/auth/review-sign-in";
 import { resolveFileSecrets } from "@openvalens/config/file-secrets";
@@ -45,7 +47,7 @@ export function dayInTimeZone(now: Date, timeZone: string): string | null {
 }
 
 export type ReviewOptions =
-  | { ok: true; today: string; refresh: boolean }
+  | { ok: true; today: string; refresh: boolean; timeZone: string | null }
   | { ok: false; message: string };
 
 export function parseReviewOptions(argv: readonly string[], now: Date = new Date()): ReviewOptions {
@@ -73,12 +75,12 @@ export function parseReviewOptions(argv: readonly string[], now: Date = new Date
   if (timeZone !== undefined) {
     const day = dayInTimeZone(now, timeZone);
     return day
-      ? { ok: true, today: day, refresh }
+      ? { ok: true, today: day, refresh, timeZone }
       : { ok: false, message: `--time-zone must be an IANA time zone.\n${REVIEW_USAGE}` };
   }
   const day = parseDay(today ?? now.toISOString().slice(0, 10));
   return day
-    ? { ok: true, today: day, refresh }
+    ? { ok: true, today: day, refresh, timeZone: null }
     : { ok: false, message: `--today must be a calendar day (YYYY-MM-DD).\n${REVIEW_USAGE}` };
 }
 
@@ -86,7 +88,8 @@ export async function main(
   argv: readonly string[],
   env: Record<string, string | undefined>,
 ): Promise<number> {
-  const options = parseReviewOptions(argv);
+  const now = new Date();
+  const options = parseReviewOptions(argv, now);
   if (!options.ok) {
     console.error(options.message);
     return 1;
@@ -118,9 +121,15 @@ export async function main(
   }
 
   const db = createDb({ DATABASE_URL: resolved.DATABASE_URL });
+  const input = {
+    email,
+    today: options.today,
+    ...(options.timeZone ? { timeZone: options.timeZone } : {}),
+    now,
+  };
   try {
     if (options.refresh) {
-      const result = await refreshReviewAccount(db, { email, today: options.today });
+      const result = await refreshReviewAccount(db, input);
       console.log(
         result.status === "refreshed"
           ? `Refreshed the review account: replaced ${result.erasedRows} rows with demo data ending ${result.today}.`
@@ -135,7 +144,7 @@ export async function main(
       );
       return 0;
     }
-    const result = await seedReviewAccount(db, { email, today: options.today });
+    const result = await seedReviewAccount(db, input);
     if (result.status === "already-seeded") {
       console.log(
         "The review account was already seeded. Nothing changed (use --refresh to replace its data).",

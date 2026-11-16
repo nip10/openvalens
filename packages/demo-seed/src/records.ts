@@ -3,7 +3,7 @@ import { metricDefinition } from "@openvalens/db/schema/health-record";
 
 import type { DemoApi, DemoActor } from "./api";
 import type { DemoCalendar } from "./dates";
-import { demoRestingHeartRate, type DeviceDay } from "./device";
+import { demoRestingHeartRate, sleepInstant, type DeviceDay } from "./device";
 import { round, type Random } from "./random";
 
 /**
@@ -80,9 +80,11 @@ export async function seedRecoveryMetrics(
     await api.call("healthRecord/ingestMetricDefinition", { metricCode }, actor);
   }
   for (const offset of calendar.offsets()) {
-    const morning = calendar.at(offset, 6.5).toISOString();
+    const at = calendar.at(offset, 6.5);
+    const morning = at.toISOString();
     const resting = demoRestingHeartRate(offset) + random.normal(0, 1.2, -3, 3);
     const hrv = 44 + 8 * (1 - offset / 89) + (offset < 7 ? 6 : 0) + random.normal(0, 4, -10, 10);
+    if (!calendar.past(at)) continue;
     await api.call(
       "healthRecord/ingestMetricSample",
       { metricCode: "resting_heart_rate", observedAt: morning, valueNumeric: round(resting) },
@@ -157,23 +159,30 @@ export async function seedNightVitals(
   }
   for (const day of days) {
     const { start, end } = day.sleep;
-    for (const share of [0.2, 0.5, 0.8]) {
+    const oxygen = [0.2, 0.5, 0.8].map((share) => ({
+      at: sleepInstant(calendar, day, start + (end - start) * share),
+      value: Math.round(random.normal(96, 1, 92, 99)),
+    }));
+    const breaths = (day.offset < 7 ? 13.9 : 14.6) + random.normal(0, 0.5, -1.2, 1.2);
+    // Like the sleep session, a night still going when the seed runs has not
+    // synced yet.
+    if (!calendar.past(sleepInstant(calendar, day, end))) continue;
+    for (const reading of oxygen) {
       await api.call(
         "healthRecord/ingestMetricSample",
         {
           metricCode: "oxygen_saturation",
-          observedAt: calendar.at(day.offset, start + (end - start) * share).toISOString(),
-          valueNumeric: Math.round(random.normal(96, 1, 92, 99)),
+          observedAt: reading.at.toISOString(),
+          valueNumeric: reading.value,
         },
         actor,
       );
     }
-    const breaths = (day.offset < 7 ? 13.9 : 14.6) + random.normal(0, 0.5, -1.2, 1.2);
     await api.call(
       "healthRecord/ingestMetricSample",
       {
         metricCode: "respiratory_rate",
-        observedAt: calendar.at(day.offset, (start + end) / 2).toISOString(),
+        observedAt: sleepInstant(calendar, day, (start + end) / 2).toISOString(),
         valueNumeric: round(breaths, 1),
       },
       actor,
@@ -194,11 +203,13 @@ export async function seedBloodPressure(
   for (const offset of calendar.offsets()) {
     const weekday = new Date(`${calendar.day(offset)}T00:00:00Z`).getUTCDay();
     if (weekday !== 1 && weekday !== 4) continue;
-    const observedAt = calendar.at(offset, 7.5).toISOString();
+    const at = calendar.at(offset, 7.5);
+    const observedAt = at.toISOString();
     const readings = [
       ["blood_pressure_systolic", Math.round(random.normal(117, 4, 106, 128))],
       ["blood_pressure_diastolic", Math.round(random.normal(75, 3, 66, 84))],
     ] as const;
+    if (!calendar.past(at)) continue;
     for (const [metricCode, valueNumeric] of readings) {
       await api.call(
         "healthRecord/ingestMetricSample",

@@ -3,7 +3,10 @@ import { FOCUS_AREA_LABELS } from "@openvalens/api/wellness-profile-contract";
 import { keepLocalTrialRunning } from "@openvalens/billing/trial";
 import { eraseSubjectRecords } from "@openvalens/data-rights";
 import { sql, type Database, type DbTransaction } from "@openvalens/db";
+import { user } from "@openvalens/db/schema/auth";
+import { eq } from "drizzle-orm";
 
+import { DEMO_PERSON } from "./accounts";
 import { createDemoApi, type DemoActor } from "./api";
 import { createCalendar } from "./dates";
 import { seedPersonData } from "./person";
@@ -37,7 +40,22 @@ import { createRandom } from "./random";
  * {@link refreshReviewAccount} (`--refresh`, the nightly job) replaces the
  * records of a workspace this seed filled with a fresh 90 days ending on
  * `today`, and keeps the account's trial running.
+ *
+ * Clock times are on the wall clock of `timeZone` (the reviewers' zone, the
+ * CLI's `--time-zone`), and nothing is dated after `now`: today's data stops
+ * at the moment of seeding. The account is named Alex Morgan, like the demo
+ * person whose history it shows.
  */
+
+export type ReviewSeedInput = {
+  email: string;
+  /** The newest day of data (`YYYY-MM-DD`). */
+  today: string;
+  /** IANA zone whose wall clock the data is on; omitted, the default demo's (UTC hours). */
+  timeZone?: string;
+  /** The moment of seeding (defaults to the real clock). */
+  now?: Date;
+};
 
 export type ReviewSeedResult =
   | { status: "seeded"; userId: string; organizationId: string; today: string }
@@ -204,9 +222,18 @@ async function goalTitles(db: Executor, organizationId: string): Promise<Set<str
  * parallel queues them on the transaction's one connection, which `pg` 8
  * allows with a deprecation warning.
  */
-async function writeReviewDemoData(db: Database, actor: DemoActor, today: string): Promise<void> {
-  const calendar = createCalendar(today);
+async function writeReviewDemoData(
+  db: Database,
+  actor: DemoActor,
+  input: ReviewSeedInput,
+): Promise<void> {
+  const calendar = createCalendar(input.today, {
+    timeZone: input.timeZone,
+    now: input.now ?? new Date(),
+  });
   const random = createRandom();
+  // Sign-up creates nameless accounts; the sidebar shows this name.
+  await db.update(user).set({ name: DEMO_PERSON.name }).where(eq(user.id, actor.userId));
   const api = createDemoApi(db);
   try {
     await completeSetup(api, actor, { sex: "female", birthYear: 1990 });
@@ -243,7 +270,7 @@ async function mark(
 
 export async function seedReviewAccount(
   db: Database,
-  input: { email: string; today: string },
+  input: ReviewSeedInput,
 ): Promise<ReviewSeedResult> {
   const email = input.email.trim().toLowerCase();
   return db.transaction(async (tx) => {
@@ -255,7 +282,7 @@ export async function seedReviewAccount(
       throw new ReviewSeedRefusal(
         `the workspace already holds records (${existing.join(", ")}). It only seeds an empty workspace.`,
       );
-    await writeReviewDemoData(asDatabase(tx), actor, input.today);
+    await writeReviewDemoData(asDatabase(tx), actor, input);
     await mark(tx, actor, REVIEW_SEED_MARKER, { source: "demo:seed:review", today: input.today });
     return { status: "seeded" as const, ...actor, today: input.today };
   });
@@ -282,7 +309,7 @@ export async function seedReviewAccount(
  */
 export async function refreshReviewAccount(
   db: Database,
-  input: { email: string; today: string },
+  input: ReviewSeedInput,
 ): Promise<ReviewRefreshResult> {
   const email = input.email.trim().toLowerCase();
   return db.transaction(async (tx) => {
@@ -312,7 +339,7 @@ export async function refreshReviewAccount(
           `the workspace holds records (${existing.join(", ")}) that demo:seed:review did not write.`,
         );
     }
-    await writeReviewDemoData(asDatabase(tx), actor, input.today);
+    await writeReviewDemoData(asDatabase(tx), actor, input);
     if (seeded)
       await mark(tx, actor, REVIEW_REFRESH_MARKER, {
         source: "demo:seed:review --refresh",

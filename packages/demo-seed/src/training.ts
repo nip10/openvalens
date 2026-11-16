@@ -205,32 +205,31 @@ export async function seedStrengthTraining(
     if ((weekday !== 1 && weekday !== 5) || (offset > 7 && random.chance(0.1))) continue;
     const lifts = weekday === 1 ? DAY_A : DAY_B;
     const weeks = (89 - offset) / 7;
-    await api.call(
-      "plans/workouts/upsertWorkout",
-      {
-        clientMutationId: demoUuid(`workout-${date}`),
-        expectedScope: scope,
-        date,
-        type: "weights",
-        duration: random.int(45, 65),
-        intensity: "moderate",
-        effortRating: random.int(6, 8),
-        routineId: routines.get(lifts)!,
-        exercises: lifts.map((lift) => {
-          const working = plate(lift.startKg + lift.weeklyKg * weeks);
-          return {
-            name: lift.name,
-            exerciseId: ids.get(lift.name)!,
-            sets: [0, 1, 2].map((set) => ({
-              reps: Math.max(lift.reps[0], lift.reps[1] - set - random.int(0, 1)),
-              weightKg: working,
-              rpe: round(Math.min(10, 7 + set * 0.5 + random.normal(0, 0.3, -0.5, 0.5)), 1),
-            })),
-          };
-        }),
-      },
-      actor,
-    );
+    const workout = {
+      clientMutationId: demoUuid(`workout-${date}`),
+      expectedScope: scope,
+      date,
+      type: "weights",
+      duration: random.int(45, 65),
+      intensity: "moderate",
+      effortRating: random.int(6, 8),
+      routineId: routines.get(lifts)!,
+      exercises: lifts.map((lift) => {
+        const working = plate(lift.startKg + lift.weeklyKg * weeks);
+        return {
+          name: lift.name,
+          exerciseId: ids.get(lift.name)!,
+          sets: [0, 1, 2].map((set) => ({
+            reps: Math.max(lift.reps[0], lift.reps[1] - set - random.int(0, 1)),
+            weightKg: working,
+            rpe: round(Math.min(10, 7 + set * 0.5 + random.normal(0, 0.3, -0.5, 0.5)), 1),
+          })),
+        };
+      }),
+    };
+    // An evening session (creatine at 18:00, `care.ts`): today's waits until it is over.
+    if (!calendar.past(calendar.at(offset, 19))) continue;
+    await api.call("plans/workouts/upsertWorkout", workout, actor);
     session += 1;
   }
   if (session === 0) throw new Error("Demo seed: no strength sessions were planned.");

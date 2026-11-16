@@ -100,6 +100,40 @@ describe("determinism", () => {
     expect(calendar.at(1, 7.5).toISOString()).toBe("2026-02-28T07:30:00.000Z");
     expect(calendar.offsets()[0]).toBe(DEMO_DAYS - 1);
     expect(calendar.offsets().at(-1)).toBe(0);
+    // The default demo keeps its zone label and never reads the clock.
+    expect(calendar.timeZone).toBe("Europe/London");
+    expect(calendar.until.toISOString()).toBe("2026-03-02T00:00:00.000Z");
+  });
+
+  test("a zoned calendar puts hours on that zone's wall clock", () => {
+    const calendar = createCalendar("2026-11-16", { timeZone: "America/Los_Angeles" });
+    expect(calendar.timeZone).toBe("America/Los_Angeles");
+    // 07:30 in Los Angeles (PST, UTC-8), and the evening before.
+    expect(calendar.at(0, 7.5).toISOString()).toBe("2026-11-16T15:30:00.000Z");
+    expect(calendar.at(0, -1.5).toISOString()).toBe("2026-11-16T06:30:00.000Z");
+    // Summer time (PDT, UTC-7).
+    expect(calendar.at(130, 7.5).toISOString()).toBe("2026-07-09T14:30:00.000Z");
+    // The repeated hour when summer time ends is the earlier one; the hour
+    // skipped when it starts moves forward.
+    const autumn = createCalendar("2026-11-01", { timeZone: "America/Los_Angeles" });
+    expect(autumn.at(0, 1.5).toISOString()).toBe("2026-11-01T08:30:00.000Z");
+    expect(autumn.at(0, 3).toISOString()).toBe("2026-11-01T11:00:00.000Z");
+    const spring = createCalendar("2026-03-08", { timeZone: "America/Los_Angeles" });
+    expect(spring.at(0, 2.5).toISOString()).toBe("2026-03-08T10:30:00.000Z");
+    expect(spring.at(0, 1.5).toISOString()).toBe("2026-03-08T09:30:00.000Z");
+    expect(() => createCalendar("2026-11-16", { timeZone: "Mars/Olympus" })).toThrow();
+  });
+
+  test("nothing is later than now", () => {
+    const now = new Date("2026-11-16T09:28:00Z"); // 01:28 in Los Angeles
+    const calendar = createCalendar("2026-11-16", { timeZone: "America/Los_Angeles", now });
+    expect(calendar.until).toEqual(now);
+    expect(calendar.past(calendar.at(0, 1))).toBe(true);
+    expect(calendar.past(calendar.at(0, 7.5))).toBe(false);
+    expect(calendar.clamp(calendar.at(0, 9))).toEqual(now);
+    // A `now` after the end of today stops at the end of today.
+    const late = createCalendar("2026-11-15", { timeZone: "America/Los_Angeles", now });
+    expect(late.until.toISOString()).toBe("2026-11-16T08:00:00.000Z");
   });
 
   test("demo ids are stable, well-formed UUIDs", () => {

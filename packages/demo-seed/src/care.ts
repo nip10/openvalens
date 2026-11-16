@@ -15,8 +15,6 @@ import { round, type Random } from "./random";
  * records. Free text is short, generic and clearly made up.
  */
 
-const GOAL_TIMEZONE = "Europe/London";
-
 type DemoGoal = {
   title: string;
   source: "manual" | "sleep";
@@ -52,7 +50,7 @@ export async function seedGoals(
         definition: {
           ...definition,
           id: demoUuid(`goal-${key}-definition`),
-          timeZone: GOAL_TIMEZONE,
+          timeZone: calendar.timeZone,
           dayCutoff: null,
           status: "active",
           milestones: milestones.map((milestone) => ({
@@ -92,7 +90,8 @@ export async function seedGoals(
   for (let offset = 84; offset >= 0; offset -= 7) {
     const date = calendar.day(offset);
     const kg = demoWeightKg(offset, random);
-    if (weight)
+    // Today's check-in waits for the morning weigh-in.
+    if (weight && calendar.past(calendar.at(offset, 7.5)))
       await api.call(
         "goals/createCheckin",
         { goalId: weight.id, date, value: kg, clientMutationId: demoUuid(`goal-weight-${date}`) },
@@ -227,7 +226,7 @@ export async function seedClinical(
 
   // No app screen writes these yet (they come from document import), so they
   // are inserted as an import would store them.
-  const createdAt = calendar.at(0, 9).toISOString();
+  const createdAt = calendar.clamp(calendar.at(0, 9)).toISOString();
   const [exam] = await db
     .insert(cardiacExam)
     .values({
@@ -337,25 +336,23 @@ export async function seedBodyComposition(
   await api.call("privateBody/setPreference", { enabled: true }, actor);
   for (let offset = 84; offset >= 0; offset -= 14) {
     const progress = 1 - offset / 84;
+    const measuredAt = calendar.at(offset, 7.75);
     for (const [kind, start, change] of [
       ["waist", 78.5, -3],
       ["hip", 99, -1.5],
     ] as const) {
+      const value = round(start + change * progress + random.normal(0, 0.3, -0.6, 0.6), 1);
+      if (!calendar.past(measuredAt)) continue;
       await api.call(
         "privateBody/create",
-        {
-          kind,
-          value: round(start + change * progress + random.normal(0, 0.3, -0.6, 0.6), 1),
-          unit: "cm",
-          measuredAt: calendar.at(offset, 7.75).toISOString(),
-        },
+        { kind, value, unit: "cm", measuredAt: measuredAt.toISOString() },
         actor,
       );
     }
   }
 }
 
-/** When each supplement is taken (UTC hour) and how reliably. */
+/** When each supplement is taken (wall-clock hour) and how reliably. */
 const INTAKE_PLAN = [
   { name: "Vitamin D3", hour: 8, chance: 0.92 },
   { name: "Omega-3 fish oil", hour: 19, chance: 0.8 },
@@ -389,12 +386,14 @@ export async function seedSupplementIntake(
       if ("weekdays" in item && !(item.weekdays as readonly number[]).includes(weekday)) continue;
       const supplement = supplements.find((row) => row.name === item.name);
       if (!supplement || !taken) continue;
+      const occurredAt = calendar.at(offset, item.hour + random.between(0, 0.5));
+      if (!calendar.past(occurredAt)) continue;
       await api.call(
         "supplementIntake/create",
         {
           supplementId: supplement.id,
-          occurredAt: calendar.at(offset, item.hour + random.between(0, 0.5)).toISOString(),
-          timeZone: "Europe/London",
+          occurredAt: occurredAt.toISOString(),
+          timeZone: calendar.timeZone,
           dose: supplement.dose ?? "1",
           clientMutationId: demoUuid(`intake-${item.name}-${date}`),
         },

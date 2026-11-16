@@ -6,10 +6,10 @@ import type { Random } from "./random";
 /**
  * Custom trackers and the pain log (Issue #301), through the same `trackers.*`
  * and `pain.*` procedures the apps call. Entries end yesterday: both refuse a
- * time in the future, and the seed never reads the real clock.
+ * time in the future, and the default demo never reads the real clock. Times
+ * are on the person's wall clock (`calendar.timeZone`).
  */
 
-const TIMEZONE = "Europe/London";
 /** `trackers.importFeed` takes at most this many entries per call. */
 const FEED_BATCH = 200;
 
@@ -60,7 +60,7 @@ export async function seedTrackers(
       {
         feed: "health_connect_mindfulness",
         trackerId: meditation.id,
-        timeZone: TIMEZONE,
+        timeZone: calendar.timeZone,
         entries: sessions.slice(i, i + FEED_BATCH),
       },
       actor,
@@ -83,7 +83,7 @@ export async function seedTrackers(
         trackerId: mood.id,
         value,
         loggedAt: calendar.at(offset, 21 + random.between(0, 1)).toISOString(),
-        timeZone: TIMEZONE,
+        timeZone: calendar.timeZone,
       },
       actor,
     );
@@ -114,7 +114,7 @@ export async function seedPain(
           rating: random.int(2, 4),
           type: "stiffness",
           loggedAt: loggedAt(8.5),
-          timeZone: TIMEZONE,
+          timeZone: calendar.timeZone,
         },
         actor,
       );
@@ -127,7 +127,7 @@ export async function seedPain(
           rating: random.int(2, 3),
           type: "ache",
           loggedAt: loggedAt(12),
-          timeZone: TIMEZONE,
+          timeZone: calendar.timeZone,
           note: "After the morning run.",
         },
         actor,

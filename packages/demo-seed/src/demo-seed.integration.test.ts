@@ -207,6 +207,24 @@ describe.skipIf(!url)("demo seed against disposable PostgreSQL", () => {
 
     const comparison = await read<{ comparisons: { optedIn: boolean }[] }>("comparison/get");
     expect(comparison.comparisons.every((item) => item.optedIn)).toBe(true);
+
+    // The micronutrient summary is on, with values from the custom foods.
+    const micros = await read<{ status: string; rows: { amount: number | null }[] }>(
+      "nutritionMicronutrients/summary",
+      { localDate: daysAgo(1) },
+    );
+    expect(micros.status).toBe("ready");
+    expect(micros.rows.filter((row) => row.amount !== null).length).toBeGreaterThanOrEqual(3);
+    // Entries look logged on their own day, so the streak covers the logged weeks.
+    const streak = await read<{ state: string; current?: number }>(
+      "nutritionTargets/loggingStreak",
+      { timeZone: "Europe/London" },
+    );
+    expect(streak.state).toBe("on");
+    expect(streak.current).toBeGreaterThan(14);
+    // One past coach conversation, written without any AI call.
+    const threads = await read<{ messageCount: number }[]>("ai/listThreads", {});
+    expect(threads.map((thread) => thread.messageCount)).toEqual([4]);
   });
 
   test("a second run gives the same result", async () => {

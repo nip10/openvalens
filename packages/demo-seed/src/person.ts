@@ -1,6 +1,7 @@
 import type { Database } from "@openvalens/db";
 
 import type { DemoApi, DemoActor } from "./api";
+import { seedCoachConversation } from "./coach";
 import {
   seedBodyComposition,
   seedClinical,
@@ -13,7 +14,7 @@ import {
 } from "./care";
 import type { DemoCalendar } from "./dates";
 import { planDeviceDays, seedDeviceData } from "./device";
-import { seedNutrition, seedNutritionExtras } from "./nutrition";
+import { backdateDiaryEntries, seedNutrition, seedNutritionExtras } from "./nutrition";
 import { seedOptIns } from "./profile";
 import type { Random } from "./random";
 import { seedBloodPressure, seedLabs, seedNightVitals, seedRecoveryMetrics } from "./records";
@@ -53,7 +54,7 @@ export async function seedPersonData(
   await seedRecoveryMetrics(api, actor, calendar, random.fork("recovery"));
   await seedLabs(db, api, actor, calendar);
   await seedStrengthTraining(db, api, actor, calendar, random.fork("training"));
-  await seedNutrition(api, actor, calendar, random.fork("nutrition"));
+  await seedNutrition(db, api, actor, calendar, random.fork("nutrition"));
   await seedGoals(api, actor, calendar, random.fork("goals"), {
     skipTitles: options.skipGoalTitles,
   });
@@ -70,7 +71,10 @@ export async function seedPersonData(
   await seedSupplementIntake(api, actor, calendar, random.fork("intake"));
   await seedTrackers(api, actor, calendar, random.fork("trackers"));
   await seedPain(api, actor, calendar, random.fork("pain"));
-  await seedNutritionExtras(api, actor, calendar, random.fork("nutrition-extras"));
+  await seedNutritionExtras(db, api, actor, calendar, random.fork("nutrition-extras"));
   await seedFollowUpDexa(db, actor, calendar);
   await seedOptIns(api, actor);
+  // No random draws: fixed text, and write times moved onto their own days.
+  await seedCoachConversation(db, actor, calendar);
+  await backdateDiaryEntries(db, actor, calendar);
 }
