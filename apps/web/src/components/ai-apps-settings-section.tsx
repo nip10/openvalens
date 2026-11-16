@@ -12,7 +12,8 @@ export function useAiAppsEnabled(): boolean {
 }
 
 /**
- * Issue #439 — wires {@link AiAppsSettingsCard} to `aiApps.workspaceSetting`.
+ * Issue #439 — wires {@link AiAppsSettingsCard} to `aiApps.workspaceSetting`,
+ * on Settings › Connected AI apps.
  * Renders nothing while the server has AI apps off. The server enforces the
  * owner check.
  */

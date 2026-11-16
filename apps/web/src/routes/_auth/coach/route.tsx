@@ -25,6 +25,7 @@ import { CoachIcon } from "@/components/coach-icon";
 import { ModuleHiddenNote } from "@/components/module-hidden-note";
 import { EmptyState, ErrorState, Page, PageHeader, ToneIcon } from "@/components/page";
 import { ProductSettingsStatus } from "@/components/product-settings-status";
+import { useAiState } from "@/utils/ai-state";
 import { orpc } from "@/utils/orpc";
 import { useProductSettings } from "@/utils/product-settings";
 
@@ -43,17 +44,14 @@ export const Route = createFileRoute("/_auth/coach")({
   validateSearch: coachSearch,
 });
 
-/** AI runs only with the workspace switch on and the member's own consent. */
-function useAiReady(): "ready" | "off" | "unknown" {
-  const user = useQuery({ ...orpc.ai.consent.get.queryOptions({ input: {} }), retry: false });
-  const workspace = useQuery({
-    ...orpc.ai.workspaceConsent.get.queryOptions({ input: {} }),
-    retry: false,
-  });
-  if (user.isPending || workspace.isPending) return "unknown";
-  // A failed read does not block: sending says what is wrong.
-  if (user.isError || workspace.isError) return "ready";
-  return user.data?.granted === true && workspace.data?.enabled === true ? "ready" : "off";
+/**
+ * AI runs only with the workspace switch on and the member's own consent.
+ * A failed read does not block: sending says what is wrong.
+ */
+function useAiReady(): { ready: "ready" | "off" | "unknown" } & ReturnType<typeof useAiState> {
+  const ai = useAiState();
+  const ready = ai.status === "pending" ? "unknown" : ai.reason === null ? "ready" : "off";
+  return { ready, ...ai };
 }
 
 function CoachListPage() {
@@ -64,7 +62,8 @@ function CoachListPage() {
   const settings = settingsQuery.data;
   const { t, i18n } = useLingui();
   const search = Route.useSearch();
-  const ai = useAiReady();
+  const aiState = useAiReady();
+  const ai = aiState.ready;
   const ideas = useCoachIdeas();
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const [draft, setDraft] = useState(search.ask ?? "");
@@ -204,16 +203,30 @@ function CoachListPage() {
         >
           <ToneIcon icon={CoachIcon} tone="signal" size="lg" />
           <h2 id="coach-ai-off" className="text-xl leading-tight text-ink">
-            <Trans>The coach uses AI, which is off</Trans>
+            {aiState.reason === "workspace" ? (
+              <Trans>The coach uses AI, which is off for this workspace</Trans>
+            ) : (
+              <Trans>The coach uses AI, which is off</Trans>
+            )}
           </h2>
+          {/* #settings-2: say which switch holds it, and offer it only to who can turn it on. */}
           <p className="max-w-[60ch] text-ink-2">
-            <Trans>Turn it on to ask about your own records. You can turn it off any time.</Trans>
+            {aiState.reason === "workspace" && !aiState.canManageWorkspace ? (
+              <Trans>
+                Only the workspace owner can turn it on. Everything else in OpenValens works as
+                usual.
+              </Trans>
+            ) : (
+              <Trans>Turn it on to ask about your own records. You can turn it off any time.</Trans>
+            )}
           </p>
-          <Button asChild>
-            <Link to="/settings" hash="ai">
-              <Trans>Turn on AI</Trans>
-            </Link>
-          </Button>
+          {aiState.reason === "workspace" && !aiState.canManageWorkspace ? null : (
+            <Button asChild>
+              <Link to="/settings" hash="ai">
+                <Trans>Turn on AI</Trans>
+              </Link>
+            </Button>
+          )}
         </section>
       ) : hasThread ? (
         <div className="grid items-start gap-8 lg:grid-cols-[18rem_minmax(0,1fr)]">

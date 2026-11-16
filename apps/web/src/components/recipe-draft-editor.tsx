@@ -30,6 +30,7 @@ import { CustomFoodForm } from "@/components/custom-food-form";
 import { nativeSelectClass, textLinkClass } from "@/components/food-classes";
 import { FormDialog } from "@/components/form-dialog";
 import { Details, Page, PageHeader, Section, ToneIcon } from "@/components/page";
+import { SectionTabs } from "@/components/section-tabs";
 import { authClient } from "@/lib/auth-client";
 import { orpc } from "@/utils/orpc";
 import { ModuleHiddenNote } from "@/components/module-hidden-note";
@@ -222,6 +223,7 @@ export function RecipeDraftEditor() {
   if (isPending || scope !== activeScope)
     return (
       <Page width="narrow">
+        <SectionTabs parent="/nutrition" />
         <ModuleHiddenNote module="food" />
         <div role="status" className="grid gap-4">
           <span className="sr-only">
@@ -235,6 +237,7 @@ export function RecipeDraftEditor() {
   if (!scope)
     return (
       <Page width="narrow">
+        <SectionTabs parent="/nutrition" />
         <ModuleHiddenNote module="food" />
         <PageHeader
           title={<Trans>New recipe</Trans>}
@@ -252,6 +255,7 @@ export function RecipeDraftEditor() {
 
   return (
     <Page width="narrow">
+      <SectionTabs parent="/nutrition" />
       <ModuleHiddenNote module="food" />
       <PageHeader
         title={<Trans>New recipe</Trans>}

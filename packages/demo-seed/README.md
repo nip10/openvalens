@@ -164,7 +164,9 @@ reviewers use the account. No Stripe customer is created. Run the server with
 
 `bun run demo:seed:review` writes the same synthetic data (Alex Morgan's
 history, ending today) into the existing app store review account on a real
-database, for example inside the production API container. It reads the
+database, for example inside the production API container. Its region is the
+United States (`REVIEW_REGION`), so Preventive care shows the USPSTF cervical
+screening item instead of the NHS one. It reads the
 server's `DATABASE_URL`, `REVIEW_ACCOUNT_EMAIL` and `REVIEW_ACCOUNT_CODE`, never
 resets anything, writes only to that account's own workspace, refuses unless
 the account is the sole owner of exactly one empty workspace, and a second run

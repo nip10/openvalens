@@ -97,6 +97,62 @@ describe("Settings › Modules", () => {
     );
     expect(quiet).not.toContain("AI is off");
   });
+
+  test("#settings-modules-3: cards sit under the sidebar's headings and say what leaves the menu", () => {
+    const html = render(
+      <ModulesSettingsForm
+        snapshot={{ enabledModules: null }}
+        saving={null}
+        message={null}
+        onToggle={noop}
+      />,
+    );
+    const headings = [...html.matchAll(/<h2 id="modules-group-\d+"[^>]*>([^<]+)<\/h2>/g)].map(
+      (match) => match[1],
+    );
+    expect(headings).toEqual(["Overview", "Body", "Daily", "Care"]);
+    // Sleep is listed under Body, after the Body heading and before Daily.
+    const body = html.indexOf(">Body</h2>");
+    const daily = html.indexOf(">Daily</h2>");
+    expect(html.indexOf('for="module-sleep"')).toBeGreaterThan(body);
+    expect(html.indexOf('for="module-sleep"')).toBeLessThan(daily);
+    expect(html).toMatch(/data-testid="module-sleep-menu"[^>]*>Hides Sleep</);
+    expect(html).toMatch(/data-testid="module-labs-menu"[^>]*>Hides Labs and Clinical export</);
+    expect(html).toMatch(/data-testid="module-food-menu"[^>]*>Hides Meal diary/);
+  });
+
+  test("#settings-modules-4: the focus answer marks its modules as recommended", () => {
+    const html = render(
+      <ModulesSettingsForm
+        snapshot={{
+          enabledModules: null,
+          focus: { state: "recorded", value: ["sleep_recovery"] },
+        }}
+        saving={null}
+        message={null}
+        onToggle={noop}
+      />,
+    );
+    // sleep_recovery picks Sleep and Heart & vitals.
+    expect(html.match(/>Recommended</g)?.length).toBe(2);
+    const sleepCard = html.slice(
+      html.indexOf('for="module-sleep"'),
+      html.indexOf('id="module-sleep"'),
+    );
+    expect(sleepCard).toContain(">Recommended<");
+    expect(html).toContain("Recommended modules match what you told us in");
+
+    const unanswered = render(
+      <ModulesSettingsForm
+        snapshot={{ enabledModules: null, focus: { state: "unknown" } }}
+        saving={null}
+        message={null}
+        onToggle={noop}
+      />,
+    );
+    expect(unanswered).not.toContain(">Recommended<");
+    expect(unanswered).toContain("and we&#x27;ll mark the modules that fit.");
+  });
 });
 
 describe("hidden module note", () => {

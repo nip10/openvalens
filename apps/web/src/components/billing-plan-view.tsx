@@ -1,9 +1,9 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Button } from "@openvalens/ui/components/button";
-import { CreditCard, Receipt, Sparkles } from "lucide-react";
+import { Check, CreditCard, Receipt, Sparkles } from "lucide-react";
 import { useEffect, useId, useState } from "react";
 
-import { Section, StatusPill, type StatusTone } from "@/components/page";
+import { InfoTip, Section, StatusPill, type StatusTone } from "@/components/page";
 import { SettingsGroup, SettingsRow } from "@/components/settings-rows";
 
 /**
@@ -101,6 +101,7 @@ export function BillingPlanView({
     ended: t`Trial ended`,
   }[status.status];
 
+  const savePill = (percent: number) => t`Save ${percent}%`;
   const planName =
     status.plan === "annual" ? t`Annual plan` : status.plan === "monthly" ? t`Monthly plan` : null;
   const trialEnd = day(status.trialEndsAt);
@@ -119,6 +120,9 @@ export function BillingPlanView({
     acknowledgements.version === acknowledgementVersion && acknowledgements.withdrawal;
   const immediateId = useId();
   const withdrawalId = useId();
+  const planGroupName = useId();
+  // #settings-billing-2: annual starts chosen; it costs less over a year.
+  const [chosenPlan, setChosenPlan] = useState<BillingPlan>("annual");
   useEffect(() => {
     setAcknowledgements({
       version: acknowledgementVersion,
@@ -244,8 +248,85 @@ export function BillingPlanView({
             </Trans>
           }
         >
+          {/* #settings-billing-4: two cards to pick from and one button, not a Subscribe per row. */}
+          <div
+            role="radiogroup"
+            aria-label={t`Plan`}
+            className="grid gap-3 sm:grid-cols-2"
+            data-testid="billing-plans"
+          >
+            {(["monthly", "annual"] as const).map((plan) => {
+              const amount = money(status.prices[plan]);
+              const saving = plan === "annual" ? annualSaving(status.prices) : null;
+              const perMonth = saving ? money(saving.perMonth) : null;
+              const checked = chosenPlan === plan;
+              return (
+                <label
+                  key={plan}
+                  className={`sheet flex cursor-pointer items-start gap-3 p-4 outline-2 -outline-offset-2 transition-colors duration-[var(--dur-short)] has-[:focus-visible]:outline-ring ${
+                    checked ? "outline-signal" : "outline-transparent hover:bg-paper-2"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name={planGroupName}
+                    value={plan}
+                    checked={checked}
+                    onChange={() => setChosenPlan(plan)}
+                    className="mt-1 size-4 shrink-0 accent-primary focus-visible:outline-none"
+                  />
+                  <span className="grid min-w-0 flex-1 gap-1">
+                    <span className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium text-ink">
+                        {plan === "monthly" ? t`Monthly` : t`Annual`}
+                      </span>
+                      {saving ? (
+                        <StatusPill tone="good">{savePill(saving.percent)}</StatusPill>
+                      ) : null}
+                    </span>
+                    {amount ? (
+                      <span className="text-sm text-ink-2">
+                        {plan === "monthly"
+                          ? t`${amount} per month`
+                          : saving && perMonth
+                            ? t`${amount} per year, ${perMonth} a month`
+                            : t`${amount} per year`}
+                      </span>
+                    ) : null}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+
+          {/* #settings-billing-2: what the plan keeps going after the trial. */}
+          <ul className="grid gap-1.5 text-sm text-ink-2" aria-label={t`Your plan includes`}>
+            {[
+              t`Every module, on the web and on your phone`,
+              t`Adding and syncing records`,
+              t`People you share your workspace with, at no extra cost`,
+            ].map((line) => (
+              <li key={line} className="flex items-start gap-2">
+                <Check className="mt-0.5 size-4 shrink-0 text-success" aria-hidden="true" />
+                {line}
+              </li>
+            ))}
+          </ul>
+
           {status.checkoutAcknowledgement ? (
-            <div className="mb-4 grid gap-1 rounded-2xl bg-paper-2 p-3 text-sm text-ink-2">
+            <div className="grid gap-1 rounded-2xl bg-paper-2 p-3 text-sm text-ink-2">
+              <div className="flex items-center gap-1 px-2 pt-1">
+                <span className="font-medium text-ink">
+                  <Trans>Your 14-day right to withdraw</Trans>
+                </span>
+                <InfoTip>
+                  <Trans>
+                    EU consumer law gives you 14 days to withdraw from an online purchase. Because
+                    your plan starts at once, you confirm here that you asked for that and what it
+                    means if you withdraw.
+                  </Trans>
+                </InfoTip>
+              </div>
               <div className="flex min-h-10 items-start gap-3 rounded-xl px-2 py-2">
                 <input
                   id={immediateId}
@@ -261,7 +342,15 @@ export function BillingPlanView({
                   className="mt-1 size-4 shrink-0 accent-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                 />
                 <label htmlFor={immediateId} className="flex-1">
-                  <Trans>I request that my paid subscription starts immediately.</Trans>
+                  {/* #settings-billing-1: during a trial, say the trial days stay and when the first payment is. */}
+                  {status.status === "trialing" && trialEnd ? (
+                    <Trans>
+                      I request that my paid subscription starts immediately. I keep the rest of my
+                      free trial, and the first payment is on {trialEnd}.
+                    </Trans>
+                  ) : (
+                    <Trans>I request that my paid subscription starts immediately.</Trans>
+                  )}
                 </label>
               </div>
               <div className="flex min-h-10 items-start gap-3 rounded-xl px-2 py-2">
@@ -299,56 +388,40 @@ export function BillingPlanView({
               </p>
             </div>
           ) : (
-            <p role="status" className="mb-4 rounded-2xl bg-muted px-4 py-3 text-sm text-ink-2">
+            <p role="status" className="rounded-2xl bg-muted px-4 py-3 text-sm text-ink-2">
               <Trans>Subscriptions are temporarily unavailable. Please try again later.</Trans>
             </p>
           )}
-          <SettingsGroup>
-            {(["monthly", "annual"] as const).map((plan) => {
-              const amount = money(status.prices[plan]);
-              const saving = plan === "annual" ? annualSaving(status.prices) : null;
-              const perMonth = saving ? money(saving.perMonth) : null;
-              return (
-                <SettingsRow
-                  key={plan}
-                  icon={CreditCard}
-                  label={plan === "monthly" ? t`Monthly` : t`Annual`}
-                  description={
-                    amount
-                      ? plan === "monthly"
-                        ? t`${amount} per month`
-                        : saving && perMonth
-                          ? t`${amount} per year (${perMonth} a month, save ${saving.percent}%)`
-                          : t`${amount} per year`
-                      : undefined
-                  }
-                >
-                  <Button
-                    onClick={() => {
-                      if (status.checkoutAcknowledgement) {
-                        onSubscribe(plan, status.checkoutAcknowledgement.version);
-                      }
-                    }}
-                    disabled={
-                      busy !== null ||
-                      !status.checkoutAcknowledgement ||
-                      !acceptedImmediateStart ||
-                      !acceptedWithdrawalAcknowledgement
-                    }
-                  >
-                    {busy === plan ? t`Opening Stripe…` : t`Subscribe`}
-                  </Button>
-                </SettingsRow>
-              );
-            })}
-          </SettingsGroup>
-          {status.checkoutAcknowledgement &&
-          (!acceptedImmediateStart || !acceptedWithdrawalAcknowledgement) ? (
-            // #settings-billing-0: say why Subscribe can't be pressed yet.
-            <p className="mt-3 text-sm text-ink-3">
-              <Trans>Tick both boxes above to subscribe.</Trans>
-            </p>
-          ) : null}
+
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <Button
+              className="w-full sm:w-auto"
+              onClick={() => {
+                if (status.checkoutAcknowledgement) {
+                  onSubscribe(chosenPlan, status.checkoutAcknowledgement.version);
+                }
+              }}
+              disabled={
+                busy !== null ||
+                !status.checkoutAcknowledgement ||
+                !acceptedImmediateStart ||
+                !acceptedWithdrawalAcknowledgement
+              }
+            >
+              {busy === chosenPlan
+                ? t`Opening Stripe…`
+                : chosenPlan === "annual"
+                  ? t`Subscribe yearly`
+                  : t`Subscribe monthly`}
+            </Button>
+            {status.checkoutAcknowledgement &&
+            (!acceptedImmediateStart || !acceptedWithdrawalAcknowledgement) ? (
+              // #settings-billing-0: say why Subscribe can't be pressed yet.
+              <p className="text-sm text-ink-3">
+                <Trans>Tick both boxes above to subscribe.</Trans>
+              </p>
+            ) : null}
+          </div>
         </Section>
       ) : null}
 

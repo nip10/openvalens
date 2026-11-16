@@ -14,6 +14,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import { ProfileSummaryList } from "./profile-summary-card";
 import {
+  savesOnChange,
   sectionSummary,
   WellnessProfileEditor,
   type WellnessProfileEditorProps,
@@ -67,9 +68,43 @@ describe("WellnessProfileEditor (web)", () => {
 
   test("unsaved edits are identified per section", () => {
     const draft = draftFromSnapshot(adult);
-    draft.answers.region = { state: "recorded", value: "uk" };
+    draft.answers.sex = { state: "recorded", value: "female" };
     const html = render(adult, { draft });
     expect(html.match(/Unsaved changes/g)).toHaveLength(1);
+  });
+
+  test("#profile-2 — a changed choice shows it is saving, with no Save button", () => {
+    const draft = draftFromSnapshot(adult);
+    draft.answers.region = { state: "recorded", value: "uk" };
+    const html = render(adult, { draft });
+    expect(html).toContain("Saving…");
+    expect(html).not.toContain("Unsaved changes");
+    // Only age and sex (a typed year) keep a Save button.
+    expect(html.match(/>Save</g)).toHaveLength(1);
+  });
+
+  test("#profile-2 — a failed save on change offers Try again", () => {
+    const html = render(adult, {
+      saveState: {
+        region: {
+          status: "error",
+          message: describeProfileSaveError(new TypeError("Failed to fetch")).message,
+        },
+      },
+    });
+    expect(html).toContain("Try again");
+  });
+
+  test("#profile-2 — leaving 18 or older with a saved sex needs Save and says what it clears", () => {
+    const saved: WellnessProfileSnapshot = { ...adult, sex: { state: "recorded", value: "male" } };
+    const draft = draftFromSnapshot(saved);
+    draft.answers.eligibility = { state: "declined" };
+    const html = render(saved, { draft });
+    expect(html).toContain("Saving this also clears your birth year and sex.");
+    expect(html).toContain("Unsaved changes");
+    expect(savesOnChange("eligibility", saved, draft)).toBe(false);
+    expect(savesOnChange("region", saved, draft)).toBe(true);
+    expect(savesOnChange("ageAndSex", saved, draft)).toBe(false);
   });
 
   test("save failures are announced as alerts", () => {
@@ -104,20 +139,33 @@ describe("WellnessProfileEditor answered sections (#profile-1)", () => {
     const html = render(answered);
     expect(html).toContain("United Kingdom");
     expect(html).toContain("Born 1990, Female");
-    expect(html).toContain("Yes, I&#x27;m 18 or older");
     expect(html).not.toContain("What year were you born?");
     expect(html).not.toContain("Are you 18 or older?");
-    expect(html.match(/>Edit</g)?.length).toBe(3);
+    expect(html.match(/>Edit</g)?.length).toBe(2);
+  });
+
+  test("#profile-3 — a saved birth year answers the age check, so it is not shown", () => {
+    const html = render(answered);
+    expect(html).not.toContain("Age check");
+    expect(html).not.toContain("Yes, I&#x27;m 18 or older");
+    // The sections on show number from 1: What brings you here is first.
+    expect(html).toMatch(/aria-hidden="true">1<\/span>[\s\S]*?What brings you here/);
+  });
+
+  test("#profile-3 — without a birth year the age check is asked or summarised", () => {
+    const html = render({ ...answered, birthYear: { state: "unknown" } });
+    expect(html).toContain("Age check");
+    expect(html).toContain("Yes, I&#x27;m 18 or older");
   });
 
   test("unanswered sections stay open with their question", () => {
     const html = render(answered);
-    expect(html).toContain(">Save<");
+    expect(html).toContain("How do you plan to add your data?");
   });
 
   test("a section with unsaved edits stays open", () => {
     const draft = draftFromSnapshot(answered);
-    draft.answers.region = { state: "recorded", value: "pt" };
+    draft.answers.sex = { state: "recorded", value: "male" };
     const html = render(answered, { draft });
     expect(html).toContain("Unsaved changes");
     expect(html).toContain(">Cancel<");

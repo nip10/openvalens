@@ -128,6 +128,34 @@ export function isAdultConfirmed(answers: Pick<WellnessProfileAnswers, "eligibil
   return answers.eligibility.state === "recorded" && answers.eligibility.value === "adult";
 }
 
+/**
+ * #profile-3 — a saved birth year already answers the age check: the server
+ * keeps a birth year only with the "18 or older" answer, and never one that is
+ * under 18. The profile then leaves out the separate question; it comes back
+ * once the birth year is cleared.
+ */
+export function isAgeCheckImplied(
+  snapshot: Pick<WellnessProfileSnapshot, "eligibility" | "birthYear">,
+): boolean {
+  return isAdultConfirmed(snapshot) && snapshot.birthYear.state === "recorded";
+}
+
+/**
+ * Whether saving the draft's age check would also clear a saved birth year or
+ * sex (moving away from "18 or older" does, see `applyWellnessProfileUpdate`).
+ * Such a change needs an explicit Save, never a save on change.
+ */
+export function clearsAdultOnlyAnswers(
+  snapshot: WellnessProfileSnapshot,
+  draft: WellnessProfileDraft,
+): boolean {
+  return (
+    isAdultConfirmed(snapshot) &&
+    !isAdultConfirmed(draft.answers) &&
+    (snapshot.birthYear.state === "recorded" || snapshot.sex.state === "recorded")
+  );
+}
+
 /** Whether a section is available to fill in (age and sex need the adult answer). */
 export function isSectionAvailable(
   section: SetupSection,

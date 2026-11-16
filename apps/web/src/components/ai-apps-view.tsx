@@ -29,7 +29,7 @@ import { Badge } from "@openvalens/ui/components/badge";
 import { Button } from "@openvalens/ui/components/button";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { BookOpen, Bot, KeyRound, Link2, Plus } from "lucide-react";
-import type { ReactNode } from "react";
+import { type KeyboardEvent, type ReactNode, useId, useState } from "react";
 
 import { CopyField } from "@/components/ai-app-key-form";
 import { Details, EmptyState, ErrorState, Section, StatusPill, ToneIcon } from "@/components/page";
@@ -88,6 +88,16 @@ export function AiAppsView(props: AiAppsViewProps) {
   const keys = splitGrants(props.grants, "personal_key");
   const activeKeyCount = keys.active.length;
   const atKeyLimit = activeKeyCount >= status.maxActiveKeys;
+  // #settings-ai-apps-4: with nothing connected yet, the how-to leads and the
+  // two empty lists fold into one line under it.
+  const nothingYet = props.grantsStatus === "ready" && props.grants.length === 0;
+  const createKeyButton =
+    props.onCreateKey && !props.keyPanel ? (
+      <Button onClick={props.onCreateKey} disabled={!status.canCreate || atKeyLimit}>
+        <Plus className="size-4" aria-hidden="true" />
+        <Trans>Create key</Trans>
+      </Button>
+    ) : null;
 
   return (
     <div className="grid gap-10">
@@ -99,94 +109,117 @@ export function AiAppsView(props: AiAppsViewProps) {
         </p>
       ) : null}
 
-      <Section
-        title={<Trans>Connections</Trans>}
-        icon={Link2}
-        tone="signal"
-        info={
-          <Trans>
-            Apps you approved by signing in from the app itself, such as claude.ai or ChatGPT. Each
-            one reads only your own records in this workspace.
-          </Trans>
-        }
-      >
-        <GrantList
-          {...props}
-          kind="oauth"
-          active={connections.active}
-          inactive={connections.inactive}
-          empty={
-            <EmptyState
-              icon={Bot}
-              title={<Trans>No apps connected yet</Trans>}
-              description={
-                status.oauthEnabled ? (
-                  <Trans>
-                    You can let an AI assistant read your sleep, workouts, labs and other records so
-                    it can answer questions about them. Add this server in the app, then sign in
-                    here to approve it.
-                  </Trans>
-                ) : (
-                  <Trans>
-                    Signing in from an app is not available on this server. Use a personal key
-                    instead.
-                  </Trans>
-                )
+      {nothingYet ? (
+        <>
+          <HelpLinks mcpUrl={status.mcpUrl} oauthEnabled={status.oauthEnabled} />
+          <Section
+            title={<Trans>Your apps and keys</Trans>}
+            icon={KeyRound}
+            tone="signal"
+            info={
+              <Trans>
+                A key works like a password for one app, such as Claude Code, Cursor, a script or a
+                local model. You see it once when you create it. You can have up to{" "}
+                {status.maxActiveKeys} active keys.
+              </Trans>
+            }
+            actions={createKeyButton}
+          >
+            {props.keyPanel}
+            <p className="text-sm text-ink-3" data-testid="ai-apps-nothing-yet">
+              <Trans>
+                No apps or keys yet. Connect an app above, or create a key for a tool on your
+                computer.
+              </Trans>
+            </p>
+          </Section>
+        </>
+      ) : (
+        <>
+          <Section
+            title={<Trans>Connections</Trans>}
+            icon={Link2}
+            tone="signal"
+            info={
+              <Trans>
+                Apps you approved by signing in from the app itself, such as claude.ai or ChatGPT.
+                Each one reads only your own records in this workspace.
+              </Trans>
+            }
+          >
+            <GrantList
+              {...props}
+              kind="oauth"
+              active={connections.active}
+              inactive={connections.inactive}
+              empty={
+                <EmptyState
+                  icon={Bot}
+                  title={<Trans>No apps connected yet</Trans>}
+                  description={
+                    status.oauthEnabled ? (
+                      <Trans>
+                        You can let an AI assistant read your sleep, workouts, labs and other
+                        records so it can answer questions about them. Add this server in the app,
+                        then sign in here to approve it.
+                      </Trans>
+                    ) : (
+                      <Trans>
+                        Signing in from an app is not available on this server. Use a personal key
+                        instead.
+                      </Trans>
+                    )
+                  }
+                />
               }
             />
-          }
-        />
-      </Section>
+          </Section>
 
-      <Section
-        title={<Trans>Personal keys</Trans>}
-        icon={KeyRound}
-        tone="signal"
-        info={
-          <Trans>
-            A key works like a password for one app, such as Claude Code, Cursor, a script or a
-            local model. You see it once when you create it. You can have up to{" "}
-            {status.maxActiveKeys} active keys.
-          </Trans>
-        }
-        actions={
-          props.onCreateKey && !props.keyPanel ? (
-            <Button onClick={props.onCreateKey} disabled={!status.canCreate || atKeyLimit}>
-              <Plus className="size-4" aria-hidden="true" />
-              <Trans>Create key</Trans>
-            </Button>
-          ) : null
-        }
-      >
-        {props.keyPanel}
-        {atKeyLimit && status.canCreate ? (
-          <p className="text-sm text-ink-3">
-            <Trans>
-              You have {activeKeyCount} active keys, the most allowed. Revoke one to make another.
-            </Trans>
-          </p>
-        ) : null}
-        <GrantList
-          {...props}
-          kind="personal_key"
-          active={keys.active}
-          inactive={keys.inactive}
-          empty={
-            <EmptyState
-              icon={KeyRound}
-              title={<Trans>No personal keys</Trans>}
-              description={
+          <Section
+            title={<Trans>Personal keys</Trans>}
+            icon={KeyRound}
+            tone="signal"
+            info={
+              <Trans>
+                A key works like a password for one app, such as Claude Code, Cursor, a script or a
+                local model. You see it once when you create it. You can have up to{" "}
+                {status.maxActiveKeys} active keys.
+              </Trans>
+            }
+            actions={createKeyButton}
+          >
+            {props.keyPanel}
+            {atKeyLimit && status.canCreate ? (
+              <p className="text-sm text-ink-3">
                 <Trans>
-                  A key lets a tool on your computer, like Claude Code or a local model, read your
-                  records to answer questions about your sleep, training and labs.
+                  You have {activeKeyCount} active keys, the most allowed. Revoke one to make
+                  another.
                 </Trans>
+              </p>
+            ) : null}
+            <GrantList
+              {...props}
+              kind="personal_key"
+              active={keys.active}
+              inactive={keys.inactive}
+              empty={
+                <EmptyState
+                  icon={KeyRound}
+                  title={<Trans>No personal keys</Trans>}
+                  description={
+                    <Trans>
+                      A key lets a tool on your computer, like Claude Code or a local model, read
+                      your records to answer questions about your sleep, training and labs.
+                    </Trans>
+                  }
+                />
               }
             />
-          }
-        />
-      </Section>
+          </Section>
 
-      <HelpLinks mcpUrl={status.mcpUrl} oauthEnabled={status.oauthEnabled} />
+          <HelpLinks mcpUrl={status.mcpUrl} oauthEnabled={status.oauthEnabled} />
+        </>
+      )}
 
       <AlertDialog
         open={props.confirmRevoke !== null}
@@ -537,8 +570,44 @@ export function AiAppActivity(props: AiAppActivityProps) {
   );
 }
 
+type HelpPageId = (typeof AI_APPS_HELP_PAGES)[number]["id"];
+
+/** The apps that only sign in (no personal key), so they need OAuth on the server. */
+const SIGN_IN_ONLY: ReadonlySet<HelpPageId> = new Set(["claude-ai", "claude-desktop", "chatgpt"]);
+
+/**
+ * #settings-ai-apps-1 — "How to connect an app": pick the app from a tab bar,
+ * and the short steps below swap to match, with its full guide one tap away.
+ * Every panel stays in the page (hidden), so search and tests still see them.
+ */
 function HelpLinks({ mcpUrl, oauthEnabled }: { mcpUrl: string | null; oauthEnabled: boolean }) {
   const { t } = useLingui();
+  // Without sign-in on the server, start at an app that works with a key.
+  const [selected, setSelected] = useState<HelpPageId>(
+    oauthEnabled ? AI_APPS_HELP_PAGES[0].id : "claude-code",
+  );
+  const baseId = useId();
+  const tabId = (id: HelpPageId) => `${baseId}-tab-${id}`;
+  const panelId = (id: HelpPageId) => `${baseId}-panel-${id}`;
+  const ids = AI_APPS_HELP_PAGES.map((page) => page.id);
+  const onKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+    const index = ids.indexOf(selected);
+    const next =
+      event.key === "ArrowRight"
+        ? ids[(index + 1) % ids.length]
+        : event.key === "ArrowLeft"
+          ? ids[(index - 1 + ids.length) % ids.length]
+          : event.key === "Home"
+            ? ids[0]
+            : event.key === "End"
+              ? ids[ids.length - 1]
+              : null;
+    if (!next) return;
+    event.preventDefault();
+    setSelected(next);
+    document.getElementById(tabId(next))?.focus();
+  };
+
   return (
     <Section
       title={<Trans>How to connect an app</Trans>}
@@ -552,40 +621,195 @@ function HelpLinks({ mcpUrl, oauthEnabled }: { mcpUrl: string | null; oauthEnabl
         </Trans>
       }
     >
-      <div className="sheet grid gap-4 p-5">
+      <div className="sheet grid min-w-0 gap-5 p-5">
+        <div className="grid min-w-0 gap-2">
+          <span id={`${baseId}-label`} className="text-sm text-ink-3">
+            <Trans>Pick your app</Trans>
+          </span>
+          <div
+            role="tablist"
+            aria-labelledby={`${baseId}-label`}
+            className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sm:flex-wrap sm:overflow-visible"
+          >
+            {AI_APPS_HELP_PAGES.map((page) => {
+              const active = page.id === selected;
+              return (
+                <button
+                  key={page.id}
+                  id={tabId(page.id)}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  aria-controls={panelId(page.id)}
+                  tabIndex={active ? 0 : -1}
+                  onClick={() => setSelected(page.id)}
+                  onKeyDown={onKeyDown}
+                  className={`inline-flex min-h-10 shrink-0 items-center rounded-full border px-4 text-sm font-medium whitespace-nowrap transition-colors duration-[var(--dur-short)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${
+                    active
+                      ? "border-transparent bg-sidebar-accent text-signal"
+                      : "border-rule-2 text-ink hover:bg-paper-2"
+                  }`}
+                >
+                  {page.name ?? t`A local model`}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         {mcpUrl ? (
-          <div className="grid min-w-0 gap-4">
-            <div className="grid min-w-0 gap-1">
-              <span className="text-sm text-ink-3">
-                <Trans>Server address for your app</Trans>
-              </span>
-              <CopyField value={mcpUrl} kind="address" />
-            </div>
-            {oauthEnabled ? (
-              <div className="grid min-w-0 gap-1">
-                <span className="text-sm text-ink-3">
-                  <Trans>Claude Code, signing in from the app:</Trans>
-                </span>
-                <CopyField value={claudeCodeOAuthCommand(mcpUrl)} kind="command" />
-              </div>
-            ) : null}
+          <div className="grid min-w-0 gap-1">
+            <span className="text-sm text-ink-3">
+              <Trans>Server address for your app</Trans>
+            </span>
+            <CopyField value={mcpUrl} kind="address" />
           </div>
         ) : null}
-        <ul className="flex flex-wrap gap-2" aria-label={t`Step-by-step guides`}>
-          {AI_APPS_HELP_PAGES.map((page) => (
-            <li key={page.id}>
-              <a
-                href={aiAppsHelpUrl(page.file)}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex min-h-10 items-center rounded-full border border-rule-2 px-4 text-sm font-medium text-ink no-underline hover:bg-paper-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-              >
-                {page.name ?? t`A local model`}
-              </a>
-            </li>
-          ))}
-        </ul>
+
+        {AI_APPS_HELP_PAGES.map((page) => (
+          <div
+            key={page.id}
+            id={panelId(page.id)}
+            role="tabpanel"
+            aria-labelledby={tabId(page.id)}
+            hidden={page.id !== selected}
+            className="grid min-w-0 gap-4"
+          >
+            {SIGN_IN_ONLY.has(page.id) && !oauthEnabled ? (
+              <p className="text-sm text-ink-2">
+                <Trans>
+                  This app connects by signing in, which this server doesn't offer. Use an app on
+                  your computer with a personal key instead, such as Claude Code or Cursor.
+                </Trans>
+              </p>
+            ) : (
+              <ol className="grid list-decimal gap-2 pl-5 text-sm text-ink-2 marker:text-ink-3">
+                <HelpSteps id={page.id} mcpUrl={mcpUrl} oauthEnabled={oauthEnabled} />
+              </ol>
+            )}
+            <a
+              href={aiAppsHelpUrl(page.file)}
+              target="_blank"
+              rel="noreferrer"
+              className="w-fit text-sm font-medium text-ink underline decoration-signal underline-offset-2"
+            >
+              <Trans>Step-by-step guide</Trans>
+            </a>
+          </div>
+        ))}
       </div>
     </Section>
   );
+}
+
+/** The few steps for one app; its guide has the detail. */
+function HelpSteps({
+  id,
+  mcpUrl,
+  oauthEnabled,
+}: {
+  id: HelpPageId;
+  mcpUrl: string | null;
+  oauthEnabled: boolean;
+}) {
+  switch (id) {
+    case "claude-ai":
+      return (
+        <>
+          <li>
+            <Trans>In claude.ai, open Customize › Connectors and add a custom connector.</Trans>
+          </li>
+          <li>
+            <Trans>Paste the server address, then select Add and Connect.</Trans>
+          </li>
+          <li>
+            <Trans>Sign in to OpenValens and approve the connection.</Trans>
+          </li>
+        </>
+      );
+    case "claude-desktop":
+      return (
+        <>
+          <li>
+            <Trans>
+              In Claude Desktop or claude.ai, open Customize › Connectors and add a custom
+              connector.
+            </Trans>
+          </li>
+          <li>
+            <Trans>Paste the server address, then select Add and Connect.</Trans>
+          </li>
+          <li>
+            <Trans>
+              Sign in to OpenValens and approve. It works in Claude Desktop from then on.
+            </Trans>
+          </li>
+        </>
+      );
+    case "claude-code":
+      return oauthEnabled && mcpUrl ? (
+        <>
+          <li className="grid min-w-0 gap-1">
+            <Trans>Run this in a terminal:</Trans>
+            <CopyField value={claudeCodeOAuthCommand(mcpUrl)} kind="command" />
+          </li>
+          <li>
+            <Trans>In Claude Code, run /mcp, choose openvalens and sign in.</Trans>
+          </li>
+          <li>
+            <Trans>Approve the connection in OpenValens.</Trans>
+          </li>
+        </>
+      ) : (
+        <>
+          <li>
+            <Trans>Create a personal key on this page.</Trans>
+          </li>
+          <li>
+            <Trans>Add the server address with your key, using the command in the guide.</Trans>
+          </li>
+        </>
+      );
+    case "cursor":
+      return (
+        <>
+          <li>
+            <Trans>Create a personal key on this page.</Trans>
+          </li>
+          <li>
+            <Trans>Add the server address and your key to ~/.cursor/mcp.json.</Trans>
+          </li>
+          <li>
+            <Trans>Restart Cursor.</Trans>
+          </li>
+        </>
+      );
+    case "chatgpt":
+      return (
+        <>
+          <li>
+            <Trans>In ChatGPT, open Plugins and add a custom MCP server.</Trans>
+          </li>
+          <li>
+            <Trans>Paste the server address as the Server URL and choose OAuth.</Trans>
+          </li>
+          <li>
+            <Trans>Sign in to OpenValens and approve the connection.</Trans>
+          </li>
+        </>
+      );
+    case "local":
+      return (
+        <>
+          <li>
+            <Trans>Create a personal key on this page.</Trans>
+          </li>
+          <li>
+            <Trans>
+              Add the server address and your key to the app's MCP settings (mcp.json in LM Studio).
+            </Trans>
+          </li>
+        </>
+      );
+  }
 }

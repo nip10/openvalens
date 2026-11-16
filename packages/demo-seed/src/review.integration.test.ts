@@ -161,8 +161,21 @@ describe.skipIf(!url)("review account seed against disposable PostgreSQL", () =>
       localDate: yesterday,
     });
     expect(diary.entries.length).toBeGreaterThan(3);
-    const profile = await read<{ setupStatus: string }>("profile/get");
+    const profile = await read<{ setupStatus: string; region: unknown }>("profile/get");
     expect(profile.setupStatus).toBe("completed");
+    // #profile-5 — the reviewers' region: the United States, with USPSTF items.
+    expect(profile.region).toEqual({ state: "recorded", value: "us" });
+    const care = await read<{ items: { id: string; state: { lastDoneOn: string | null } }[] }>(
+      "preventiveCare/get",
+    );
+    const ids = care.items.map((item) => item.id);
+    expect(ids).toContain("us.cervical_screening");
+    expect(ids.some((id) => id.startsWith("uk."))).toBe(false);
+    expect(care.items.find((item) => item.id === "us.cervical_screening")?.state.lastDoneOn).toBe(
+      new Date(Date.parse(`${today}T00:00:00Z`) - (2 * 365 + 120) * 86_400_000)
+        .toISOString()
+        .slice(0, 10),
+    );
 
     // The account carries the demo person's name and height.
     const named = await db.execute<{ name: string }>(

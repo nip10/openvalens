@@ -35,6 +35,7 @@ import {
   StatusPill,
   ToneIcon,
 } from "@/components/page";
+import { SectionTabs } from "@/components/section-tabs";
 import { ProgressPhotos } from "@/components/progress-photos";
 import { useLogDialog } from "@/components/quick-log/log-launcher";
 import { Sparkline } from "@/components/sparkline";
@@ -92,6 +93,7 @@ export function PrivateMeasurements() {
   if (isPending || !subject) {
     return (
       <Page>
+        <SectionTabs parent="/body" />
         <ModuleHiddenNote module="body" />
         <PageHeader title={<Trans>Private measurements</Trans>} />
         <p role="status" className="text-sm text-ink-3">
@@ -464,6 +466,7 @@ function PrivateMeasurementsForSubject({
 
   return (
     <Page>
+      <SectionTabs parent="/body" />
       <ModuleHiddenNote module="body" />
       <PageHeader
         title={<Trans>Private measurements</Trans>}

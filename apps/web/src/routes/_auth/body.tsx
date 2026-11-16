@@ -45,6 +45,7 @@ import {
   Section,
   StatTile,
 } from "@/components/page";
+import { SectionTabs } from "@/components/section-tabs";
 import { ProductSettingsStatus } from "@/components/product-settings-status";
 import { SyncStatusBadge } from "@/components/sync-status-badge";
 import { friendlyDate, localIsoDay } from "@/utils/friendly";
@@ -105,6 +106,7 @@ function BodyPage() {
 
   return (
     <Page>
+      <SectionTabs parent="/body" />
       <ModuleHiddenNote module="body" />
       <PageHeader title={<Trans>Body</Trans>} actions={<SyncStatusBadge />} />
 

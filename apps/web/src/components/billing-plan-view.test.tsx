@@ -54,7 +54,7 @@ describe("BillingPlanView", () => {
     expect(html).toInclude("€7.99 per month");
     expect(html).toInclude("€69.00 per year");
     expect(html).toInclude("Prices include VAT");
-    expect(html.match(/Subscribe/g)?.length).toBe(2);
+    expect(html.match(/<button/g)?.length).toBe(1);
     expect(html).not.toInclude("Manage billing");
   });
 
@@ -63,14 +63,16 @@ describe("BillingPlanView", () => {
     expect(html.match(/type="checkbox"/g)?.length).toBe(2);
     expect(html).toInclude("I request that my paid subscription starts immediately.");
     expect(html).toInclude("I understand that if I withdraw within 14 days");
+    expect(html).toInclude("Your 14-day right to withdraw");
+    expect(html).toInclude("EU consumer law gives you 14 days");
     expect(html).toInclude('href="/terms"');
-    expect(html.match(/disabled=""/g)?.length).toBe(2);
+    expect(html.match(/<button[^>]*disabled=""/g)?.length).toBe(1);
   });
 
   test("subscriptions remain unavailable when legal acknowledgement is not configured", () => {
     const html = render({ checkoutAcknowledgement: null });
     expect(html).toInclude("Subscriptions are temporarily unavailable");
-    expect(html.match(/disabled=""/g)?.length).toBe(2);
+    expect(html.match(/<button[^>]*disabled=""/g)?.length).toBe(1);
   });
 
   test("active: plan, renewal date and the portal instead of Checkout", () => {
@@ -120,7 +122,7 @@ describe("BillingPlanView", () => {
   test("prices that could not be loaded leave the buttons without an amount", () => {
     const html = render({ prices: { monthly: null, annual: null } });
     expect(html).not.toInclude("€");
-    expect(html.match(/Subscribe/g)?.length).toBe(2);
+    expect(html.match(/type="radio"/g)?.length).toBe(2);
   });
 
   test("#298 past due: the grace end date while writes still work, then read-only", () => {
@@ -164,9 +166,10 @@ describe("BillingPlanView", () => {
 });
 
 describe("BillingPlanView plan choice (#settings-billing)", () => {
-  test("the annual row says what it costs a month and what it saves", () => {
+  test("the annual card says what it costs a month and what it saves", () => {
     const html = render({});
-    expect(html).toInclude("€69.00 per year (€5.75 a month, save 28%)");
+    expect(html).toInclude("€69.00 per year, €5.75 a month");
+    expect(html).toInclude("Save 28%");
     expect(annualSaving(PRICES)).toEqual({
       percent: 28,
       perMonth: { amount: 575, currency: "eur" },
@@ -178,6 +181,27 @@ describe("BillingPlanView plan choice (#settings-billing)", () => {
     expect(
       annualSaving({ monthly: PRICES.monthly, annual: { amount: 9588, currency: "eur" } }),
     ).toBeNull();
+  });
+
+  test("#settings-billing-4: two plan cards to choose from and one button, annual chosen", () => {
+    const html = render({});
+    expect(html.match(/type="radio"/g)?.length).toBe(2);
+    expect(html).toMatch(/<input type="radio"[^>]*checked="" value="annual"/);
+    expect(html).not.toMatch(/<input type="radio"[^>]*checked="" value="monthly"/);
+    expect(html.match(/<button/g)?.length).toBe(1);
+    expect(html).toInclude("Subscribe yearly");
+    expect(html).toInclude("Your plan includes");
+    expect(html).toInclude("Adding and syncing records");
+  });
+
+  test("#settings-billing-1: during a trial the start-now box says the trial days stay", () => {
+    const trial = render({});
+    expect(trial).toInclude(
+      "I request that my paid subscription starts immediately. I keep the rest of my free trial, and the first payment is on November 28, 2026.",
+    );
+    const ended = render({ status: "ended", trialEndsAt: null, trialDaysLeft: null });
+    expect(ended).toInclude("I request that my paid subscription starts immediately.");
+    expect(ended).not.toInclude("I keep the rest of my free trial");
   });
 
   test("until both boxes are ticked, a line says why Subscribe is off", () => {

@@ -35,6 +35,7 @@ import {
   StatusPill,
   ToneIcon,
 } from "@/components/page";
+import { SectionTabs } from "@/components/section-tabs";
 import {
   FOOD_SORTS,
   enteredValues,
@@ -157,6 +158,7 @@ function FoodsPage() {
 
   return (
     <Page>
+      <SectionTabs parent="/nutrition" />
       <ModuleHiddenNote module="food" />
       <p className="sr-only" role="status" aria-live="polite">
         {message}

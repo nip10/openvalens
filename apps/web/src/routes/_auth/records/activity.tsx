@@ -21,6 +21,7 @@ import { BarChart3, CalendarDays, Flame, Footprints, Route as RouteIcon } from "
 import { Bar, BarChart, CartesianGrid, LabelList, ReferenceLine, XAxis, YAxis } from "recharts";
 
 import { EmptyState, ErrorState, Page, PageHeader, Section, StatTile } from "@/components/page";
+import { SectionTabs } from "@/components/section-tabs";
 import { ProductSettingsStatus } from "@/components/product-settings-status";
 import { SyncStatusBadge } from "@/components/sync-status-badge";
 import { friendlyDate } from "@/utils/friendly";
@@ -91,6 +92,7 @@ function ActivityPage() {
   if (totals.isPending) {
     return (
       <Page>
+        <SectionTabs parent="/records/activity" />
         <ModuleHiddenNote module="activity" />
         {header}
         <div className="grid gap-10 lg:grid-cols-[minmax(0,8fr)_minmax(0,4fr)]">
@@ -104,6 +106,7 @@ function ActivityPage() {
   if (totals.isError || !totals.data) {
     return (
       <Page>
+        <SectionTabs parent="/records/activity" />
         <ModuleHiddenNote module="activity" />
         {header}
         <ErrorState
@@ -171,6 +174,7 @@ function ActivityPage() {
 
   return (
     <Page>
+      <SectionTabs parent="/records/activity" />
       <ModuleHiddenNote module="activity" />
       {header}
 

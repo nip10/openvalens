@@ -6,6 +6,7 @@ import {
   describeProfileSaveError,
   dirtySections,
   draftFromSnapshot,
+  isAgeCheckImplied,
   nextSetupSection,
   rebaseDraft,
   resetSection,
@@ -35,6 +36,7 @@ import { DisplayNameField } from "@/components/display-name-field";
 import { ErrorState, Meter, Page, PageHeader } from "@/components/page";
 import { SettingsPageHeader } from "@/components/settings-back-link";
 import {
+  savesOnChange,
   StepHead,
   WellnessProfileEditor,
   type SectionSaveState,
@@ -155,9 +157,14 @@ function ProfileEditorPage({
     return update.mutateAsync(withStatus);
   };
 
+  // Sections with a save in flight: a save on change waits for the one before
+  // it (its revision), then sends whatever is still different.
+  const inFlight = useRef(new Set<SetupSection>());
+
   const onSave = async (section: SetupSection) => {
     const patch = buildSectionPatch(snapshot, draft, section);
-    if (!patch) return;
+    if (!patch || inFlight.current.has(section)) return;
+    inFlight.current.add(section);
     setSaveState((s) => ({ ...s, [section]: { status: "saving" } }));
     try {
       await send(patch);
@@ -169,8 +176,22 @@ function ProfileEditorPage({
         ...s,
         [section]: { status: "error", message: described.message },
       }));
+    } finally {
+      inFlight.current.delete(section);
     }
   };
+
+  // #profile-2 — a choice saves as soon as it changes. The cache holds the
+  // server's snapshot before a save resolves, so a second tick made during a
+  // save goes out next with the new revision. After a failure it waits for
+  // the person ("Try again", or another change).
+  useEffect(() => {
+    for (const section of dirty) {
+      if (!savesOnChange(section, snapshot, draft)) continue;
+      if (inFlight.current.has(section) || saveState[section]?.status === "error") continue;
+      void onSave(section);
+    }
+  });
 
   const finish = async (setupStatus: "completed" | "skipped") => {
     setPageMessage(null);
@@ -184,7 +205,12 @@ function ProfileEditorPage({
     }
   };
 
-  const progress = setupProgress(snapshot);
+  // #profile-3 — the age check a birth year answers is not on show, so it is
+  // not counted either: "3 of 4" matches the sections you can see.
+  const counted = setupProgress(snapshot);
+  const progress = isAgeCheckImplied(snapshot)
+    ? { answered: counted.answered - 1, available: counted.available - 1 }
+    : counted;
   const resume = nextSetupSection(snapshot);
   const inSetup = snapshot.setupStatus !== "completed";
   const allAnswered = progress.available > 0 && progress.answered >= progress.available;

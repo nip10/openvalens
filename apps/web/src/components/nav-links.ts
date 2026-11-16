@@ -3,6 +3,7 @@ import { msg } from "@lingui/core/macro";
 import {
   Bookmark,
   CalendarHeart,
+  ChefHat,
   Dumbbell,
   FileDown,
   FlaskConical,
@@ -39,14 +40,19 @@ export type NavLink = {
   to: string;
   label: MessageDescriptor;
   icon: LucideIcon;
-  /** Screens that belong to this one; listed under it while one of them is open. */
+  /**
+   * Screens that belong to this one (#app-shell-2): tabs on the parent and its
+   * sub-screens ({@link SectionTabs}), not sidebar entries. They stay in the
+   * palette's "Go to" list and name the phone's top bar.
+   */
   children?: readonly NavLink[];
 };
 export type NavGroup = { label: MessageDescriptor; links: readonly NavLink[] };
 
 // About fifteen destinations in four groups, so the whole list (Sharing
-// included) fits a 900px-tall window. A screen's own sub-screens show under
-// it only while you are there; Settings sits in the footer by the account.
+// included) fits a 900px-tall window. A screen's own sub-screens are tabs on
+// its page, and the parent stays marked in the sidebar while one is open;
+// Settings sits in the footer by the account.
 export const NAV_GROUPS: readonly NavGroup[] = [
   {
     label: msg`Overview`,
@@ -89,8 +95,11 @@ export const NAV_GROUPS: readonly NavGroup[] = [
         label: msg`Meal diary`,
         icon: UtensilsCrossed,
         // Micronutrients live in the diary's All nutrients (micronutrients#4);
-        // a new recipe starts from My foods (recipe-drafts#3).
-        children: [{ to: "/foods", label: msg`My foods`, icon: Bookmark }],
+        // a new recipe starts from My foods (recipe-drafts#3) and keeps a tab.
+        children: [
+          { to: "/foods", label: msg`My foods`, icon: Bookmark },
+          { to: "/recipe-drafts", label: msg`Recipe draft`, icon: ChefHat },
+        ],
       },
       { to: "/supplements", label: msg`Supplements`, icon: Pill },
       { to: "/goals", label: msg`Goals`, icon: Target },
@@ -138,6 +147,28 @@ export function filterChildren(
         : link,
     ),
   }));
+}
+
+/** The screens that have sub-screens: each one's tabs are itself, then its children. */
+export type SectionParent = "/records/activity" | "/body" | "/nutrition";
+
+/** The parent link and its sub-screens, in tab order (#app-shell-2). */
+export function sectionTabs(parent: SectionParent): readonly NavLink[] {
+  const link = NAV_GROUPS.flatMap((group) => group.links).find((item) => item.to === parent);
+  if (!link) return [];
+  const { children, ...self } = link;
+  return [self, ...(children ?? [])];
+}
+
+/**
+ * Whether the sidebar link `link` is where you are: its own screen (the
+ * router marks that one) or one of its sub-screens.
+ */
+export function isInSection(pathname: string, link: NavLink): boolean {
+  return (
+    isWithin(pathname, link.to) ||
+    (link.children ?? []).some((child) => isWithin(pathname, child.to))
+  );
 }
 
 /** Every destination, sub-screens and Settings included: the palette's "Go to" list. */

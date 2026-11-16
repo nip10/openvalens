@@ -8,6 +8,8 @@ import { Bot, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 
 import { AiAppKeyCreated, AiAppKeyForm, type AiAppKeyDraft } from "@/components/ai-app-key-form";
+import { AiAppsSettingsSection } from "@/components/ai-apps-settings-section";
+import { AI_APPS_WORKSPACE_ANCHOR } from "@/components/ai-apps-settings-card";
 import { AiAppActivity, AiAppsView } from "@/components/ai-apps-view";
 import { Details, EmptyState, ErrorState, Page } from "@/components/page";
 import { SettingsPageHeader } from "@/components/settings-back-link";
@@ -197,13 +199,12 @@ function AiAppsSettingsPage() {
               AI apps are turned off for this workspace, so keys and connections don't work.
             </Trans>{" "}
             {workspaceSetting.data?.canManage ? (
-              <Link
-                to="/settings"
-                hash="ai-apps"
+              <a
+                href={`#${AI_APPS_WORKSPACE_ANCHOR}`}
                 className="font-medium text-ink underline decoration-signal underline-offset-2"
               >
-                <Trans>Turn them on in Settings</Trans>
-              </Link>
+                <Trans>Turn them on below</Trans>
+              </a>
             ) : (
               <Trans>The workspace owner can turn them on.</Trans>
             )}
@@ -245,6 +246,8 @@ function AiAppsSettingsPage() {
           </Link>
         )}
       />
+      {/* #settings-ai-apps-2: the switch that can block every app, on the same page. */}
+      <AiAppsSettingsSection />
     </Page>
   );
 }
