@@ -239,7 +239,12 @@ export function formatLocalInsightDate(
   return day ? insightDateFormat(i18n, settings).format(day) : date;
 }
 
-/** Two days as one range in the reader's locale: "Oct 20 – Nov 16". */
+/**
+ * Two days as one range in the reader's locale: "Oct 20 – Nov 16".
+ *
+ * Hermes (the native app's engine) has no `Intl.DateTimeFormat#formatRange`,
+ * so there it is the two days joined: "Oct 1 – Oct 7" rather than "Oct 1 – 7".
+ */
 export function formatInsightDateRange(
   i18n: I18n,
   from: string,
@@ -248,7 +253,10 @@ export function formatInsightDateRange(
 ): string {
   const [start, end] = [utcDay(from), utcDay(to)];
   if (!start || !end || end < start) return `${from} – ${to}`;
-  return insightDateFormat(i18n, settings).formatRange(start, end);
+  const format = insightDateFormat(i18n, settings);
+  return typeof format.formatRange === "function"
+    ? format.formatRange(start, end)
+    : `${format.format(start)} – ${format.format(end)}`;
 }
 
 /** "In the same period, …": one whole sentence for one or two factors. */

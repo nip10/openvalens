@@ -1,7 +1,10 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 
+import type { InsightsResult } from "@openvalens/api/insight-contract";
+import { insightsListView, nutritionObservationView } from "@openvalens/api/presenters/insights";
 import { createDb, sql } from "@openvalens/db";
 import { user } from "@openvalens/db/schema/auth";
+import { englishI18n } from "@openvalens/i18n/testing";
 import { like } from "drizzle-orm";
 
 import { DEMO_MEMBER, DEMO_PERSON } from "./accounts";
@@ -129,6 +132,24 @@ describe.skipIf(!url)("demo seed against disposable PostgreSQL", () => {
     expect(JSON.stringify(readiness)).not.toContain("insufficient");
     const insights = await read<{ insights: { ruleId: string }[] }>("insights/list");
     expect(insights.insights.map((insight) => insight.ruleId)).toContain("change.sleep_duration");
+  });
+
+  test("the cockpit insights render on the native engine (Hermes, no formatRange)", async () => {
+    // The Android e2e suite crashed on the cockpit for Alex: the seed opts in to
+    // nutrition observations, and the shared presenter called
+    // `Intl.DateTimeFormat#formatRange`, which Hermes does not have.
+    const result = await read<InsightsResult>("insights/list");
+    expect(result.observations.length).toBeGreaterThan(0);
+    const prototype = Intl.DateTimeFormat.prototype as { formatRange?: unknown };
+    const original = prototype.formatRange;
+    delete prototype.formatRange;
+    try {
+      expect(insightsListView(englishI18n, result).insights.length).toBe(result.insights.length);
+      for (const observation of result.observations)
+        expect(nutritionObservationView(englishI18n, observation).period).toStartWith("Period: ");
+    } finally {
+      prototype.formatRange = original;
+    }
   });
 
   test("the screens added after the first seed have data", async () => {
