@@ -538,3 +538,65 @@ test("legacyDownload strict input still rejects format: pdf (legacy CSV route ne
   expect(buildLegacy).not.toHaveBeenCalled();
   expect(renderPdfExport).not.toHaveBeenCalled();
 });
+
+test("exports#4: a period narrows the dated rows before rendering and is audited as a flag", async () => {
+  buildLegacy.mockResolvedValueOnce({
+    generatedAt: "2026-03-08T10:00:00.000Z",
+    schemaVersion: "export-v1",
+    selectedDomains: ["blood"],
+    data: {
+      blood: [
+        {
+          recordedAt: "2026-03-02",
+          markerKey: "in",
+          markerName: "In",
+          value: 1,
+          unit: null,
+          flag: null,
+        },
+        {
+          recordedAt: "2025-03-02",
+          markerKey: "out",
+          markerName: "Out",
+          value: 2,
+          unit: null,
+          flag: null,
+        },
+      ],
+    },
+    scope: { organizationId: "org-a" },
+  } as never);
+  await exportsRouter.legacyPdfDownload.callable({ context: context() })({
+    domains: ["blood"],
+    period: { from: "2026-01-01", to: null },
+  });
+  const rendered = renderPdfExport.mock.calls.at(-1)?.[0] as unknown as {
+    data: { blood: Array<{ markerKey: string }> };
+    period: unknown;
+  };
+  expect(rendered.data.blood.map((row) => row.markerKey)).toEqual(["in"]);
+  expect(rendered.period).toEqual({ from: "2026-01-01", to: null });
+  expect(audit.mock.calls.at(-1)?.[0]).toMatchObject({ metadata: { periodApplied: true } });
+  expect(JSON.stringify(audit.mock.calls.at(-1)?.[0])).not.toContain("2026-01-01");
+
+  const csv = await exportsRouter.legacyDownload.callable({ context: context() })({
+    domains: ["blood"],
+  });
+  expect(csv.files.length).toBeGreaterThan(0);
+  expect(audit.mock.calls.at(-1)?.[0]).toMatchObject({ metadata: { periodApplied: false } });
+});
+
+test("exports#4: a period must be calendar dates in order", async () => {
+  for (const period of [
+    { from: "2026-03-02", to: "2026-03-01" },
+    { from: "last month" },
+    { from: "2026-03-01", extra: true },
+  ])
+    await expect(
+      exportsRouter.legacyDownload.callable({ context: context() })({
+        domains: ["blood"],
+        period,
+      } as never),
+    ).rejects.toMatchObject({ code: "INVALID_INPUT" });
+  expect(buildLegacy).not.toHaveBeenCalled();
+});

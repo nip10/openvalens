@@ -93,3 +93,19 @@ test("cursors accept water, supplement intakes and workouts by id (#493)", () =>
   expect(decodeCursor(`${event.at}|workout:0`)).toBeNull();
   expect(decodeCursor(`${event.at}|plain_water_entry:abc`)).toBeNull();
 });
+
+test("timeline#3: a search matches the name, value or note, every word, any case or accent", () => {
+  const noted = {
+    ...event,
+    id: "health_event:9",
+    title: "Magnésio",
+    summary: "1 cap",
+    canonical: { ...event.canonical, note: "Antes do café" },
+  };
+  const ids = (q: string) =>
+    buildTimelinePage([event, metric, noted], { q }).items.map((i) => i.id);
+  expect(ids("magnesio")).toEqual(["health_event:9"]);
+  expect(ids("CAFE antes")).toEqual(["health_event:9"]);
+  expect(ids("cafe lunch")).toEqual([]);
+  expect(ids("   ")).toHaveLength(3);
+});

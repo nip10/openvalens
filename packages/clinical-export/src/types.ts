@@ -68,6 +68,8 @@ export type ExportPayloadFor<Domains extends readonly ExportDomain[]> = {
   schemaVersion: string;
   selectedDomains: Domains[number][];
   data: ExportPayloadDataFor<Domains>;
+  /** exports#4 — the period dated rows were narrowed to; absent for all time. */
+  period?: { from: string | null; to: string | null };
 };
 
 export type ExportPayload = ExportPayloadFor<readonly ExportDomain[]>;

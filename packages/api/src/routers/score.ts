@@ -2,7 +2,7 @@ import { createStructuredLogger } from "@openvalens/observability";
 
 import { permissionedProcedure, raiseApiError, validateInput } from "../index";
 import { createScoreService } from "../score";
-import { readinessResultSchema, scoreInputSchema } from "../score-contract";
+import { readinessHistorySchema, readinessResultSchema, scoreInputSchema } from "../score-contract";
 
 /**
  * Issue #95 — the two "how am I doing?" numbers, computed on request.
@@ -36,6 +36,32 @@ export const scoreRouter = {
           status: result.status,
           profile: result.profile,
           usedInputs: result.coverage.usedInputs.length,
+        });
+        return result;
+      } catch {
+        throw raiseApiError("INTERNAL", "Something went wrong.");
+      }
+    }),
+
+  /**
+   * scores#8 — the readiness index for each of the last 30 days, each
+   * computed as of that day with the same method and inputs as `readiness`.
+   * `records:read`; logs carry the status only, never a score.
+   */
+  readinessHistory: permissionedProcedure({ resource: "records", action: "read" })
+    .use(validateInput(scoreInputSchema))
+    .input(scoreInputSchema)
+    .output(readinessHistorySchema)
+    .handler(async ({ context }) => {
+      try {
+        const result = await createScoreService({ db: context.db }).readinessHistory({
+          organizationId: context.authz.activeOrganizationId,
+          viewerUserId: context.authz.user.id,
+        });
+        logger.info("score.readiness_history.computed", {
+          correlationId: context.correlationId,
+          status: result.status,
+          withheldReason: result.withheldReason,
         });
         return result;
       } catch {

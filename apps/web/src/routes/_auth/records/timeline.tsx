@@ -15,8 +15,9 @@ import { Button } from "@openvalens/ui/components/button";
 import { Label } from "@openvalens/ui/components/label";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { cn } from "@openvalens/ui/lib/utils";
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQueries } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useRef, useState } from "react";
 import {
   Activity,
   ChevronRight,
@@ -34,6 +35,7 @@ import {
   RefreshCw,
   Scale,
   ScanLine,
+  Search,
   Sparkles,
 } from "lucide-react";
 import { z } from "zod";
@@ -47,8 +49,14 @@ import {
   ToneIcon,
   type Tone,
 } from "@/components/page";
+import {
+  dayTotalsRanges,
+  type DayFigures,
+  TimelineDayFigures,
+} from "@/components/timeline-day-figures";
 import { friendlyDate } from "@/utils/friendly";
 import { orpc } from "@/utils/orpc";
+import { useProductSettings } from "@/utils/product-settings";
 
 /**
  * The filter chips under the title. Each is one or more timeline domains:
@@ -71,7 +79,8 @@ const FILTER_IDS = Object.keys(FILTERS) as [FilterId, ...FilterId[]];
 export const Route = createFileRoute("/_auth/records/timeline")({
   // `?source=ai_app:<grantId>` shows only what one connected AI app wrote
   // (#439, M2; linked from Settings → Connected AI apps). `?show=` is a filter
-  // chip and `?day=` jumps to a day (that day and earlier).
+  // chip, `?day=` jumps to a day (that day and earlier) and `?q=` searches
+  // names, values and notes (timeline#3).
   validateSearch: z.object({
     source: z.string().min(1).max(200).optional(),
     show: z.enum(FILTER_IDS).optional().catch(undefined),
@@ -80,6 +89,7 @@ export const Route = createFileRoute("/_auth/records/timeline")({
       .regex(/^\d{4}-\d{2}-\d{2}$/)
       .optional()
       .catch(undefined),
+    q: z.string().trim().min(1).max(100).optional().catch(undefined),
   }),
   component: TimelinePage,
 });
@@ -125,10 +135,69 @@ const CHIP_ON =
   "border-transparent bg-sidebar-accent font-semibold text-signal hover:bg-sidebar-accent";
 const CHIP_OFF = "border-input bg-card text-ink-2";
 
+/** timeline#6 — the day headers' figures, keyed by local date. */
+function useDayFigures(days: readonly string[]): Map<string, DayFigures> {
+  const ranges = dayTotalsRanges(days);
+  const results = useQueries({
+    queries: ranges.map((range) => ({
+      ...orpc.timeline.dayTotals.queryOptions({ input: range }),
+      staleTime: 60_000,
+    })),
+  });
+  const figures = new Map<string, DayFigures>();
+  for (const result of results) for (const day of result.data ?? []) figures.set(day.date, day);
+  return figures;
+}
+
+/**
+ * timeline#3 — one search box over names, values and notes. It waits for a
+ * short pause in typing, then puts the words in the address (`?q=`).
+ */
+function TimelineSearch({ value, onSearch }: { value: string; onSearch: (value: string) => void }) {
+  const { t } = useLingui();
+  const [text, setText] = useState(value);
+  const sent = useRef(value);
+  const search = useRef(onSearch);
+  search.current = onSearch;
+  // A change from outside (a link that clears the search) resets the box.
+  useEffect(() => {
+    if (value !== sent.current) {
+      sent.current = value;
+      setText(value);
+    }
+  }, [value]);
+  useEffect(() => {
+    const words = text.trim();
+    if (words === sent.current) return;
+    const timer = window.setTimeout(() => {
+      sent.current = words;
+      search.current(words);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [text]);
+  return (
+    <div className="relative w-full sm:w-auto sm:min-w-[12rem] sm:max-w-xs sm:flex-1">
+      <Search
+        className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-3"
+        aria-hidden="true"
+      />
+      <input
+        type="search"
+        aria-label={t`Search the timeline`}
+        placeholder={t`Search names and notes`}
+        maxLength={100}
+        value={text}
+        onChange={(event) => setText(event.target.value)}
+        className="h-9 w-full rounded-xl border border-input bg-card pr-3 pl-9 text-sm text-ink outline-2 -outline-offset-2 outline-transparent placeholder:text-ink-3 focus-visible:outline-ring"
+      />
+    </div>
+  );
+}
+
 function TimelinePage() {
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const { i18n, t } = useLingui();
-  const { source, show, day } = Route.useSearch();
+  const { source, show, day, q } = Route.useSearch();
   const navigate = useNavigate({ from: Route.fullPath });
   const domains = show ? [...FILTERS[show].domains] : undefined;
   const query = useInfiniteQuery(
@@ -138,6 +207,7 @@ function TimelinePage() {
         ...(source ? { source } : {}),
         ...(domains ? { domains } : {}),
         ...(day ? { to: endOfLocalDay(day) } : {}),
+        ...(q ? { q } : {}),
         ...(cursor ? { cursor } : {}),
       }),
       initialPageParam: undefined,
@@ -146,7 +216,9 @@ function TimelinePage() {
   );
   const items = query.data?.pages.flatMap((page) => page.items) ?? [];
   const groups = groupTimelineByDay(items, timeZone);
-  const filtered = Boolean(show || day);
+  const filtered = Boolean(show || day || q);
+  const settings = useProductSettings().data;
+  const dayFigures = useDayFigures(groups.map((group) => group.day));
 
   return (
     <Page>
@@ -183,34 +255,42 @@ function TimelinePage() {
           </ul>
         </nav>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
-          <Label htmlFor="timeline-day" className="text-ink-3">
-            <Trans>Go to a day</Trans>
-          </Label>
-          <input
-            id="timeline-day"
-            type="date"
-            max={todayIso()}
-            value={day ?? ""}
-            onChange={(event) => {
-              const value = event.target.value;
-              void navigate({
-                search: (prev) => ({
-                  ...prev,
-                  day: /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : undefined,
-                }),
-              });
-            }}
-            className="h-9 rounded-xl border border-input bg-card px-3 text-sm text-ink outline-2 -outline-offset-2 outline-transparent focus-visible:outline-ring"
+          <TimelineSearch
+            value={q ?? ""}
+            onSearch={(value) =>
+              void navigate({ search: (prev) => ({ ...prev, q: value || undefined }) })
+            }
           />
-          {day ? (
-            <Link
-              to="/records/timeline"
-              search={(prev) => ({ ...prev, day: undefined })}
-              className="font-medium text-ink underline-offset-4 hover:underline"
-            >
-              <Trans>Back to today</Trans>
-            </Link>
-          ) : null}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <Label htmlFor="timeline-day" className="text-ink-3">
+              <Trans>Go to a day</Trans>
+            </Label>
+            <input
+              id="timeline-day"
+              type="date"
+              max={todayIso()}
+              value={day ?? ""}
+              onChange={(event) => {
+                const value = event.target.value;
+                void navigate({
+                  search: (prev) => ({
+                    ...prev,
+                    day: /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : undefined,
+                  }),
+                });
+              }}
+              className="h-9 rounded-xl border border-input bg-card px-3 text-sm text-ink outline-2 -outline-offset-2 outline-transparent focus-visible:outline-ring"
+            />
+            {day ? (
+              <Link
+                to="/records/timeline"
+                search={(prev) => ({ ...prev, day: undefined })}
+                className="font-medium text-ink underline-offset-4 hover:underline"
+              >
+                <Trans>Back to today</Trans>
+              </Link>
+            ) : null}
+          </div>
         </div>
       </div>
 
@@ -256,7 +336,13 @@ function TimelinePage() {
           <EmptyState
             icon={History}
             title={<Trans>Nothing here</Trans>}
-            description={<Trans>No entries match this filter.</Trans>}
+            description={
+              q ? (
+                <Trans>No entries match “{q}”.</Trans>
+              ) : (
+                <Trans>No entries match this filter.</Trans>
+              )
+            }
           />
         ) : (
           <EmptyState
@@ -277,10 +363,13 @@ function TimelinePage() {
               aria-label={group.day}
               className="grid w-full min-w-0 grid-cols-1 gap-2"
             >
-              {/* The day stays in view while its entries scroll (below the phone top bar). */}
-              <h2 className="sticky top-14 z-10 bg-paper py-2 text-xl leading-tight text-ink lg:top-0">
-                <time dateTime={group.day}>{friendlyDate(i18n, group.day)}</time>
-              </h2>
+              {/* The day and its figures stay in view while its entries scroll (below the phone top bar). */}
+              <div className="sticky top-14 z-10 grid gap-1 bg-paper py-2 lg:top-0">
+                <h2 className="text-xl leading-tight text-ink">
+                  <time dateTime={group.day}>{friendlyDate(i18n, group.day)}</time>
+                </h2>
+                <TimelineDayFigures figures={dayFigures.get(group.day)} settings={settings} />
+              </div>
               <ul className="sheet grid grid-cols-1 divide-y divide-rule px-4 py-1">
                 {collapseTimelineSamples(group.items, i18n).map((row) =>
                   row.type === "entry" ? (

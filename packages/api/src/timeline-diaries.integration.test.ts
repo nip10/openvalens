@@ -191,6 +191,12 @@ describe.skipIf(!url)("water, supplement intakes and workouts on the timeline", 
 
   beforeEach(async () => {
     for (const table of [
+      "nutrition_meal_entry",
+      "nutrition_meal",
+      "nutrition_food_snapshot",
+      "daily_weight",
+      "metric_sample",
+      "metric_definition",
       "supplement_intake",
       "workout",
       "health_event",
@@ -366,6 +372,121 @@ describe.skipIf(!url)("water, supplement intakes and workouts on the timeline", 
 
   test("an impersonated session sees none of the member's own entries", async () => {
     expect(ids(await diaries("user-a", IMPERSONATED))).toEqual(["health_event"]);
+  });
+
+  test("search finds entries by name, value or note, ignoring case and accents (timeline#3)", async () => {
+    await db.execute(
+      sql`update supplement_intake set note = 'Antes do café' where user_id = 'user-a' and deleted_at is null`,
+    );
+    const search = async (q: string, user = "user-a") => {
+      const page = await call("timeline/list", { limit: 200, q }, user);
+      expect(page.status).toBe(200);
+      return (page.body.items as Item[]).map((item) => item.id.split(":")[0]);
+    };
+    expect(await search("magnesium")).toEqual(["supplement_intake"]);
+    expect(await search("CAFE")).toEqual(["supplement_intake"]);
+    expect(await search("cafe magnes")).toEqual(["supplement_intake"]);
+    expect(await search("250 ml")).toEqual(["plain_water_entry"]);
+    expect(await search("nothing like this")).toEqual([]);
+    // Another member's note is theirs alone.
+    expect(await search("cafe", "user-b")).toEqual([]);
+    expect((await call("timeline/list", { q: "x".repeat(101) })).status).toBe(400);
+  });
+
+  test("day totals: one line of figures per day, the member's own, newest first (timeline#6)", async () => {
+    // Two devices counted the same steps only once each into daily totals;
+    // two sleep sessions the same night add up, as on the Sleep screen.
+    await db.execute(sql`insert into metric_definition
+      (organization_id, code, display_name, category, unit, value_type, aggregation_default)
+      values ('org-a', 'steps', 'Steps', 'activity', 'count', 'number', 'sum')`);
+    await db.execute(sql`insert into metric_sample (organization_id, metric_definition_id, sampled_at, numeric_value, dedupe_hash)
+      select 'org-a', id, '2026-10-01T12:00:00Z', 6000, 'steps-1' from metric_definition where code = 'steps' and organization_id = 'org-a'`);
+    await db.execute(sql`insert into metric_sample (organization_id, metric_definition_id, sampled_at, numeric_value, dedupe_hash)
+      select 'org-a', id, '2026-10-01T18:00:00Z', 5000, 'steps-2' from metric_definition where code = 'steps' and organization_id = 'org-a'`);
+    await db.execute(sql`insert into health_event (organization_id, user_id, event_type, event_at, payload_json, dedupe_hash)
+      values ('org-a', 'user-a', 'sleep_session', '2026-09-30T22:30:00Z', '{"endAt":"2026-10-01T06:30:00Z"}'::jsonb, 'sleep-a')`);
+    await db.execute(sql`insert into daily_weight (organization_id, user_id, date, weight_kg, source, created_at, updated_at)
+      values ('org-a', 'user-a', '2026-10-01', 66.6, 'manual', 'now', 'now'), ('org-a', 'user-b', '2026-10-01', 80, 'manual', 'now', 'now')`);
+    const [snapshot] = (
+      await db.execute(sql`insert into nutrition_food_snapshot
+        (organization_id, source, name, nutrient_basis_amount, nutrient_basis_unit, content_hash)
+        values ('org-a', 'manual', 'Synthetic oats', 100, 'g', 'hash-oats') returning id`)
+    ).rows as Array<{ id: number }>;
+    for (const slot of ["breakfast", "lunch", "dinner"]) {
+      const [meal] = (
+        await db.execute(sql`insert into nutrition_meal (organization_id, user_id, local_date, time_zone, slot)
+          values ('org-a', 'user-a', '2026-10-01', 'Europe/Lisbon', ${slot}) returning id`)
+      ).rows as Array<{ id: number }>;
+      // Two entries in breakfast still make one meal; dinner's only entry is deleted.
+      for (let copy = 0; copy < (slot === "breakfast" ? 2 : 1); copy += 1)
+        await db.execute(sql`insert into nutrition_meal_entry
+          (organization_id, user_id, meal_id, snapshot_id, amount, unit, nutrient_factor, method, deleted_at)
+          values ('org-a', 'user-a', ${meal!.id}, ${snapshot!.id}, 50, 'g', 0.5, 'manual',
+            ${slot === "dinner" ? sql`now()` : null})`);
+    }
+
+    const totals = await call("timeline/dayTotals", { from: "2026-09-30", to: "2026-10-01" });
+    expect(totals.status).toBe(200);
+    expect(totals.body).toEqual([
+      { date: "2026-10-01", asleepMinutes: 480, steps: 11000, meals: 2, weightKg: 66.6 },
+      { date: "2026-09-30", asleepMinutes: null, steps: null, meals: null, weightKg: null },
+    ]);
+
+    // Another member: their own weight, no meals or sleep of user-a's.
+    const other = await call(
+      "timeline/dayTotals",
+      { from: "2026-10-01", to: "2026-10-01" },
+      "user-b",
+    );
+    expect(other.body[0]).toMatchObject({ asleepMinutes: null, meals: null, weightKg: 80 });
+    // Another workspace sees none of it.
+    const foreign = await call(
+      "timeline/dayTotals",
+      { from: "2026-10-01", to: "2026-10-01" },
+      "user-d",
+    );
+    expect(foreign.body[0]).toEqual({
+      date: "2026-10-01",
+      asleepMinutes: null,
+      steps: null,
+      meals: null,
+      weightKg: null,
+    });
+
+    // Each part follows its module and its screen's read permission.
+    await modules("user-a", ["sleep"]);
+    const sleepOnly = await call("timeline/dayTotals", { from: "2026-10-01", to: "2026-10-01" });
+    expect(sleepOnly.body[0]).toMatchObject({
+      asleepMinutes: 480,
+      steps: null,
+      meals: null,
+      weightKg: null,
+    });
+    await modules("user-a", null);
+    const noWeight = await call(
+      "timeline/dayTotals",
+      { from: "2026-10-01", to: "2026-10-01" },
+      "user-a",
+      { "x-test-deny": "weight" },
+    );
+    expect(noWeight.body[0]).toMatchObject({ steps: 11000, weightKg: null });
+
+    // The range is bounded and the tenant comes from the session only.
+    expect(
+      (await call("timeline/dayTotals", { from: "2026-01-01", to: "2026-10-01" })).status,
+    ).toBe(400);
+    expect(
+      (await call("timeline/dayTotals", { from: "2026-10-02", to: "2026-10-01" })).status,
+    ).toBe(400);
+    expect(
+      (
+        await call("timeline/dayTotals", {
+          from: "2026-10-01",
+          to: "2026-10-01",
+          organizationId: "org-b",
+        })
+      ).status,
+    ).toBe(400);
   });
 
   test("changes since the last review count them by domain", async () => {

@@ -119,6 +119,11 @@ msgstr "{0, plural, one {# exercise} other {# exercises}}, {1, plural, one {# se
 msgid "{0, plural, one {# food found} other {# foods found}}"
 msgstr "{0, plural, one {# food found} other {# foods found}}"
 
+#. placeholder {0}: figures.meals
+#: apps/web/src/components/timeline-day-figures.tsx
+msgid "{0, plural, one {# meal} other {# meals}}"
+msgstr "{0, plural, one {# meal} other {# meals}}"
+
 #. placeholder {0}: thread.messageCount
 #: apps/native/app/(drawer)/coach/index.tsx
 #: apps/web/src/routes/_auth/coach/route.tsx
@@ -210,6 +215,11 @@ msgstr "{0, plural, one {# syncing} other {# syncing}}"
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 msgid "{0, plural, one {# unsynced change will be removed from this device.} other {# unsynced changes will be removed from this device.}}"
 msgstr "{0, plural, one {# unsynced change will be removed from this device.} other {# unsynced changes will be removed from this device.}}"
+
+#. placeholder {0}: day.count
+#: apps/web/src/routes/_auth/records/activity.tsx
+msgid "{0, plural, one {# workout} other {# workouts}}"
+msgstr "{0, plural, one {# workout} other {# workouts}}"
 
 #. placeholder {0}: rows.length
 #: apps/web/src/components/exercise-library.tsx
@@ -401,8 +411,11 @@ msgid "{0} not set"
 msgstr "{0} not set"
 
 #. placeholder {0}: currentIndex + 1
+#. placeholder {0}: trend.scoredDays
 #. placeholder {1}: exercises.length
+#. placeholder {1}: trend.points.length
 #: apps/native/components/active-workout.tsx
+#: apps/web/src/components/readiness-trend.tsx
 msgid "{0} of {1}"
 msgstr "{0} of {1}"
 
@@ -511,9 +524,16 @@ msgstr "{0} sets"
 msgid "{0} sets · {1}–{2} reps · rest {3}"
 msgstr "{0} sets · {1}–{2} reps · rest {3}"
 
+#. placeholder {0}: formatSleepDuration(figures.asleepMinutes)
+#: apps/web/src/components/timeline-day-figures.tsx
+msgid "{0} sleep"
+msgstr "{0} sleep"
+
 #. safety
+#. placeholder {0}: formatSteps(Math.round(figures.steps))
 #. placeholder {0}: formatSteps(day.steps)
 #: apps/native/app/(drawer)/records/activity.tsx
+#: apps/web/src/components/timeline-day-figures.tsx
 msgid "{0} steps"
 msgstr "{0} steps"
 
@@ -701,6 +721,11 @@ msgstr "{count} recording streaks"
 #: packages/api/src/presenters/body-map.ts
 msgid "{count} sets"
 msgstr "{count} sets"
+
+#. placeholder {0}: day.minutes
+#: apps/web/src/routes/_auth/records/activity.tsx
+msgid "{count}, {0} min"
+msgstr "{count}, {0} min"
 
 #: apps/native/app/(drawer)/trackers.tsx
 msgid "{current} of {targetText}"
@@ -923,6 +948,10 @@ msgstr "{known} of {0, plural, one {# food} other {# foods}} reported a value"
 #: packages/api/src/presenters/micronutrients.ts
 msgid "{known} of {0, plural, one {# food} other {# foods}} reported this"
 msgstr "{known} of {0, plural, one {# food} other {# foods}} reported this"
+
+#: packages/api/src/presenters/score.ts
+msgid "{label} {change} since yesterday"
+msgstr "{label} {change} since yesterday"
 
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "{label} {value}"
@@ -2691,6 +2720,10 @@ msgstr "All sets reached {0} reps last time, so add {increment} {unit}."
 msgid "All steps"
 msgstr "All steps"
 
+#: apps/web/src/routes/_auth/exports.tsx
+msgid "All time"
+msgstr "All time"
+
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 msgid "All trackers"
 msgstr "All trackers"
@@ -4188,6 +4221,10 @@ msgstr "Choose a server and sign in to request an export."
 msgid "Choose a start date."
 msgstr "Choose a start date."
 
+#: apps/web/src/routes/_auth/exports.tsx
+msgid "Choose a start or end date."
+msgstr "Choose a start or end date."
+
 #: apps/native/components/quick-log/quick-form.tsx
 #: apps/web/src/components/quick-log/quick-form.tsx
 #: apps/web/src/routes/_auth/-goal-editor.tsx
@@ -4315,8 +4352,8 @@ msgid "Choose what the export is for."
 msgstr "Choose what the export is for."
 
 #: apps/web/src/routes/_auth/exports.tsx
-msgid "Choose what to include and a format, then download."
-msgstr "Choose what to include and a format, then download."
+msgid "Choose what to include, a period and a format, then download."
+msgstr "Choose what to include, a period and a format, then download."
 
 #: packages/api/src/presenters/workouts.ts
 msgid "Choose whether the value should go up or down."
@@ -6284,6 +6321,7 @@ msgstr "Current version: {0}."
 
 #: apps/native/app/(drawer)/trackers.tsx
 #: apps/native/components/exercise-library.tsx
+#: apps/web/src/routes/_auth/exports.tsx
 #: apps/web/src/routes/_auth/trackers.index.tsx
 msgid "Custom"
 msgstr "Custom"
@@ -6549,6 +6587,10 @@ msgstr "Days logged"
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 msgid "Days on target"
 msgstr "Days on target"
+
+#: apps/web/src/components/readiness-trend.tsx
+msgid "Days with a score"
+msgstr "Days with a score"
 
 #: apps/native/components/trackers/tracker-editor.tsx
 #: apps/web/src/components/trackers/tracker-editor.tsx
@@ -8620,6 +8662,10 @@ msgstr "Free-text notes on your workouts, labs and other entries."
 msgid "Frequency"
 msgstr "Frequency"
 
+#: apps/web/src/routes/_auth/exports.tsx
+msgid "From"
+msgstr "From"
+
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "From 1 entry"
 msgstr "From 1 entry"
@@ -8698,7 +8744,7 @@ msgstr "Full log"
 msgid "Full report"
 msgstr "Full report"
 
-#: apps/web/src/routes/_auth/dashboard.tsx
+#: apps/web/src/components/today-so-far.tsx
 msgid "Full timeline"
 msgstr "Full timeline"
 
@@ -10223,6 +10269,10 @@ msgstr "Lab range: {text} {unit}"
 msgid "Lab result"
 msgstr "Lab result"
 
+#: apps/web/src/routes/_auth/exports.tsx
+msgid "Lab results, scans, workouts, weigh-ins and appointments are limited to the period. Current medications, supplements, goals and family history are always included in full."
+msgstr "Lab results, scans, workouts, weigh-ins and appointments are limited to the period. Current medications, supplements, goals and family history are always included in full."
+
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/records/labs.tsx
 #: apps/web/src/components/nav-links.ts
@@ -10261,7 +10311,12 @@ msgstr "Language code"
 msgid "Last {windowDays} days"
 msgstr "Last {windowDays} days"
 
+#: apps/web/src/routes/_auth/exports.tsx
+msgid "Last 3 months"
+msgstr "Last 3 months"
+
 #: apps/native/app/(drawer)/body-map.tsx
+#: apps/web/src/components/readiness-trend.tsx
 #: apps/web/src/routes/_auth/body-map.tsx
 msgid "Last 30 days"
 msgstr "Last 30 days"
@@ -10366,6 +10421,10 @@ msgstr "Last verify"
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Last week's intake against your target doesn't change the proposal."
 msgstr "Last week's intake against your target doesn't change the proposal."
+
+#: apps/web/src/routes/_auth/exports.tsx
+msgid "Last year"
+msgstr "Last year"
 
 #: apps/native/app/(drawer)/insight-settings.tsx
 msgid "Later"
@@ -11073,9 +11132,11 @@ msgstr "Log: {what}"
 #. Home-screen widget button: opens the log picker.
 #. Opens the quick log palette.
 #. Opens the quick log palette.
+#. Opens the quick log palette.
 #: apps/native/lib/home-widget/copy.ts
 #: apps/native/lib/quick-log/quick-actions.ts
 #: apps/web/src/components/header.tsx
+#: apps/web/src/components/today-so-far.tsx
 msgid "Log…"
 msgstr "Log…"
 
@@ -11486,6 +11547,7 @@ msgstr "Meal drafts waiting for your review"
 msgid "Meal photo (JPEG or PNG, up to 10 MB)"
 msgstr "Meal photo (JPEG or PNG, up to 10 MB)"
 
+#: apps/web/src/components/today-so-far.tsx
 #: packages/api/src/presenters/nutrition-templates.ts
 msgid "Meals"
 msgstr "Meals"
@@ -12382,6 +12444,10 @@ msgstr "No eligible values for this measure."
 #: packages/api/src/presenters/energy-estimate.ts
 msgid "No energy target set"
 msgstr "No energy target set"
+
+#: apps/web/src/routes/_auth/records/timeline.tsx
+msgid "No entries match “{q}”."
+msgstr "No entries match “{q}”."
 
 #: apps/web/src/routes/_auth/records/timeline.tsx
 msgid "No entries match this filter."
@@ -14226,6 +14292,10 @@ msgstr "Per-minute steps and heart rate sync when you enter the watch's 16-byte 
 msgid "Performance"
 msgstr "Performance"
 
+#: apps/web/src/routes/_auth/exports.tsx
+msgid "Period"
+msgstr "Period"
+
 #: apps/web/src/components/quick-log/log-targets.ts
 msgctxt "menstrual cycle"
 msgid "Period"
@@ -14373,8 +14443,8 @@ msgid "Pick a tile above to chart it."
 msgstr "Pick a tile above to chart it."
 
 #: apps/web/src/routes/_auth/records/activity.tsx
-msgid "Pick a tile above to chart it. The dashed line is your 7-day average."
-msgstr "Pick a tile above to chart it. The dashed line is your 7-day average."
+msgid "Pick a tile above to chart it. The dashed line is your 7-day average. A dot above a bar marks a day with a workout."
+msgstr "Pick a tile above to chart it. The dashed line is your 7-day average. A dot above a bar marks a day with a workout."
 
 #: apps/native/components/onboarding/steps.tsx
 #: apps/web/src/components/onboarding/setup-steps.tsx
@@ -15048,6 +15118,10 @@ msgctxt "ai app call"
 msgid "Read-only"
 msgstr "Read-only"
 
+#: apps/web/src/components/readiness-trend.tsx
+msgid "Readiness"
+msgstr "Readiness"
+
 #. placeholder {0}: readiness.data.timestamp
 #: apps/native/app/(drawer)/(tabs)/index.tsx
 msgid "Readiness checked at {0}"
@@ -15067,6 +15141,10 @@ msgstr "Readiness index not loaded."
 #: packages/api/src/presenters/wearables.ts
 msgid "Readiness score, overnight HRV, resting heart rate, sleep sessions and daily steps."
 msgstr "Readiness score, overnight HRV, resting heart rate, sleep sessions and daily steps."
+
+#: apps/web/src/components/readiness-trend.tsx
+msgid "Readiness, last 30 days"
+msgstr "Readiness, last 30 days"
 
 #: apps/native/components/direct-device-settings.tsx
 msgid "Reading step history…"
@@ -16696,6 +16774,10 @@ msgstr "Search foods, logs at {0}"
 msgid "Search my foods"
 msgstr "Search my foods"
 
+#: apps/web/src/routes/_auth/records/timeline.tsx
+msgid "Search names and notes"
+msgstr "Search names and notes"
+
 #: apps/native/components/ai-app-drafts.tsx
 #: apps/web/src/components/ai-app-drafts.tsx
 msgid "Search the catalog"
@@ -16704,6 +16786,10 @@ msgstr "Search the catalog"
 #: apps/web/src/components/workout-session-editor.tsx
 msgid "Search the exercise catalog or enter a name. A session with no exercises is valid."
 msgstr "Search the exercise catalog or enter a name. A session with no exercises is valid."
+
+#: apps/web/src/routes/_auth/records/timeline.tsx
+msgid "Search the timeline"
+msgstr "Search the timeline"
 
 #: apps/native/components/get-started-card.tsx
 msgid "Search, scan a barcode or add it quickly."
@@ -17573,6 +17659,7 @@ msgstr "sleep"
 #: apps/native/app/(drawer)/(tabs)/index.tsx
 #: apps/native/app/(drawer)/records/sleep.tsx
 #: apps/web/src/components/nav-links.ts
+#: apps/web/src/components/today-so-far.tsx
 #: apps/web/src/routes/_auth/dashboard.tsx
 #: apps/web/src/routes/_auth/records/sleep.tsx
 #: apps/web/src/routes/_auth/records/timeline.tsx
@@ -17980,6 +18067,7 @@ msgstr "steps"
 
 #: apps/native/app/(drawer)/(tabs)/index.tsx
 #: apps/native/app/(drawer)/records/activity.tsx
+#: apps/web/src/components/today-so-far.tsx
 #: apps/web/src/routes/_auth/dashboard.tsx
 #: apps/web/src/routes/_auth/records/activity.tsx
 #: packages/api/src/presenters/insights.ts
@@ -19734,6 +19822,10 @@ msgstr "Tip: use your keyboard's mic to dictate. Audio is never recorded."
 msgid "Title"
 msgstr "Title"
 
+#: apps/web/src/routes/_auth/exports.tsx
+msgid "To"
+msgstr "To"
+
 #: packages/integrations/telegram/src/webhook.ts
 msgid "To connect this chat, open Settings → Telegram in OpenValens and use the connect link there."
 msgstr "To connect this chat, open Settings → Telegram in OpenValens and use the connect link there."
@@ -19800,6 +19892,7 @@ msgid "Today"
 msgstr "Today"
 
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
+#: apps/web/src/components/today-so-far.tsx
 msgid "Today so far"
 msgstr "Today so far"
 
@@ -20932,6 +21025,7 @@ msgstr "Watches, rings, scales and wearable accounts"
 
 #. Home-screen widget button.
 #: apps/native/lib/home-widget/copy.ts
+#: apps/web/src/components/today-so-far.tsx
 #: apps/web/src/routes/_auth/records/timeline.tsx
 #: packages/api/src/presenters/log-kinds.ts
 #: packages/api/src/presenters/onboarding.ts
@@ -21332,6 +21426,10 @@ msgstr "Workout"
 msgid "Workout date"
 msgstr "Workout date"
 
+#: apps/web/src/routes/_auth/records/activity.tsx
+msgid "Workout day"
+msgstr "Workout day"
+
 #: apps/native/components/workout-session-detail.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Workout details"
@@ -21436,6 +21534,7 @@ msgstr "Yes, invite as owner"
 
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 #: apps/native/utils/friendly.ts
+#: apps/web/src/components/readiness-trend.tsx
 #: apps/web/src/utils/friendly.ts
 msgid "Yesterday"
 msgstr "Yesterday"
@@ -21696,6 +21795,10 @@ msgstr "Your {displayName} account uses a different email address than this acco
 #: apps/native/components/sign-in-methods.tsx
 msgid "Your {name} account uses a different email address than this account."
 msgstr "Your {name} account uses a different email address than this account."
+
+#: apps/web/src/components/readiness-trend.tsx
+msgid "Your 30-day line appears after a few days with a score."
+msgstr "Your 30-day line appears after a few days with a score."
 
 #: packages/api/src/presenters/insights.ts
 msgid "Your 7-day average {metric, select, sleep_duration {sleep} resting_heart_rate {resting heart rate} steps {step count} other {weight}} was {recent}, {difference} {direction, select, higher {higher} other {lower}} than your usual of {usual}."

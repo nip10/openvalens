@@ -61,6 +61,11 @@ export type TimelineFilters = {
   /** Any of these domains (a screen's filter chip can span two, e.g. vitals and cardiac). */
   domains?: CanonicalTimelineDomain[];
   source?: string;
+  /**
+   * timeline#3 — words to find in an entry's name, value or note (case and
+   * accents ignored). Every word must appear.
+   */
+  q?: string;
   severity?: CanonicalTimelineSeverity;
   confidence?: CanonicalTimelineConfidence;
   reviewState?: CanonicalTimelineReviewState;

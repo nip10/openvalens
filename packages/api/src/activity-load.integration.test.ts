@@ -445,6 +445,35 @@ describe.skipIf(!url)("activity load over HTTP against disposable PostgreSQL", (
     expect((await call("activity/weeklyLoad", {}, null)).status).toBe(401);
   });
 
+  test("dailyWorkouts: the chart's workout days, the member's own sessions (activity#7)", async () => {
+    type Day = { date: string; count: number; minutes: number | null };
+    const days = async (user: string, input: Record<string, unknown> = {}) => {
+      const { status, body } = await call<Day[]>("activity/dailyWorkouts", input, user);
+      expect(status).toBe(200);
+      return new Map(body.map((day) => [day.date, day]));
+    };
+    const own = await days("user-a");
+    // The strength session, the legacy watch walk (the superseded copy never counts).
+    expect(own.get(dateOf(2))).toEqual({ date: dateOf(2), count: 1, minutes: 60 });
+    expect(own.get(dateOf(1))).toEqual({ date: dateOf(1), count: 1, minutes: 40 });
+    expect(own.get(dateOf(9))).toMatchObject({ count: 1, minutes: 30 });
+    // Thirty days by default; the two-month-old run needs a longer window.
+    expect(own.has(dateOf(60))).toBe(false);
+    expect((await days("user-a", { days: 90 })).get(dateOf(60))).toMatchObject({ minutes: 25 });
+    // C sees the legacy walk and their own ride, never A's sessions.
+    expect((await days("user-c")).get(dateOf(1))).toMatchObject({ count: 2, minutes: 90 });
+    expect((await days("user-c")).has(dateOf(2))).toBe(false);
+    // Another workspace: only its own.
+    expect([...(await days("user-b")).values()]).toEqual([
+      { date: dateOf(1), count: 1, minutes: 300 },
+    ]);
+    expect((await call("activity/dailyWorkouts", {}, "user-n")).status).toBe(403);
+    expect((await call("activity/dailyWorkouts", { days: 91 })).status).toBe(400);
+    expect(
+      (await call("activity/dailyWorkouts", { organizationId: "org-b" }, "user-a")).status,
+    ).toBe(400);
+  });
+
   test("weeklyLoad is withheld for a person who declared they are under 18", async () => {
     const { body } = await call<ActivityLoadResult>("activity/weeklyLoad", {}, "user-u");
     expect(body).toMatchObject({ status: "withheld", withheldReason: "adults_only", load: null });
