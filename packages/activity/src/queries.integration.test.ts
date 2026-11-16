@@ -5,7 +5,11 @@ import { organization } from "@openvalens/db/schema/auth";
 import { metricDefinition, metricSample } from "@openvalens/db/schema/health-record";
 import { eq, and } from "drizzle-orm";
 
-import { fillDailyActivityTotals, listDailyActivityTotals } from "./queries";
+import {
+  fillDailyActivityTotals,
+  listDailyActivityTotals,
+  listDailyActivityTotalsBetween,
+} from "./queries";
 
 const url = process.env.ACTIVITY_TEST_DATABASE_URL;
 if (url) {
@@ -143,6 +147,35 @@ describe.skipIf(!url)("activity queries against disposable PostgreSQL", () => {
     expect(rows.find((r) => r.date === todayDate)?.steps).toBe(5000);
     expect(rows.find((r) => r.date === yesterdayDate)?.activeCaloriesKcal).toBe(320);
     expect(rows.find((r) => r.date === yesterdayDate)?.distanceMeters).toBe(5400);
+  });
+
+  test("a date range sums each day in it, and nothing either side (timeline#6)", async () => {
+    const steps = await defId("steps");
+    const sample = (iso: string, value: number, hash: string) => ({
+      organizationId: ORG_A,
+      metricDefinitionId: steps,
+      sampledAt: new Date(iso),
+      numericValue: value,
+      dedupeHash: hash,
+    });
+    await db
+      .insert(metricSample)
+      .values([
+        sample("2026-03-01T23:59:59.000Z", 100, "r-0"),
+        sample("2026-03-02T00:00:00.000Z", 1000, "r-1"),
+        sample("2026-03-02T18:00:00.000Z", 2000, "r-2"),
+        sample("2026-03-04T12:00:00.000Z", 500, "r-3"),
+        sample("2026-03-05T00:00:00.000Z", 9999, "r-4"),
+      ]);
+    const rows = await listDailyActivityTotalsBetween(db, ORG_A, "2026-03-02", "2026-03-04");
+    expect(rows.map((row) => [row.date, row.steps])).toEqual([
+      ["2026-03-02", 3000],
+      ["2026-03-03", null],
+      ["2026-03-04", 500],
+    ]);
+    await expect(
+      listDailyActivityTotalsBetween(db, ORG_A, "2026-03-04", "2026-03-02"),
+    ).rejects.toThrow(RangeError);
   });
 
   test("excludes superseded rows from the totals", async () => {

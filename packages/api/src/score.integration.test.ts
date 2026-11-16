@@ -8,7 +8,7 @@ import { RPCHandler } from "@orpc/server/fetch";
 
 import type { Context } from "./context";
 import { appRouter } from "./routers/index";
-import type { ReadinessResult } from "./score-contract";
+import type { ReadinessHistory, ReadinessResult } from "./score-contract";
 
 /**
  * Issue #95 — `score.readiness` (and the goal
@@ -259,6 +259,55 @@ describe.skipIf(!url)("score over HTTP against disposable PostgreSQL", () => {
     });
     expect(parts.hrv!.state).toBe("not_supported_yet");
     expect(body.score).toBe(42);
+  });
+
+  test("readiness history: 30 days, each computed as of its own day (scores#8)", async () => {
+    const { status, body } = await call<ReadinessHistory>("score/readinessHistory", {});
+    expect(status).toBe(200);
+    expect(body).toMatchObject({
+      kind: "readiness_history",
+      experimental: true,
+      status: "available",
+      withheldReason: null,
+    });
+    expect(body.days).toHaveLength(30);
+    const today = new Date().toISOString().slice(0, 10);
+    expect(body.days.at(-1)!.date).toBe(today);
+    // Today matches score.readiness exactly; yesterday was in line with usual.
+    const readiness = await call<ReadinessResult>("score/readiness", {});
+    expect(body.days.at(-1)).toEqual({
+      date: today,
+      score: readiness.body.score,
+      profile: "physiology_enhanced",
+      parts: { sleep: 40, resting_heart_rate: 35, activity_load: 50 },
+    });
+    expect(body.days.at(-2)).toMatchObject({
+      score: 50,
+      parts: { sleep: 50, resting_heart_rate: 50, activity_load: 50 },
+    });
+    // Before the records start there is no recent value: withheld, never zero.
+    expect(body.days[0]).toMatchObject({ score: null, profile: null });
+    const dates = body.days.map((day) => day.date);
+    expect([...dates].sort()).toEqual(dates);
+
+    // Same access rules and scope as score.readiness.
+    expect((await call("score/readinessHistory", {}, "user-v")).status).toBe(200);
+    expect((await call("score/readinessHistory", {}, "user-n")).status).toBe(403);
+    expect((await call("score/readinessHistory", {}, null)).status).toBe(401);
+    const foreign = await call<ReadinessHistory>("score/readinessHistory", {}, "user-b");
+    expect(foreign.body.days.every((day) => day.score === null)).toBe(true);
+    const override = await call<{ code: string }>(
+      "score/readinessHistory",
+      { organizationId: "org-a" },
+      "user-b",
+    );
+    expect(override.status).toBe(400);
+    const minor = await call<ReadinessHistory>("score/readinessHistory", {}, "user-u");
+    expect(minor.body).toMatchObject({
+      status: "withheld",
+      withheldReason: "adults_only",
+      days: [],
+    });
   });
 
   test("readiness: a viewer can read; a member without record access cannot", async () => {

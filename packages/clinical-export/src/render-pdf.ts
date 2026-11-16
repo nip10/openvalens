@@ -89,7 +89,7 @@ function renderDocument(payload: ExportPayload): string {
     "</style>",
     "</head>",
     "<body>",
-    `<header class="report-header"><h1>Health Data Export</h1><p class="meta"><strong>Generated at:</strong> ${escapeHtml(payload.generatedAt)}</p><p class="meta"><strong>Selected domains:</strong> ${escapeHtml(selectedDomainLabels)}</p></header>`,
+    `<header class="report-header"><h1>Health Data Export</h1><p class="meta"><strong>Generated at:</strong> ${escapeHtml(payload.generatedAt)}</p><p class="meta"><strong>Selected domains:</strong> ${escapeHtml(selectedDomainLabels)}</p>${periodLine(payload.period)}</header>`,
     sections,
     "</body>",
     "</html>",
@@ -288,6 +288,17 @@ function escapeHtml(value: string): string {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+/** exports#4 — the period the dated sections cover; nothing for all time. */
+function periodLine(period: ExportPayload["period"]): string {
+  if (!period || (!period.from && !period.to)) return "";
+  const text = period.from
+    ? period.to
+      ? `${period.from} to ${period.to}`
+      : `From ${period.from}`
+    : `Up to ${period.to}`;
+  return `<p class="meta"><strong>Period:</strong> ${escapeHtml(text)} (lists of current medications, supplements, goals and family history are shown in full)</p>`;
 }
 
 function getExportDate(generatedAt: string): string {

@@ -20,6 +20,7 @@ import type { Context } from "../context";
 import { permissionedProcedure, raiseApiError, validateInput } from "../index";
 import { isModuleEnabled, type PersonModule } from "../presenters/modules";
 import { readWellnessProfile } from "../wellness-profile";
+import { dayTotalsInputSchema, dayTotalsSchema, listDayTotals } from "../day-totals";
 
 /**
  * Timeline oRPC surface (Issue #17 — bounded read-side).
@@ -55,6 +56,7 @@ export const timelineFiltersSchema = z
       .max(CANONICAL_TIMELINE_DOMAINS.length)
       .optional(),
     source: z.string().min(1).max(200).optional(),
+    q: z.string().trim().min(1).max(100).optional(),
     severity: z.enum(CANONICAL_TIMELINE_SEVERITIES).optional(),
     confidence: z.enum(CANONICAL_TIMELINE_CONFIDENCES).optional(),
     reviewState: z.enum(CANONICAL_TIMELINE_REVIEW_STATES).optional(),
@@ -148,7 +150,7 @@ export function timelineDiaries(input: {
   };
 }
 
-async function canRead(context: Context, resource: "supplements" | "workout") {
+async function canRead(context: Context, resource: "supplements" | "workout" | "weight") {
   return requirePermission(
     { req: { raw: { headers: context.honoContext.req.raw.headers } } },
     { resource, action: "read" },
@@ -258,6 +260,34 @@ export const timelineRouter = {
         { memberUserId: context.authz.user.id },
       ),
     ),
+  /**
+   * timeline#6 — the day headers' figures (sleep, steps, meals, weight) for
+   * each local date from `from` to `to` (at most 62 days), newest first. The
+   * signed-in member's own figures; each part follows its module and the read
+   * permission its own screen needs (weight needs `weight:read`).
+   */
+  dayTotals: permissionedProcedure({ resource: "records", action: "read" })
+    .use(validateInput(dayTotalsInputSchema))
+    .input(dayTotalsInputSchema)
+    .output(z.array(dayTotalsSchema))
+    .handler(async ({ context, input }) => {
+      const userId = context.authz.user.id;
+      const [profile, canReadWeight] = await Promise.all([
+        readWellnessProfile(context.db, userId),
+        canRead(context, "weight"),
+      ]);
+      return listDayTotals(
+        context.db,
+        { organizationId: context.authz.activeOrganizationId, userId },
+        input,
+        {
+          sleep: isModuleEnabled(profile, "sleep"),
+          steps: isModuleEnabled(profile, "activity"),
+          meals: isModuleEnabled(profile, "food"),
+          weight: canReadWeight && isModuleEnabled(profile, "body"),
+        },
+      );
+    }),
   changesSinceReview: permissionedProcedure({ resource: "records", action: "read" })
     .use(validateInput(changesSchema))
     .input(changesSchema)

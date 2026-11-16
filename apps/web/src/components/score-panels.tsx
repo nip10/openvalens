@@ -179,7 +179,8 @@ function BreakdownRow({ component }: { component: ReadinessComponentView }) {
   );
 }
 
-export function ReadinessCard({ result }: { result: ReadinessResult }) {
+/** `trend` (scores#8) sits in the gauge row, using the width beside the ring. */
+export function ReadinessCard({ result, trend }: { result: ReadinessResult; trend?: ReactNode }) {
   const { i18n } = useLingui();
   const view = readinessView(result, i18n);
   // HRV and the check-in are not recorded yet: one line, not two empty rows.
@@ -224,6 +225,7 @@ export function ReadinessCard({ result }: { result: ReadinessResult }) {
             <p>{view.coverageText}</p>
           </InfoTip>
         </div>
+        {trend ? <div className="min-w-[14rem] flex-1 basis-64">{trend}</div> : null}
       </div>
       {view.withheldExplanation ? <p className="text-ink-2">{view.withheldExplanation}</p> : null}
       {view.wouldHelpText ? <p className="text-sm text-ink-3">{view.wouldHelpText}</p> : null}

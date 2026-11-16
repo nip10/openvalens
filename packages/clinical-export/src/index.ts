@@ -49,3 +49,4 @@ export {
   type LatestCanonicalBodyWeight,
   type LatestLegacyBodyWeight,
 } from "./extractors/body-source";
+export { applyExportPeriod, type ExportPeriod } from "./period";

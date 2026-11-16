@@ -7,6 +7,8 @@ import type {
   GoalResult,
   GoalResultState,
   ReadinessComponent,
+  ReadinessCountedInput,
+  ReadinessHistory,
   ReadinessInput,
   ReadinessInputState,
   ReadinessProfile,
@@ -303,6 +305,59 @@ export function readinessView(result: ReadinessResult, i18n: I18n): ReadinessVie
     notCountedText: notYet.length > 0 ? i18n._(msg`Not counted yet: ${notYetList}`) : null,
     versionText: i18n._(msg`Method ${version}, as of ${asOf}.`),
   };
+}
+
+// ─── readiness history (scores#8) ──────────────────────────────
+
+export type ReadinessTrend = {
+  /** One point per day, oldest first; `score` is null on a withheld day. */
+  points: { date: string; score: number | null }[];
+  /** Days that have a score. */
+  scoredDays: number;
+  /** Yesterday's index, when it had one. */
+  yesterday: number | null;
+  /**
+   * The part that changed most from yesterday to today (both days counted
+   * it), as a plain difference of its 0–100 part; null when none moved.
+   */
+  mover: { input: ReadinessCountedInput; change: number } | null;
+};
+
+// The contract's READINESS_COUNTED_INPUTS, restated so this module keeps type-only imports.
+const COUNTED_INPUTS: readonly ReadinessCountedInput[] = [
+  "sleep",
+  "resting_heart_rate",
+  "activity_load",
+];
+
+/** Plain arithmetic over the history the server computed: no new scoring. */
+export function readinessTrend(history: ReadinessHistory): ReadinessTrend {
+  const points = history.days.map((day) => ({ date: day.date, score: day.score }));
+  const today = history.days.at(-1);
+  const before = history.days.at(-2);
+  let mover: ReadinessTrend["mover"] = null;
+  if (today && before) {
+    for (const input of COUNTED_INPUTS) {
+      const now = today.parts[input];
+      const then = before.parts[input];
+      if (now === null || then === null || now === then) continue;
+      const change = now - then;
+      if (!mover || Math.abs(change) > Math.abs(mover.change)) mover = { input, change };
+    }
+  }
+  return {
+    points,
+    scoredDays: points.filter((point) => point.score !== null).length,
+    yesterday: before?.score ?? null,
+    mover,
+  };
+}
+
+/** "Sleep +8 since yesterday" for the biggest mover. */
+export function readinessMoverText(mover: NonNullable<ReadinessTrend["mover"]>, i18n: I18n) {
+  const label = i18n._(READINESS_INPUT_LABELS[mover.input]);
+  const change = `${mover.change > 0 ? "+" : "−"}${Math.abs(mover.change)}`;
+  return i18n._(msg`${label} ${change} since yesterday`);
 }
 
 // ─── goal progress ─────────────────────────────────────────────

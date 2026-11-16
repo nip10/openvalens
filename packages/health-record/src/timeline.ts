@@ -54,7 +54,12 @@ function parseBoundary(value: string, boundary: "from" | "to") {
  */
 export function buildTimelineFilter(filters?: TimelineFilters) {
   const dateRange = normalizeTimelineDateRange(filters);
+  const words = searchWords(filters?.q);
   return (item: TimelineEvent): boolean => {
+    if (words.length > 0) {
+      const text = searchableText(item);
+      if (!words.every((word) => text.includes(word))) return false;
+    }
     if (filters?.domain && item.domain !== filters.domain) return false;
     if (filters?.domains?.length && !filters.domains.includes(item.domain)) return false;
     if (filters?.severity && item.severity !== filters.severity) return false;
@@ -74,6 +79,24 @@ export function buildTimelineFilter(filters?: TimelineFilters) {
     if (dateRange.toMs != null && itemMs > dateRange.toMs) return false;
     return true;
   };
+}
+
+/** Lower case with accents removed, so "cafe" finds "Café". */
+function foldForSearch(value: string): string {
+  return value.normalize("NFD").replace(/\p{M}/gu, "").toLocaleLowerCase("en");
+}
+
+function searchWords(q: string | undefined): string[] {
+  return q ? foldForSearch(q).split(/\s+/).filter(Boolean) : [];
+}
+
+/** What a search looks in: the entry's name, its value line and its note. */
+function searchableText(item: TimelineEvent): string {
+  const text = (key: string) => {
+    const value = item.canonical[key];
+    return typeof value === "string" ? value : "";
+  };
+  return foldForSearch([item.title, item.summary, text("note"), text("notes")].join("\n"));
 }
 
 /**

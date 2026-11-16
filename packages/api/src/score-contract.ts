@@ -110,6 +110,42 @@ export const readinessResultSchema = z.object({
 });
 export type ReadinessResult = z.infer<typeof readinessResultSchema>;
 
+// ─── readiness history (scores#8) ──────────────────────────────
+
+/** Days in the readiness history, ending today. */
+export const READINESS_TREND_DAYS = 30;
+
+/** The inputs a day's index can count, keyed for the history's per-day parts. */
+export const READINESS_COUNTED_INPUTS = ["sleep", "resting_heart_rate", "activity_load"] as const;
+export type ReadinessCountedInput = (typeof READINESS_COUNTED_INPUTS)[number];
+
+/**
+ * One day of the history: the index as computed for that day, and the 0–100
+ * part each counted input contributed (null when it was not counted that day).
+ */
+export const readinessHistoryDaySchema = z.object({
+  date: z.string(),
+  score: z.number().nullable(),
+  profile: z.enum(READINESS_PROFILES).nullable(),
+  parts: z.object({
+    sleep: z.number().nullable(),
+    resting_heart_rate: z.number().nullable(),
+    activity_load: z.number().nullable(),
+  }),
+});
+export type ReadinessHistoryDay = z.infer<typeof readinessHistoryDaySchema>;
+
+export const readinessHistorySchema = z.object({
+  kind: z.literal("readiness_history"),
+  experimental: z.literal(true),
+  algorithmVersion: z.string(),
+  status: z.enum(["available", "withheld"]),
+  withheldReason: z.enum(["adults_only"]).nullable(),
+  /** Oldest first, ending today; empty when withheld. */
+  days: z.array(readinessHistoryDaySchema),
+});
+export type ReadinessHistory = z.infer<typeof readinessHistorySchema>;
+
 // ─── goal progress ─────────────────────────────────────────────
 
 /**

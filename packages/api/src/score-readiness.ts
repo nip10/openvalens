@@ -3,6 +3,8 @@ import {
   READINESS_PROFILE_INPUTS,
   READINESS_PROFILES,
   type ReadinessComponent,
+  type ReadinessCountedInput,
+  type ReadinessHistoryDay,
   type ReadinessInput,
   type ReadinessProfile,
   type ReadinessResult,
@@ -284,6 +286,24 @@ export function computeReadiness(series: ReadinessSeries, asOf: string): Readine
     components,
     coverage: { profileInputs, usedInputs },
     wouldHelp,
+  };
+}
+
+/** One day of the readiness history (scores#8): the score and the parts it counted. */
+export function readinessHistoryDay(result: ReadinessResult): ReadinessHistoryDay {
+  const part = (input: ReadinessCountedInput) => {
+    const component = result.components.find((candidate) => candidate.input === input);
+    return component?.state === "used" ? component.componentScore : null;
+  };
+  return {
+    date: result.asOf,
+    score: result.score,
+    profile: result.profile,
+    parts: {
+      sleep: part("sleep"),
+      resting_heart_rate: part("resting_heart_rate"),
+      activity_load: part("activity_load"),
+    },
   };
 }
 

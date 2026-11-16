@@ -14,16 +14,17 @@ import {
   type ChartConfig,
 } from "@openvalens/ui/components/chart";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
+import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { BarChart3, CalendarDays, Flame, Footprints, Route as RouteIcon } from "lucide-react";
-import { Bar, BarChart, CartesianGrid, ReferenceLine, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, LabelList, ReferenceLine, XAxis, YAxis } from "recharts";
 
 import { EmptyState, ErrorState, Page, PageHeader, Section, StatTile } from "@/components/page";
 import { ProductSettingsStatus } from "@/components/product-settings-status";
 import { SyncStatusBadge } from "@/components/sync-status-badge";
 import { friendlyDate } from "@/utils/friendly";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 import { useProductSettings } from "@/utils/product-settings";
 import { useCacheFirst } from "@/utils/sync-engine";
 import { ModuleHiddenNote } from "@/components/module-hidden-note";
@@ -45,10 +46,40 @@ function compactTick(value: number): string {
   return `${Number((value / 1000).toFixed(1))}k`;
 }
 
+/**
+ * activity#7 — a workout day's marker: a small steps-toned dot just above its
+ * bar (recharts `LabelList` content; `value` is the day's workout count).
+ */
+function WorkoutMarker(props: {
+  x?: number | string;
+  y?: number | string;
+  width?: number | string;
+  value?: unknown;
+}) {
+  const count = Number(props.value ?? 0);
+  if (!count) return null;
+  const cx = Number(props.x ?? 0) + Number(props.width ?? 0) / 2;
+  const cy = Number(props.y ?? 0) - 9;
+  return (
+    <circle
+      cx={cx}
+      cy={cy}
+      r={4.5}
+      fill="var(--tone-steps)"
+      stroke="var(--card)"
+      strokeWidth={2}
+      data-workout-marker=""
+      aria-hidden="true"
+    />
+  );
+}
+
 function ActivityPage() {
   const totals = useCacheFirst("activity.dailyTotals", () =>
     client.activity.dailyTotals({ days: 30 }),
   );
+  // activity#7: the days with workouts, marked on the chart's bars.
+  const workouts = useQuery(orpc.activity.dailyWorkouts.queryOptions({ input: { days: 30 } }));
   const settingsQuery = useProductSettings();
   const settings = settingsQuery.data;
   const { t, i18n } = useLingui();
@@ -89,12 +120,22 @@ function ActivityPage() {
 
   const summary = summarizeDailyActivity(totals.data);
   const distanceIn = (meters: number) => (imperial ? metersToMiles(meters) : meters / 1000);
+  const workoutDays = new Map((workouts.data ?? []).map((day) => [day.date, day]));
   const series = summary.days.map((day) => ({
     date: day.date,
     steps: day.steps,
     calories: Math.round(day.activeCaloriesKcal),
     distance: Math.round(distanceIn(day.distanceMeters) * 10) / 10,
+    workouts: workoutDays.get(day.date)?.count ?? 0,
   }));
+  const hasWorkouts = series.some((day) => day.workouts > 0);
+  /** "1 workout, 45 min" for a day's tooltip and list row; null on a rest day. */
+  const workoutText = (date: string) => {
+    const day = workoutDays.get(date);
+    if (!day) return null;
+    const count = t`${plural(day.count, { one: "# workout", other: "# workouts" })}`;
+    return day.minutes ? t`${count}, ${day.minutes} min` : count;
+  };
   const charts: Record<
     ChartMetric,
     { title: string; label: string; tone: string; usual: number; format: (v: number) => string }
@@ -189,12 +230,15 @@ function ActivityPage() {
               tone="steps"
               title={chart.title}
               info={
-                <Trans>Pick a tile above to chart it. The dashed line is your 7-day average.</Trans>
+                <Trans>
+                  Pick a tile above to chart it. The dashed line is your 7-day average. A dot above
+                  a bar marks a day with a workout.
+                </Trans>
               }
             >
-              <div className="sheet p-5">
+              <div className="sheet grid gap-3 p-5">
                 <ChartContainer config={trendConfig} className="aspect-auto h-64 w-full">
-                  <BarChart data={series} margin={{ left: 0, right: 36, top: 8, bottom: 0 }}>
+                  <BarChart data={series} margin={{ left: 0, right: 36, top: 20, bottom: 0 }}>
                     <CartesianGrid vertical={false} stroke="var(--rule)" strokeDasharray="4 6" />
                     <XAxis
                       dataKey="date"
@@ -230,7 +274,17 @@ function ActivityPage() {
                     <ChartTooltip
                       cursor={{ fill: "var(--paper-2)" }}
                       content={
-                        <ChartTooltipContent formatter={(value) => chart.format(Number(value))} />
+                        <ChartTooltipContent
+                          labelFormatter={(_, payload) => {
+                            const date = payload?.[0]?.payload?.date;
+                            if (typeof date !== "string") return null;
+                            const workout = workoutText(date);
+                            return workout
+                              ? `${friendlyDate(i18n, date)} · ${workout}`
+                              : friendlyDate(i18n, date);
+                          }}
+                          formatter={(value) => chart.format(Number(value))}
+                        />
                       }
                     />
                     <Bar
@@ -239,9 +293,17 @@ function ActivityPage() {
                       radius={[8, 8, 8, 8]}
                       maxBarSize={18}
                       isAnimationActive={false}
-                    />
+                    >
+                      <LabelList dataKey="workouts" content={WorkoutMarker} />
+                    </Bar>
                   </BarChart>
                 </ChartContainer>
+                {hasWorkouts ? (
+                  <p className="flex items-center gap-2 text-sm text-ink-3">
+                    <span aria-hidden="true" className="size-2.5 rounded-full bg-steps" />
+                    <Trans>Workout day</Trans>
+                  </p>
+                ) : null}
               </div>
             </Section>
 
@@ -259,7 +321,13 @@ function ActivityPage() {
                       {t`${plural(day.steps, { one: "# step", other: "# steps" })}`}
                     </span>
                     <span className="num col-span-2 text-sm text-ink-3">
-                      {`${formatKcalories(day.activeCaloriesKcal)} · ${formatDistanceMeters(day.distanceMeters, settings)}`}
+                      {[
+                        formatKcalories(day.activeCaloriesKcal),
+                        formatDistanceMeters(day.distanceMeters, settings),
+                        workoutText(day.date),
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
                     </span>
                   </li>
                 ))}

@@ -146,6 +146,40 @@ export function createNutritionTotals(db: Database) {
       }));
     },
 
+    /**
+     * timeline#6 — how many meals (breakfast, lunch, … slots) hold at least
+     * one active entry on each local day from `from` to `to`, oldest first.
+     * A count of the member's own diary, never a nutrient value.
+     */
+    async countMealsByDay(
+      scope: NutritionScope,
+      range: { from: string; to: string },
+    ): Promise<{ localDate: string; meals: number }[]> {
+      const dates = localDateRange(range.from, range.to);
+      const rows = await db
+        .selectDistinct({ localDate: nutritionMeal.localDate, mealId: nutritionMeal.id })
+        .from(nutritionMeal)
+        .innerJoin(
+          nutritionMealEntry,
+          and(
+            eq(nutritionMealEntry.organizationId, nutritionMeal.organizationId),
+            eq(nutritionMealEntry.mealId, nutritionMeal.id),
+          ),
+        )
+        .where(
+          and(
+            eq(nutritionMeal.organizationId, scope.organizationId),
+            eq(nutritionMeal.userId, scope.userId),
+            eq(nutritionMealEntry.userId, scope.userId),
+            between(nutritionMeal.localDate, range.from, range.to),
+            isNull(nutritionMealEntry.deletedAt),
+          ),
+        );
+      const counts = new Map<string, number>();
+      for (const row of rows) counts.set(row.localDate, (counts.get(row.localDate) ?? 0) + 1);
+      return dates.map((localDate) => ({ localDate, meals: counts.get(localDate) ?? 0 }));
+    },
+
     /** Totals for one local day. */
     async getDay(scope: NutritionScope, localDate: string): Promise<DailyTotals> {
       const [day] = await this.listDays(scope, { from: localDate, to: localDate });

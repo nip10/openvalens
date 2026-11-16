@@ -9,6 +9,7 @@ import { Target } from "lucide-react";
 
 import { ErrorState, Page, PageHeader, ToneIcon } from "@/components/page";
 import { ReferenceComparisonsSection } from "@/components/reference-comparisons-card";
+import { ReadinessTrend } from "@/components/readiness-trend";
 import { ReadinessCard } from "@/components/score-panels";
 import { orpc } from "@/utils/orpc";
 
@@ -26,6 +27,11 @@ function ScoresPage() {
   const { i18n } = useLingui();
   const readiness = useQuery({
     ...orpc.score.readiness.queryOptions({ input: {} }),
+    staleTime: 60_000,
+  });
+  // scores#8: the same index for each of the last 30 days, drawn beside today's.
+  const history = useQuery({
+    ...orpc.score.readinessHistory.queryOptions({ input: {} }),
     staleTime: 60_000,
   });
   return (
@@ -57,7 +63,16 @@ function ScoresPage() {
               }
             />
           ) : (
-            <ReadinessCard result={readiness.data} />
+            <ReadinessCard
+              result={readiness.data}
+              trend={
+                history.isPending ? (
+                  <Skeleton className="h-32 w-full rounded-2xl" />
+                ) : history.data ? (
+                  <ReadinessTrend history={history.data} />
+                ) : null
+              }
+            />
           )}
         </div>
         <ReferenceComparisonsSection />

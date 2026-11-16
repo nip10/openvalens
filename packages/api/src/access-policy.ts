@@ -40,6 +40,7 @@ export const PROCEDURE_ACCESS: Readonly<Record<string, ProcedureAccessClass>> = 
 
   "activity.dailyTotals": R,
   "activity.weeklyLoad": R,
+  "activity.dailyWorkouts": R,
 
   // Instance administration is the operator's, not a workspace's plan.
   "adminSettings.access": ALWAYS,
@@ -375,6 +376,7 @@ export const PROCEDURE_ACCESS: Readonly<Record<string, ProcedureAccessClass>> = 
   "privateBody.photoFile": R,
 
   "score.readiness": R,
+  "score.readinessHistory": R,
 
   "sharing.listMembers": R,
   "sharing.listInvitations": R,
@@ -431,6 +433,7 @@ export const PROCEDURE_ACCESS: Readonly<Record<string, ProcedureAccessClass>> = 
   "pain.history": R,
 
   "timeline.list": R,
+  "timeline.dayTotals": R,
   "timeline.changesSinceReview": R,
   "timeline.listMetrics": R,
   "timeline.listSourcePriority": R,

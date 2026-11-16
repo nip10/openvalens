@@ -10,15 +10,20 @@ import {
   type ExportDomain,
 } from "@openvalens/api/presenters/clinical-export";
 import { Button } from "@openvalens/ui/components/button";
+import { Label } from "@openvalens/ui/components/label";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { cn } from "@openvalens/ui/lib/utils";
 import { useMutation } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Check, Download, FileCheck, Send, Stethoscope } from "lucide-react";
-import { useMemo, useState } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 
 import { Page, PageHeader, Section } from "@/components/page";
+import { EXPORT_PERIODS, exportPeriodRange, type ExportPeriodChoice } from "@/utils/export-period";
 import { orpc } from "@/utils/orpc";
+
+const DATE_INPUT =
+  "h-9 rounded-xl border border-input bg-card px-3 text-sm text-ink outline-2 -outline-offset-2 outline-transparent focus-visible:outline-ring";
 import { ModuleHiddenNote } from "@/components/module-hidden-note";
 import { CompleteExportCard } from "@/components/complete-export-card";
 
@@ -126,6 +131,9 @@ function AppointmentCard() {
       new Set(options.filter((option) => option.defaultSelected).map((option) => option.domain)),
   );
   const [format, setFormat] = useState<"csv" | "pdf">("pdf");
+  const [periodChoice, setPeriodChoice] = useState<ExportPeriodChoice>("all");
+  const [custom, setCustom] = useState({ from: "", to: "" });
+  const period = exportPeriodRange(periodChoice, custom);
   const [artifacts, setArtifacts] = useState<ExportArtifact[]>([]);
 
   const csv = useMutation(
@@ -159,11 +167,19 @@ function AppointmentCard() {
   };
 
   const submit = () => {
-    if (selected.size === 0) return;
+    if (selected.size === 0 || period === null) return;
     setArtifacts([]);
     const domains = [...selected];
-    if (format === "csv") csv.mutate({ domains, format: "csv" });
-    else pdf.mutate({ domains, format: "pdf" });
+    const range = period ? { period } : {};
+    if (format === "csv") csv.mutate({ domains, format: "csv", ...range });
+    else pdf.mutate({ domains, format: "pdf", ...range });
+  };
+
+  const periodLabels: Record<ExportPeriodChoice, ReactNode> = {
+    "3m": <Trans>Last 3 months</Trans>,
+    "1y": <Trans>Last year</Trans>,
+    all: <Trans>All time</Trans>,
+    custom: <Trans>Custom</Trans>,
   };
 
   return (
@@ -171,7 +187,20 @@ function AppointmentCard() {
       icon={Stethoscope}
       tone="water"
       title={<Trans>Bring to an appointment</Trans>}
-      info={<Trans>Choose what to include and a format, then download.</Trans>}
+      info={
+        <>
+          <p>
+            <Trans>Choose what to include, a period and a format, then download.</Trans>
+          </p>
+          <p>
+            <Trans>
+              Lab results, scans, workouts, weigh-ins and appointments are limited to the period.
+              Current medications, supplements, goals and family history are always included in
+              full.
+            </Trans>
+          </p>
+        </>
+      }
       sheet
     >
       <div className="grid gap-6">
@@ -226,6 +255,72 @@ function AppointmentCard() {
           ) : null}
         </fieldset>
 
+        {/* exports#4 — the period dated records cover; current lists stay whole. */}
+        <fieldset className="grid gap-2">
+          <legend className="mb-2 text-sm font-medium text-ink-3">
+            <Trans>Period</Trans>
+          </legend>
+          <div className="grid w-full grid-cols-2 gap-1 rounded-3xl bg-paper-2 p-1 sm:flex sm:w-fit sm:rounded-full">
+            {EXPORT_PERIODS.map((value) => (
+              <Button
+                key={value}
+                type="button"
+                size="sm"
+                variant="outline"
+                aria-pressed={periodChoice === value}
+                className={cn(
+                  "border-transparent",
+                  periodChoice === value
+                    ? "bg-card text-ink shadow-sm hover:bg-card"
+                    : "bg-transparent text-ink-2",
+                )}
+                onClick={() => setPeriodChoice(value)}
+              >
+                {periodLabels[value]}
+              </Button>
+            ))}
+          </div>
+          {periodChoice === "custom" ? (
+            <div className="flex flex-wrap items-end gap-3 pt-1">
+              <div className="grid gap-1">
+                <Label htmlFor="export-period-from" className="text-sm text-ink-3">
+                  <Trans>From</Trans>
+                </Label>
+                <input
+                  id="export-period-from"
+                  type="date"
+                  max={custom.to || undefined}
+                  value={custom.from}
+                  onChange={(event) =>
+                    setCustom((previous) => ({ ...previous, from: event.target.value }))
+                  }
+                  className={DATE_INPUT}
+                />
+              </div>
+              <div className="grid gap-1">
+                <Label htmlFor="export-period-to" className="text-sm text-ink-3">
+                  <Trans>To</Trans>
+                </Label>
+                <input
+                  id="export-period-to"
+                  type="date"
+                  min={custom.from || undefined}
+                  value={custom.to}
+                  onChange={(event) =>
+                    setCustom((previous) => ({ ...previous, to: event.target.value }))
+                  }
+                  className={DATE_INPUT}
+                />
+              </div>
+            </div>
+          ) : null}
+          {period === null ? (
+            <span className="text-sm text-ink-3">
+              <Trans>Choose a start or end date.</Trans>
+            </span>
+          ) : null}
+        </fieldset>
+
         <fieldset className="grid gap-2">
           <legend className="mb-2 text-sm font-medium text-ink-3">
             <Trans>Format</Trans>
@@ -260,7 +355,7 @@ function AppointmentCard() {
         <div>
           <Button
             onClick={submit}
-            disabled={selected.size === 0 || active.isPending}
+            disabled={selected.size === 0 || period === null || active.isPending}
             className="focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >
             <Download aria-hidden="true" />

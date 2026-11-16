@@ -1,6 +1,7 @@
 import { type Database } from "@openvalens/db";
 import { writeAuditLog } from "@openvalens/audit-security";
 import {
+  applyExportPeriod,
   buildExportPayload,
   createClinicalExportRepository,
   EXPORT_SCHEMA_VERSION,
@@ -23,6 +24,16 @@ const bundleInput = z
   })
   .default({ limit: 200 });
 
+const exportDate = z.string().regex(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/);
+
+/** exports#4 — an inclusive period for the dated sections; omitted for all time. */
+const periodInput = z
+  .strictObject({ from: exportDate.nullable().optional(), to: exportDate.nullable().optional() })
+  .refine((period) => !period.from || !period.to || period.from <= period.to, {
+    message: "Request body failed validation.",
+  })
+  .optional();
+
 const legacyDownloadInput = z.strictObject({
   domains: z
     .array(z.string())
@@ -37,6 +48,7 @@ const legacyDownloadInput = z.strictObject({
       return valid;
     }),
   format: z.literal("csv").optional().default("csv"),
+  period: periodInput,
 });
 
 const legacyPdfDownloadInput = z.strictObject({
@@ -53,7 +65,12 @@ const legacyPdfDownloadInput = z.strictObject({
       return valid;
     }),
   format: z.literal("pdf").optional().default("pdf"),
+  period: periodInput,
 });
+
+function periodOf(period: { from?: string | null; to?: string | null } | undefined) {
+  return period ? { from: period.from ?? null, to: period.to ?? null } : null;
+}
 
 export const exportsRouter = {
   clinicalBundle: permissionedProcedure({ resource: "records", action: "read" })
@@ -94,10 +111,13 @@ export const exportsRouter = {
         throw raiseApiError("INVALID_INPUT", "Request body failed validation.");
       }
 
-      const payload: ExportPayload = await buildExportPayload(
-        context.db as unknown as Database,
-        requestCheck.data.domains as readonly ExportDomain[],
-        { organizationId: context.authz.activeOrganizationId, userId: context.authz.user.id },
+      const payload: ExportPayload = applyExportPeriod(
+        await buildExportPayload(
+          context.db as unknown as Database,
+          requestCheck.data.domains as readonly ExportDomain[],
+          { organizationId: context.authz.activeOrganizationId, userId: context.authz.user.id },
+        ),
+        periodOf(input.period),
       );
 
       const files: CsvExportFile[] = input.format === "csv" ? renderCsvExport(payload) : [];
@@ -118,6 +138,7 @@ export const exportsRouter = {
           format: "csv",
           selectedDomains: payload.selectedDomains,
           fileCount: files.length,
+          periodApplied: payload.period !== undefined,
         },
       });
 
@@ -154,10 +175,13 @@ export const exportsRouter = {
         throw raiseApiError("INVALID_INPUT", "Request body failed validation.");
       }
 
-      const payload: ExportPayload = await buildExportPayload(
-        context.db as unknown as Database,
-        requestCheck.data.domains as readonly ExportDomain[],
-        { organizationId: context.authz.activeOrganizationId, userId: context.authz.user.id },
+      const payload: ExportPayload = applyExportPeriod(
+        await buildExportPayload(
+          context.db as unknown as Database,
+          requestCheck.data.domains as readonly ExportDomain[],
+          { organizationId: context.authz.activeOrganizationId, userId: context.authz.user.id },
+        ),
+        periodOf(input.period),
       );
 
       const rendered = renderPdfExport(payload);
@@ -178,6 +202,7 @@ export const exportsRouter = {
           format: "pdf",
           selectedDomains: payload.selectedDomains,
           fileCount: 1,
+          periodApplied: payload.period !== undefined,
         },
       });
 

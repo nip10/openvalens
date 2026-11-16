@@ -15,6 +15,13 @@ export type DailyActivityTotals = {
   distanceMeters: number | null;
 };
 
+/** activity#7 — a day's workouts: how many, and their known minutes added up. */
+export type DailyWorkouts = {
+  date: string;
+  count: number;
+  minutes: number | null;
+};
+
 export type DailyActivitySummary = {
   date: string;
   steps: number;

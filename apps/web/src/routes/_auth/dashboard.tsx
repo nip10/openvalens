@@ -16,16 +16,16 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@openvalens/ui/components/chart";
-import { Button } from "@openvalens/ui/components/button";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute, redirect } from "@tanstack/react-router";
-import { Footprints, HeartPulse, History, Moon, Scale, TrendingUp } from "lucide-react";
+import { Footprints, HeartPulse, Moon, Scale, TrendingUp } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
 import { InsightsSection, ReadinessSummary } from "@/components/insights-section";
 import { ErrorState, Figure, Page, PageHeader, Section, StatTile } from "@/components/page";
 import { ProductSettingsStatus } from "@/components/product-settings-status";
+import { TodaySoFar } from "@/components/today-so-far";
 import { FinishSetupCard } from "@/components/onboarding/finish-setup-card";
 import { authClient } from "@/lib/auth-client";
 import { orpc } from "@/utils/orpc";
@@ -101,18 +101,10 @@ function DashboardPage() {
 
   return (
     <Page>
-      <PageHeader
-        title={firstName ? `${hello}, ${firstName}` : hello}
-        description={today}
-        actions={
-          <Button variant="outline" asChild>
-            <Link to="/records/timeline">
-              <History aria-hidden="true" />
-              <Trans>Full timeline</Trans>
-            </Link>
-          </Button>
-        }
-      />
+      <PageHeader title={firstName ? `${hello}, ${firstName}` : hello} description={today} />
+
+      {/* dashboard#12: what today holds so far, with "Log…" and the full timeline. */}
+      <TodaySoFar isEnabled={isEnabled} imperial={settings?.units === "imperial"} />
 
       <ProductSettingsStatus />
 
