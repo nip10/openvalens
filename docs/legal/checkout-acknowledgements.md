@@ -23,6 +23,27 @@ for counsel; do not assume the click, Checkout completion, subscription start,
 or another event without advice. Reconcile the final copy with pending PR320
 before approval or publication.
 
+## Deployed wording (version `2026-11-16`)
+
+Owner-approved 2026-11-16. Counsel review is still pending (see above). Set
+`LEGAL_CHECKOUT_ACK_VERSION=2026-11-16` when this wording ships. The text
+lives in `apps/web/src/components/billing-plan-view.tsx`.
+
+Heading above the two boxes: "Your 14-day right to withdraw", with this
+explanation behind its info button: "EU consumer law gives you 14 days to
+withdraw from an online purchase. Because your plan starts at once, you
+confirm here that you asked for that and what it means if you withdraw."
+
+1. Immediate commencement. During a free trial:
+   "I request that my paid subscription starts immediately. I keep the rest of
+   my free trial, and the first payment is on {trial end date}."
+   Otherwise: "I request that my paid subscription starts immediately."
+2. Withdrawal implications (unchanged): "I understand that if I withdraw
+   within 14 days, I may have to pay for the service already provided."
+
+Earlier versions showed the immediate-start box as "I request that my paid
+subscription starts immediately." in every case, with no heading.
+
 ## Implementation notes
 
 - Cloud billing returns the server-owned `LEGAL_CHECKOUT_ACK_VERSION` and
