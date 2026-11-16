@@ -3819,6 +3819,10 @@ msgstr "Choose a group"
 msgid "Choose a JPEG or PNG photo up to 10 MB. Nothing was sent."
 msgstr "Choose a JPEG or PNG photo up to 10 MB. Nothing was sent."
 
+#: apps/web/src/routes/_auth/records/labs.tsx
+msgid "Choose a marker"
+msgstr "Choose a marker"
+
 #: apps/web/src/components/billing-plan-view.tsx
 msgid "Choose a plan"
 msgstr "Choose a plan"
@@ -4252,6 +4256,10 @@ msgstr "Completed"
 msgid "Completed by you."
 msgstr "Completed by you."
 
+#: apps/web/src/routes/_auth/body-map.tsx
+msgid "Composition"
+msgstr "Composition"
+
 #: apps/web/src/routes/_auth/admin/settings.tsx
 msgid "Configuration"
 msgstr "Configuration"
@@ -4378,6 +4386,10 @@ msgstr "Connected AI apps"
 #: apps/web/src/routes/_auth/settings/ai-apps.tsx
 msgid "Connected AI apps are not available on this server"
 msgstr "Connected AI apps are not available on this server"
+
+#: apps/web/src/routes/_auth/settings/ai-apps.tsx
+msgid "Connected AI apps are not available yet"
+msgstr "Connected AI apps are not available yet"
 
 #. safety
 #: packages/api/src/presenters/ai-apps.ts
@@ -4602,6 +4614,10 @@ msgstr "Copy {0, plural, one {# item} other {# items}} to {localDate}"
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 msgid "Copy {0} to {localDate}"
 msgstr "Copy {0} to {localDate}"
+
+#: apps/web/src/components/ai-app-key-form.tsx
+msgid "Copy address"
+msgstr "Copy address"
 
 #: apps/web/src/components/ai-app-key-form.tsx
 msgid "Copy command"
@@ -7502,6 +7518,10 @@ msgstr "Every record this connection brought in is permanently deleted. It can't
 msgid "Everything else"
 msgstr "Everything else"
 
+#: apps/web/src/routes/_auth/settings/ai-apps.tsx
+msgid "Everything else works as usual."
+msgstr "Everything else works as usual."
+
 #: packages/api/src/presenters/preventive-care.ts
 msgid "Evidence check"
 msgstr "Evidence check"
@@ -8262,8 +8282,8 @@ msgid "Goal added. You can change it in Goals, in the menu under Habits."
 msgstr "Goal added. You can change it in Goals, in the menu under Habits."
 
 #: apps/web/src/routes/_auth/profile.tsx
-msgid "Goal added. You can edit it under Workouts."
-msgstr "Goal added. You can edit it under Workouts."
+msgid "Goal added. You can edit it under Goals."
+msgstr "Goal added. You can edit it under Goals."
 
 #: packages/api/src/presenters/plain-water.ts
 msgid "Goal amount"
@@ -10606,6 +10626,7 @@ msgstr "marked complete"
 msgid "Marked complete"
 msgstr "Marked complete"
 
+#: apps/web/src/routes/_auth/records/labs.tsx
 #: packages/api/src/presenters/log-kinds.ts
 msgid "Marker"
 msgstr "Marker"
@@ -10751,7 +10772,6 @@ msgid "Meals and recorded workouts"
 msgstr "Meals and recorded workouts"
 
 #: apps/native/app/(drawer)/body-map.tsx
-#: apps/web/src/routes/_auth/body-map.tsx
 msgid "Measured composition"
 msgstr "Measured composition"
 
@@ -11379,6 +11399,10 @@ msgstr "Next: {0}"
 #: apps/web/src/components/preventive-care-view.tsx
 msgid "Next: {nextDay}"
 msgstr "Next: {nextDay}"
+
+#: apps/web/src/components/preventive-care-view.tsx
+msgid "Next: {nextDay} (reminder on)"
+msgstr "Next: {nextDay} (reminder on)"
 
 #: packages/api/src/presenters/wearables.ts
 msgid "Nightly Recharge status, overnight HRV and sleep sessions."
@@ -12991,6 +13015,10 @@ msgstr "Other version: {otherName}, deleted. Your change: {change}."
 #: apps/web/src/routes/_auth/nutrition.tsx
 msgid "Other version: deleted. Your change: {mineAmount}, {mineSlot}."
 msgstr "Other version: deleted. Your change: {mineAmount}, {mineSlot}."
+
+#: apps/web/src/components/wearable-devices-view.tsx
+msgid "Oura, WHOOP and others are coming soon. For now, connect your wearable through Apple Health or Health Connect in the mobile app."
+msgstr "Oura, WHOOP and others are coming soon. For now, connect your wearable through Apple Health or Health Connect in the mobile app."
 
 #: packages/api/src/presenters/score.ts
 msgid "out of 100"
@@ -15446,8 +15474,8 @@ msgid "Saved to Goals, in the menu under Habits. You can change it there."
 msgstr "Saved to Goals, in the menu under Habits. You can change it there."
 
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
-msgid "Saved to your Goals under Workouts, where you can add a target and date later."
-msgstr "Saved to your Goals under Workouts, where you can add a target and date later."
+msgid "Saved to your Goals, where you can add a target and date later."
+msgstr "Saved to your Goals, where you can add a target and date later."
 
 #: apps/native/app/quick-log.tsx
 #: apps/native/components/onboarding/first-log.tsx
@@ -15992,6 +16020,7 @@ msgstr "Sets from {trainingFrom} to {trainingTo}"
 #: apps/web/src/routes/_auth/settings/billing.tsx
 #: apps/web/src/routes/_auth/settings/devices.tsx
 #: apps/web/src/routes/_auth/settings/index.tsx
+#: apps/web/src/routes/_auth/settings/modules.tsx
 #: apps/web/src/routes/_auth/settings/telegram.tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 msgid "Settings"
@@ -18698,6 +18727,7 @@ msgstr "Tracking rule"
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/(tabs)/_layout.tsx
 #: apps/native/app/(drawer)/workouts.tsx
+#: apps/web/src/routes/_auth/body-map.tsx
 #: packages/api/src/presenters/supplements.ts
 msgid "Training"
 msgstr "Training"
@@ -18708,7 +18738,6 @@ msgid "Training days"
 msgstr "Training days"
 
 #: apps/native/app/(drawer)/body-map.tsx
-#: apps/web/src/routes/_auth/body-map.tsx
 msgid "Training this week"
 msgstr "Training this week"
 
@@ -19387,8 +19416,8 @@ msgid "Value unavailable"
 msgstr "Value unavailable"
 
 #: apps/web/src/routes/_auth/private-measurements.tsx
-msgid "Values are hidden until your hide-numbers setting can be checked."
-msgstr "Values are hidden until your hide-numbers setting can be checked."
+msgid "Values are hidden while Hide numbers is on in Nutrition targets, or until that setting can be checked."
+msgstr "Values are hidden while Hide numbers is on in Nutrition targets, or until that setting can be checked."
 
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Values are per a positive amount, for example 100 g."
@@ -19712,6 +19741,10 @@ msgstr "We'll email you a link to sign in. No password needed."
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
 msgid "Wearable accounts"
 msgstr "Wearable accounts"
+
+#: apps/web/src/components/wearable-devices-view.tsx
+msgid "Wearable accounts are coming soon"
+msgstr "Wearable accounts are coming soon"
 
 #: apps/web/src/components/ai-apps-view.tsx
 msgid "Web apps such as claude.ai and ChatGPT connect from their own servers, so this server has to be reachable on the public internet over HTTPS. A server on a home network or VPN works with personal keys from apps on your own computer."
@@ -20086,8 +20119,8 @@ msgid "You already have an OpenValens account"
 msgstr "You already have an OpenValens account"
 
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
-msgid "You already have goals. See them, and add a target and date, under <0>Workouts</0>."
-msgstr "You already have goals. See them, and add a target and date, under <0>Workouts</0>."
+msgid "You already have goals. See them, and add a target and date, on <0>Goals</0>."
+msgstr "You already have goals. See them, and add a target and date, on <0>Goals</0>."
 
 #: packages/api/src/presenters/insights.ts
 msgid "You are {progress} of the way from your starting point."

@@ -103,6 +103,13 @@ describe("WearableDevicesView", () => {
     expect(html).not.toInclude("Connect</button>");
   });
 
+  test("on OpenValens Cloud there is no server operator to point at", () => {
+    const html = renderToStaticMarkup(<WearableDevicesView {...makeProps({ cloud: true })} />);
+    expect(html).toInclude("Wearable accounts are coming soon");
+    expect(html).toInclude("Apple Health or Health Connect in the mobile app");
+    expect(html).not.toInclude("operator");
+  });
+
   test("lists only the vendors it is given, with status and what each sends", () => {
     const html = renderToStaticMarkup(
       <WearableDevicesView

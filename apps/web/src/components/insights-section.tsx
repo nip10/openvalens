@@ -15,6 +15,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { ErrorState, InfoTip } from "@/components/page";
+import { withBrowserTimeZone } from "@/utils/insight-time-zone";
 import { orpc } from "@/utils/orpc";
 import { useProductSettings } from "@/utils/product-settings";
 import { authClient } from "@/lib/auth-client";
@@ -322,7 +323,17 @@ function SubjectInsightsSection({
             {insights.data.offerPush ? (
               <PushOfferCard
                 pending={offer.isPending}
-                onAnswer={(answer) => offer.mutate({ pushOffer: answer })}
+                onAnswer={(answer) =>
+                  offer.mutate(
+                    observationPrefs.data
+                      ? withBrowserTimeZone(
+                          observationPrefs.data,
+                          { pushOffer: answer },
+                          Intl.DateTimeFormat().resolvedOptions().timeZone,
+                        )
+                      : { pushOffer: answer },
+                  )
+                }
               />
             ) : null}
           </div>

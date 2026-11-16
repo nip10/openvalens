@@ -22,7 +22,7 @@ import {
 } from "@/components/page";
 import { orpc } from "@/utils/orpc";
 import { GoalEditor } from "./-goal-editor";
-import { goalListGroup, parseManualAmount, quickActionKind } from "./-goals-ui";
+import { formatGoalValue, goalListGroup, parseManualAmount, quickActionKind } from "./-goals-ui";
 
 export const Route = createFileRoute("/_auth/goals/")({ component: GoalsPage });
 
@@ -249,7 +249,7 @@ function RuleProgress({ goal }: { goal: GoalSummary }) {
     const shown =
       evaluation.currentValue === null
         ? t`No data yet`
-        : `${evaluation.currentValue} ${goal.definition.unit ?? ""}`;
+        : formatGoalValue(evaluation.currentValue, goal.definition.unit, i18n.locale);
     return (
       <div className="rounded-xl bg-paper-2 p-3">
         <p className="font-semibold text-ink">{shown}</p>
@@ -301,7 +301,9 @@ function RuleProgress({ goal }: { goal: GoalSummary }) {
   return (
     <div className="rounded-xl bg-paper-2 p-3">
       <p className="font-semibold text-ink">
-        {current === null ? t`No data yet` : `${current} ${goal.definition.unit ?? ""}`}
+        {current === null
+          ? t`No data yet`
+          : formatGoalValue(current, goal.definition.unit, i18n.locale)}
       </p>
       <p className="text-xs text-ink-3">
         {target}

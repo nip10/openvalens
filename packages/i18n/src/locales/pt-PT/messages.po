@@ -3819,6 +3819,10 @@ msgstr "Escolha um grupo"
 msgid "Choose a JPEG or PNG photo up to 10 MB. Nothing was sent."
 msgstr "Escolha uma fotografia JPEG ou PNG até 10 MB. Nada foi enviado."
 
+#: apps/web/src/routes/_auth/records/labs.tsx
+msgid "Choose a marker"
+msgstr "Escolha um marcador"
+
 #: apps/web/src/components/billing-plan-view.tsx
 msgid "Choose a plan"
 msgstr "Escolha um plano"
@@ -4252,6 +4256,10 @@ msgstr "Concluída"
 msgid "Completed by you."
 msgstr "Concluída por si."
 
+#: apps/web/src/routes/_auth/body-map.tsx
+msgid "Composition"
+msgstr "Composição"
+
 #: apps/web/src/routes/_auth/admin/settings.tsx
 msgid "Configuration"
 msgstr "Configuração"
@@ -4378,6 +4386,10 @@ msgstr "Aplicações de IA ligadas"
 #: apps/web/src/routes/_auth/settings/ai-apps.tsx
 msgid "Connected AI apps are not available on this server"
 msgstr "As aplicações de IA ligadas não estão disponíveis neste servidor"
+
+#: apps/web/src/routes/_auth/settings/ai-apps.tsx
+msgid "Connected AI apps are not available yet"
+msgstr "As aplicações de IA ligadas ainda não estão disponíveis"
 
 #. safety
 #: packages/api/src/presenters/ai-apps.ts
@@ -4602,6 +4614,10 @@ msgstr "Copiar {0, plural, one {# item} other {# itens}} para {localDate}"
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 msgid "Copy {0} to {localDate}"
 msgstr "Copiar {0} para {localDate}"
+
+#: apps/web/src/components/ai-app-key-form.tsx
+msgid "Copy address"
+msgstr "Copiar endereço"
 
 #: apps/web/src/components/ai-app-key-form.tsx
 msgid "Copy command"
@@ -7502,6 +7518,10 @@ msgstr "Todos os registos que esta ligação trouxe são eliminados permanenteme
 msgid "Everything else"
 msgstr "Tudo o resto"
 
+#: apps/web/src/routes/_auth/settings/ai-apps.tsx
+msgid "Everything else works as usual."
+msgstr "Tudo o resto funciona como habitualmente."
+
 #: packages/api/src/presenters/preventive-care.ts
 msgid "Evidence check"
 msgstr "Verificação da evidência"
@@ -8262,8 +8282,8 @@ msgid "Goal added. You can change it in Goals, in the menu under Habits."
 msgstr "Objetivo adicionado. Pode alterá-lo em Objetivos, no menu, em Hábitos."
 
 #: apps/web/src/routes/_auth/profile.tsx
-msgid "Goal added. You can edit it under Workouts."
-msgstr "Objetivo adicionado. Pode editá-lo em Treinos."
+msgid "Goal added. You can edit it under Goals."
+msgstr "Objetivo adicionado. Pode editá-lo em Objetivos."
 
 #: packages/api/src/presenters/plain-water.ts
 msgid "Goal amount"
@@ -10606,6 +10626,7 @@ msgstr "marcado como completo"
 msgid "Marked complete"
 msgstr "Marcado como completo"
 
+#: apps/web/src/routes/_auth/records/labs.tsx
 #: packages/api/src/presenters/log-kinds.ts
 msgid "Marker"
 msgstr "Marcador"
@@ -10751,7 +10772,6 @@ msgid "Meals and recorded workouts"
 msgstr "Refeições e treinos registados"
 
 #: apps/native/app/(drawer)/body-map.tsx
-#: apps/web/src/routes/_auth/body-map.tsx
 msgid "Measured composition"
 msgstr "Composição medida"
 
@@ -11379,6 +11399,10 @@ msgstr "A seguir: {0}"
 #: apps/web/src/components/preventive-care-view.tsx
 msgid "Next: {nextDay}"
 msgstr "Próxima: {nextDay}"
+
+#: apps/web/src/components/preventive-care-view.tsx
+msgid "Next: {nextDay} (reminder on)"
+msgstr "Próxima: {nextDay} (lembrete ativado)"
 
 #: packages/api/src/presenters/wearables.ts
 msgid "Nightly Recharge status, overnight HRV and sleep sessions."
@@ -12991,6 +13015,10 @@ msgstr "Outra versão: {otherName}, eliminado. A sua alteração: {change}."
 #: apps/web/src/routes/_auth/nutrition.tsx
 msgid "Other version: deleted. Your change: {mineAmount}, {mineSlot}."
 msgstr "Outra versão: eliminado. A sua alteração: {mineAmount}, {mineSlot}."
+
+#: apps/web/src/components/wearable-devices-view.tsx
+msgid "Oura, WHOOP and others are coming soon. For now, connect your wearable through Apple Health or Health Connect in the mobile app."
+msgstr "A Oura, a WHOOP e outras chegam em breve. Por agora, ligue o seu dispositivo através do Apple Health ou do Health Connect na aplicação móvel."
 
 #: packages/api/src/presenters/score.ts
 msgid "out of 100"
@@ -15446,8 +15474,8 @@ msgid "Saved to Goals, in the menu under Habits. You can change it there."
 msgstr "Guardado em Objetivos, no menu, em Hábitos. Pode alterá-lo aí."
 
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
-msgid "Saved to your Goals under Workouts, where you can add a target and date later."
-msgstr "Guardado nos seus Objetivos, em Treinos, onde pode adicionar uma meta e uma data mais tarde."
+msgid "Saved to your Goals, where you can add a target and date later."
+msgstr "Fica guardado nos seus Objetivos, onde pode juntar uma meta e uma data mais tarde."
 
 #: apps/native/app/quick-log.tsx
 #: apps/native/components/onboarding/first-log.tsx
@@ -15992,6 +16020,7 @@ msgstr "Séries de {trainingFrom} a {trainingTo}"
 #: apps/web/src/routes/_auth/settings/billing.tsx
 #: apps/web/src/routes/_auth/settings/devices.tsx
 #: apps/web/src/routes/_auth/settings/index.tsx
+#: apps/web/src/routes/_auth/settings/modules.tsx
 #: apps/web/src/routes/_auth/settings/telegram.tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 msgid "Settings"
@@ -18698,6 +18727,7 @@ msgstr "Regra de acompanhamento"
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/(tabs)/_layout.tsx
 #: apps/native/app/(drawer)/workouts.tsx
+#: apps/web/src/routes/_auth/body-map.tsx
 #: packages/api/src/presenters/supplements.ts
 msgid "Training"
 msgstr "Treino"
@@ -18708,7 +18738,6 @@ msgid "Training days"
 msgstr "Dias de treino"
 
 #: apps/native/app/(drawer)/body-map.tsx
-#: apps/web/src/routes/_auth/body-map.tsx
 msgid "Training this week"
 msgstr "Treino desta semana"
 
@@ -19387,8 +19416,8 @@ msgid "Value unavailable"
 msgstr "Valor indisponível"
 
 #: apps/web/src/routes/_auth/private-measurements.tsx
-msgid "Values are hidden until your hide-numbers setting can be checked."
-msgstr "Os valores ficam ocultos até ser possível verificar a sua definição de ocultar números."
+msgid "Values are hidden while Hide numbers is on in Nutrition targets, or until that setting can be checked."
+msgstr "Os valores ficam ocultos enquanto Ocultar números estiver ativo em Objetivos nutricionais, ou até ser possível confirmar essa definição."
 
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Values are per a positive amount, for example 100 g."
@@ -19712,6 +19741,10 @@ msgstr "Vamos enviar-lhe por email uma ligação para iniciar sessão. Não prec
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
 msgid "Wearable accounts"
 msgstr "Contas de wearables"
+
+#: apps/web/src/components/wearable-devices-view.tsx
+msgid "Wearable accounts are coming soon"
+msgstr "As contas de dispositivos chegam em breve"
 
 #: apps/web/src/components/ai-apps-view.tsx
 msgid "Web apps such as claude.ai and ChatGPT connect from their own servers, so this server has to be reachable on the public internet over HTTPS. A server on a home network or VPN works with personal keys from apps on your own computer."
@@ -20086,8 +20119,8 @@ msgid "You already have an OpenValens account"
 msgstr "Já tem uma conta OpenValens"
 
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
-msgid "You already have goals. See them, and add a target and date, under <0>Workouts</0>."
-msgstr "Já tem objetivos. Veja-os e adicione uma meta e uma data em <0>Treinos</0>."
+msgid "You already have goals. See them, and add a target and date, on <0>Goals</0>."
+msgstr "Já tem objetivos. Veja-os e junte uma meta e uma data em <0>Objetivos</0>."
 
 #: packages/api/src/presenters/insights.ts
 msgid "You are {progress} of the way from your starting point."

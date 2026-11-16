@@ -6,6 +6,8 @@ import { renderToStaticMarkup as renderMarkup } from "react-dom/server";
 
 let preferenceState: Record<string, unknown>;
 let historyState: Record<string, unknown>;
+// The hide-numbers setting (#80), read from the nutrition target settings.
+let displayState: Record<string, unknown> = { isSuccess: false, data: undefined };
 mock.module("@/lib/auth-client", () => ({
   authClient: {
     useSession: () => ({
@@ -24,7 +26,11 @@ mock.module("@/utils/orpc", () => ({ ...actualOrpc, client: { privateBody: {} } 
 mock.module("@tanstack/react-query", () => ({
   useQueryClient: () => ({ invalidateQueries: () => Promise.resolve() }),
   useQuery: ({ queryKey }: { queryKey: unknown[] }) =>
-    queryKey[1] === "preference" ? preferenceState : historyState,
+    queryKey[1] === "preference"
+      ? preferenceState
+      : JSON.stringify(queryKey).includes("nutritionTargets")
+        ? displayState
+        : historyState,
   useMutation: () => ({ mutate: () => {}, isPending: false, isError: false }),
 }));
 
@@ -63,6 +69,26 @@ describe("PrivateMeasurements query-state wiring", () => {
     expect(html).not.toInclude("Could not check this setting");
     expect(html).not.toInclude("Could not load entries");
     expect(html).not.toInclude("61 kg");
+  });
+
+  test("values show once Hide numbers is confirmed off", () => {
+    preferenceState = {
+      data: { enabled: true },
+      isPending: false,
+      isError: false,
+      refetch: () => {},
+    };
+    historyState = { data: [row], isPending: false, isError: false, refetch: () => {} };
+    displayState = { isSuccess: true, data: { settings: { hideNumbers: false } } };
+    const shown = render();
+    expect(shown).toInclude("61 kg");
+    expect(shown).not.toInclude("Hidden");
+
+    displayState = { isSuccess: true, data: { settings: { hideNumbers: true } } };
+    expect(render()).not.toInclude("61 kg");
+    displayState = { isSuccess: false, isError: true, data: undefined };
+    expect(render()).not.toInclude("61 kg");
+    displayState = { isSuccess: false, data: undefined };
   });
 
   test("disabled preference renders the opt-in prompt", () => {

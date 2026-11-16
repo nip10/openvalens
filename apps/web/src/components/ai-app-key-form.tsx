@@ -304,18 +304,30 @@ async function browserCopy(text: string): Promise<void> {
   await navigator.clipboard.writeText(text);
 }
 
-function CopyField(props: {
+/**
+ * A value to paste somewhere else, with a Copy button. A key has no spaces
+ * and wraps anywhere; a command or address keeps its words whole and scrolls
+ * sideways, so it never reads as if it had a space inside a word.
+ */
+export function CopyField(props: {
   value: string;
-  kind: "key" | "command";
+  kind: "key" | "command" | "address";
   copy?: (text: string) => Promise<void>;
 }) {
   const { t } = useLingui();
   const [state, setState] = useState<"idle" | "copied" | "failed">("idle");
-  const label = props.kind === "key" ? t`Copy key` : t`Copy command`;
+  const label =
+    props.kind === "key"
+      ? t`Copy key`
+      : props.kind === "address"
+        ? t`Copy address`
+        : t`Copy command`;
   return (
-    <div className="grid gap-2">
+    <div className="grid min-w-0 gap-2">
       <code
-        className="num block rounded-xl bg-paper-2 px-3 py-2 text-sm break-all text-ink select-all"
+        className={`num block rounded-xl bg-paper-2 px-3 py-2 text-sm text-ink select-all ${
+          props.kind === "key" ? "break-all" : "overflow-x-auto whitespace-pre"
+        }`}
         data-copy={props.kind}
       >
         {props.value}

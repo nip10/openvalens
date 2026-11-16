@@ -374,18 +374,16 @@ export function GoalBody({
       {existingGoals > 0 ? (
         <Note>
           <Trans>
-            You already have goals. See them, and add a target and date, under{" "}
-            <Link to="/workouts" className={LINK}>
-              Workouts
+            You already have goals. See them, and add a target and date, on{" "}
+            <Link to="/goals" className={LINK}>
+              Goals
             </Link>
             .
           </Trans>
         </Note>
       ) : (
         <p className="text-sm text-ink-3">
-          <Trans>
-            Saved to your Goals under Workouts, where you can add a target and date later.
-          </Trans>
+          <Trans>Saved to your Goals, where you can add a target and date later.</Trans>
         </p>
       )}
     </div>

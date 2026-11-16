@@ -16,7 +16,6 @@ import {
   type WellnessProfileDraft,
 } from "@openvalens/api/presenters/wellness-profile";
 import {
-  FOCUS_AREA_LABELS,
   PROFILE_INTRO,
   PROFILE_OFFLINE_NOTE,
   PROFILE_STORAGE_NOTE,
@@ -38,6 +37,7 @@ import {
   WellnessProfileEditor,
   type SectionSaveState,
 } from "@/components/wellness-profile-editor";
+import { freeTextGoalInput } from "@/utils/free-text-goal";
 import { orpc } from "@/utils/orpc";
 import { useUpdateWellnessProfile, useWellnessProfile } from "@/utils/wellness-profile";
 
@@ -289,7 +289,7 @@ function ProfileEditorPage({
                 );
               }
             }}
-            goalSection={<GoalSection draft={draft} />}
+            goalSection={<GoalSection />}
             now={new Date()}
           />
         </div>
@@ -303,23 +303,22 @@ function ProfileEditorPage({
  * truth); this only offers a shortcut to add one and never sets a target for
  * the person.
  */
-function GoalSection({ draft }: { draft: WellnessProfileDraft }) {
+function GoalSection() {
   const queryClient = useQueryClient();
   const inputId = useId();
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState<{ ok: boolean; text: MessageDescriptor } | null>(null);
   const { t, i18n } = useLingui();
   const add = useMutation(
-    orpc.plans.goals.upsertGoal.mutationOptions({
+    orpc.goals.create.mutationOptions({
       onSuccess: () => {
         setTitle("");
-        setMessage({ ok: true, text: msg`Goal added. You can edit it under Workouts.` });
-        void queryClient.invalidateQueries({ queryKey: orpc.plans.goals.key() });
+        setMessage({ ok: true, text: msg`Goal added. You can edit it under Goals.` });
+        void queryClient.invalidateQueries({ queryKey: orpc.goals.key() });
       },
       onError: (error) => setMessage({ ok: false, text: describeProfileSaveError(error).message }),
     }),
   );
-  const focus = draft.answers.focus.state === "recorded" ? draft.answers.focus.value[0] : undefined;
 
   return (
     <section
@@ -356,13 +355,7 @@ function GoalSection({ draft }: { draft: WellnessProfileDraft }) {
           <Button
             variant="outline"
             disabled={title.trim().length === 0 || add.isPending}
-            onClick={() =>
-              add.mutate({
-                title: title.trim(),
-                category: focus ? FOCUS_AREA_LABELS[focus] : "General",
-                status: "not_started",
-              })
-            }
+            onClick={() => add.mutate(freeTextGoalInput(title))}
           >
             {add.isPending ? t`Adding…` : t`Add goal`}
           </Button>

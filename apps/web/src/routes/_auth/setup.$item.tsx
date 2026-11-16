@@ -81,7 +81,7 @@ function SetupItemScreen({
   const navigate = useNavigate();
   const toToday = () => void navigate({ to: "/dashboard" });
   const goals = useQuery({
-    ...orpc.plans.goals.listGoals.queryOptions({ input: {} }),
+    ...orpc.goals.list.queryOptions({ input: {} }),
     enabled: item === "goal",
   });
   const common = { onDone: toToday, onBack: toToday };
@@ -96,7 +96,7 @@ function SetupItemScreen({
     case "basics":
       return <BasicsStep {...profileProps} />;
     case "goal":
-      return <GoalStep {...common} snapshot={snapshot} goalCount={goals.data?.length ?? 0} />;
+      return <GoalStep {...common} goalCount={goals.data?.length ?? 0} />;
     case "privacy":
       return <PrivacyStep {...common} />;
   }

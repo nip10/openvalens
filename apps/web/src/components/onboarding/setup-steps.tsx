@@ -22,7 +22,6 @@ import {
   type WellnessProfileDraft,
 } from "@openvalens/api/presenters/wellness-profile";
 import {
-  FOCUS_AREA_LABELS,
   unavailableExplanation,
   WELLNESS_FIELD_COPY,
   WELLNESS_REGIONS,
@@ -54,6 +53,8 @@ import { QuickForm } from "@/components/quick-log/quick-form";
 import { SettingsGroup, SettingsRow } from "@/components/settings-rows";
 import { AgeAndSexFields, answerValue, RadioGroup } from "@/components/wellness-profile-editor";
 import { ENV } from "@/env";
+import { freeTextGoalInput } from "@/utils/free-text-goal";
+import { withBrowserTimeZone } from "@/utils/insight-time-zone";
 import { client, orpc } from "@/utils/orpc";
 import { useProductSettings } from "@/utils/product-settings";
 import { enqueueMetricSample } from "@/utils/sync-engine";
@@ -454,38 +455,30 @@ export function BasicsStep({
 
 /** One goal in the person's own words, saved to Goals. */
 export function GoalStep({
-  snapshot,
   onDone,
   onBack,
   doneLabel,
   goalCount,
-}: SetupStepProps & { snapshot: Pick<WellnessProfileSnapshot, "focus">; goalCount: number }) {
+}: SetupStepProps & { goalCount: number }) {
   const { i18n } = useLingui();
   const titleId = useId();
   const queryClient = useQueryClient();
   const [title, setTitle] = useState("");
   const [error, setError] = useState<MessageDescriptor | null>(null);
+  // The Goals page and the setup card read the personal-goals model.
   const addGoal = useMutation(
-    orpc.plans.goals.upsertGoal.mutationOptions({
-      onSuccess: () => void queryClient.invalidateQueries({ queryKey: orpc.plans.goals.key() }),
+    orpc.goals.create.mutationOptions({
+      onSuccess: () => void queryClient.invalidateQueries({ queryKey: orpc.goals.key() }),
     }),
   );
   const onSave = () => {
     const trimmed = title.trim();
     if (!trimmed) return onDone();
-    const area = snapshot.focus.state === "recorded" ? snapshot.focus.value[0] : undefined;
     setError(null);
-    addGoal.mutate(
-      {
-        title: trimmed,
-        category: area ? FOCUS_AREA_LABELS[area] : "General",
-        status: "not_started",
-      },
-      {
-        onSuccess: onDone,
-        onError: (e) => setError(describeProfileSaveError(e).message),
-      },
-    );
+    addGoal.mutate(freeTextGoalInput(trimmed), {
+      onSuccess: onDone,
+      onError: (e) => setError(describeProfileSaveError(e).message),
+    });
   };
   return (
     <StepFrame
@@ -576,7 +569,15 @@ function DailyRemindersSwitch() {
               id="onboarding-daily-reminder-email"
               checked={data.dailyReminders.email}
               disabled={update.isPending}
-              onCheckedChange={(email) => update.mutate({ dailyReminders: { email } })}
+              onCheckedChange={(email) =>
+                update.mutate(
+                  withBrowserTimeZone(
+                    data,
+                    { dailyReminders: { email } },
+                    Intl.DateTimeFormat().resolvedOptions().timeZone,
+                  ),
+                )
+              }
             />
           ) : null}
         </SettingsRow>

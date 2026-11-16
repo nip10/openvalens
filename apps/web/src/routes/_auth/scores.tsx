@@ -61,16 +61,19 @@ function ScoresPage() {
 
       <p className="flex flex-wrap items-center gap-2 text-sm text-ink-3">
         <ToneIcon icon={Target} tone="weight" size="sm" />
-        <Trans>
-          Manage your personal goals on{" "}
-          <Link
-            to="/goals"
-            className="text-ink underline decoration-signal underline-offset-[0.15em] hover:decoration-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-          >
-            Goals
-          </Link>
-          .
-        </Trans>
+        {/* One flex item, so the gap never lands before the full stop. */}
+        <span>
+          <Trans>
+            Manage your personal goals on{" "}
+            <Link
+              to="/goals"
+              className="text-ink underline decoration-signal underline-offset-[0.15em] hover:decoration-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            >
+              Goals
+            </Link>
+            .
+          </Trans>
+        </span>
       </p>
     </Page>
   );

@@ -26,7 +26,8 @@ export function useOnboardingFacts(enabled = true): OnboardingFacts {
   const recents = useQuery({ ...orpc.quickLog.recents.queryOptions({ input: {} }), ...options });
   const phones = useQuery({ ...orpc.mobile.syncStatus.queryOptions({ input: {} }), ...options });
   const wearables = useQuery({ ...orpc.wearables.list.queryOptions({ input: {} }), ...options });
-  const goals = useQuery({ ...orpc.plans.goals.listGoals.queryOptions({ input: {} }), ...options });
+  // The personal-goals model the Goals page lists, not the old plans goals.
+  const goals = useQuery({ ...orpc.goals.list.queryOptions({ input: {} }), ...options });
   const ai = useQuery({ ...orpc.ai.consent.get.queryOptions({ input: {} }), ...options });
   const insights = useQuery({
     ...orpc.insights.preferences.get.queryOptions({ input: {} }),

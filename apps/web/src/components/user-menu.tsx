@@ -44,7 +44,7 @@ export default function UserMenu() {
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
-          className="h-11 max-w-[10rem] justify-start gap-2.5 px-1.5 sm:max-w-[14rem] lg:w-full lg:max-w-none"
+          className="h-11 max-w-[10rem] justify-start gap-2.5 px-1.5 max-lg:px-0 sm:max-w-[14rem] lg:w-full lg:max-w-none"
         >
           <span
             className="grid size-8 shrink-0 place-items-center rounded-full bg-sidebar-accent font-display text-sm font-semibold text-signal"
@@ -52,7 +52,12 @@ export default function UserMenu() {
           >
             {initial(session.user.name, session.user.email)}
           </span>
-          <span className="truncate font-semibold text-ink">{session.user.name}</span>
+          {/* The top bar below lg shows the avatar alone, so both edges keep one margin. */}
+          {session.user.name?.trim() ? (
+            <span className="truncate font-semibold text-ink max-lg:hidden">
+              {session.user.name}
+            </span>
+          ) : null}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-56 rounded-2xl bg-card">

@@ -80,8 +80,15 @@ const SECTION_ICONS: Record<SetupSection, LucideIcon> = {
 };
 
 /**
- * The head of one profile step: its number in a soft circle, its icon and
- * title, an optional ⓘ with the why, and a pill once it has an answer.
+ * The optional goal section is left out of the numbering, as it is of the
+ * "N of M sections answered" count, so the two always agree.
+ */
+const NUMBERED_SECTIONS = SETUP_SECTIONS.filter((section) => section !== "goal");
+
+/**
+ * The head of one profile step: its number in a soft circle (none for the
+ * optional goal), its icon and title, an optional ⓘ with the why, and a pill
+ * once it has an answer.
  */
 export function StepHead({
   section,
@@ -98,12 +105,16 @@ export function StepHead({
   const Icon = SECTION_ICONS[section];
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <span
-        className="num grid size-9 shrink-0 place-items-center rounded-full bg-sidebar-accent font-display text-base font-medium text-signal"
-        aria-hidden="true"
-      >
-        {SETUP_SECTIONS.indexOf(section) + 1}
-      </span>
+      {section === "goal" ? (
+        <span className="size-9 shrink-0" aria-hidden="true" />
+      ) : (
+        <span
+          className="num grid size-9 shrink-0 place-items-center rounded-full bg-sidebar-accent font-display text-base font-medium text-signal"
+          aria-hidden="true"
+        >
+          {NUMBERED_SECTIONS.indexOf(section) + 1}
+        </span>
+      )}
       <div className="flex min-w-0 flex-1 items-center gap-2">
         <Icon className="size-[18px] shrink-0 text-ink-3" aria-hidden="true" />
         <h2 id={titleId} className="text-xl leading-tight text-ink">

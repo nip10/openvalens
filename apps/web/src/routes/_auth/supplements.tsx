@@ -39,6 +39,7 @@ import {
   ToneIcon,
 } from "@/components/page";
 import { orpc } from "@/utils/orpc";
+import { supplementIntakeWindowStart } from "@/utils/supplement-intake-window";
 import { ModuleHiddenNote } from "@/components/module-hidden-note";
 import { parseDecimal } from "@openvalens/i18n/numbers";
 
@@ -486,15 +487,16 @@ function SupplementsPage() {
   );
 }
 
-function SupplementIntakeSection({
+export function SupplementIntakeSection({
   supplements,
 }: {
   supplements: Array<{ id: number; name: string; dose: string | null }>;
 }) {
   const { t } = useLingui();
   const client = useQueryClient();
-  const now = new Date();
-  const from = new Date(now.getTime() - 7 * 86_400_000).toISOString();
+  // Fixed once per mount: a fresh timestamp each render changed the query key
+  // and refetched the list forever.
+  const [from] = useState(() => supplementIntakeWindowStart(new Date()));
   const rows = useQuery(orpc.supplementIntake.list.queryOptions({ input: { from } }));
   const [selected, setSelected] = useState(String(supplements[0]?.id ?? ""));
   const [dose, setDose] = useState("");

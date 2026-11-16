@@ -68,16 +68,26 @@
   }
   body {
     @apply font-body antialiased;
-    background:
-      radial-gradient(60rem 40rem at 100% 0%, var(--tone-steps-soft), transparent 70%),
-      radial-gradient(50rem 36rem at 0% 100%, var(--tone-sleep-soft), transparent 70%), var(--paper);
-    background-attachment: fixed;
+    background: var(--paper);
     color: var(--ink-2);
     font-size: 1rem;
     line-height: 1.55;
     font-synthesis: none;
     font-optical-sizing: auto;
     caret-color: var(--signal);
+  }
+  /* The paper glow sits on a fixed layer the size of the viewport, so it never
+     tiles into a hard edge one screen down (iOS Safari ignores
+     background-attachment: fixed, and full-page renders repeat the tile). */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(60rem 40rem at 100% 0%, var(--tone-steps-soft), transparent 70%),
+      radial-gradient(50rem 36rem at 0% 100%, var(--tone-sleep-soft), transparent 70%);
   }
   ::selection {
     background: color-mix(in oklab, var(--signal) 22%, transparent);

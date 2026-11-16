@@ -21,6 +21,26 @@ describe("canonical metric uses taxonomy seam (Issue #17 bounded read-side)", ()
     expect(event.summary).toBe("Weight 84 kg");
   });
 
+  test("steps, distance and active calories are activity, not other", () => {
+    for (const metricCode of ["steps", "distance", "active_calories"]) {
+      for (const metricCategory of [null, "activity"]) {
+        const event = canonicalMetric({
+          id: 9,
+          sampledAt: new Date("2026-09-29T00:00:00Z"),
+          numericValue: 1200,
+          textValue: null,
+          unit: null,
+          metadataJson: null,
+          metricCode,
+          metricDisplayName: metricCode,
+          metricCategory,
+          dataSource: null,
+        });
+        expect(event.domain).toBe("activity");
+      }
+    }
+  });
+
   test("explicit tenant category wins over taxonomy fallback", () => {
     const event = canonicalMetric({
       id: 2,

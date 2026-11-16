@@ -16,6 +16,9 @@ describe("clinical-records presenter", () => {
     expect(cardiacExamTypeLabel("ECHO", englishI18n)).toBe("ECHO");
     expect(cardiacExamTypeLabel("", englishI18n)).toBe("Exam");
     expect(cardiacExamTypeLabel(null, englishI18n)).toBe("Exam");
+    expect(cardiacExamTypeLabel("ecg", englishI18n)).toBe("ECG");
+    expect(cardiacExamTypeLabel("ekg", englishI18n)).toBe("EKG");
+    expect(cardiacExamTypeLabel("resting_ecg", englishI18n)).toBe("Resting ECG");
   });
 
   test("imagingTypeLabel: known short forms stay uppercase, others sentence case", () => {

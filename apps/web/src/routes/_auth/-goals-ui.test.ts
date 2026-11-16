@@ -5,6 +5,7 @@ import { trackerGoalProblem } from "@openvalens/plans/goal-tracker";
 import {
   canEditEvidenceSource,
   checkinCorrectionPayload,
+  formatGoalValue,
   goalDetailParams,
   goalListGroup,
   goalRuleName,
@@ -165,6 +166,14 @@ describe("Goals presentation decisions", () => {
   test("a number input's three-decimal value is a decimal for every member (#455)", () => {
     expect(parseManualAmount("1.250")).toBe(1.25);
     expect(checkinCorrectionPayload("1.250", false, false)).toEqual({ value: 1.25 });
+  });
+
+  test("hours read as a duration and other values are rounded", () => {
+    expect(formatGoalValue(8.45952380952381, "h", "en")).toBe("8h 28m");
+    expect(formatGoalValue(7.5, "h", "en")).toBe("7h 30m");
+    expect(formatGoalValue(66.23333, "kg", "en")).toBe("66.23 kg");
+    expect(formatGoalValue(66.25, "kg", "pt-PT")).toBe("66,25 kg");
+    expect(formatGoalValue(3, null, "en")).toBe("3");
   });
 
   test("replacement navigation carries the newly created goal id", () => {

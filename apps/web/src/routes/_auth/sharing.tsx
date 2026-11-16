@@ -320,10 +320,10 @@ function MembersCard({
               <li key={member.id} className="sheet flex min-w-0 items-start gap-3 p-4">
                 <SharingAvatar name={display} />
                 <div className="grid min-w-0 flex-1 gap-1">
-                  <span className="font-semibold break-words text-ink">
+                  <span className="font-semibold wrap-anywhere text-ink">
                     {display}
                     {isMe ? (
-                      <span className="ml-2 font-normal text-ink-3">
+                      <span className="block text-sm font-normal text-ink-3">
                         <Trans>(you)</Trans>
                       </span>
                     ) : null}

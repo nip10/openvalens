@@ -193,6 +193,15 @@ describe("AiAppsView", () => {
     expect(html).toMatch(/<button[^>]*disabled[^>]*>(?:(?!<\/button>).)*Create key/);
   });
 
+  test("the server address and the Claude Code command each have a Copy button", () => {
+    const html = render(<AiAppsView {...viewProps()} />);
+    expect(html).toInclude("Copy address");
+    expect(html).toInclude("Copy command");
+    // Commands keep their words whole and scroll sideways instead of breaking mid-word.
+    expect(html).toMatch(/<code[^>]*whitespace-pre[^>]*data-copy="command"[^>]*>claude mcp add/);
+    expect(html).not.toMatch(/<code[^>]*break-all[^>]*data-copy="command"/);
+  });
+
   test("without OAuth on the server, connections point to personal keys", () => {
     const html = render(
       <AiAppsView {...viewProps({ status: { ...STATUS, oauthEnabled: false } })} />,

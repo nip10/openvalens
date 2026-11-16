@@ -47,6 +47,8 @@ export type WearableDevicesViewProps = {
   onSyncNow: (provider: WearableProviderId) => void;
   onDisconnect: (provider: WearableProviderId, deleteData: boolean) => void;
   onResolveQuarantine: (provider: WearableProviderId, action: "keep" | "delete") => void;
+  /** OpenValens Cloud: there is no server operator to point the member at. */
+  cloud?: boolean;
 };
 
 /** The state pill's tint; the word itself always carries the meaning. */
@@ -111,16 +113,29 @@ export function WearableDevicesView(props: WearableDevicesViewProps) {
           }
         />
       ) : providers.length === 0 ? (
-        <EmptyState
-          icon={Watch}
-          title={<Trans>No cloud devices are available on this server</Trans>}
-          description={
-            <Trans>
-              Your server operator has not enabled any vendor. The mobile app still syncs Apple
-              Health and Health Connect.
-            </Trans>
-          }
-        />
+        props.cloud ? (
+          <EmptyState
+            icon={Watch}
+            title={<Trans>Wearable accounts are coming soon</Trans>}
+            description={
+              <Trans>
+                Oura, WHOOP and others are coming soon. For now, connect your wearable through Apple
+                Health or Health Connect in the mobile app.
+              </Trans>
+            }
+          />
+        ) : (
+          <EmptyState
+            icon={Watch}
+            title={<Trans>No cloud devices are available on this server</Trans>}
+            description={
+              <Trans>
+                Your server operator has not enabled any vendor. The mobile app still syncs Apple
+                Health and Health Connect.
+              </Trans>
+            }
+          />
+        )
       ) : (
         <ul className="grid gap-3 sm:grid-cols-2">
           {providers.map((row) => (

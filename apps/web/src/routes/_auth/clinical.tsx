@@ -111,6 +111,11 @@ function ClinicalPage() {
   );
 }
 
+/** The recorded parts only: a missing facility or note leaves no "—" line. */
+function presentParts(...parts: Array<string | null | undefined>): string[] {
+  return parts.map((part) => part?.trim() ?? "").filter((part) => part.length > 0);
+}
+
 type RecordItem = {
   /** What the record is, then any qualifier (body part, condition). */
   headline: readonly string[];
@@ -191,7 +196,7 @@ function renderCardiac(row: CardiacRow, i18n: I18n): RecordItem {
     headline: [cardiacExamTypeLabel(row.type, i18n)],
     date: row.date,
     isDate: true,
-    secondary: [row.facility ?? "—", summaryText(row.conclusion)],
+    secondary: presentParts(row.facility, row.conclusion ? summaryText(row.conclusion) : null),
   };
 }
 
@@ -207,7 +212,7 @@ function renderImaging(row: ImagingRow, i18n: I18n): RecordItem {
     headline: [imagingTypeLabel(row.type, i18n), row.bodyPart],
     date: row.date,
     isDate: true,
-    secondary: [row.facility ?? "—", summaryText(row.conclusion)],
+    secondary: presentParts(row.facility, row.conclusion ? summaryText(row.conclusion) : null),
   };
 }
 
@@ -222,6 +227,6 @@ function renderFamily(row: FamilyRow, i18n: I18n): RecordItem {
     headline: [familyRelationLabel(row.relation, i18n), row.condition],
     date: formatYear(row.ageOfOnset),
     isDate: false,
-    secondary: [summaryText(row.notes)],
+    secondary: presentParts(row.notes ? summaryText(row.notes) : null),
   };
 }

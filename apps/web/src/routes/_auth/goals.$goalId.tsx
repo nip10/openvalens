@@ -13,7 +13,12 @@ import { useState } from "react";
 import { ErrorState, Page, PageHeader, Section, StatusPill } from "@/components/page";
 import { orpc } from "@/utils/orpc";
 import { GoalEditor } from "./-goal-editor";
-import { checkinCorrectionPayload, goalDetailParams, parseManualAmount } from "./-goals-ui";
+import {
+  checkinCorrectionPayload,
+  formatGoalValue,
+  goalDetailParams,
+  parseManualAmount,
+} from "./-goals-ui";
 
 export const Route = createFileRoute("/_auth/goals/$goalId")({ component: GoalDetailPage });
 
@@ -266,7 +271,7 @@ function TodayPanel({
   manualCompletion: boolean;
   onSaved: () => void | Promise<void>;
 }) {
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const [date, setDate] = useState(() =>
     localGoalDate(goal.definition.timeZone, goal.definition.dayCutoff),
   );
@@ -295,7 +300,7 @@ function TodayPanel({
         <p className="text-3xl font-semibold text-ink">
           {evaluation.currentValue === null
             ? t`No data yet`
-            : `${evaluation.windowCoverage && !evaluation.windowCoverage.complete ? `${t`Provisional`} · ` : ""}${evaluation.currentValue}${goal.definition.unit ? ` ${goal.definition.unit}` : ""}`}
+            : `${evaluation.windowCoverage && !evaluation.windowCoverage.complete ? `${t`Provisional`} · ` : ""}${formatGoalValue(evaluation.currentValue, goal.definition.unit, i18n.locale)}`}
         </p>
         <p className="text-sm text-ink-3">
           {evaluation.windowCoverage && !evaluation.windowCoverage.complete
@@ -487,7 +492,7 @@ function History({ goal, onRefresh }: { goal: GoalDetail; onRefresh: () => void 
                 <span className="text-ink-3">
                   {day.value === null
                     ? stateCopy(day.state, i18n)
-                    : `${day.value}${goal.definition.unit ? ` ${goal.definition.unit}` : ""} · ${stateCopy(day.state, i18n)}`}
+                    : `${formatGoalValue(day.value, goal.definition.unit, i18n.locale)} · ${stateCopy(day.state, i18n)}`}
                 </span>
               </li>
             ))}

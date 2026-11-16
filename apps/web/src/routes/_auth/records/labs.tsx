@@ -15,6 +15,13 @@ import {
 import { Button } from "@openvalens/ui/components/button";
 import { Input } from "@openvalens/ui/components/input";
 import { Label } from "@openvalens/ui/components/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@openvalens/ui/components/select";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { useMutation } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
@@ -45,8 +52,17 @@ export const Route = createFileRoute("/_auth/records/labs")({
   component: LabsPage,
 });
 
-function AddReadingForm({ markerCode, onSaved }: { markerCode: string; onSaved: () => void }) {
-  const { i18n } = useLingui();
+export function AddReadingForm({
+  markers,
+  onSaved,
+}: {
+  markers: Array<Pick<MarkerRow, "code" | "displayName" | "unit">>;
+  onSaved: () => void;
+}) {
+  const { t, i18n } = useLingui();
+  // No default marker: a reading saved to the wrong marker reads as a real result.
+  const [markerCode, setMarkerCode] = useState("");
+  const marker = markers.find((option) => option.code === markerCode);
   const [value, setValue] = useState("");
   const [observedAt, setObservedAt] = useState(defaultObservedAt);
 
@@ -65,7 +81,7 @@ function AddReadingForm({ markerCode, onSaved }: { markerCode: string; onSaved: 
   const numeric = parseManualEntryValue(field, value, i18n.locale);
 
   const submit = () => {
-    if (numeric === null) return;
+    if (numeric === null || !marker) return;
     save.mutate({
       metricCode: markerCode as never,
       observedAt,
@@ -77,16 +93,43 @@ function AddReadingForm({ markerCode, onSaved }: { markerCode: string; onSaved: 
   return (
     <Section icon={Plus} tone="water" title={<Trans>Add reading</Trans>} sheet>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
+        <div className="grid gap-2 sm:col-span-2 lg:col-span-1">
+          <Label className="text-sm font-medium">
+            <Trans>Marker</Trans>
+          </Label>
+          <Select value={markerCode} onValueChange={setMarkerCode}>
+            <SelectTrigger className="w-full" aria-label={t`Marker`}>
+              <SelectValue placeholder={t`Choose a marker`}>{marker?.displayName}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {markers.map((option) => (
+                <SelectItem key={option.code} value={option.code}>
+                  {option.displayName}
+                  {option.unit ? <span className="text-ink-3"> · {option.unit}</span> : null}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
         <div className="grid gap-2">
           <Label className="text-sm font-medium">
             <Trans>Value</Trans>
           </Label>
-          <Input
-            inputMode="decimal"
-            value={value}
-            onChange={(event) => setValue(event.target.value)}
-            placeholder="0–100000"
-          />
+          <div className="flex items-center gap-2">
+            <Input
+              inputMode="decimal"
+              value={value}
+              onChange={(event) => setValue(event.target.value)}
+            />
+            {marker?.unit ? (
+              <span className="num shrink-0 text-sm text-ink-3">
+                <span className="sr-only">
+                  <Trans>Unit</Trans>:{" "}
+                </span>
+                {marker.unit}
+              </span>
+            ) : null}
+          </div>
           <DecimalHint value={value} />
         </div>
         <div className="grid gap-2">
@@ -100,7 +143,7 @@ function AddReadingForm({ markerCode, onSaved }: { markerCode: string; onSaved: 
           />
         </div>
         <div className="flex flex-wrap items-center gap-3 sm:col-span-2 lg:col-span-1">
-          <Button onClick={submit} disabled={numeric === null || save.isPending}>
+          <Button onClick={submit} disabled={numeric === null || !marker || save.isPending}>
             {save.isPending ? <Trans>Saving…</Trans> : <Trans>Save</Trans>}
           </Button>
           {numeric === null && value.length > 0 ? (
@@ -333,7 +376,7 @@ function LabsPage() {
               </Section>
             ) : null}
           </div>
-          <AddReadingForm markerCode={list[0]?.code ?? ""} onSaved={() => void markers.refetch()} />
+          <AddReadingForm markers={list} onSaved={() => void markers.refetch()} />
         </div>
       )}
     </Page>

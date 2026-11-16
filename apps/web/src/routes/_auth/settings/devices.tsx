@@ -12,6 +12,7 @@ import { z } from "zod";
 import { Page, PageHeader } from "@/components/page";
 import { WearableDevicesView, type WearableConfirm } from "@/components/wearable-devices-view";
 import { orpc } from "@/utils/orpc";
+import { useIsCloud } from "@/utils/sign-up";
 
 /**
  * Cloud wearable connections (Issue #60). The server's OAuth callback returns
@@ -34,6 +35,7 @@ function DevicesSettingsPage() {
   const [syncRequestedFor, setSyncRequestedFor] = useState<WearableProviderId | null>(null);
 
   const list = useQuery(orpc.wearables.list.queryOptions({ input: {} }));
+  const cloud = useIsCloud();
   const providers = list.data?.providers ?? [];
   const refresh = () => queryClient.invalidateQueries({ queryKey: orpc.wearables.key() });
 
@@ -103,6 +105,7 @@ function DevicesSettingsPage() {
         actions={settingsLink}
       />
       <WearableDevicesView
+        cloud={cloud}
         status={list.isPending ? "pending" : list.isError ? "error" : "ready"}
         providers={providers}
         notice={notice}

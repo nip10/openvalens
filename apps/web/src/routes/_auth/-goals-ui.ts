@@ -1,3 +1,4 @@
+import { formatSleepDuration } from "@openvalens/api/presenters/sleep";
 import { parseNumberInputValue } from "@openvalens/i18n/numbers";
 import type { GoalEvaluation } from "@openvalens/plans/goal-evaluation";
 import type { GoalDefinition } from "@openvalens/plans/goal-model";
@@ -14,6 +15,17 @@ export function goalTodayMessage(definition: GoalDefinition, evaluation: GoalEva
   if (evaluation.overdue && !evaluation.achieved)
     return "Past the target date. Still active until you choose otherwise.";
   return "Today";
+}
+
+/**
+ * A goal's current or daily value with its unit: hours as a duration like the
+ * sleep tile ("8h 28m"), anything else rounded to two decimals, so a rolling
+ * average never prints as "8.45952380952381 h".
+ */
+export function formatGoalValue(value: number, unit: string | null | undefined, locale: string) {
+  if (unit === "h") return formatSleepDuration(value * 60);
+  const shown = new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(value);
+  return unit ? `${shown} ${unit}` : shown;
 }
 
 export function canEditEvidenceSource(definition: GoalDefinition, sourceLocked?: boolean): boolean {
