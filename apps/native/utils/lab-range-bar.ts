@@ -2,10 +2,9 @@ import type { LabRangeDisplay } from "@openvalens/api/presenters/labs";
 
 /**
  * Where a reading and the lab's printed range sit on one neutral track, as
- * percentages of its width. Placement only: nothing here judges the reading
- * against the range (Legal and clinical gate decisions, never-add item 1), so
- * there is no inside/outside result, and a reading beyond the track is simply
- * drawn at its edge.
+ * percentages of its width. Placement only: whether the reading is below,
+ * within or above the range is `labRangePosition` (packages/api presenters),
+ * and a reading beyond the track is simply drawn at its edge.
  *
  * Returns `null` when no bar should be drawn: a text-only range, a range in a
  * different unit from the reading, or bounds that give no usable track.

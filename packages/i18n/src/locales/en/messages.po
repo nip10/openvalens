@@ -1907,6 +1907,7 @@ msgstr "About these totals"
 msgid "About you"
 msgstr "About you"
 
+#: apps/native/app/(drawer)/records/labs.tsx
 #: apps/web/src/routes/_auth/records/labs.tsx
 msgid "Above range"
 msgstr "Above range"
@@ -3343,6 +3344,7 @@ msgstr "Before you start"
 msgid "Before your own setup"
 msgstr "Before your own setup"
 
+#: apps/native/app/(drawer)/records/labs.tsx
 #: apps/web/src/routes/_auth/records/labs.tsx
 msgid "Below range"
 msgstr "Below range"
