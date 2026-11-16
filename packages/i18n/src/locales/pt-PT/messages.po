@@ -12492,6 +12492,7 @@ msgstr "Nova chave de API pessoal"
 msgid "New personal goal"
 msgstr "Nova meta pessoal"
 
+#: apps/web/src/components/nav-links.ts
 #: apps/web/src/components/recipe-draft-editor.tsx
 #: apps/web/src/routes/_auth/foods.tsx
 msgid "New recipe"
@@ -15608,7 +15609,6 @@ msgstr "Adicionados recentemente"
 
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/components/recipe-draft-editor.tsx
-#: apps/web/src/components/nav-links.ts
 msgid "Recipe draft"
 msgstr "Rascunho de receita"
 
