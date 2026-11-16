@@ -51,7 +51,8 @@ export function NutritionDayTotals({
   const sourceLine = sources ? formatSources(sources, i18n) : null;
   return (
     <section aria-label={i18n._(DIARY_COPY.totalsTitle)} className="grid min-w-0 gap-4">
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-5">
+      {/* nutrition#8: energy leads on its own row until all five fit, so no tile sits alone. */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4 xl:grid-cols-5">
         {SUMMARY_NUTRIENTS.map((key) => {
           const total = totals[key];
           const target = targets.find((item) => item.nutrient === key);
@@ -60,7 +61,11 @@ export function NutritionDayTotals({
             <div
               key={key}
               role="group"
-              className="grid min-w-0"
+              className={
+                key === "energyKcal"
+                  ? "col-span-2 grid min-w-0 sm:col-span-4 xl:col-span-1"
+                  : "grid min-w-0"
+              }
               aria-label={describeDisplayedTotal(key, total, hideNumbers, i18n)}
             >
               <StatTile

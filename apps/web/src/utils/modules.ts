@@ -27,6 +27,7 @@ export const ROUTE_MODULES: Readonly<Record<string, PersonModule>> = {
   "/recipe-drafts": "food",
   "/micronutrients": "food",
   "/nutrition-targets": "food",
+  "/settings/nutrition": "food",
   "/supplements": "supplements",
   "/records/labs": "labs",
   "/clinical": "labs",

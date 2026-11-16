@@ -12,24 +12,16 @@ import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { Textarea } from "@openvalens/ui/components/textarea";
 import { useMutation } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import {
-  ArrowLeft,
-  Carrot,
-  ChefHat,
-  ClipboardPaste,
-  Plus,
-  ShieldCheck,
-  Sparkles,
-  Trash2,
-} from "lucide-react";
+import { Carrot, ChefHat, ClipboardPaste, Plus, ShieldCheck, Sparkles, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { offlineScope } from "@openvalens/api/presenters/offline";
-import { controlLinkClass, nativeSelectClass, textLinkClass } from "@/components/food-classes";
+import { nativeSelectClass, textLinkClass } from "@/components/food-classes";
 import { Details, Page, PageHeader, Section, ToneIcon } from "@/components/page";
 import { authClient } from "@/lib/auth-client";
 import { orpc } from "@/utils/orpc";
 import { ModuleHiddenNote } from "@/components/module-hidden-note";
+import { useNutritionSettings } from "@/utils/nutrition-settings";
 
 const MAX_INPUT = 1024 * 1024;
 const MAX_INGREDIENTS = 200;
@@ -82,6 +74,9 @@ export function RecipeDraftEditor() {
   const [dirty, setDirty] = useState(false);
   const [replacePending, setReplacePending] = useState(false);
   const [showPaste, setShowPaste] = useState(false);
+  // recipe-drafts#2: importing from a web address is a setting; while it is off the choice says so.
+  const nutritionSettings = useNutritionSettings().settings;
+  const importOff = nutritionSettings !== undefined && !nutritionSettings.recipeImportEnabled;
   const textRef = useRef<HTMLTextAreaElement>(null);
   const importUrl = useMutation(orpc.nutritionRecipeImport.fromUrl.mutationOptions());
   const { t, i18n } = useLingui();
@@ -146,7 +141,7 @@ export function RecipeDraftEditor() {
     const parsed = parseRecipeDraft({
       text,
       format,
-      ...(sourceUrl.trim() ? { sourceUrl: sourceUrl.trim() } : {}),
+      ...(format === "ingredients" && sourceUrl.trim() ? { sourceUrl: sourceUrl.trim() } : {}),
       importedAt: new Date().toISOString(),
     });
     show({ ...parsed, message: parsed.message ? i18n._(parsed.message) : null });
@@ -246,65 +241,68 @@ export function RecipeDraftEditor() {
         title={<Trans>Recipe draft</Trans>}
         info={
           <Trans>
-            Paste ingredients or Recipe JSON-LD, or import one recipe page if you turned that on in
-            nutrition settings. Nothing is saved.
+            Paste an ingredient list or a recipe page's code, or import one recipe page if you
+            turned that on in nutrition settings. Nothing is saved.
           </Trans>
         }
         description={
-          <Trans>Not saved. Discard the draft to clear it; reloading may lose it.</Trans>
-        }
-        actions={
-          <Link
-            to="/nutrition"
-            className={`inline-flex min-h-11 items-center gap-1.5 ${controlLinkClass}`}
-          >
-            <ArrowLeft className="size-4 text-food" aria-hidden="true" />
-            <Trans>Back to meal diary</Trans>
-          </Link>
+          draft ? (
+            <Trans>Not saved. Discard the draft to clear it; reloading may lose it.</Trans>
+          ) : (
+            <Trans>Paste a recipe to review its ingredients and servings.</Trans>
+          )
         }
       />
       {!draft || showPaste ? (
         <Section icon={ClipboardPaste} tone="food" sheet title={<Trans>Paste recipe text</Trans>}>
           <div className="grid gap-4">
-            <fieldset className="flex flex-wrap gap-2">
+            <fieldset className="grid gap-2">
               <legend className="mb-2 text-sm font-medium text-ink-3">
                 <Trans>Paste format</Trans>
               </legend>
-              <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-full border border-input bg-card px-3.5 text-sm text-ink-2 transition-colors duration-[var(--dur-short)] hover:bg-muted has-[:checked]:border-transparent has-[:checked]:bg-food-soft has-[:checked]:font-semibold has-[:checked]:text-ink">
-                <input
-                  type="radio"
-                  className="size-4 accent-primary"
-                  name="format"
-                  checked={format === "ingredients"}
-                  onChange={() => setFormat("ingredients")}
-                />
-                <Trans>Ingredients</Trans>
-              </label>
-              <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-full border border-input bg-card px-3.5 text-sm text-ink-2 transition-colors duration-[var(--dur-short)] hover:bg-muted has-[:checked]:border-transparent has-[:checked]:bg-food-soft has-[:checked]:font-semibold has-[:checked]:text-ink">
-                <input
-                  type="radio"
-                  className="size-4 accent-primary"
-                  name="format"
-                  checked={format === "json-ld"}
-                  onChange={() => setFormat("json-ld")}
-                />
-                <Trans>Recipe JSON-LD</Trans>
-              </label>
-              <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-full border border-input bg-card px-3.5 text-sm text-ink-2 transition-colors duration-[var(--dur-short)] hover:bg-muted has-[:checked]:border-transparent has-[:checked]:bg-food-soft has-[:checked]:font-semibold has-[:checked]:text-ink">
-                <input
-                  type="radio"
-                  className="size-4 accent-primary"
-                  name="format"
-                  checked={format === "url"}
-                  onChange={() => setFormat("url")}
-                />
-                {i18n._(RECIPE_IMPORT_COPY.urlLabel)}
-              </label>
+              <div className="grid grid-cols-3 gap-1 rounded-3xl bg-paper-2 p-1">
+                {(
+                  [
+                    ["ingredients", t`Ingredient list`],
+                    ["json-ld", t`Recipe page code`],
+                    ["url", i18n._(RECIPE_IMPORT_COPY.urlLabel)],
+                  ] as const
+                ).map(([value, label]) => {
+                  const off = value === "url" && importOff;
+                  return (
+                    <label
+                      key={value}
+                      className={`flex min-h-11 items-center justify-center gap-2 rounded-3xl px-2 py-1.5 text-center text-sm text-ink-3 transition-colors duration-[var(--dur-short)] has-[:checked]:bg-card has-[:checked]:font-semibold has-[:checked]:text-ink has-[:checked]:shadow-sm has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-ring ${off ? "cursor-not-allowed opacity-55" : "cursor-pointer hover:text-ink"}`}
+                    >
+                      <input
+                        type="radio"
+                        className="sr-only"
+                        name="format"
+                        checked={format === value}
+                        disabled={off}
+                        onChange={() => setFormat(value)}
+                      />
+                      {label}
+                    </label>
+                  );
+                })}
+              </div>
+              {importOff ? (
+                <p className="text-sm text-ink-3">
+                  <Trans>
+                    To import from a web address,{" "}
+                    <Link to="/settings/nutrition" hash="recipe-import" className={textLinkClass}>
+                      turn it on in Nutrition settings
+                    </Link>
+                    .
+                  </Trans>
+                </p>
+              ) : null}
             </fieldset>
             {format !== "url" ? (
               <div className="grid gap-1.5">
                 <Label htmlFor="recipe-paste" className="text-sm font-medium text-ink-3">
-                  <Trans>Paste text (up to 1 MiB)</Trans>
+                  <Trans>Paste your recipe</Trans>
                 </Label>
                 <Textarea
                   ref={textRef}
@@ -315,47 +313,49 @@ export function RecipeDraftEditor() {
                 />
               </div>
             ) : null}
-            <div className="grid gap-1.5">
-              <Label htmlFor="recipe-source" className="text-sm font-medium text-ink-3">
-                {format === "url"
-                  ? i18n._(RECIPE_IMPORT_COPY.urlLabel)
-                  : t`Source URL (optional, provenance only)`}
-              </Label>
-              <Input
-                id="recipe-source"
-                type="url"
-                autoComplete="off"
-                value={sourceUrl}
-                onChange={(event) => setSourceUrl(event.target.value)}
-              />
-              {format === "url" ? (
-                <p className="text-sm text-ink-3">
-                  {i18n._(RECIPE_IMPORT_COPY.urlHint)}{" "}
-                  <Link to="/nutrition-targets" className={textLinkClass}>
-                    <Trans>Nutrition settings</Trans>
-                  </Link>
-                </p>
-              ) : null}
-            </div>
+            {format === "json-ld" ? null : (
+              <div className="grid gap-1.5">
+                <Label htmlFor="recipe-source" className="text-sm font-medium text-ink-3">
+                  {format === "url"
+                    ? i18n._(RECIPE_IMPORT_COPY.urlLabel)
+                    : t`Where it's from (optional)`}
+                </Label>
+                <Input
+                  id="recipe-source"
+                  type="url"
+                  autoComplete="off"
+                  value={sourceUrl}
+                  onChange={(event) => setSourceUrl(event.target.value)}
+                />
+                {format === "url" ? (
+                  <p className="text-sm text-ink-3">{i18n._(RECIPE_IMPORT_COPY.urlHint)}</p>
+                ) : null}
+              </div>
+            )}
             <div className="flex flex-wrap gap-2">
               <Button
                 onClick={() => {
                   if (replacePending) return;
+                  if (format === "url" ? !sourceUrl.trim() : !text.trim()) {
+                    setMessage(
+                      format === "url"
+                        ? t`Enter the recipe's web address first.`
+                        : t`Paste a recipe first.`,
+                    );
+                    return;
+                  }
                   if (dirty && draft) {
                     setReplacePending(true);
                     return;
                   }
                   parse();
                 }}
-                disabled={
-                  (format === "url" ? !sourceUrl.trim() || importUrl.isPending : !text.trim()) ||
-                  replacePending
-                }
+                disabled={(format === "url" && importUrl.isPending) || replacePending}
               >
                 <Sparkles aria-hidden="true" />
                 {importUrl.isPending ? i18n._(RECIPE_IMPORT_COPY.importing) : t`Create draft`}
               </Button>
-              <Button variant="ghost" onClick={clear}>
+              <Button variant="outline" onClick={clear}>
                 <Trans>Clear</Trans>
               </Button>
             </div>
