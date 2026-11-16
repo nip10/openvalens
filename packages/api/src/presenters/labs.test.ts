@@ -7,6 +7,7 @@ import {
   formatLabRange,
   formatLabValue,
   labRangeLine,
+  labRangePosition,
   labSparkline,
   type LabRangeDisplay,
 } from "./labs";
@@ -255,5 +256,45 @@ describe("labRangeLine", () => {
     expect(labRangeLine([1, 2], "mmol/L", between)?.band).toBeNull();
     expect(labRangeLine([5], "mg/L", null)).toBeNull();
     expect(labRangeLine([], "mg/L", between)).toBeNull();
+  });
+});
+
+describe("labRangePosition", () => {
+  const between: LabRangeDisplay = {
+    kind: "between",
+    low: "30",
+    high: "100",
+    unit: "ng/mL",
+    converted: false,
+  };
+  const upTo: LabRangeDisplay = { kind: "upTo", high: "100", unit: "mg/dL", converted: false };
+  const from: LabRangeDisplay = { kind: "from", low: "40", unit: "mg/dL", converted: false };
+
+  test("places a reading below, within or above a two-sided range, bounds inclusive", () => {
+    expect(labRangePosition(22, "ng/mL", between)).toBe("below");
+    expect(labRangePosition(30, "ng/mL", between)).toBe("within");
+    expect(labRangePosition(100, "ng/mL", between)).toBe("within");
+    expect(labRangePosition(101, "ng/mL", between)).toBe("above");
+  });
+
+  test("handles one-sided ranges", () => {
+    expect(labRangePosition(98, "mg/dL", upTo)).toBe("within");
+    expect(labRangePosition(120, "mg/dL", upTo)).toBe("above");
+    expect(labRangePosition(35, "mg/dL", from)).toBe("below");
+    expect(labRangePosition(55, "mg/dL", from)).toBe("within");
+  });
+
+  test("gives no answer when the range can't be compared", () => {
+    expect(labRangePosition(50, "nmol/L", between)).toBeNull();
+    expect(labRangePosition(50, "ng/mL", null)).toBeNull();
+    expect(
+      labRangePosition(50, "ng/mL", {
+        kind: "text",
+        text: "see report",
+        unit: "ng/mL",
+        converted: false,
+      }),
+    ).toBeNull();
+    expect(labRangePosition(Number.NaN, "ng/mL", between)).toBeNull();
   });
 });

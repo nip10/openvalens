@@ -123,6 +123,7 @@ Rename the product before release (see item 3). Done: the product is now OpenVal
 Adopt this **never-add list**. Adding any item requires reopening this decision.
 
 1. Flagging lab values as "abnormal", "high" or "low", or applying reference ranges or colour-coded risk. Showing the lab's own printed range verbatim as stored data is the limit.
+   **Reopened by the owner on 2026-11-16:** the web Labs screen now marks a reading that sits outside the lab's own printed range with "Above range" or "Below range" and a warning-tone dot (`labRangePosition` in `packages/api/src/presenters/labs.ts`). It compares only against the range stored with the reading; it never looks a range up or says "abnormal". The native app is unchanged.
 2. Any risk score or calculator (ASCVD, FINDRISC, FRAX, "biological age" presented as health risk, disease probability).
 3. Screening eligibility or urgency logic that uses labs, vitals or diagnoses. Only age, sex and user-declared criteria taken from the authority may be used.
 4. Naming a disease in an alert ("you may have prediabetes"), or prompting clinical action ("see a doctor about your blood pressure", "adjust medication").

@@ -1907,6 +1907,10 @@ msgstr "About these totals"
 msgid "About you"
 msgstr "About you"
 
+#: apps/web/src/routes/_auth/records/labs.tsx
+msgid "Above range"
+msgstr "Above range"
+
 #: packages/api/src/presenters/activity-load.ts
 msgid "Above the top of the WHO range (300 minutes a week)."
 msgstr "Above the top of the WHO range (300 minutes a week)."
@@ -3338,6 +3342,10 @@ msgstr "Before you start"
 #: apps/native/components/onboarding/flow.tsx
 msgid "Before your own setup"
 msgstr "Before your own setup"
+
+#: apps/web/src/routes/_auth/records/labs.tsx
+msgid "Below range"
+msgstr "Below range"
 
 #: apps/native/app/(drawer)/goals/[goalId].tsx
 #: apps/web/src/routes/_auth/goals.$goalId.tsx

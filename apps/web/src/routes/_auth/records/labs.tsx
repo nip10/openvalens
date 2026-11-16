@@ -6,6 +6,7 @@ import {
   formatLabRange,
   formatLabValue,
   labRangeLine,
+  labRangePosition,
   type LabRangeDisplay,
 } from "@openvalens/api/presenters/labs";
 import {
@@ -24,6 +25,7 @@ import {
   SelectValue,
 } from "@openvalens/ui/components/select";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
+import { cn } from "@openvalens/ui/lib/utils";
 import { useMutation } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
@@ -31,7 +33,7 @@ import { FlaskConical, TestTube } from "lucide-react";
 
 import { DecimalHint } from "@/components/decimal-hint";
 import { FormDialog } from "@/components/form-dialog";
-import { EmptyState, ErrorState, Page, PageHeader, Section } from "@/components/page";
+import { EmptyState, ErrorState, Page, PageHeader, Section, StatusPill } from "@/components/page";
 import { useLogDialog } from "@/components/quick-log/log-launcher";
 import { SyncStatusBadge } from "@/components/sync-status-badge";
 import { ProductSettingsStatus } from "@/components/product-settings-status";
@@ -207,9 +209,9 @@ function LabResultDialog({
 /**
  * One marker as one row: its name, then a line with the lab's printed range
  * shaded and its limits labelled, the latest reading as a dot with its
- * number, and earlier readings as faint dots. Placement only, in the labs
- * tone throughout: the row never calls a reading high, low or abnormal
- * (Legal and clinical gate decisions, never-add item 1).
+ * number, and earlier readings as faint dots. A latest reading outside the
+ * lab's range gets a warning dot and an "Above range" / "Below range" pill
+ * (owner decision 2026-11-16, reopening never-add item 1).
  */
 function MarkerRangeRow({
   marker,
@@ -249,6 +251,8 @@ function MarkerRangeRow({
   const previousValue = previous ? formatLabValue(previous.value, null) : "";
   const previousDate = previous ? friendlyDate(i18n, previous.sampledAt) : "";
   const latestPoint = line?.points.at(-1) ?? null;
+  const position = latest ? labRangePosition(latest.value, unit, numericRange) : null;
+  const flag = position === "above" ? t`Above range` : position === "below" ? t`Below range` : null;
 
   return (
     <li className="grid gap-x-6 gap-y-2 py-4 sm:grid-cols-[minmax(0,13rem)_minmax(0,1fr)] sm:items-center">
@@ -256,6 +260,7 @@ function MarkerRangeRow({
         <span className="flex flex-wrap items-baseline gap-x-2 font-semibold break-words text-ink">
           {marker.displayName}
           {unit ? <span className="text-sm font-normal text-ink-3">{unit}</span> : null}
+          {flag ? <StatusPill tone="warn">{flag}</StatusPill> : null}
         </span>
         <span className="text-sm text-ink-3">
           {previous ? (
@@ -286,6 +291,7 @@ function MarkerRangeRow({
         <span className="sr-only">
           {[
             t`Latest ${latestText}`,
+            flag,
             previous ? t`was ${previousValue} on ${previousDate}` : null,
             rangeText,
           ]
@@ -320,7 +326,10 @@ function MarkerRangeRow({
               />
             ))}
             <span
-              className="absolute top-8 size-4 -translate-x-1/2 -translate-y-1 rounded-full border-2 border-[var(--sheet)] bg-water"
+              className={cn(
+                "absolute top-8 size-4 -translate-x-1/2 -translate-y-1 rounded-full border-2 border-[var(--sheet)]",
+                flag ? "bg-warning" : "bg-water",
+              )}
               style={{ left: `${latestPoint}%` }}
             />
             {line.band?.low ? (
