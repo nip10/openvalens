@@ -26,7 +26,7 @@ import { orpc } from "@/utils/orpc";
 
 /**
  * The create/edit form for one of the member's custom foods (Issue #81), used
- * in a dialog by My foods and by Recipe draft's "Save as a food"
+ * in a dialog by My foods and by New recipe's "Save as a food"
  * (recipe-drafts#3). A retried create returns the food already saved; a stale
  * edit shows the other version and lets the member choose.
  */

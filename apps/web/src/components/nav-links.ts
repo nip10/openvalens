@@ -98,7 +98,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
         // a new recipe starts from My foods (recipe-drafts#3) and keeps a tab.
         children: [
           { to: "/foods", label: msg`My foods`, icon: Bookmark },
-          { to: "/recipe-drafts", label: msg`Recipe draft`, icon: ChefHat },
+          { to: "/recipe-drafts", label: msg`New recipe`, icon: ChefHat },
         ],
       },
       { to: "/supplements", label: msg`Supplements`, icon: Pill },
