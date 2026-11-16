@@ -6,16 +6,23 @@ describe("parseReviewOptions", () => {
   const now = new Date("2026-11-01T23:30:00Z");
 
   test("defaults to the current UTC day and accepts --today", () => {
-    expect(parseReviewOptions([], now)).toEqual({ ok: true, today: "2026-11-01", refresh: false });
+    expect(parseReviewOptions([], now)).toEqual({
+      ok: true,
+      today: "2026-11-01",
+      refresh: false,
+      timeZone: null,
+    });
     expect(parseReviewOptions(["--today", "2026-10-30"], now)).toEqual({
       ok: true,
       today: "2026-10-30",
       refresh: false,
+      timeZone: null,
     });
     expect(parseReviewOptions(["--today=2026-10-29"], now)).toEqual({
       ok: true,
       today: "2026-10-29",
       refresh: false,
+      timeZone: null,
     });
     expect(parseReviewOptions(["--today", "2026-02-30"], now).ok).toBe(false);
     expect(parseReviewOptions(["--cloud"], now).ok).toBe(false);
@@ -26,16 +33,19 @@ describe("parseReviewOptions", () => {
       ok: true,
       today: "2026-11-01",
       refresh: true,
+      timeZone: null,
     });
     expect(parseReviewOptions(["--refresh", "--time-zone", "Asia/Tokyo"], now)).toEqual({
       ok: true,
       today: "2026-11-02",
       refresh: true,
+      timeZone: "Asia/Tokyo",
     });
     expect(parseReviewOptions(["--time-zone=America/Los_Angeles"], now)).toEqual({
       ok: true,
       today: "2026-11-01",
       refresh: false,
+      timeZone: "America/Los_Angeles",
     });
     expect(parseReviewOptions(["--time-zone", "Mars/Olympus"], now).ok).toBe(false);
     expect(parseReviewOptions(["--time-zone", "UTC", "--today", "2026-10-30"], now).ok).toBe(false);

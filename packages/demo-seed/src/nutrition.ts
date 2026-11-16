@@ -1,3 +1,7 @@
+import { sql, type Database } from "@openvalens/db";
+import { nutritionFood } from "@openvalens/db/schema/nutrition";
+import { and, eq } from "drizzle-orm";
+
 import type { DemoApi, DemoActor } from "./api";
 import type { DemoCalendar } from "./dates";
 import { round, type Random } from "./random";
@@ -7,9 +11,15 @@ import { round, type Random } from "./random";
  * same `nutritionDiary`, `plainWater` and `nutritionTargets` procedures the
  * apps call. Foods are the person's own custom foods with typical label
  * values per 100 g or per serving; nothing comes from an external catalog.
+ * Times are on the person's wall clock (`calendar.timeZone`), and today stops
+ * at the moment of seeding.
  */
 
-const TIMEZONE = "Europe/London";
+/** Height for the nutrition safeguards; the same as on the DEXA scans (`care.ts`). */
+export const DEMO_HEIGHT_CM = 168;
+
+/** When each meal is eaten (wall-clock hour). */
+const SLOT_HOURS = { breakfast: 8, lunch: 12.5, snack: 15.5, dinner: 19 } as const;
 
 type Food = {
   name: string;
@@ -303,7 +313,61 @@ const SNACKS: Portion[] = [
 
 const unitOf = (key: FoodKey) => (FOODS[key].basis.unit === "serving" ? "serving" : "g");
 
+type Micronutrients = {
+  calciumMg: number;
+  ironMg: number;
+  magnesiumMg: number;
+  potassiumMg: number;
+  vitaminCMg: number;
+};
+
+/**
+ * A few typical label micronutrients per food basis, so the micronutrient
+ * summary has rows. Every food (and the coffee) has all five, so a day's
+ * totals are complete rather than "at least".
+ */
+const MICRONUTRIENTS: Record<FoodKey | "coffee", Micronutrients> = {
+  oats: { calciumMg: 52, ironMg: 4.3, magnesiumMg: 138, potassiumMg: 362, vitaminCMg: 0 },
+  yogurt: { calciumMg: 110, ironMg: 0.1, magnesiumMg: 11, potassiumMg: 141, vitaminCMg: 0 },
+  berries: { calciumMg: 15, ironMg: 0.5, magnesiumMg: 15, potassiumMg: 150, vitaminCMg: 30 },
+  eggs: { calciumMg: 66, ironMg: 1.3, magnesiumMg: 12, potassiumMg: 132, vitaminCMg: 0 },
+  toast: { calciumMg: 40, ironMg: 0.9, magnesiumMg: 25, potassiumMg: 90, vitaminCMg: 0 },
+  chickenSalad: { calciumMg: 80, ironMg: 3.5, magnesiumMg: 110, potassiumMg: 700, vitaminCMg: 20 },
+  lentilSoup: { calciumMg: 50, ironMg: 4.5, magnesiumMg: 60, potassiumMg: 600, vitaminCMg: 5 },
+  wrap: { calciumMg: 120, ironMg: 4, magnesiumMg: 70, potassiumMg: 450, vitaminCMg: 6 },
+  salmon: { calciumMg: 15, ironMg: 0.5, magnesiumMg: 30, potassiumMg: 380, vitaminCMg: 0 },
+  rice: { calciumMg: 10, ironMg: 0.4, magnesiumMg: 39, potassiumMg: 43, vitaminCMg: 0 },
+  stirFry: { calciumMg: 350, ironMg: 4, magnesiumMg: 90, potassiumMg: 600, vitaminCMg: 45 },
+  pasta: { calciumMg: 60, ironMg: 3.5, magnesiumMg: 110, potassiumMg: 550, vitaminCMg: 15 },
+  broccoli: { calciumMg: 40, ironMg: 0.7, magnesiumMg: 21, potassiumMg: 293, vitaminCMg: 65 },
+  apple: { calciumMg: 11, ironMg: 0.2, magnesiumMg: 9, potassiumMg: 195, vitaminCMg: 8 },
+  almonds: { calciumMg: 269, ironMg: 3.7, magnesiumMg: 270, potassiumMg: 733, vitaminCMg: 0 },
+  shake: { calciumMg: 150, ironMg: 1, magnesiumMg: 40, potassiumMg: 200, vitaminCMg: 0 },
+  chocolate: { calciumMg: 73, ironMg: 11.9, magnesiumMg: 228, potassiumMg: 715, vitaminCMg: 0 },
+  coffee: { calciumMg: 5, ironMg: 0.05, magnesiumMg: 7, potassiumMg: 115, vitaminCMg: 0 },
+};
+
+/**
+ * `createFood` takes the core nutrients only (micronutrients come from
+ * catalog foods), so the values are added to the new custom food the way a
+ * catalog import stores them, before anything is logged from it.
+ */
+async function addMicronutrients(
+  db: Database,
+  actor: DemoActor,
+  foodId: number,
+  key: keyof typeof MICRONUTRIENTS,
+): Promise<void> {
+  await db
+    .update(nutritionFood)
+    .set(MICRONUTRIENTS[key])
+    .where(
+      and(eq(nutritionFood.organizationId, actor.organizationId), eq(nutritionFood.id, foodId)),
+    );
+}
+
 export async function seedNutrition(
+  db: Database,
   api: DemoApi,
   actor: DemoActor,
   calendar: DemoCalendar,
@@ -323,6 +387,7 @@ export async function seedNutrition(
       },
       actor,
     );
+    await addMicronutrients(db, actor, created.ref.foodId, key);
     foodIds.set(key, created.ref.foodId);
   }
 
@@ -333,7 +398,12 @@ export async function seedNutrition(
   );
   await api.call(
     "nutritionTargets/updateSettings",
-    { expectedRevision: settings.settings.revision, streaksEnabled: true },
+    {
+      expectedRevision: settings.settings.revision,
+      streaksEnabled: true,
+      micronutrientsEnabled: true,
+      heightCm: DEMO_HEIGHT_CM,
+    },
     actor,
   );
   const targetsFrom = calendar.day(89);
@@ -364,14 +434,18 @@ export async function seedNutrition(
     ];
     let index = 0;
     for (const [slot, portions] of meals) {
+      // Today's meals stop at the moment of seeding.
+      const eaten = calendar.past(calendar.at(offset, SLOT_HOURS[slot]));
       for (const [key, amount] of portions) {
         const scaled = unitOf(key) === "g" ? round(amount * random.between(0.9, 1.1)) : amount;
+        index += 1;
+        if (!eaten) continue;
         await api.call(
           "nutritionDiary/logEntry",
           {
-            clientMutationId: `demo-entry-${localDate}-${index}`,
+            clientMutationId: `demo-entry-${localDate}-${index - 1}`,
             localDate,
-            timeZone: TIMEZONE,
+            timeZone: calendar.timeZone,
             slot,
             food: { kind: "custom", foodId: foodIds.get(key)! },
             amount: scaled,
@@ -380,7 +454,6 @@ export async function seedNutrition(
           },
           actor,
         );
-        index += 1;
       }
     }
     // Today is still in progress; earlier days were marked complete.
@@ -390,13 +463,16 @@ export async function seedNutrition(
 
     const glasses = offset === 0 ? 4 : random.int(5, 9);
     for (let glass = 0; glass < glasses; glass += 1) {
+      const quantity = random.pick([250, 300, 330, 500]);
+      const observedAt = calendar.at(offset, 8 + glass * 1.7);
+      if (!calendar.past(observedAt)) continue;
       await api.call(
         "plainWater/add",
         {
-          quantity: random.pick([250, 300, 330, 500]),
+          quantity,
           unit: "ml",
-          observedAt: calendar.at(offset, 8 + glass * 1.7).toISOString(),
-          timeZone: TIMEZONE,
+          observedAt: observedAt.toISOString(),
+          timeZone: calendar.timeZone,
           clientMutationId: `demo-water-${localDate}-${glass}`,
         },
         actor,
@@ -439,6 +515,7 @@ const FAVOURITES: FoodKey[] = ["oats", "yogurt", "salmon", "almonds"];
  * on the last three weeks, which are logged every day.
  */
 export async function seedNutritionExtras(
+  db: Database,
   api: DemoApi,
   actor: DemoActor,
   calendar: DemoCalendar,
@@ -501,27 +578,72 @@ export async function seedNutritionExtras(
     },
     actor,
   );
+  await addMicronutrients(db, actor, coffee.ref.foodId, "coffee");
   for (let offset = 21; offset >= 0; offset -= 1) {
     const localDate = calendar.day(offset);
     // A second, early-afternoon cup some days (not today, which is still going).
     const second = random.chance(0.35) && offset > 0;
     const cups = second ? [7.75, 14] : [7.75];
     for (const [index, hour] of cups.entries()) {
+      const consumedAt = calendar.at(offset, hour + random.between(0, 0.25));
+      if (!calendar.past(consumedAt)) continue;
       await api.call(
         "nutritionDiary/logEntry",
         {
           clientMutationId: `demo-coffee-${localDate}-${index}`,
           localDate,
-          timeZone: TIMEZONE,
+          timeZone: calendar.timeZone,
           slot: index === 0 ? "breakfast" : "snack",
           food: { kind: "custom", foodId: coffee.ref.foodId },
           amount: 1,
           unit: "serving",
           method: "manual",
-          consumedAt: calendar.at(offset, hour + random.between(0, 0.25)).toISOString(),
+          consumedAt: consumedAt.toISOString(),
         },
         actor,
       );
     }
   }
+}
+
+/**
+ * Makes every diary entry look logged when it was eaten. The seed writes 90
+ * days at once, so each entry's `created_at` is the moment of seeding, and the
+ * logging streak (which counts a day only when its first entry was created by
+ * the next day, `computeLoggingStreak`) would see only today and yesterday.
+ * This moves each entry's and meal's write time to the entry's own time on its
+ * day: when it was drunk (`consumed_at`), or its meal's usual hour
+ * (`SLOT_HOURS`), never later than the moment of seeding.
+ */
+export async function backdateDiaryEntries(
+  db: Database,
+  actor: DemoActor,
+  calendar: DemoCalendar,
+): Promise<void> {
+  const until = calendar.until.toISOString();
+  const slotHour = sql.join(
+    Object.entries(SLOT_HOURS).map(([slot, hour]) => sql`when ${slot} then ${hour}::float8`),
+    sql` `,
+  );
+  await db.execute(sql`
+    with logged as (
+      select e."id", least(coalesce(e."consumed_at",
+        (m."local_date"::date + make_interval(secs => (case m."slot" ${slotHour} else 12 end) * 3600))
+          at time zone m."time_zone"), ${until}::timestamptz) as "at"
+      from "nutrition_meal_entry" e
+      join "nutrition_meal" m on m."organization_id" = e."organization_id" and m."id" = e."meal_id"
+      where e."organization_id" = ${actor.organizationId} and e."user_id" = ${actor.userId}
+    )
+    update "nutrition_meal_entry" e set "created_at" = logged."at", "updated_at" = logged."at"
+    from logged where e."organization_id" = ${actor.organizationId} and e."id" = logged."id"
+  `);
+  await db.execute(sql`
+    update "nutrition_meal" m set "created_at" = first."at", "updated_at" = first."at"
+    from (
+      select "meal_id", min("created_at") as "at" from "nutrition_meal_entry"
+      where "organization_id" = ${actor.organizationId} and "user_id" = ${actor.userId}
+      group by "meal_id"
+    ) first
+    where m."organization_id" = ${actor.organizationId} and m."id" = first."meal_id"
+  `);
 }

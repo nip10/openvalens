@@ -98,23 +98,40 @@ Both entry points run the same list of module seeders, `seedPersonData` in
 - The pain layer of the body map: lower-back stiffness after the deadlift day
   and an occasional knee ache after a run (`pain.*`).
 - Opt-ins: reference comparisons for every metric (Scores) and nutrition
-  observations on the insights panel; and the wellness profile.
+  observations on the insights panel; the micronutrient summary, the logging
+  streak and a height (168 cm) in the nutrition settings; and the wellness
+  profile.
+- One short, past coach conversation about the "Sleep higher than your usual"
+  insight: fixed synthetic text, inserted as `ai.chat` stores it. No AI call
+  is made.
 
 Entries with a time (intakes, tracker entries, pain) end yesterday, because
-those procedures refuse a time in the future and the seed never reads the
-clock.
+those procedures refuse a time in the future and the default demo never reads
+the clock.
+
+Clock times are hours on the person's wall clock. The default demo's hours are
+UTC and its records say `Europe/London` (as they always have). The review
+variant passes its `--time-zone` and the moment it runs (`createCalendar` in
+`src/dates.ts`): hours are then that zone's wall clock, and nothing is dated
+later than that moment. Today's steps stop at the current hour, today's meals,
+water and readings at the moment of seeding, and a night still going has not
+synced yet.
+
+The seed writes 90 days at once, so every diary entry's `created_at` would be
+the moment of seeding, and the logging streak (which counts a day only when it
+was logged by the next day) would show two days. `backdateDiaryEntries` moves
+each entry's write time to its own time on its day.
 
 A few rows have no app write path yet and are inserted the way an import
 would store them: lab marker definitions (with their units), the muscles of
 the custom exercises (the wger catalog carries them), two DEXA scans (80 days
 and 6 days ago, so the body map can compare them), one ECG and one imaging
-study.
+study, a few label micronutrients on the custom foods (`createFood` takes the
+core nutrients only), and the coach conversation.
 
 Not seeded, because they need an external service or have no write path the
-seed can use: coach conversations (an AI provider), wearable connections
-(OAuth), Telegram, connected AI apps, progress photos (file storage),
-micronutrients (only catalog foods carry them) and drink presets (catalog
-foods).
+seed can use: wearable connections (OAuth), Telegram, connected AI apps,
+progress photos (file storage) and drink presets (catalog foods).
 
 The last week is deliberately better than the four before it (more sleep, more
 steps, lower resting heart rate), so the insights screen has changes to report.
@@ -157,8 +174,9 @@ leaves the workspace as it was.
 `--refresh` is the nightly scheduled task. It erases the records of a workspace
 it seeded before (data rights' `eraseSubjectRecords`, which keeps the account,
 its sessions, consents, subscription and audit log), writes a fresh 90 days
-ending today (`--time-zone Area/City` picks whose "today"), and keeps the local
-trial running. See
+ending today (`--time-zone Area/City` picks whose "today" and whose wall clock,
+and the data stops at the moment it runs), names the account Alex Morgan, and
+keeps the local trial running. See
 [docs/store-review-account.md](../../docs/store-review-account.md).
 
 ## Tests
@@ -172,5 +190,7 @@ trial running. See
   `review_seed_test`): seeds a real Cloud sign-up's workspace, reruns as a
   no-op, checks every refusal, refreshes (records replaced, sessions and the
   audit log kept, trial extended, a Stripe-managed subscription left alone),
-  and checks that a run failing part-way changes nothing. `review-cli.test.ts` covers the command's
+  checks that a `--time-zone` run dates nothing after its `now` and that its
+  nights end in the morning on that zone's clock, and checks that a run
+  failing part-way changes nothing. `review-cli.test.ts` covers the command's
   refusals before it opens a database.

@@ -14,7 +14,6 @@ import { round, type Random } from "./random";
 export const DEMO_DEVICE_ID = "3d0f4a52-9c1e-4c6b-8e21-5a7d00000301";
 const SOURCE_APP = "app.openvalens.demo.tracker";
 const SOURCE_DEVICE = { type: "watch", model: "Demo Watch" };
-const TIMEZONE = "Europe/London";
 const MAX_UPSERTS = 1000;
 
 type Upsert = Record<string, unknown> & { type: string; externalRecordId: string };
@@ -24,7 +23,7 @@ export type DeviceDay = {
   steps: number;
   /** Cardio workout of the day, if any. */
   workout: { activity: string; title: string; start: number; minutes: number } | null;
-  /** Hours (UTC, relative to the day) the person fell asleep the night before and woke. */
+  /** Hours (wall clock, relative to the day) the person fell asleep the night before and woke. */
   sleep: { start: number; end: number };
 };
 
@@ -72,6 +71,18 @@ export function planDeviceDays(calendar: DemoCalendar, random: Random): DeviceDa
   });
 }
 
+/**
+ * An instant during the night before `day`, `hour` on the plan's clock. Hours
+ * count from falling asleep in elapsed time, so a night with a daylight-saving
+ * change keeps its stages in order (the wake-up clock time moves instead).
+ */
+export function sleepInstant(calendar: DemoCalendar, day: DeviceDay, hour: number): Date {
+  const start = calendar.at(day.offset, day.sleep.start);
+  return new Date(
+    start.getTime() + Math.round(hour * 3_600_000) - Math.round(day.sleep.start * 3_600_000),
+  );
+}
+
 function sleepStages(calendar: DemoCalendar, day: DeviceDay, random: Random) {
   const stages: { stage: string; startTime: string; endTime: string }[] = [];
   let cursor = day.sleep.start;
@@ -93,8 +104,8 @@ function sleepStages(calendar: DemoCalendar, day: DeviceDay, random: Random) {
       if (next <= cursor) break;
       stages.push({
         stage,
-        startTime: iso(calendar.at(day.offset, cursor)),
-        endTime: iso(calendar.at(day.offset, next)),
+        startTime: iso(sleepInstant(calendar, day, cursor)),
+        endTime: iso(sleepInstant(calendar, day, next)),
       });
       cursor = next;
     }
@@ -105,7 +116,9 @@ function sleepStages(calendar: DemoCalendar, day: DeviceDay, random: Random) {
 
 function heartRateSamples(calendar: DemoCalendar, day: DeviceDay, random: Random, resting: number) {
   const samples: { time: string; bpm: number }[] = [];
-  // Every 15 minutes across the whole day, from midnight to midnight.
+  let last = -Infinity;
+  // Every 15 minutes across the whole day, from midnight to midnight, up to
+  // the moment of seeding.
   for (let quarter = 0; quarter < 96; quarter += 1) {
     const hour = quarter / 4;
     const asleep = hour < day.sleep.end || hour >= day.sleep.start + 24;
@@ -119,7 +132,12 @@ function heartRateSamples(calendar: DemoCalendar, day: DeviceDay, random: Random
           ? random.normal(92, 8, 75, 115)
           : random.normal(148, 10, 120, 178);
     }
-    samples.push({ time: iso(calendar.at(day.offset, hour)), bpm: Math.round(bpm) });
+    const time = calendar.at(day.offset, hour);
+    // On a spring daylight-saving day the skipped hour lands on the next
+    // one: keep one sample per time.
+    if (time.getTime() <= last || !calendar.past(time)) continue;
+    last = time.getTime();
+    samples.push({ time: iso(time), bpm: Math.round(bpm) });
   }
   return samples;
 }
@@ -171,18 +189,25 @@ export async function seedDeviceData(
     const resting = demoRestingHeartRate(day.offset);
 
     // Steps, distance and active energy in four blocks across the waking day.
+    // Today's stop at the start of the current hour: a block still going is
+    // cut there, with its share of the steps.
     const blocks: [number, number, number][] = [
       [7, 9, 0.2],
       [9, 13, 0.3],
       [13, 18, 0.3],
       [18, 22, 0.2],
     ];
+    const hourStart = Math.floor(calendar.until.getTime() / 3_600_000) * 3_600_000;
     blocks.forEach(([from, to, share], index) => {
-      const steps = Math.round(day.steps * share);
-      const interval = {
-        startTime: iso(calendar.at(day.offset, from)),
-        endTime: iso(calendar.at(day.offset, to)),
-      };
+      const start = calendar.at(day.offset, from).getTime();
+      const planned = calendar.at(day.offset, to);
+      const end = calendar.past(planned) ? planned.getTime() : hourStart;
+      const covered = Math.max(0, end - start) / (planned.getTime() - start);
+      const steps = Math.round(day.steps * share * covered);
+      // Drawn for every block, so the values after it stay the same.
+      const kcal = round(steps * 0.042 + random.between(5, 25));
+      if (steps <= 0) return;
+      const interval = { startTime: iso(new Date(start)), endTime: iso(new Date(end)) };
       add({ ...base(`steps-${date}-${index}`), ...interval, type: "steps", count: steps });
       add({
         ...base(`distance-${date}-${index}`),
@@ -190,57 +215,55 @@ export async function seedDeviceData(
         type: "distance",
         meters: round(steps * 0.71),
       });
+      add({ ...base(`energy-${date}-${index}`), ...interval, type: "active_calories", kcal });
+    });
+
+    const samples = heartRateSamples(calendar, day, random, resting);
+    if (samples.length > 0)
       add({
-        ...base(`energy-${date}-${index}`),
-        ...interval,
-        type: "active_calories",
-        kcal: round(steps * 0.042 + random.between(5, 25)),
+        ...base(`hr-${date}`),
+        type: "heart_rate",
+        startTime: iso(calendar.at(day.offset, 0)),
+        endTime: iso(calendar.clamp(calendar.at(day.offset, 23.99))),
+        samples,
       });
-    });
 
-    add({
-      ...base(`hr-${date}`),
-      type: "heart_rate",
-      startTime: iso(calendar.at(day.offset, 0)),
-      endTime: iso(calendar.at(day.offset, 23.99)),
-      samples: heartRateSamples(calendar, day, random, resting),
-    });
-
-    add({
-      ...base(`sleep-${date}`),
-      type: "sleep_session",
-      startTime: iso(calendar.at(day.offset, day.sleep.start)),
-      endTime: iso(calendar.at(day.offset, day.sleep.end)),
-      stages: sleepStages(calendar, day, random),
-    });
+    // A night still going when the seed runs has not synced yet.
+    const stages = sleepStages(calendar, day, random);
+    const wake = sleepInstant(calendar, day, day.sleep.end);
+    if (calendar.past(wake))
+      add({
+        ...base(`sleep-${date}`),
+        type: "sleep_session",
+        startTime: iso(calendar.at(day.offset, day.sleep.start)),
+        endTime: iso(wake),
+        stages,
+      });
 
     if (day.workout) {
       const start = calendar.at(day.offset, day.workout.start);
-      add({
-        ...base(`workout-${date}`),
-        type: "workout",
-        startTime: iso(start),
-        endTime: iso(new Date(start.getTime() + day.workout.minutes * 60_000)),
-        activity: day.workout.activity,
-        title: day.workout.title,
-      });
+      const end = new Date(start.getTime() + day.workout.minutes * 60_000);
+      if (calendar.past(end))
+        add({
+          ...base(`workout-${date}`),
+          type: "workout",
+          startTime: iso(start),
+          endTime: iso(end),
+          activity: day.workout.activity,
+          title: day.workout.title,
+        });
     }
 
     // A smart scale most mornings.
     if (day.offset === 0 || random.chance(0.85)) {
-      const at = iso(calendar.at(day.offset, 7 + random.between(0, 0.5)));
-      add({
-        ...base(`weight-${date}`),
-        type: "weight",
-        startTime: at,
-        valueKg: demoWeightKg(day.offset, random),
-      });
-      add({
-        ...base(`fat-${date}`),
-        type: "body_fat",
-        startTime: at,
-        percent: round(27.2 - 1.4 * fitness + random.normal(0, 0.35, -0.9, 0.9), 1),
-      });
+      const weighed = calendar.at(day.offset, 7 + random.between(0, 0.5));
+      const valueKg = demoWeightKg(day.offset, random);
+      const percent = round(27.2 - 1.4 * fitness + random.normal(0, 0.35, -0.9, 0.9), 1);
+      if (calendar.past(weighed)) {
+        const at = iso(weighed);
+        add({ ...base(`weight-${date}`), type: "weight", startTime: at, valueKg });
+        add({ ...base(`fat-${date}`), type: "body_fat", startTime: at, percent });
+      }
     }
   }
 
@@ -256,7 +279,7 @@ export async function seedDeviceData(
           mode: "backfill",
           upserts: upserts.slice(i, i + MAX_UPSERTS),
           deletions: [],
-          clientTimezone: TIMEZONE,
+          clientTimezone: calendar.timeZone,
         },
         actor,
       );

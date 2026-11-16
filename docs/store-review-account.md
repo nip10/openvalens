@@ -65,6 +65,8 @@ docker compose -f deploy/compose.yml exec -w /app server bun run demo:seed:revie
 ```
 
 `--today YYYY-MM-DD` sets the newest day; the default is the current UTC day.
+Add `--time-zone America/Los_Angeles` (any IANA zone) to put the clock times
+on the reviewers' wall clock; without it the hours are UTC.
 The data ends on that day and the screens read the real clock, so seed shortly
 before you submit a build.
 
@@ -114,12 +116,16 @@ Each run, in one transaction:
    newly created review account. If it holds records the seed did not write,
    it refuses and changes nothing;
 4. writes a fresh 90 days ending today in `--time-zone`, and records
-   `REVIEW_DEMO_REFRESHED` in the audit log;
+   `REVIEW_DEMO_REFRESHED` in the audit log. Clock times are that zone's
+   wall clock (nights run about 22:30 to 07:00 there, blood pressure is a
+   07:30 reading), and nothing is dated after the moment the task runs:
+   today's steps, meals and readings stop there, and a night still going has
+   not synced yet. The account is named Alex Morgan;
 5. keeps a local trial running for another 30 days, so the workspace never
    turns read-only. A subscription that Stripe manages is left alone.
 
 A run takes well under a minute. Readers never see a half-written workspace, and a
-failed run changes nothing (the next night's run simply tries again).
+failed run changes nothing (the next day's run simply tries again).
 
 **Schedule it** in Coolify: `openvalens-api` › Scheduled Tasks › Add:
 
@@ -127,12 +133,15 @@ failed run changes nothing (the next night's run simply tries again).
 | --------- | ------------------------------------------------------------------------------- |
 | Name      | `reviewAccountRefresh`                                                          |
 | Command   | `cd /app && bun run demo:seed:review --refresh --time-zone America/Los_Angeles` |
-| Frequency | `10 8 * * *`                                                                    |
+| Frequency | `10 17 * * *`                                                                   |
 | Timeout   | `600` seconds                                                                   |
 
-At 08:10 UTC it is just past midnight in Los Angeles all year (07:00 or
-08:00 UTC, depending on daylight saving time). Apple's reviewers are mostly in
-California, so their "today" matches the data for their whole day. With Docker
+At 17:10 UTC it is 09:10 in Los Angeles in winter and 10:10 in summer.
+Apple's reviewers are mostly in California, so they start their day with last
+night's sleep, the morning weigh-in, breakfast and the morning readings
+already in. A run just after midnight would leave today empty and last night
+missing all day, because the seed writes nothing later than the moment it
+runs. With Docker
 Compose, put the same command in the host's crontab, through `docker compose
 exec -T -w /app server`.
 

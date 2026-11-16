@@ -7,6 +7,7 @@ import { createDb, sql } from "@openvalens/db";
 
 import { createDemoApi, type DemoActor, type DemoApi } from "./api";
 import { resetDemoDatabase } from "./reset";
+import { dayInTimeZone } from "./review-cli";
 import {
   MAX_ONBOARDING_GOALS,
   REVIEW_REFRESH_MARKER,
@@ -35,6 +36,9 @@ if (url) {
 }
 
 const today = new Date().toISOString().slice(0, 10);
+const yesterday = new Date(Date.parse(`${today}T00:00:00Z`) - 86_400_000)
+  .toISOString()
+  .slice(0, 10);
 const CLOUD: DeploymentConfig = {
   mode: "cloud",
   legal: {
@@ -43,6 +47,28 @@ const CLOUD: DeploymentConfig = {
     healthDataConsent: { url: "https://legal.test/privacy", version: "health-1" },
   },
 };
+
+/**
+ * Timestamp columns that record when a row was stored or processed (the
+ * sync, the import, marking a day complete), or when something expires,
+ * rather than when the recorded thing happened. These are the real time of
+ * the run, a few seconds after its `now`.
+ */
+const WRITE_TIME_COLUMNS = new Set([
+  "created_at",
+  "updated_at",
+  "superseded_at",
+  "deleted_at",
+  "started_at",
+  "completed_at",
+  "captured_at",
+  "retention_until",
+  "linked_at",
+  "connected_at",
+  "last_synced_at",
+]);
+/** Write times the seed sets on purpose (the logging streak reads them). */
+const BACKDATED = new Set(["nutrition_meal_entry.created_at", "nutrition_meal.created_at"]);
 
 describe.skipIf(!url)("review account seed against disposable PostgreSQL", () => {
   const db = createDb({ DATABASE_URL: url ?? "postgres://127.0.0.1/review_seed_test" });
@@ -130,10 +156,44 @@ describe.skipIf(!url)("review account seed against disposable PostgreSQL", () =>
     const read = <T>(path: string, input: unknown = {}) => api.call<T>(path, input, reviewer);
     expect(await read<unknown[]>("activity/dailyTotals", { days: 30 })).toHaveLength(30);
     expect(await read<unknown[]>("plans/listSupplements")).toHaveLength(4);
-    const diary = await read<{ entries: unknown[] }>("nutritionDiary/getDay", { localDate: today });
+    // Today stops at the moment of seeding; yesterday is a whole day.
+    const diary = await read<{ entries: unknown[] }>("nutritionDiary/getDay", {
+      localDate: yesterday,
+    });
     expect(diary.entries.length).toBeGreaterThan(3);
     const profile = await read<{ setupStatus: string }>("profile/get");
     expect(profile.setupStatus).toBe("completed");
+
+    // The account carries the demo person's name and height.
+    const named = await db.execute<{ name: string }>(
+      sql`select "name" from "user" where "id" = ${reviewer.userId}`,
+    );
+    expect(named.rows[0]!.name).toBe("Alex Morgan");
+    const targets = await read<{ settings: { heightCm: number | null } }>("nutritionTargets/get", {
+      localDate: yesterday,
+    });
+    expect(targets.settings.heightCm).toBe(168);
+    // The micronutrient summary is on and has values.
+    const micros = await read<{ status: string; rows: { amount: number | null }[] }>(
+      "nutritionMicronutrients/summary",
+      { localDate: yesterday },
+    );
+    expect(micros.status).toBe("ready");
+    expect(micros.rows.filter((row) => row.amount !== null).length).toBeGreaterThanOrEqual(3);
+    // Back-dated entries count for the streak, not only the last two days.
+    const streak = await read<{ state: string; current?: number }>(
+      "nutritionTargets/loggingStreak",
+      { timeZone: "UTC" },
+    );
+    expect(streak.state).toBe("on");
+    expect(streak.current).toBeGreaterThan(14);
+    // One past coach conversation, written without any AI call.
+    const threads = await read<{ messageCount: number; lastMessagePreview: string }[]>(
+      "ai/listThreads",
+      {},
+    );
+    expect(threads).toHaveLength(1);
+    expect(threads[0]!.messageCount).toBe(4);
 
     // Nobody else's workspace was touched.
     expect(await tablesWithRecords(db, other.organizationId)).toEqual([]);
@@ -268,6 +328,85 @@ describe.skipIf(!url)("review account seed against disposable PostgreSQL", () =>
       refreshReviewAccount(db, { email: "owned-refresh@example.test", today }),
     ).rejects.toThrow("did not write");
     expect(await tablesWithRecords(db, owned.organizationId)).toEqual(["cardiac_exam"]);
+  }, 600_000);
+
+  test("--time-zone puts the clock on that zone and writes nothing later than now", async () => {
+    const zone = "America/Los_Angeles";
+    const local = await cloudAccount("time-zone@example.test");
+    const now = new Date();
+    const zoneToday = dayInTimeZone(now, zone)!;
+    await refreshReviewAccount(db, {
+      email: "time-zone@example.test",
+      today: zoneToday,
+      timeZone: zone,
+      now,
+    });
+
+    // Every time a record is about (not when its row was written, and not an
+    // expiry) is at or before `now`, in every table of the workspace.
+    const columns = (
+      await db.execute<{ table_name: string; column_name: string }>(sql`
+        select c."table_name", c."column_name" from information_schema.columns c
+        join information_schema.columns o on o."table_schema" = c."table_schema"
+          and o."table_name" = c."table_name" and o."column_name" = 'organization_id'
+        where c."table_schema" = 'public' and c."data_type" like 'timestamp%'
+        order by c."table_name", c."column_name"
+      `)
+    ).rows.filter(
+      (column) =>
+        !WRITE_TIME_COLUMNS.has(column.column_name) ||
+        BACKDATED.has(`${column.table_name}.${column.column_name}`),
+    );
+    expect(columns.length).toBeGreaterThan(5);
+    const later: string[] = [];
+    for (const { table_name, column_name } of columns) {
+      const rows = await db.execute<{ n: number }>(
+        sql`select count(*)::int as n from ${sql.identifier(table_name)}
+          where "organization_id" = ${local.organizationId}
+            and ${sql.identifier(column_name)} > ${now.toISOString()}::timestamptz`,
+      );
+      if (Number(rows.rows[0]!.n) > 0) later.push(`${table_name}.${column_name}`);
+    }
+    expect(later).toEqual([]);
+    const chats = await db.execute<{ n: number }>(
+      sql`select count(*)::int as n from "chat_message" where "organization_id" = ${local.organizationId}
+        and "created_at"::timestamptz > ${now.toISOString()}::timestamptz`,
+    );
+    expect(chats.rows[0]).toEqual({ n: 0 });
+
+    // Nights run from the evening to the morning on the Los Angeles clock.
+    api.close();
+    api = createDemoApi(db);
+    const sleep = await api.call<{
+      days: { mainSleepStart: string | null; mainSleepEnd: string | null }[];
+    }>("sleep/summary", { days: 30 }, local);
+    const hourIn = (iso: string) =>
+      Number(
+        new Intl.DateTimeFormat("en-US", { timeZone: zone, hour: "2-digit", hourCycle: "h23" })
+          .formatToParts(new Date(iso))
+          .find((part) => part.type === "hour")!.value,
+      );
+    const nights = sleep.days.filter((day) => day.mainSleepEnd && day.mainSleepStart);
+    expect(nights.length).toBeGreaterThan(25);
+    for (const night of nights) {
+      expect(hourIn(night.mainSleepEnd!)).toBeGreaterThanOrEqual(4);
+      expect(hourIn(night.mainSleepEnd!)).toBeLessThan(12);
+      const start = hourIn(night.mainSleepStart!);
+      expect(start >= 20 || start < 2).toBe(true);
+    }
+    // Typed-in blood pressure is a morning reading there too.
+    const pressure = await api.call<{ observedAt: string }[]>(
+      "vitals/bloodPressureReadings",
+      { limit: 10 },
+      local,
+    );
+    expect(pressure.length).toBeGreaterThan(0);
+    for (const reading of pressure) expect(hourIn(reading.observedAt)).toBe(7);
+    // Records carry the zone.
+    const water = await db.execute<{ time_zone: string }>(
+      sql`select distinct "time_zone" from "plain_water_entry" where "organization_id" = ${local.organizationId}`,
+    );
+    expect(water.rows).toEqual([{ time_zone: zone }]);
   }, 600_000);
 
   test("a run that fails part-way changes nothing", async () => {
