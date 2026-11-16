@@ -1,8 +1,10 @@
 import type { MessageDescriptor } from "@lingui/core";
 import { Trans, useLingui } from "@lingui/react/macro";
 import {
+  clearsAdultOnlyAnswers,
   draftFromSnapshot,
   isAdultConfirmed,
+  isAgeCheckImplied,
   isSectionAnswered,
   isSectionDirty,
   rejectionMessage,
@@ -91,6 +93,37 @@ const SECTION_ICONS: Record<SetupSection, LucideIcon> = {
 const NUMBERED_SECTIONS = SETUP_SECTIONS.filter((section) => section !== "goal");
 
 /**
+ * The numbered sections on show: the age check is left out once a saved birth
+ * year answers it (#profile-3), and the rest number on from 1.
+ */
+function shownSections(snapshot: WellnessProfileSnapshot): readonly SetupSection[] {
+  return isAgeCheckImplied(snapshot)
+    ? NUMBERED_SECTIONS.filter((section) => section !== "eligibility")
+    : NUMBERED_SECTIONS;
+}
+
+/**
+ * #profile-2 — the choice sections save as soon as an answer changes. Age and
+ * sex keep their Save button (the birth year is typed), and so does an age
+ * check change that would also clear a saved birth year or sex.
+ */
+const SAVE_ON_CHANGE_SECTIONS: readonly SetupSection[] = [
+  "eligibility",
+  "focus",
+  "inputMethod",
+  "region",
+];
+
+export function savesOnChange(
+  section: SetupSection,
+  snapshot: WellnessProfileSnapshot,
+  draft: WellnessProfileDraft,
+): boolean {
+  if (!SAVE_ON_CHANGE_SECTIONS.includes(section)) return false;
+  return section !== "eligibility" || !clearsAdultOnlyAnswers(snapshot, draft);
+}
+
+/**
  * The head of one profile step: its number in a soft circle (none for the
  * optional goal), its icon and title, an optional ⓘ with the why, and a pill
  * once it has an answer.
@@ -100,11 +133,14 @@ export function StepHead({
   titleId,
   answered = false,
   info,
+  number,
 }: {
   section: SetupSection;
   titleId: string;
   answered?: boolean;
   info?: ReactNode;
+  /** Its place among the sections on show; defaults to its place in the full list. */
+  number?: number;
 }) {
   const { i18n } = useLingui();
   const Icon = SECTION_ICONS[section];
@@ -117,7 +153,7 @@ export function StepHead({
           className="num grid size-9 shrink-0 place-items-center rounded-full bg-sidebar-accent font-display text-base font-medium text-signal"
           aria-hidden="true"
         >
-          {NUMBERED_SECTIONS.indexOf(section) + 1}
+          {number ?? NUMBERED_SECTIONS.indexOf(section) + 1}
         </span>
       )}
       <div className="flex min-w-0 flex-1 items-center gap-2">
@@ -148,35 +184,24 @@ export function WellnessProfileEditor(props: WellnessProfileEditorProps) {
   const { draft, onDraftChange } = props;
   const adult = isAdultConfirmed(draft.answers);
   const { t, i18n } = useLingui();
+  const shown = shownSections(props.snapshot);
+  const numberOf = (section: SetupSection) => shown.indexOf(section) + 1;
 
   return (
     <div className="grid gap-4">
-      <Section {...props} section="eligibility" field="eligibility">
-        <RadioGroup
-          name="eligibility"
-          value={answerValue(draft.answers.eligibility)}
-          options={[
-            ...WELLNESS_ELIGIBILITY.map((value) => ({
-              value,
-              label: i18n._(WELLNESS_CHOICE_LABELS.eligibility[value]),
-            })),
-            { value: "declined", label: i18n._(WELLNESS_CHOICE_LABELS.decline) },
-          ]}
-          onChange={(value) =>
-            onDraftChange(
-              setAnswer(
-                draft,
-                "eligibility",
-                value === "declined"
-                  ? { state: "declined" }
-                  : { state: "recorded", value: value as "adult" | "under_18" },
-              ),
-            )
-          }
-        />
-      </Section>
+      {/* #profile-3 — a saved birth year answers the age check, so it is not asked again. */}
+      {shown.includes("eligibility") ? (
+        <Section
+          {...props}
+          section="eligibility"
+          field="eligibility"
+          number={numberOf("eligibility")}
+        >
+          <EligibilityChoices {...props} />
+        </Section>
+      ) : null}
 
-      <Section {...props} section="focus" field="focus">
+      <Section {...props} section="focus" field="focus" number={numberOf("focus")}>
         <div className="grid gap-2">
           {WELLNESS_FOCUS_AREAS.map((area) => {
             const selected =
@@ -219,7 +244,12 @@ export function WellnessProfileEditor(props: WellnessProfileEditorProps) {
         </div>
       </Section>
 
-      <Section {...props} section="inputMethod" field="inputMethod">
+      <Section
+        {...props}
+        section="inputMethod"
+        field="inputMethod"
+        number={numberOf("inputMethod")}
+      >
         <RadioGroup
           name="inputMethod"
           value={answerValue(draft.answers.inputMethod)}
@@ -246,7 +276,7 @@ export function WellnessProfileEditor(props: WellnessProfileEditorProps) {
 
       {props.goalSection}
 
-      <Section {...props} section="region" field="region">
+      <Section {...props} section="region" field="region" number={numberOf("region")}>
         <RadioGroup
           name="region"
           value={answerValue(draft.answers.region)}
@@ -272,10 +302,14 @@ export function WellnessProfileEditor(props: WellnessProfileEditorProps) {
       </Section>
 
       {adult ? (
-        <AgeAndSexSection {...props} />
+        <AgeAndSexSection {...props} number={numberOf("ageAndSex")} />
       ) : (
         <section className="sheet grid gap-3 p-5 opacity-80 md:p-6">
-          <StepHead section="ageAndSex" titleId="section-ageAndSex-unavailable" />
+          <StepHead
+            section="ageAndSex"
+            titleId="section-ageAndSex-unavailable"
+            number={numberOf("ageAndSex")}
+          />
           <p className="max-w-[65ch] text-sm text-ink-3">
             {unavailableExplanation("adult_confirmation_required")}{" "}
             <Trans>Age and sex are only used by adult features, so they are not asked here.</Trans>
@@ -286,7 +320,35 @@ export function WellnessProfileEditor(props: WellnessProfileEditorProps) {
   );
 }
 
-function AgeAndSexSection(props: WellnessProfileEditorProps) {
+function EligibilityChoices({ draft, onDraftChange }: WellnessProfileEditorProps) {
+  const { i18n } = useLingui();
+  return (
+    <RadioGroup
+      name="eligibility"
+      value={answerValue(draft.answers.eligibility)}
+      options={[
+        ...WELLNESS_ELIGIBILITY.map((value) => ({
+          value,
+          label: i18n._(WELLNESS_CHOICE_LABELS.eligibility[value]),
+        })),
+        { value: "declined", label: i18n._(WELLNESS_CHOICE_LABELS.decline) },
+      ]}
+      onChange={(value) =>
+        onDraftChange(
+          setAnswer(
+            draft,
+            "eligibility",
+            value === "declined"
+              ? { state: "declined" }
+              : { state: "recorded", value: value as "adult" | "under_18" },
+          ),
+        )
+      }
+    />
+  );
+}
+
+function AgeAndSexSection(props: WellnessProfileEditorProps & { number: number }) {
   return (
     <Section {...props} section="ageAndSex" field="birthYear" extraField="sex">
       <AgeAndSexFields {...props} />
@@ -475,6 +537,8 @@ function Section(
     section: SetupSection;
     field: WellnessProfileField;
     extraField?: WellnessProfileField;
+    /** Its place among the sections on show. */
+    number: number;
     children: ReactNode;
   },
 ) {
@@ -483,12 +547,20 @@ function Section(
   const state = saveState[section] ?? { status: "idle" };
   const answered = isSectionAnswered(section, snapshot);
   const [editing, setEditing] = useState(initialOpen === section);
+  const autoSave = savesOnChange(section, snapshot, draft);
+  // Several focus areas can be ticked, so that section stays open while the
+  // person picks; Done folds it. A single choice folds once it is saved.
+  const multiple = section === "focus";
   const { i18n } = useLingui();
+
+  useEffect(() => {
+    if (multiple && dirty) setEditing(true);
+  }, [multiple, dirty]);
 
   // A saved edit folds back into its summary.
   useEffect(() => {
-    if (state.status === "saved") setEditing(false);
-  }, [state.status]);
+    if (state.status === "saved" && !multiple) setEditing(false);
+  }, [state.status, multiple]);
 
   const open =
     !answered || editing || dirty || state.status === "saving" || state.status === "error";
@@ -496,6 +568,7 @@ function Section(
     return (
       <SectionSummary
         section={section}
+        number={props.number}
         summary={sectionSummary(section, snapshot, i18n)}
         saved={state.status === "saved"}
         onEdit={() => setEditing(true)}
@@ -505,8 +578,10 @@ function Section(
   return (
     <SectionForm
       {...props}
+      autoSave={autoSave}
+      onDone={answered && autoSave ? () => setEditing(false) : undefined}
       onCancel={
-        answered
+        answered && !autoSave
           ? () => {
               onUndo(section);
               setEditing(false);
@@ -520,11 +595,13 @@ function Section(
 /** An answered section, folded: its number, title, the answer and Edit. */
 function SectionSummary({
   section,
+  number,
   summary,
   saved,
   onEdit,
 }: {
   section: SetupSection;
+  number: number;
   summary: string;
   saved: boolean;
   onEdit: () => void;
@@ -543,7 +620,7 @@ function SectionSummary({
         className="num grid size-9 shrink-0 place-items-center rounded-full bg-sidebar-accent font-display text-base font-medium text-signal"
         aria-hidden="true"
       >
-        {(NUMBERED_SECTIONS as readonly SetupSection[]).indexOf(section) + 1}
+        {number}
       </span>
       <div className="grid min-w-0 flex-1 basis-0 gap-0.5">
         <h2 id={titleId} className="flex items-center gap-2 text-lg leading-tight text-ink">
@@ -574,13 +651,21 @@ function SectionForm({
   onSave,
   onUndo,
   onCancel,
+  onDone,
+  autoSave,
+  number,
   children,
 }: WellnessProfileEditorProps & {
   section: SetupSection;
   field: WellnessProfileField;
   extraField?: WellnessProfileField;
+  number: number;
+  /** #profile-2 — the answer saves as soon as it changes (the page does the saving). */
+  autoSave: boolean;
   /** For an answered section being edited: discard the edit and fold it again. */
   onCancel?: () => void;
+  /** For an answered section that saves on change: fold it again. */
+  onDone?: () => void;
   children: ReactNode;
 }) {
   const copy = WELLNESS_FIELD_COPY[field];
@@ -601,6 +686,7 @@ function SectionForm({
       <StepHead
         section={section}
         titleId={titleId}
+        number={number}
         answered={isSectionAnswered(section, snapshot)}
         info={
           section !== "ageAndSex" ? (
@@ -619,19 +705,36 @@ function SectionForm({
       ) : (
         children
       )}
+      {section === "eligibility" && clearsAdultOnlyAnswers(snapshot, draft) ? (
+        <p className="max-w-[65ch] text-sm text-ink-2">
+          <Trans comment="safety">Saving this also clears your birth year and sex.</Trans>
+        </p>
+      ) : null}
       <div className="flex flex-wrap items-center gap-3">
-        <Button
-          variant={dirty ? "default" : "outline"}
-          onClick={() => onSave(section)}
-          disabled={!dirty || state.status === "saving"}
-        >
-          {state.status === "saving" ? t`Saving…` : t`Save`}
-        </Button>
+        {!autoSave ? (
+          <Button
+            variant={dirty ? "default" : "outline"}
+            onClick={() => onSave(section)}
+            disabled={!dirty || state.status === "saving"}
+          >
+            {state.status === "saving" ? t`Saving…` : t`Save`}
+          </Button>
+        ) : state.status === "error" ? (
+          // A failed save on change waits for the person: no retry loop.
+          <Button variant="outline" onClick={() => onSave(section)}>
+            <Trans>Try again</Trans>
+          </Button>
+        ) : null}
+        {onDone && !dirty && state.status !== "saving" ? (
+          <Button variant="ghost" onClick={onDone}>
+            <Trans>Done</Trans>
+          </Button>
+        ) : null}
         {onCancel ? (
           <Button variant="ghost" onClick={onCancel}>
             <Trans>Cancel</Trans>
           </Button>
-        ) : dirty ? (
+        ) : dirty && (!autoSave || state.status === "error") ? (
           <Button variant="ghost" onClick={() => onUndo(section)}>
             <Trans>Undo changes</Trans>
           </Button>
@@ -653,7 +756,9 @@ function SectionForm({
           </Button>
         ) : null}
         <span role="status" aria-live="polite" className="text-sm">
-          {state.status === "error" ? null : dirty ? (
+          {state.status === "error" ? null : autoSave && (dirty || state.status === "saving") ? (
+            <span className="text-ink-3">{t`Saving…`}</span>
+          ) : dirty ? (
             <span className="text-ink-3">
               <Trans>Unsaved changes</Trans>
             </span>

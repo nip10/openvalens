@@ -5,9 +5,11 @@ import { inEnglish } from "@openvalens/i18n/testing";
 import { EMPTY_WELLNESS_PROFILE, type WellnessProfileSnapshot } from "../wellness-profile-contract";
 import {
   buildSectionPatch,
+  clearsAdultOnlyAnswers,
   describeProfileSaveError,
   dirtySections,
   draftFromSnapshot,
+  isAgeCheckImplied,
   isSectionAvailable,
   nextSetupSection,
   parseBirthYearInput,
@@ -55,6 +57,38 @@ describe("setup resume", () => {
   test("skipped or completed setup is not offered again (still editable)", () => {
     expect(shouldOfferSetup(snapshot({ setupStatus: "skipped" }))).toBe(false);
     expect(shouldOfferSetup(snapshot({ setupStatus: "completed" }))).toBe(false);
+  });
+});
+
+describe("#profile-3 — the age check a birth year answers", () => {
+  const adult = { state: "recorded", value: "adult" } as const;
+
+  test("a saved birth year with the adult answer implies the age check", () => {
+    expect(
+      isAgeCheckImplied(
+        snapshot({ eligibility: adult, birthYear: { state: "recorded", value: 1990 } }),
+      ),
+    ).toBe(true);
+  });
+
+  test("without a saved birth year the question stays", () => {
+    expect(isAgeCheckImplied(EMPTY_WELLNESS_PROFILE)).toBe(false);
+    expect(isAgeCheckImplied(snapshot({ eligibility: adult }))).toBe(false);
+    expect(
+      isAgeCheckImplied(snapshot({ eligibility: adult, birthYear: { state: "declined" } })),
+    ).toBe(false);
+  });
+
+  test("moving away from adult with a saved birth year or sex clears them", () => {
+    const saved = snapshot({ eligibility: adult, sex: { state: "recorded", value: "female" } });
+    const draft = draftFromSnapshot(saved);
+    expect(clearsAdultOnlyAnswers(saved, draft)).toBe(false);
+    draft.answers.eligibility = { state: "declined" };
+    expect(clearsAdultOnlyAnswers(saved, draft)).toBe(true);
+    const bare = snapshot({ eligibility: adult });
+    const bareDraft = draftFromSnapshot(bare);
+    bareDraft.answers.eligibility = { state: "recorded", value: "under_18" };
+    expect(clearsAdultOnlyAnswers(bare, bareDraft)).toBe(false);
   });
 });
 
