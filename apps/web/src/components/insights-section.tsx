@@ -3,6 +3,7 @@ import type { InsightFeedbackAction } from "@openvalens/api/insight-contract";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import {
   INSIGHT_COPY,
+  type InsightView,
   nutritionObservationView,
   observationPreferencePatch,
   privateInsightsQueryKey,
@@ -14,6 +15,7 @@ import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { CoachIcon } from "@/components/coach-icon";
 import { ErrorState, InfoTip } from "@/components/page";
 import { withBrowserTimeZone } from "@/utils/insight-time-zone";
 import { orpc } from "@/utils/orpc";
@@ -23,18 +25,70 @@ import { authClient } from "@/lib/auth-client";
 import { InsightsCard, PushOfferCard, SummaryCards } from "./insights-panel";
 import { Button } from "@openvalens/ui/components/button";
 
-/**
- * Issue #92 — connected dashboard section: the two summaries first, then the
- * insights. Each part loads on its own; none waits for AI, nutrition or
- * messaging. The coach hand-off shows only when the person has AI consent.
- */
-export function InsightsSection() {
+/** The member and workspace the private queries are keyed by; null while the session loads. */
+function useInsightsScope() {
   const { data: session, isPending } = authClient.useSession();
-  const scope = privateInsightsSubject(
+  return privateInsightsSubject(
     isPending,
     session?.user?.id,
     session?.session?.activeOrganizationId ?? null,
   );
+}
+
+/**
+ * The readiness index with the inputs it used (#dashboard-7): part of the
+ * dashboard's top tier, beside the stat tiles.
+ */
+export function ReadinessSummary() {
+  const scope = useInsightsScope();
+  if (!scope) return <Skeleton className="h-28 w-full rounded-3xl" />;
+  return (
+    <SubjectReadiness
+      key={`${scope.userId}:${scope.organizationId ?? "personal"}`}
+      userId={scope.userId}
+      organizationId={scope.organizationId}
+    />
+  );
+}
+
+function SubjectReadiness({
+  userId,
+  organizationId,
+}: {
+  userId: string;
+  organizationId: string | null;
+}) {
+  const { i18n } = useLingui();
+  const options = orpc.score.readiness.queryOptions({ input: {} });
+  const readiness = useQuery({
+    ...options,
+    queryKey: privateInsightsQueryKey(options.queryKey, userId, organizationId),
+    staleTime: 60_000,
+  });
+  if (readiness.isPending) return <Skeleton className="h-28 w-full rounded-3xl" />;
+  return (
+    <SummaryCards
+      readiness={readiness.data ?? null}
+      scoresLink={
+        <Link
+          to="/scores"
+          className="font-display text-sm font-medium text-ink underline decoration-signal underline-offset-[0.15em] hover:decoration-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        >
+          {i18n._(INSIGHT_COPY.summariesLink)}
+        </Link>
+      }
+    />
+  );
+}
+
+/**
+ * Issue #92 — connected dashboard section: the insights, then a quieter
+ * column with nutrition observations and the notification offer. Each part
+ * loads on its own; none waits for AI, nutrition or messaging. The coach
+ * hand-off shows only when the person has AI consent.
+ */
+export function InsightsSection() {
+  const scope = useInsightsScope();
   if (!scope)
     return (
       <p role="status" className="text-sm text-ink-3">
@@ -59,15 +113,6 @@ function SubjectInsightsSection({
 }) {
   const queryClient = useQueryClient();
   const { t, i18n } = useLingui();
-  const readiness = useQuery({
-    ...orpc.score.readiness.queryOptions({ input: {} }),
-    queryKey: privateInsightsQueryKey(
-      orpc.score.readiness.queryOptions({ input: {} }).queryKey,
-      userId,
-      organizationId,
-    ),
-    staleTime: 60_000,
-  });
   const insights = useQuery({
     ...orpc.insights.list.queryOptions({ input: {} }),
     queryKey: privateInsightsQueryKey(
@@ -153,30 +198,6 @@ function SubjectInsightsSection({
 
   return (
     <div className="grid gap-8">
-      {readiness.isPending ? (
-        <div className="grid gap-4">
-          <Skeleton className="h-6 w-48" />
-          <Skeleton className="h-32 w-full" />
-        </div>
-      ) : (
-        <SummaryCards
-          readiness={readiness.data ?? null}
-          scoresLink={
-            <Link
-              to="/scores"
-              className="font-display text-sm font-medium text-ink underline decoration-signal underline-offset-[0.15em] hover:decoration-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-            >
-              {i18n._(INSIGHT_COPY.summariesLink)}
-            </Link>
-          }
-          goalsLink={
-            <Link
-              to="/goals"
-              className="text-sm font-medium text-ink underline"
-            >{t`View goals`}</Link>
-          }
-        />
-      )}
       {insights.isPending ? (
         <div className="grid gap-10 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
           <Skeleton className="h-64 w-full" />
@@ -198,14 +219,26 @@ function SubjectInsightsSection({
             settings={settings}
             pendingId={pendingId}
             coachLink={
-              consent.data?.granted === true ? (
-                <Link
-                  to="/coach"
-                  className="font-display text-sm font-medium text-ink underline decoration-signal underline-offset-[0.15em] hover:decoration-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-                >
-                  {i18n._(INSIGHT_COPY.askCoach)}
-                </Link>
-              ) : null
+              consent.data?.granted === true
+                ? (view: InsightView) => (
+                    // The coach's own mark, and the question ready to edit (#dashboard-2).
+                    <Button variant="outline" size="sm" asChild>
+                      <Link
+                        to="/coach"
+                        search={{
+                          ask: t({
+                            message: `Tell me more about this: ${view.title}`,
+                            comment:
+                              "A question put in the coach's message box from an insight; the person edits it before sending",
+                          }),
+                        }}
+                      >
+                        <CoachIcon aria-hidden="true" />
+                        {i18n._(INSIGHT_COPY.askCoach)}
+                      </Link>
+                    </Button>
+                  )
+                : null
             }
             onFeedback={onFeedback}
           />
@@ -215,7 +248,7 @@ function SubjectInsightsSection({
               className="grid min-w-0 content-start gap-3"
             >
               <div className="flex items-center gap-2">
-                <h2 id="observation-title" className="text-xl leading-tight text-ink">
+                <h2 id="observation-title" className="text-base leading-tight text-ink-2">
                   <Trans>Nutrition observations</Trans>
                 </h2>
                 <InfoTip align="end">
@@ -229,7 +262,7 @@ function SubjectInsightsSection({
                   </p>
                 </InfoTip>
               </div>
-              <div className="sheet grid gap-3 px-5 py-4">
+              <div className="well grid gap-3 px-5 py-4">
                 {observationPrefs.isPending ? (
                   <p role="status" className="text-sm text-ink-3">
                     <Trans>Loading observation setting…</Trans>
@@ -291,7 +324,7 @@ function SubjectInsightsSection({
                 {showObservations
                   ? insights.data.observations.map((item) =>
                       (() => {
-                        const view = nutritionObservationView(i18n, item);
+                        const view = nutritionObservationView(i18n, item, settings);
                         return (
                           <article
                             key={`${item.ruleId}:${item.window.from}`}

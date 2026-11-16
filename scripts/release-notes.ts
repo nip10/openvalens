@@ -278,6 +278,12 @@ export type BundledReleaseNotes = {
   date: string;
   /** English always; `pt-PT` when `vX.Y.Z.pt-PT.md` exists, else null. */
   highlights: { en: BundledHighlightBlock[]; "pt-PT": BundledHighlightBlock[] | null };
+  /**
+   * One short line per list item, in order: the item's bold lead ("Custom
+   * trackers"), or its first sentence when it has none. The app's "What's new"
+   * dialog shows two or three of them.
+   */
+  headlines: { en: string[]; "pt-PT": string[] | null };
 };
 
 function plainBlocks(notes: ReleaseNotes): BundledHighlightBlock[] {
@@ -286,6 +292,34 @@ function plainBlocks(notes: ReleaseNotes): BundledHighlightBlock[] {
       ? { kind: "paragraph", text: inlineToText(block.text) }
       : { kind: "list", items: block.items.map(inlineToText) },
   );
+}
+
+/** The longest a headline gets when an item has no bold lead. */
+const HEADLINE_MAX = 80;
+
+/** An item's headline: its bold lead, else its first sentence, as plain text. */
+export function itemHeadline(item: string): string {
+  const bold = /^\*\*([^*]+)\*\*/.exec(item.trim());
+  const text = bold ? inlineToText(bold[1]!) : inlineToText(item).split(/(?<=[.;:])\s/)[0]!;
+  const trimmed = text.replace(/[\s.,;:]+$/, "");
+  return trimmed.length > HEADLINE_MAX
+    ? `${trimmed.slice(0, HEADLINE_MAX - 1).replace(/\s+\S*$/, "")}…`
+    : trimmed;
+}
+
+function headlinesOf(notes: ReleaseNotes): string[] {
+  return notes.highlights.flatMap((block) =>
+    block.kind === "list" ? block.items.map(itemHeadline) : [],
+  );
+}
+
+function bundle(en: ReleaseNotes, pt: ReleaseNotes | undefined): BundledReleaseNotes {
+  return {
+    version: en.version,
+    date: en.date,
+    highlights: { en: plainBlocks(en), "pt-PT": pt ? plainBlocks(pt) : null },
+    headlines: { en: headlinesOf(en), "pt-PT": pt ? headlinesOf(pt) : null },
+  };
 }
 
 /** The release version of this checkout: the root `package.json` `version`. */
@@ -302,17 +336,33 @@ export function bundledReleaseNotes(
   const tag = `v${version}`;
   const en = readReleaseNotes(tag, "en", dir);
   if (!en) return null;
-  const pt = readReleaseNotes(tag, "pt-PT", dir);
-  return {
-    version,
-    date: en.date,
-    highlights: { en: plainBlocks(en), "pt-PT": pt ? plainBlocks(pt) : null },
-  };
+  return bundle(en, readReleaseNotes(tag, "pt-PT", dir));
 }
 
-/** The JavaScript source of {@link RELEASE_NOTES_MODULE}. */
-export function releaseNotesModuleSource(notes = bundledReleaseNotes()): string {
-  return `export default ${JSON.stringify(notes)};\n`;
+/**
+ * Every release up to and including `version`, newest first: the changelog
+ * in the app's Settings › What's new. A self-hosted server on an older
+ * version lists only the releases it has.
+ */
+export function bundledReleaseHistory(
+  version = currentReleaseVersion(),
+  dir = RELEASES_DIR,
+): BundledReleaseNotes[] {
+  const current = `v${version}`;
+  return readAllReleaseNotes(dir)
+    .filter((notes) => compareTags(notes.tag, current) <= 0)
+    .map((en) => bundle(en, readReleaseNotes(en.tag, "pt-PT", dir)));
+}
+
+/**
+ * The JavaScript source of {@link RELEASE_NOTES_MODULE}: this version's notes
+ * as the default export, and every release up to it as `history`.
+ */
+export function releaseNotesModuleSource(
+  notes = bundledReleaseNotes(),
+  history = bundledReleaseHistory(),
+): string {
+  return `export default ${JSON.stringify(notes)};\nexport const history = ${JSON.stringify(history)};\n`;
 }
 
 if (import.meta.main) {

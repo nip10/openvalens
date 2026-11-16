@@ -7,9 +7,11 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import {
+  bundledReleaseHistory,
   highlightsToHtml,
   inlineToHtml,
   inlineToText,
+  itemHeadline,
   parseReleaseNotes,
   readAllReleaseNotes,
   releaseNotesProblems,
@@ -113,6 +115,38 @@ describe("parseReleaseNotes", () => {
     expect(inlineToText("**Goals.** Use `x` and [docs](https://example.com), *now*.")).toBe(
       "Goals. Use x and docs, now.",
     );
+  });
+});
+
+describe("itemHeadline (the What's new dialog)", () => {
+  test("takes the bold lead, without its closing punctuation", () => {
+    expect(itemHeadline("**Goals.** Set private goals.")).toBe("Goals");
+    expect(itemHeadline("**Your record in one place:** a dashboard")).toBe(
+      "Your record in one place",
+    );
+    expect(itemHeadline("**Apple Health sync** in the app.")).toBe("Apple Health sync");
+  });
+
+  test("falls back to the first sentence, cut at a word", () => {
+    expect(itemHeadline("Record intake as evidence, with `code`. More text.")).toBe(
+      "Record intake as evidence, with code",
+    );
+    const long = itemHeadline(`${"word ".repeat(30)}end.`);
+    expect(long.length).toBeLessThanOrEqual(80);
+    expect(long.endsWith("word…")).toBe(true);
+  });
+});
+
+describe("bundledReleaseHistory", () => {
+  test("stops at the given version, newest first, with one headline per item", () => {
+    const history = bundledReleaseHistory("1.0.1");
+    expect(history.map((notes) => notes.version)).toEqual(["1.0.1", "1.0.0", "0.9.1", "0.9.0"]);
+    for (const notes of history) {
+      const items = notes.highlights.en.flatMap((block) =>
+        block.kind === "list" ? block.items : [],
+      );
+      expect(notes.headlines.en).toHaveLength(items.length);
+    }
   });
 });
 

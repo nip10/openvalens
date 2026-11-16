@@ -79,7 +79,7 @@ describe("insights panel (web)", () => {
         <p>{view.period}</p>
       </article>,
     );
-    expect(markup).toContain("2026-10-01 to 2026-10-07 (7 days)");
+    expect(markup).toContain("Period: Oct 1 – 7 (7 days)");
     expect(markup).toContain("Completeness information is not available.");
     expect(markup).not.toMatch(/\b(?:matching events|events matched|0 events)\b/i);
     expect(view.accessibilityLabel).toContain(view.body);
@@ -164,6 +164,41 @@ describe("insights panel (web)", () => {
       />,
     );
     expect(withheld).toContain("adults 18 and over");
+  });
+
+  test("each insight is one line with its subject's icon; streaks share one Milestones row", () => {
+    const base = result();
+    const change = base.insights[0]!;
+    const streak = (metric: "sleep_duration" | "steps", topic: "sleep" | "activity") => ({
+      ...change,
+      id: `streak.recording:${metric}`,
+      ruleId: "streak.recording" as const,
+      kind: "streak" as const,
+      topic,
+      detail: { type: "streak" as const, metric, days: 90, startDate: "2026-07-18" },
+      factors: [],
+    });
+    const html = renderToStaticMarkup(
+      <InsightsCard
+        result={{
+          ...base,
+          insights: [change, streak("sleep_duration", "sleep"), streak("steps", "activity")],
+        }}
+        pendingId={null}
+        coachLink={(view) => <a href={`/coach?ask=${view.key}`}>Ask the coach about this</a>}
+        onFeedback={() => {}}
+      />,
+    );
+    // Resting heart rate: the heart, not the shared sparkle.
+    expect(html).toContain("lucide-heart-pulse");
+    expect(html).not.toContain("lucide-sparkles");
+    // The headline is the summary; the sentence and actions open on a tap.
+    expect(html).toMatch(/<summary[^>]*>.*Resting heart rate higher than your usual.*<\/summary>/s);
+    expect(html).toContain(`href="/coach?ask=${change.id}"`);
+    expect(html.match(/Milestones/g)).toHaveLength(1);
+    expect(html).toContain("2 recording streaks");
+    expect(html).toContain("90 days of sleep recorded in a row");
+    expect(html).toContain("Step count has been recorded every day since Jul 18.");
   });
 
   test("summaries lead with readiness and link to goals without an aggregate progress score", () => {

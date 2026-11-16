@@ -23,15 +23,15 @@ import { Link, createFileRoute, redirect } from "@tanstack/react-router";
 import { Footprints, HeartPulse, History, Moon, Scale, TrendingUp } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
-import { InsightsSection } from "@/components/insights-section";
+import { InsightsSection, ReadinessSummary } from "@/components/insights-section";
 import { ErrorState, Figure, Page, PageHeader, Section, StatTile } from "@/components/page";
 import { ProductSettingsStatus } from "@/components/product-settings-status";
 import { FinishSetupCard } from "@/components/onboarding/finish-setup-card";
-import { WhatsNewCard } from "@/components/whats-new-card";
 import { authClient } from "@/lib/auth-client";
 import { orpc } from "@/utils/orpc";
 import { friendlyDate, pillTone } from "@/utils/friendly";
 import { useEnabledModules } from "@/utils/modules";
+import { dayMs, restingHeartRateTile, weightAxisTicks } from "@/utils/dashboard";
 import { needsWelcomeRedirect } from "@/utils/onboarding-data";
 import { useProductSettings } from "@/utils/product-settings";
 
@@ -48,6 +48,10 @@ export const Route = createFileRoute("/_auth/dashboard")({
 
 // The dashboard's chart reads the same 90-day window the Body screen does.
 const WEIGHT_TREND_DAYS = 90;
+// Two tiles a row on a phone, so all four figures sit above the fold.
+const TILE = "max-sm:gap-2 max-sm:p-4";
+// Resting heart rate: the latest day in this window, and its own usual.
+const HEART_WINDOW_DAYS = 14;
 
 function greeting(hour: number) {
   if (hour < 12) return msg`Good morning`;
@@ -63,7 +67,7 @@ function DashboardPage() {
     orpc.sleep.summary.queryOptions({ input: { days: COCKPIT_SLEEP_WINDOW_DAYS } }),
   );
   const activity = useQuery(orpc.activity.dailyTotals.queryOptions({ input: { days: 30 } }));
-  const vitals = useQuery(orpc.vitals.daily.queryOptions({ input: { days: 1 } }));
+  const vitals = useQuery(orpc.vitals.daily.queryOptions({ input: { days: HEART_WINDOW_DAYS } }));
   const settingsQuery = useProductSettings();
   const settings = settingsQuery.data;
   const { data: session } = authClient.useSession();
@@ -84,6 +88,7 @@ function DashboardPage() {
     ? summarizeDailyActivity(activity.data).sevenDayAverageSteps || null
     : null;
   const vitalsRow = vitals.data?.at(-1);
+  const resting = restingHeartRateTile(vitals.data ?? []);
 
   const now = new Date();
   const firstName = session?.user?.name?.trim().split(/\s+/)[0];
@@ -111,12 +116,9 @@ function DashboardPage() {
 
       <ProductSettingsStatus />
 
-      <FinishSetupCard />
-
-      <WhatsNewCard />
-
+      {/* The one dominant tier (#dashboard-0): today's figures and readiness. */}
       {isPending ? (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
           {[0, 1, 2, 3].map((key) => (
             <Skeleton key={key} className="h-40 w-full rounded-3xl" />
           ))}
@@ -128,9 +130,10 @@ function DashboardPage() {
         />
       ) : (
         <>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
             {isEnabled("sleep") ? (
               <StatTile
+                className={TILE}
                 icon={Moon}
                 tone="sleep"
                 label={<Trans>Sleep</Trans>}
@@ -154,6 +157,7 @@ function DashboardPage() {
             ) : null}
             {isEnabled("activity") ? (
               <StatTile
+                className={TILE}
                 icon={Footprints}
                 tone="steps"
                 label={<Trans>Steps</Trans>}
@@ -174,23 +178,44 @@ function DashboardPage() {
               />
             ) : null}
             {isEnabled("heart") ? (
-              <StatTile
-                icon={HeartPulse}
-                tone="heart"
-                label={<Trans>Heart rate</Trans>}
-                to="/records/vitals"
-                value={
-                  vitalsRow && vitalsRow.heartRate.avgBpm !== null
-                    ? formatBpm(vitalsRow.heartRate.avgBpm)
-                    : "—"
-                }
-                note={
-                  vitalsRow ? t`Average, ${friendlyDate(i18n, vitalsRow.date)}` : t`No reading yet`
-                }
-              />
+              resting.latest ? (
+                // Resting heart rate, the figure people follow (#dashboard-10).
+                <StatTile
+                  className={TILE}
+                  icon={HeartPulse}
+                  tone="heart"
+                  label={<Trans>Resting heart rate</Trans>}
+                  to="/records/vitals"
+                  value={formatBpm(resting.latest.bpm)}
+                  note={
+                    resting.usualBpm !== null
+                      ? t`Your usual: ${formatBpm(resting.usualBpm)}`
+                      : friendlyDate(i18n, resting.latest.date)
+                  }
+                />
+              ) : (
+                <StatTile
+                  className={TILE}
+                  icon={HeartPulse}
+                  tone="heart"
+                  label={<Trans>Heart rate</Trans>}
+                  to="/records/vitals"
+                  value={
+                    vitalsRow && vitalsRow.heartRate.avgBpm !== null
+                      ? formatBpm(vitalsRow.heartRate.avgBpm)
+                      : "—"
+                  }
+                  note={
+                    vitalsRow && vitalsRow.heartRate.avgBpm !== null
+                      ? t`Average, ${friendlyDate(i18n, vitalsRow.date)}`
+                      : t`No reading yet`
+                  }
+                />
+              )
             ) : null}
             {isEnabled("body") ? (
               <StatTile
+                className={TILE}
                 icon={Scale}
                 tone="weight"
                 label={<Trans>Weight</Trans>}
@@ -206,15 +231,19 @@ function DashboardPage() {
               />
             ) : null}
           </div>
-          {isEnabled("body") ? (
-            <WeightTrend
-              rows={weight.data ?? []}
-              settings={settings}
-              emptyLabel={t`No weight logged in the last ${WEIGHT_TREND_DAYS} days.`}
-            />
-          ) : null}
         </>
       )}
+      <ReadinessSummary />
+
+      <FinishSetupCard />
+
+      {!isPending && !isError && isEnabled("body") ? (
+        <WeightTrend
+          rows={weight.data ?? []}
+          settings={settings}
+          emptyLabel={t`No weight logged in the last ${WEIGHT_TREND_DAYS} days.`}
+        />
+      ) : null}
 
       <InsightsSection />
     </Page>
@@ -241,6 +270,13 @@ function WeightTrend({
 }) {
   const { t, i18n } = useLingui();
   const summary = summarizeDailyWeights(rows);
+  // A time axis, so the gap between ticks reads as time even with missed days.
+  const series = summary.series.map((point) => ({ ...point, day: dayMs(point.date) }));
+  const ticks =
+    summary.series.length > 0
+      ? weightAxisTicks(summary.series[0]!.date, summary.series.at(-1)!.date).map(dayMs)
+      : [];
+  const dayLabel = (ms: number) => friendlyDate(i18n, new Date(ms).toISOString().slice(0, 10));
   const unit = settings?.units === "imperial" ? "lb" : "kg";
   const config: ChartConfig = {
     weightKg: { label: t`Weight (${unit})`, color: "var(--tone-weight)" },
@@ -279,7 +315,7 @@ function WeightTrend({
               />
             </dl>
             <ChartContainer config={config} className="aspect-auto h-56 w-full">
-              <AreaChart data={summary.series} margin={{ top: 8, right: 4, bottom: 0, left: 0 }}>
+              <AreaChart data={series} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
                 <defs>
                   <linearGradient id="weight-fill" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="var(--tone-weight)" stopOpacity={0.28} />
@@ -288,11 +324,15 @@ function WeightTrend({
                 </defs>
                 <CartesianGrid vertical={false} stroke="var(--rule)" strokeDasharray="4 6" />
                 <XAxis
-                  dataKey="date"
+                  dataKey="day"
+                  type="number"
+                  scale="time"
+                  domain={["dataMin", "dataMax"]}
                   tickLine={false}
                   axisLine={false}
-                  minTickGap={48}
-                  tickFormatter={(value: string) => friendlyDate(i18n, value)}
+                  ticks={ticks}
+                  minTickGap={16}
+                  tickFormatter={(value: number) => dayLabel(value)}
                 />
                 <YAxis
                   domain={["dataMin - 1", "dataMax + 1"]}
@@ -305,6 +345,10 @@ function WeightTrend({
                 <ChartTooltip
                   content={
                     <ChartTooltipContent
+                      labelFormatter={(_, payload) => {
+                        const day = payload?.[0]?.payload?.day;
+                        return typeof day === "number" ? dayLabel(day) : null;
+                      }}
                       formatter={(value) => [formatKg(value as number, settings), t`Weight`]}
                     />
                   }

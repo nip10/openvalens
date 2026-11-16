@@ -447,6 +447,7 @@ export const PROCEDURE_ACCESS: Readonly<Record<string, ProcedureAccessClass>> = 
 
   // The "What's new" card (#446): a display preference, like the language.
   "whatsNew.get": R,
+  "whatsNew.changelog": R,
   "whatsNew.dismiss": ALWAYS,
   "whatsNew.setEnabled": ALWAYS,
 });

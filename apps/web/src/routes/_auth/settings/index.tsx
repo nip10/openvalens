@@ -34,7 +34,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { INSIGHT_DELIVERY_COPY } from "@openvalens/api/presenters/insights";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
-  Bot,
+  Megaphone,
   ChevronRight,
   CreditCard,
   LayoutGrid,
@@ -57,7 +57,8 @@ import { LanguageSection } from "@/components/language-section";
 import { SetupCardSetting } from "@/components/onboarding/finish-setup-card";
 import { HealthDataConsentStatus } from "@/components/health-data-consent-status";
 import { SignInMethodsSection } from "@/components/sign-in-methods-section";
-import { WhatsNewSection } from "@/components/whats-new-section";
+import { AppearanceSection } from "@/components/appearance-section";
+import { CoachIcon } from "@/components/coach-icon";
 import { ErrorState, InfoTip, Page, PageHeader, Section } from "@/components/page";
 import { ProfileSummarySection } from "@/components/profile-summary-card";
 import { SettingsGroup, SettingsIcon } from "@/components/settings-rows";
@@ -89,6 +90,7 @@ function SettingsPage() {
     { id: "account", label: t`Account` },
     ...(cloud ? [{ id: "plan", label: t`Plan & billing` }] : []),
     { id: "language", label: t`Language` },
+    { id: "appearance", label: t`Appearance` },
     { id: "profile", label: t`Profile` },
     { id: "modules", label: t`Modules` },
     { id: "notifications", label: i18n._(INSIGHT_DELIVERY_COPY.settingsTitle) },
@@ -134,6 +136,9 @@ function SettingsPage() {
           <div id="language" className="scroll-mt-10">
             <LanguageSection />
           </div>
+          <div id="appearance" className="scroll-mt-10">
+            <AppearanceSection />
+          </div>
           <div id="profile" className="grid scroll-mt-10 gap-4">
             <ProfileSummarySection />
             <SetupCardSetting />
@@ -145,7 +150,7 @@ function SettingsPage() {
             <InsightNotificationsSection />
           </div>
           <div id="whats-new" className="scroll-mt-10">
-            <WhatsNewSection />
+            <WhatsNewLinkSection />
           </div>
           <div id="integrations" className="scroll-mt-10">
             <IntegrationsSection />
@@ -211,6 +216,22 @@ function ModulesSection() {
   );
 }
 
+/** #dashboard-6: the link to Settings › What's new, the full changelog. */
+function WhatsNewLinkSection() {
+  return (
+    <Section title={<Trans>What's new</Trans>} icon={Megaphone} tone="signal">
+      <SettingsGroup className="px-0">
+        <IntegrationLink
+          to="/settings/whats-new"
+          icon={Megaphone}
+          label={<Trans>What's new</Trans>}
+          description={<Trans>Every update, newest first</Trans>}
+        />
+      </SettingsGroup>
+    </Section>
+  );
+}
+
 /** Links to the per-integration pages under /settings. */
 function IntegrationsSection() {
   return (
@@ -239,7 +260,12 @@ function IntegrationLink({
   label,
   description,
 }: {
-  to: "/settings/devices" | "/settings/telegram" | "/settings/modules" | "/settings/billing";
+  to:
+    | "/settings/devices"
+    | "/settings/telegram"
+    | "/settings/modules"
+    | "/settings/billing"
+    | "/settings/whats-new";
   icon: typeof Watch;
   label: React.ReactNode;
   description: React.ReactNode;
@@ -309,7 +335,7 @@ function CoachSection() {
   if (config.isPending) return <Skeleton className="h-64 w-full rounded-3xl" />;
   if (config.isError || !config.data) {
     return (
-      <Section title={<Trans>Coach</Trans>} icon={Bot} tone="signal">
+      <Section title={<Trans>Coach</Trans>} icon={CoachIcon} tone="signal">
         <ErrorState
           title={<Trans>Could not load coach settings.</Trans>}
           action={
@@ -367,7 +393,7 @@ function CoachForm({ initial, onSaved }: { initial: CoachProfileLike; onSaved: (
   };
 
   return (
-    <Section title={<Trans>Coach</Trans>} icon={Bot} tone="signal" sheet>
+    <Section title={<Trans>Coach</Trans>} icon={CoachIcon} tone="signal" sheet>
       <div className="grid gap-5 sm:grid-cols-2">
         <Field label={t`Tone`} hint={hint(toneDescription(tone))}>
           <Select value={tone} onValueChange={(Value) => setTone(Value as CoachTone)}>
