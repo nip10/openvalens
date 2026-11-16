@@ -13,6 +13,7 @@ import { useState } from "react";
 import { ErrorState, Meter, Page, PageHeader, Section, StatusPill } from "@/components/page";
 import { orpc } from "@/utils/orpc";
 import { GoalEditor } from "./-goal-editor";
+import { GoalProjectionLine } from "./-goal-ideas";
 import {
   checkinCorrectionPayload,
   formatGoalValue,
@@ -336,6 +337,7 @@ function TodayPanel({
         {evaluation.currentStreak > 0 ? (
           <p className="text-sm text-ink-3">{t`${evaluation.currentStreak} day streak · best ${evaluation.bestStreak}`}</p>
         ) : null}
+        {goal.definition.status === "active" ? <GoalProjectionLine goal={goal} /> : null}
       </div>
       {goal.definition.source === "manual" && goal.definition.status === "active" ? (
         <form

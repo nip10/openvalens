@@ -1,5 +1,6 @@
 import {
   READINESS_ALGORITHM_VERSION,
+  READINESS_INPUTS,
   READINESS_PROFILE_INPUTS,
   READINESS_PROFILES,
   type ReadinessComponent,
@@ -12,13 +13,18 @@ import {
 } from "./score-contract";
 
 /**
- * Issue #95 — experimental readiness index (`readiness-0.1.0-experimental`).
+ * Issue #95 — experimental readiness index (`readiness-0.2.0-experimental`).
  * Pure and deterministic: same series + `asOf` → same result.
  *
- * Each supported input is compared with the person's own usual (the median
- * of an earlier baseline window). The comparison becomes a 0–100 component
- * where 50 means "in line with your usual"; the index is the plain mean of the
- * components the active profile uses. None of the constants below come from
+ * Each measured input (sleep, resting heart rate, activity load and, since
+ * 0.2.0, heart rate variability) is compared with the person's own usual (the
+ * median of an earlier baseline window). The comparison becomes a 0–100
+ * component where 50 means "in line with your usual". The check-in (0.2.0) is
+ * today's rating on the person's Mood tracker, mapped straight onto 0–100 (3 of
+ * 5 is 50). The index is the plain mean of the components the active profile
+ * uses. HRV and the check-in were added by owner decision on 2026-11-16 and
+ * are optional parts: they never decide whether a score appears. None of the
+ * constants below come from
  * evidence: the reviewed research supplies no validated weights, cutoffs or
  * baseline lengths (docs/score-algorithm.md). They are documented, versioned
  * product choices, and any change bumps the algorithm version.
@@ -33,6 +39,13 @@ export type ReadinessSeries = {
   restingHeartRate: readonly DailyValue[];
   /** Total steps per day. */
   steps: readonly DailyValue[];
+  /** Average overnight HRV (RMSSD, ms) per day. Absent: no HRV recorded. */
+  hrv?: readonly DailyValue[];
+  /**
+   * The day's average rating (1–5) on the person's own Mood tracker, keyed by
+   * the entry's own day. Absent: no Mood tracker.
+   */
+  checkIn?: readonly DailyValue[];
 };
 
 type RecentRule =
@@ -56,7 +69,7 @@ export type ReadinessInputRule = {
 
 /** Versioned with READINESS_ALGORITHM_VERSION. */
 export const READINESS_RULES: Record<
-  "sleep" | "resting_heart_rate" | "activity_load",
+  "sleep" | "resting_heart_rate" | "activity_load" | "hrv",
   ReadinessInputRule
 > = {
   // Last night (or the night before), against the 28 nights before it.
@@ -86,11 +99,34 @@ export const READINESS_RULES: Record<
     baselineMinDays: 7,
     pointsPerRelativeChange: -50,
   },
+  // 0.2.0: latest overnight HRV against the 28 days before it, the same way
+  // as resting heart rate but the other way round: higher than your usual
+  // raises the part. 10% below usual (e.g. 45 vs 50 ms) → 40.
+  hrv: {
+    unit: "ms",
+    recent: { mode: "latest", lookbackDays: 1 },
+    baselineWindowDays: 28,
+    baselineMinDays: 7,
+    pointsPerRelativeChange: 100,
+  },
 };
 
-const SUPPORTED_INPUTS = ["sleep", "resting_heart_rate", "activity_load"] as const;
+/**
+ * 0.2.0: the check-in is today's Mood rating (1–5), never an older one. It
+ * has no usual to compare with: 1 → 0, 2 → 25, 3 → 50, 4 → 75, 5 → 100.
+ */
+export const READINESS_CHECK_IN_RULE = {
+  unit: "rating",
+  min: 1,
+  max: 5,
+  pointsPerStep: 25,
+} as const;
+
+/** Inputs compared with your usual. */
+const SUPPORTED_INPUTS = ["sleep", "resting_heart_rate", "activity_load", "hrv"] as const;
 type SupportedInput = (typeof SUPPORTED_INPUTS)[number];
-const UNSUPPORTED_INPUTS: readonly ReadinessInput[] = ["hrv", "check_in"];
+/** The inputs a profile can require; only these are named in `wouldHelp`. */
+const CORE_INPUTS: readonly ReadinessInput[] = ["sleep", "resting_heart_rate", "activity_load"];
 
 function addDays(date: string, days: number): string {
   const value = new Date(`${date}T00:00:00.000Z`);
@@ -212,11 +248,24 @@ export function evaluateReadinessInput(
   };
 }
 
-function unsupported(input: ReadinessInput): ReadinessComponent {
-  return {
-    input,
-    state: "not_supported_yet",
-    unit: null,
+/**
+ * The check-in for `asOf`: that day's Mood rating (1–5) on a 0–100 scale.
+ * Only a rating dated `asOf` counts; there is no baseline. Exported for tests.
+ */
+export function evaluateCheckIn(series: readonly DailyValue[], asOf: string): ReadinessComponent {
+  const rule = READINESS_CHECK_IN_RULE;
+  const today = series.find(
+    (day) =>
+      day.date === asOf &&
+      day.value !== null &&
+      Number.isFinite(day.value) &&
+      day.value >= rule.min &&
+      day.value <= rule.max,
+  );
+  const base: ReadinessComponent = {
+    input: "check_in",
+    state: "no_recent_value",
+    unit: rule.unit,
     recentValue: null,
     recentDate: null,
     recentDays: 0,
@@ -227,6 +276,15 @@ function unsupported(input: ReadinessInput): ReadinessComponent {
     relativeDifference: null,
     componentScore: null,
   };
+  if (!today || today.value === null) return base;
+  return {
+    ...base,
+    state: "ready_not_used",
+    recentValue: round(today.value, 1),
+    recentDate: asOf,
+    recentDays: 1,
+    componentScore: Math.round((today.value - rule.min) * rule.pointsPerStep),
+  };
 }
 
 /**
@@ -235,14 +293,14 @@ function unsupported(input: ReadinessInput): ReadinessComponent {
  * otherwise the score is withheld — never defaulted.
  */
 export function computeReadiness(series: ReadinessSeries, asOf: string): ReadinessResult {
-  const evaluated: Record<SupportedInput, ReadinessComponent> = {
+  const evaluated: Record<ReadinessInput, ReadinessComponent> = {
     sleep: evaluateReadinessInput("sleep", series.sleepMinutes, asOf),
     resting_heart_rate: evaluateReadinessInput("resting_heart_rate", series.restingHeartRate, asOf),
     activity_load: evaluateReadinessInput("activity_load", series.steps, asOf),
+    hrv: evaluateReadinessInput("hrv", series.hrv ?? [], asOf),
+    check_in: evaluateCheckIn(series.checkIn ?? [], asOf),
   };
-  const isReady = (input: ReadinessInput) =>
-    (SUPPORTED_INPUTS as readonly string[]).includes(input) &&
-    evaluated[input as SupportedInput].componentScore !== null;
+  const isReady = (input: ReadinessInput) => evaluated[input].componentScore !== null;
 
   const profile: ReadinessProfile | null =
     READINESS_PROFILES.find((candidate) =>
@@ -254,24 +312,17 @@ export function computeReadiness(series: ReadinessSeries, asOf: string): Readine
     : [];
   const usedInputs = profileInputs.filter(isReady);
 
-  const components: ReadinessComponent[] = [
-    ...SUPPORTED_INPUTS.map((input) =>
-      usedInputs.includes(input)
-        ? { ...evaluated[input], state: "used" as const }
-        : evaluated[input],
-    ),
-    ...UNSUPPORTED_INPUTS.map(unsupported),
-  ];
-  const wouldHelp = SUPPORTED_INPUTS.filter((input) => !isReady(input));
+  const components: ReadinessComponent[] = READINESS_INPUTS.map((input) =>
+    usedInputs.includes(input) ? { ...evaluated[input], state: "used" as const } : evaluated[input],
+  );
+  const wouldHelp = CORE_INPUTS.filter((input) => !isReady(input));
 
   const score =
     profile === null
       ? null
       : Math.round(
-          usedInputs.reduce(
-            (sum, input) => sum + evaluated[input as SupportedInput].componentScore!,
-            0,
-          ) / usedInputs.length,
+          usedInputs.reduce((sum, input) => sum + evaluated[input].componentScore!, 0) /
+            usedInputs.length,
         );
 
   return {
@@ -303,6 +354,8 @@ export function readinessHistoryDay(result: ReadinessResult): ReadinessHistoryDa
       sleep: part("sleep"),
       resting_heart_rate: part("resting_heart_rate"),
       activity_load: part("activity_load"),
+      hrv: part("hrv"),
+      check_in: part("check_in"),
     },
   };
 }

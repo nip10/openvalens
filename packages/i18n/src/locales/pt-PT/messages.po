@@ -1313,6 +1313,7 @@ msgstr "{ratedWithDuration, plural, one {Com base em # sessão avaliada.} other 
 msgid "{rating} of {max}"
 msgstr "{rating} em {max}"
 
+#: packages/api/src/presenters/score.ts
 #: packages/api/src/presenters/trackers.ts
 msgid "{rating} of 5"
 msgstr "{rating} de 5"
@@ -1840,6 +1841,10 @@ msgstr "Uma medida que irá introduzir"
 #: apps/web/src/components/telegram-channel.tsx
 msgid "A message names the item, such as a medication, and never a measurement. Anyone who can read your Telegram can see it."
 msgstr "Cada mensagem indica o item, como um medicamento, e nunca uma medição. Quem conseguir ler o seu Telegram pode vê-la."
+
+#: packages/api/src/presenters/score.ts
+msgid "A middle rating, so it neither adds nor lowers."
+msgstr "Uma avaliação a meio, por isso não soma nem baixa."
 
 #: packages/email/src/templates/ai-app-connected.tsx
 msgid "A new AI app was connected to {productName}"
@@ -2803,6 +2808,10 @@ msgstr "Já tem conta? <0>Iniciar sessão</0>"
 msgid "Also recorded"
 msgstr "Também registado"
 
+#: packages/api/src/presenters/trackers.ts
+msgid "Also your readiness check-in"
+msgstr "Também é o seu check-in de prontidão"
+
 #. safety
 #: packages/api/src/presenters/coach-settings.ts
 msgid "Always"
@@ -2859,13 +2868,17 @@ msgstr "Acabou de ser ligada uma aplicação que pode ler os seus registos."
 msgid "An estimate is not available yet."
 msgstr "Ainda não há uma estimativa disponível."
 
+#: packages/api/src/presenters/goal-ideas.ts
+msgid "An estimate, not a promise: a straight line through your values from the last 4 weeks, carried forward to your target. It needs at least 4 days with a value, a week apart or more, and a trend that moves toward the target. It changes as you log."
+msgstr "Uma estimativa, não uma promessa: uma linha reta pelos seus valores das últimas 4 semanas, prolongada até ao seu alvo. Precisa de pelo menos 4 dias com valor, com uma semana ou mais entre o primeiro e o último, e de uma tendência que se aproxime do alvo. Muda à medida que regista."
+
 #: apps/web/src/components/workout-session-editor.tsx
 msgid "An exercise can have at most 100 sets."
 msgstr "Um exercício pode ter, no máximo, 100 séries."
 
 #: packages/api/src/presenters/score.ts
-msgid "An experimental summary of how your recent sleep, resting heart rate and activity compare with your own usual pattern."
-msgstr "Um resumo experimental de como o seu sono, a frequência cardíaca em repouso e a atividade recentes se comparam com o seu padrão habitual."
+msgid "An experimental summary of how your recent sleep, resting heart rate, heart rate variability and activity compare with your own usual pattern, plus how you feel today on your Mood tracker."
+msgstr "Um resumo experimental de como o seu sono, frequência cardíaca em repouso, variabilidade da frequência cardíaca e atividade recentes se comparam com o seu padrão habitual, mais como se sente hoje no seu acompanhamento de Humor."
 
 #. safety
 #: packages/api/src/presenters/preventive-care.ts
@@ -6260,6 +6273,10 @@ msgstr "Conta os dias com pelo menos um registo no diário. Diz respeito ao háb
 msgid "Counts the days with a yes."
 msgstr "Conta os dias com um sim."
 
+#: packages/api/src/presenters/score.ts
+msgid "Counts when you rate today on your Mood tracker (Trackers). One rating serves both."
+msgstr "Conta quando avalia o dia de hoje no seu acompanhamento de Humor (Acompanhamentos). Uma avaliação serve para os dois."
+
 #: apps/web/src/components/micronutrient-summary.tsx
 #: apps/web/src/components/nutrition-day-totals.tsx
 msgid "Coverage"
@@ -7350,6 +7367,10 @@ msgstr "Arraste para mover, ou use as ações para subir ou descer."
 msgid "Drag to reorder. Tap an exercise to go to it."
 msgstr "Arraste para reordenar. Toque num exercício para ir até ele."
 
+#: packages/api/src/presenters/goal-ideas.ts
+msgid "Drink {amount} ml of water a day"
+msgstr "Beber {amount} ml de água por dia"
+
 #: packages/api/src/presenters/drinks.ts
 msgid "Drink shortcuts need the USDA FoodData Central catalog on this server. Your server operator can import it; until then, search for the drink or add it by hand."
 msgstr "Os atalhos de bebidas precisam do catálogo USDA FoodData Central neste servidor. O operador do servidor pode importá-lo; até lá, pesquise a bebida ou adicione-a à mão."
@@ -7417,9 +7438,13 @@ msgstr "Cada humor diário que regista no Apple Health passa a ser uma entrada d
 msgid "Each goal's progress is how far you have moved from its starting value toward its target, capped at 100% once reached. The total weighs each counted goal by its priority (low 1, normal 2, high 3). Paused or cancelled goals, and goals without a target, current value or direction, are left out instead of counted as zero."
 msgstr "O progresso de cada objetivo é o quanto avançou desde o valor inicial em direção ao alvo, limitado a 100% quando é atingido. O total pondera cada objetivo contado pela sua prioridade (baixa 1, normal 2, alta 3). Objetivos em pausa ou cancelados, e objetivos sem alvo, valor atual ou direção, ficam de fora em vez de contarem como zero."
 
+#: packages/api/src/presenters/goal-ideas.ts
+msgid "Each idea starts from your own usual over the last 4 weeks, rounded to a round number: the middle night of sleep, the middle day of water you logged, or a supplement you took on at least half the days. Tap one to open a new goal with it filled in. You can change anything before you save, and nothing is saved until you do."
+msgstr "Cada ideia parte do seu habitual nas últimas 4 semanas, arredondado para um número redondo: a noite do meio de sono, o dia do meio de água que registou, ou um suplemento que tomou em pelo menos metade dos dias. Toque numa para abrir um novo objetivo já preenchido. Pode mudar tudo antes de guardar, e nada fica guardado até o fazer."
+
 #: packages/api/src/presenters/score.ts
-msgid "Each input is compared with your own median over the 28 days before it (at least 7 days with data are needed). 50 means in line with your usual. More sleep than usual raises that part; a higher resting heart rate, or a heavier recent activity load than usual, lowers its part. The index is the plain average of the parts your profile uses."
-msgstr "Cada parâmetro é comparado com a sua própria mediana nos 28 dias anteriores (são precisos pelo menos 7 dias com dados). 50 significa em linha com o seu habitual. Mais sono do que o habitual aumenta essa parte; uma frequência cardíaca em repouso mais alta, ou uma carga de atividade recente mais pesada do que o habitual, baixa a respetiva parte. O índice é a média simples das partes que o seu perfil usa."
+msgid "Each measured input is compared with your own median over the 28 days before it (at least 7 days with data are needed). 50 means in line with your usual. More sleep or a higher heart rate variability than usual raises that part; a higher resting heart rate, or a heavier recent activity load than usual, lowers its part. How you feel is today's rating on your Mood tracker: 3 of 5 counts as 50, and each step up or down moves it by 25. Heart rate variability and how you feel count only when you have them; without them the index still works. The index is the plain average of the parts your profile uses."
+msgstr "Cada dado medido é comparado com a sua mediana nos 28 dias anteriores (são precisos pelo menos 7 dias com dados). 50 significa em linha com o seu habitual. Mais sono ou uma variabilidade da frequência cardíaca mais alta do que o habitual sobe essa parte; uma frequência cardíaca em repouso mais alta, ou uma carga de atividade recente mais pesada do que o habitual, baixa a sua parte. Como se sente é a avaliação de hoje no seu acompanhamento de Humor: 3 de 5 conta como 50, e cada passo acima ou abaixo muda-a em 25. A variabilidade da frequência cardíaca e como se sente só contam quando os tem; sem eles o índice continua a funcionar. O índice é a média simples das partes que o seu perfil usa."
 
 #: apps/native/components/goal-editor.tsx
 #: apps/web/src/routes/_auth/-goal-editor.tsx
@@ -9334,6 +9359,10 @@ msgid "Higher protein options appear when you turn on the active reference."
 msgstr "As opções com mais proteína aparecem quando ativa a referência para pessoas ativas."
 
 #: packages/api/src/presenters/score.ts
+msgid "Higher than your usual, so it adds to readiness."
+msgstr "Mais alta do que o habitual, por isso soma à prontidão."
+
+#: packages/api/src/presenters/score.ts
 msgid "Higher than your usual, so it lowers readiness."
 msgstr "Mais alta do que o habitual, por isso baixa a prontidão."
 
@@ -9669,6 +9698,10 @@ msgstr "Vou introduzir os dados manualmente"
 #: apps/web/src/components/trackers/tracker-editor.tsx
 msgid "Icon"
 msgstr "Ícone"
+
+#: packages/api/src/presenters/goal-ideas.ts
+msgid "Ideas from your records"
+msgstr "Ideias a partir dos seus registos"
 
 #: apps/web/src/components/coach-ideas.tsx
 msgid "Ideas to ask"
@@ -11357,6 +11390,10 @@ msgstr "Menos lípidos"
 #: packages/api/src/presenters/score.ts
 msgid "Lower than your usual, so it adds to readiness."
 msgstr "Mais baixa do que o habitual, por isso soma à prontidão."
+
+#: packages/api/src/presenters/score.ts
+msgid "Lower than your usual, so it lowers readiness."
+msgstr "Mais baixa do que o habitual, por isso baixa a prontidão."
 
 #. placeholder {0}: formatPercent(summary.latestOxygenSaturation.minPercent)
 #. placeholder {1}: friendlyDate(i18n, summary.latestOxygenSaturation.date)
@@ -13123,10 +13160,6 @@ msgstr "Não ligado"
 msgid "Not counted (no catalog muscles)"
 msgstr "Não contados (sem músculos do catálogo)"
 
-#: packages/api/src/presenters/score.ts
-msgid "Not counted yet: {notYetList}"
-msgstr "Ainda não contam: {notYetList}"
-
 #: apps/native/app/(drawer)/goals/[goalId].tsx
 #: apps/web/src/routes/_auth/goals.$goalId.tsx
 msgid "Not done"
@@ -13195,6 +13228,14 @@ msgstr "Agora não"
 msgid "Not part of the score until OpenValens records it."
 msgstr "Não faz parte da pontuação até a OpenValens o registar."
 
+#: packages/api/src/presenters/score.ts
+msgid "Not part of this score yet"
+msgstr "Ainda não faz parte desta pontuação"
+
+#: packages/api/src/presenters/score.ts
+msgid "Not part of this score yet: {notYetList}"
+msgstr "Ainda não faz parte desta pontuação: {notYetList}"
+
 #: apps/web/src/components/admin-ai-usage.tsx
 msgid "not priced"
 msgstr "sem preço"
@@ -13234,10 +13275,6 @@ msgstr "Não recomendado (USPSTF D)"
 #: packages/api/src/presenters/preventive-care.ts
 msgid "Not recommended without a specific reason"
 msgstr "Não recomendado sem um motivo específico"
-
-#: packages/api/src/presenters/score.ts
-msgid "Not recorded by OpenValens yet"
-msgstr "Ainda não registado pela OpenValens"
 
 #: apps/web/src/components/admin-backup-status.tsx
 #: apps/web/src/components/onboarding/server-checklist.tsx
@@ -13444,6 +13481,10 @@ msgstr "Nada corresponde."
 #: packages/api/src/presenters/score.ts
 msgid "Nothing recorded for today or yesterday."
 msgstr "Nada registado hoje nem ontem."
+
+#: packages/api/src/presenters/score.ts
+msgid "Nothing recorded for today or yesterday. It comes from a watch or ring that records it."
+msgstr "Nada registado hoje nem ontem. Vem de um relógio ou anel que a registe."
 
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "Nothing recorded in the last 7 days."
@@ -13779,6 +13820,10 @@ msgstr "Ligado"
 #: apps/web/src/components/ai-workspace-consent-card.tsx
 msgid "On for this workspace"
 msgstr "Ligada neste espaço de trabalho"
+
+#: packages/api/src/presenters/goal-ideas.ts
+msgid "On track for {date} (estimate)"
+msgstr "A caminho de {date} (estimativa)"
 
 #: apps/web/src/components/ai-apps-settings-card.tsx
 msgid "On. Only the workspace owner can change this."
@@ -17859,6 +17904,10 @@ msgstr "sono"
 msgid "Sleep"
 msgstr "Sono"
 
+#: packages/api/src/presenters/goal-ideas.ts
+msgid "Sleep {hours} h a night"
+msgstr "Dormir {hours} h por noite"
+
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
 msgid "Sleep 7 to 9 hours most nights"
 msgstr "Dormir 7 a 9 horas na maioria das noites"
@@ -18677,6 +18726,10 @@ msgstr "Sistólica {systolicMin}–{systolicMax}, diastólica {diastolicMin}–{
 #: apps/web/src/components/quick-log/quick-form.tsx
 msgid "Systolic must be higher than diastolic."
 msgstr "A sistólica tem de ser superior à diastólica."
+
+#: packages/api/src/presenters/goal-ideas.ts
+msgid "Take {name} every day"
+msgstr "Tomar {name} todos os dias"
 
 #: packages/api/src/presenters/food-logger-capture.ts
 msgid "Take a meal photo"
@@ -20938,12 +20991,12 @@ msgid "Uses heart data from your watch"
 msgstr "Usa dados cardíacos do seu relógio"
 
 #: packages/api/src/presenters/score.ts
-msgid "Uses sleep and recent activity (steps), which can be entered by hand. Not comparable with an index that uses heart data."
-msgstr "Usa o sono e a atividade recente (passos), que podem ser introduzidos à mão. Não é comparável com um índice que usa dados cardíacos."
+msgid "Uses sleep and recent activity (steps), which can be entered by hand, plus how you feel when you rate your Mood. Not comparable with an index that uses heart data."
+msgstr "Usa o sono e a atividade recente (passos), que podem ser introduzidos à mão, mais como se sente quando avalia o seu Humor. Não é comparável com um índice que usa dados cardíacos."
 
 #: packages/api/src/presenters/score.ts
-msgid "Uses sleep and resting heart rate, plus recent activity when available. Typically needs a wearable."
-msgstr "Usa o sono e a frequência cardíaca em repouso, mais a atividade recente quando disponível. Normalmente precisa de um dispositivo vestível."
+msgid "Uses sleep and resting heart rate, plus recent activity, heart rate variability and how you feel when available. Typically needs a wearable."
+msgstr "Usa o sono e a frequência cardíaca em repouso, mais a atividade recente, a variabilidade da frequência cardíaca e como se sente quando disponíveis. Normalmente precisa de um dispositivo vestível."
 
 #: packages/api/src/presenters/score.ts
 msgid "Uses sleep and steps"
@@ -21989,6 +22042,10 @@ msgstr "Já utilizou a quota mensal do coach de IA. Renova-se a {date}."
 msgid "You haven't added this yet."
 msgstr "Ainda não adicionou isto."
 
+#: packages/api/src/presenters/goal-ideas.ts
+msgid "You logged it on {days} of the last {window} days"
+msgstr "Registou-o em {days} dos últimos {window} dias"
+
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "You marked this day complete with nothing logged."
 msgstr "Marcou este dia como completo sem nada registado."
@@ -21996,6 +22053,14 @@ msgstr "Marcou este dia como completo sem nada registado."
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "You marked this day complete."
 msgstr "Marcou este dia como completo."
+
+#: packages/api/src/presenters/score.ts
+msgid "You rated how you feel above the middle, so it adds to readiness."
+msgstr "Avaliou como se sente acima do meio, por isso soma à prontidão."
+
+#: packages/api/src/presenters/score.ts
+msgid "You rated how you feel below the middle, so it lowers readiness."
+msgstr "Avaliou como se sente abaixo do meio, por isso baixa a prontidão."
 
 #: packages/email/src/templates/magic-link.tsx
 msgid "You requested a secure sign-in link for {appName}."
@@ -22261,6 +22326,10 @@ msgstr "O seu último pagamento do OpenValens Cloud não foi concluído."
 msgid "Your modules"
 msgstr "Os seus módulos"
 
+#: packages/api/src/presenters/score.ts
+msgid "Your Mood rating today: {rating}, from your Mood tracker."
+msgstr "A sua avaliação de Humor hoje: {rating}, do seu acompanhamento de Humor."
+
 #: apps/web/src/routes/_auth/exports.tsx
 msgid "Your most recent health events and measurements in one structured file that another health app can read. For everything, use the full backup."
 msgstr "Os seus eventos e medições de saúde mais recentes num ficheiro estruturado que outra aplicação de saúde consegue ler. Para tudo, use a cópia completa."
@@ -22361,6 +22430,10 @@ msgstr "O seu perfil foi alterado noutro local. Carregámos a versão mais recen
 #: packages/api/src/presenters/trackers.ts
 msgid "Your rating"
 msgstr "A sua avaliação"
+
+#: packages/api/src/presenters/trackers.ts
+msgid "Your rating today also counts as \"How you feel\" in the readiness index on Scores, so one tap serves both. 3 of 5 counts as the middle. Only today's rating counts."
+msgstr "A sua avaliação de hoje também conta como “Como se sente” no índice de prontidão em Pontuações, por isso um toque serve para os dois. 3 de 5 conta como o meio. Só conta a avaliação de hoje."
 
 #: packages/api/src/presenters/pain.ts
 msgid "Your ratings for this region, newest first, with the workouts you logged that day or the two days before."
@@ -22511,6 +22584,14 @@ msgstr "O habitual: {0}"
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "Your usual: {usual} ({median})."
 msgstr "O seu habitual: {usual} ({median})."
+
+#: packages/api/src/presenters/goal-ideas.ts
+msgid "Your usual: {usual} a night"
+msgstr "O seu habitual: {usual} por noite"
+
+#: packages/api/src/presenters/goal-ideas.ts
+msgid "Your usual: {usual} ml on days you log water"
+msgstr "O seu habitual: {usual} ml nos dias em que regista água"
 
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "Your values include device readings. Devices often measure resting heart rate during sleep, which likely reads lower than the seated pulse used in the reference, so this band may place you lower than a seated reading would."

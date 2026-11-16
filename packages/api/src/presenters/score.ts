@@ -37,13 +37,13 @@ export const SCORE_COPY = {
   experimentalBadge: msg`Experimental`,
   /** Shown after an available readiness index, e.g. "62 out of 100". */
   outOf100: msg`out of 100`,
-  readinessIntro: msg`An experimental summary of how your recent sleep, resting heart rate and activity compare with your own usual pattern.`,
+  readinessIntro: msg`An experimental summary of how your recent sleep, resting heart rate, heart rate variability and activity compare with your own usual pattern, plus how you feel today on your Mood tracker.`,
   readinessLimits: msg({
     message:
       "It is not medical advice and says nothing about your health status. It does not tell you whether or how hard to exercise, and it has not been validated.",
     comment: "safety",
   }),
-  readinessMethod: msg`Each input is compared with your own median over the 28 days before it (at least 7 days with data are needed). 50 means in line with your usual. More sleep than usual raises that part; a higher resting heart rate, or a heavier recent activity load than usual, lowers its part. The index is the plain average of the parts your profile uses.`,
+  readinessMethod: msg`Each measured input is compared with your own median over the 28 days before it (at least 7 days with data are needed). 50 means in line with your usual. More sleep or a higher heart rate variability than usual raises that part; a higher resting heart rate, or a heavier recent activity load than usual, lowers its part. How you feel is today's rating on your Mood tracker: 3 of 5 counts as 50, and each step up or down moves it by 25. Heart rate variability and how you feel count only when you have them; without them the index still works. The index is the plain average of the parts your profile uses.`,
   goalProgressTitle: msg`Goal progress`,
   goalProgressIntro: msg`How far you have moved toward the targets you set, weighted by your priorities.`,
   goalProgressLimits: msg`Reaching a target does not mean your health has improved. Goals you have not set are never counted against you.`,
@@ -67,8 +67,8 @@ export const READINESS_PROFILE_LABELS: Record<ReadinessProfile, MessageDescripto
 };
 
 export const READINESS_PROFILE_DESCRIPTIONS: Record<ReadinessProfile, MessageDescriptor> = {
-  physiology_enhanced: msg`Uses sleep and resting heart rate, plus recent activity when available. Typically needs a wearable.`,
-  manual_friendly: msg`Uses sleep and recent activity (steps), which can be entered by hand. Not comparable with an index that uses heart data.`,
+  physiology_enhanced: msg`Uses sleep and resting heart rate, plus recent activity, heart rate variability and how you feel when available. Typically needs a wearable.`,
+  manual_friendly: msg`Uses sleep and recent activity (steps), which can be entered by hand, plus how you feel when you rate your Mood. Not comparable with an index that uses heart data.`,
 };
 
 export const READINESS_INPUT_STATE_LABELS: Record<ReadinessInputState, MessageDescriptor> = {
@@ -76,7 +76,7 @@ export const READINESS_INPUT_STATE_LABELS: Record<ReadinessInputState, MessageDe
   ready_not_used: msg`Available, not part of this profile`,
   no_recent_value: msg`No recent data`,
   insufficient_baseline: msg`Not enough earlier days yet`,
-  not_supported_yet: msg`Not recorded by OpenValens yet`,
+  not_supported_yet: msg`Not part of this score yet`,
 };
 
 export const READINESS_WITHHELD_EXPLANATIONS: Record<ReadinessWithheldReason, MessageDescriptor> = {
@@ -102,6 +102,11 @@ export function formatReadinessValue(
     return `${Math.floor(total / 60)}h ${String(total % 60).padStart(2, "0")}m`;
   }
   if (unit === "bpm") return `${Math.round(value)} bpm`;
+  if (unit === "ms") return `${Math.round(value)} ms`;
+  if (unit === "rating") {
+    const rating = Math.round(value * 10) / 10;
+    return i18n._(msg`${rating} of 5`);
+  }
   const steps = thousands(value);
   return i18n._(msg({ message: `${steps} steps a day`, comment: "safety" }));
 }
@@ -137,6 +142,11 @@ export type ReadinessComponentView = {
   effectText: string | null;
   /** A counted part: its share of the index ("1 of 3 equal parts"). */
   weightText: string | null;
+  /**
+   * An optional part (HRV, the check-in) that did not count: listed in the
+   * one footnote line under the breakdown instead of its own row (scores#2).
+   */
+  inFootnote: boolean;
   accessibilityLabel: string;
 };
 
@@ -152,12 +162,16 @@ export type ReadinessView = {
   withheldExplanation: string | null;
   wouldHelpText: string | null;
   components: ReadinessComponentView[];
-  /** Inputs OpenValens does not record yet, folded into one line ("Not counted yet: …"). */
+  /**
+   * Optional parts that did not count, folded into one line ("Not part of
+   * this score yet: …"); each one's reason is its row's `detail`.
+   */
   notCountedText: string | null;
   versionText: string;
 };
 
-type ScoredInput = "sleep" | "resting_heart_rate" | "activity_load";
+/** Optional parts (0.2.0): when they do not count they share one footnote line. */
+const FOOTNOTE_INPUTS: readonly ReadinessInput[] = ["hrv", "check_in"];
 
 /**
  * Which way a counted part moves the index. A part is 0 to 100 with 50 for
@@ -165,7 +179,7 @@ type ScoredInput = "sleep" | "resting_heart_rate" | "activity_load";
  * the part score alone: above 50 adds to the index, below 50 lowers it.
  */
 const READINESS_EFFECTS: Record<
-  ScoredInput,
+  ReadinessInput,
   { adds: MessageDescriptor; lowers: MessageDescriptor }
 > = {
   sleep: {
@@ -180,16 +194,23 @@ const READINESS_EFFECTS: Record<
     adds: msg`Lighter than your usual days, so it adds to readiness.`,
     lowers: msg`Heavier than your usual days, so it lowers readiness.`,
   },
+  hrv: {
+    adds: msg`Higher than your usual, so it adds to readiness.`,
+    lowers: msg`Lower than your usual, so it lowers readiness.`,
+  },
+  check_in: {
+    adds: msg`You rated how you feel above the middle, so it adds to readiness.`,
+    lowers: msg`You rated how you feel below the middle, so it lowers readiness.`,
+  },
 };
-
-function isScoredInput(input: ReadinessInput): input is ScoredInput {
-  return input === "sleep" || input === "resting_heart_rate" || input === "activity_load";
-}
 
 function componentEffect(component: ReadinessComponent, i18n: I18n): string | null {
   const score = component.componentScore;
-  if (component.state !== "used" || score === null || !isScoredInput(component.input)) return null;
-  if (score === 50) return i18n._(msg`In line with your usual.`);
+  if (component.state !== "used" || score === null) return null;
+  if (score === 50)
+    return component.input === "check_in"
+      ? i18n._(msg`A middle rating, so it neither adds nor lowers.`)
+      : i18n._(msg`In line with your usual.`);
   const effects = READINESS_EFFECTS[component.input];
   return i18n._(score > 50 ? effects.adds : effects.lowers);
 }
@@ -198,11 +219,23 @@ function componentDetail(component: ReadinessComponent, i18n: I18n): string {
   if (component.state === "not_supported_yet") {
     return i18n._(msg`Not part of the score until OpenValens records it.`);
   }
+  if (component.input === "check_in") {
+    if (component.state === "no_recent_value")
+      return i18n._(
+        msg`Counts when you rate today on your Mood tracker (Trackers). One rating serves both.`,
+      );
+    const rating = formatReadinessValue(component.recentValue, component.unit, i18n);
+    return i18n._(msg`Your Mood rating today: ${rating}, from your Mood tracker.`);
+  }
   if (component.state === "no_recent_value") {
     const found = component.recentDays;
     return component.input === "activity_load"
       ? i18n._(msg`Needs steps on at least 2 of the last 3 full days (found ${found}).`)
-      : i18n._(msg`Nothing recorded for today or yesterday.`);
+      : component.input === "hrv"
+        ? i18n._(
+            msg`Nothing recorded for today or yesterday. It comes from a watch or ring that records it.`,
+          )
+        : i18n._(msg`Nothing recorded for today or yesterday.`);
   }
   const recent = formatReadinessValue(component.recentValue, component.unit, i18n);
   const days = component.baselineDays;
@@ -260,6 +293,9 @@ export function readinessView(result: ReadinessResult, i18n: I18n): ReadinessVie
       detail,
       effectText,
       weightText,
+      inFootnote:
+        !used &&
+        (component.state === "not_supported_yet" || FOOTNOTE_INPUTS.includes(component.input)),
       accessibilityLabel: effectText
         ? `${accessibilityLabel} ${effectText} ${weightText ?? ""}`.trim()
         : accessibilityLabel,
@@ -274,9 +310,9 @@ export function readinessView(result: ReadinessResult, i18n: I18n): ReadinessVie
   const helpList = listInputs(result.wouldHelp, i18n);
   const version = result.algorithmVersion;
   const asOf = result.asOf;
-  const notYet = result.components
-    .filter((component) => component.state === "not_supported_yet")
-    .map((component) => component.input);
+  const notYet = components
+    .filter((component) => component.inFootnote)
+    .map((component) => component.key);
   const notYetList = listInputs(notYet, i18n);
   return {
     title: i18n._(SCORE_COPY.readinessTitle),
@@ -302,7 +338,8 @@ export function readinessView(result: ReadinessResult, i18n: I18n): ReadinessVie
     wouldHelpText:
       result.wouldHelp.length > 0 ? i18n._(msg`More data for ${helpList} would help.`) : null,
     components,
-    notCountedText: notYet.length > 0 ? i18n._(msg`Not counted yet: ${notYetList}`) : null,
+    notCountedText:
+      notYet.length > 0 ? i18n._(msg`Not part of this score yet: ${notYetList}`) : null,
     versionText: i18n._(msg`Method ${version}, as of ${asOf}.`),
   };
 }
@@ -328,6 +365,8 @@ const COUNTED_INPUTS: readonly ReadinessCountedInput[] = [
   "sleep",
   "resting_heart_rate",
   "activity_load",
+  "hrv",
+  "check_in",
 ];
 
 /** Plain arithmetic over the history the server computed: no new scoring. */

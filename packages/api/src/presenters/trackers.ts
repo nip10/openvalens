@@ -66,6 +66,30 @@ export const TRACKER_TEMPLATE_COPY: Record<TrackerTemplateId, TrackerTemplateCop
   },
 };
 
+/**
+ * trackers#5 (owner decision 2026-11-16): today's rating on your own Mood
+ * tracker is also the readiness index's "How you feel" check-in. Mirrors
+ * `listDailyMoodRatings` in `@openvalens/trackers/check-in`.
+ */
+export function trackerIsReadinessCheckIn(tracker: {
+  template: TrackerTemplateId | null;
+  type: TrackerType;
+  owner: { isYou: boolean };
+  archivedAt?: unknown;
+}): boolean {
+  return (
+    tracker.template === "mood" &&
+    tracker.type === "scale" &&
+    tracker.owner.isYou &&
+    !tracker.archivedAt
+  );
+}
+
+export const TRACKER_CHECK_IN_COPY = {
+  label: msg`Also your readiness check-in`,
+  explanation: msg`Your rating today also counts as "How you feel" in the readiness index on Scores, so one tap serves both. 3 of 5 counts as the middle. Only today's rating counts.`,
+} as const;
+
 export const TRACKER_TYPE_LABELS: Record<TrackerType, MessageDescriptor> = {
   number: msg`Number`,
   scale: msg`1 to 5`,

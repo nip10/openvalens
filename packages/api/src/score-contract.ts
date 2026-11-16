@@ -11,12 +11,16 @@ import { z } from "zod";
  * never as zero or a default. Algorithm details: `docs/score-algorithm.md`.
  */
 
-export const READINESS_ALGORITHM_VERSION = "readiness-0.1.0-experimental";
+export const READINESS_ALGORITHM_VERSION = "readiness-0.2.0-experimental";
 export const GOAL_PROGRESS_ALGORITHM_VERSION = "goal-progress-0.3.0";
 
 // ─── readiness ─────────────────────────────────────────────────
 
-/** Every input readiness knows about, including ones not supported yet. */
+/**
+ * Every input readiness knows about. Since 0.2.0 (owner decision 2026-11-16)
+ * all five can count: `hrv` against your usual, as resting heart rate is, and
+ * `check_in` from today's rating on your Mood tracker.
+ */
 export const READINESS_INPUTS = [
   "sleep",
   "resting_heart_rate",
@@ -37,8 +41,11 @@ export const READINESS_PROFILE_INPUTS: Record<
   ReadinessProfile,
   { required: readonly ReadinessInput[]; optional: readonly ReadinessInput[] }
 > = {
-  physiology_enhanced: { required: ["sleep", "resting_heart_rate"], optional: ["activity_load"] },
-  manual_friendly: { required: ["sleep", "activity_load"], optional: [] },
+  physiology_enhanced: {
+    required: ["sleep", "resting_heart_rate"],
+    optional: ["activity_load", "hrv", "check_in"],
+  },
+  manual_friendly: { required: ["sleep", "activity_load"], optional: ["check_in"] },
 };
 
 /**
@@ -47,7 +54,8 @@ export const READINESS_PROFILE_INPUTS: Record<
  * - `ready_not_used`        — usable, but not part of the active profile.
  * - `no_recent_value`       — nothing recorded in the recent window.
  * - `insufficient_baseline` — too few earlier days to know your usual.
- * - `not_supported_yet`     — OpenValens does not record this input yet.
+ * - `not_supported_yet`     — not part of the score yet. Not produced since
+ *                             0.2.0; kept so older results still parse.
  */
 export const READINESS_INPUT_STATES = [
   "used",
@@ -58,7 +66,8 @@ export const READINESS_INPUT_STATES = [
 ] as const;
 export type ReadinessInputState = (typeof READINESS_INPUT_STATES)[number];
 
-export const READINESS_UNITS = ["minutes", "bpm", "steps_per_day"] as const;
+/** `ms` is heart rate variability (RMSSD); `rating` is the 1 to 5 Mood check-in. */
+export const READINESS_UNITS = ["minutes", "bpm", "steps_per_day", "ms", "rating"] as const;
 export type ReadinessUnit = (typeof READINESS_UNITS)[number];
 
 export const readinessComponentSchema = z.object({
@@ -81,7 +90,10 @@ export const readinessComponentSchema = z.object({
   baselineMinDays: z.number().int(),
   /** (recent − baseline) / baseline. */
   relativeDifference: z.number().nullable(),
-  /** 0–100 where 50 means "in line with your usual". */
+  /**
+   * 0–100 where 50 means "in line with your usual". The check-in has no usual:
+   * today's 1 to 5 rating maps straight onto the scale (3 of 5 is 50).
+   */
   componentScore: z.number().nullable(),
 });
 export type ReadinessComponent = z.infer<typeof readinessComponentSchema>;
@@ -115,8 +127,17 @@ export type ReadinessResult = z.infer<typeof readinessResultSchema>;
 /** Days in the readiness history, ending today. */
 export const READINESS_TREND_DAYS = 30;
 
-/** The inputs a day's index can count, keyed for the history's per-day parts. */
-export const READINESS_COUNTED_INPUTS = ["sleep", "resting_heart_rate", "activity_load"] as const;
+/**
+ * The inputs a day's index can count, keyed for the history's per-day parts.
+ * HRV and the check-in since 0.2.0.
+ */
+export const READINESS_COUNTED_INPUTS = [
+  "sleep",
+  "resting_heart_rate",
+  "activity_load",
+  "hrv",
+  "check_in",
+] as const;
 export type ReadinessCountedInput = (typeof READINESS_COUNTED_INPUTS)[number];
 
 /**
@@ -131,6 +152,8 @@ export const readinessHistoryDaySchema = z.object({
     sleep: z.number().nullable(),
     resting_heart_rate: z.number().nullable(),
     activity_load: z.number().nullable(),
+    hrv: z.number().nullable(),
+    check_in: z.number().nullable(),
   }),
 });
 export type ReadinessHistoryDay = z.infer<typeof readinessHistoryDaySchema>;

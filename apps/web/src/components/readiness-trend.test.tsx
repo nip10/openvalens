@@ -16,6 +16,8 @@ const parts = (sleep: number | null, rhr: number | null) => ({
   sleep,
   resting_heart_rate: rhr,
   activity_load: null,
+  hrv: null,
+  check_in: null,
 });
 
 function history(days: ReadinessHistory["days"]): ReadinessHistory {

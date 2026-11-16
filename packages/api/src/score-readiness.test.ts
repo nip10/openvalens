@@ -1,8 +1,9 @@
 import { describe, expect, test } from "bun:test";
 
-import { READINESS_ALGORITHM_VERSION } from "./score-contract";
+import { READINESS_ALGORITHM_VERSION, READINESS_PROFILE_INPUTS } from "./score-contract";
 import {
   computeReadiness,
+  evaluateCheckIn,
   evaluateReadinessInput,
   type DailyValue,
   type ReadinessSeries,
@@ -96,6 +97,38 @@ describe("readiness inputs", () => {
     expect(component.componentScore).toBeNull();
   });
 
+  test("HRV above the personal median raises its part (0.2.0)", () => {
+    const hrv = [...series(1, 28, () => 50), { date: AS_OF, value: 55 }];
+    const component = evaluateReadinessInput("hrv", hrv, AS_OF);
+    expect(component).toMatchObject({
+      state: "ready_not_used",
+      unit: "ms",
+      relativeDifference: 0.1,
+      componentScore: 60,
+    });
+  });
+
+  test("the check-in is today's Mood rating on 0–100, 3 of 5 is 50 (0.2.0)", () => {
+    expect(evaluateCheckIn([{ date: AS_OF, value: 1 }], AS_OF).componentScore).toBe(0);
+    expect(evaluateCheckIn([{ date: AS_OF, value: 3 }], AS_OF).componentScore).toBe(50);
+    expect(evaluateCheckIn([{ date: AS_OF, value: 5 }], AS_OF).componentScore).toBe(100);
+    // Two ratings averaged by the tracker: 3.5 → 63.
+    expect(evaluateCheckIn([{ date: AS_OF, value: 3.5 }], AS_OF)).toMatchObject({
+      state: "ready_not_used",
+      unit: "rating",
+      recentValue: 3.5,
+      recentDate: AS_OF,
+      baselineValue: null,
+      componentScore: 63,
+    });
+  });
+
+  test("yesterday's Mood rating or a value off the scale is not today's check-in", () => {
+    expect(evaluateCheckIn([{ date: day(1), value: 4 }], AS_OF).state).toBe("no_recent_value");
+    expect(evaluateCheckIn([{ date: AS_OF, value: 9 }], AS_OF).state).toBe("no_recent_value");
+    expect(evaluateCheckIn([], AS_OF).componentScore).toBeNull();
+  });
+
   test("activity needs steps on at least two of the last three full days", () => {
     const steps = [...series(4, 31, () => 8000), { date: day(2), value: 9000 }];
     const component = evaluateReadinessInput("activity_load", steps, AS_OF);
@@ -125,8 +158,8 @@ describe("computeReadiness", () => {
       ["sleep", "no_recent_value"],
       ["resting_heart_rate", "no_recent_value"],
       ["activity_load", "no_recent_value"],
-      ["hrv", "not_supported_yet"],
-      ["check_in", "not_supported_yet"],
+      ["hrv", "no_recent_value"],
+      ["check_in", "no_recent_value"],
     ]);
   });
 
@@ -137,10 +170,60 @@ describe("computeReadiness", () => {
     // (40 + 35 + 50) / 3
     expect(result.score).toBe(42);
     expect(result.coverage).toEqual({
-      profileInputs: ["sleep", "resting_heart_rate", "activity_load"],
+      profileInputs: ["sleep", "resting_heart_rate", "activity_load", "hrv", "check_in"],
       usedInputs: ["sleep", "resting_heart_rate", "activity_load"],
     });
     expect(result.wouldHelp).toEqual([]);
+  });
+
+  test("0.2.0: HRV and today's Mood rating count as optional parts", () => {
+    const hrv = [...series(1, 28, () => 50), { date: AS_OF, value: 45 }];
+    const result = computeReadiness(
+      {
+        sleepMinutes: sleep,
+        restingHeartRate: rhr,
+        steps,
+        hrv,
+        checkIn: [{ date: AS_OF, value: 4 }],
+      },
+      AS_OF,
+    );
+    expect(result.profile).toBe("physiology_enhanced");
+    expect(result.coverage.usedInputs).toEqual([
+      "sleep",
+      "resting_heart_rate",
+      "activity_load",
+      "hrv",
+      "check_in",
+    ]);
+    // (40 + 35 + 50 + 40 + 75) / 5
+    expect(result.score).toBe(48);
+    expect(result.components.find((c) => c.input === "hrv")).toMatchObject({
+      state: "used",
+      unit: "ms",
+      recentValue: 45,
+      baselineValue: 50,
+      componentScore: 40,
+    });
+  });
+
+  test("0.2.0: HRV or a check-in alone never makes a score appear", () => {
+    const hrv = [...series(1, 28, () => 50), { date: AS_OF, value: 50 }];
+    const result = computeReadiness({ ...EMPTY, hrv, checkIn: [{ date: AS_OF, value: 3 }] }, AS_OF);
+    expect(result.status).toBe("withheld");
+    expect(result.wouldHelp).toEqual(["sleep", "resting_heart_rate", "activity_load"]);
+    expect(result.components.find((c) => c.input === "check_in")?.state).toBe("ready_not_used");
+  });
+
+  test("0.2.0: the manual-friendly profile counts the check-in, not HRV", () => {
+    expect(READINESS_PROFILE_INPUTS.manual_friendly.optional).toEqual(["check_in"]);
+    const result = computeReadiness(
+      { sleepMinutes: sleep, restingHeartRate: [], steps, checkIn: [{ date: AS_OF, value: 2 }] },
+      AS_OF,
+    );
+    expect(result.profile).toBe("manual_friendly");
+    // (40 + 50 + 25) / 3
+    expect(result.score).toBe(38);
   });
 
   test("physiology-enhanced profile still scores without the optional activity input", () => {

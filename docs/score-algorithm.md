@@ -5,7 +5,7 @@ native drawer → Scores). They are never blended into one health score.
 
 | Number          | Version                        | Endpoint             | Permission     |
 | --------------- | ------------------------------ | -------------------- | -------------- |
-| Readiness index | `readiness-0.1.0-experimental` | `score.readiness`    | `records:read` |
+| Readiness index | `readiness-0.2.0-experimental` | `score.readiness`    | `records:read` |
 | Goal progress   | `goal-progress-0.3.0`          | `score.goalProgress` | `goals:read`   |
 
 Both are computed on the server on every request from the active workspace's
@@ -32,7 +32,16 @@ Scope is adults (18+, general wellness). When the signed-in person has
 answered the #98 eligibility question with "under 18", both scores are
 withheld (`adults_only`).
 
-## Readiness index — `readiness-0.1.0-experimental`
+## Readiness index — `readiness-0.2.0-experimental`
+
+**0.2.0 (owner decision 2026-11-16, scores#2 and trackers#5):** heart rate
+variability and the "How you feel" check-in became optional inputs. HRV is
+compared with your usual the same way as resting heart rate, but higher than
+usual raises its part. The check-in is today's rating on your own Mood tracker,
+so one tap serves both. Both are optional: they add a part when present and
+never decide whether a score appears. When they did not count, the Scores
+screen lists them in one footnote line ("Not part of this score yet: …") with
+the reason behind its ⓘ, instead of two empty rows. 0.1.0 had neither.
 
 ### Inputs
 
@@ -41,10 +50,17 @@ withheld (`adults_only`).
 | `sleep`              | `@openvalens/sleep` daily summaries, `asleepMinutes` (UTC wake date) | latest night dated today or yesterday                                | median of the 28 days before it, ≥ 7 with data   | +100                           |
 | `resting_heart_rate` | `@openvalens/vitals` daily average resting heart rate                | latest day, today or yesterday                                       | median of the 28 days before it, ≥ 7 with data   | −300                           |
 | `activity_load`      | `@openvalens/activity` daily steps                                   | mean of the last three complete days (today excluded), ≥ 2 with data | median of the 28 days before them, ≥ 7 with data | −50                            |
-| `hrv`                | not stored by OpenValens yet                                         | —                                                                    | —                                                | not used                       |
-| `check_in`           | not collected yet                                                    | —                                                                    | —                                                | not used                       |
+| `hrv`                | `@openvalens/vitals` daily average `hrv_rmssd` (ms)                  | latest day, today or yesterday                                       | median of the 28 days before it, ≥ 7 with data   | +100                           |
+| `check_in`           | the viewer's own Mood tracker (`template = mood`, not archived)      | the day's average rating dated today only (`listDailyMoodRatings`)   | none                                             | see below                      |
 
 A missing or non-positive day is unknown, never zero.
+
+The check-in has no usual: today's rating maps straight onto the part,
+`component = (rating − 1) × 25` (1 → 0, 3 → 50, 5 → 100), rounded. Several
+ratings on one day are averaged, as the tracker does. Only a tracker made from
+the Mood template counts, only the viewer's own (never a shared tracker of
+someone else's), and only while it is not archived. The tracker's local day is
+compared with the UTC `asOf` date, the same simplification as sleep days.
 
 ### Component and index
 
@@ -59,10 +75,12 @@ weights exist.
 
 ### Scoring profiles
 
-| Profile               | Required                      | Optional        |
-| --------------------- | ----------------------------- | --------------- |
-| `physiology_enhanced` | `sleep`, `resting_heart_rate` | `activity_load` |
-| `manual_friendly`     | `sleep`, `activity_load`      | —               |
+| Profile               | Required                      | Optional                           |
+| --------------------- | ----------------------------- | ---------------------------------- |
+| `physiology_enhanced` | `sleep`, `resting_heart_rate` | `activity_load`, `hrv`, `check_in` |
+| `manual_friendly`     | `sleep`, `activity_load`      | `check_in`                         |
+
+`wouldHelp` names only the three inputs a profile can require.
 
 The first profile whose required inputs are all ready is used
 (physiology-enhanced first). The active profile is always returned and shown;
@@ -75,7 +93,9 @@ with manually entered sleep and steps.
 ### Input states
 
 `used`, `ready_not_used` (ready, but not in the active profile),
-`no_recent_value`, `insufficient_baseline`, `not_supported_yet`.
+`no_recent_value`, `insufficient_baseline`, `not_supported_yet` (not produced
+since 0.2.0; kept so older results still parse, shown as "Not part of this
+score yet").
 
 ## Goal progress — `goal-progress-0.3.0`
 
@@ -156,6 +176,28 @@ low 1, normal 2, high 3 (unset counts as normal). Each goal's own progress,
 weight share (`contribution`) and flag are returned beside the total. With no
 scored goals the total is withheld (`no_goals` / `no_measurable_goals`).
 
+## Goals screen: estimate and ideas (owner decision 2026-11-16)
+
+Neither changes the goal-progress number; both sit on the Goals screens (web
+and native) with their method behind an ⓘ.
+
+- **"On track for <date> (estimate)"** (goals#4, `projectGoalTarget` in
+  `@openvalens/plans/goal-projection`): one-time targets only. A least-squares
+  straight line through the goal's own recorded days of the last 28 days,
+  carried forward from the current value to the target. Hidden with fewer
+  than 4 recorded days, days spanning under a week, a flat or wrong-way trend,
+  a target already met, or a date more than 365 days out. Always labelled an
+  estimate.
+- **Ideas from your records** (goals#7, `goals.suggestions`,
+  `@openvalens/plans/goal-suggestions`): from the signed-in member's own
+  records of the last 28 days, read through the same evidence the goal would
+  count. Sleep: the median night (≥ 7 nights) rounded up to the next half
+  hour, as a 7-day average. Water: the median day with water logged (≥ 7 days)
+  rounded up to the next 250 ml, as a daily goal. A supplement taken on at
+  least 14 of the 28 days: take it every day. Ideas already covered by a goal
+  (same source and metric) and ideas from a switched-off module are left out;
+  at most 3 show. A tap opens the editor filled in; nothing is stored.
+
 ## Storage, versioning and privacy
 
 - Scores are **not stored or cached**: each request recomputes from current
@@ -171,7 +213,9 @@ scored goals the total is withheld (`no_goals` / `no_measurable_goals`).
 
 - No stored score history yet, so there are no annotated version boundaries
   when goals, priorities, devices or profiles change.
-- HRV and a subjective check-in are listed but not recorded yet.
+- HRV and the Mood check-in count from 0.2.0. Their constants (+100 points
+  per relative change for HRV, 25 points per rating step) are product
+  choices with no validated weights behind them.
 - Sleep days use the UTC wake date (as `@openvalens/sleep` does).
 - No comprehension testing or stability evaluation has been done; this is
   required before the readiness index loses its experimental label.

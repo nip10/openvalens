@@ -13,6 +13,7 @@ import {
   type GoalEvaluation,
   type GoalSummary,
 } from "@openvalens/plans";
+import type { GoalSuggestion } from "@openvalens/plans/goal-suggestions";
 import { getPersonalSleepDailyEvidence } from "@openvalens/sleep/queries";
 import { z } from "zod";
 import type { Context } from "../context";
@@ -251,6 +252,35 @@ const checkinDeleteInput = z.strictObject({
   version: versionNumber,
   clientMutationId: uuid,
 });
+const suggestionsInput = z.strictObject({ timeZone: z.string().min(1).max(64) });
+const suggestionShape: z.ZodType<GoalSuggestion> = z.union([
+  z.object({
+    kind: z.literal("sleep"),
+    source: z.literal("sleep"),
+    metric: z.literal("sleep_hours"),
+    unit: z.literal("h"),
+    target: z.number(),
+    usual: z.number(),
+    days: z.number().int(),
+  }),
+  z.object({
+    kind: z.literal("water"),
+    source: z.literal("water"),
+    metric: z.literal("water_ml"),
+    unit: z.literal("ml"),
+    target: z.number(),
+    usual: z.number(),
+    days: z.number().int(),
+  }),
+  z.object({
+    kind: z.literal("supplement"),
+    source: z.literal("supplement"),
+    metric: z.string(),
+    unit: z.null(),
+    supplementName: z.string(),
+    days: z.number().int(),
+  }),
+]);
 const configureLegacyInput = z.strictObject({
   id: positiveId,
   version: versionNumber,
@@ -338,6 +368,19 @@ export const goalsRouter = {
     .input(listInput)
     .output(z.array(goalSummaryShape))
     .handler(({ context }) => repository(context, context.authz).list()),
+  /**
+   * goals#7 (owner decision 2026-11-16): goal ideas from the signed-in
+   * member's own sleep, water and supplement records of the last four weeks.
+   * Read-only; nothing is stored. The client leaves out ideas it already has
+   * a goal for (`freshGoalSuggestions`).
+   */
+  suggestions: permissionedProcedure({ resource: "goals", action: "read" })
+    .use(validateInput(suggestionsInput))
+    .input(suggestionsInput)
+    .output(z.array(suggestionShape))
+    .handler(({ input, context }) =>
+      repository(context, context.authz).suggestions(input.timeZone),
+    ),
   detail: permissionedProcedure({ resource: "goals", action: "read" })
     .use(validateInput(detailInput))
     .input(detailInput)

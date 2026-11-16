@@ -226,6 +226,16 @@ function ScoreCardView({
               />
             ))}
           </View>
+          {card.footnote ? (
+            <View className="flex-row flex-wrap items-center gap-1 border-t border-rule pt-3">
+              <Text className="shrink font-sans text-sm text-ink-3">{card.footnote.text}</Text>
+              <InfoTip title={card.footnote.text}>
+                {card.footnote.tip.map((line) => (
+                  <Prose key={line}>{line}</Prose>
+                ))}
+              </InfoTip>
+            </View>
+          ) : null}
         </View>
       ) : null}
     </Sheet>

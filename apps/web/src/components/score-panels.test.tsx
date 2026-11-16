@@ -31,8 +31,11 @@ describe("score panels (web)", () => {
     expect(html).toContain("not enough recent data");
     expect(html).toContain("Experimental readiness index not available.");
     // HRV and the check-in fold into one line; their state stays behind its ⓘ.
-    expect(html).toContain("Not counted yet: Heart rate variability and How you feel (check-in)");
-    expect(html).toContain("Not recorded by OpenValens yet");
+    expect(html).toContain(
+      "Not part of this score yet: Heart rate variability and How you feel (check-in)",
+    );
+    expect(html).toContain("Counts when you rate today on your Mood tracker");
+    expect(html).not.toContain("Not recorded by OpenValens yet");
     for (const label of [
       "Sleep",
       "Resting heart rate",
@@ -73,5 +76,24 @@ describe("score panels (web)", () => {
       "Less sleep than your usual, so it lowers readiness. 1 of 3 equal parts.",
     );
     expect(html).toContain("Higher than your usual, so it lowers readiness.");
+  });
+
+  test("a Mood rating today is the check-in, shown as its own counted row (trackers#5)", () => {
+    const sleep = [...series(1, 28, 450), { date: AS_OF, value: 405 }];
+    const restingHeartRate = [...series(1, 28, 60), { date: AS_OF, value: 63 }];
+    const steps = [...series(4, 31, 8000), ...series(1, 3, 8000)];
+    const html = renderToStaticMarkup(
+      <ReadinessCard
+        result={computeReadiness(
+          { sleepMinutes: sleep, restingHeartRate, steps, checkIn: [{ date: AS_OF, value: 4 }] },
+          AS_OF,
+        )}
+      />,
+    );
+    expect(html).toContain("Your Mood rating today: 4 of 5, from your Mood tracker.");
+    expect(html).toContain("You rated how you feel above the middle, so it adds to readiness.");
+    // Only HRV is left for the footnote.
+    expect(html).toContain("Not part of this score yet: Heart rate variability");
+    expect(html).not.toContain("Not part of this score yet: Heart rate variability and");
   });
 });

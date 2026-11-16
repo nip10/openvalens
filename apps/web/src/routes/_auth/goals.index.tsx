@@ -2,7 +2,7 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import type { I18n } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import type { GoalSummary } from "@openvalens/plans/personal-goals";
-import type { GoalComparator, GoalRule } from "@openvalens/plans/goal-model";
+import type { GoalComparator, GoalDefinition, GoalRule } from "@openvalens/plans/goal-model";
 import { Button } from "@openvalens/ui/components/button";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
@@ -25,6 +25,7 @@ import { useLogDialog } from "@/components/quick-log/log-launcher";
 import { orpc } from "@/utils/orpc";
 import { GoalCheckinDialog } from "./-goal-checkin-dialog";
 import { GoalEditor } from "./-goal-editor";
+import { GoalIdeas, GoalProjectionLine } from "./-goal-ideas";
 import {
   formatGoalValue,
   goalDate,
@@ -56,6 +57,12 @@ function GoalsPage() {
   const client = useQueryClient();
   const goals = useQuery(orpc.goals.list.queryOptions({ input: {} }));
   const [creating, setCreating] = useState(false);
+  // goals#7: an idea chip opens the editor with the idea filled in.
+  const [seed, setSeed] = useState<GoalDefinition | undefined>();
+  const startGoal = (next?: GoalDefinition) => {
+    setSeed(next);
+    setCreating(true);
+  };
   const [checkin, setCheckin] = useState<{ goalId: number | null } | null>(null);
   const refresh = () => void client.invalidateQueries({ queryKey: orpc.goals.key() });
   const setStatus = useMutation(orpc.goals.setStatus.mutationOptions({ onSuccess: refresh }));
@@ -100,13 +107,20 @@ function GoalsPage() {
   const createDialog = (
     <FormDialog
       open={creating}
-      onOpenChange={setCreating}
+      onOpenChange={(open) => {
+        setCreating(open);
+        if (!open) setSeed(undefined);
+      }}
       size="lg"
       title={<Trans>New goal</Trans>}
     >
+      {creating && !seed ? <GoalIdeas bare goals={goals.data ?? []} onPick={setSeed} /> : null}
       {creating ? (
         <GoalEditor
+          key={seed?.id ?? "blank"}
+          seed={seed}
           onSaved={() => {
+            setSeed(undefined);
             setCreating(false);
             refresh();
           }}
@@ -204,6 +218,7 @@ function GoalsPage() {
           />
         )}
       </Section>
+      <GoalIdeas goals={goals.data} onPick={startGoal} />
       <GoalGroup
         title={t`Paused`}
         goals={paused}
@@ -282,6 +297,7 @@ function GoalCard({
         </StatusPill>
       </div>
       <RuleProgress goal={goal} />
+      <GoalProjectionLine goal={goal} />
       {cue ? <p className="text-sm text-ink-3">{cue}</p> : null}
       <div className="mt-auto flex items-center gap-2 border-t border-rule pt-3">
         <Link

@@ -1311,4 +1311,87 @@ describe.skipIf(!url)("personal goals authenticated PostgreSQL API", () => {
     ]);
     expect(await goalsFor({ nutrition: true }, "user-b")).toBe("no_data");
   });
+
+  test("goal ideas come from the member's own last four weeks only (goals#7)", async () => {
+    const day = (offset: number) =>
+      new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
+    const at = (offset: number, hour: number) =>
+      new Date(Date.parse(`${day(offset)}T00:00:00.000Z`) + hour * 3_600_000);
+    const vitaminD = (
+      await db.execute(sql`insert into supplement (name) values ('Vitamin D') returning id`)
+    ).rows[0]!.id as number;
+    const magnesium = (
+      await db.execute(sql`insert into supplement (name) values ('Magnesium') returning id`)
+    ).rows[0]!.id as number;
+    for (let offset = 1; offset <= 10; offset += 1) {
+      // 7h 12m a night for ten nights.
+      await insertManualSleepSession(db, {
+        organizationId: "org-a",
+        userId: "user-a",
+        startAt: new Date(at(-offset, 7).getTime() - 432 * 60_000).toISOString(),
+        endAt: at(-offset, 7).toISOString(),
+        quality: null,
+        dedupeHash: `idea-sleep-${offset}`,
+      });
+      // 1,800 ml of water on eight days, in two drinks.
+      if (offset <= 8)
+        await db.execute(sql`insert into plain_water_entry
+          (organization_id, user_id, quantity_ml, observed_at, time_zone, client_mutation_id)
+          values ('org-a', 'user-a', 1000, ${at(-offset, 9)}, 'UTC', ${`idea-w-${offset}-a`}),
+                 ('org-a', 'user-a', 800, ${at(-offset, 15)}, 'UTC', ${`idea-w-${offset}-b`})`);
+    }
+    // Vitamin D on 16 of the last 28 days, magnesium on 5, and an old streak that no longer counts.
+    for (let offset = 1; offset <= 16; offset += 1)
+      await db.execute(sql`insert into supplement_intake
+        (organization_id, user_id, supplement_id, occurred_at, timezone, dose)
+        values ('org-a', 'user-a', ${vitaminD}, ${at(-offset, 8)}, 'UTC', '1 cap')`);
+    for (let offset = 1; offset <= 5; offset += 1)
+      await db.execute(sql`insert into supplement_intake
+        (organization_id, user_id, supplement_id, occurred_at, timezone, dose)
+        values ('org-a', 'user-a', ${magnesium}, ${at(-offset, 21)}, 'UTC', '1 cap')`);
+    for (let offset = 40; offset <= 70; offset += 1)
+      await db.execute(sql`insert into supplement_intake
+        (organization_id, user_id, supplement_id, occurred_at, timezone, dose)
+        values ('org-a', 'user-a', ${magnesium}, ${at(-offset, 21)}, 'UTC', '1 cap')`);
+
+    const own = await call("suggestions", { timeZone: "UTC" });
+    expect(own.status).toBe(200);
+    expect(own.body).toEqual([
+      {
+        kind: "sleep",
+        source: "sleep",
+        metric: "sleep_hours",
+        unit: "h",
+        target: 7.5,
+        usual: 7.2,
+        days: 10,
+      },
+      {
+        kind: "water",
+        source: "water",
+        metric: "water_ml",
+        unit: "ml",
+        target: 2000,
+        usual: 1800,
+        days: 8,
+      },
+      {
+        kind: "supplement",
+        source: "supplement",
+        metric: `supplement:${vitaminD}`,
+        unit: null,
+        supplementName: "Vitamin D",
+        days: 16,
+      },
+    ]);
+    // An unknown zone falls back to UTC instead of failing.
+    expect((await call("suggestions", { timeZone: "Not/AZone" })).body).toEqual(own.body);
+    // Another member of the same workspace, and another workspace, see none of it.
+    expect((await call("suggestions", { timeZone: "UTC" }, "user-b")).body).toEqual([]);
+    expect((await call("suggestions", { timeZone: "UTC" }, "user-c")).body).toEqual([]);
+    // The input is strict: no client-chosen member or workspace.
+    expect(
+      (await call("suggestions", { timeZone: "UTC", userId: "user-b" }, "user-a")).status,
+    ).toBe(400);
+  });
 });

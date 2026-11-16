@@ -1313,6 +1313,7 @@ msgstr "{ratedWithDuration, plural, one {From # rated session.} other {From # ra
 msgid "{rating} of {max}"
 msgstr "{rating} of {max}"
 
+#: packages/api/src/presenters/score.ts
 #: packages/api/src/presenters/trackers.ts
 msgid "{rating} of 5"
 msgstr "{rating} of 5"
@@ -1840,6 +1841,10 @@ msgstr "A measure you will enter"
 #: apps/web/src/components/telegram-channel.tsx
 msgid "A message names the item, such as a medication, and never a measurement. Anyone who can read your Telegram can see it."
 msgstr "A message names the item, such as a medication, and never a measurement. Anyone who can read your Telegram can see it."
+
+#: packages/api/src/presenters/score.ts
+msgid "A middle rating, so it neither adds nor lowers."
+msgstr "A middle rating, so it neither adds nor lowers."
 
 #: packages/email/src/templates/ai-app-connected.tsx
 msgid "A new AI app was connected to {productName}"
@@ -2803,6 +2808,10 @@ msgstr "Already have an account? <0>Sign in</0>"
 msgid "Also recorded"
 msgstr "Also recorded"
 
+#: packages/api/src/presenters/trackers.ts
+msgid "Also your readiness check-in"
+msgstr "Also your readiness check-in"
+
 #. safety
 #: packages/api/src/presenters/coach-settings.ts
 msgid "Always"
@@ -2859,13 +2868,17 @@ msgstr "An app that can read your records was just connected."
 msgid "An estimate is not available yet."
 msgstr "An estimate is not available yet."
 
+#: packages/api/src/presenters/goal-ideas.ts
+msgid "An estimate, not a promise: a straight line through your values from the last 4 weeks, carried forward to your target. It needs at least 4 days with a value, a week apart or more, and a trend that moves toward the target. It changes as you log."
+msgstr "An estimate, not a promise: a straight line through your values from the last 4 weeks, carried forward to your target. It needs at least 4 days with a value, a week apart or more, and a trend that moves toward the target. It changes as you log."
+
 #: apps/web/src/components/workout-session-editor.tsx
 msgid "An exercise can have at most 100 sets."
 msgstr "An exercise can have at most 100 sets."
 
 #: packages/api/src/presenters/score.ts
-msgid "An experimental summary of how your recent sleep, resting heart rate and activity compare with your own usual pattern."
-msgstr "An experimental summary of how your recent sleep, resting heart rate and activity compare with your own usual pattern."
+msgid "An experimental summary of how your recent sleep, resting heart rate, heart rate variability and activity compare with your own usual pattern, plus how you feel today on your Mood tracker."
+msgstr "An experimental summary of how your recent sleep, resting heart rate, heart rate variability and activity compare with your own usual pattern, plus how you feel today on your Mood tracker."
 
 #. safety
 #: packages/api/src/presenters/preventive-care.ts
@@ -6260,6 +6273,10 @@ msgstr "Counts days with at least one diary entry. It is about the habit of logg
 msgid "Counts the days with a yes."
 msgstr "Counts the days with a yes."
 
+#: packages/api/src/presenters/score.ts
+msgid "Counts when you rate today on your Mood tracker (Trackers). One rating serves both."
+msgstr "Counts when you rate today on your Mood tracker (Trackers). One rating serves both."
+
 #: apps/web/src/components/micronutrient-summary.tsx
 #: apps/web/src/components/nutrition-day-totals.tsx
 msgid "Coverage"
@@ -7350,6 +7367,10 @@ msgstr "Drag to move, or use the actions to move up or down."
 msgid "Drag to reorder. Tap an exercise to go to it."
 msgstr "Drag to reorder. Tap an exercise to go to it."
 
+#: packages/api/src/presenters/goal-ideas.ts
+msgid "Drink {amount} ml of water a day"
+msgstr "Drink {amount} ml of water a day"
+
 #: packages/api/src/presenters/drinks.ts
 msgid "Drink shortcuts need the USDA FoodData Central catalog on this server. Your server operator can import it; until then, search for the drink or add it by hand."
 msgstr "Drink shortcuts need the USDA FoodData Central catalog on this server. Your server operator can import it; until then, search for the drink or add it by hand."
@@ -7417,9 +7438,13 @@ msgstr "Each daily mood you log in Apple Health becomes a 1 to 5 entry. Momentar
 msgid "Each goal's progress is how far you have moved from its starting value toward its target, capped at 100% once reached. The total weighs each counted goal by its priority (low 1, normal 2, high 3). Paused or cancelled goals, and goals without a target, current value or direction, are left out instead of counted as zero."
 msgstr "Each goal's progress is how far you have moved from its starting value toward its target, capped at 100% once reached. The total weighs each counted goal by its priority (low 1, normal 2, high 3). Paused or cancelled goals, and goals without a target, current value or direction, are left out instead of counted as zero."
 
+#: packages/api/src/presenters/goal-ideas.ts
+msgid "Each idea starts from your own usual over the last 4 weeks, rounded to a round number: the middle night of sleep, the middle day of water you logged, or a supplement you took on at least half the days. Tap one to open a new goal with it filled in. You can change anything before you save, and nothing is saved until you do."
+msgstr "Each idea starts from your own usual over the last 4 weeks, rounded to a round number: the middle night of sleep, the middle day of water you logged, or a supplement you took on at least half the days. Tap one to open a new goal with it filled in. You can change anything before you save, and nothing is saved until you do."
+
 #: packages/api/src/presenters/score.ts
-msgid "Each input is compared with your own median over the 28 days before it (at least 7 days with data are needed). 50 means in line with your usual. More sleep than usual raises that part; a higher resting heart rate, or a heavier recent activity load than usual, lowers its part. The index is the plain average of the parts your profile uses."
-msgstr "Each input is compared with your own median over the 28 days before it (at least 7 days with data are needed). 50 means in line with your usual. More sleep than usual raises that part; a higher resting heart rate, or a heavier recent activity load than usual, lowers its part. The index is the plain average of the parts your profile uses."
+msgid "Each measured input is compared with your own median over the 28 days before it (at least 7 days with data are needed). 50 means in line with your usual. More sleep or a higher heart rate variability than usual raises that part; a higher resting heart rate, or a heavier recent activity load than usual, lowers its part. How you feel is today's rating on your Mood tracker: 3 of 5 counts as 50, and each step up or down moves it by 25. Heart rate variability and how you feel count only when you have them; without them the index still works. The index is the plain average of the parts your profile uses."
+msgstr "Each measured input is compared with your own median over the 28 days before it (at least 7 days with data are needed). 50 means in line with your usual. More sleep or a higher heart rate variability than usual raises that part; a higher resting heart rate, or a heavier recent activity load than usual, lowers its part. How you feel is today's rating on your Mood tracker: 3 of 5 counts as 50, and each step up or down moves it by 25. Heart rate variability and how you feel count only when you have them; without them the index still works. The index is the plain average of the parts your profile uses."
 
 #: apps/native/components/goal-editor.tsx
 #: apps/web/src/routes/_auth/-goal-editor.tsx
@@ -9334,6 +9359,10 @@ msgid "Higher protein options appear when you turn on the active reference."
 msgstr "Higher protein options appear when you turn on the active reference."
 
 #: packages/api/src/presenters/score.ts
+msgid "Higher than your usual, so it adds to readiness."
+msgstr "Higher than your usual, so it adds to readiness."
+
+#: packages/api/src/presenters/score.ts
 msgid "Higher than your usual, so it lowers readiness."
 msgstr "Higher than your usual, so it lowers readiness."
 
@@ -9669,6 +9698,10 @@ msgstr "I'll enter things myself"
 #: apps/web/src/components/trackers/tracker-editor.tsx
 msgid "Icon"
 msgstr "Icon"
+
+#: packages/api/src/presenters/goal-ideas.ts
+msgid "Ideas from your records"
+msgstr "Ideas from your records"
 
 #: apps/web/src/components/coach-ideas.tsx
 msgid "Ideas to ask"
@@ -11357,6 +11390,10 @@ msgstr "Lower fat"
 #: packages/api/src/presenters/score.ts
 msgid "Lower than your usual, so it adds to readiness."
 msgstr "Lower than your usual, so it adds to readiness."
+
+#: packages/api/src/presenters/score.ts
+msgid "Lower than your usual, so it lowers readiness."
+msgstr "Lower than your usual, so it lowers readiness."
 
 #. placeholder {0}: formatPercent(summary.latestOxygenSaturation.minPercent)
 #. placeholder {1}: friendlyDate(i18n, summary.latestOxygenSaturation.date)
@@ -13123,10 +13160,6 @@ msgstr "Not connected"
 msgid "Not counted (no catalog muscles)"
 msgstr "Not counted (no catalog muscles)"
 
-#: packages/api/src/presenters/score.ts
-msgid "Not counted yet: {notYetList}"
-msgstr "Not counted yet: {notYetList}"
-
 #: apps/native/app/(drawer)/goals/[goalId].tsx
 #: apps/web/src/routes/_auth/goals.$goalId.tsx
 msgid "Not done"
@@ -13195,6 +13228,14 @@ msgstr "Not now"
 msgid "Not part of the score until OpenValens records it."
 msgstr "Not part of the score until OpenValens records it."
 
+#: packages/api/src/presenters/score.ts
+msgid "Not part of this score yet"
+msgstr "Not part of this score yet"
+
+#: packages/api/src/presenters/score.ts
+msgid "Not part of this score yet: {notYetList}"
+msgstr "Not part of this score yet: {notYetList}"
+
 #: apps/web/src/components/admin-ai-usage.tsx
 msgid "not priced"
 msgstr "not priced"
@@ -13234,10 +13275,6 @@ msgstr "Not recommended (USPSTF D)"
 #: packages/api/src/presenters/preventive-care.ts
 msgid "Not recommended without a specific reason"
 msgstr "Not recommended without a specific reason"
-
-#: packages/api/src/presenters/score.ts
-msgid "Not recorded by OpenValens yet"
-msgstr "Not recorded by OpenValens yet"
 
 #: apps/web/src/components/admin-backup-status.tsx
 #: apps/web/src/components/onboarding/server-checklist.tsx
@@ -13444,6 +13481,10 @@ msgstr "Nothing matches."
 #: packages/api/src/presenters/score.ts
 msgid "Nothing recorded for today or yesterday."
 msgstr "Nothing recorded for today or yesterday."
+
+#: packages/api/src/presenters/score.ts
+msgid "Nothing recorded for today or yesterday. It comes from a watch or ring that records it."
+msgstr "Nothing recorded for today or yesterday. It comes from a watch or ring that records it."
 
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "Nothing recorded in the last 7 days."
@@ -13779,6 +13820,10 @@ msgstr "On"
 #: apps/web/src/components/ai-workspace-consent-card.tsx
 msgid "On for this workspace"
 msgstr "On for this workspace"
+
+#: packages/api/src/presenters/goal-ideas.ts
+msgid "On track for {date} (estimate)"
+msgstr "On track for {date} (estimate)"
 
 #: apps/web/src/components/ai-apps-settings-card.tsx
 msgid "On. Only the workspace owner can change this."
@@ -17859,6 +17904,10 @@ msgstr "sleep"
 msgid "Sleep"
 msgstr "Sleep"
 
+#: packages/api/src/presenters/goal-ideas.ts
+msgid "Sleep {hours} h a night"
+msgstr "Sleep {hours} h a night"
+
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
 msgid "Sleep 7 to 9 hours most nights"
 msgstr "Sleep 7 to 9 hours most nights"
@@ -18677,6 +18726,10 @@ msgstr "Systolic {systolicMin}–{systolicMax}, diastolic {diastolicMin}–{dias
 #: apps/web/src/components/quick-log/quick-form.tsx
 msgid "Systolic must be higher than diastolic."
 msgstr "Systolic must be higher than diastolic."
+
+#: packages/api/src/presenters/goal-ideas.ts
+msgid "Take {name} every day"
+msgstr "Take {name} every day"
 
 #: packages/api/src/presenters/food-logger-capture.ts
 msgid "Take a meal photo"
@@ -20938,12 +20991,12 @@ msgid "Uses heart data from your watch"
 msgstr "Uses heart data from your watch"
 
 #: packages/api/src/presenters/score.ts
-msgid "Uses sleep and recent activity (steps), which can be entered by hand. Not comparable with an index that uses heart data."
-msgstr "Uses sleep and recent activity (steps), which can be entered by hand. Not comparable with an index that uses heart data."
+msgid "Uses sleep and recent activity (steps), which can be entered by hand, plus how you feel when you rate your Mood. Not comparable with an index that uses heart data."
+msgstr "Uses sleep and recent activity (steps), which can be entered by hand, plus how you feel when you rate your Mood. Not comparable with an index that uses heart data."
 
 #: packages/api/src/presenters/score.ts
-msgid "Uses sleep and resting heart rate, plus recent activity when available. Typically needs a wearable."
-msgstr "Uses sleep and resting heart rate, plus recent activity when available. Typically needs a wearable."
+msgid "Uses sleep and resting heart rate, plus recent activity, heart rate variability and how you feel when available. Typically needs a wearable."
+msgstr "Uses sleep and resting heart rate, plus recent activity, heart rate variability and how you feel when available. Typically needs a wearable."
 
 #: packages/api/src/presenters/score.ts
 msgid "Uses sleep and steps"
@@ -21989,6 +22042,10 @@ msgstr "You have used this month's AI coach allowance. It resets on {date}."
 msgid "You haven't added this yet."
 msgstr "You haven't added this yet."
 
+#: packages/api/src/presenters/goal-ideas.ts
+msgid "You logged it on {days} of the last {window} days"
+msgstr "You logged it on {days} of the last {window} days"
+
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "You marked this day complete with nothing logged."
 msgstr "You marked this day complete with nothing logged."
@@ -21996,6 +22053,14 @@ msgstr "You marked this day complete with nothing logged."
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "You marked this day complete."
 msgstr "You marked this day complete."
+
+#: packages/api/src/presenters/score.ts
+msgid "You rated how you feel above the middle, so it adds to readiness."
+msgstr "You rated how you feel above the middle, so it adds to readiness."
+
+#: packages/api/src/presenters/score.ts
+msgid "You rated how you feel below the middle, so it lowers readiness."
+msgstr "You rated how you feel below the middle, so it lowers readiness."
 
 #: packages/email/src/templates/magic-link.tsx
 msgid "You requested a secure sign-in link for {appName}."
@@ -22261,6 +22326,10 @@ msgstr "Your latest OpenValens Cloud payment didn’t go through."
 msgid "Your modules"
 msgstr "Your modules"
 
+#: packages/api/src/presenters/score.ts
+msgid "Your Mood rating today: {rating}, from your Mood tracker."
+msgstr "Your Mood rating today: {rating}, from your Mood tracker."
+
 #: apps/web/src/routes/_auth/exports.tsx
 msgid "Your most recent health events and measurements in one structured file that another health app can read. For everything, use the full backup."
 msgstr "Your most recent health events and measurements in one structured file that another health app can read. For everything, use the full backup."
@@ -22361,6 +22430,10 @@ msgstr "Your profile was changed somewhere else. We've loaded the latest version
 #: packages/api/src/presenters/trackers.ts
 msgid "Your rating"
 msgstr "Your rating"
+
+#: packages/api/src/presenters/trackers.ts
+msgid "Your rating today also counts as \"How you feel\" in the readiness index on Scores, so one tap serves both. 3 of 5 counts as the middle. Only today's rating counts."
+msgstr "Your rating today also counts as \"How you feel\" in the readiness index on Scores, so one tap serves both. 3 of 5 counts as the middle. Only today's rating counts."
 
 #: packages/api/src/presenters/pain.ts
 msgid "Your ratings for this region, newest first, with the workouts you logged that day or the two days before."
@@ -22511,6 +22584,14 @@ msgstr "Your usual: {0}"
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "Your usual: {usual} ({median})."
 msgstr "Your usual: {usual} ({median})."
+
+#: packages/api/src/presenters/goal-ideas.ts
+msgid "Your usual: {usual} a night"
+msgstr "Your usual: {usual} a night"
+
+#: packages/api/src/presenters/goal-ideas.ts
+msgid "Your usual: {usual} ml on days you log water"
+msgstr "Your usual: {usual} ml on days you log water"
 
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "Your values include device readings. Devices often measure resting heart rate during sleep, which likely reads lower than the seated pulse used in the reference, so this band may place you lower than a seated reading would."

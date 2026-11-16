@@ -2,7 +2,7 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import type { I18n } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import type { GoalSummary } from "@openvalens/plans/personal-goals";
-import type { GoalComparator, GoalRule } from "@openvalens/plans/goal-model";
+import type { GoalComparator, GoalDefinition, GoalRule } from "@openvalens/plans/goal-model";
 import { trackerIdFromGoalMetric } from "@openvalens/plans/goal-tracker";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "expo-router";
@@ -25,6 +25,7 @@ import {
 } from "@/components/bloom";
 import { Container } from "@/components/container";
 import { GoalEditor } from "@/components/goal-editor";
+import { GoalIdeas, GoalProjectionLine } from "@/components/goal-ideas";
 import { orpc } from "@/utils/orpc";
 import { goalActionKind, parseManualGoalValue } from "@/utils/goal-ui";
 
@@ -35,6 +36,8 @@ export default function GoalsScreen() {
   const client = useQueryClient();
   const goals = useQuery(orpc.goals.list.queryOptions({ input: {} }));
   const [creating, setCreating] = useState(false);
+  // goals#7: an idea fills the editor; nothing is saved until the member saves.
+  const [seed, setSeed] = useState<GoalDefinition | undefined>();
   const refresh = () => void client.invalidateQueries({ queryKey: orpc.goals.key() });
   const status = useMutation(orpc.goals.setStatus.mutationOptions({ onSuccess: refresh }));
   const remove = useMutation(orpc.goals.delete.mutationOptions({ onSuccess: refresh }));
@@ -92,15 +95,24 @@ export default function GoalsScreen() {
             <Text className="font-display text-2xl font-medium text-ink">{t`Today`}</Text>
             <Text className="text-sm text-ink-3">{t`What needs attention today, followed by your longer-term progress.`}</Text>
           </View>
-          <Button onPress={() => setCreating((value) => !value)}>
+          <Button
+            onPress={() => {
+              setCreating((value) => !value);
+              setSeed(undefined);
+            }}
+          >
             <Icon icon={Plus} size={17} color="primary-foreground" />
             <Button.Label>{creating ? t`Close` : t`Add a goal`}</Button.Label>
           </Button>
         </View>
+        {creating && !seed ? <GoalIdeas goals={goals.data} onPick={setSeed} /> : null}
         {creating ? (
           <GoalEditor
+            key={seed?.id ?? "blank"}
+            seed={seed}
             onSaved={() => {
               setCreating(false);
+              setSeed(undefined);
               refresh();
             }}
           />
@@ -244,6 +256,7 @@ function GoalTodayCard({
         <StatusPill tone={goal.evaluation.overdue ? "neutral" : "good"}>{status}</StatusPill>
       </View>
       <RuleProgress goal={goal} currentWeek={currentWeek} dayState={day?.state} />
+      <GoalProjectionLine goal={goal} />
       <Text className="text-sm text-ink-3">{todayCopy(day?.state, currentWeek, i18n)}</Text>
       <Action goal={goal} onRefresh={onRefresh} />
       <View className="flex-row flex-wrap gap-2">

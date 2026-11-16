@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { clearRegisteredAuth, setRegisteredAuth, type Auth } from "@openvalens/auth";
 import { createDb, sql, type Database } from "@openvalens/db";
 import { healthEvent, metricDefinition, metricSample } from "@openvalens/db/schema/health-record";
+import { customTracker, customTrackerEntry } from "@openvalens/db/schema/trackers";
 import { RPCHandler } from "@orpc/server/fetch";
 
 import type { Context } from "./context";
@@ -257,7 +258,9 @@ describe.skipIf(!url)("score over HTTP against disposable PostgreSQL", () => {
       recentValue: 8000,
       componentScore: 50,
     });
-    expect(parts.hrv!.state).toBe("not_supported_yet");
+    // 0.2.0: no HRV and no Mood tracker yet, so the optional parts have no value.
+    expect(parts.hrv!.state).toBe("no_recent_value");
+    expect(parts.check_in!.state).toBe("no_recent_value");
     expect(body.score).toBe(42);
   });
 
@@ -279,7 +282,7 @@ describe.skipIf(!url)("score over HTTP against disposable PostgreSQL", () => {
       date: today,
       score: readiness.body.score,
       profile: "physiology_enhanced",
-      parts: { sleep: 40, resting_heart_rate: 35, activity_load: 50 },
+      parts: { sleep: 40, resting_heart_rate: 35, activity_load: 50, hrv: null, check_in: null },
     });
     expect(body.days.at(-2)).toMatchObject({
       score: 50,
@@ -308,6 +311,100 @@ describe.skipIf(!url)("score over HTTP against disposable PostgreSQL", () => {
       withheldReason: "adults_only",
       days: [],
     });
+  });
+
+  test("readiness 0.2.0: HRV and the viewer's own Mood rating today count (scores#2, trackers#5)", async () => {
+    const today = todayUtc.toISOString().slice(0, 10);
+    const [hrv] = await db
+      .insert(metricDefinition)
+      .values({
+        organizationId: "org-a",
+        code: "hrv_rmssd",
+        displayName: "Heart rate variability",
+        category: "vitals",
+        unit: "ms",
+        valueType: "number",
+        aggregationDefault: "avg",
+      })
+      .returning({ id: metricDefinition.id });
+    await db.insert(metricSample).values(
+      Array.from({ length: 29 }, (_, daysAgo) => ({
+        organizationId: "org-a",
+        metricDefinitionId: hrv!.id,
+        sampledAt: at(daysAgo, 5),
+        numericValue: daysAgo === 0 ? 55 : 50,
+        dedupeHash: `hrv-${daysAgo}`,
+      })),
+    );
+    const mood = async (userId: string, value: number, template: string | null = "mood") => {
+      const [tracker] = await db
+        .insert(customTracker)
+        .values({
+          organizationId: "org-a",
+          userId,
+          name: "Mood",
+          icon: "smile",
+          template,
+          type: "scale",
+          aggregation: "average",
+        })
+        .returning({ id: customTracker.id });
+      await db.insert(customTrackerEntry).values({
+        trackerId: tracker!.id,
+        organizationId: "org-a",
+        userId,
+        loggedByUserId: userId,
+        value,
+        loggedAt: new Date(),
+        localDate: today,
+      });
+    };
+    try {
+      await mood("user-a", 4);
+      await mood("user-v", 1);
+      // A custom "Mood" scale not made from the template is not the check-in.
+      await mood("user-v", 5, null);
+
+      const own = await call<ReadinessResult>("score/readiness", {});
+      const parts = Object.fromEntries(own.body.components.map((c) => [c.input, c]));
+      expect(own.body.algorithmVersion).toBe("readiness-0.2.0-experimental");
+      expect(parts.hrv).toMatchObject({
+        state: "used",
+        unit: "ms",
+        recentValue: 55,
+        baselineValue: 50,
+        componentScore: 60,
+      });
+      expect(parts.check_in).toMatchObject({
+        state: "used",
+        unit: "rating",
+        recentValue: 4,
+        componentScore: 75,
+      });
+      // (40 + 35 + 50 + 60 + 75) / 5
+      expect(own.body.score).toBe(52);
+      // The 30-day history runs the same method, so today's day carries both parts.
+      const history = await call<ReadinessHistory>("score/readinessHistory", {});
+      expect(history.body.days.at(-1)).toMatchObject({
+        score: 52,
+        parts: { hrv: 60, check_in: 75 },
+      });
+
+      // The viewer shares the workspace's HRV but gets only their own rating.
+      const viewer = await call<ReadinessResult>("score/readiness", {}, "user-v");
+      const check = viewer.body.components.find((c) => c.input === "check_in");
+      expect(check).toMatchObject({ state: "used", recentValue: 1, componentScore: 0 });
+      // (40 + 35 + 50 + 60 + 0) / 5
+      expect(viewer.body.score).toBe(37);
+
+      // Another workspace never sees org-a's HRV or ratings.
+      const other = await call<ReadinessResult>("score/readiness", {}, "user-b");
+      expect(other.body.components.every((c) => c.recentValue === null)).toBe(true);
+    } finally {
+      await db.execute(sql`delete from custom_tracker where organization_id = 'org-a'`);
+      await db.execute(sql`delete from metric_sample where metric_definition_id = ${hrv!.id}`);
+      await db.execute(sql`delete from metric_definition where id = ${hrv!.id}`);
+    }
   });
 
   test("readiness: a viewer can read; a member without record access cannot", async () => {

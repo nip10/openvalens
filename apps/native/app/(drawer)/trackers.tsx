@@ -10,7 +10,9 @@ import {
   formatTrackerTarget,
   formatTrackerTotal,
   formatTrackerValue,
+  TRACKER_CHECK_IN_COPY,
   TRACKER_TEMPLATE_COPY,
+  trackerIsReadinessCheckIn,
 } from "@openvalens/api/presenters/trackers";
 import { TRACKER_LIMITS, TRACKER_TEMPLATES } from "@openvalens/trackers/model";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -24,10 +26,12 @@ import {
   EmptyState,
   ErrorState,
   Icon,
+  InfoTip,
   ListCard,
   Meter,
   Page,
   PageHeader,
+  Prose,
   Section,
   Sheet,
 } from "@/components/bloom";
@@ -244,6 +248,16 @@ function TrackerCard({
                 ? t`${current} of ${targetText}`
                 : t`Target: ${targetText}`}
           </Text>
+        </View>
+      ) : null}
+      {trackerIsReadinessCheckIn(tracker) ? (
+        <View className="flex-row flex-wrap items-center gap-1">
+          <Text className="shrink font-sans text-sm text-ink-3">
+            {i18n._(TRACKER_CHECK_IN_COPY.label)}
+          </Text>
+          <InfoTip title={i18n._(TRACKER_CHECK_IN_COPY.label)}>
+            <Prose>{i18n._(TRACKER_CHECK_IN_COPY.explanation)}</Prose>
+          </InfoTip>
         </View>
       ) : null}
       {tracker.canLog ? <TrackerLogForm tracker={tracker} onLogged={onLogged} /> : null}

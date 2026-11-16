@@ -48,6 +48,7 @@ describe("procedure classification", () => {
     expect(
       Object.fromEntries([
         ["goals.list", PROCEDURE_ACCESS["goals.list"]],
+        ["goals.suggestions", PROCEDURE_ACCESS["goals.suggestions"]],
         ["goals.detail", PROCEDURE_ACCESS["goals.detail"]],
         ["goals.create", PROCEDURE_ACCESS["goals.create"]],
         ["goals.update", PROCEDURE_ACCESS["goals.update"]],
@@ -67,6 +68,7 @@ describe("procedure classification", () => {
       ]),
     ).toEqual({
       "goals.list": "read",
+      "goals.suggestions": "read",
       "goals.detail": "read",
       "goals.create": "write",
       "goals.update": "write",

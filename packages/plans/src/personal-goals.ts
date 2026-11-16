@@ -21,8 +21,15 @@ import { plainWaterEntry } from "@openvalens/db/schema/nutrition";
 import { customTracker, customTrackerEntry } from "@openvalens/db/schema/trackers";
 import type { TrackerAggregation, TrackerType } from "@openvalens/trackers/model";
 import { and, asc, desc, eq, gte, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
-import { evaluateGoal, type GoalEvaluation } from "./goal-evaluation";
+import { evaluateGoal, reduceGoalEvidence, type GoalEvaluation } from "./goal-evaluation";
 import { goalDateAt, goalDefinitionAt } from "./goal-calendar";
+import {
+  GOAL_SUGGESTION_RULES,
+  sleepSuggestion,
+  supplementSuggestion,
+  waterSuggestion,
+  type GoalSuggestion,
+} from "./goal-suggestions";
 import {
   latestMeasurementContractSuffix,
   sameMeasurementContract,
@@ -1322,6 +1329,105 @@ export function createPersonalGoalRepository(
           };
         },
       );
+    },
+    /**
+     * goals#7: goal ideas from the member's own sleep, water and supplement
+     * records of the last four weeks (`goal-suggestions.ts`). Read-only, and
+     * read through the same evidence a goal of that source counts, so the
+     * usual shown matches what the goal will track.
+     */
+    async suggestions(timeZone: string): Promise<GoalSuggestion[]> {
+      let zone = "UTC";
+      try {
+        new Intl.DateTimeFormat("en-US", { timeZone }).format(0);
+        zone = timeZone;
+      } catch {
+        // An unknown zone falls back to UTC.
+      }
+      const now = clock();
+      const probe = (
+        source: GoalDefinition["source"],
+        metric: string,
+        unit: string | null,
+        rule: GoalRule,
+      ): GoalDefinition => ({
+        id: "suggestion-probe",
+        title: "suggestion",
+        source,
+        metric,
+        unit,
+        rule,
+        startDate: "1970-01-01",
+        timeZone: zone,
+        dayCutoff: null,
+        status: "active",
+      });
+      /** Each day's value over the last 28 days, the way that goal would count it. */
+      const dailyValues = async (definition: GoalDefinition) => {
+        const asOf = goalDateAt(definition, now);
+        const start = new Date(`${asOf}T00:00:00.000Z`);
+        start.setUTCDate(start.getUTCDate() - (GOAL_SUGGESTION_RULES.windowDays - 1));
+        const windowed = { ...definition, startDate: start.toISOString().slice(0, 10) };
+        const evidence = await collectEvidence(db, windowed, 0, asOf);
+        return [...reduceGoalEvidence(windowed, evidence)]
+          .filter(([date]) => date <= asOf)
+          .map(([, day]) => day.value)
+          .filter((value): value is number => value !== null);
+      };
+      const minimum = (value: number): GoalComparator => ({ kind: "minimum", value });
+
+      const ideas: (GoalSuggestion | null)[] = [];
+      ideas.push(
+        sleepSuggestion(
+          await dailyValues(
+            probe("sleep", "sleep_hours", "h", {
+              kind: "average",
+              target: minimum(1),
+              windowDays: 7,
+            }),
+          ),
+        ),
+      );
+      ideas.push(
+        waterSuggestion(
+          await dailyValues(
+            probe("water", "water_ml", "ml", {
+              kind: "recurring",
+              cadence: "daily",
+              completion: minimum(1),
+            }),
+          ),
+        ),
+      );
+      const since = new Date(now.getTime() - (GOAL_SUGGESTION_RULES.windowDays + 1) * 86_400_000);
+      const taken = await db
+        .selectDistinct({ id: supplementIntake.supplementId, name: supplement.name })
+        .from(supplementIntake)
+        .innerJoin(supplement, eq(supplement.id, supplementIntake.supplementId))
+        .where(
+          and(
+            eq(supplementIntake.organizationId, organizationId),
+            eq(supplementIntake.userId, userId),
+            isNull(supplementIntake.deletedAt),
+            gte(supplementIntake.occurredAt, since),
+          ),
+        )
+        .orderBy(asc(supplementIntake.supplementId))
+        .limit(10);
+      const habits: GoalSuggestion[] = [];
+      for (const item of taken) {
+        const days = await dailyValues(
+          probe("supplement", `supplement:${item.id}`, null, {
+            kind: "recurring",
+            cadence: "daily",
+          }),
+        );
+        const idea = supplementSuggestion(item.id, item.name, days.length);
+        if (idea) habits.push(idea);
+      }
+      // The supplement taken on the most days first.
+      habits.sort((a, b) => b.days - a.days);
+      return [...ideas.filter((idea): idea is GoalSuggestion => idea !== null), ...habits];
     },
     async list(): Promise<GoalSummary[]> {
       return db.transaction(async (tx) => {

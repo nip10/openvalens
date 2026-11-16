@@ -37,10 +37,32 @@ describe("native score screen model", () => {
       ["sleep", "40"],
       ["resting_heart_rate", "—"],
       ["activity_load", "50"],
-      ["hrv", "—"],
-      ["check_in", "—"],
     ]);
+    // scores#2: HRV and the check-in share one footnote line with their reasons.
+    expect(card.footnote?.text).toBe(
+      "Not part of this score yet: Heart rate variability and How you feel (check-in)",
+    );
+    expect(card.footnote?.tip[1]).toMatch(/^How you feel \(check-in\): Counts when you rate/);
     expect(card.limits).toMatch(/not medical advice/);
+  });
+
+  test("a Mood rating today counts as the check-in row (trackers#5)", () => {
+    const card = readinessCard(
+      computeReadiness(
+        {
+          sleepMinutes: [...flat(1, 28, 450), { date: AS_OF, value: 405 }],
+          restingHeartRate: [],
+          steps: [...flat(4, 31, 8000), ...flat(1, 3, 8000)],
+          checkIn: [{ date: AS_OF, value: 5 }],
+        },
+        AS_OF,
+      ),
+      englishI18n,
+    );
+    // (40 + 50 + 100) / 3
+    expect(card.scoreText).toBe("63");
+    expect(card.rows.map((row) => row.key)).toContain("check_in");
+    expect(card.footnote?.text).toBe("Not part of this score yet: Heart rate variability");
   });
 
   test("withheld readiness shows a dash and the reason, never a default", () => {

@@ -25,7 +25,14 @@ const day = (date: string, score: number | null, parts: Partial<Day["parts"]> = 
   date,
   score,
   profile: score === null ? null : "physiology_enhanced",
-  parts: { sleep: null, resting_heart_rate: null, activity_load: null, ...parts },
+  parts: {
+    sleep: null,
+    resting_heart_rate: null,
+    activity_load: null,
+    hrv: null,
+    check_in: null,
+    ...parts,
+  },
 });
 
 const history = (days: Day[]): ReadinessHistory => ({
@@ -48,7 +55,7 @@ describe("readiness history (scores#8)", () => {
       date: AS_OF,
       score: result.score,
       profile: result.profile,
-      parts: { sleep: 40, resting_heart_rate: 50, activity_load: 50 },
+      parts: { sleep: 40, resting_heart_rate: 50, activity_load: 50, hrv: null, check_in: null },
     });
     // A withheld day carries no parts, never zeros.
     expect(
@@ -59,7 +66,13 @@ describe("readiness history (scores#8)", () => {
       date: AS_OF,
       score: null,
       profile: null,
-      parts: { sleep: null, resting_heart_rate: null, activity_load: null },
+      parts: {
+        sleep: null,
+        resting_heart_rate: null,
+        activity_load: null,
+        hrv: null,
+        check_in: null,
+      },
     });
   });
 
@@ -80,6 +93,19 @@ describe("readiness history (scores#8)", () => {
     );
     expect(readinessMoverText({ input: "sleep", change: 8 }, englishI18n)).toBe(
       "Sleep +8 since yesterday",
+    );
+  });
+
+  test("0.2.0: the check-in and HRV can be the part that moved most", () => {
+    const trend = readinessTrend(
+      history([
+        day(daysBefore(1), 50, { sleep: 50, resting_heart_rate: 50, hrv: 50, check_in: 50 }),
+        day(AS_OF, 50, { sleep: 50, resting_heart_rate: 45, hrv: 55, check_in: 75 }),
+      ]),
+    );
+    expect(trend.mover).toEqual({ input: "check_in", change: 25 });
+    expect(readinessMoverText(trend.mover!, englishI18n)).toBe(
+      "How you feel (check-in) +25 since yesterday",
     );
   });
 
