@@ -194,7 +194,11 @@ export function PreventiveItemCardView({
   onUpdateItem: Handlers["onUpdateItem"];
 }) {
   const { t, i18n } = useLingui();
-  const card = preventiveItemCard(i18n, item);
+  // One date format on the card, and the next date only once: in the chip.
+  const card = preventiveItemCard(i18n, item, {
+    formatDate: (date) => friendlyDate(i18n, date),
+    nextDateInStatus: true,
+  });
   const lastDone = item.state.lastDoneOn;
   const nextOn = item.state.nextOn;
   const nextDay = nextOn ? friendlyDate(i18n, nextOn) : "";
@@ -202,7 +206,13 @@ export function PreventiveItemCardView({
   const status = card.dateReachedText
     ? { tone: "warn" as const, label: card.dateReachedText }
     : nextOn
-      ? { tone: "neutral" as const, label: t`Next: ${nextDay}` }
+      ? {
+          tone: "neutral" as const,
+          label:
+            item.canRemind && item.state.remind
+              ? t`Next: ${nextDay} (reminder on)`
+              : t`Next: ${nextDay}`,
+        }
       : lastDone
         ? { tone: "good" as const, label: t`Done: ${doneDay}` }
         : null;

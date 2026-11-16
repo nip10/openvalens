@@ -31,6 +31,7 @@ import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { BookOpen, Bot, KeyRound, Link2, Plus } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { CopyField } from "@/components/ai-app-key-form";
 import { Details, EmptyState, ErrorState, Section, StatusPill, ToneIcon } from "@/components/page";
 import { friendlyDate } from "@/utils/friendly";
 
@@ -553,18 +554,20 @@ function HelpLinks({ mcpUrl, oauthEnabled }: { mcpUrl: string | null; oauthEnabl
     >
       <div className="sheet grid gap-4 p-5">
         {mcpUrl ? (
-          <div className="grid gap-1">
-            <span className="text-sm text-ink-3">
-              <Trans>Server address for your app</Trans>
-            </span>
-            <code className="num rounded-xl bg-paper-2 px-3 py-2 text-sm break-all text-ink select-all">
-              {mcpUrl}
-            </code>
-            {oauthEnabled ? (
+          <div className="grid min-w-0 gap-4">
+            <div className="grid min-w-0 gap-1">
               <span className="text-sm text-ink-3">
-                <Trans>Claude Code, signing in from the app:</Trans>{" "}
-                <code className="break-all text-ink-2">{claudeCodeOAuthCommand(mcpUrl)}</code>
+                <Trans>Server address for your app</Trans>
               </span>
+              <CopyField value={mcpUrl} kind="address" />
+            </div>
+            {oauthEnabled ? (
+              <div className="grid min-w-0 gap-1">
+                <span className="text-sm text-ink-3">
+                  <Trans>Claude Code, signing in from the app:</Trans>
+                </span>
+                <CopyField value={claudeCodeOAuthCommand(mcpUrl)} kind="command" />
+              </div>
             ) : null}
           </div>
         ) : null}

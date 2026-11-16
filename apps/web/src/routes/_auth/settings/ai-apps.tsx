@@ -11,6 +11,7 @@ import { AiAppKeyCreated, AiAppKeyForm, type AiAppKeyDraft } from "@/components/
 import { AiAppActivity, AiAppsView } from "@/components/ai-apps-view";
 import { Details, EmptyState, ErrorState, Page, PageHeader } from "@/components/page";
 import { orpc } from "@/utils/orpc";
+import { useIsCloud } from "@/utils/sign-up";
 
 /**
  * Issue #439 — Settings → Connected AI apps. The security emails for a new
@@ -34,6 +35,7 @@ function AiAppsSettingsPage() {
   const queryClient = useQueryClient();
   const status = useQuery(orpc.aiApps.status.queryOptions({ input: {} }));
   const enabled = status.data?.enabled === true;
+  const cloud = useIsCloud();
   const grants = useQuery({
     ...orpc.aiApps.listGrants.queryOptions({ input: {} }),
     enabled,
@@ -123,11 +125,21 @@ function AiAppsSettingsPage() {
         {header}
         <EmptyState
           icon={Bot}
-          title={<Trans>Connected AI apps are not available on this server</Trans>}
+          title={
+            cloud ? (
+              <Trans>Connected AI apps are not available yet</Trans>
+            ) : (
+              <Trans>Connected AI apps are not available on this server</Trans>
+            )
+          }
           description={
-            <Trans>
-              The server's operator has not turned this on. Everything else works as usual.
-            </Trans>
+            cloud ? (
+              <Trans>Everything else works as usual.</Trans>
+            ) : (
+              <Trans>
+                The server's operator has not turned this on. Everything else works as usual.
+              </Trans>
+            )
           }
         />
       </Page>

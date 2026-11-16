@@ -252,6 +252,15 @@ describe("preventive-care copy in pt-PT (#231)", () => {
     expect(card.citation).toContain(
       "Consultado em 16 Oct 2026; última verificação em 16 Oct 2026.",
     );
+    // The web formats the person's dates its own way and shows the next date in the chip.
+    const webCard = preventiveItemCard(pt, view, {
+      formatDate: (date) => `<${date}>`,
+      nextDateInStatus: true,
+    });
+    expect(webCard.stateLines).toEqual([
+      "Aguardar o convite",
+      "Feito pela última vez: <2025-01-01>",
+    ]);
   });
 
   test("page notes, labels and the library intro are translated", () => {

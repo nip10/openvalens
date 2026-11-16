@@ -35,6 +35,8 @@ function bag(value: unknown): Record<string, unknown> {
 }
 
 const TAXONOMY_CATEGORY_TO_DOMAIN: Record<string, CanonicalTimelineDomain> = {
+  // Steps, distance and active calories: the taxonomy's activity metrics.
+  activity: "activity",
   body: "body",
   vitals: "vitals",
   cardiac: "cardiac",

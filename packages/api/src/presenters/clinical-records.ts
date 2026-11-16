@@ -32,12 +32,21 @@ export type FamilyHistoryEntryLike = {
   notes: string | null;
 };
 
-/** "Echo" / "Stress" / "Other" — sentence case, falls back to raw value. */
+/** Exam and imaging abbreviations always written in capitals. */
+const CLINICAL_ACRONYMS = new Set(["ecg", "ekg", "mri", "ct"]);
+
+/** "Echo" / "Stress" / "ECG" — sentence case, falls back to raw value. */
 export function cardiacExamTypeLabel(value: string | null | undefined, i18n: I18n): string {
   if (!value) return i18n._(msg`Exam`);
   return value
     .split(/[_\s-]+/)
-    .map((word) => (word.length === 0 ? "" : word[0]?.toUpperCase() + word.slice(1)))
+    .map((word) =>
+      word.length === 0
+        ? ""
+        : CLINICAL_ACRONYMS.has(word.toLowerCase())
+          ? word.toUpperCase()
+          : word[0]?.toUpperCase() + word.slice(1),
+    )
     .join(" ");
 }
 
@@ -47,7 +56,7 @@ export function imagingTypeLabel(value: string, i18n: I18n): string {
   const tokens = value.split(/[_\s-]+/).filter((t) => t.length > 0);
   if (tokens.length === 0) return i18n._(msg`Imaging`);
   const first = tokens[0]!.toLowerCase();
-  if (first === "mri" || first === "ct") {
+  if (CLINICAL_ACRONYMS.has(first)) {
     const rest = tokens
       .slice(1)
       .map((word) => word[0]!.toUpperCase() + word.slice(1).toLowerCase())

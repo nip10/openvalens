@@ -1,13 +1,14 @@
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
+import { deviceTimeZone, localDateIn } from "@openvalens/api/presenters/nutrition-diary";
 import { Button } from "@openvalens/ui/components/button";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { Input } from "@openvalens/ui/components/input";
 import { Label } from "@openvalens/ui/components/label";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { History, Lock, Plus, Ruler, Scale, ShieldCheck } from "lucide-react";
 
 import {
@@ -23,7 +24,7 @@ import {
 import { ProgressPhotos } from "@/components/progress-photos";
 import { authClient } from "@/lib/auth-client";
 import { friendlyDate } from "@/utils/friendly";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 import {
   PRIVATE_MEASUREMENT_KINDS,
   makePrivateMeasurementPayload,
@@ -110,8 +111,14 @@ function PrivateMeasurementsForSubject({
     enabled: Boolean(subject.userId && subject.organizationId),
     retry: false,
   });
-  // Hide-numbers preference (#80) is not yet available. Fail closed: never
-  // render stored values until that client-safe preference can be confirmed.
+  // The member's hide-numbers setting (#80) lives with the nutrition target
+  // settings. Fail closed: values show only once it is confirmed off.
+  const localDate = useMemo(() => localDateIn(deviceTimeZone()), []);
+  const displaySettings = useQuery({
+    ...orpc.nutritionTargets.get.queryOptions({ input: { localDate } }),
+    enabled: preference.data?.enabled === true,
+    retry: false,
+  });
   const history = useQuery({
     queryKey: keys.list,
     queryFn: () => client.privateBody.list({}),
@@ -191,7 +198,9 @@ function PrivateMeasurementsForSubject({
     value,
     measuredAtLocal: measuredAt,
   });
-  const canDisplayStoredValues = mayShowStoredMeasurementValue(undefined);
+  const canDisplayStoredValues = mayShowStoredMeasurementValue(
+    displaySettings.isSuccess ? displaySettings.data?.settings.hideNumbers : undefined,
+  );
   return (
     <Page width="narrow">
       <ModuleHiddenNote module="body" />
@@ -387,9 +396,14 @@ function PrivateMeasurementsForSubject({
               >
                 <Trans>History</Trans>
               </h2>
-              <InfoTip>
-                <Trans>Values are hidden until your hide-numbers setting can be checked.</Trans>
-              </InfoTip>
+              {canDisplayStoredValues ? null : (
+                <InfoTip>
+                  <Trans>
+                    Values are hidden while Hide numbers is on in Nutrition targets, or until that
+                    setting can be checked.
+                  </Trans>
+                </InfoTip>
+              )}
             </div>
             <div>
               {historyState === "loading" ? (
@@ -451,7 +465,8 @@ function PrivateMeasurementsForSubject({
                               setEditing(row.id);
                               setKind(row.kind as Kind);
                               setUnit(row.unit as Unit);
-                              setValue("");
+                              // Start from the stored value, unless numbers are hidden.
+                              setValue(canDisplayStoredValues ? String(row.value) : "");
                               setMeasuredAt(
                                 new Date(
                                   new Date(row.measuredAt).getTime() -

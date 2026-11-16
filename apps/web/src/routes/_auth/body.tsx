@@ -33,7 +33,7 @@ import {
 import { useMutation } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { CalendarDays, Plus, Scale, TrendingDown, TrendingUp } from "lucide-react";
+import { CalendarDays, CalendarRange, Plus, Scale, TrendingUp } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
 import { DecimalHint } from "@/components/decimal-hint";
@@ -218,7 +218,8 @@ function BodyPage() {
                   }
                 />
                 <StatTile
-                  icon={TrendingDown}
+                  // A neutral icon: an arrow would read a gain as a loss.
+                  icon={CalendarRange}
                   tone="weight"
                   label={<Trans>30 days</Trans>}
                   value={

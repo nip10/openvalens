@@ -257,8 +257,19 @@ export type PreventiveItemCard = {
   accessibilityLabel: string;
 };
 
-/** One item, rendered in the language of `i18n`. Pack text (title, interval, note) is shown as published. */
-export function preventiveItemCard(i18n: I18n, view: PreventiveItemView): PreventiveItemCard {
+/**
+ * One item, rendered in the language of `i18n`. Pack text (title, interval,
+ * note) is shown as published. `formatDate` formats the person's own dates
+ * (the web passes its locale formatter, so they match the card's chip);
+ * `nextDateInStatus` leaves out the next-date line when the caller already
+ * shows that date.
+ */
+export function preventiveItemCard(
+  i18n: I18n,
+  view: PreventiveItemView,
+  options: { formatDate?: (date: string) => string; nextDateInStatus?: boolean } = {},
+): PreventiveItemCard {
+  const formatOwnDate = options.formatDate ?? formatGuidanceDate;
   const label = i18n._(gradeLabel(view.grade));
   const applicabilityText = i18n._(APPLICABILITY_TEXT[view.applicability]);
   const facts = view.beingReviewed
@@ -275,11 +286,11 @@ export function preventiveItemCard(i18n: I18n, view: PreventiveItemView): Preven
   const stateLines: string[] = [];
   if (view.state.plan !== "none") stateLines.push(i18n._(PREVENTIVE_COPY.plans[view.state.plan]));
   if (view.state.lastDoneOn) {
-    const date = formatGuidanceDate(view.state.lastDoneOn);
+    const date = formatOwnDate(view.state.lastDoneOn);
     stateLines.push(i18n._(msg`Last done: ${date}`));
   }
-  if (view.state.nextOn && view.canRemind) {
-    const date = formatGuidanceDate(view.state.nextOn);
+  if (view.state.nextOn && view.canRemind && !options.nextDateInStatus) {
+    const date = formatOwnDate(view.state.nextOn);
     stateLines.push(
       view.state.remind
         ? i18n._(msg`Next date you set: ${date} (reminder on)`)

@@ -23,6 +23,7 @@ import { toast } from "sonner";
 
 import { Details, ErrorState, InfoTip, StatusPill, ToneIcon } from "@/components/page";
 import { SETTINGS_SELECT, SettingsGroup, SettingsIcon } from "@/components/settings-rows";
+import { withBrowserTimeZone } from "@/utils/insight-time-zone";
 import { orpc } from "@/utils/orpc";
 
 /** A fieldset as one settings row: icon and legend (with an ⓘ), then its controls. */
@@ -413,7 +414,15 @@ export function InsightNotificationsSection() {
     <InsightNotificationsForm
       preferences={preferences.data}
       pending={update.isPending}
-      onUpdate={(patch) => update.mutate(patch)}
+      onUpdate={(patch) =>
+        update.mutate(
+          withBrowserTimeZone(
+            preferences.data,
+            patch,
+            Intl.DateTimeFormat().resolvedOptions().timeZone,
+          ),
+        )
+      }
     />
   );
 }

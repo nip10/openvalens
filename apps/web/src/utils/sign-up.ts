@@ -1,5 +1,6 @@
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
+import { useQuery } from "@tanstack/react-query";
 
 import { classifyAdmissionError } from "./admission-error";
 import { orpc } from "./orpc";
@@ -18,6 +19,15 @@ export function signUpOptionsQueryOptions() {
     staleTime: 5 * 60_000,
     retry: 1,
   };
+}
+
+/**
+ * Whether this server is OpenValens Cloud. Cloud members have no server
+ * operator to ask, so copy that would send them to one reads differently.
+ * False while loading or on error, which keeps the self-hosted wording.
+ */
+export function useIsCloud(): boolean {
+  return useQuery(signUpOptionsQueryOptions()).data?.mode === "cloud";
 }
 
 /** Reasons the sign-up link endpoint redirects back to `/signup` with. */

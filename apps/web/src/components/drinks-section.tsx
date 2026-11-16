@@ -97,11 +97,11 @@ export function DrinksSection({
       info={i18n._(DRINKS_COPY.intro)}
     >
       <div className="grid min-w-0 gap-4">
+        {/* Without the catalog on this server the shortcuts row is left out,
+            rather than explaining the server setup to the member. */}
         {presets.isPending ? (
           <Skeleton className="h-20 w-full rounded-3xl" />
-        ) : available.length === 0 ? (
-          <p className="text-sm text-ink-3">{i18n._(DRINKS_COPY.unavailable)}</p>
-        ) : (
+        ) : available.length === 0 ? null : (
           <ul className="flex flex-wrap gap-2" aria-label={i18n._(DRINKS_COPY.title)}>
             {available.map((entry) => (
               <li key={entry.key}>

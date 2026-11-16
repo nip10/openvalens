@@ -35,11 +35,13 @@ Both measurement and preference tables are classified as user-owned by the
 data-rights registry, so subject exports contain only that user's rows and
 subject erasure removes them. Sharing is not offered.
 The web and native screens support opt-in, manual entry, and history. Both omit
-stored numeric values until the client can confirm the hide-numbers preference;
-users enter a replacement value to edit a saved record. The native screen is
-online-only and scopes query cache entries to the signed-in user and active
+stored numeric values until the client can confirm the hide-numbers preference
+(#80, `settings.hideNumbers` from `nutritionTargets.get`) is off. The web screen
+reads it and then shows values, and Edit starts from the stored value; while
+numbers are hidden, users enter a replacement value. The native screen still
+treats the preference as unknown, so it always hides values. The native screen
+is online-only and scopes query cache entries to the signed-in user and active
 workspace. Turning measurements off gates access but does not delete records.
-Hide-numbers preference integration and photos remain pending.
 
 ## Progress photos
 

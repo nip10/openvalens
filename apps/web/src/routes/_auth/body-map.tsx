@@ -332,8 +332,8 @@ export function BodyMapPage({
                 setSelected(null);
               }}
               options={[
-                { value: "composition", label: t`Measured composition` },
-                { value: "training", label: t`Training this week` },
+                { value: "composition", label: t`Composition` },
+                { value: "training", label: t`Training` },
                 { value: "pain", label: t`Pain` },
               ]}
             />
