@@ -174,6 +174,18 @@ test.skipIf(!mountedMode)(
     const addInputs: Array<Record<string, unknown>> = [];
     const addResolvers: Array<(value: { id: number; name: string }) => void> = [];
     const addStartedResolvers: Array<() => void> = [];
+    const customInputs: Array<Record<string, unknown>> = [];
+    // A full first page, then one more row: "Show more" asks for the rows after the last id.
+    const firstPage = Array.from({ length: 50 }, (_, index) => ({
+      id: 101 + index,
+      name: `Lift ${String(50 - index).padStart(2, "0")}`,
+      muscles: [{ name: "Obliquus externus abdominis" }],
+      category: "Strength",
+      source: "wger",
+    }));
+    const secondPage = [
+      { id: 151, name: "Arnold press", muscles: [], category: "Strength", source: "user" },
+    ];
     const procedure = server.os.input(zod.z.any());
     const rpc = new rpcServer.RPCHandler({
       exerciseCatalog: {
@@ -183,6 +195,7 @@ test.skipIf(!mountedMode)(
             ...input,
             activeOrganizationId: currentSession.session.activeOrganizationId,
           });
+          if (input.afterId) return secondPage;
           return currentSession.session.activeOrganizationId === "workspace-b"
             ? []
             : [
@@ -198,6 +211,10 @@ test.skipIf(!mountedMode)(
               ];
         }),
         get: procedure.handler(() => detail),
+        createCustom: procedure.handler(({ input }: { input: Record<string, unknown> }) => {
+          customInputs.push(input);
+          return { id: 160, name: String(input.name) };
+        }),
         addFromLibrary: procedure.handler(({ input }: { input: Record<string, unknown> }) => {
           addInputs.push(input);
           addStartedResolvers.shift()?.();
@@ -475,6 +492,68 @@ test.skipIf(!mountedMode)(
       cleanup();
       await act(async () => addResolvers.shift()!({ id: 51, name: "Translated squat" }));
       expect(document.body.textContent).not.toContain("Translated squat added to the workout.");
+
+      // The list runs A to Z, counts what is shown, uses plain muscle names and grows with "Show more".
+      client.setQueryData(key(searchOptions.queryKey), firstPage);
+      render(page());
+      const list = await screen.findByRole("list", { name: "Exercises" });
+      const names = () =>
+        Array.from(list.querySelectorAll("li .font-semibold")).map((node) => node.textContent);
+      expect(names()[0]).toBe("Lift 01");
+      expect(names().at(-1)).toBe("Lift 50");
+      expect(screen.getByText("Showing the first 50, A to Z")).toBeTruthy();
+      expect(screen.getAllByText("Obliques").length).toBe(50);
+      expect(screen.queryByText(/From wger/)).toBeNull();
+      expect(list.closest("[class*='overflow-y-auto']")).toBeNull();
+      await user.click(screen.getByRole("button", { name: "Show more" }));
+      await screen.findByText("Arnold press");
+      expect(searchInputs.at(-1)?.afterId).toBe(150);
+      expect(names()[0]).toBe("Arnold press");
+      expect(screen.getByText("Showing 51 exercises, A to Z")).toBeTruthy();
+      expect(screen.queryByRole("button", { name: "Show more" })).toBeNull();
+
+      // Your own exercise is added in a dialog, in the app's language, with no language field.
+      expect(screen.queryByLabelText("Name")).toBeNull();
+      await user.click(screen.getByRole("button", { name: "Add your own exercise" }));
+      const dialog = await screen.findByRole("dialog", { name: "Add your own exercise" });
+      expect(screen.queryByLabelText("Language code")).toBeNull();
+      await user.type(screen.getByLabelText("Name"), "Sled push");
+      await user.click(screen.getByRole("button", { name: "Save exercise" }));
+      await waitFor(() => expect(customInputs).toHaveLength(1));
+      expect(customInputs[0]).toMatchObject({ name: "Sled push", language: "en" });
+      expect(customInputs[0]).not.toHaveProperty("instructions");
+      await waitFor(() => expect(dialog.isConnected).toBe(false));
+      await screen.findByText("Sled push is in your library now.");
+      cleanup();
+
+      // On a phone the details open over the list as a sheet, not below it.
+      const originalMatchMedia = window.matchMedia;
+      Object.defineProperty(window, "matchMedia", {
+        configurable: true,
+        writable: true,
+        value: (media: string) => ({
+          matches: false,
+          media,
+          addEventListener: () => {},
+          removeEventListener: () => {},
+        }),
+      });
+      try {
+        client.setQueryData(key(searchOptions.queryKey), firstPage);
+        render(page());
+        expect(screen.queryByRole("heading", { name: "Exercise details" })).toBeNull();
+        await user.click(await screen.findByRole("button", { name: /Lift 07/ }));
+        const sheet = await screen.findByRole("dialog");
+        expect(sheet.textContent).toContain("Add to workout");
+        await user.click(screen.getByRole("button", { name: "Close" }));
+        await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+      } finally {
+        Object.defineProperty(window, "matchMedia", {
+          configurable: true,
+          writable: true,
+          value: originalMatchMedia,
+        });
+      }
     } finally {
       Object.defineProperty(globalThis, "fetch", {
         configurable: true,

@@ -97,3 +97,63 @@ export function checkinCorrectionPayload(
   const parsed = parseNumberInputValue(value);
   return parsed === null ? null : { value: parsed };
 }
+
+/** Today in the goal's own time zone, moved back a day before its day cutoff ("HH:MM"). */
+export function goalDate(timeZone: string, cutoff?: string | null, now: Date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(now);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  const date = `${values.year}-${values.month}-${values.day}`;
+  if (cutoff && `${values.hour}:${values.minute}` < cutoff) {
+    const previous = new Date(`${date}T00:00:00.000Z`);
+    previous.setUTCDate(previous.getUTCDate() - 1);
+    return previous.toISOString().slice(0, 10);
+  }
+  return date;
+}
+
+/**
+ * How far the current value is from the goal's own target, for target and
+ * average rules (goals#4): `met`, or the distance still to go. Plain
+ * arithmetic on the member's target; null when there is no value yet or the
+ * rule has no single figure to compare.
+ */
+export function goalTargetGap(
+  rule: GoalDefinition["rule"],
+  current: number | null,
+): { met: true } | { met: false; gap: number } | null {
+  if (current === null || !Number.isFinite(current)) return null;
+  if (rule.kind !== "target" && rule.kind !== "average") return null;
+  const target = rule.target;
+  const round = (value: number) => Math.round(value * 100) / 100;
+  if (target.kind === "minimum")
+    return current >= target.value
+      ? { met: true }
+      : { met: false, gap: round(target.value - current) };
+  if (target.kind === "maximum")
+    return current <= target.value
+      ? { met: true }
+      : { met: false, gap: round(current - target.value) };
+  if (current < target.minimum) return { met: false, gap: round(target.minimum - current) };
+  if (current > target.maximum) return { met: false, gap: round(current - target.maximum) };
+  return { met: true };
+}
+
+/** A calendar date as people write it: "Jan 15, 2027" (en), "15/01/2027" style per locale. */
+export function goalDateLabel(date: string, locale: string): string {
+  const parsed = new Date(`${date}T00:00:00Z`);
+  if (Number.isNaN(parsed.getTime())) return date;
+  return new Intl.DateTimeFormat(locale, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(parsed);
+}

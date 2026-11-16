@@ -97,6 +97,9 @@ function EffortChart({ result }: { result: ActivityLoadResult }) {
   const { i18n } = useLingui();
   const days = result.load?.effort.days ?? [];
   const data = days.map((day) => ({ date: day.date, points: day.points ?? 0 }));
+  // A week reads best as weekdays, one label under every bar (workouts#6).
+  const week = days.length <= 7;
+  const weekday = new Intl.DateTimeFormat(i18n.locale, { weekday: "short", timeZone: "UTC" });
   const config: ChartConfig = {
     points: { label: i18n._(ACTIVITY_LOAD_COPY.effortTitle), color: "var(--tone-steps)" },
   };
@@ -108,8 +111,10 @@ function EffortChart({ result }: { result: ActivityLoadResult }) {
           dataKey="date"
           tickLine={false}
           axisLine={false}
-          minTickGap={16}
-          tickFormatter={(value: string) => friendlyDate(i18n, value)}
+          {...(week ? { interval: 0 } : { minTickGap: 16 })}
+          tickFormatter={(value: string) =>
+            week ? weekday.format(new Date(`${value}T00:00:00Z`)) : friendlyDate(i18n, value)
+          }
         />
         <YAxis tickLine={false} axisLine={false} width={40} tickCount={4} allowDecimals={false} />
         <ChartTooltip

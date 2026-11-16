@@ -94,8 +94,16 @@ msgstr "{0, plural, one {# entry removed} other {# entries removed}}"
 #: apps/native/components/workout-overview-sheet.tsx
 #: apps/native/components/workout-routines.tsx
 #: apps/native/components/workout-session.tsx
+#: apps/web/src/components/workout-routines.tsx
+#: apps/web/src/routes/_auth/workouts.tsx
 msgid "{0, plural, one {# exercise} other {# exercises}}"
 msgstr "{0, plural, one {# exercise} other {# exercises}}"
+
+#. placeholder {0}: summary.exerciseCount
+#. placeholder {1}: summary.setCount
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "{0, plural, one {# exercise} other {# exercises}}, {1, plural, one {# set} other {# sets}}"
+msgstr "{0, plural, one {# exercise} other {# exercises}}, {1, plural, one {# set} other {# sets}}"
 
 #. placeholder {0}: found.length
 #: apps/web/src/components/log-food-sheet.tsx
@@ -151,7 +159,6 @@ msgstr "{0, plural, one {# row} other {# rows}}"
 
 #. placeholder {0}: supplement.activeScheduleCount
 #: apps/native/app/(drawer)/supplements.tsx
-#: apps/web/src/routes/_auth/supplements.tsx
 msgid "{0, plural, one {# scheduled} other {# scheduled}}"
 msgstr "{0, plural, one {# scheduled} other {# scheduled}}"
 
@@ -194,6 +201,11 @@ msgstr "{0, plural, one {# syncing} other {# syncing}}"
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 msgid "{0, plural, one {# unsynced change will be removed from this device.} other {# unsynced changes will be removed from this device.}}"
 msgstr "{0, plural, one {# unsynced change will be removed from this device.} other {# unsynced changes will be removed from this device.}}"
+
+#. placeholder {0}: rows.length
+#: apps/web/src/components/exercise-library.tsx
+msgid "{0, plural, one {Showing # exercise} other {Showing # exercises, A to Z}}"
+msgstr "{0, plural, one {Showing # exercise} other {Showing # exercises, A to Z}}"
 
 #. placeholder {0}: props.confirmDeleteWrites?.entryCount ?? 0
 #: apps/web/src/components/ai-apps-view.tsx
@@ -277,7 +289,6 @@ msgstr "{0} added to the workout."
 
 #. placeholder {0}: result.name
 #: apps/native/components/exercise-library.tsx
-#: apps/web/src/components/exercise-library.tsx
 msgid "{0} added to this workspace."
 msgstr "{0} added to this workspace."
 
@@ -293,10 +304,10 @@ msgstr "{0} configured"
 msgid "{0} day streak · best {1}"
 msgstr "{0} day streak · best {1}"
 
-#. placeholder {0}: rule.daysPerWeek
+#. placeholder {0}: rule.targetDays
 #: apps/web/src/routes/_auth/goals.index.tsx
-msgid "{0} days each Monday–Sunday week"
-msgstr "{0} days each Monday–Sunday week"
+msgid "{0} days in a row"
+msgstr "{0} days in a row"
 
 #. placeholder {0}: rule.daysPerWeek
 #: apps/native/app/(drawer)/goals.tsx
@@ -350,6 +361,11 @@ msgstr "{0} in ({1} cached), {2} out"
 msgid "{0} in 30 days"
 msgstr "{0} in 30 days"
 
+#. placeholder {0}: result.name
+#: apps/web/src/components/exercise-library.tsx
+msgid "{0} is in your library now."
+msgstr "{0} is in your library now."
+
 #. placeholder {0}: created.name
 #: apps/web/src/routes/_auth/trackers.index.tsx
 msgid "{0} is ready to log."
@@ -384,27 +400,32 @@ msgstr "{0} of {1}"
 #. placeholder {0}: evaluation.currentStreak
 #. placeholder {1}: rule.targetDays
 #: apps/native/app/(drawer)/goals.tsx
-#: apps/web/src/routes/_auth/goals.index.tsx
 msgid "{0} of {1} consecutive days"
 msgstr "{0} of {1} consecutive days"
 
 #. placeholder {0}: week.qualifyingDays
 #. placeholder {1}: week.requiredDays
 #: apps/web/src/routes/_auth/goals.index.tsx
-msgid "{0} of {1} days counted this Monday–Sunday week."
-msgstr "{0} of {1} days counted this Monday–Sunday week."
+msgid "{0} of {1} days"
+msgstr "{0} of {1} days"
+
+#. placeholder {0}: evaluation.currentStreak
+#. placeholder {1}: rule.targetDays
+#: apps/web/src/routes/_auth/goals.index.tsx
+msgid "{0} of {1} days in a row"
+msgstr "{0} of {1} days in a row"
+
+#. placeholder {0}: coverage.coveredDays
+#. placeholder {1}: coverage.requiredDays
+#: apps/web/src/routes/_auth/goals.index.tsx
+msgid "{0} of {1} days so far"
+msgstr "{0} of {1} days so far"
 
 #. placeholder {0}: currentWeek.qualifyingDays
 #. placeholder {1}: currentWeek.requiredDays
 #: apps/native/app/(drawer)/goals.tsx
 msgid "{0} of {1} days this Monday–Sunday week"
 msgstr "{0} of {1} days this Monday–Sunday week"
-
-#. placeholder {0}: week.qualifyingDays
-#. placeholder {1}: week.requiredDays
-#: apps/web/src/routes/_auth/goals.index.tsx
-msgid "{0} of {1} days this week"
-msgstr "{0} of {1} days this week"
 
 #. placeholder {0}: progress.answered
 #. placeholder {1}: progress.available
@@ -497,15 +518,15 @@ msgstr "{0} target weight in {1}"
 msgid "{0} to {1}"
 msgstr "{0} to {1}"
 
+#. placeholder {0}: formatGoalValue(gap.gap, unit, i18n.locale)
+#: apps/web/src/routes/_auth/goals.index.tsx
+msgid "{0} to go"
+msgstr "{0} to go"
+
 #. placeholder {0}: labelOf(kind)
 #: apps/native/app/(drawer)/private-measurements.tsx
 msgid "{0} value"
 msgstr "{0} value"
-
-#. placeholder {0}: rule.targetDays
-#: apps/web/src/routes/_auth/goals.index.tsx
-msgid "{0}-day streak"
-msgstr "{0}-day streak"
 
 #. placeholder {0}: assets.length
 #: apps/native/components/exercise-detail.tsx
@@ -663,8 +684,12 @@ msgid "{current} of {targetText}"
 msgstr "{current} of {targetText}"
 
 #: apps/web/src/routes/_auth/trackers.index.tsx
-msgid "{currentText} of {targetText}"
-msgstr "{currentText} of {targetText}"
+msgid "{currentText} of {amount} this week"
+msgstr "{currentText} of {amount} this week"
+
+#: apps/web/src/routes/_auth/trackers.index.tsx
+msgid "{currentText} of {amount} today"
+msgstr "{currentText} of {amount} today"
 
 #. A short month and day, already formatted
 #: packages/api/src/presenters/cochat.ts
@@ -690,6 +715,10 @@ msgstr "{days, plural, one {This invitation expires in # day.} other {This invit
 msgid "{days} days"
 msgstr "{days} days"
 
+#: apps/web/src/routes/_auth/goals.index.tsx
+msgid "{days} days a week"
+msgstr "{days} days a week"
+
 #: apps/web/src/components/billing-plan-view.tsx
 msgid "{days} days left. Your free trial ends on {trialEnd}. No card needed until you choose a plan."
 msgstr "{days} days left. Your free trial ends on {trialEnd}. No card needed until you choose a plan."
@@ -713,6 +742,10 @@ msgstr "{displayName} was not connected because this browser is not signed in. S
 #: packages/api/src/presenters/wearables.ts
 msgid "{displayName} was not connected: access was not granted."
 msgstr "{displayName} was not connected: access was not granted."
+
+#: apps/web/src/routes/_auth/supplements.tsx
+msgid "{done} of {total}"
+msgstr "{done} of {total}"
 
 #: apps/native/components/finish-setup-card.tsx
 #: apps/web/src/components/onboarding/finish-setup-card.tsx
@@ -749,6 +782,10 @@ msgstr "{failures, plural, one {# attempted failure} other {# attempted failures
 #: packages/api/src/presenters/workout-progression.ts
 msgid "{failures, plural, one {# incomplete session} other {# incomplete sessions}} recorded; the load stays the same."
 msgstr "{failures, plural, one {# incomplete session} other {# incomplete sessions}} recorded; the load stays the same."
+
+#: apps/web/src/routes/_auth/trackers.index.tsx
+msgid "{figureValue} in 7 days"
+msgstr "{figureValue} in 7 days"
 
 #: packages/api/src/presenters/score.ts
 msgid "{first} and {last}"
@@ -943,6 +980,10 @@ msgstr "{label}: unknown, {coverage}"
 msgid "{label}: value hidden, {coverage}"
 msgstr "{label}: value hidden, {coverage}"
 
+#: apps/web/src/routes/_auth/trackers.index.tsx
+msgid "{lastDay}: {lastValue}"
+msgstr "{lastDay}: {lastValue}"
+
 #. placeholder {0}: items.length
 #: apps/native/components/get-started-card.tsx
 msgid "{left} of {0} left"
@@ -1042,6 +1083,10 @@ msgstr "{name} (personal key)"
 #: packages/api/src/presenters/ai-apps.ts
 msgid "{name} (unverified)"
 msgstr "{name} (unverified)"
+
+#: apps/web/src/routes/_auth/supplements.tsx
+msgid "{name} taken."
+msgstr "{name} taken."
 
 #: apps/native/components/exercise-detail.tsx
 msgid "{name}, illustration"
@@ -1254,6 +1299,11 @@ msgstr "{syncing, plural, one {# syncing} other {# syncing}}"
 msgid "{systolic}/{diastolic} mmHg"
 msgstr "{systolic}/{diastolic} mmHg"
 
+#. placeholder {0}: goalDateLabel(rule.targetDate, i18n.locale)
+#: apps/web/src/routes/_auth/goals.index.tsx
+msgid "{target} by {0}"
+msgstr "{target} by {0}"
+
 #. A value outside the known list, shown as recorded. Keep the placeholder as is.
 #. Text the member entered, shown as written. Keep the placeholder as is.
 #: packages/api/src/presenters/supplements.ts
@@ -1431,7 +1481,6 @@ msgid "0: Rest"
 msgstr "0: Rest"
 
 #: apps/native/components/trackers/tracker-value-input.tsx
-#: apps/web/src/components/trackers/tracker-value-input.tsx
 msgid "1 = {low}, 5 = {high}. Your own rating."
 msgstr "1 = {low}, 5 = {high}. Your own rating."
 
@@ -1553,6 +1602,10 @@ msgstr "7 days"
 #: apps/web/src/routes/_auth/records/sleep.tsx
 msgid "7-day average"
 msgstr "7-day average"
+
+#: apps/web/src/routes/_auth/trackers.index.tsx
+msgid "7-day average {figureValue}"
+msgstr "7-day average {figureValue}"
 
 #: apps/native/app/(drawer)/records/vitals.tsx
 msgid "7-day avg"
@@ -1994,10 +2047,6 @@ msgstr "Activity and fitness"
 msgid "Actual doses only; the day is credited once."
 msgstr "Actual doses only; the day is credited once."
 
-#: apps/web/src/routes/_auth/supplements.tsx
-msgid "Actual intake can be logged after you add a supplement to your list."
-msgstr "Actual intake can be logged after you add a supplement to your list."
-
 #: apps/web/src/routes/_auth/goals.$goalId.tsx
 msgid "Actual intake only; each dose is preserved and the goal credits a day once."
 msgstr "Actual intake only; each dose is preserved and the goal credits a day once."
@@ -2039,6 +2088,10 @@ msgstr "Add {0} to {slotLabel}"
 msgid "Add 30 seconds of rest"
 msgstr "Add 30 seconds of rest"
 
+#: apps/web/src/routes/_auth/trackers.index.tsx
+msgid "Add a {name} tracker"
+msgstr "Add a {name} tracker"
+
 #: apps/native/app/(drawer)/goals.tsx
 #: apps/web/src/routes/_auth/goals.index.tsx
 msgid "Add a goal"
@@ -2050,10 +2103,6 @@ msgstr "Add a goal"
 msgid "Add a goal in your own words if you have one. It is saved to your Goals, where you can set a target and date later. Nothing is suggested or worked out for you."
 msgstr "Add a goal in your own words if you have one. It is saved to your Goals, where you can set a target and date later. Nothing is suggested or worked out for you."
 
-#: apps/web/src/routes/_auth/goals.index.tsx
-msgid "Add a goal or review paused and completed goals below."
-msgstr "Add a goal or review paused and completed goals below."
-
 #: apps/native/components/get-started-card.tsx
 msgid "Add a goal to track"
 msgstr "Add a goal to track"
@@ -2061,6 +2110,10 @@ msgstr "Add a goal to track"
 #: packages/api/src/presenters/score.ts
 msgid "Add a goal with a target to see goal progress."
 msgstr "Add a goal with a target to see goal progress."
+
+#: apps/web/src/routes/_auth/goals.index.tsx
+msgid "Add a goal, or resume a paused one below."
+msgstr "Add a goal, or resume a paused one below."
 
 #: apps/web/src/routes/_auth/private-measurements.tsx
 msgid "Add a measurement"
@@ -2087,18 +2140,9 @@ msgstr "Add a photo (JPEG or PNG, up to 10 MB)"
 msgid "Add a region"
 msgstr "Add a region"
 
-#: apps/web/src/routes/_auth/workouts.tsx
-msgid "Add a session"
-msgstr "Add a session"
-
 #: apps/native/app/(drawer)/workouts.tsx
-#: apps/web/src/routes/_auth/workouts.tsx
 msgid "Add a session to start tracking."
 msgstr "Add a session to start tracking."
-
-#: apps/web/src/routes/_auth/supplements.tsx
-msgid "Add a supplement first"
-msgstr "Add a supplement first"
 
 #: apps/native/app/(drawer)/supplements.tsx
 msgid "Add a supplement first to log an actual dose."
@@ -2184,6 +2228,10 @@ msgstr "Add medication"
 #: apps/web/src/routes/_auth/-goal-editor.tsx
 msgid "Add milestone"
 msgstr "Add milestone"
+
+#: apps/web/src/routes/_auth/supplements.tsx
+msgid "Add one and today's doses show up here."
+msgstr "Add one and today's doses show up here."
 
 #: packages/api/src/presenters/plain-water.ts
 msgid "Add plain water"
@@ -2291,6 +2339,10 @@ msgstr "Add your birth year in your profile to use this."
 #: packages/api/src/presenters/energy-estimate.ts
 msgid "Add your height"
 msgstr "Add your height"
+
+#: apps/web/src/components/exercise-library.tsx
+msgid "Add your own exercise"
+msgstr "Add your own exercise"
 
 #. placeholder {0}: new Date(binding.connectedAt).toLocaleDateString()
 #: apps/native/components/direct-device-settings.tsx
@@ -2596,8 +2648,8 @@ msgid "Amounts hidden"
 msgstr "Amounts hidden"
 
 #: apps/web/src/components/exercise-library.tsx
-msgid "An administrator can import licensed exercises, or create a workspace exercise here."
-msgstr "An administrator can import licensed exercises, or create a workspace exercise here."
+msgid "An administrator can import licensed exercises, or you can add your own."
+msgstr "An administrator can import licensed exercises, or you can add your own."
 
 #: apps/native/components/exercise-library.tsx
 msgid "An administrator can import licensed exercises, or you can create a workspace exercise below."
@@ -2692,6 +2744,10 @@ msgstr "Any days each week"
 #: apps/web/src/components/admin-onboarding-totals.tsx
 msgid "Any entry on days 2–7"
 msgstr "Any entry on days 2–7"
+
+#: apps/web/src/routes/_auth/supplements.tsx
+msgid "Any time"
+msgstr "Any time"
 
 #: packages/email/src/templates/ai-app-connected.tsx
 msgid "Anything this connection reads goes to that app, under the app's own terms. The app's name is not verified."
@@ -2870,7 +2926,6 @@ msgstr "at least {0} g"
 
 #. placeholder {0}: comparator.value
 #: apps/native/app/(drawer)/goals.tsx
-#: apps/web/src/routes/_auth/goals.index.tsx
 msgid "At least {0}{suffix}"
 msgstr "At least {0}{suffix}"
 
@@ -2903,7 +2958,6 @@ msgstr "At most"
 
 #. placeholder {0}: comparator.value
 #: apps/native/app/(drawer)/goals.tsx
-#: apps/web/src/routes/_auth/goals.index.tsx
 msgid "At most {0}{suffix}"
 msgstr "At most {0}{suffix}"
 
@@ -2953,6 +3007,10 @@ msgstr "Average day"
 #: apps/web/src/routes/_auth/records/vitals.tsx
 msgid "Average heart rate, 30 days"
 msgstr "Average heart rate, 30 days"
+
+#: apps/web/src/routes/_auth/goals.index.tsx
+msgid "Average over {days} days · {target}"
+msgstr "Average over {days} days · {target}"
 
 #: apps/web/src/routes/_auth/-goal-editor.tsx
 msgid "Average target"
@@ -3239,7 +3297,6 @@ msgstr "Between"
 #. placeholder {0}: comparator.minimum
 #. placeholder {1}: comparator.maximum
 #: apps/native/app/(drawer)/goals.tsx
-#: apps/web/src/routes/_auth/goals.index.tsx
 msgid "Between {0} and {1}{suffix}"
 msgstr "Between {0} and {1}{suffix}"
 
@@ -3408,8 +3465,8 @@ msgid "Browse exercises"
 msgstr "Browse exercises"
 
 #: apps/web/src/components/exercise-library.tsx
-msgid "Browse licensed library entries and exercises created for your workspace."
-msgstr "Browse licensed library entries and exercises created for your workspace."
+msgid "Browse the exercise library and the exercises you add. Library exercises come from wger and each one lists its license in its details."
+msgstr "Browse the exercise library and the exercises you add. Library exercises come from wger and each one lists its license in its details."
 
 #: apps/web/src/components/workout-routines.tsx
 msgid "Build a reusable plan. Progression suggestions are optional and never change past workouts."
@@ -3554,13 +3611,16 @@ msgstr "Canada"
 #: apps/web/src/components/ai-apps-view.tsx
 #: apps/web/src/components/ai-consent-card.tsx
 #: apps/web/src/components/complete-export-card.tsx
+#: apps/web/src/components/exercise-library.tsx
 #: apps/web/src/components/sharing-confirm-dialog.tsx
 #: apps/web/src/components/wearable-devices-view.tsx
 #: apps/web/src/components/workout-routines.tsx
 #: apps/web/src/components/workout-session-editor.tsx
+#: apps/web/src/routes/_auth/-goal-checkin-dialog.tsx
 #: apps/web/src/routes/_auth/goals.$goalId.tsx
 #: apps/web/src/routes/_auth/nutrition.tsx
 #: apps/web/src/routes/_auth/private-measurements.tsx
+#: apps/web/src/routes/_auth/supplements.tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
 #: packages/api/src/presenters/custom-foods.ts
@@ -3758,6 +3818,11 @@ msgstr "Check"
 #: packages/api/src/presenters/food-draft.ts
 msgid "Check each item, fix anything misheard, then find the matching food in your diary and confirm it there. Quantities you did not say stay empty."
 msgstr "Check each item, fix anything misheard, then find the matching food in your diary and confirm it there. Quantities you did not say stay empty."
+
+#: apps/web/src/routes/_auth/-goal-checkin-dialog.tsx
+#: apps/web/src/routes/_auth/goals.index.tsx
+msgid "Check in"
+msgstr "Check in"
 
 #: apps/native/components/server-choice.tsx
 msgid "Check the address and your network, then try again."
@@ -4027,8 +4092,8 @@ msgid "Choose a workspace."
 msgstr "Choose a workspace."
 
 #: apps/web/src/components/exercise-library.tsx
-msgid "Choose an exercise to read its details."
-msgstr "Choose an exercise to read its details."
+msgid "Choose an exercise"
+msgstr "Choose an exercise"
 
 #: apps/native/components/goal-editor.tsx
 #: apps/web/src/routes/_auth/-goal-editor.tsx
@@ -4215,8 +4280,7 @@ msgstr "Clinician decision for specific situations"
 #: apps/native/components/change-server.tsx
 #: apps/native/components/select-field.tsx
 #: apps/native/components/workout-session-detail.tsx
-#: apps/web/src/routes/_auth/goals.index.tsx
-#: apps/web/src/routes/_auth/trackers.index.tsx
+#: apps/web/src/components/form-dialog.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Close"
@@ -4357,7 +4421,6 @@ msgstr "Complete"
 
 #. placeholder {0}: rule.windowDays ?? 7
 #: apps/native/app/(drawer)/goals.tsx
-#: apps/web/src/routes/_auth/goals.index.tsx
 msgid "Complete {0}-day average"
 msgstr "Complete {0}-day average"
 
@@ -4833,6 +4896,10 @@ msgstr "Correct"
 msgid "Correct manual check-ins"
 msgstr "Correct manual check-ins"
 
+#: apps/web/src/routes/_auth/supplements.tsx
+msgid "Correct this dose"
+msgstr "Correct this dose"
+
 #: apps/native/app/(drawer)/supplements.tsx
 msgid "Corrected date and time"
 msgstr "Corrected date and time"
@@ -5184,6 +5251,10 @@ msgstr "Could not load invitations."
 msgid "Could not load labs."
 msgstr "Could not load labs."
 
+#: apps/web/src/components/exercise-library.tsx
+msgid "Could not load more exercises."
+msgstr "Could not load more exercises."
+
 #: apps/web/src/components/workout-history.tsx
 msgid "Could not load more history."
 msgstr "Could not load more history."
@@ -5317,7 +5388,6 @@ msgid "Could not load the recent activity."
 msgstr "Could not load the recent activity."
 
 #: apps/native/app/(drawer)/goals.tsx
-#: apps/web/src/routes/_auth/goals.index.tsx
 msgid "Could not load the selected supplement. Open Supplements to retry."
 msgstr "Could not load the selected supplement. Open Supplements to retry."
 
@@ -5363,6 +5433,10 @@ msgstr "Could not load this scan."
 #: apps/web/src/routes/_auth/coach/route.tsx
 msgid "Could not load threads."
 msgstr "Could not load threads."
+
+#: apps/web/src/routes/_auth/supplements.tsx
+msgid "Could not load today's doses."
+msgstr "Could not load today's doses."
 
 #: apps/native/app/(drawer)/trackers.tsx
 #: apps/web/src/routes/_auth/trackers.index.tsx
@@ -5547,6 +5621,10 @@ msgstr "Could not read your health data. Check permissions."
 msgid "Could not remove it. Open the screen to change it."
 msgstr "Could not remove it. Open the screen to change it."
 
+#: apps/web/src/routes/_auth/supplements.tsx
+msgid "Could not remove it. Try again."
+msgstr "Could not remove it. Try again."
+
 #: apps/native/components/workout-session.tsx
 msgid "Could not reopen"
 msgstr "Could not reopen"
@@ -5572,10 +5650,6 @@ msgstr "Could not revoke. Try again."
 #: apps/native/app/(drawer)/supplements.tsx
 msgid "Could not save intake. Retry the same dose."
 msgstr "Could not save intake. Retry the same dose."
-
-#: apps/web/src/routes/_auth/supplements.tsx
-msgid "Could not save intake. Try again."
-msgstr "Could not save intake. Try again."
 
 #: apps/native/components/workout-exercise-tools.tsx
 msgid "Could not save rest preference. Your workout is unchanged."
@@ -5699,7 +5773,6 @@ msgid "Could not save. Refresh and review for a newer version."
 msgstr "Could not save. Refresh and review for a newer version."
 
 #: apps/native/app/(drawer)/goals.tsx
-#: apps/web/src/routes/_auth/goals.index.tsx
 msgid "Could not save. Retry the same dose."
 msgstr "Could not save. Retry the same dose."
 
@@ -5712,7 +5785,9 @@ msgstr "Could not save. Retry the same dose."
 #: apps/web/src/components/quick-log/quick-form.tsx
 #: apps/web/src/components/quick-log/quick-log-palette.tsx
 #: apps/web/src/components/trackers/tracker-log-form.tsx
+#: apps/web/src/routes/_auth/-goal-checkin-dialog.tsx
 #: apps/web/src/routes/_auth/goals.index.tsx
+#: apps/web/src/routes/_auth/supplements.tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 #: apps/web/src/utils/product-settings-form-state.ts
 msgid "Could not save. Try again."
@@ -5811,6 +5886,10 @@ msgstr "Could not turn this on. Try again."
 #: apps/web/src/routes/_auth/cycle.tsx
 msgid "Could not undo this import. Try again."
 msgstr "Could not undo this import. Try again."
+
+#: apps/web/src/routes/_auth/supplements.tsx
+msgid "Could not undo. Remove it from the history."
+msgstr "Could not undo. Remove it from the history."
 
 #: apps/native/components/trackers/tracker-phone-feed.tsx
 msgid "Could not unlink it. Try again."
@@ -5927,10 +6006,6 @@ msgstr "Counts the days with a yes."
 msgid "Coverage"
 msgstr "Coverage"
 
-#: apps/web/src/routes/_auth/goals.index.tsx
-msgid "Create a goal"
-msgstr "Create a goal"
-
 #: apps/native/app/(drawer)/goals.tsx
 msgid "Create a goal or review paused and completed goals below."
 msgstr "Create a goal or review paused and completed goals below."
@@ -5958,7 +6033,6 @@ msgid "Create draft"
 msgstr "Create draft"
 
 #: apps/native/components/exercise-library.tsx
-#: apps/web/src/components/exercise-library.tsx
 msgid "Create exercise"
 msgstr "Create exercise"
 
@@ -5970,6 +6044,10 @@ msgstr "Create key"
 #: packages/email/src/templates/public-sign-up.tsx
 msgid "Create my account"
 msgstr "Create my account"
+
+#: apps/web/src/components/workout-routines.tsx
+msgid "Create one to reuse a plan and start sessions from it."
+msgstr "Create one to reuse a plan and start sessions from it."
 
 #: packages/api/src/presenters/nutrition-templates.ts
 msgid "Create recipe"
@@ -5985,7 +6063,6 @@ msgid "Create tracker"
 msgstr "Create tracker"
 
 #: apps/native/components/exercise-library.tsx
-#: apps/web/src/components/exercise-library.tsx
 msgid "Create workspace exercise"
 msgstr "Create workspace exercise"
 
@@ -6009,7 +6086,6 @@ msgstr "Creating a replacement ends this goal. Its history and source records re
 #: apps/native/app/(drawer)/trackers.tsx
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/ai-app-key-form.tsx
-#: apps/web/src/components/exercise-library.tsx
 #: apps/web/src/routes/_auth/trackers.index.tsx
 msgid "Creating…"
 msgstr "Creating…"
@@ -6207,6 +6283,7 @@ msgstr "Dataset {datasetVersion}."
 #: apps/native/app/(drawer)/goals/[goalId].tsx
 #: apps/native/components/goal-editor.tsx
 #: apps/web/src/components/workout-session-editor.tsx
+#: apps/web/src/routes/_auth/-goal-checkin-dialog.tsx
 #: apps/web/src/routes/_auth/body.tsx
 #: apps/web/src/routes/_auth/goals.$goalId.tsx
 #: apps/web/src/routes/_auth/records/sleep.tsx
@@ -6380,6 +6457,7 @@ msgstr "Degraded"
 #: apps/web/src/components/pain/pain-panel.tsx
 #: apps/web/src/components/workout-routines.tsx
 #: apps/web/src/routes/_auth/cycle.tsx
+#: apps/web/src/routes/_auth/goals.index.tsx
 #: apps/web/src/routes/_auth/nutrition.tsx
 #: apps/web/src/routes/_auth/private-measurements.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
@@ -6466,7 +6544,6 @@ msgid "Delete for good"
 msgstr "Delete for good"
 
 #: apps/web/src/routes/_auth/goals.$goalId.tsx
-#: apps/web/src/routes/_auth/goals.index.tsx
 msgid "Delete goal"
 msgstr "Delete goal"
 
@@ -6883,7 +6960,6 @@ msgstr "Done: {doneDay}"
 #. safety
 #. safety
 #. safety
-#. safety
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
 msgid "Dose"
@@ -6891,9 +6967,13 @@ msgstr "Dose"
 
 #: apps/native/app/(drawer)/goals.tsx
 #: apps/native/app/(drawer)/supplements.tsx
-#: apps/web/src/routes/_auth/goals.index.tsx
 msgid "Dose actually taken"
 msgstr "Dose actually taken"
+
+#. placeholder {0}: list.length
+#: apps/web/src/routes/_auth/supplements.tsx
+msgid "Dose history ({0})"
+msgstr "Dose history ({0})"
 
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
@@ -7038,6 +7118,18 @@ msgstr "Duration must be between 1 and 1440 minutes."
 msgid "Durations are compared in minutes per day."
 msgstr "Durations are compared in minutes per day."
 
+#: apps/web/src/routes/_auth/supplements.tsx
+msgid "e.g. Metformin"
+msgstr "e.g. Metformin"
+
+#: apps/web/src/components/exercise-library.tsx
+msgid "e.g. Sled push"
+msgstr "e.g. Sled push"
+
+#: apps/web/src/routes/_auth/supplements.tsx
+msgid "e.g. Zinc"
+msgstr "e.g. Zinc"
+
 #: packages/api/src/presenters/preventive-care.ts
 msgid "Each answer is optional and only you can see it. Nothing is pre-selected, and you can choose “Prefer not to say” or clear an answer at any time."
 msgstr "Each answer is optional and only you can see it. Nothing is pre-selected, and you can choose “Prefer not to say” or clear an answer at any time."
@@ -7161,6 +7253,7 @@ msgid "Edit routine"
 msgstr "Edit routine"
 
 #: apps/native/components/active-workout.tsx
+#: apps/web/src/routes/_auth/workouts.tsx
 msgid "Edit session"
 msgstr "Edit session"
 
@@ -7190,6 +7283,7 @@ msgid "Effort (0–10)"
 msgstr "Effort (0–10)"
 
 #: apps/native/app/(drawer)/workouts.tsx
+#: apps/web/src/routes/_auth/workouts.tsx
 msgid "Effort {rating}/10"
 msgstr "Effort {rating}/10"
 
@@ -7826,10 +7920,6 @@ msgstr "Exercise notes"
 msgid "Exercise record"
 msgstr "Exercise record"
 
-#: apps/web/src/components/workout-routines.tsx
-msgid "exercises"
-msgstr "exercises"
-
 #: apps/web/src/components/exercise-library.tsx
 #: apps/web/src/components/workout-session-editor.tsx
 msgid "Exercises"
@@ -8282,7 +8372,6 @@ msgstr "Free-text notes on your workouts, labs and other entries."
 #. safety
 #. safety
 #. safety
-#. safety
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
 msgid "Frequency"
@@ -8293,7 +8382,6 @@ msgid "From 1 entry"
 msgstr "From 1 entry"
 
 #: apps/native/components/trackers/tracker-value-input.tsx
-#: apps/web/src/components/trackers/tracker-value-input.tsx
 msgid "From 1 to 5. Your own rating."
 msgstr "From 1 to 5. Your own rating."
 
@@ -8327,14 +8415,6 @@ msgstr "From the link"
 #: packages/api/src/presenters/ai-apps.ts
 msgid "from the report"
 msgstr "from the report"
-
-#: apps/web/src/components/exercise-library.tsx
-msgid "From wger, {licenseText}"
-msgstr "From wger, {licenseText}"
-
-#: apps/web/src/components/exercise-library.tsx
-msgid "From wger, {licenseText}, {author}"
-msgstr "From wger, {licenseText}, {author}"
 
 #: apps/native/lib/quick-log/picker.ts
 #: apps/web/src/components/quick-log/one-liner-section.ts
@@ -8485,6 +8565,7 @@ msgstr "Go up"
 #: apps/native/app/(drawer)/goals/[goalId].tsx
 #: apps/native/app/(drawer)/profile.tsx
 #: apps/native/components/onboarding/steps.tsx
+#: apps/web/src/routes/_auth/-goal-checkin-dialog.tsx
 #: apps/web/src/routes/_auth/goals.$goalId.tsx
 #: apps/web/src/routes/_auth/profile.tsx
 #: packages/api/src/presenters/log-kinds.ts
@@ -8550,10 +8631,6 @@ msgstr "goals"
 #: packages/api/src/presenters/clinical-export.ts
 msgid "Goals"
 msgstr "Goals"
-
-#: packages/api/src/presenters/trackers.ts
-msgid "Good"
-msgstr "Good"
 
 #: packages/api/src/presenters/manual-sleep.ts
 msgctxt "sleep quality"
@@ -8833,6 +8910,7 @@ msgstr "Hiding a module keeps its data. Turn it back on and everything is there 
 msgid "high"
 msgstr "high"
 
+#: apps/web/src/components/trackers/tracker-value-input.tsx
 #: packages/api/src/presenters/trackers.ts
 msgid "High"
 msgstr "High"
@@ -9637,6 +9715,10 @@ msgstr "Irregular schedule"
 msgid "It appears once there are a few days of sleep and heart data."
 msgstr "It appears once there are a few days of sleep and heart data."
 
+#: apps/web/src/routes/_auth/supplements.tsx
+msgid "It comes off your history and any goal it counted for."
+msgstr "It comes off your history and any goal it counted for."
+
 #: packages/email/src/templates/admission-verification.tsx
 msgid "It expires in 10 minutes."
 msgstr "It expires in 10 minutes."
@@ -9645,6 +9727,10 @@ msgstr "It expires in 10 minutes."
 #: packages/api/src/presenters/score.ts
 msgid "It is not medical advice and says nothing about your health status. It does not tell you whether or how hard to exercise, and it has not been validated."
 msgstr "It is not medical advice and says nothing about your health status. It does not tell you whether or how hard to exercise, and it has not been validated."
+
+#: apps/web/src/components/exercise-library.tsx
+msgid "It joins the library for everyone in this workspace."
+msgstr "It joins the library for everyone in this workspace."
 
 #: apps/native/app/(drawer)/trackers/[trackerId].tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
@@ -9674,6 +9760,10 @@ msgstr "Item {number}, heard “{heard}”"
 #: apps/web/src/routes/_auth/nutrition.tsx
 msgid "Items to copy"
 msgstr "Items to copy"
+
+#: apps/web/src/components/exercise-library.tsx
+msgid "Its muscles, how to do it and your history show here."
+msgstr "Its muscles, how to do it and your history show here."
 
 #: apps/native/components/active-workout.tsx
 msgid "Its sets in this workout are removed too."
@@ -9847,7 +9937,6 @@ msgid "Language"
 msgstr "Language"
 
 #: apps/native/components/exercise-library.tsx
-#: apps/web/src/components/exercise-library.tsx
 msgid "Language code"
 msgstr "Language code"
 
@@ -9864,6 +9953,7 @@ msgstr "Last 30 days"
 
 #: apps/native/app/(drawer)/body-map.tsx
 #: apps/web/src/routes/_auth/body-map.tsx
+#: apps/web/src/routes/_auth/trackers.index.tsx
 msgid "Last 7 days"
 msgstr "Last 7 days"
 
@@ -10190,6 +10280,10 @@ msgstr "Library {version}."
 msgid "Library and workouts refreshed. Review them, then retry the same request if needed."
 msgstr "Library and workouts refreshed. Review them, then retry the same request if needed."
 
+#: apps/web/src/components/exercise-library.tsx
+msgid "Library exercises come from wger and keep their own licenses, listed in each exercise's details."
+msgstr "Library exercises come from wger and keep their own licenses, listed in each exercise's details."
+
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "Licence"
 msgstr "Licence"
@@ -10200,10 +10294,6 @@ msgstr "Licence"
 #: apps/web/src/components/exercise-library.tsx
 msgid "License details"
 msgstr "License details"
-
-#: apps/web/src/components/exercise-library.tsx
-msgid "License not listed"
-msgstr "License not listed"
 
 #: apps/native/components/exercise-attribution.tsx
 #: apps/web/src/components/exercise-library.tsx
@@ -10369,7 +10459,6 @@ msgid "Loading recent sessions…"
 msgstr "Loading recent sessions…"
 
 #: apps/native/components/workout-routines.tsx
-#: apps/web/src/components/workout-routines.tsx
 msgid "Loading routines…"
 msgstr "Loading routines…"
 
@@ -10383,7 +10472,6 @@ msgid "Loading scans…"
 msgstr "Loading scans…"
 
 #: apps/native/app/(drawer)/goals.tsx
-#: apps/web/src/routes/_auth/goals.index.tsx
 msgid "Loading selected supplement…"
 msgstr "Loading selected supplement…"
 
@@ -10429,6 +10517,7 @@ msgstr "Loading your workspace…"
 #: apps/native/components/pain/pain-panel.tsx
 #: apps/native/components/plain-water-section.tsx
 #: apps/native/components/workout-history.tsx
+#: apps/web/src/components/exercise-library.tsx
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
 #: apps/web/src/components/pain/pain-panel.tsx
 #: apps/web/src/routes/_auth/cycle.tsx
@@ -10503,6 +10592,10 @@ msgstr "Log a period to see your cycle history."
 msgid "Log a period with + to see your cycle here."
 msgstr "Log a period with + to see your cycle here."
 
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "Log a session"
+msgstr "Log a session"
+
 #: apps/native/components/get-started-card.tsx
 msgid "Log a weight"
 msgstr "Log a weight"
@@ -10516,13 +10609,16 @@ msgid "Log a workout: “{text}”"
 msgstr "Log a workout: “{text}”"
 
 #: apps/native/app/(drawer)/goals.tsx
-#: apps/web/src/routes/_auth/goals.index.tsx
 msgid "Log actual dose"
 msgstr "Log actual dose"
 
 #: apps/native/app/(drawer)/supplements.tsx
 msgid "Log actual intake"
 msgstr "Log actual intake"
+
+#: apps/web/src/routes/_auth/supplements.tsx
+msgid "Log another dose"
+msgstr "Log another dose"
 
 #: apps/web/src/components/blood-pressure-section.tsx
 msgid "Log blood pressure with +, or sync a monitor."
@@ -10533,13 +10629,8 @@ msgid "Log blood pressure, heart rate, resting heart rate, blood oxygen and resp
 msgstr "Log blood pressure, heart rate, resting heart rate, blood oxygen and respiratory rate. The app can delete only the entries it added."
 
 #: apps/native/app/(drawer)/supplements.tsx
-#: apps/web/src/routes/_auth/supplements.tsx
 msgid "Log dose"
 msgstr "Log dose"
-
-#: apps/web/src/routes/_auth/supplements.tsx
-msgid "Log doses actually taken. Schedules are reminders, not proof. Goals count the day once, while every dose stays recorded."
-msgstr "Log doses actually taken. Schedules are reminders, not proof. Goals count the day once, while every dose stays recorded."
 
 #: apps/native/components/ai-app-drafts.tsx
 msgid "Log each food in your meal diary, then mark the draft done. It stays here until you do."
@@ -10562,7 +10653,6 @@ msgid "Log food ({amount})"
 msgstr "Log food ({amount})"
 
 #: apps/native/app/(drawer)/goals.tsx
-#: apps/web/src/routes/_auth/goals.index.tsx
 msgid "Log in the tracker"
 msgstr "Log in the tracker"
 
@@ -10606,10 +10696,6 @@ msgstr "Log plain water you drank. The app can delete only the entries it added.
 msgid "Log saved meal"
 msgstr "Log saved meal"
 
-#: apps/web/src/routes/_auth/workouts.tsx
-msgid "Log session"
-msgstr "Log session"
-
 #: apps/native/app/(drawer)/(tabs)/_layout.tsx
 #: apps/web/src/components/quick-log/log-launcher.tsx
 msgid "Log something"
@@ -10623,10 +10709,6 @@ msgstr "Log something else"
 msgid "Log something in a tap, repeat a recent entry or open a screen."
 msgstr "Log something in a tap, repeat a recent entry or open a screen."
 
-#: apps/web/src/routes/_auth/supplements.tsx
-msgid "Log supplement intake"
-msgstr "Log supplement intake"
-
 #: packages/api/src/presenters/ai-apps.ts
 msgid "Log that you took one of your supplements. The app can delete only the entries it added."
 msgstr "Log that you took one of your supplements. The app can delete only the entries it added."
@@ -10636,14 +10718,12 @@ msgid "Log the dose actually taken. Each dose is kept; goal credit is once per d
 msgstr "Log the dose actually taken. Each dose is kept; goal credit is once per day."
 
 #: apps/native/app/(drawer)/goals.tsx
-#: apps/web/src/routes/_auth/goals.index.tsx
 msgid "Log today"
 msgstr "Log today"
 
 #: apps/native/app/(drawer)/goals.tsx
 #: apps/native/app/(drawer)/goals/[goalId].tsx
 #: apps/web/src/routes/_auth/goals.$goalId.tsx
-#: apps/web/src/routes/_auth/goals.index.tsx
 msgid "Log water"
 msgstr "Log water"
 
@@ -10742,6 +10822,7 @@ msgstr "Look up"
 msgid "Looking up…"
 msgstr "Looking up…"
 
+#: apps/web/src/components/trackers/tracker-value-input.tsx
 #: packages/api/src/presenters/trackers.ts
 msgid "Low"
 msgstr "Low"
@@ -10987,10 +11068,6 @@ msgstr "Matched actual lifts with at least one rep count."
 #: apps/web/src/routes/_auth/goals.$goalId.tsx
 msgid "Matched exercise · actual lifts only"
 msgstr "Matched exercise · actual lifts only"
-
-#: apps/web/src/routes/_auth/goals.index.tsx
-msgid "Matched workout lifts are counted automatically."
-msgstr "Matched workout lifts are counted automatically."
 
 #. safety
 #: packages/api/src/presenters/preventive-care.ts
@@ -11376,6 +11453,13 @@ msgstr "More about today"
 msgid "More data for {helpList} would help."
 msgstr "More data for {helpList} would help."
 
+#. placeholder {0}: goal.title
+#. placeholder {0}: routine.name
+#: apps/web/src/components/workout-routines.tsx
+#: apps/web/src/routes/_auth/goals.index.tsx
+msgid "More for {0}"
+msgstr "More for {0}"
+
 #: apps/web/src/routes/_auth/nutrition.tsx
 msgid "More for {foodName}"
 msgstr "More for {foodName}"
@@ -11387,6 +11471,10 @@ msgstr "More for {label} entry from {when}"
 #: apps/web/src/routes/_auth/nutrition.tsx
 msgid "More for the meal diary"
 msgstr "More for the meal diary"
+
+#: apps/web/src/routes/_auth/supplements.tsx
+msgid "More for this dose"
+msgstr "More for this dose"
 
 #: apps/web/src/components/coach-ideas.tsx
 msgid "More ideas"
@@ -11409,6 +11497,10 @@ msgstr "More options"
 #: apps/web/src/components/quick-log/palette-sections.ts
 msgid "More things to track…"
 msgstr "More things to track…"
+
+#: apps/web/src/routes/_auth/trackers.index.tsx
+msgid "More to track"
+msgstr "More to track"
 
 #. safety
 #: packages/api/src/presenters/supplements.ts
@@ -11803,10 +11895,6 @@ msgstr "No activity logged"
 msgid "No activity yet"
 msgstr "No activity yet"
 
-#: apps/web/src/routes/_auth/supplements.tsx
-msgid "No actual doses logged this week."
-msgstr "No actual doses logged this week."
-
 #: apps/web/src/components/admin-ai-usage.tsx
 msgid "No AI calls yet this month."
 msgstr "No AI calls yet this month."
@@ -11867,10 +11955,6 @@ msgstr "No configuration keys reported."
 msgid "No conversations yet"
 msgstr "No conversations yet"
 
-#: apps/web/src/routes/_auth/goals.index.tsx
-msgid "No current week yet. The next Monday–Sunday period starts soon."
-msgstr "No current week yet. The next Monday–Sunday period starts soon."
-
 #: apps/web/src/routes/_auth/goals.$goalId.tsx
 msgid "No daily history yet."
 msgstr "No daily history yet."
@@ -11890,6 +11974,10 @@ msgstr "No data yet"
 #: apps/web/src/routes/_auth/body-map.tsx
 msgid "No DEXA scans yet. Import a scan to see measured regions here."
 msgstr "No DEXA scans yet. Import a scan to see measured regions here."
+
+#: apps/web/src/routes/_auth/supplements.tsx
+msgid "No doses recorded this week."
+msgstr "No doses recorded this week."
 
 #: apps/native/components/recipe-draft-editor.tsx
 #: apps/web/src/components/recipe-draft-editor.tsx
@@ -11959,6 +12047,10 @@ msgstr "No foods match."
 #: packages/api/src/presenters/food-draft.ts
 msgid "No foods were recognised. Try naming each food, for example “two eggs and toast”."
 msgstr "No foods were recognised. Try naming each food, for example “two eggs and toast”."
+
+#: apps/web/src/routes/_auth/-goal-checkin-dialog.tsx
+msgid "No goal takes a check-in right now."
+msgstr "No goal takes a check-in right now."
 
 #: apps/native/app/(drawer)/settings.tsx
 #: apps/web/src/components/health-data-consent-status.tsx
@@ -12048,9 +12140,12 @@ msgid "No matching foods found."
 msgstr "No matching foods found."
 
 #: apps/native/app/(drawer)/supplements.tsx
-#: apps/web/src/routes/_auth/supplements.tsx
 msgid "No medications logged. Add one to track your protocol."
 msgstr "No medications logged. Add one to track your protocol."
+
+#: apps/web/src/routes/_auth/supplements.tsx
+msgid "No medications yet"
+msgstr "No medications yet"
 
 #: apps/native/app/(drawer)/sharing.tsx
 #: apps/web/src/routes/_auth/sharing.tsx
@@ -12216,12 +12311,9 @@ msgid "No result"
 msgstr "No result"
 
 #: apps/native/components/workout-routines.tsx
+#: apps/web/src/components/workout-routines.tsx
 msgid "No routines yet"
 msgstr "No routines yet"
-
-#: apps/web/src/components/workout-routines.tsx
-msgid "No routines yet. Create one to reuse a plan."
-msgstr "No routines yet. Create one to reuse a plan."
 
 #: packages/api/src/presenters/custom-foods.ts
 msgid "No saved foods yet. Create one here or tick “Save to my foods” when you quick add."
@@ -12243,6 +12335,10 @@ msgstr "No session in the last 7 days has an effort rating and a duration, so th
 #: packages/api/src/presenters/activity-load.ts
 msgid "No sessions recorded in the last 7 days, so there is no number (not zero)."
 msgstr "No sessions recorded in the last 7 days, so there is no number (not zero)."
+
+#: apps/web/src/routes/_auth/supplements.tsx
+msgid "No set time"
+msgstr "No set time"
 
 #: apps/web/src/components/workout-session-editor.tsx
 msgid "No sets recorded. You can add a set, or leave this exercise without sets."
@@ -12266,9 +12362,12 @@ msgid "No structured recipe was found on that page. The draft has the page title
 msgstr "No structured recipe was found on that page. The draft has the page title only; add the ingredients yourself."
 
 #: apps/native/app/(drawer)/supplements.tsx
-#: apps/web/src/routes/_auth/supplements.tsx
 msgid "No supplements logged. Add one to get reminders."
 msgstr "No supplements logged. Add one to get reminders."
+
+#: apps/web/src/routes/_auth/supplements.tsx
+msgid "No supplements yet"
+msgstr "No supplements yet"
 
 #: apps/native/components/quick-log/quick-form.tsx
 #: apps/web/src/components/quick-log/quick-form.tsx
@@ -12659,8 +12758,11 @@ msgstr "Notes (optional)"
 msgid "Notes are never shared with the Coach."
 msgstr "Notes are never shared with the Coach."
 
-#: apps/native/app/(drawer)/goals.tsx
 #: apps/web/src/routes/_auth/goals.index.tsx
+msgid "Nothing active"
+msgstr "Nothing active"
+
+#: apps/native/app/(drawer)/goals.tsx
 msgid "Nothing active today"
 msgstr "Nothing active today"
 
@@ -12673,6 +12775,7 @@ msgid "Nothing is due."
 msgstr "Nothing is due."
 
 #: apps/native/components/nutrition-week-strip.tsx
+#: apps/web/src/routes/_auth/trackers.index.tsx
 msgid "nothing logged"
 msgstr "nothing logged"
 
@@ -12688,6 +12791,10 @@ msgstr "Nothing logged"
 msgid "Nothing logged for this day."
 msgstr "Nothing logged for this day."
 
+#: apps/web/src/routes/_auth/trackers.index.tsx
+msgid "Nothing logged lately"
+msgstr "Nothing logged lately"
+
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 msgid "Nothing logged on this day yet."
 msgstr "Nothing logged on this day yet."
@@ -12698,7 +12805,6 @@ msgid "Nothing logged on this day."
 msgstr "Nothing logged on this day."
 
 #: apps/native/app/(drawer)/trackers.tsx
-#: apps/web/src/routes/_auth/trackers.index.tsx
 msgid "Nothing logged today"
 msgstr "Nothing logged today"
 
@@ -12721,6 +12827,10 @@ msgstr "Nothing recorded in the last 7 days."
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Nothing saved"
 msgstr "Nothing saved"
+
+#: apps/web/src/routes/_auth/supplements.tsx
+msgid "Nothing scheduled today."
+msgstr "Nothing scheduled today."
 
 #: packages/api/src/presenters/insights.ts
 msgid "Nothing stands out right now. On most days nothing does."
@@ -13075,7 +13185,6 @@ msgstr "One of my trackers"
 #: apps/native/components/goal-editor.tsx
 #: apps/web/src/routes/_auth/-goal-editor.tsx
 #: apps/web/src/routes/_auth/goals.$goalId.tsx
-#: apps/web/src/routes/_auth/goals.index.tsx
 msgid "One-time target"
 msgstr "One-time target"
 
@@ -14053,13 +14162,12 @@ msgid "Preventive-care reminders (dates you set)"
 msgstr "Preventive-care reminders (dates you set)"
 
 #: apps/web/src/components/product-settings-form.tsx
-#: apps/web/src/components/workout-routines.tsx
 msgid "Preview"
 msgstr "Preview"
 
 #: apps/web/src/components/workout-routines.tsx
-msgid "Preview ready. Suggestions are read-only; edit the routine to change future targets."
-msgstr "Preview ready. Suggestions are read-only; edit the routine to change future targets."
+msgid "Preview next session"
+msgstr "Preview next session"
 
 #: apps/native/components/exercise-media-gallery.tsx
 #: apps/web/src/components/exercise-library.tsx
@@ -14191,10 +14299,6 @@ msgstr "Progress and achievements will be recalculated."
 msgid "Progress and history"
 msgstr "Progress and history"
 
-#: apps/web/src/routes/_auth/goals.index.tsx
-msgid "Progress is based on the current goal rule."
-msgstr "Progress is based on the current goal rule."
-
 #: apps/native/components/progress-photos.tsx
 #: apps/web/src/components/progress-photos.tsx
 msgid "Progress photo from {date}"
@@ -14279,7 +14383,6 @@ msgstr "Provisional"
 #. placeholder {0}: coverage?.coveredDays ?? 0
 #. placeholder {1}: coverage?.requiredDays ?? rule.windowDays ?? 7
 #: apps/native/app/(drawer)/goals.tsx
-#: apps/web/src/routes/_auth/goals.index.tsx
 msgid "Provisional · {0} of {1} days covered"
 msgstr "Provisional · {0} of {1} days covered"
 
@@ -14655,6 +14758,10 @@ msgstr "Record"
 msgid "Record an amount"
 msgstr "Record an amount"
 
+#: apps/web/src/routes/_auth/supplements.tsx
+msgid "Record each dose when you take it."
+msgstr "Record each dose when you take it."
+
 #: apps/native/components/active-workout.tsx
 msgid "Record RPE"
 msgstr "Record RPE"
@@ -14662,6 +14769,10 @@ msgstr "Record RPE"
 #: apps/web/src/components/workout-session-editor.tsx
 msgid "Record the session as it happened. Exercise and set details are optional."
 msgstr "Record the session as it happened. Exercise and set details are optional."
+
+#: apps/web/src/routes/_auth/-goal-checkin-dialog.tsx
+msgid "Record where you are today."
+msgstr "Record where you are today."
 
 #: packages/api/src/presenters/insights.ts
 msgid "Recorded activity energy"
@@ -14847,6 +14958,7 @@ msgstr "Reminders for each day are sent once, from this time in your time zone. 
 #: apps/web/src/components/food-draft-panel.tsx
 #: apps/web/src/components/sharing-confirm-dialog.tsx
 #: apps/web/src/routes/_auth/sharing.tsx
+#: apps/web/src/routes/_auth/supplements.tsx
 msgid "Remove"
 msgstr "Remove"
 
@@ -14911,6 +15023,10 @@ msgstr "Remove the entry."
 #: apps/web/src/components/manual-sleep-section.tsx
 msgid "Remove the night of {day}"
 msgstr "Remove the night of {day}"
+
+#: apps/web/src/routes/_auth/supplements.tsx
+msgid "Remove this dose?"
+msgstr "Remove this dose?"
 
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 #: apps/web/src/routes/_auth/nutrition.tsx
@@ -15110,6 +15226,7 @@ msgstr "Results with the lab's ranges"
 
 #: apps/native/app/(drawer)/goals/[goalId].tsx
 #: apps/web/src/routes/_auth/goals.$goalId.tsx
+#: apps/web/src/routes/_auth/goals.index.tsx
 msgid "Resume"
 msgstr "Resume"
 
@@ -15502,11 +15619,6 @@ msgstr "Risk tolerance"
 msgid "Role"
 msgstr "Role"
 
-#. placeholder {0}: rule.windowDays ?? 7
-#: apps/web/src/routes/_auth/goals.index.tsx
-msgid "Rolling {0}-day average"
-msgstr "Rolling {0}-day average"
-
 #: apps/native/components/goal-editor.tsx
 #: apps/web/src/routes/_auth/-goal-editor.tsx
 msgid "Rolling average"
@@ -15709,6 +15821,7 @@ msgid "Save changes"
 msgstr "Save changes"
 
 #: apps/native/app/(drawer)/goals/[goalId].tsx
+#: apps/web/src/routes/_auth/-goal-checkin-dialog.tsx
 #: apps/web/src/routes/_auth/goals.$goalId.tsx
 msgid "Save check-in"
 msgstr "Save check-in"
@@ -15740,6 +15853,10 @@ msgstr "Save done date"
 #: apps/web/src/routes/_auth/private-measurements.tsx
 msgid "Save entry"
 msgstr "Save entry"
+
+#: apps/web/src/components/exercise-library.tsx
+msgid "Save exercise"
+msgstr "Save exercise"
 
 #: packages/api/src/presenters/custom-foods.ts
 msgid "Save food"
@@ -15832,7 +15949,6 @@ msgstr "Save workout"
 #: apps/native/components/blood-pressure-section.tsx
 #: apps/web/src/components/wellness-profile-editor.tsx
 #: apps/web/src/routes/_auth/settings/index.tsx
-#: apps/web/src/routes/_auth/supplements.tsx
 msgid "Saved"
 msgstr "Saved"
 
@@ -15960,6 +16076,7 @@ msgstr "Saving photo…"
 #: apps/native/components/routine-editor.tsx
 #: apps/native/components/trackers/tracker-log-form.tsx
 #: apps/native/components/workout-routines.tsx
+#: apps/web/src/components/exercise-library.tsx
 #: apps/web/src/components/health-data-consent-prompt.tsx
 #: apps/web/src/components/log-food-sheet.tsx
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
@@ -15970,6 +16087,7 @@ msgstr "Saving photo…"
 #: apps/web/src/components/wellness-profile-editor.tsx
 #: apps/web/src/components/workout-routines.tsx
 #: apps/web/src/components/workout-session-editor.tsx
+#: apps/web/src/routes/_auth/-goal-checkin-dialog.tsx
 #: apps/web/src/routes/_auth/-goal-editor.tsx
 #: apps/web/src/routes/_auth/cycle.tsx
 #: apps/web/src/routes/_auth/goals.$goalId.tsx
@@ -16024,6 +16142,10 @@ msgstr "Scanning is not available on this device. Type the barcode digits instea
 #: apps/web/src/routes/_auth/-goal-editor.tsx
 msgid "Schedule"
 msgstr "Schedule"
+
+#: apps/web/src/routes/_auth/supplements.tsx
+msgid "Schedules are reminders, so only the doses you record count as taken. A goal counts the day once, while every dose stays in your history. For a dose at another time, use the + button."
+msgstr "Schedules are reminders, so only the doses you record count as taken. A goal counts the day once, while every dose stays in your history. For a dose at another time, use the + button."
 
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/web/src/components/nav-links.ts
@@ -16156,10 +16278,6 @@ msgstr "See the full breakdown"
 #: apps/web/src/routes/_auth/micronutrients.tsx
 msgid "See vitamins and minerals from the foods you logged against EFSA or NASEM references. A value a food does not report counts as unknown, never as zero."
 msgstr "See vitamins and minerals from the foods you logged against EFSA or NASEM references. A value a food does not report counts as unknown, never as zero."
-
-#: apps/web/src/routes/_auth/goals.index.tsx
-msgid "See what needs attention, then browse longer-term progress below."
-msgstr "See what needs attention, then browse longer-term progress below."
 
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 msgid "Select"
@@ -16362,6 +16480,10 @@ msgstr "Servings (text)"
 #: packages/api/src/presenters/nutrition-templates.ts
 msgid "Servings per recipe"
 msgstr "Servings per recipe"
+
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "Session"
+msgstr "Session"
 
 #: apps/web/src/components/workout-session-editor.tsx
 msgid "Session details"
@@ -16645,6 +16767,10 @@ msgstr "Show archived trackers"
 msgid "Show everything"
 msgstr "Show everything"
 
+#: apps/web/src/components/exercise-library.tsx
+msgid "Show more"
+msgstr "Show more"
+
 #: apps/web/src/routes/_auth/settings/ai-apps.tsx
 msgid "Show on timeline"
 msgstr "Show on timeline"
@@ -16695,6 +16821,11 @@ msgstr "Showing only entries a connected AI app added."
 #: apps/web/src/routes/_auth/records/timeline.tsx
 msgid "Showing only entries from one source."
 msgstr "Showing only entries from one source."
+
+#. placeholder {0}: rows.length
+#: apps/web/src/components/exercise-library.tsx
+msgid "Showing the first {0}, A to Z"
+msgstr "Showing the first {0}, A to Z"
 
 #: packages/api/src/presenters/activity-load.ts
 msgid "Shown for context only. Steps and strength volume are never converted into points."
@@ -17002,10 +17133,6 @@ msgstr "Sleep imports count automatically. Uncertain history is not included."
 msgid "Sleep records"
 msgstr "Sleep records"
 
-#: apps/web/src/routes/_auth/goals.index.tsx
-msgid "Sleep records are imported automatically."
-msgstr "Sleep records are imported automatically."
-
 #: packages/api/src/presenters/timeline.ts
 msgid "Sleep session"
 msgstr "Sleep session"
@@ -17206,6 +17333,10 @@ msgstr "Start {0}"
 msgid "Start a new conversation to ask the AI coach for guidance."
 msgstr "Start a new conversation to ask the AI coach for guidance."
 
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "Start a routine, or log a session with the + button."
+msgstr "Start a routine, or log a session with the + button."
+
 #: apps/web/src/components/oauth-consent-view.tsx
 msgid "Start connecting again from the app."
 msgstr "Start connecting again from the app."
@@ -17239,6 +17370,10 @@ msgstr "Start from a template, or make your own."
 #: apps/web/src/components/admission-form.tsx
 msgid "Start over"
 msgstr "Start over"
+
+#: apps/web/src/components/workout-routines.tsx
+msgid "Start session"
+msgstr "Start session"
 
 #: apps/native/components/exercise-detail.tsx
 msgid "Start with this"
@@ -17283,12 +17418,17 @@ msgstr "Starting value must start with a number, like \"70\" or \"70 kg\"."
 
 #: apps/native/app/(drawer)/coach/index.tsx
 #: apps/web/src/components/coach-ideas.tsx
+#: apps/web/src/components/workout-routines.tsx
 msgid "Starting…"
 msgstr "Starting…"
 
 #: apps/native/components/exercise-detail.tsx
 msgid "Starts a workout with it."
 msgstr "Starts a workout with it."
+
+#: apps/web/src/routes/_auth/goals.index.tsx
+msgid "Starts next week"
+msgstr "Starts next week"
 
 #: apps/web/src/routes/_auth/-goal-editor.tsx
 msgid "Starts on"
@@ -17756,6 +17896,10 @@ msgstr "Take care: {cautions}"
 msgid "Take photo"
 msgstr "Take photo"
 
+#: apps/web/src/routes/_auth/supplements.tsx
+msgid "Taken"
+msgstr "Taken"
+
 #. Home-screen widget: marks the next supplement that is due as taken.
 #: apps/native/lib/home-widget/copy.ts
 #: apps/native/lib/quick-log/picker.ts
@@ -17768,6 +17912,14 @@ msgstr "Taken"
 #: apps/web/src/components/onboarding/server-checklist.tsx
 msgid "Taken and verified with deploy/setup.sh on the server."
 msgstr "Taken and verified with deploy/setup.sh on the server."
+
+#: apps/web/src/routes/_auth/supplements.tsx
+msgid "Taken at"
+msgstr "Taken at"
+
+#: apps/web/src/routes/_auth/supplements.tsx
+msgid "Taken: {name}"
+msgstr "Taken: {name}"
 
 #: apps/native/app/(drawer)/body-map.tsx
 msgid "Tap a region to see its value."
@@ -17785,9 +17937,23 @@ msgctxt "check-in column"
 msgid "Target"
 msgstr "Target"
 
+#: apps/web/src/routes/_auth/goals.index.tsx
+msgid "Target {low} to {high}"
+msgstr "Target {low} to {high}"
+
 #: apps/web/src/routes/_auth/records/sleep.tsx
 msgid "Target {targetHours}"
 msgstr "Target {targetHours}"
+
+#. placeholder {0}: value(comparator.value)
+#: apps/web/src/routes/_auth/goals.index.tsx
+msgid "Target at least {0}"
+msgstr "Target at least {0}"
+
+#. placeholder {0}: value(comparator.value)
+#: apps/web/src/routes/_auth/goals.index.tsx
+msgid "Target at most {0}"
+msgstr "Target at most {0}"
 
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Target cleared."
@@ -18233,8 +18399,8 @@ msgid "The name is the app's own description and has not been checked."
 msgstr "The name is the app's own description and has not been checked."
 
 #: apps/web/src/routes/_auth/goals.index.tsx
-msgid "The next Monday–Sunday period has not started."
-msgstr "The next Monday–Sunday period has not started."
+msgid "The next Monday to Sunday week has not started."
+msgstr "The next Monday to Sunday week has not started."
 
 #: packages/api/src/presenters/preventive-care.ts
 msgid "The NHS has not reviewed or endorsed this app."
@@ -18926,9 +19092,14 @@ msgstr "This version"
 #: apps/native/app/(drawer)/records/activity.tsx
 #: apps/native/app/(drawer)/records/vitals.tsx
 #: apps/native/components/training-home.tsx
+#: apps/web/src/routes/_auth/supplements.tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 msgid "This week"
 msgstr "This week"
+
+#: apps/web/src/routes/_auth/goals.index.tsx
+msgid "This week so far"
+msgstr "This week so far"
 
 #: packages/api/src/presenters/activity-load.ts
 msgid "This week: {current} points. Average of {windows, plural, one {# previous week} other {# previous weeks}} with rated sessions: {average} points (this week not included). {windows} of {considered} earlier weeks logged."
@@ -18945,10 +19116,6 @@ msgstr "This week's effort points are well above your average for the previous w
 #: packages/api/src/presenters/activity-load.ts
 msgid "This week's effort points are well below your average for the previous weeks."
 msgstr "This week's effort points are well below your average for the previous weeks."
-
-#: apps/web/src/routes/_auth/goals.index.tsx
-msgid "This week's tracking starts with the next eligible week."
-msgstr "This week's tracking starts with the next eligible week."
 
 #: apps/native/components/active-workout.tsx
 msgid "This workout"
@@ -18989,6 +19156,11 @@ msgstr "Time hanging from a bar."
 #: packages/api/src/presenters/trackers.ts
 msgid "Time in the sauna."
 msgstr "Time in the sauna."
+
+#. safety
+#: apps/web/src/routes/_auth/supplements.tsx
+msgid "Time of day"
+msgstr "Time of day"
 
 #: apps/web/src/routes/_auth/supplements.tsx
 msgid "Time taken"
@@ -19084,17 +19256,12 @@ msgstr "today"
 #: apps/native/utils/friendly.ts
 #: apps/web/src/routes/_auth/cycle.tsx
 #: apps/web/src/routes/_auth/goals.$goalId.tsx
-#: apps/web/src/routes/_auth/goals.index.tsx
 #: apps/web/src/routes/_auth/records/vitals.tsx
+#: apps/web/src/routes/_auth/supplements.tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
 #: apps/web/src/utils/friendly.ts
 msgid "Today"
 msgstr "Today"
-
-#. placeholder {0}: goal.definition.unit
-#: apps/web/src/routes/_auth/goals.index.tsx
-msgid "Today ({0})"
-msgstr "Today ({0})"
 
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 msgid "Today so far"
@@ -19115,10 +19282,6 @@ msgstr "Today's goal value"
 #: apps/web/src/routes/_auth/goals.index.tsx
 msgid "Today’s target met"
 msgstr "Today’s target met"
-
-#: apps/web/src/routes/_auth/goals.index.tsx
-msgid "Today's value"
-msgstr "Today's value"
 
 #: apps/web/src/components/mode-toggle.tsx
 msgid "Toggle theme"
@@ -19487,7 +19650,6 @@ msgstr "Two separate views of your own records: measured DEXA values by region, 
 
 #: apps/native/components/trackers/tracker-editor.tsx
 #: apps/web/src/components/trackers/tracker-editor.tsx
-#: apps/web/src/routes/_auth/workouts.tsx
 msgid "Type"
 msgstr "Type"
 
@@ -19596,7 +19758,6 @@ msgstr "Unfavourite <0>{foodName}</0>"
 msgid "Unfinished sets will not be saved."
 msgstr "Unfinished sets will not be saved."
 
-#. safety
 #. safety
 #. safety
 #. safety
@@ -19774,6 +19935,10 @@ msgstr "Updated {foodName}"
 msgid "Updated {name}"
 msgstr "Updated {name}"
 
+#: apps/web/src/routes/_auth/goals.index.tsx
+msgid "Updates from your records"
+msgstr "Updates from your records"
+
 #: apps/native/components/analytics-consent-section.tsx
 #: apps/web/src/components/analytics-consent-section.tsx
 msgid "Updating your setting…"
@@ -19933,6 +20098,7 @@ msgstr "Uses your sleep, activity, food and goals. Not medical advice."
 #: apps/native/app/(drawer)/goals/[goalId].tsx
 #: apps/native/app/(drawer)/records/labs.tsx
 #: apps/native/components/goal-editor.tsx
+#: apps/web/src/routes/_auth/-goal-checkin-dialog.tsx
 #: apps/web/src/routes/_auth/goals.$goalId.tsx
 #: apps/web/src/routes/_auth/records/labs.tsx
 #: apps/web/src/routes/_auth/trackers.$trackerId.tsx
@@ -19953,6 +20119,7 @@ msgstr "Value ({trackerUnit})"
 
 #: apps/native/app/(drawer)/records/activity.tsx
 #: apps/native/app/(drawer)/records/vitals.tsx
+#: apps/web/src/routes/_auth/-goal-checkin-dialog.tsx
 msgid "Value ({unit})"
 msgstr "Value ({unit})"
 
@@ -20041,6 +20208,14 @@ msgstr "Very forceful"
 msgid "Very gentle"
 msgstr "Very gentle"
 
+#: packages/api/src/presenters/trackers.ts
+msgid "Very good"
+msgstr "Very good"
+
+#: packages/api/src/presenters/trackers.ts
+msgid "Very low"
+msgstr "Very low"
+
 #. safety
 #: packages/api/src/presenters/preventive-care.ts
 msgid "Very low certainty (“the evidence is very uncertain”)"
@@ -20109,7 +20284,6 @@ msgid "Vigorous: {vigorous} min (counts double)"
 msgstr "Vigorous: {vigorous} min (counts double)"
 
 #: apps/native/components/exercise-library.tsx
-#: apps/web/src/components/exercise-library.tsx
 msgid "Visible to members of this workspace."
 msgstr "Visible to members of this workspace."
 
@@ -20312,10 +20486,6 @@ msgstr "Web apps such as claude.ai and ChatGPT connect from their own servers, s
 msgid "Week complete"
 msgstr "Week complete"
 
-#: apps/web/src/routes/_auth/goals.index.tsx
-msgid "Week still in progress"
-msgstr "Week still in progress"
-
 #. safety
 #: packages/api/src/presenters/supplements.ts
 msgid "Weekly"
@@ -20502,10 +20672,6 @@ msgstr "What's new in {shortVersion}"
 msgid "When"
 msgstr "When"
 
-#: apps/web/src/routes/_auth/goals.index.tsx
-msgid "When taken"
-msgstr "When taken"
-
 #: apps/native/components/pain/pain-panel.tsx
 #: apps/web/src/components/pain/pain-panel.tsx
 #: packages/api/src/presenters/log-kinds.ts
@@ -20527,6 +20693,10 @@ msgstr "Where your effort ratings come from changed (for example a new device), 
 #: packages/api/src/presenters/trackers.ts
 msgid "Whether you flossed today."
 msgstr "Whether you flossed today."
+
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "Which routine did you do?"
+msgstr "Which routine did you do?"
 
 #: apps/web/src/components/activity-load-panel.tsx
 msgid "WHO 2020 guidelines (opens the paper)"
@@ -20555,6 +20725,14 @@ msgstr "Within {slight}"
 #: packages/api/src/presenters/activity-load.ts
 msgid "Within the WHO range of 150 to 300 minutes a week."
 msgstr "Within the WHO range of 150 to 300 minutes a week."
+
+#: apps/web/src/routes/_auth/goals.index.tsx
+msgid "Within your target"
+msgstr "Within your target"
+
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "Without a routine"
+msgstr "Without a routine"
 
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "women aged {minAge} and over"
@@ -20635,10 +20813,6 @@ msgstr "Works out protein, carbohydrate and fat targets from your energy target 
 msgid "Workspace"
 msgstr "Workspace"
 
-#: apps/web/src/components/exercise-library.tsx
-msgid "Workspace exercise"
-msgstr "Workspace exercise"
-
 #: apps/web/src/components/accept-invitation-view.tsx
 msgid "Workspace invitation"
 msgstr "Workspace invitation"
@@ -20672,6 +20846,11 @@ msgstr "Yes days"
 #: packages/api/src/presenters/trackers.ts
 msgid "Yes if any entry says yes"
 msgstr "Yes if any entry says yes"
+
+#. placeholder {0}: figure.value
+#: apps/web/src/routes/_auth/trackers.index.tsx
+msgid "Yes on {0} of 7 days"
+msgstr "Yes on {0} of 7 days"
 
 #: packages/api/src/presenters/trackers.ts
 msgid "Yes or no"
@@ -21211,8 +21390,8 @@ msgid "Your pain ratings by body region, only while \"Coach and connected AI app
 msgstr "Your pain ratings by body region, only while \"Coach and connected AI apps can read my pain log\" is on."
 
 #: apps/web/src/routes/_auth/goals.index.tsx
-msgid "Your personal goals, separate from workout plans. Missing records stay unknown—not zero."
-msgstr "Your personal goals, separate from workout plans. Missing records stay unknown—not zero."
+msgid "Your personal goals, separate from workout plans. Missing records stay unknown, not zero."
+msgstr "Your personal goals, separate from workout plans. Missing records stay unknown, not zero."
 
 #: apps/native/components/onboarding/steps.tsx
 msgid "Your phone's health app isn't available here. You can type things in, or connect later in Settings › Health data."
@@ -21339,6 +21518,10 @@ msgstr "Your session has ended. Sign in again to continue."
 msgid "Your subscription has ended. You can subscribe again at any time."
 msgstr "Your subscription has ended. You can subscribe again at any time."
 
+#: apps/web/src/routes/_auth/supplements.tsx
+msgid "Your supplements"
+msgstr "Your supplements"
+
 #. placeholder {0}: formatTarget(energyTarget, hideNumbers, i18n)
 #. placeholder {0}: formatTarget(proteinTarget, hideNumbers, i18n)
 #: apps/web/src/routes/_auth/nutrition-targets.tsx
@@ -21424,6 +21607,10 @@ msgstr "Your workout is unchanged. Check your connection or try again."
 #: apps/web/src/components/billing-plan-view.tsx
 msgid "Your workspace is read-only for now. You can still read, export and delete your records; adding and syncing records starts again when you choose a plan."
 msgstr "Your workspace is read-only for now. You can still read, export and delete your records; adding and syncing records starts again when you choose a plan."
+
+#: apps/web/src/components/exercise-library.tsx
+msgid "Yours"
+msgstr "Yours"
 
 #: apps/native/components/direct-device-settings.tsx
 msgid "Zepp OS transport, authentication and history are validated at source level for this model: per-minute steps, heart rate and sleep. Not hardware-verified."
