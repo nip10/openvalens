@@ -61,10 +61,9 @@ export function labSparkline(marker: LabMarkerLike): { value: number; label: str
 
 /**
  * How to show the lab's own reference range next to a reading. The range is
- * the lab's, as stored with the reading; nothing here looks one up or judges
- * the reading against it (docs/research/reports/Legal and clinical gate
- * decisions.md, never-add item 1: showing the lab's printed range is the
- * limit, so there is no within/above/below label).
+ * the lab's, as stored with the reading; nothing here looks one up. Whether a
+ * reading sits below, within or above it is `labRangePosition` (the owner
+ * reopened never-add item 1 for this on 2026-11-16).
  *
  * - Both numeric bounds: "30 to 100 ng/mL", converted with the same display
  *   choice as the reading (#67) so the two share a unit.
@@ -134,8 +133,8 @@ export function displayLabRange(
 
 /**
  * Where a marker's readings and the lab's printed range sit on one line, as
- * percentages of its width. Placement only: nothing here judges a reading
- * against the range (never-add item 1), so there is no inside/outside result.
+ * percentages of its width. Placement only; `labRangePosition` says whether a
+ * reading is below, within or above the range.
  *
  * The scale runs from the range with some room either side (as on mobile,
  * `labRangeBar`), widened so every reading fits. `band` is null when the range
@@ -154,6 +153,31 @@ export type LabRangeLine = {
 
 function sameUnit(a: string | null | undefined, b: string | null | undefined): boolean {
   return (a ?? "").trim().toLowerCase() === (b ?? "").trim().toLowerCase();
+}
+
+export type LabRangePosition = "below" | "within" | "above";
+
+/**
+ * Where a reading sits against the lab's own printed range: below, within or
+ * above it. Null when the range can't be compared with the reading: a text
+ * range, a range in another unit, a bound that isn't a number, or no range.
+ * Bounds are inclusive ("30 to 100" counts 100 as within). The owner reopened
+ * never-add item 1 for this on 2026-11-16 (Legal and clinical gate decisions).
+ */
+export function labRangePosition(
+  value: number,
+  valueUnit: string | null | undefined,
+  range: LabRangeDisplay | null,
+): LabRangePosition | null {
+  if (!Number.isFinite(value) || !range || range.kind === "text") return null;
+  if (!sameUnit(valueUnit, range.unit)) return null;
+  const low = range.kind === "upTo" ? null : Number(range.low);
+  const high = range.kind === "from" ? null : Number(range.high);
+  if (low !== null && !Number.isFinite(low)) return null;
+  if (high !== null && !Number.isFinite(high)) return null;
+  if (low !== null && value < low) return "below";
+  if (high !== null && value > high) return "above";
+  return "within";
 }
 
 export function labRangeLine(
