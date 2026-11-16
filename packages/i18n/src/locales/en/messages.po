@@ -627,10 +627,9 @@ msgstr "{amount} per month"
 msgid "{amount} per year"
 msgstr "{amount} per year"
 
-#. placeholder {0}: saving.percent
 #: apps/web/src/components/billing-plan-view.tsx
-msgid "{amount} per year ({perMonth} a month, save {0}%)"
-msgstr "{amount} per year ({perMonth} a month, save {0}%)"
+msgid "{amount} per year, {perMonth} a month"
+msgstr "{amount} per year, {perMonth} a month"
 
 #: packages/api/src/presenters/insights.ts
 msgid "{amount} steps"
@@ -2418,6 +2417,18 @@ msgstr "Add target"
 msgid "Add the first exercise to start logging sets."
 msgstr "Add the first exercise to start logging sets."
 
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "Add the server address and your key to ~/.cursor/mcp.json."
+msgstr "Add the server address and your key to ~/.cursor/mcp.json."
+
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "Add the server address and your key to the app's MCP settings (mcp.json in LM Studio)."
+msgstr "Add the server address and your key to the app's MCP settings (mcp.json in LM Studio)."
+
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "Add the server address with your key, using the command in the guide."
+msgstr "Add the server address with your key, using the command in the guide."
+
 #: packages/api/src/presenters/trackers.ts
 msgid "Add them up"
 msgstr "Add them up"
@@ -2510,6 +2521,10 @@ msgstr "Added sugars"
 #: apps/web/src/routes/_auth/nutrition.tsx
 msgid "Added to favourites"
 msgstr "Added to favourites"
+
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "Adding and syncing records"
+msgstr "Adding and syncing records"
 
 #: apps/native/app/(drawer)/profile.tsx
 #: apps/native/components/exercise-library.tsx
@@ -2643,6 +2658,14 @@ msgstr "AI features will stop processing your data until you turn consent back o
 msgid "AI for this workspace"
 msgstr "AI for this workspace"
 
+#: apps/web/src/components/ai-off-notice.tsx
+msgid "AI is off for this workspace, so the coach and other AI features don't run. Only the workspace owner can turn it on."
+msgstr "AI is off for this workspace, so the coach and other AI features don't run. Only the workspace owner can turn it on."
+
+#: apps/web/src/components/ai-off-notice.tsx
+msgid "AI is off for this workspace, so the coach and other AI features don't run. You can turn it on in AI for this workspace below."
+msgstr "AI is off for this workspace, so the coach and other AI features don't run. You can turn it on in AI for this workspace below."
+
 #: apps/web/src/components/modules-settings.tsx
 msgid "AI is off for this workspace."
 msgstr "AI is off for this workspace."
@@ -2669,6 +2692,10 @@ msgstr "AI processing disabled"
 #: apps/web/src/components/ai-consent-section.tsx
 msgid "AI processing enabled"
 msgstr "AI processing enabled"
+
+#: apps/web/src/components/ai-off-notice.tsx
+msgid "AI processing is off for you, so the coach and other AI features don't run. Turn it on below to use them."
+msgstr "AI processing is off for you, so the coach and other AI features don't run. Turn it on below to use them."
 
 #: apps/web/src/components/modules-settings.tsx
 msgid "AI processing is off for you."
@@ -2768,6 +2795,10 @@ msgstr "All readings"
 #: packages/api/src/presenters/workout-progression.ts
 msgid "All sets reached {0} reps last time, so add {increment} {unit}."
 msgstr "All sets reached {0} reps last time, so add {increment} {unit}."
+
+#: apps/web/src/routes/_auth/settings/index.tsx
+msgid "All settings"
+msgstr "All settings"
 
 #: apps/web/src/components/onboarding/finish-setup-card.tsx
 msgid "All steps"
@@ -3000,6 +3031,10 @@ msgstr "Applies from"
 #: packages/api/src/presenters/micronutrients.ts
 msgid "Applies to supplements only, not food."
 msgstr "Applies to supplements only, not food."
+
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "Approve the connection in OpenValens."
+msgstr "Approve the connection in OpenValens."
 
 #: apps/native/app/(drawer)/settings/ai-apps.tsx
 msgid "Apps that can read your records to answer your questions."
@@ -4446,10 +4481,6 @@ msgstr "Choose your region in your profile to see guidance from public-health au
 msgid "Choose…"
 msgstr "Choose…"
 
-#: apps/web/src/components/ai-apps-view.tsx
-msgid "Claude Code, signing in from the app:"
-msgstr "Claude Code, signing in from the app:"
-
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 #: apps/native/components/date-field.tsx
 #: apps/native/components/recipe-draft-editor.tsx
@@ -4584,6 +4615,10 @@ msgstr "Coach is thinking…"
 #: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Coach settings saved"
 msgstr "Coach settings saved"
+
+#: apps/web/src/routes/_auth/settings/index.tsx
+msgid "Coach style and AI consent"
+msgstr "Coach style and AI consent"
 
 #: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Coaching focus"
@@ -4820,7 +4855,6 @@ msgstr "Connected"
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/settings.tsx
 #: apps/native/app/(drawer)/settings/ai-apps.tsx
-#: apps/web/src/components/ai-apps-settings-card.tsx
 #: apps/web/src/routes/_auth/settings/ai-apps.tsx
 #: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Connected AI apps"
@@ -4885,7 +4919,7 @@ msgstr "Connection lost. Check your network and try again."
 msgid "Connections"
 msgstr "Connections"
 
-#: apps/web/src/components/ai-apps-settings-card.tsx
+#: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Connections, personal keys and recent activity"
 msgstr "Connections, personal keys and recent activity"
 
@@ -4965,6 +4999,10 @@ msgstr "Consent version: {currentVersion}"
 #: apps/native/components/onboarding/steps.tsx
 msgid "Consent version: {version}"
 msgstr "Consent version: {version}"
+
+#: apps/web/src/routes/_auth/settings/index.tsx
+msgid "Consent, analytics, export and deleting your account"
+msgstr "Consent, analytics, export and deleting your account"
 
 #: packages/api/src/presenters/coach-settings.ts
 msgid "Conservative"
@@ -6290,6 +6328,10 @@ msgstr "Create a goal or review paused and completed goals below."
 msgid "Create a personal key"
 msgstr "Create a personal key"
 
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "Create a personal key on this page."
+msgstr "Create a personal key on this page."
+
 #: apps/web/src/routes/_auth/goals.$goalId.tsx
 msgid "Create a replacement"
 msgstr "Create a replacement"
@@ -7234,6 +7276,7 @@ msgstr "Domains"
 #: apps/web/src/components/ai-app-key-form.tsx
 #: apps/web/src/components/invite-dialog.tsx
 #: apps/web/src/components/onboarding/setup-steps.tsx
+#: apps/web/src/components/wellness-profile-editor.tsx
 #: apps/web/src/routes/_auth/goals.$goalId.tsx
 #: apps/web/src/routes/_auth/profile.tsx
 #: packages/api/src/presenters/trackers.ts
@@ -8110,6 +8153,10 @@ msgstr "Estimated, low confidence. A phase can only be estimated once your next 
 msgid "Estimates"
 msgstr "Estimates"
 
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "EU consumer law gives you 14 days to withdraw from an online purchase. Because your plan starts at once, you confirm here that you asked for that and what it means if you withdraw."
+msgstr "EU consumer law gives you 14 days to withdraw from an online purchase. Because your plan starts at once, you confirm here that you asked for that and what it means if you withdraw."
+
 #: apps/native/app/(drawer)/goals.tsx
 #: apps/native/app/(drawer)/goals/[goalId].tsx
 #: apps/native/components/goal-editor.tsx
@@ -8126,6 +8173,10 @@ msgstr "Every few hours, when the system allows"
 #: apps/web/src/components/food-draft-panel.tsx
 msgid "Every item is logged."
 msgstr "Every item is logged."
+
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "Every module, on the web and on your phone"
+msgstr "Every module, on the web and on your phone"
 
 #. safety
 #: apps/native/app/(drawer)/cycle.tsx
@@ -9311,6 +9362,10 @@ msgstr "Hide steps"
 msgid "Hide token"
 msgstr "Hide token"
 
+#: apps/web/src/components/modules-settings.tsx
+msgid "Hides {pages}"
+msgstr "Hides {pages}"
+
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Hides energy, nutrient and target numbers in the diary. Logging still works, and you can turn this off at any time."
 msgstr "Hides energy, nutrient and target numbers in the diary. Logging still works, and you can turn this off at any time."
@@ -9662,6 +9717,10 @@ msgstr "I have read this and want to review the suggestion"
 msgid "I request that my paid subscription starts immediately."
 msgstr "I request that my paid subscription starts immediately."
 
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "I request that my paid subscription starts immediately. I keep the rest of my free trial, and the first payment is on {trialEnd}."
+msgstr "I request that my paid subscription starts immediately. I keep the rest of my free trial, and the first payment is on {trialEnd}."
+
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "I train regularly and want the active reference"
 msgstr "I train regularly and want the active reference"
@@ -9857,6 +9916,22 @@ msgstr "In {unitName}."
 #: apps/web/src/routes/_auth/records/sleep.tsx
 msgid "In bed"
 msgstr "In bed"
+
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "In ChatGPT, open Plugins and add a custom MCP server."
+msgstr "In ChatGPT, open Plugins and add a custom MCP server."
+
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "In Claude Code, run /mcp, choose openvalens and sign in."
+msgstr "In Claude Code, run /mcp, choose openvalens and sign in."
+
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "In Claude Desktop or claude.ai, open Customize › Connectors and add a custom connector."
+msgstr "In Claude Desktop or claude.ai, open Customize › Connectors and add a custom connector."
+
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "In claude.ai, open Customize › Connectors and add a custom connector."
+msgstr "In claude.ai, open Customize › Connectors and add a custom connector."
 
 #: packages/api/src/presenters/score.ts
 msgid "in line with your usual"
@@ -10417,6 +10492,10 @@ msgstr "Language"
 msgid "Language code"
 msgstr "Language code"
 
+#: apps/web/src/routes/_auth/settings/index.tsx
+msgid "Language, appearance, modules and devices"
+msgstr "Language, appearance, modules and devices"
+
 #: apps/native/app/(drawer)/records/activity.tsx
 #: apps/native/app/(drawer)/records/sleep.tsx
 #: apps/native/app/(drawer)/records/vitals.tsx
@@ -10796,6 +10875,10 @@ msgstr "Library exercises come from wger and keep their own licenses, listed in 
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "Licence"
 msgstr "Licence"
+
+#: apps/web/src/routes/_auth/settings/index.tsx
+msgid "Licence and source code"
+msgstr "Licence and source code"
 
 #: apps/native/components/exercise-attribution.tsx
 #: apps/native/components/exercise-detail.tsx
@@ -11479,10 +11562,6 @@ msgstr "Manage"
 msgid "Manage billing"
 msgstr "Manage billing"
 
-#: apps/web/src/components/ai-apps-settings-card.tsx
-msgid "Manage connections"
-msgstr "Manage connections"
-
 #: packages/api/src/presenters/custom-foods.ts
 msgid "Manage my foods"
 msgstr "Manage my foods"
@@ -11976,7 +12055,6 @@ msgstr "Moderate: {moderate} min"
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/settings.tsx
 #: apps/native/app/(drawer)/settings/modules.tsx
-#: apps/web/src/components/modules-settings.tsx
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
 #: apps/web/src/routes/_auth/settings/index.tsx
 #: apps/web/src/routes/_auth/settings/modules.tsx
@@ -12521,6 +12599,10 @@ msgstr "No AI prices configured, so cost is not estimated"
 #: apps/web/src/components/ai-apps-view.tsx
 msgid "No apps connected yet"
 msgstr "No apps connected yet"
+
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "No apps or keys yet. Connect an app above, or create a key for a tool on your computer."
+msgstr "No apps or keys yet. Connect an app above, or create a key for a tool on your computer."
 
 #: apps/native/app/(drawer)/trackers.tsx
 #: apps/web/src/routes/_auth/trackers.index.tsx
@@ -13899,6 +13981,10 @@ msgstr "Only the two published figures are used, as facts, with attribution; no 
 msgid "Only the workspace owner can change this."
 msgstr "Only the workspace owner can change this."
 
+#: apps/web/src/routes/_auth/coach/route.tsx
+msgid "Only the workspace owner can turn it on. Everything else in OpenValens works as usual."
+msgstr "Only the workspace owner can turn it on. Everything else in OpenValens works as usual."
+
 #. safety
 #: packages/api/src/presenters/coach-settings.ts
 msgid "Only when relevant"
@@ -14377,6 +14463,14 @@ msgstr "Paste the invitation token from your email"
 msgid "Paste the invitation token you received to create your account."
 msgstr "Paste the invitation token you received to create your account."
 
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "Paste the server address as the Server URL and choose OAuth."
+msgstr "Paste the server address as the Server URL and choose OAuth."
+
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "Paste the server address, then select Add and Connect."
+msgstr "Paste the server address, then select Add and Connect."
+
 #: apps/web/src/routes/setup.tsx
 msgid "Paste the token your operator provided"
 msgstr "Paste the token your operator provided"
@@ -14448,6 +14542,10 @@ msgstr "People"
 #: apps/web/src/components/admin-ai-usage.tsx
 msgid "People using AI"
 msgstr "People using AI"
+
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "People you share your workspace with, at no extra cost"
+msgstr "People you share your workspace with, at no extra cost"
 
 #: apps/web/src/utils/food-display.ts
 msgid "per {amount}"
@@ -14585,6 +14683,10 @@ msgstr "Personal records"
 msgid "Phase estimates are off because you said you use hormonal contraception or have no natural cycle."
 msgstr "Phase estimates are off because you said you use hormonal contraception or have no natural cycle."
 
+#: apps/web/src/routes/_auth/settings/index.tsx
+msgid "Phone alerts, weekly email and reminders"
+msgstr "Phone alerts, weekly email and reminders"
+
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 #: apps/web/src/components/log-food-sheet.tsx
 msgid "Photo"
@@ -14652,6 +14754,10 @@ msgstr "Pick any. We'll switch on the matching parts of the app."
 msgid "Pick one to try it. It takes a few seconds, and you can change it later."
 msgstr "Pick one to try it. It takes a few seconds, and you can change it later."
 
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "Pick your app"
+msgstr "Pick your app"
+
 #: packages/api/src/presenters/onboarding.ts
 msgid "Pick your modules"
 msgstr "Pick your modules"
@@ -14716,6 +14822,10 @@ msgstr "Plain water subtotal"
 #: packages/api/src/presenters/plain-water.ts
 msgid "Plain water subtotal: {value}"
 msgstr "Plain water subtotal: {value}"
+
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "Plan"
+msgstr "Plan"
 
 #: apps/web/src/components/access-banner.tsx
 #: apps/web/src/components/user-menu.tsx
@@ -15476,6 +15586,7 @@ msgid "Recommendations issued 2015"
 msgstr "Recommendations issued 2015"
 
 #. safety
+#: apps/web/src/components/modules-settings.tsx
 #: packages/api/src/presenters/preventive-care.ts
 msgid "Recommended"
 msgstr "Recommended"
@@ -15489,6 +15600,10 @@ msgstr "Recommended (USPSTF {letter})"
 #: packages/api/src/presenters/micronutrients.ts
 msgid "Recommended dietary allowance (RDA)"
 msgstr "Recommended dietary allowance (RDA)"
+
+#: apps/web/src/components/modules-settings.tsx
+msgid "Recommended modules match what you told us in <0>What brings you here</0>."
+msgstr "Recommended modules match what you told us in <0>What brings you here</0>."
 
 #: apps/web/src/components/wearable-devices-view.tsx
 msgid "Reconnect"
@@ -15927,6 +16042,10 @@ msgstr "Rest timer and alerts"
 #: apps/native/lib/workouts/rest-timer.ts
 msgid "Rest timer complete"
 msgstr "Rest timer complete"
+
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "Restart Cursor."
+msgstr "Restart Cursor."
 
 #: apps/web/src/routes/_auth/dashboard.tsx
 #: apps/web/src/routes/_auth/records/vitals.tsx
@@ -16470,6 +16589,10 @@ msgstr "Rules {engineVersion}, as of {asOf}."
 msgid "Run"
 msgstr "Run"
 
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "Run this in a terminal:"
+msgstr "Run this in a terminal:"
+
 #: apps/native/components/active-workout.tsx
 msgid "Running"
 msgstr "Running"
@@ -16538,6 +16661,10 @@ msgstr "Sauna"
 #: packages/api/src/presenters/plain-water.ts
 msgid "Save"
 msgstr "Save"
+
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "Save {percent}%"
+msgstr "Save {percent}%"
 
 #: apps/native/components/direct-device-settings.tsx
 msgid "Save a binding for this device to sync its legacy Huami history."
@@ -16826,6 +16953,11 @@ msgstr "Saving captured minutes…"
 msgid "Saving photo…"
 msgstr "Saving photo…"
 
+#. safety
+#: apps/web/src/components/wellness-profile-editor.tsx
+msgid "Saving this also clears your birth year and sex."
+msgstr "Saving this also clears your birth year and sex."
+
 #: apps/native/app/(drawer)/(tabs)/body.tsx
 #: apps/native/app/(drawer)/cycle.tsx
 #: apps/native/app/(drawer)/goals.tsx
@@ -17039,6 +17171,10 @@ msgstr "Secondary"
 #: apps/native/components/muscle-guide.tsx
 msgid "Secondary: {secondaryNames}"
 msgstr "Secondary: {secondaryNames}"
+
+#: apps/web/src/components/section-tabs.tsx
+msgid "Sections"
+msgstr "Sections"
 
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
@@ -17722,6 +17858,14 @@ msgstr "Sign in to browse your workspace library."
 msgid "Sign in to create a private, session-only draft."
 msgstr "Sign in to create a private, session-only draft."
 
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "Sign in to OpenValens and approve the connection."
+msgstr "Sign in to OpenValens and approve the connection."
+
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "Sign in to OpenValens and approve. It works in Claude Desktop from then on."
+msgstr "Sign in to OpenValens and approve. It works in Claude Desktop from then on."
+
 #. Home-screen widget when no one is signed in on this phone.
 #: apps/native/lib/home-widget/copy.ts
 msgid "Sign in to OpenValens to log from here."
@@ -18303,8 +18447,8 @@ msgid "Step sync is unavailable for this unrecognized device model."
 msgstr "Step sync is unavailable for this unrecognized device model."
 
 #: apps/web/src/components/ai-apps-view.tsx
-msgid "Step-by-step guides"
-msgstr "Step-by-step guides"
+msgid "Step-by-step guide"
+msgstr "Step-by-step guide"
 
 #. safety
 #: packages/api/src/presenters/manual-entry.ts
@@ -18427,8 +18571,12 @@ msgid "Study"
 msgstr "Study"
 
 #: apps/web/src/components/billing-plan-view.tsx
-msgid "Subscribe"
-msgstr "Subscribe"
+msgid "Subscribe monthly"
+msgstr "Subscribe monthly"
+
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "Subscribe yearly"
+msgstr "Subscribe yearly"
 
 #: packages/email/src/templates/billing.tsx
 msgid "Subscription ended"
@@ -18930,6 +19078,10 @@ msgstr "Technique"
 msgid "Tell me more about this: {0}"
 msgstr "Tell me more about this: {0}"
 
+#: apps/web/src/components/modules-settings.tsx
+msgid "Tell us <0>what brings you here</0> and we'll mark the modules that fit."
+msgstr "Tell us <0>what brings you here</0> and we'll mark the modules that fit."
+
 #: apps/native/app/(drawer)/settings.tsx
 msgid "Template"
 msgstr "Template"
@@ -19088,6 +19240,10 @@ msgstr "The coach also needs AI to be turned on for this server and your consent
 #: apps/web/src/routes/_auth/coach/route.tsx
 msgid "The coach uses AI, which is off"
 msgstr "The coach uses AI, which is off"
+
+#: apps/web/src/routes/_auth/coach/route.tsx
+msgid "The coach uses AI, which is off for this workspace"
+msgstr "The coach uses AI, which is off for this workspace"
 
 #: apps/native/app/(drawer)/invitations.tsx
 msgid "The consent version changed. Review it and try accepting the invitation again."
@@ -19559,6 +19715,10 @@ msgstr "This address does not use HTTPS"
 msgid "This app already syncs Apple Health or Health Connect. To connect, disconnect or remove a vendor account such as Oura or WHOOP, sign in to the web app and open Settings, then Devices."
 msgstr "This app already syncs Apple Health or Health Connect. To connect, disconnect or remove a vendor account such as Oura or WHOOP, sign in to the web app and open Settings, then Devices."
 
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "This app connects by signing in, which this server doesn't offer. Use an app on your computer with a personal key instead, such as Claude Code or Cursor."
+msgstr "This app connects by signing in, which this server doesn't offer. Use an app on your computer with a personal key instead, such as Claude Code or Cursor."
+
 #: apps/native/app/server.tsx
 msgid "This app is set up for {current} only."
 msgstr "This app is set up for {current} only."
@@ -20004,6 +20164,10 @@ msgstr "This workout could not be deleted. Please try again."
 msgid "This workout could not be opened. Please try again."
 msgstr "This workout could not be opened. Please try again."
 
+#: apps/web/src/components/ai-apps-settings-card.tsx
+msgid "This workspace"
+msgstr "This workspace"
+
 #: apps/native/components/cloud-access-notice.tsx
 msgid "This workspace's OpenValens Cloud access has ended. Its records are still here, and you can export them."
 msgstr "This workspace's OpenValens Cloud access has ended. Its records are still here, and you can export them."
@@ -20374,6 +20538,7 @@ msgstr "Trunk"
 #: apps/web/src/components/exercise-library.tsx
 #: apps/web/src/components/health-data-consent-prompt.tsx
 #: apps/web/src/components/progress-photos.tsx
+#: apps/web/src/components/wellness-profile-editor.tsx
 #: apps/web/src/components/workout-history.tsx
 #: apps/web/src/routes/_auth/cycle.tsx
 #: apps/web/src/routes/_auth/private-measurements.tsx
@@ -20513,8 +20678,8 @@ msgid "Turn on to let AI features process your data."
 msgstr "Turn on to let AI features process your data."
 
 #: apps/web/src/routes/_auth/settings/ai-apps.tsx
-msgid "Turn them on in Settings"
-msgstr "Turn them on in Settings"
+msgid "Turn them on below"
+msgstr "Turn them on below"
 
 #. safety
 #: apps/web/src/routes/_auth/private-measurements.tsx
@@ -22106,6 +22271,10 @@ msgstr "Your {name} account uses a different email address than this account."
 msgid "Your 30-day line appears after a few days with a score."
 msgstr "Your 30-day line appears after a few days with a score."
 
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "Your 14-day right to withdraw"
+msgstr "Your 14-day right to withdraw"
+
 #: packages/api/src/presenters/insights.ts
 msgid "Your 7-day average {metric, select, sleep_duration {sleep} resting_heart_rate {resting heart rate} steps {step count} other {weight}} was {recent}, {difference} {direction, select, higher {higher} other {lower}} than your usual of {usual}."
 msgstr "Your 7-day average {metric, select, sleep_duration {sleep} resting_heart_rate {resting heart rate} steps {step count} other {weight}} was {recent}, {difference} {direction, select, higher {higher} other {lower}} than your usual of {usual}."
@@ -22180,6 +22349,10 @@ msgstr "Your answers"
 #: packages/api/src/presenters/preventive-care.ts
 msgid "Your answers do not match this item."
 msgstr "Your answers do not match this item."
+
+#: apps/web/src/components/ai-apps-view.tsx
+msgid "Your apps and keys"
+msgstr "Your apps and keys"
 
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "Your birth year falls on the edge of two age bands."
@@ -22338,6 +22511,10 @@ msgstr "Your most recent health events and measurements in one structured file t
 msgid "Your name"
 msgstr "Your name"
 
+#: apps/web/src/routes/_auth/settings/index.tsx
+msgid "Your name, sign-in, plan and profile"
+msgstr "Your name, sign-in, plan and profile"
+
 #. placeholder {0}: props.label
 #: apps/web/src/components/ai-app-key-form.tsx
 msgid "Your new key: {0}"
@@ -22407,6 +22584,10 @@ msgstr "Your phone's health app isn't available here. You can type things in, or
 #: apps/web/src/components/billing-plan-view.tsx
 msgid "Your plan"
 msgstr "Your plan"
+
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "Your plan includes"
+msgstr "Your plan includes"
 
 #: apps/web/src/components/billing-plan-view.tsx
 msgid "Your plan is active."

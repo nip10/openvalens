@@ -58,10 +58,12 @@ export function ModulesSettingsForm({
   const { t, i18n } = useLingui();
   // #settings-modules-4 — the modules the profile's focus answer picks.
   const recommended = new Set(defaultModulesForFocus(snapshot.focus));
-  const list = (labels: readonly MessageDescriptor[]) =>
-    new Intl.ListFormat(i18n.locale, { type: "conjunction" }).format(
+  const hidesLine = (labels: readonly MessageDescriptor[]) => {
+    const pages = new Intl.ListFormat(i18n.locale, { type: "conjunction" }).format(
       labels.map((label) => i18n._(label)),
     );
+    return t`Hides ${pages}`;
+  };
   return (
     <div className="grid gap-8">
       <div className="grid gap-2">
@@ -134,7 +136,7 @@ export function ModulesSettingsForm({
                       </span>
                       {hides.length > 0 ? (
                         <span className="text-xs text-ink-3" data-testid={`${id}-menu`}>
-                          {t`Hides ${list(hides)}`}
+                          {hidesLine(hides)}
                         </span>
                       ) : null}
                       {module === "coach" && on && coachAiOff ? (

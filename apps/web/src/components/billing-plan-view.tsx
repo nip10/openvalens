@@ -101,6 +101,7 @@ export function BillingPlanView({
     ended: t`Trial ended`,
   }[status.status];
 
+  const savePill = (percent: number) => t`Save ${percent}%`;
   const planName =
     status.plan === "annual" ? t`Annual plan` : status.plan === "monthly" ? t`Monthly plan` : null;
   const trialEnd = day(status.trialEndsAt);
@@ -280,7 +281,7 @@ export function BillingPlanView({
                         {plan === "monthly" ? t`Monthly` : t`Annual`}
                       </span>
                       {saving ? (
-                        <StatusPill tone="good">{t`Save ${saving.percent}%`}</StatusPill>
+                        <StatusPill tone="good">{savePill(saving.percent)}</StatusPill>
                       ) : null}
                     </span>
                     {amount ? (
