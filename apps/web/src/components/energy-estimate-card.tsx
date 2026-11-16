@@ -15,16 +15,23 @@ import { type FormEvent, useEffect, useId, useState } from "react";
 import { deviceTimeZone, localDateIn } from "@openvalens/api/presenters/nutrition-diary";
 import { inlineButtonClass } from "@/components/food-classes";
 import { Gauge, Sparkles } from "lucide-react";
-import { InfoTip, Section } from "@/components/page";
+import { Details, ToneIcon } from "@/components/page";
+import { msg } from "@lingui/core/macro";
 import { orpc } from "@/utils/orpc";
+
+/** The disclosure that holds an estimate's method (nutrition-targets#0). */
+export const HOW_WORKED_OUT = msg`How this is worked out`;
 
 export function EnergyEstimateCard({
   hideNumbers,
   scope,
   targetsQueryKey,
   height,
+  targetLine,
 }: {
   hideNumbers: boolean;
+  /** One line set beside the figure: the member's own energy target, or that there is none. */
+  targetLine?: string;
   scope: string | null;
   targetsQueryKey: readonly unknown[];
   /** The saved height and the settings revision, so a suggestion can ask for height in place (#444). */
@@ -116,14 +123,16 @@ export function EnergyEstimateCard({
   };
 
   return (
-    <Section
-      icon={Gauge}
-      tone="food"
-      sheet
-      title={i18n._(ENERGY_ESTIMATE_COPY.title)}
-      description={i18n._(ENERGY_ESTIMATE_COPY.subtitle)}
-      info={<p>{i18n._(ENERGY_ESTIMATE_COPY.provisional)}</p>}
+    <section
+      aria-labelledby={`${id}-heading`}
+      className="sheet grid min-w-0 content-start gap-3 p-5"
     >
+      <div className="flex items-center gap-2.5">
+        <ToneIcon icon={Gauge} tone="food" size="sm" />
+        <h3 id={`${id}-heading`} className="text-lg leading-tight text-ink">
+          {i18n._(ENERGY_ESTIMATE_COPY.title)}
+        </h3>
+      </div>
       <div className="grid gap-3 text-sm text-ink-2">
         {hideNumbers ? (
           <p>{i18n._(ENERGY_ESTIMATE_COPY.hidden)}</p>
@@ -141,19 +150,23 @@ export function EnergyEstimateCard({
             <Trans>Loading estimate…</Trans>
           </p>
         ) : presented ? (
-          <div className="grid gap-1">
+          <div className="grid gap-1.5">
             <p className="num font-display text-[2.125rem] leading-none font-medium tracking-[-0.02em] text-ink">
               {presented.value}
             </p>
-            <div className="flex flex-wrap items-center gap-1 text-ink-3">
-              {t`${range} (arithmetic range, not a confidence interval)`}
-              <InfoTip label={t`How this is estimated`}>
+            {targetLine ? <p className="text-ink-2">{targetLine}</p> : null}
+            {/* nutrition-targets#0, #5: the method and its caveats sit behind one disclosure. */}
+            <Details summary={i18n._(HOW_WORKED_OUT)}>
+              <div className="grid gap-1.5 text-ink-3">
+                <p>{i18n._(ENERGY_ESTIMATE_COPY.subtitle)}</p>
+                <p>{t`Range: ${range}. An arithmetic range, not a confidence interval.`}</p>
                 <p>{presented.window}</p>
                 {presented.notes.map((n, i) => (
                   <p key={i}>{n}</p>
                 ))}
-              </InfoTip>
-            </div>
+                <p>{i18n._(ENERGY_ESTIMATE_COPY.provisional)}</p>
+              </div>
+            </Details>
           </div>
         ) : (
           <p>{i18n._(ENERGY_ESTIMATE_COPY.unavailable)}</p>
@@ -267,7 +280,7 @@ export function EnergyEstimateCard({
           </p>
         )}
       </div>
-    </Section>
+    </section>
   );
 }
 

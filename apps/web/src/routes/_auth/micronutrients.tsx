@@ -6,7 +6,9 @@ import {
   MICRONUTRIENT_LABELS,
 } from "@openvalens/api/presenters/micronutrients";
 import type { MicronutrientSummaryWire } from "@openvalens/api/contracts/nutrition-micronutrients";
+import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
+import { Button } from "@openvalens/ui/components/button";
 import { Input } from "@openvalens/ui/components/input";
 import { Label } from "@openvalens/ui/components/label";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
@@ -30,6 +32,8 @@ import {
 import { friendlyDate } from "@/utils/friendly";
 import { client } from "@/utils/orpc";
 import { ModuleHiddenNote } from "@/components/module-hidden-note";
+import { MicronutrientReference } from "@/components/micronutrient-reference";
+import { useNutritionSettings } from "@/utils/nutrition-settings";
 
 export const Route = createFileRoute("/_auth/micronutrients")({ component: MicronutrientsPage });
 
@@ -52,6 +56,7 @@ function MicronutrientsPage() {
     queryFn: () => client.nutritionMicronutrients.summary({ localDate }),
   });
   const data = summary.data;
+  const nutritionSettings = useNutritionSettings();
   const { t, i18n } = useLingui();
   const reference = data?.reference ?? null;
   const sourceOrg = reference?.sourceOrg ?? "";
@@ -69,33 +74,37 @@ function MicronutrientsPage() {
   };
 
   return (
-    <Page>
+    <Page width="narrow">
       <ModuleHiddenNote module="food" />
       <PageHeader
         title={<Trans>Micronutrients</Trans>}
         info={i18n._(MICRONUTRIENT_COPY.intro)}
         actions={
-          <div className="flex flex-wrap items-end gap-4">
-            <div className="grid gap-1.5">
-              <Label htmlFor="micronutrient-date" className="text-sm font-medium text-ink-3">
-                <Trans>Day</Trans>
-              </Label>
-              <Input
-                id="micronutrient-date"
-                type="date"
-                className="num"
-                value={localDate}
-                onChange={(event) => event.target.value && setLocalDate(event.target.value)}
-              />
+          // micronutrients#2: the day only matters once the summary is on.
+          data && data.status !== "off" ? (
+            <div className="flex flex-wrap items-end gap-4">
+              <div className="grid gap-1.5">
+                <Label htmlFor="micronutrient-date" className="text-sm font-medium text-ink-3">
+                  <Trans>Day</Trans>
+                </Label>
+                <Input
+                  id="micronutrient-date"
+                  type="date"
+                  className="num"
+                  value={localDate}
+                  onChange={(event) => event.target.value && setLocalDate(event.target.value)}
+                />
+              </div>
+              <Link
+                to="/settings/nutrition"
+                hash="micronutrients"
+                className={`inline-flex items-center gap-1.5 pb-2 ${controlLinkClass}`}
+              >
+                <SlidersHorizontal className="size-4 text-food" aria-hidden="true" />
+                <Trans>Nutrition settings</Trans>
+              </Link>
             </div>
-            <Link
-              to="/nutrition-targets"
-              className={`inline-flex items-center gap-1.5 pb-2 ${controlLinkClass}`}
-            >
-              <SlidersHorizontal className="size-4 text-food" aria-hidden="true" />
-              <Trans>Nutrition settings</Trans>
-            </Link>
-          </div>
+          ) : null
         }
       />
 
@@ -111,7 +120,7 @@ function MicronutrientsPage() {
       ) : summary.isError || !data ? (
         <ErrorState title={<Trans>Could not load the summary.</Trans>} />
       ) : data.status === "off" ? (
-        <EmptyState icon={Sprout} title={i18n._(MICRONUTRIENT_COPY.off)} />
+        <TurnOnCard />
       ) : data.status === "hidden" ? (
         <EmptyState icon={Sprout} title={i18n._(MICRONUTRIENT_COPY.hidden)} />
       ) : (
@@ -152,6 +161,13 @@ function MicronutrientsPage() {
             </>
           }
         >
+          {!data.reference && data.referenceNote !== "adults_only" && nutritionSettings.settings ? (
+            <MicronutrientReference
+              settings={nutritionSettings.settings}
+              save={nutritionSettings.save}
+              className="grid gap-2 rounded-2xl bg-paper-2 p-4 text-sm"
+            />
+          ) : null}
           {data.totalEntries === 0 ? (
             <EmptyState
               icon={Sprout}
@@ -235,3 +251,33 @@ function MicronutrientsPage() {
 }
 
 const SKELETON_ROWS = ["a", "b", "c", "d", "e", "f"] as const;
+
+const TURN_ON_COPY = Object.freeze({
+  title: msg`The micronutrient summary is off`,
+  why: msg`See vitamins and minerals from the foods you logged against EFSA or NASEM references. A value a food does not report counts as unknown, never as zero.`,
+  turnOn: msg`Turn on micronutrient summary`,
+});
+
+/**
+ * micronutrients#1, #3: what the summary gives, and a button that turns it on
+ * here, with the reference choice in place once it is on.
+ */
+function TurnOnCard() {
+  const { i18n } = useLingui();
+  const { settings, save, saving } = useNutritionSettings();
+  return (
+    <section className="sheet grid min-w-0 justify-items-start gap-4 p-6">
+      <ToneIcon icon={Sprout} tone="food" size="lg" />
+      <div className="grid gap-1.5">
+        <h2 className="text-xl leading-tight text-ink">{i18n._(TURN_ON_COPY.title)}</h2>
+        <p className="max-w-[60ch] text-sm text-ink-2">{i18n._(TURN_ON_COPY.why)}</p>
+      </div>
+      <Button
+        disabled={!settings || saving}
+        onClick={() => void save({ micronutrientsEnabled: true })}
+      >
+        {i18n._(TURN_ON_COPY.turnOn)}
+      </Button>
+    </section>
+  );
+}

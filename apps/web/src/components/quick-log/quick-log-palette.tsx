@@ -535,9 +535,8 @@ export function QuickLogPalette({
       },
       openFood: (text, drafts) => {
         onOpenChange(false);
-        void (drafts
-          ? navigate({ to: "/food-draft", search: { text } })
-          : navigate({ to: "/nutrition", search: { food: text } }));
+        // Both open Log food on the meal diary: Describe for a draft, else Search.
+        void navigate({ to: "/nutrition", search: drafts ? { describe: text } : { food: text } });
       },
     },
   );
