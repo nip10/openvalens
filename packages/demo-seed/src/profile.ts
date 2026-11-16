@@ -1,7 +1,14 @@
 import { COMPARISON_METRICS } from "@openvalens/api/reference-comparison-contract";
-import { PERSON_MODULES } from "@openvalens/api/wellness-profile-contract";
+import { PERSON_MODULES, type WellnessRegion } from "@openvalens/api/wellness-profile-contract";
 
 import type { DemoApi, DemoActor } from "./api";
+
+/**
+ * The region whose public-health guidance the demo shows. The disposable demo
+ * is in England (`uk`); the store review account is in the United States
+ * (`us`), to match the reviewers' en-US, America/Los_Angeles session.
+ */
+export type DemoRegion = Extract<WellnessRegion, "uk" | "us">;
 
 /**
  * Finishes setup the way the welcome flow does, so the demo person lands on
@@ -10,7 +17,7 @@ import type { DemoApi, DemoActor } from "./api";
 export async function completeSetup(
   api: DemoApi,
   actor: DemoActor,
-  answers: { sex: "female" | "male"; birthYear: number },
+  answers: { sex: "female" | "male"; birthYear: number; region?: DemoRegion },
 ): Promise<void> {
   const profile = await api.call<{ revision: number }>("profile/get", {}, actor);
   await api.call(
@@ -21,7 +28,7 @@ export async function completeSetup(
       eligibility: { state: "recorded", value: "adult" },
       focus: { state: "recorded", value: ["sleep_recovery", "activity_fitness", "nutrition"] },
       inputMethod: { state: "recorded", value: "both" },
-      region: { state: "recorded", value: "uk" },
+      region: { state: "recorded", value: answers.region ?? "uk" },
       birthYear: { state: "recorded", value: answers.birthYear },
       sex: { state: "recorded", value: answers.sex },
       enabledModules: [...PERSON_MODULES],

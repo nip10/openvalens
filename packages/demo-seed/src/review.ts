@@ -10,7 +10,7 @@ import { DEMO_PERSON } from "./accounts";
 import { createDemoApi, type DemoActor } from "./api";
 import { createCalendar } from "./dates";
 import { seedPersonData } from "./person";
-import { completeSetup } from "./profile";
+import { completeSetup, type DemoRegion } from "./profile";
 import { createRandom } from "./random";
 
 /**
@@ -136,6 +136,13 @@ async function onboardingGoalsOnly(db: Executor, organizationId: string): Promis
   return Number(total) === Number(bare) && Number(total) <= MAX_ONBOARDING_GOALS;
 }
 
+/**
+ * #profile-5 — reviewers run the apps in en-US on America/Los_Angeles, so the
+ * review account is in the United States: USPSTF preventive items and US
+ * regional guidance. The disposable demo stays in England.
+ */
+export const REVIEW_REGION: DemoRegion = "us";
+
 export const REVIEW_SEED_MARKER = "REVIEW_DEMO_SEEDED";
 export const REVIEW_REFRESH_MARKER = "REVIEW_DEMO_REFRESHED";
 
@@ -236,11 +243,12 @@ async function writeReviewDemoData(
   await db.update(user).set({ name: DEMO_PERSON.name }).where(eq(user.id, actor.userId));
   const api = createDemoApi(db);
   try {
-    await completeSetup(api, actor, { sex: "female", birthYear: 1990 });
+    await completeSetup(api, actor, { sex: "female", birthYear: 1990, region: REVIEW_REGION });
     // An onboarding goal stays as it is; a demo goal with the same title is
     // skipped rather than added twice.
     await seedPersonData(db, api, actor, calendar, random, {
       skipGoalTitles: await goalTitles(db, actor.organizationId),
+      region: REVIEW_REGION,
     });
   } finally {
     api.close();

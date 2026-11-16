@@ -125,6 +125,7 @@ describe.skipIf(!url)("demo seed against disposable PostgreSQL", () => {
     expect(await read<unknown[]>("body/listDexaScans")).toHaveLength(2);
     expect(await read<unknown[]>("clinical/listCardiacExams")).toHaveLength(1);
     const care = await read<{ items: { id: string }[] }>("preventiveCare/get");
+    // The disposable demo stays in England (the review account is in the US).
     expect(care.items.map((item) => item.id)).toContain("uk.cervical_screening");
     expect(await read<unknown[]>("clinical/listFamilyHistory")).toHaveLength(2);
     expect(await read<unknown[]>("privateBody/list")).not.toHaveLength(0);

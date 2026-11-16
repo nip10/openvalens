@@ -6,6 +6,7 @@ import type { DemoApi, DemoActor } from "./api";
 import type { DemoCalendar } from "./dates";
 import { demoWeightKg } from "./device";
 import { demoUuid } from "./ids";
+import type { DemoRegion } from "./profile";
 import { round, type Random } from "./random";
 
 /**
@@ -189,18 +190,30 @@ export async function seedCycle(
   }
 }
 
-export async function seedPreventiveCare(api: DemoApi, actor: DemoActor, calendar: DemoCalendar) {
+/**
+ * The preventive-care library, with dates on one item: cervical screening
+ * from the region's authority. In England the NHS invites
+ * (`expect_invitation`); in the United States the person keeps the dates
+ * herself (USPSTF, every 3 years at her age).
+ */
+export async function seedPreventiveCare(
+  api: DemoApi,
+  actor: DemoActor,
+  calendar: DemoCalendar,
+  region: DemoRegion = "uk",
+) {
   await api.call("preventiveCare/settings/update", { libraryEnabled: true }, actor);
   await api.call("preventiveCare/declare", { criterion: "ever_smoked", answer: "no" }, actor);
+  const dates = {
+    lastDoneOn: calendar.day(2 * 365 + 120),
+    nextOn: calendar.day(-(365 - 120)),
+    remind: true,
+  };
   await api.call(
     "preventiveCare/updateItem",
-    {
-      itemId: "uk.cervical_screening",
-      plan: "expect_invitation",
-      lastDoneOn: calendar.day(2 * 365 + 120),
-      nextOn: calendar.day(-(365 - 120)),
-      remind: true,
-    },
+    region === "us"
+      ? { itemId: "us.cervical_screening", ...dates }
+      : { itemId: "uk.cervical_screening", plan: "expect_invitation", ...dates },
     actor,
   );
 }

@@ -15,7 +15,7 @@ import {
 import type { DemoCalendar } from "./dates";
 import { planDeviceDays, seedDeviceData } from "./device";
 import { backdateDiaryEntries, seedNutrition, seedNutritionExtras } from "./nutrition";
-import { seedOptIns } from "./profile";
+import { seedOptIns, type DemoRegion } from "./profile";
 import type { Random } from "./random";
 import { seedBloodPressure, seedLabs, seedNightVitals, seedRecoveryMetrics } from "./records";
 import { seedStrengthTraining } from "./training";
@@ -28,6 +28,8 @@ export type PersonDataOptions = {
    * account passes the goals its onboarding created.
    */
   skipGoalTitles?: ReadonlySet<string>;
+  /** The region `completeSetup` recorded; it picks the preventive-care item. Default `uk`. */
+  region?: DemoRegion;
 };
 
 /**
@@ -60,7 +62,7 @@ export async function seedPersonData(
   });
   await seedSupplements(api, actor);
   await seedCycle(api, actor, calendar, random.fork("cycle"));
-  await seedPreventiveCare(api, actor, calendar);
+  await seedPreventiveCare(api, actor, calendar, options.region);
   await seedClinical(db, api, actor, calendar);
   await seedBodyComposition(db, api, actor, calendar, random.fork("body"));
 

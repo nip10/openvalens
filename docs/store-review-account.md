@@ -53,7 +53,9 @@ settings, creating and seeding the account, and what to give the reviewers.
 
 `bun run demo:seed:review` fills the review account's workspace with the same
 synthetic history as the demo instance (#301): 90 days in every module, ending
-today. Run it inside the production API container, which already has
+today. One difference: the review account's region is the United States, so
+Preventive care and other regional guidance follow US authorities (USPSTF),
+while the demo instance stays in England. Run it inside the production API container, which already has
 `DATABASE_URL`, `REVIEW_ACCOUNT_EMAIL` and `REVIEW_ACCOUNT_CODE`:
 
 ```sh
