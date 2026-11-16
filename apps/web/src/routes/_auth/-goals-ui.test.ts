@@ -12,6 +12,7 @@ import {
   goalListGroup,
   goalRuleName,
   goalTargetGap,
+  goalTargetProgress,
   goalTodayMessage,
   parseManualAmount,
   quickActionKind,
@@ -100,6 +101,15 @@ describe("Goals presentation decisions", () => {
     expect(
       quickActionKind("tracker", "active", { kind: "recurring", cadence: "daily" }, null),
     ).toBe("tracker-entries");
+    // Weight goals read weigh-ins, never goal check-ins (goals#2).
+    expect(
+      quickActionKind(
+        "weight",
+        "active",
+        { kind: "target", target: { kind: "maximum", value: 65 } },
+        "kg",
+      ),
+    ).toBe("weight-records");
   });
 
   test("the server lock controls source editing and older receipts fail closed", () => {
@@ -206,6 +216,46 @@ describe("goal list helpers (goals#4, #6)", () => {
     const range = { kind: "target", target: { kind: "range", minimum: 2, maximum: 3 } } as const;
     expect(goalTargetGap(range, 1.5)).toEqual({ met: false, gap: 0.5 });
     expect(goalTargetGap(range, 2.5)).toEqual({ met: true });
+  });
+
+  test("progress runs from the first recorded value to the target (goals#4)", () => {
+    const below = { kind: "target", target: { kind: "maximum", value: 65 } } as const;
+    const day = (date: string, value: number | null) =>
+      ({ date, value, state: "unknown", coverage: "complete" }) as GoalEvaluation["days"][number];
+    const days = [day("2026-10-02", null), day("2026-10-09", 68.4), day("2026-10-03", 69)];
+    // The earliest recorded day is the start: 69 kg, 4 kg away from 65.
+    expect(goalTargetProgress(below, { currentValue: 67, days })).toEqual({
+      start: 69,
+      fraction: 0.5,
+    });
+    // Moving away from the target never shows negative progress, nor past 100%.
+    expect(goalTargetProgress(below, { currentValue: 70, days })?.fraction).toBe(0);
+    expect(goalTargetProgress(below, { currentValue: 64, days })?.fraction).toBe(1);
+    const up = { kind: "target", target: { kind: "minimum", value: 100 } } as const;
+    expect(goalTargetProgress(up, { currentValue: 90, days: [day("2026-10-01", 80)] })).toEqual({
+      start: 80,
+      fraction: 0.5,
+    });
+    const range = { kind: "target", target: { kind: "range", minimum: 2, maximum: 3 } } as const;
+    expect(
+      goalTargetProgress(range, { currentValue: 4, days: [day("2026-10-01", 5)] })?.fraction,
+    ).toBe(0.5);
+  });
+
+  test("no progress without a start, when the start met the target, or for other rules", () => {
+    const below = { kind: "target", target: { kind: "maximum", value: 65 } } as const;
+    const day = (date: string, value: number | null) =>
+      ({ date, value, state: "unknown", coverage: "complete" }) as GoalEvaluation["days"][number];
+    expect(goalTargetProgress(below, { currentValue: null, days: [] })).toBeNull();
+    expect(
+      goalTargetProgress(below, { currentValue: 64, days: [day("2026-10-01", 64)] }),
+    ).toBeNull();
+    expect(
+      goalTargetProgress(
+        { kind: "average", target: { kind: "minimum", value: 7.5 }, windowDays: 7 },
+        { currentValue: 7, days: [day("2026-10-01", 6)] },
+      ),
+    ).toBeNull();
   });
 
   test("no gap without a value, or for streaks and recurring goals", () => {

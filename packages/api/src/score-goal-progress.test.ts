@@ -352,6 +352,7 @@ describe("goal progress counts personal goals of every source (#500)", () => {
     supplement: "supplement:7",
     workout: "exercise:9",
     tracker: trackerGoalMetric("0b9c6f1e-4a3d-4c2b-9f1e-2a3b4c5d6e7f"),
+    weight: "weight_kg",
   };
   function personalGoal(
     id: number,

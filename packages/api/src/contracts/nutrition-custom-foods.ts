@@ -62,7 +62,19 @@ export const customFood = z.object({
 });
 export type CustomFood = z.infer<typeof customFood>;
 
-export const customFoodList = z.object({ foods: z.array(customFood) });
+/** How often the member logged a food (foods#0, #5): diary entries and the latest day. */
+export const customFoodUsage = z.object({
+  logCount: z.number().int().min(0),
+  /** YYYY-MM-DD of the latest diary day with this food; null when never logged. */
+  lastLoggedOn: z.string().nullable(),
+});
+export type CustomFoodUsage = z.infer<typeof customFoodUsage>;
+
+/** A food in the list, with its usage from the member's own diary. */
+export const customFoodListItem = customFood.extend({ usage: customFoodUsage });
+export type CustomFoodListItem = z.infer<typeof customFoodListItem>;
+
+export const customFoodList = z.object({ foods: z.array(customFoodListItem) });
 export type CustomFoodList = z.infer<typeof customFoodList>;
 
 export const createCustomFoodOutput = z.object({

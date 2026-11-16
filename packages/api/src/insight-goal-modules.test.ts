@@ -34,6 +34,7 @@ const METRICS: Record<GoalDefinition["source"], string> = {
   supplement: "supplement:7",
   workout: "exercise:9",
   tracker: trackerGoalMetric(TRACKER_ID),
+  weight: "weight_kg",
 };
 
 /** A personal goal whose target was reached today (synthetic data only). */

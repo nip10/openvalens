@@ -5,6 +5,7 @@ import type {
   GoalRule,
   GoalComparator,
 } from "@openvalens/plans/goal-model";
+import { WEIGHT_GOAL_METRIC } from "@openvalens/plans/goal-model";
 import {
   trackerGoalMeasuresValue,
   trackerGoalMetric,
@@ -238,8 +239,8 @@ export function GoalEditor({
       id: initial?.definition.id ?? id(),
       title: title.trim(),
       source,
-      metric: source === "water" ? "water_ml" : source === "sleep" ? "sleep_hours" : metric,
-      unit: source === "water" ? "ml" : source === "sleep" ? "h" : unit.trim() || null,
+      metric: FIXED_METRICS[source]?.metric ?? metric,
+      unit: FIXED_METRICS[source]?.unit ?? (unit.trim() || null),
       rule,
       startDate,
       timeZone,
@@ -295,6 +296,7 @@ export function GoalEditor({
             <SelectItem value="manual">{t`Enter it myself`}</SelectItem>
             <SelectItem value="water">{t`Water diary`}</SelectItem>
             <SelectItem value="sleep">{t`Sleep records`}</SelectItem>
+            <SelectItem value="weight">{t`Weigh-ins`}</SelectItem>
             <SelectItem value="supplement">{t`Supplement intake`}</SelectItem>
             <SelectItem value="workout">{t`Workout lift`}</SelectItem>
             <SelectItem value="tracker">{t`One of my trackers`}</SelectItem>
@@ -699,6 +701,10 @@ export function GoalEditor({
       setUnit("ml");
     }
     if (next === "sleep") setUnit("h");
+    if (next === "weight") {
+      setMetric(WEIGHT_GOAL_METRIC);
+      setUnit("kg");
+    }
     if (next === "supplement") setRecurringMode("completion");
     if (next === "workout") setUnit("kg");
     if (next === "tracker") {
@@ -732,6 +738,13 @@ export function GoalEditor({
     return t`Several entries in a day are combined the way this tracker combines them.`;
   }
 }
+
+/** Sources whose metric and unit are fixed by the records they read. */
+const FIXED_METRICS: Partial<Record<GoalSource, { metric: string; unit: string }>> = {
+  water: { metric: "water_ml", unit: "ml" },
+  sleep: { metric: "sleep_hours", unit: "h" },
+  weight: { metric: WEIGHT_GOAL_METRIC, unit: "kg" },
+};
 
 export function buildRule(input: {
   kind: GoalKind;

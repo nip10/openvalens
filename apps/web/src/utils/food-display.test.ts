@@ -1,7 +1,15 @@
 import { describe, expect, test } from "bun:test";
 import { englishI18n } from "@openvalens/i18n/testing";
 
-import { diaryDayLabel, draftAmount, enteredValues, shortBasis, targetSince } from "./food-display";
+import {
+  diaryDayLabel,
+  draftAmount,
+  enteredValues,
+  foodUsageLine,
+  shortBasis,
+  sortFoods,
+  targetSince,
+} from "./food-display";
 
 const NOW = new Date(2026, 10, 16, 12, 0);
 
@@ -94,5 +102,49 @@ describe("draftAmount (food-draft#0)", () => {
     expect(draftAmount({ quantity: 2, unitText: "slices" })).toBeNull();
     expect(draftAmount({ quantity: null, unitText: "g" })).toBeNull();
     expect(draftAmount(null)).toBeNull();
+  });
+});
+
+describe("food usage (foods#0, #5)", () => {
+  const food = (
+    id: number,
+    name: string,
+    createdAt: string,
+    logCount: number,
+    last: string | null,
+  ) => ({
+    id,
+    name,
+    createdAt,
+    usage: { logCount, lastLoggedOn: last },
+  });
+  const foods = [
+    food(1, "apple", "2026-09-01T00:00:00Z", 3, "2026-11-10"),
+    food(2, "Bread", "2026-11-01T00:00:00Z", 31, "2026-11-14"),
+    food(3, "Almonds", "2026-10-01T00:00:00Z", 3, "2026-11-15"),
+    food(4, "Cocoa", "2026-11-02T00:00:00Z", 0, null),
+  ];
+
+  test("most used first, then the latest logged, then by name", () => {
+    expect(sortFoods(foods, "used", "en").map((item) => item.id)).toEqual([2, 3, 1, 4]);
+    expect(sortFoods(foods, "name", "en").map((item) => item.name)).toEqual([
+      "Almonds",
+      "apple",
+      "Bread",
+      "Cocoa",
+    ]);
+    expect(sortFoods(foods, "added", "en").map((item) => item.id)).toEqual([4, 2, 3, 1]);
+    // A copy: the server's order is left as it was.
+    expect(foods.map((item) => item.id)).toEqual([1, 2, 3, 4]);
+  });
+
+  test("the card line says when it was last logged and how often", () => {
+    const line = (logCount: number, lastLoggedOn: string | null) =>
+      foodUsageLine({ logCount, lastLoggedOn }, englishI18n, NOW);
+    expect(line(31, "2026-11-14")).toBe("Last logged 2 days ago · 31 times");
+    expect(line(1, "2026-11-16")).toBe("Last logged today · once");
+    expect(line(2, "2026-11-15")).toBe("Last logged yesterday · 2 times");
+    expect(line(5, "2026-10-08")).toBe("Last logged Oct 8 · 5 times");
+    expect(line(0, null)).toBeNull();
   });
 });

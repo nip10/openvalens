@@ -9,6 +9,7 @@ export type GoalActionKind =
   | "supplement-intake"
   | "sleep-records"
   | "workout-records"
+  | "weight-records"
   | "tracker-entries";
 
 export function canEditEvidenceSource(definition: GoalDefinition, sourceLocked?: boolean): boolean {
@@ -42,6 +43,7 @@ export function goalActionKind(
   if (source === "supplement") return "supplement-intake";
   if (source === "sleep") return "sleep-records";
   if (source === "workout") return "workout-records";
+  if (source === "weight") return "weight-records";
   // Tracker goals are logged in the tracker, never as goal check-ins (#451).
   if (source === "tracker") return "tracker-entries";
   if ((rule.kind === "recurring" || rule.kind === "streak") && !unit) return "manual-completion";

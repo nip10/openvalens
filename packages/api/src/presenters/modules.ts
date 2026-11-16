@@ -191,6 +191,7 @@ export const GOAL_SOURCE_MODULES: Record<GoalSource, PersonModule | null> = {
   workout: "activity",
   sleep: "sleep",
   tracker: null,
+  weight: "body",
 };
 
 /**

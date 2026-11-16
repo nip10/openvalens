@@ -376,6 +376,13 @@ function SourceLink({ goal }: { goal: GoalDetail }) {
         <Link href="/records/sleep" className="text-signal">{t`View sleep records`}</Link>
       </Text>
     );
+  if (goal.definition.source === "weight")
+    return (
+      <Text className="mt-2 text-sm text-ink-3">
+        {t`Your weigh-ins count automatically, one a day.`}{" "}
+        <Link href="/(drawer)/(tabs)/body" className="text-signal">{t`View weigh-ins`}</Link>
+      </Text>
+    );
   if (goal.definition.source === "workout")
     return (
       <Text className="mt-2 text-sm text-ink-3">
@@ -760,6 +767,7 @@ function sourceDescription(goal: GoalDetail, i18n: I18n) {
   if (goal.definition.source === "sleep") return i18n._(msg`Sleep imports · local wake dates`);
   if (goal.definition.source === "supplement") return i18n._(msg`Actual supplement intake`);
   if (goal.definition.source === "tracker") return i18n._(msg`Custom tracker · the tracker's days`);
+  if (goal.definition.source === "weight") return i18n._(msg`Weigh-ins · one a day`);
   return i18n._(msg`Matched exercise · actual lifts only`);
 }
 

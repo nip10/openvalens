@@ -165,12 +165,12 @@ describe.skipIf(!url)("demo seed against disposable PostgreSQL", () => {
       };
     };
     const goals = await read<Goal[]>("goals/list");
-    expect(goals.map((goal) => goal.definition.source).sort()).toEqual(["manual", "sleep"]);
-    const weight = goals.find((goal) => goal.definition.source === "manual")!;
+    expect(goals.map((goal) => goal.definition.source).sort()).toEqual(["sleep", "weight"]);
+    // The weight goal reads the scale's weigh-ins, not check-ins (goals#2).
+    const weight = goals.find((goal) => goal.definition.source === "weight")!;
     expect(weight.evaluation.currentValue).not.toBeNull();
     expect(weight.evaluation.milestones.map((m) => m.achieved)).toEqual([true, false]);
-    const detail = await read<{ checkins: unknown[] }>("goals/detail", { id: weight.id });
-    expect(detail.checkins.length).toBeGreaterThan(10);
+    expect(weight.evaluation.coverage.completeDays).toBeGreaterThan(50);
     const sleepGoal = goals.find((goal) => goal.definition.source === "sleep")!;
     expect(sleepGoal.evaluation.coverage.completeDays).toBeGreaterThan(40);
 

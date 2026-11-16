@@ -1,12 +1,16 @@
 import type { I18n } from "@lingui/core";
-import { msg } from "@lingui/core/macro";
-import type { CustomFood } from "@openvalens/api/contracts/nutrition-custom-foods";
+import { msg, plural } from "@lingui/core/macro";
+import type {
+  CustomFood,
+  CustomFoodListItem,
+  CustomFoodUsage,
+} from "@openvalens/api/contracts/nutrition-custom-foods";
 import type { FoodDraftCandidateWire } from "@openvalens/api/contracts/nutrition-food-drafts";
 import { NUTRIENT_KEYS, type AmountUnit } from "@openvalens/api/contracts/nutrition-diary";
 import type { NutritionTargetWire } from "@openvalens/api/contracts/nutrition-targets";
 import { formatAmount } from "@openvalens/api/presenters/nutrition-diary";
 
-import { friendlyDate } from "@/utils/friendly";
+import { friendlyDate, localIsoDay } from "@/utils/friendly";
 
 /**
  * Short readings for the food screens (meal diary, My foods, targets). Pure
@@ -67,4 +71,65 @@ export function draftAmount(
   if (unit === "ml") return { amount: item.quantity, unit: "ml" };
   if (unit === "serving" || unit === "servings") return { amount: item.quantity, unit: "serving" };
   return null;
+}
+
+/** How My foods orders its cards (foods#0): most used first by default. */
+export const FOOD_SORTS = ["used", "name", "added"] as const;
+export type FoodSort = (typeof FOOD_SORTS)[number];
+
+/**
+ * The food list in the chosen order. "used": most diary entries first, then
+ * the latest logged, then by name. "name": A to Z in the reader's locale.
+ * "added": newest first. A copy; the input is untouched.
+ */
+export function sortFoods<
+  T extends Pick<CustomFoodListItem, "id" | "name" | "createdAt" | "usage">,
+>(foods: readonly T[], sort: FoodSort, locale: string): T[] {
+  const byName = (a: T, b: T) =>
+    a.name.localeCompare(b.name, locale, { sensitivity: "base" }) || a.id - b.id;
+  const latest = (food: T) => food.usage.lastLoggedOn ?? "";
+  return [...foods].sort((a, b) => {
+    if (sort === "added")
+      return a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : byName(a, b);
+    if (sort === "used") {
+      if (a.usage.logCount !== b.usage.logCount) return b.usage.logCount - a.usage.logCount;
+      if (latest(a) !== latest(b)) return latest(a) < latest(b) ? 1 : -1;
+    }
+    return byName(a, b);
+  });
+}
+
+/** Whole calendar days from one YYYY-MM-DD to another. */
+function daysBetween(from: string, to: string): number {
+  const day = (iso: string) => {
+    const [y, m, d] = iso.split("-").map(Number);
+    return Date.UTC(y ?? 0, (m ?? 1) - 1, d ?? 1);
+  };
+  return Math.round((day(to) - day(from)) / 86_400_000);
+}
+
+/**
+ * "Last logged 2 days ago · 31 times" on a food card (foods#5), from the
+ * member's own diary; null for a food never logged.
+ */
+export function foodUsageLine(
+  usage: CustomFoodUsage,
+  i18n: I18n,
+  now: Date = new Date(),
+): string | null {
+  if (!usage.lastLoggedOn || usage.logCount < 1) return null;
+  const days = daysBetween(usage.lastLoggedOn, localIsoDay(now));
+  const on = friendlyDate(i18n, usage.lastLoggedOn, now);
+  const when =
+    days <= 0
+      ? i18n._(msg`Last logged today`)
+      : days === 1
+        ? i18n._(msg`Last logged yesterday`)
+        : days < 7
+          ? i18n._(msg`Last logged ${plural(days, { one: "# day ago", other: "# days ago" })}`)
+          : i18n._(msg`Last logged ${on}`);
+  const count = usage.logCount;
+  // How many times the food was logged in the diary.
+  const times = i18n._(msg`${plural(count, { one: "once", other: "# times" })}`);
+  return `${when} · ${times}`;
 }

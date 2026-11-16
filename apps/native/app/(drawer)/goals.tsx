@@ -303,6 +303,8 @@ function Action({ goal, onRefresh }: { goal: GoalSummary; onRefresh: () => void 
     return (
       <Text className="text-xs text-ink-3">{t`Sleep imports count automatically. Uncertain history is not included.`}</Text>
     );
+  if (actionKind === "weight-records")
+    return <Text className="text-xs text-ink-3">{t`Your weigh-ins count automatically.`}</Text>;
   if (actionKind === "workout-records")
     return (
       <Text className="text-xs text-ink-3">{t`Matched actual lifts count automatically.`}</Text>

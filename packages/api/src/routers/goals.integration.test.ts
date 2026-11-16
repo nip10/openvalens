@@ -895,6 +895,63 @@ describe.skipIf(!url)("personal goals authenticated PostgreSQL API", () => {
     ).toBe(409);
   });
 
+  test("a weight goal reads the member's own daily weigh-ins, never another member's (goals#2)", async () => {
+    const definition = {
+      id: "ignored",
+      title: "Reach 65 kg",
+      source: "weight",
+      metric: "weight_kg",
+      unit: "kg",
+      rule: { kind: "target", target: { kind: "maximum", value: 65 } },
+      startDate: "2026-10-01",
+      timeZone: "UTC",
+      status: "active",
+    };
+    // The source requires its one metric and unit.
+    expect(
+      (
+        await call("create", {
+          definition: { ...definition, metric: "personal" },
+          clientMutationId: "00000000-0000-4000-8000-000000000060",
+        })
+      ).status,
+    ).toBe(400);
+    const created = await call("create", {
+      definition,
+      clientMutationId: "00000000-0000-4000-8000-000000000061",
+    });
+    expect(created.status).toBe(200);
+    const goalId = (created.body as { id: number }).id;
+    await db.execute(
+      sql`insert into daily_weight (organization_id,user_id,date,weight_kg,source,created_at,updated_at)
+        select o, u, d, w, s, now()::text, now()::text from (values
+          ('org-a','user-a','2026-09-20',70::real,'manual'),
+          ('org-a','user-a','2026-10-02',68.4::real,'manual'),
+          ('org-a','user-a','2026-11-01',66.2::real,'auto'),
+          ('org-a','user-b','2026-11-02',60::real,'manual')) as v(o, u, d, w, s)`,
+    );
+    const summary = (await call("detail", { id: goalId })).body as {
+      sourceLocked: boolean;
+      evaluation: { currentValue: number | null; days: Array<{ date: string; value: number }> };
+    };
+    // Before the start date and another member's weigh-in never count.
+    expect(summary.evaluation.currentValue).toBe(66.2);
+    expect(
+      summary.evaluation.days.filter((day) => day.value !== null).map((day) => day.date),
+    ).toEqual(["2026-10-02", "2026-11-01"]);
+    expect(summary.sourceLocked).toBe(true);
+    // Weigh-ins are the evidence: the goal takes no manual check-ins.
+    const checkin = await call("createCheckin", {
+      goalId,
+      date: "2026-11-03",
+      value: 65,
+      clientMutationId: "00000000-0000-4000-8000-000000000062",
+    });
+    expect(checkin.status).toBeGreaterThanOrEqual(400);
+    // The other member sees no such goal.
+    expect((await call("detail", { id: goalId }, "user-b")).status).toBe(404);
+  });
+
   test("sourceLocked is a durable summary of evidence history, not current evidence rows", async () => {
     const today = new Date().toISOString().slice(0, 10);
     const manualDefinition = {
