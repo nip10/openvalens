@@ -294,6 +294,7 @@ async function listCandidates(db: Database): Promise<Candidate[]> {
       join member m on m.organization_id = p.organization_id and m.user_id = p.user_id
       join "user" u on u.id = p.user_id
      where (p.push_enabled or p.email_enabled)
+       and coalesce(u.role, 'user') <> 'demo'
        and m.role = 'owner'
        and coalesce(u.banned, false) = false
      order by p.organization_id, p.user_id

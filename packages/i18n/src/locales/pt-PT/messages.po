@@ -6426,6 +6426,11 @@ msgstr "Criar a sua conta"
 msgid "Create your OpenValens account"
 msgstr "Crie a sua conta OpenValens"
 
+#: apps/native/components/demo-banner.tsx
+#: apps/web/src/components/access-banner.tsx
+msgid "Create your own account"
+msgstr "Criar a sua própria conta"
+
 #: apps/web/src/components/ai-apps-view.tsx
 msgid "Created"
 msgstr "Criada"
@@ -8436,6 +8441,11 @@ msgstr "Expira após"
 #: apps/native/app/(drawer)/settings/ai-apps.tsx
 msgid "Expires: {0}"
 msgstr "Expira: {0}"
+
+#: apps/native/components/demo-sign-in.tsx
+#: apps/web/src/components/demo-sign-in.tsx
+msgid "Explore synthetic data. Read-only, no sign-up needed."
+msgstr "Explore dados sintéticos. Apenas leitura, sem precisar de criar conta."
 
 #: apps/native/components/complete-export-card.tsx
 #: apps/web/src/components/complete-export-card.tsx
@@ -10758,6 +10768,11 @@ msgstr "Deixe um valor em branco se não o souber. Em branco é mostrado como de
 #: apps/web/src/components/workout-routine-exercise-editor.tsx
 msgid "Leave blank for bodyweight or unspecified."
 msgstr "Deixe em branco para peso corporal ou se não especificado."
+
+#: apps/native/components/demo-banner.tsx
+#: apps/web/src/components/access-banner.tsx
+msgid "Leave demo"
+msgstr "Sair da demonstração"
 
 #: packages/api/src/presenters/body-map.ts
 #: packages/api/src/presenters/pain-entry.ts
@@ -14157,6 +14172,11 @@ msgstr "Abrir o seu perfil"
 #: packages/api/src/presenters/food-logger-capture.ts
 msgid "Opening camera…"
 msgstr "A abrir a câmara…"
+
+#: apps/native/components/demo-sign-in.tsx
+#: apps/web/src/components/demo-sign-in.tsx
+msgid "Opening demo…"
+msgstr "A abrir a demonstração…"
 
 #: apps/web/src/components/billing-plan-view.tsx
 msgid "Opening Stripe…"
@@ -19332,6 +19352,11 @@ msgstr "A meta diária de água é gerida por uma única meta associada. Ao term
 msgid "The date you set has arrived."
 msgstr "Chegou a data que definiu."
 
+#: apps/native/components/demo-sign-in.tsx
+#: apps/web/src/components/demo-sign-in.tsx
+msgid "The demo is unavailable right now. Please try again later."
+msgstr "A demonstração está indisponível neste momento. Tente novamente mais tarde."
+
 #: packages/api/src/presenters/preventive-care.ts
 msgid "The DGS has not reviewed or endorsed this app."
 msgstr "A DGS não reviu nem aprovou esta aplicação."
@@ -19981,6 +20006,10 @@ msgstr "Este convite foi enviado para outro endereço de email."
 msgid "This invitation was sent to a different email address. Sign in with the invited account to use it."
 msgstr "Este convite foi enviado para outro endereço de email. Inicie sessão com a conta convidada para o utilizar."
 
+#: apps/native/components/demo-banner.tsx
+msgid "This is a read-only demo. Create an account to log your own data."
+msgstr "Esta demonstração é apenas de leitura. Crie uma conta para registar os seus próprios dados."
+
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "This is a recommended range, not a description of what most people do."
 msgstr "Este é um intervalo recomendado, não uma descrição do que a maioria das pessoas faz."
@@ -20435,8 +20464,10 @@ msgstr "Tom"
 msgid "Too many attempts. Wait a few minutes and try again."
 msgstr "Demasiadas tentativas. Aguarde alguns minutos e tente novamente."
 
+#: apps/native/components/demo-sign-in.tsx
 #: apps/native/components/sign-in.tsx
 #: apps/web/src/components/admission-form.tsx
+#: apps/web/src/components/demo-sign-in.tsx
 #: apps/web/src/utils/code-sign-in.ts
 msgid "Too many attempts. Wait a moment, then try again."
 msgstr "Demasiadas tentativas. Aguarde um momento e tente novamente."
@@ -20637,6 +20668,11 @@ msgstr "Tentar eliminar novamente"
 #: packages/api/src/presenters/food-lookup.ts
 msgid "Try lookup again"
 msgstr "Tentar a consulta novamente"
+
+#: apps/native/components/demo-sign-in.tsx
+#: apps/web/src/components/demo-sign-in.tsx
+msgid "Try the demo"
+msgstr "Experimentar a demonstração"
 
 #: packages/api/src/presenters/care-links.ts
 msgid "TSH"
@@ -22338,6 +22374,11 @@ msgstr "A sua sessão em {host} será terminada e os dados guardados deste servi
 #: apps/native/components/change-server.tsx
 msgid "You will be signed out, and everything this app saved from {host} is removed from this phone."
 msgstr "A sessão será terminada e tudo o que esta aplicação guardou de {host} será removido deste telemóvel."
+
+#: apps/native/components/demo-banner.tsx
+#: apps/web/src/components/access-banner.tsx
+msgid "You're exploring a read-only demo with synthetic data."
+msgstr "Está a explorar uma demonstração apenas de leitura com dados sintéticos."
 
 #: packages/email/src/templates/admission-invitation.tsx
 msgid "You’re invited to OpenValens"

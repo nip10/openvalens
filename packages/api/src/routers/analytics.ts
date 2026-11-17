@@ -18,6 +18,7 @@ export const analyticsRouter = {
     .input(emptyInput)
     .output(analyticsPreferenceSchema)
     .handler(async ({ context }) => {
+      if (context.isDemo) return { enabled: false, available: false };
       const userId = requireProfileOwner(context.session);
       try {
         return context.analytics

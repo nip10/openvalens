@@ -109,6 +109,7 @@ SUITES=(
   "FOOD_CATALOG_CLI_TEST_DATABASE_URL|food_catalog_cli_test|scripts/food-catalog-import.integration.test.ts"
   "DEMO_SEED_TEST_DATABASE_URL|openvalens_demo_test|packages/demo-seed/src/demo-seed.integration.test.ts"
   "DEMO_SEED_REVIEW_TEST_DATABASE_URL|review_seed_test|packages/demo-seed/src/review.integration.test.ts"
+  "PUBLIC_DEMO_TEST_DATABASE_URL|openvalens_demo_public_test|packages/demo-seed/src/public.integration.test.ts"
 )
 
 reset_db() {

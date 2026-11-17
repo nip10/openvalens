@@ -74,6 +74,7 @@ async function listReminderCandidates(db: InsightDeliveryDeps["db"]): Promise<Re
       join member m on m.organization_id = s.organization_id and m.user_id = s.user_id
       join "user" u on u.id = s.user_id
      where s.remind
+       and coalesce(u.role, 'user') <> 'demo'
        and s.next_on is not null
        and s.plan <> 'decided_no'
        and (p.push_enabled or p.email_enabled)

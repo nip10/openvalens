@@ -41,6 +41,7 @@ import { sampleFrameDir } from "@openvalens/exercise-catalog/sample";
 import { registerExerciseCatalogAssetRoute } from "./exercise-catalog-asset-route";
 import { scheduleExerciseCatalogBootstrap } from "./services/exercise-catalog-bootstrap";
 import { createContext } from "./context";
+import { isDemoUser, DEMO_READ_ONLY_MESSAGE } from "@openvalens/auth/demo";
 import { reportError } from "./error-reporting";
 import { ENV } from "./env.server";
 import { SCALAR_CONFIG, SCALAR_SCRIPT_URL } from "./api-reference";
@@ -206,6 +207,22 @@ app.use(
 // 204/4xx/5xx responses carry them, after the correlation middleware so every
 // log line and the persisted row share one id, and after CORS so cross-origin
 // Reporting API uploads (mode "cors") from the web document are accepted.
+app.use("/*", async (c, next) => {
+  const path = c.req.path;
+  if (
+    c.req.method === "GET" &&
+    (path === "/.well-known/openvalens" || path.startsWith("/api/exercise-assets/"))
+  )
+    return next();
+  if (path.startsWith("/rpc/") || path.startsWith("/api-reference/")) return next();
+  if (path.startsWith("/api/auth/") && path !== "/api/auth/ensure-active-organization")
+    return next();
+  const session = await auth.api.getSession({ headers: c.req.raw.headers });
+  if (session?.user && (await isDemoUser(db, session.user.id)))
+    return c.json({ code: "DEMO_READ_ONLY", message: DEMO_READ_ONLY_MESSAGE }, 403);
+  return next();
+});
+
 app.post(
   CSP_REPORT_PATH,
   createCspReportHandler({

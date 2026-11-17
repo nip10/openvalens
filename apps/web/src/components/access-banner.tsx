@@ -4,7 +4,8 @@ import { Link } from "@tanstack/react-router";
 import { Info } from "lucide-react";
 import type { ReactNode } from "react";
 
-import { orpc } from "@/utils/orpc";
+import { orpc, queryClient } from "@/utils/orpc";
+import { authClient } from "@/lib/auth-client";
 
 /**
  * Issue #298 — a calm, persistent note when the OpenValens Cloud workspace in
@@ -14,6 +15,7 @@ import { orpc } from "@/utils/orpc";
  */
 
 export type AccessState = {
+  demo?: boolean;
   mode: "self-hosted" | "cloud";
   level: "full" | "read_only";
   state: "none" | "trialing" | "active" | "past_due" | "canceled" | "ended" | null;
@@ -39,6 +41,26 @@ export function AccessBannerView({
   billingLink: ReactNode;
 }) {
   const { t, i18n } = useLingui();
+  if (access.demo)
+    return (
+      <div
+        role="status"
+        className="mx-auto flex w-full max-w-6xl flex-wrap items-center gap-3 px-4 pt-4 text-sm md:px-8"
+      >
+        <p className="flex-1 text-ink-2">
+          <Trans>You're exploring a read-only demo with synthetic data.</Trans>
+        </p>
+        <button
+          className="font-medium text-ink underline"
+          onClick={() => void leaveDemo("/signup")}
+        >
+          <Trans>Create your own account</Trans>
+        </button>
+        <button className="font-medium text-ink underline" onClick={() => void leaveDemo("/login")}>
+          <Trans>Leave demo</Trans>
+        </button>
+      </div>
+    );
   if (access.mode !== "cloud") return null;
   const pastDueGrace = access.level === "full" && access.state === "past_due";
   if (access.level === "full" && !pastDueGrace) return null;
@@ -79,6 +101,13 @@ export function AccessBannerView({
       </div>
     </div>
   );
+}
+
+async function leaveDemo(destination: string) {
+  const result = await authClient.signOut();
+  if (result.error) return;
+  queryClient.clear();
+  window.location.assign(destination);
 }
 
 export function AccessBanner() {

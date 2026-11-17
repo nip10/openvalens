@@ -45,7 +45,7 @@ export async function findExistingAccount(
   }
 
   const result = await db.execute<{ id: string }>(
-    sql`select "id" from "user" where lower("email") = ${canonical} order by "id" limit 2`,
+    sql`select "id" from "user" where lower("email") = ${canonical} and coalesce("role", 'user') <> 'demo' order by "id" limit 2`,
   );
 
   if (result.rows.length !== 1) {

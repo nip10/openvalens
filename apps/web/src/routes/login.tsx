@@ -15,6 +15,7 @@ import { signUpOptionsQueryOptions } from "@/utils/sign-up";
 
 export const Route = createFileRoute("/login")({
   validateSearch: z.object({
+    demo: z.union([z.boolean(), z.literal("true")]).optional(),
     error: z.string().optional(),
     returnUrl: z.string().optional(),
     via: z.string().optional(),
@@ -35,7 +36,7 @@ export const Route = createFileRoute("/login")({
 });
 
 function RouteComponent() {
-  const { error, returnUrl, via } = Route.useSearch();
+  const { error, returnUrl, via, demo } = Route.useSearch();
   const status = useQuery(admissionStatusQueryOptions());
   const signInOptions = useQuery(signInOptionsQueryOptions());
   // Issue #294 — "Create account" only when the server is OpenValens Cloud.
@@ -47,6 +48,8 @@ function RouteComponent() {
 
   return (
     <MagicLinkForm
+      demo={signInOptions.data?.demo === true}
+      startDemo={demo === true || demo === "true"}
       linkError={error !== undefined && !oidcFlow && !socialFlow ? error : null}
       oidc={signInOptions.data?.oidc ?? null}
       oidcError={oidcFlow ? (error ?? "") : null}

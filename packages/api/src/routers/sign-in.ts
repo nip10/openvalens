@@ -15,6 +15,7 @@ import { publicProcedure } from "../index";
  * whether the iOS app may use Apple's native sheet. Flags only, no client id.
  */
 const optionsOutput = z.object({
+  demo: z.boolean(),
   oidc: z.object({ providerId: z.string(), displayName: z.string() }).nullable(),
   google: z.boolean(),
   apple: z.boolean(),
@@ -29,6 +30,7 @@ export const signInRouter = {
       const options = context.signInOptions;
       const oidc = options?.oidc ?? null;
       return {
+        demo: options?.demo === true,
         oidc: oidc ? { providerId: oidc.providerId, displayName: oidc.displayName } : null,
         google: options?.google === true,
         apple: options?.apple === true,

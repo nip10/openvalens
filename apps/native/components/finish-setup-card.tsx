@@ -25,6 +25,7 @@ import { useOnboardingFacts } from "@/components/onboarding/facts";
 import { openFirstRun, openSetupItem, useHealthConsentStatus } from "@/components/onboarding/flow";
 import { useIsInstanceAdmin } from "@/components/onboarding/steps";
 import { authClient } from "@/lib/auth-client";
+import { useCloudAccess } from "@/lib/cloud-access";
 import { needsHealthConsent } from "@/lib/health-consent";
 import { storeSavedProfile } from "@/lib/onboarding/profile-writes";
 import { firstRunEntry, shouldOpenFirstRun } from "@/lib/onboarding/steps";
@@ -69,6 +70,7 @@ function useSetupStatus() {
  * run from here, once; deep links to other screens are never redirected.
  */
 export function FinishSetupCard() {
+  const access = useCloudAccess();
   const { t, i18n } = useLingui();
   const { toast } = useToast();
   const { userId, snapshot, update, error } = useSetupStatus();
@@ -86,7 +88,8 @@ export function FinishSetupCard() {
     openFirstRun(firstRunEntry(snapshot, known, { isInstanceAdmin: admin.isAdmin }));
   }, [snapshot, admin.loaded, admin.isAdmin, consent.isLoading, consent.data]);
 
-  if (!snapshot || !maybe || !shouldShowSetupCard(snapshot, facts)) return null;
+  if (!snapshot || !maybe || access.data?.demo || !shouldShowSetupCard(snapshot, facts))
+    return null;
   const { done, total } = setupProgress(snapshot, facts);
 
   return (

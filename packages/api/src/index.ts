@@ -17,13 +17,17 @@ import { z } from "zod";
 
 import { allowedWhenReadOnly, procedureAccessClass } from "./access-policy";
 import type { Context } from "./context";
+import { requireDemoReadOnly } from "./demo-policy";
 import { raiseApiError, type ORPCErrorCode } from "./errors";
 
 export * from "./errors";
 
 export const o = os.$context<Context>();
 
-export const publicProcedure = o;
+export const publicProcedure = o.use(async ({ context, path, next }) => {
+  requireDemoReadOnly(context.isDemo, path);
+  return next({});
+});
 
 const requireAuth = o.middleware(async ({ context, next }) => {
   if (!context.session?.user) {

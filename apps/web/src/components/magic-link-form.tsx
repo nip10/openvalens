@@ -10,6 +10,7 @@ import z from "zod";
 import { Mail, MailCheck } from "lucide-react";
 
 import OidcSignInButton from "@/components/oidc-sign-in-button";
+import { DemoSignIn } from "@/components/demo-sign-in";
 import { ErrorState, ToneIcon } from "@/components/page";
 import SocialSignInButtons from "@/components/social-sign-in-buttons";
 import { authClient } from "@/lib/auth-client";
@@ -23,6 +24,8 @@ import {
 } from "@/utils/sign-in-options";
 
 export type MagicLinkFormProps = {
+  demo?: boolean;
+  startDemo?: boolean;
   /**
    * A failed magic-link redirect: Better Auth's error code (`""` when none),
    * or `null`. `new_user_signup_disabled` means the email has no account.
@@ -59,6 +62,8 @@ const LINK_CLASS =
   "rounded font-display font-medium text-ink underline decoration-signal underline-offset-[0.15em] hover:decoration-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
 
 export default function MagicLinkForm({
+  demo = false,
+  startDemo = false,
   linkError = null,
   setupAvailable,
   signUpAvailable = false,
@@ -225,6 +230,7 @@ export default function MagicLinkForm({
           />
         ) : null}
 
+        {demo ? <DemoSignIn start={startDemo} /> : null}
         <form
           onSubmit={(e) => {
             e.preventDefault();

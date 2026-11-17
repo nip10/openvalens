@@ -18,7 +18,7 @@ export const CLOUD_ACCESS_STALE_MS = 5 * 60_000;
 
 /** True when the server is Cloud and the workspace is read-only. */
 export function writesPaused(access: CloudAccess | null | undefined): boolean {
-  return access?.mode === "cloud" && access.level === "read_only";
+  return access?.demo === true || (access?.mode === "cloud" && access.level === "read_only");
 }
 
 /** A refused write: the workspace's Cloud access has ended. */
@@ -35,9 +35,10 @@ export async function readCloudAccess(): Promise<CloudAccess | null> {
   }
 }
 
-export function useCloudAccess() {
+export function useCloudAccess(enabled = true) {
   return useQuery({
     ...orpc.access.status.queryOptions({ input: {} }),
+    enabled,
     staleTime: CLOUD_ACCESS_STALE_MS,
     retry: 1,
   });

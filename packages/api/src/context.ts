@@ -71,6 +71,7 @@ export type AdminConfigInventory = readonly AdminConfigInventoryEntry[];
 
 /** Issue #65 — sign-in methods shown next to magic-link sign-in. */
 export type SignInOptions = {
+  readonly demo?: boolean;
   readonly oidc: { readonly providerId: string; readonly displayName: string } | null;
   /** Issue #296 — "Continue with Google" is configured. */
   readonly google?: boolean;
@@ -105,6 +106,8 @@ export type ExerciseCatalogMediaReader = {
 };
 
 export type Context = {
+  /** Server resolves the durable database role; never taken from request input. */
+  isDemo?: boolean;
   session: Session | null;
   db: Database;
   /** Resolved `x-correlation-id` → `x-request-id` → UUID. */
