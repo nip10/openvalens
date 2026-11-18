@@ -211,10 +211,10 @@ describe("site copy", () => {
     const text = await pageText();
     expect(text).toContain("Off-site backups are opt-in.");
     expect(text).toContain("Encrypted daily backups stay on the host");
-    expect(text).toContain("The iPhone app is in App Store review.");
+    expect(text).toContain("iOS app 1.2.1 is waiting for App Store review.");
     expect(text).not.toContain("Mobile apps are not published in the stores yet.");
     expect(text).not.toContain("No hosted service.");
-    expect(text).toContain("Direct Bluetooth arrives with app 1.2.1.");
+    expect(text).toContain("Some Bluetooth integrations are experimental.");
     // No separate "tested on a device" status (owner, 2026-11-15).
     expect(text).not.toMatch(/tested on (a real device|real hardware)/i);
     // Matches the privacy policy: Cloud analytics is opt-in, never health data.
@@ -233,8 +233,9 @@ describe("site copy", () => {
     // Preventive-care packs exist for three regions only.
     expect(text).not.toContain("in your region");
     expect(text).toContain("for the US, England and Portugal");
-    // Direct Bluetooth first ships in app 1.2.1; drop this note once both stores approve it (#361).
-    expect(text).toContain("Arrives with app 1.2.1, now in store review.");
+    // State the required app version without claiming both stores are still reviewing it.
+    expect(text).toContain("Direct Bluetooth support requires app 1.2.1.");
+    expect(text).not.toContain("Arrives with app 1.2.1, now in store review.");
     // A self-host install downloads the exercise catalog on first start (#400).
     expect(text).toContain("downloads the public exercise catalog and its images");
   });
