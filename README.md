@@ -13,7 +13,7 @@ every workspace is invite-only.
 > one supported install; [OpenValens Cloud](https://app.openvalens.com) is the
 > hosted service, with sign-up on the web. The Android app is on
 > [Google Play](https://play.google.com/store/apps/details?id=com.openvalens.app);
-> the iPhone app is in App Store review. The store app connects to Cloud or to
+> iOS app 1.2.1 is waiting for App Store review. The store app connects to Cloud or to
 > your own instance.
 
 ![The OpenValens dashboard: sleep, steps, heart rate and weight tiles over a 90-day weight chart](apps/site/src/screenshots/dashboard.webp)
@@ -67,7 +67,7 @@ records), never a real person's data (see [Landing site](#landing-site))._
   bucket, and keeping the backup key off the server is up to you
   ([Backups](docs/self-hosting/backup.md)).
 - No published container images; the install builds from source (#129).
-- The iPhone app is not in the App Store yet (it is in review); the Android
+- iOS app 1.2.1 is waiting for App Store review; the Android
   app is on Google Play.
 - Wearable vendor connections are available but need provider configuration.
 
