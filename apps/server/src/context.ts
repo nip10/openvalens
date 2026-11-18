@@ -1,4 +1,5 @@
 import type { Context as ApiContext } from "@openvalens/api/context";
+import { isDemoUser } from "@openvalens/auth/demo";
 import { resolveCorrelationId } from "@openvalens/observability";
 import type { Context as HonoContext } from "hono";
 
@@ -67,6 +68,7 @@ export async function createContext({ context }: CreateContextOptions): Promise<
   });
 
   return {
+    isDemo: session?.user ? await isDemoUser(db, session.user.id) : false,
     db,
     session,
     // Reuse the id resolved by `correlationMiddleware()` so a single request

@@ -8,6 +8,7 @@ import { ORPCError } from "@orpc/server";
  * client release.
  */
 export type ORPCErrorCode =
+  | "DEMO_READ_ONLY"
   | "UNAUTHENTICATED"
   | "NO_MEMBERSHIP"
   | "PERMISSION_DENIED"
@@ -36,6 +37,7 @@ export type ORPCErrorCode =
 export type ORPCErrorStatus = 400 | 401 | 403 | 404 | 409 | 429 | 500 | 503;
 
 const CODE_TO_STATUS: Record<ORPCErrorCode, ORPCErrorStatus> = {
+  DEMO_READ_ONLY: 403,
   UNAUTHENTICATED: 401,
   NO_MEMBERSHIP: 403,
   PERMISSION_DENIED: 403,

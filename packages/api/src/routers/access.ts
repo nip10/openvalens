@@ -13,6 +13,7 @@ import { protectedProcedure, raiseApiError } from "../index";
  */
 
 const statusOutput = z.object({
+  demo: z.boolean().optional(),
   mode: z.enum(["self-hosted", "cloud"]),
   /** `read_only`: writes are refused (`ACCESS_READ_ONLY`); reads and export work. */
   level: z.enum(["full", "read_only"]),
@@ -31,6 +32,17 @@ export const accessRouter = {
     .input(z.object({}).optional())
     .output(statusOutput)
     .handler(async ({ context }) => {
+      if (context.isDemo)
+        return {
+          demo: true,
+          mode:
+            context.deployment?.mode === "cloud" ? ("cloud" as const) : ("self-hosted" as const),
+          level: "read_only" as const,
+          state: null,
+          graceEndsAt: null,
+          viewer: "owner" as const,
+          ownerName: null,
+        };
       if (context.deployment?.mode !== "cloud") {
         return {
           mode: "self-hosted" as const,

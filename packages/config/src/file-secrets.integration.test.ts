@@ -234,6 +234,7 @@ describe("actual server schema sensitive coverage", () => {
       expect([...explicitlyPublic].sort()).toEqual(
         [
           "AI_BASE_URL",
+          "DEMO_ACCOUNT_EMAIL",
           "AI_COST_CURRENCY",
           "AI_MODEL",
           "AI_MONTHLY_COST_LIMIT",

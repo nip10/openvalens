@@ -31,6 +31,13 @@ import type { OidcProviderConfig } from "./oidc/config";
 import { createGenericOidcPlugin } from "./providers/generic-oidc";
 import { publicSignUpPlugin, type PublicSignUpPluginOptions } from "./public-sign-up-plugin";
 import { reviewSignInPlugin, type ReviewSignInConfig } from "./review-sign-in";
+import {
+  demoAuthPathAllowed,
+  demoSignInPlugin,
+  DEMO_SIGN_IN_PATH,
+  DEMO_READ_ONLY_MESSAGE,
+  isDemoUser,
+} from "./demo";
 import type { SocialSignUpService } from "./admission/social-sign-up";
 import type { AppleClientSecrets } from "./providers/apple";
 import type { SocialSignInConfig } from "./social/config";
@@ -129,6 +136,7 @@ export type CreateAuthOptions = {
    * endpoint refusing every attempt.
    */
   reviewSignIn?: ReviewSignInConfig | null;
+  demoEmail?: string | null;
   /**
    * Tests only: force Better Auth's rate limiter on or off. Omitted keeps
    * Better Auth's default (on in production).
@@ -304,6 +312,20 @@ export function createAuth(env: AuthConfig, database: Database, options: CreateA
     },
     hooks: {
       before: createAuthMiddleware(async (ctx) => {
+        const currentSession = await getAuthoritativeSessionFromCtx(ctx);
+        if (ctx.path === DEMO_SIGN_IN_PATH && currentSession?.user) {
+          throw new APIError("CONFLICT", { message: "Sign out before trying the demo." });
+        }
+        if (
+          currentSession?.user &&
+          (await isDemoUser(database, currentSession.user.id)) &&
+          !demoAuthPathAllowed(ctx.path)
+        ) {
+          throw new APIError("FORBIDDEN", {
+            code: "DEMO_READ_ONLY",
+            message: DEMO_READ_ONLY_MESSAGE,
+          });
+        }
         // Exact impersonation-exit endpoint: leave it to the SDK's own session
         // restoration checks so an ordinary impersonated user can always exit.
         // Only this exact path is skipped (no prefix escape).
@@ -555,14 +577,18 @@ export function createAuth(env: AuthConfig, database: Database, options: CreateA
       // App store review sign-in: one existing account, a fixed code, a
       // normal session. Refuses everything unless both settings are set.
       reviewSignInPlugin({ config: options.reviewSignIn ?? null, database }),
+      demoSignInPlugin({ email: options.demoEmail ?? null, database }),
       magicLink({
         // Issue #63 — a magic link may sign in an existing account but must
         // never provision a new one; admission owns account creation.
         disableSignUp: true,
         storeToken: "hashed",
         expiresIn: MAGIC_LINK_EXPIRES_IN_SECONDS,
-        sendMagicLink: async (data, ctx) =>
-          sendAuthMagicLink(
+        sendMagicLink: async (data, ctx) => {
+          const demo = await database.execute(sql`select 1 from "user"
+            where lower("email") = ${data.email.trim().toLowerCase()} and "role" = 'demo' limit 1`);
+          if (demo.rows.length > 0) return;
+          return sendAuthMagicLink(
             {
               email: data.email,
               url: data.url,
@@ -578,7 +604,8 @@ export function createAuth(env: AuthConfig, database: Database, options: CreateA
               // Issue #231 — the account's language, English when unknown.
               locale: await localeForEmail(locales, data.email),
             },
-          ),
+          );
+        },
       }),
     ],
   });

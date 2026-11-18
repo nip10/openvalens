@@ -6,6 +6,7 @@ import { codeToStatus, raiseApiError, type ORPCErrorCode, type ORPCErrorStatus }
 describe("codeToStatus", () => {
   test("maps every stable code to its HTTP status", () => {
     const expected: Record<ORPCErrorCode, ORPCErrorStatus> = {
+      DEMO_READ_ONLY: 403,
       UNAUTHENTICATED: 401,
       NO_MEMBERSHIP: 403,
       PERMISSION_DENIED: 403,

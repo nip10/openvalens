@@ -17,6 +17,7 @@ export function CloudAccessNotice() {
   const { t } = useLingui();
   const access = useCloudAccess();
   if (!writesPaused(access.data)) return null;
+  if (access.data?.demo) return null;
   const member = access.data?.viewer === "member";
   return (
     <View

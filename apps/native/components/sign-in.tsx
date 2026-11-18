@@ -10,6 +10,7 @@ import { ErrorState, Icon, Sheet, DISPLAY_MAX_FONT_SCALE } from "@/components/bl
 import { useChangeServer } from "@/components/change-server";
 import { useServerProblemCopy } from "@/components/server-choice";
 import { SocialSignInButtons } from "@/components/social-sign-in";
+import { DemoSignIn } from "@/components/demo-sign-in";
 import { authClient } from "@/lib/auth-client";
 import { signInWithCode, type CodeSignInFetch } from "@/lib/code-sign-in";
 import { cancelPendingMagicLink, requestMagicLink } from "@/lib/magic-link";
@@ -108,6 +109,7 @@ export function SignIn() {
         </Text>
       )}
       {methods.signUp ? <CreateAccount url={url} /> : null}
+      <DemoSignIn />
       {footer}
     </Sheet>
   );

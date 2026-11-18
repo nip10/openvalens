@@ -1,6 +1,8 @@
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
+import { useQuery } from "@tanstack/react-query";
+import { accessStateQueryOptions } from "@/components/access-banner";
 import {
   canRestoreSetupCard,
   isSetupItemDone,
@@ -36,13 +38,14 @@ const COPY = {
 };
 
 export function FinishSetupCard() {
+  const access = useQuery(accessStateQueryOptions());
   const { i18n } = useLingui();
   const profile = useWellnessProfile();
   const maybe = !!profile.data && profile.data.setupStatus !== "skipped";
   const facts = useOnboardingFacts(maybe);
   const update = useUpdateWellnessProfile(profile.userId);
   const [error, setError] = useState<MessageDescriptor | null>(null);
-  if (!profile.data || !maybe) return null;
+  if (!profile.data || !maybe || access.data?.demo) return null;
   const snapshot = profile.data;
   return (
     <FinishSetupCardView

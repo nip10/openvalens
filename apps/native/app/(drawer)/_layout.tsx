@@ -40,6 +40,7 @@ import { BloomMark, DISPLAY_MAX_FONT_SCALE } from "@/components/bloom";
 import { DISPLAY_FONT } from "@/components/fonts";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { HealthDataConsentPrompt } from "@/components/health-data-consent-prompt";
+import { DemoBanner } from "@/components/demo-banner";
 import { HomeWidgetSync } from "@/components/home-widget-sync";
 import { QuickActionsSync } from "@/components/quick-log/quick-actions-sync";
 import { authClient } from "@/lib/auth-client";
@@ -315,6 +316,7 @@ function DrawerLayout() {
 
   return (
     <View className="flex-1">
+      <DemoBanner />
       <HealthDataConsentPrompt />
       <QuickActionsSync />
       <HomeWidgetSync />

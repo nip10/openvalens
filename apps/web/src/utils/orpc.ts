@@ -20,6 +20,7 @@ export function createQueryClient() {
     // banner so it explains why.
     mutationCache: new MutationCache({
       onError: (error) => {
+        if ((error as { code?: string })?.code === "DEMO_READ_ONLY") toast.error(error.message);
         if (isAccessReadOnlyError(error))
           void created.invalidateQueries({ queryKey: orpc.access.key() });
       },

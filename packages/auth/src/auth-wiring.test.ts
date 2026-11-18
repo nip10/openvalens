@@ -30,7 +30,7 @@ const ENV = {
   NODE_ENV: "test",
 };
 
-const fakeDatabase = {} as Database;
+const fakeDatabase = { execute: async () => ({ rows: [] }) } as unknown as Database;
 
 type CapturedCall = { input: SendEmailInput; options?: SendEmailOptions };
 

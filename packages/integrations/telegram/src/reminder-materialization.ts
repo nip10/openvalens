@@ -301,6 +301,7 @@ export async function listReminderOrganizations(
 ): Promise<string[]> {
   const earliest = earliestDeliverableDate(now);
   const result = await db.execute<{ organization_id: string }>(sql`
+    select work.organization_id from (
     select organization_id from daily_reminder
      where status = 'pending' and telegram_message_id is null and date >= ${earliest}
     union
@@ -319,7 +320,10 @@ export async function listReminderOrganizations(
          or exists (select 1 from scheduled_event e
                      where e.organization_id = m.organization_id and e.user_id = m.user_id)
        )
-    order by organization_id asc
+    ) work
+    where not exists (select 1 from member owner_member join "user" owner_user on owner_user.id = owner_member.user_id
+      where owner_member.organization_id = work.organization_id and owner_member.role = 'owner' and owner_user.role = 'demo')
+    order by work.organization_id asc
   `);
   return result.rows.map((row) => row.organization_id);
 }

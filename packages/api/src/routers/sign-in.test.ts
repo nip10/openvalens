@@ -14,6 +14,7 @@ function context(overrides: Record<string, unknown> = {}): Context {
 describe("signIn.options (Issue #65)", () => {
   test("is public and reports no OIDC when the server binds none", async () => {
     expect(await appRouter.signIn.options.callable({ context: context() })({})).toEqual({
+      demo: false,
       oidc: null,
       google: false,
       apple: false,
@@ -30,6 +31,7 @@ describe("signIn.options (Issue #65)", () => {
       }),
     })({});
     expect(result).toEqual({
+      demo: false,
       oidc: { providerId: "authentik", displayName: "Acme SSO" },
       google: false,
       apple: false,
@@ -44,7 +46,13 @@ describe("signIn.options (Issue #65)", () => {
         signInOptions: { oidc: null, google: true, apple: true, appleNative: true },
       }),
     })({});
-    expect(result).toEqual({ oidc: null, google: true, apple: true, appleNative: true });
+    expect(result).toEqual({
+      demo: false,
+      oidc: null,
+      google: true,
+      apple: true,
+      appleNative: true,
+    });
     const nativeOnly = await appRouter.signIn.options.callable({
       context: context({ signInOptions: { oidc: null, apple: false, appleNative: true } }),
     })({});

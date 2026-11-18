@@ -40,7 +40,7 @@ function trustedUserId(context: Context) {
 async function statusFor(context: Context) {
   const userId = trustedUserId(context);
   const policy = current(context);
-  if (!policy) {
+  if (!policy || context.isDemo) {
     return {
       required: false,
       currentVersion: null,

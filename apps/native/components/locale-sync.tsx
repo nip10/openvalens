@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { authClient } from "@/lib/auth-client";
 import { useAppLocale } from "@/lib/i18n/provider";
 import { client } from "@/utils/orpc";
+import { useCloudAccess } from "@/lib/cloud-access";
 
 /**
  * Keeps the signed-in member's interface language on the server (#231), so
@@ -13,9 +14,10 @@ export function LocaleSync() {
   const { locale } = useAppLocale();
   const { data: session } = authClient.useSession();
   const userId = session?.user?.id;
+  const access = useCloudAccess(!!userId);
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || !access.data || access.data.demo) return;
     void client.preferences.setLocale({ locale }).catch(() => {});
-  }, [locale, userId]);
+  }, [locale, userId, access.data]);
   return null;
 }
