@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import {
   foodDraftProviderOutput,
+  foodDraftMealExamplesOutput,
   parseFoodDraftInput,
   parseFoodDraftOutput,
   parsePhotoFoodDraftInput,
@@ -12,6 +13,7 @@ import {
 import { createFoodDraftService, describeFoodDraftProvider, FoodDraftError } from "../food-drafts";
 import { permissionedProcedure, raiseApiError, validateInput } from "../index";
 import { requireProfileOwner } from "../wellness-profile";
+import { recentMealExamples } from "../recent-meal-examples";
 
 /**
  * Issue #73 — opt-in food drafts from a spoken or typed description, mounted
@@ -47,6 +49,13 @@ function raiseDraftError(error: unknown): never {
 }
 
 export const nutritionFoodDraftsRouter = {
+  examples: permissionedProcedure({ resource: "records", action: "read" })
+    .use(validateInput(empty))
+    .input(empty)
+    .output(foodDraftMealExamplesOutput)
+    .handler(async ({ context }) => ({
+      examples: await recentMealExamples(context.db, scopeOf(context)),
+    })),
   provider: permissionedProcedure({ resource: "records", action: "read" })
     .use(validateInput(empty))
     .input(empty)

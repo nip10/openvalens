@@ -174,3 +174,10 @@ Console (App access › All or some functionality is restricted):
   sign-in screen stays, and every code is refused.
 - Only the code path is special. The account is otherwise an ordinary Cloud
   account: email links, export and deletion all work.
+
+The seed CLI also adds two clearly labeled synthetic progress photos after the
+record transaction commits, using the server's configured private storage.
+Refreshes keep existing photos and do not duplicate the fixtures. A failed photo
+stage can be retried without replacing existing photos. Incomplete S3 settings
+skip photos; no fake file metadata is created. See
+`packages/demo-seed/assets/README.md` for the assets and generation prompts.

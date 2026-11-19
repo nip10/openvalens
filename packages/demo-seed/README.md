@@ -129,9 +129,20 @@ and 6 days ago, so the body map can compare them), one ECG and one imaging
 study, a few label micronutrients on the custom foods (`createFood` takes the
 core nutrients only), and the coach conversation.
 
+After the guarded record transaction commits, all three CLI variants add two
+clearly labeled synthetic progress photos through the normal sanitization and
+private-storage lifecycle (`src/photos.ts`). They use the server's storage
+settings, including mounted S3 secret files; relative local paths resolve from
+`apps/server`, matching the server. Incomplete S3 settings skip this stage
+without inventing photo metadata. The account must have private body tracking
+on. Existing photos are kept and matching fixture hashes are not uploaded
+again. Daily refreshes retain the same objects. If a photo upload fails, the
+records are already committed; rerunning the command safely retries photos.
+The assets and generation prompts are in `assets/README.md`.
+
 Not seeded, because they need an external service or have no write path the
 seed can use: wearable connections (OAuth), Telegram, connected AI apps,
-progress photos (file storage) and drink presets (catalog foods).
+and drink presets (catalog foods).
 
 The last week is deliberately better than the four before it (more sleep, more
 steps, lower resting heart rate), so the insights screen has changes to report.
@@ -170,8 +181,9 @@ screening item instead of the NHS one. It reads the
 server's `DATABASE_URL`, `REVIEW_ACCOUNT_EMAIL` and `REVIEW_ACCOUNT_CODE`, never
 resets anything, writes only to that account's own workspace, refuses unless
 the account is the sole owner of exactly one empty workspace, and a second run
-changes nothing (`src/review.ts`). The run is one transaction, so a failure
-leaves the workspace as it was.
+changes no records (`src/review.ts`). Record seeding is one transaction, so a
+record-stage failure leaves the workspace as it was. The separate photo stage
+can fill missing synthetic fixtures even on an already-seeded account.
 
 `--refresh` is the nightly scheduled task. It erases the records of a workspace
 it seeded before (data rights' `eraseSubjectRecords`, which keeps the account,

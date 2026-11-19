@@ -22,6 +22,7 @@ import {
 } from "@/components/bloom";
 import { Container } from "@/components/container";
 import { DirectDeviceSettings } from "@/components/direct-device-settings";
+import { PhoneSyncStatus } from "@/components/phone-sync-status";
 import { authClient } from "@/lib/auth-client";
 import type { HelioSyncContext } from "@/lib/direct-devices/sync/types";
 import { useServer } from "@/lib/server/server-url";
@@ -93,6 +94,7 @@ export default function DevicesSettingsScreen() {
             </Trans>
           }
         />
+        <PhoneSyncStatus />
         <DirectDeviceSettings
           key={
             context

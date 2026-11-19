@@ -1,5 +1,10 @@
+import { authClient } from "@/lib/auth-client";
 import type { FoodDraftCandidateWire } from "@openvalens/api/contracts/nutrition-food-drafts";
-import { FOOD_DRAFT_COPY, PHOTO_DRAFT_COPY } from "@openvalens/api/presenters/food-draft";
+import {
+  FOOD_DRAFT_COPY,
+  PHOTO_DRAFT_COPY,
+  foodDraftExampleText,
+} from "@openvalens/api/presenters/food-draft";
 import {
   FOOD_LOGGER_CAPTURE_COPY as COPY,
   identifyCaptureCandidates,
@@ -45,7 +50,7 @@ export function FoodLoggerCapture({
   mode,
   available,
   canMutate,
-  hideNumbers: _hideNumbers = false,
+  hideNumbers = true,
   onCandidates,
   onStatus,
 }: FoodLoggerCaptureProps) {
@@ -74,6 +79,14 @@ export function FoodLoggerCapture({
     queryKey: ["nutritionFoodDrafts", "provider"],
     queryFn: () => client.nutritionFoodDrafts.provider({}),
     enabled: available,
+  });
+  const { data: exampleSession } = authClient.useSession();
+  const exampleUserId = exampleSession?.user.id;
+  const exampleOrganizationId = exampleSession?.session.activeOrganizationId;
+  const examples = useQuery({
+    queryKey: ["nutritionFoodDrafts", "examples", exampleOrganizationId, exampleUserId],
+    queryFn: () => client.nutritionFoodDrafts.examples({}),
+    enabled: !!exampleUserId && !!exampleOrganizationId && available && mode === "describe",
   });
   const providerId =
     provider.data?.provider && provider.data.available
@@ -373,6 +386,31 @@ export function FoodLoggerCapture({
         className="min-h-28 rounded-xl border border-rule bg-sheet px-3 py-2 font-sans text-base text-ink"
       />
       <Text className="font-sans text-sm text-ink-3">{i18n._(FOOD_DRAFT_COPY.dictation)}</Text>
+      {examples.data?.examples.length ? (
+        <View className="gap-2">
+          <Text className="font-sans text-sm text-ink-3">{i18n._(FOOD_DRAFT_COPY.examples)}</Text>
+          <View className="flex-row flex-wrap gap-2">
+            {examples.data.examples.map((example) => {
+              const text = foodDraftExampleText(example, hideNumbers, i18n);
+              return (
+                <Button
+                  key={example.id}
+                  variant="outline"
+                  size="sm"
+                  className="h-auto max-w-full"
+                  isDisabled={!canMutate || parse.isPending}
+                  onPress={() => {
+                    if (authority.current.canMutate && authority.current.mode === "describe")
+                      setTranscript(text);
+                  }}
+                >
+                  <Button.Label className="shrink">{text}</Button.Label>
+                </Button>
+              );
+            })}
+          </View>
+        </View>
+      ) : null}
       {provider.data?.available ? (
         <View className="gap-2 rounded-xl bg-paper-2 p-3">
           <View className="min-h-11 flex-row items-center justify-between gap-3">

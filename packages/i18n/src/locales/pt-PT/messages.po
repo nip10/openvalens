@@ -1288,6 +1288,10 @@ msgstr "{priority, select, low {Prioridade baixa} normal {Prioridade normal} oth
 msgid "{progressPercent}% of the way from {progressStart}"
 msgstr "{progressPercent}% do caminho desde {progressStart}"
 
+#: packages/api/src/presenters/mobile-sync.ts
+msgid "{provider}: no records received yet."
+msgstr "{provider}: ainda não foram recebidos registos."
+
 #: apps/native/components/training-home.tsx
 msgid "{prs, plural, one {PR} other {# PRs}}"
 msgstr "{prs, plural, one {Recorde} other {# recordes}}"
@@ -1479,6 +1483,10 @@ msgstr "{type}: {amount} a {max} {unit} por dia"
 #: packages/api/src/presenters/coach-settings.ts
 msgid "{value}"
 msgstr "{value}"
+
+#: packages/api/src/presenters/custom-foods.ts
+msgid "{value} / {amount}"
+msgstr "{value} / {amount}"
 
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "{value} % a week"
@@ -5606,6 +5614,10 @@ msgstr "Não foi possível carregar os totais dos primeiros passos."
 msgid "Could not load or update AI settings."
 msgstr "Não foi possível carregar ou atualizar as definições de IA."
 
+#: packages/api/src/presenters/mobile-sync.ts
+msgid "Could not load phone sync status."
+msgstr "Não foi possível carregar o estado da sincronização do telemóvel."
+
 #: apps/native/components/progress-photos.tsx
 msgid "Could not load photos. Try again"
 msgstr "Não foi possível carregar as fotografias. Tente novamente"
@@ -9384,6 +9396,7 @@ msgstr "Olá coach, dê-me um resumo numa linha de como estou hoje e uma sugest�
 #: apps/native/app/(drawer)/private-measurements.tsx
 #: apps/web/src/components/micronutrient-summary.tsx
 #: apps/web/src/routes/_auth/private-measurements.tsx
+#: packages/api/src/presenters/custom-foods.ts
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Hidden"
 msgstr "Oculto"
@@ -10654,6 +10667,10 @@ msgstr "Sono da última noite"
 msgid "Last reading: {0}"
 msgstr "Última leitura: {0}"
 
+#: packages/api/src/presenters/mobile-sync.ts
+msgid "Last received from {provider}: {when}"
+msgstr "Última receção de {provider}: {when}"
+
 #: apps/native/components/health-sync-settings.tsx
 msgid "Last sync failed. Try again."
 msgstr "A última sincronização falhou. Tente novamente."
@@ -11189,12 +11206,14 @@ msgstr "A carregar o seu espaço de trabalho…"
 #: apps/native/components/nutrition-trend-card.tsx
 #: apps/native/components/onboarding/steps.tsx
 #: apps/native/components/pain/pain-panel.tsx
+#: apps/native/components/phone-sync-status.tsx
 #: apps/native/components/plain-water-section.tsx
 #: apps/native/components/workout-history.tsx
 #: apps/web/src/components/exercise-library.tsx
 #: apps/web/src/components/micronutrient-summary.tsx
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
 #: apps/web/src/components/pain/pain-panel.tsx
+#: apps/web/src/components/phone-sync-status.tsx
 #: apps/web/src/routes/_auth/cycle.tsx
 #: apps/web/src/routes/_auth/records/timeline.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
@@ -13065,6 +13084,10 @@ msgstr "Sem recorde"
 msgid "No record yet"
 msgstr "Ainda sem registos"
 
+#: packages/api/src/presenters/mobile-sync.ts
+msgid "No records received from your phone yet."
+msgstr "Ainda não foram recebidos registos do seu telemóvel."
+
 #: apps/native/app/(drawer)/(tabs)/timeline.tsx
 #: apps/web/src/routes/_auth/records/timeline.tsx
 msgid "No records yet"
@@ -14627,6 +14650,7 @@ msgid "People you share your workspace with, at no extra cost"
 msgstr "As pessoas com quem partilha o seu espaço de trabalho, sem custo extra"
 
 #: apps/web/src/utils/food-display.ts
+#: packages/api/src/presenters/custom-foods.ts
 msgid "per {amount}"
 msgstr "por {amount}"
 
@@ -14765,6 +14789,10 @@ msgstr "As estimativas de fase estão desligadas porque indicou que usa contrace
 #: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Phone alerts, weekly email and reminders"
 msgstr "Alertas no telemóvel, email semanal e lembretes"
+
+#: packages/api/src/presenters/mobile-sync.ts
+msgid "Phone sync"
+msgstr "Sincronização do telemóvel"
 
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 #: apps/web/src/components/log-food-sheet.tsx
@@ -16237,6 +16265,7 @@ msgstr "Versão anterior"
 #: apps/native/components/energy-estimate-card.tsx
 #: apps/native/components/onboarding/flow.tsx
 #: apps/native/components/pain/pain-panel.tsx
+#: apps/native/components/phone-sync-status.tsx
 #: apps/native/components/server-compatibility-gate.tsx
 #: apps/native/components/sign-in-methods.tsx
 #: apps/native/components/sign-in.tsx
@@ -16261,6 +16290,7 @@ msgstr "Versão anterior"
 #: apps/web/src/components/onboarding/setup-steps.tsx
 #: apps/web/src/components/onboarding/welcome-flow.tsx
 #: apps/web/src/components/pain/pain-panel.tsx
+#: apps/web/src/components/phone-sync-status.tsx
 #: apps/web/src/components/product-settings-form.tsx
 #: apps/web/src/components/profile-summary-card.tsx
 #: apps/web/src/components/reference-comparisons-card.tsx
@@ -20633,6 +20663,10 @@ msgctxt "dexa region"
 msgid "Trunk"
 msgstr "Tronco"
 
+#: packages/api/src/presenters/food-draft.ts
+msgid "Try a recent meal"
+msgstr "Experimente uma refeição recente"
+
 #: apps/native/app/(drawer)/cycle.tsx
 #: apps/native/app/(drawer)/micronutrients.tsx
 #: apps/native/app/(drawer)/private-measurements.tsx
@@ -21286,6 +21320,10 @@ msgstr "Usa o sono e os passos"
 #: apps/web/src/components/coach-ideas.tsx
 msgid "Uses your sleep, activity, food and goals. Not medical advice."
 msgstr "Usa o seu sono, atividade, alimentação e objetivos. Não é aconselhamento médico."
+
+#: packages/api/src/presenters/custom-foods.ts
+msgid "Usually {amount}"
+msgstr "Habitualmente {amount}"
 
 #: apps/native/app/(drawer)/goals/[goalId].tsx
 #: apps/native/app/(drawer)/records/labs.tsx
@@ -22835,10 +22873,17 @@ msgid "Your supplements"
 msgstr "Os seus suplementos"
 
 #. placeholder {0}: formatTarget(energyTarget, hideNumbers, i18n)
-#. placeholder {0}: formatTarget(proteinTarget, hideNumbers, i18n)
 #: apps/web/src/routes/_auth/nutrition-targets.tsx
 msgid "Your target: {0}"
 msgstr "O seu objetivo: {0}"
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Your target: {amount}"
+msgstr "O seu objetivo: {amount}"
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Your target: {amount} ({ratio} g per kg)"
+msgstr "O seu objetivo: {amount} ({ratio} g por kg)"
 
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Your targets"

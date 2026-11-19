@@ -14,6 +14,7 @@ import { createDb } from "@openvalens/db";
 
 import { assertDisposableDemoDatabase, DemoGuardError } from "./guard";
 import { parseOptions } from "./options";
+import { seedConfiguredDemoPhotos } from "./photos";
 import { seedDemo } from "./seed";
 import { DEMO_MEMBER, DEMO_PERSON } from "./accounts";
 
@@ -33,6 +34,7 @@ async function main(): Promise<number> {
   const db = createDb({ DATABASE_URL: url });
   try {
     const result = await seedDemo(db, parsed.options);
+    await seedConfiguredDemoPhotos(db, result.admin, process.env);
     console.log(`Seeded the demo instance for ${parsed.options.today}.`);
     console.log(`  ${DEMO_PERSON.name} <${DEMO_PERSON.email}>: instance admin, workspace owner`);
     console.log(`  ${DEMO_MEMBER.name} <${DEMO_MEMBER.email}>: member of Alex's workspace`);

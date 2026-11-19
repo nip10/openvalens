@@ -1,3 +1,14 @@
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import {
+  createObjectStorage,
+  createStorageService,
+  parseStorageConfig,
+  type StorageService,
+} from "@openvalens/storage";
+import { seedDemoPhotos } from "./photos";
+
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { createAuth, setRegisteredAuth, type CreateAuthOptions } from "@openvalens/auth";
 import { isDemoUser } from "@openvalens/auth/demo";
@@ -47,6 +58,10 @@ describe.skipIf(!url)("public demo lifecycle against PostgreSQL", () => {
     NODE_ENV: "test",
   };
   const auth = createAuth(env, db, authOptions);
+  let photoRoot: string;
+  let storage: StorageService;
+  let organizationId: string;
+  let seededPhotoIds: string[];
   let cookie: string;
   let userId: string;
 
@@ -70,9 +85,19 @@ describe.skipIf(!url)("public demo lifecycle against PostgreSQL", () => {
     );
     if (tables.rows.length) throw new Error("Integration database must be empty.");
     await resetDemoDatabase(db);
+    photoRoot = await mkdtemp(join(tmpdir(), "openvalens-demo-photos-"));
+    const config = parseStorageConfig({ STORAGE_LOCAL_DIR: photoRoot });
+    storage = createStorageService({
+      db,
+      storage: createObjectStorage(config)!,
+      maxObjectBytes: config.maxObjectBytes,
+      signedUrlTtlSeconds: config.signedUrlTtlSeconds,
+      signingKey: Buffer.alloc(32),
+    });
   }, 120_000);
   afterAll(async () => {
     await db.$client.end();
+    if (photoRoot) await rm(photoRoot, { recursive: true, force: true });
   });
 
   test("unprovisioned and disabled demos never create sessions or users", async () => {
@@ -87,6 +112,7 @@ describe.skipIf(!url)("public demo lifecycle against PostgreSQL", () => {
     const result = await refreshPublicDemo(db, input);
     expect(result.status).toBe("seeded");
     userId = result.userId;
+    organizationId = result.organizationId;
     expect(await isDemoUser(db, userId)).toBe(true);
     expect(await findExistingAccount(db, email)).toBeNull();
     const response = await request("/sign-in/demo", {});
@@ -101,6 +127,30 @@ describe.skipIf(!url)("public demo lifecycle against PostgreSQL", () => {
     expect(session!.session.expiresAt.getTime() - Date.now()).toBeLessThanOrEqual(60 * 60 * 1000);
   }, 120_000);
 
+  test("synthetic photos are real private files and repeated seeds are idempotent", async () => {
+    const subject = { userId, organizationId };
+    expect(await seedDemoPhotos(db, storage, subject)).toBe(2);
+    expect(await seedDemoPhotos(db, storage, subject)).toBe(0);
+    const photos = await storage.listPhotos({ organizationId, createdByUserId: userId });
+    expect(photos).toHaveLength(2);
+    seededPhotoIds = photos.map((photo) => photo.id).sort();
+    for (const photo of photos) {
+      const file = await storage.getSubjectPhoto({ subjectUserId: userId, objectId: photo.id });
+      expect(file).not.toBeNull();
+      expect((await new Response(file!.body).arrayBuffer()).byteLength).toBe(photo.sizeBytes);
+      expect(
+        await storage.getSubjectPhoto({ subjectUserId: "other-member", objectId: photo.id }),
+      ).toBeNull();
+    }
+    await db.execute(
+      sql`update private_body_measurement_preference set enabled = false where user_id = ${userId}`,
+    );
+    expect(await seedDemoPhotos(db, storage, subject)).toBe(0);
+    await db.execute(
+      sql`update private_body_measurement_preference set enabled = true where user_id = ${userId}`,
+    );
+  });
+
   test("demo reads work with a real session and cannot mutate or export", async () => {
     setRegisteredAuth(auth);
     const session = await auth.api.getSession({ headers: new Headers({ cookie }) });
@@ -109,6 +159,7 @@ describe.skipIf(!url)("public demo lifecycle against PostgreSQL", () => {
       db,
       session,
       isDemo: true,
+      storage,
       correlationId: "demo-test",
       honoContext: { req: { raw: { headers: new Headers({ cookie }) } } },
     } as unknown as Context;
@@ -130,6 +181,9 @@ describe.skipIf(!url)("public demo lifecycle against PostgreSQL", () => {
     const activity = await rpc("activity/dailyTotals", { days: 30 });
     expect(activity.status).toBe(200);
     expect(activity.body.json).toHaveLength(30);
+    const photos = await rpc("privateBody/photos", {});
+    expect(photos.status).toBe(200);
+    expect((photos.body.json as { photos: unknown[] }).photos).toHaveLength(2);
     const goals = await rpc("goals/list", {});
     expect(goals.status).toBe(200);
     expect(JSON.stringify(goals.body)).toContain("sleep");
@@ -224,6 +278,12 @@ describe.skipIf(!url)("public demo lifecycle against PostgreSQL", () => {
     expect(refreshed.status).toBe("refreshed");
     expect(refreshed.userId).toBe(userId);
     expect(refreshed.erasedRows).toBeGreaterThan(1000);
+    expect(await seedDemoPhotos(db, storage, refreshed)).toBe(0);
+    expect(
+      (await storage.listPhotos({ organizationId, createdByUserId: userId }))
+        .map((photo) => photo.id)
+        .sort(),
+    ).toEqual(seededPhotoIds);
     expect((await auth.api.getSession({ headers: new Headers({ cookie }) }))?.user.id).toBe(userId);
     await expect(refreshPublicDemo(db, { ...input, reviewEmail: email })).rejects.toThrow(
       "must differ",

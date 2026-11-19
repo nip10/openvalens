@@ -24,6 +24,7 @@ import { parseReviewSignInConfig, ReviewSignInConfigError } from "@openvalens/au
 import { resolveFileSecrets } from "@openvalens/config/file-secrets";
 import { createDb } from "@openvalens/db";
 
+import { seedConfiguredDemoPhotos } from "./photos";
 import { parseDay } from "./options";
 import { refreshReviewAccount, ReviewSeedRefusal, seedReviewAccount } from "./review";
 
@@ -142,6 +143,7 @@ export async function main(
           none: "It has no subscription (billing is off); nothing to extend.",
         }[result.trial],
       );
+      await seedConfiguredDemoPhotos(db, result, resolved);
       return 0;
     }
     const result = await seedReviewAccount(db, input);
@@ -152,14 +154,17 @@ export async function main(
     } else {
       console.log(`Seeded the review account's workspace with demo data ending ${result.today}.`);
     }
+    await seedConfiguredDemoPhotos(db, result, resolved);
     return 0;
   } catch (error) {
     if (error instanceof ReviewSeedRefusal) {
       console.error(error.message);
       return 1;
     }
-    // One transaction: a failed run leaves the workspace as it was.
-    console.error("Seeding failed; nothing was changed.");
+    // Records commit atomically; private files are a separate, retryable stage.
+    console.error(
+      "Seeding did not complete. Record changes are atomic; photo uploads run afterwards and can be retried.",
+    );
     throw error;
   } finally {
     await db.$client.end();

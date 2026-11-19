@@ -279,6 +279,7 @@ export const PROCEDURE_ACCESS: Readonly<Record<string, ProcedureAccessClass>> = 
   "nutritionEnergy.dismissProposal": W,
 
   "nutritionFoodDrafts.provider": R,
+  "nutritionFoodDrafts.examples": R,
   "nutritionFoodDrafts.parse": AI,
   "nutritionFoodDrafts.parsePhoto": AI,
 

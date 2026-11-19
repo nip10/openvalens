@@ -114,7 +114,8 @@ function PhotoImage({ id, createdAt }: { id: string; createdAt: string }) {
     <Image
       source={{ uri }}
       accessibilityLabel={t`Progress photo from ${date}`}
-      className="aspect-square w-full rounded-2xl"
+      resizeMode="contain"
+      className="aspect-square w-full rounded-2xl bg-paper-2"
     />
   ) : (
     <View

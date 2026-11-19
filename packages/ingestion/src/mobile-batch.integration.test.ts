@@ -1893,7 +1893,7 @@ describe.skipIf(!url)("mobile ingest batch on disposable PostgreSQL", () => {
   test("syncStatus reports per-device, per-type metadata only", async () => {
     await register();
     await ingestMobileBatch(db, { organizationId: "org-a", batch: batch(), traceId: "t", now });
-    const status = await getMobileSyncStatus(db, { organizationId: "org-a" });
+    const status = await getMobileSyncStatus(db, { organizationId: "org-a", userId: "u1" });
     expect(status).toEqual({
       devices: [
         {
@@ -1905,6 +1905,11 @@ describe.skipIf(!url)("mobile ingest batch on disposable PostgreSQL", () => {
         },
       ],
     });
-    expect(await getMobileSyncStatus(db, { organizationId: "org-b" })).toEqual({ devices: [] });
+    expect(await getMobileSyncStatus(db, { organizationId: "org-b", userId: "u1" })).toEqual({
+      devices: [],
+    });
+    expect(await getMobileSyncStatus(db, { organizationId: "org-a", userId: "u2" })).toEqual({
+      devices: [],
+    });
   });
 });

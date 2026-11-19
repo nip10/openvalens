@@ -1,6 +1,27 @@
 import { z } from "zod";
 
 import { PHOTO_UPLOAD_MAX_BYTES } from "../photo-upload";
+import { AMOUNT_UNITS } from "./nutrition-diary";
+
+export const foodDraftMealExamplesOutput = z.object({
+  examples: z
+    .array(
+      z.object({
+        id: z.number(),
+        items: z
+          .array(
+            z.object({
+              name: z.string(),
+              amount: z.number().nullable(),
+              unit: z.enum(AMOUNT_UNITS),
+            }),
+          )
+          .max(4),
+      }),
+    )
+    .max(3),
+});
+export type FoodDraftMealExample = z.infer<typeof foodDraftMealExamplesOutput>["examples"][number];
 
 /**
  * `nutritionFoodDrafts.*` wire contract (Issue #73): turning a spoken or typed

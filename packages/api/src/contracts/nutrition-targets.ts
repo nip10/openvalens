@@ -132,6 +132,8 @@ export const helpline = z.object({
 export type HelplineWire = z.infer<typeof helpline>;
 
 export const proteinReference = z.object({
+  /** Recent member-private trend weight used for this reference; absent in older caches. */
+  weightKg: z.number().positive().optional(),
   minGPerKg: z.number(),
   maxGPerKg: z.number(),
   minG: z.number(),

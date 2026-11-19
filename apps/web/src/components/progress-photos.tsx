@@ -193,7 +193,7 @@ function PhotoImage({ id, createdAt }: { id: string; createdAt: string }) {
       <img
         src={src}
         alt={t`Progress photo from ${date}`}
-        className="aspect-square w-full rounded-2xl bg-paper-3 object-cover"
+        className="aspect-square w-full rounded-2xl bg-paper-3 object-contain"
       />
       <figcaption className="px-1 text-sm text-ink-3">{shown}</figcaption>
     </figure>

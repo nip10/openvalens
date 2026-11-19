@@ -1,9 +1,11 @@
+import { authClient } from "@/lib/auth-client";
 import type { FoodDraftCandidateWire } from "@openvalens/api/contracts/nutrition-food-drafts";
 import { aiAppDraftIdentity, aiAppName } from "@openvalens/api/presenters/ai-apps";
 import {
   FOOD_DRAFT_COPY,
   FOOD_DRAFT_FLAG_LABELS,
   PHOTO_DRAFT_COPY,
+  foodDraftExampleText,
 } from "@openvalens/api/presenters/food-draft";
 import { isPayloadTooLarge, photoUploadProblem } from "@openvalens/api/photo-upload";
 import type { MessageDescriptor } from "@lingui/core";
@@ -30,6 +32,7 @@ import { InfoTip, StatusPill } from "@/components/page";
 import { useNutritionSettings } from "@/utils/nutrition-settings";
 import { client } from "@/utils/orpc";
 import { parseDecimal } from "@openvalens/i18n/numbers";
+import { resolveHideNumbers } from "@openvalens/api/presenters/nutrition-targets";
 
 /**
  * Describe a meal (#73) and a meal photo (#71), as the Describe and Photo
@@ -103,6 +106,14 @@ export function FoodDraftPanel({
     queryFn: () => client.nutritionFoodDrafts.provider({}),
   });
   const nutritionSettings = useNutritionSettings();
+  const { data: exampleSession } = authClient.useSession();
+  const exampleUserId = exampleSession?.user.id;
+  const exampleOrganizationId = exampleSession?.session.activeOrganizationId;
+  const examples = useQuery({
+    queryKey: ["nutritionFoodDrafts", "examples", exampleOrganizationId, exampleUserId],
+    queryFn: () => client.nutritionFoodDrafts.examples({}),
+    enabled: !!exampleUserId && !!exampleOrganizationId && view === "describe",
+  });
   // food-draft#2: while drafts are off, say what they do and turn them on here.
   const draftsOff = nutritionSettings.settings?.voiceDraftsEnabled === false;
   const parse = useMutation({
@@ -225,6 +236,36 @@ export function FoodDraftPanel({
               <Mic className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
               {i18n._(DRAFT_PANEL_COPY.dictation)}
             </p>
+            {examples.data?.examples.length ? (
+              <div className="grid gap-2">
+                <p className="text-sm text-ink-3">{i18n._(FOOD_DRAFT_COPY.examples)}</p>
+                <div className="flex flex-wrap gap-2">
+                  {examples.data.examples.map((example) => {
+                    const text = foodDraftExampleText(
+                      example,
+                      resolveHideNumbers(nutritionSettings.settings?.hideNumbers),
+                      i18n,
+                    );
+                    return (
+                      <Button
+                        key={example.id}
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-auto max-w-full whitespace-normal text-left"
+                        disabled={parse.isPending}
+                        onClick={() => {
+                          setTranscript(text);
+                          setTriedEmpty(false);
+                        }}
+                      >
+                        {text}
+                      </Button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
           </div>
           {provider.data?.available ? (
             <div className="grid gap-2 rounded-2xl bg-paper-2 p-4 text-sm text-ink-2">

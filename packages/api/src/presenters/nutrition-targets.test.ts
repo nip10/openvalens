@@ -42,6 +42,7 @@ import {
   displayTotalValue,
   formatHelpline,
   formatProteinReference,
+  formatProteinTarget,
   formatTarget,
   resolveHideNumbers,
   resolveScopedHideNumbers,
@@ -507,5 +508,28 @@ describe("target band (nutrition#10)", () => {
         englishI18n,
       ),
     ).toBeNull();
+  });
+});
+
+describe("protein target per recent weight", () => {
+  const protein = target({ nutrient: "proteinG", minAmount: 140, maxAmount: 140 });
+  test("uses the actual recent weight and preserves ranges", () => {
+    expect(formatProteinTarget(protein, 70, false, englishI18n)).toBe(
+      "Your target: 140 g (2 g per kg)",
+    );
+    expect(formatProteinTarget({ ...protein, minAmount: 70 }, 70, false, englishI18n)).toBe(
+      "Your target: 70–140 g (1–2 g per kg)",
+    );
+    expect(formatProteinTarget({ ...protein, minAmount: null }, 70, false, englishI18n)).toBe(
+      "Your target: Up to 140 g (2 g per kg)",
+    );
+  });
+  test("hides ratios with numbers and avoids invented weights or empty targets", () => {
+    expect(formatProteinTarget(protein, 70, true, englishI18n)).toBe("Your target: Hidden");
+    for (const weight of [undefined, null, 0, NaN, -1])
+      expect(formatProteinTarget(protein, weight, false, englishI18n)).toBe("Your target: 140 g");
+    expect(
+      formatProteinTarget({ ...protein, minAmount: null, maxAmount: null }, 70, false, englishI18n),
+    ).toBe("Your target: —");
   });
 });

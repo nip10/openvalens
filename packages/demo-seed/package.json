@@ -15,10 +15,12 @@
     "@openvalens/audit-security": "workspace:*",
     "@openvalens/auth": "workspace:*",
     "@openvalens/billing": "workspace:*",
+    "@openvalens/body": "workspace:*",
     "@openvalens/config": "workspace:*",
     "@openvalens/data-rights": "workspace:*",
     "@openvalens/db": "workspace:*",
     "@openvalens/exercise-catalog": "workspace:*",
+    "@openvalens/storage": "workspace:*",
     "@orpc/server": "catalog:",
     "drizzle-orm": "catalog:"
   },
