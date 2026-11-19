@@ -539,6 +539,7 @@ describe.skipIf(!url)("nutritionTargets over HTTP against disposable PostgreSQL"
       minG: 55,
       maxG: 55,
       basis: "default",
+      weightKg: 70,
     });
 
     const active = await updateSettings({ expectedRevision: 1, activeProtein: true });

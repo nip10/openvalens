@@ -1,9 +1,15 @@
-import type { CustomFood } from "@openvalens/api/contracts/nutrition-custom-foods";
+import type {
+  CustomFood,
+  CustomFoodListItem,
+} from "@openvalens/api/contracts/nutrition-custom-foods";
 import type { NutrientKey } from "@openvalens/api/contracts/nutrition-diary";
 import {
   CUSTOM_FOOD_COPY,
   describeBasis,
   describeCoverage,
+  customFoodEnergyLabel,
+  customFoodPortion,
+  customFoodPortionLabel,
 } from "@openvalens/api/presenters/custom-foods";
 import {
   DIARY_COPY,
@@ -144,10 +150,16 @@ function FoodsPage() {
     send();
   };
 
-  const figure = (food: CustomFood, key: NutrientKey) =>
+  const figure = (food: CustomFoodListItem, key: NutrientKey) =>
     hideNumbers
       ? i18n._(HIDDEN_VALUE)
-      : formatNutrientValue(key, food.nutrientsPerBasis[key], i18n);
+      : formatNutrientValue(
+          key,
+          food.nutrientsPerBasis[key] === null
+            ? null
+            : food.nutrientsPerBasis[key] * customFoodPortion(food).factor,
+          i18n,
+        );
 
   const shown = useMemo(() => {
     const all = sortFoods(foods.data?.foods ?? [], sort, i18n.locale);
@@ -277,10 +289,14 @@ function FoodsPage() {
                         {food.name}
                       </span>
                       <span className="truncate text-sm text-ink-3" title={basis}>
-                        <span className="sr-only">{basis}. </span>
+                        <span className="sr-only">
+                          {hideNumbers ? basis : customFoodPortionLabel(food, i18n)}.{" "}
+                        </span>
                         <span aria-hidden="true">
                           {food.brand ? `${food.brand} · ` : ""}
-                          {shortBasis(food, i18n)}
+                          {hideNumbers
+                            ? shortBasis(food, i18n)
+                            : customFoodPortionLabel(food, i18n)}
                         </span>
                       </span>
                     </div>
@@ -309,7 +325,7 @@ function FoodsPage() {
                         <span className="sr-only">
                           {i18n._(NUTRIENT_LABELS.energyKcal.label)}:{" "}
                         </span>
-                        {figure(food, "energyKcal")}
+                        {customFoodEnergyLabel(food, hideNumbers, i18n)}
                       </span>
                       {food.archived ? (
                         <StatusPill tone="neutral">

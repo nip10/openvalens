@@ -1,14 +1,10 @@
-import type { Database } from "@openvalens/db";
-import {
-  nutritionFood,
-  nutritionFoodSnapshot,
-  nutritionMeal,
-  nutritionMealEntry,
-} from "@openvalens/db/schema/nutrition";
-import { and, asc, count, eq, isNotNull, isNull, max } from "drizzle-orm";
+import { sql, type Database } from "@openvalens/db";
+import { nutritionFood } from "@openvalens/db/schema/nutrition";
+import { and, asc, eq, isNull } from "drizzle-orm";
 
 import { NutritionError } from "./errors";
 import { DRINK_NUTRIENT_KEYS, NUTRIENT_KEYS } from "./nutrients";
+import type { AmountUnit } from "./nutrients";
 import {
   customFoodValues,
   type CustomFood,
@@ -57,6 +53,8 @@ export type CustomFoodUsage = {
   logCount: number;
   /** The latest diary day (YYYY-MM-DD) with such an entry, or null when never logged. */
   lastLoggedOn: string | null;
+  /** Most frequently logged amount; ties prefer the latest diary day and entry. */
+  usualPortion?: { amount: number; unit: AmountUnit };
 };
 
 export type CustomFoodOutcome =
@@ -145,44 +143,40 @@ export function createCustomFoods(db: Database) {
      * entries never count.
      */
     async usage(scope: NutritionScope): Promise<Map<number, CustomFoodUsage>> {
-      const rows = await db
-        .select({
-          foodId: nutritionFoodSnapshot.customFoodId,
-          logCount: count(nutritionMealEntry.id),
-          lastLoggedOn: max(nutritionMeal.localDate),
-        })
-        .from(nutritionMealEntry)
-        .innerJoin(
-          nutritionFoodSnapshot,
-          and(
-            eq(nutritionFoodSnapshot.organizationId, nutritionMealEntry.organizationId),
-            eq(nutritionFoodSnapshot.id, nutritionMealEntry.snapshotId),
-          ),
+      const rows = await db.execute<{
+        foodId: number;
+        logCount: number;
+        lastLoggedOn: string;
+        amount: number;
+        unit: AmountUnit;
+      }>(sql`
+        with logs as (
+          select s.custom_food_id as food_id, e.amount, e.unit, m.local_date, e.id
+          from nutrition_meal_entry e
+          join nutrition_meal m on m.id = e.meal_id and m.organization_id = e.organization_id and m.user_id = e.user_id
+          join nutrition_food_snapshot s on s.id = e.snapshot_id and s.organization_id = e.organization_id
+          where e.organization_id = ${scope.organizationId} and e.user_id = ${scope.userId}
+            and e.deleted_at is null and s.custom_food_id is not null
+        ), portions as (
+          select food_id, amount, unit, count(*) as uses, max(local_date) as last_day, max(id) as last_entry
+          from logs group by food_id, amount, unit
+        ), ranked as (
+          select food_id, amount, unit,
+            (sum(uses) over (partition by food_id))::int as log_count,
+            max(last_day) over (partition by food_id) as last_day,
+            row_number() over (partition by food_id order by uses desc, last_day desc, last_entry desc) as position
+          from portions
         )
-        .innerJoin(
-          nutritionMeal,
-          and(
-            eq(nutritionMeal.organizationId, nutritionMealEntry.organizationId),
-            eq(nutritionMeal.userId, nutritionMealEntry.userId),
-            eq(nutritionMeal.id, nutritionMealEntry.mealId),
-          ),
-        )
-        .where(
-          and(
-            eq(nutritionMealEntry.organizationId, scope.organizationId),
-            eq(nutritionMealEntry.userId, scope.userId),
-            isNull(nutritionMealEntry.deletedAt),
-            isNotNull(nutritionFoodSnapshot.customFoodId),
-          ),
-        )
-        .groupBy(nutritionFoodSnapshot.customFoodId);
+        select food_id as "foodId", log_count as "logCount", last_day as "lastLoggedOn", amount, unit
+        from ranked where position = 1
+      `);
       const usage = new Map<number, CustomFoodUsage>();
-      for (const row of rows)
-        if (row.foodId !== null)
-          usage.set(row.foodId, {
-            logCount: Number(row.logCount),
-            lastLoggedOn: row.lastLoggedOn ?? null,
-          });
+      for (const row of rows.rows)
+        usage.set(row.foodId, {
+          logCount: Number(row.logCount),
+          lastLoggedOn: row.lastLoggedOn,
+          usualPortion: { amount: row.amount, unit: row.unit },
+        });
       return usage;
     },
 

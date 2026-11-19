@@ -9,6 +9,7 @@ import { useState } from "react";
 import { z } from "zod";
 
 import { Page } from "@/components/page";
+import { PhoneSyncStatus } from "@/components/phone-sync-status";
 import { SettingsPageHeader } from "@/components/settings-back-link";
 import { WearableDevicesView, type WearableConfirm } from "@/components/wearable-devices-view";
 import { orpc } from "@/utils/orpc";
@@ -96,6 +97,7 @@ function DevicesSettingsPage() {
           </Trans>
         }
       />
+      <PhoneSyncStatus />
       <WearableDevicesView
         cloud={cloud}
         status={list.isPending ? "pending" : list.isError ? "error" : "ready"}

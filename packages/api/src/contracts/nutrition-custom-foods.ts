@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { manualFoodInput, nutrientBasis, nutrientValues } from "./nutrition-diary";
+import { AMOUNT_UNITS, manualFoodInput, nutrientBasis, nutrientValues } from "./nutrition-diary";
 
 /**
  * `nutritionCustomFoods.*` wire contract (Issue #81): managing a member's
@@ -67,6 +67,7 @@ export const customFoodUsage = z.object({
   logCount: z.number().int().min(0),
   /** YYYY-MM-DD of the latest diary day with this food; null when never logged. */
   lastLoggedOn: z.string().nullable(),
+  usualPortion: z.object({ amount: z.number().positive(), unit: z.enum(AMOUNT_UNITS) }).optional(),
 });
 export type CustomFoodUsage = z.infer<typeof customFoodUsage>;
 

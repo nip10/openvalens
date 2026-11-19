@@ -2,10 +2,13 @@ import { describe, expect, test } from "bun:test";
 
 import { englishI18n, inEnglish } from "@openvalens/i18n/testing";
 
-import type { CustomFood } from "../contracts/nutrition-custom-foods";
+import type { CustomFood, CustomFoodListItem } from "../contracts/nutrition-custom-foods";
 import { createCustomFoodInput, updateCustomFoodInput } from "../contracts/nutrition-custom-foods";
 import {
   CUSTOM_FOOD_COPY,
+  customFoodPortion,
+  customFoodPortionLabel,
+  customFoodEnergyLabel,
   EMPTY_CUSTOM_FOOD_FIELDS,
   describeBasis,
   describeCoverage,
@@ -188,5 +191,39 @@ describe("custom food form", () => {
       /\b(good|bad|healthy|unhealthy|junk|clean|cheat|guilt\w*|sin\w*|naughty|over|under|exceed\w*|too much|missed|streak\w*|fail\w*|warning|danger\w*|violat\w*|budget|allowance|earn\w*)\b/i;
     for (const text of Object.values(CUSTOM_FOOD_COPY)) expect(inEnglish(text)).not.toMatch(BANNED);
     expect(inEnglish(CUSTOM_FOOD_COPY.privacy)).toMatch(/private to you/);
+  });
+});
+
+describe("food list portion labels", () => {
+  const used: CustomFoodListItem = {
+    ...food,
+    usage: { logCount: 3, lastLoggedOn: "2026-10-12", usualPortion: { amount: 40, unit: "g" } },
+  };
+  test("scales the values to the usual logged amount and labels it", () => {
+    expect(customFoodPortion(used)).toEqual({ amount: 40, unit: "g", factor: 0.4, usual: true });
+    expect(customFoodPortionLabel(used, englishI18n)).toBe("Usually 40 g");
+    expect(customFoodEnergyLabel(used, false, englishI18n)).toBe("100 kcal / 40 g");
+    expect(customFoodEnergyLabel(used, true, englishI18n)).toBe("Hidden");
+  });
+  test("an old incompatible portion and an unused food retain the explicit basis", () => {
+    const incompatible = {
+      ...used,
+      usage: { ...used.usage, usualPortion: { amount: 250, unit: "ml" as const } },
+    };
+    expect(customFoodPortionLabel(incompatible, englishI18n)).toBe("per 100 g");
+    expect(
+      customFoodEnergyLabel(
+        { ...used, usage: { logCount: 0, lastLoggedOn: null } },
+        false,
+        englishI18n,
+      ),
+    ).toBe("250 kcal / 100 g");
+    expect(
+      customFoodEnergyLabel(
+        { ...used, nutrientsPerBasis: { ...used.nutrientsPerBasis, energyKcal: null } },
+        false,
+        englishI18n,
+      ),
+    ).toBe("Unknown / 40 g");
   });
 });

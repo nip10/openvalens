@@ -2,7 +2,12 @@ import type { I18n, MessageDescriptor } from "@lingui/core";
 import { msg, select } from "@lingui/core/macro";
 import { parseDecimal } from "@openvalens/i18n/numbers";
 
-import type { CustomFood, CustomFoodContent } from "../contracts/nutrition-custom-foods";
+import type {
+  CustomFood,
+  CustomFoodContent,
+  CustomFoodListItem,
+} from "../contracts/nutrition-custom-foods";
+import { computeNutrientFactor } from "@openvalens/nutrition/nutrients";
 import {
   NUTRIENT_KEYS,
   type AmountUnit,
@@ -10,7 +15,57 @@ import {
   type NutrientKey,
 } from "../contracts/nutrition-diary";
 import { ambiguousDecimalMessage } from "./decimal-input";
-import { NUTRIENT_LABELS, formatAmount, parseQuickAdd } from "./nutrition-diary";
+import {
+  NUTRIENT_LABELS,
+  formatAmount,
+  formatNutrientValue,
+  parseQuickAdd,
+} from "./nutrition-diary";
+
+/** Old portions may no longer convert after a food is edited: keep the labelled basis then. */
+export function customFoodPortion(food: CustomFoodListItem) {
+  const usual = food.usage.usualPortion;
+  if (usual) {
+    try {
+      return {
+        ...usual,
+        factor: computeNutrientFactor(food.basis, usual.amount, usual.unit),
+        usual: true,
+      };
+    } catch {
+      // Never guess a conversion between mass, volume or an unspecified serving.
+    }
+  }
+  return {
+    amount: food.basis.nutrientBasisAmount,
+    unit: food.basis.nutrientBasisUnit,
+    factor: 1,
+    usual: false,
+  };
+}
+
+export function customFoodPortionLabel(food: CustomFoodListItem, i18n: I18n): string {
+  const portion = customFoodPortion(food);
+  const amount = formatAmount(portion.amount, portion.unit, i18n);
+  return portion.usual ? i18n._(msg`Usually ${amount}`) : i18n._(msg`per ${amount}`);
+}
+
+export function customFoodEnergyLabel(
+  food: CustomFoodListItem,
+  hideNumbers: boolean,
+  i18n: I18n,
+): string {
+  if (hideNumbers) return i18n._(msg`Hidden`);
+  const portion = customFoodPortion(food);
+  const energy = food.nutrientsPerBasis.energyKcal;
+  const value = formatNutrientValue(
+    "energyKcal",
+    energy === null ? null : energy * portion.factor,
+    i18n,
+  );
+  const amount = formatAmount(portion.amount, portion.unit, i18n);
+  return i18n._(msg`${value} / ${amount}`);
+}
 
 /**
  * Shared copy and form logic for managing private custom foods (Issue #81),

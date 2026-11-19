@@ -6,17 +6,17 @@ import {
   EMPTY_CUSTOM_FOOD_FIELDS,
   describeBasis,
   describeCoverage,
+  customFoodEnergyLabel,
+  customFoodPortionLabel,
   fieldsFromCustomFood,
   nutrientFieldLabel,
   parseCustomFood,
   type CustomFoodFields,
 } from "@openvalens/api/presenters/custom-foods";
 import { localDateIn, newClientMutationId } from "@openvalens/api/presenters/nutrition-diary";
-import { formatNutrientValue } from "@openvalens/api/presenters/nutrition-diary";
 import {
   formatDrinkNutrientsLine,
   formatNutrientSummaryLine,
-  HIDDEN_VALUE,
   resolveHideNumbers,
 } from "@openvalens/api/presenters/nutrition-targets";
 import { Trans, useLingui } from "@lingui/react/macro";
@@ -250,12 +250,8 @@ export default function FoodsScreen() {
                       ? { label: i18n._(CUSTOM_FOOD_COPY.archivedBadge), tone: "neutral" }
                       : undefined
                   }
-                  subtitle={`${food.brand ? `${food.brand}, ` : ""}${describeBasis(food.basis, i18n)}`}
-                  chip={
-                    hideNumbers
-                      ? i18n._(HIDDEN_VALUE)
-                      : formatNutrientValue("energyKcal", food.nutrientsPerBasis.energyKcal, i18n)
-                  }
+                  subtitle={`${food.brand ? `${food.brand}, ` : ""}${hideNumbers ? describeBasis(food.basis, i18n) : customFoodPortionLabel(food, i18n)}`}
+                  chip={customFoodEnergyLabel(food, hideNumbers, i18n)}
                 >
                   <View className="flex-row flex-wrap items-center justify-between gap-2">
                     <View className="flex-row items-center gap-1">
@@ -263,6 +259,7 @@ export default function FoodsScreen() {
                         {i18n._(describeCoverage(food))}
                       </Text>
                       <InfoTip label={t`Nutrients`} title={food.name}>
+                        <Prose>{describeBasis(food.basis, i18n)}</Prose>
                         <Prose>
                           {formatNutrientSummaryLine(food.nutrientsPerBasis, hideNumbers, i18n)}
                         </Prose>

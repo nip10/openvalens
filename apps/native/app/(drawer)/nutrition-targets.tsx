@@ -30,6 +30,7 @@ import {
   describeTargetSource,
   formatHelpline,
   formatProteinReference,
+  formatProteinTarget,
   formatTarget,
   parseHeight,
   parseTargetForm,
@@ -327,6 +328,18 @@ export default function NutritionTargetsScreen() {
                   ? formatProteinReference(data.proteinReference, hideNumbers, i18n)
                   : i18n._(TARGET_COPY.proteinReferenceUnavailable)}
               </Text>
+              {data.targetsOn.targets
+                .filter((target) => target.nutrient === "proteinG")
+                .map((target) => (
+                  <Text key={target.id} className="font-sans text-sm text-ink-2">
+                    {formatProteinTarget(
+                      target,
+                      data.proteinReference?.weightKg,
+                      hideNumbers,
+                      i18n,
+                    )}
+                  </Text>
+                ))}
             </Section>
 
             <SettingsCard

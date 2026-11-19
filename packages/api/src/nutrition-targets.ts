@@ -172,6 +172,13 @@ export function createNutritionTargetsService(deps: { db: Database; now?: () => 
       if (energyOff) notes.push(NUTRITION_SAFETY_COPY.energyTargetsOff);
       else if (context.safety.reductionSuggestions === "off" && context.adultConfirmed)
         notes.push(NUTRITION_SAFETY_COPY.reductionsOff);
+      const reference = proteinReference({
+        weightKg: context.body.weightKg,
+        adultConfirmed: context.adultConfirmed,
+        maxAge: context.body.maxAge,
+        active: context.settings.activeProtein,
+        kidneyCap: context.safety.proteinCapped,
+      });
       return {
         settings: context.settings,
         safety: context.safety,
@@ -180,13 +187,9 @@ export function createNutritionTargetsService(deps: { db: Database; now?: () => 
           localDate: input.localDate,
           targets: goalsInEffectOn(history, input.localDate).filter(visible).map(presentTarget),
         },
-        proteinReference: proteinReference({
-          weightKg: context.body.weightKg,
-          adultConfirmed: context.adultConfirmed,
-          maxAge: context.body.maxAge,
-          active: context.settings.activeProtein,
-          kidneyCap: context.safety.proteinCapped,
-        }),
+        proteinReference: reference
+          ? { ...reference, weightKg: context.body.weightKg ?? undefined }
+          : null,
         support: context.settings.declarations.includes("eating_disorder")
           ? supportFor(context.region)
           : null,

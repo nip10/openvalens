@@ -1288,6 +1288,10 @@ msgstr "{priority, select, low {Low priority} normal {Normal priority} other {Hi
 msgid "{progressPercent}% of the way from {progressStart}"
 msgstr "{progressPercent}% of the way from {progressStart}"
 
+#: packages/api/src/presenters/mobile-sync.ts
+msgid "{provider}: no records received yet."
+msgstr "{provider}: no records received yet."
+
 #: apps/native/components/training-home.tsx
 msgid "{prs, plural, one {PR} other {# PRs}}"
 msgstr "{prs, plural, one {PR} other {# PRs}}"
@@ -1479,6 +1483,10 @@ msgstr "{type}: {amount} to {max} {unit} a day"
 #: packages/api/src/presenters/coach-settings.ts
 msgid "{value}"
 msgstr "{value}"
+
+#: packages/api/src/presenters/custom-foods.ts
+msgid "{value} / {amount}"
+msgstr "{value} / {amount}"
 
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "{value} % a week"
@@ -5606,6 +5614,10 @@ msgstr "Could not load onboarding totals."
 msgid "Could not load or update AI settings."
 msgstr "Could not load or update AI settings."
 
+#: packages/api/src/presenters/mobile-sync.ts
+msgid "Could not load phone sync status."
+msgstr "Could not load phone sync status."
+
 #: apps/native/components/progress-photos.tsx
 msgid "Could not load photos. Try again"
 msgstr "Could not load photos. Try again"
@@ -9384,6 +9396,7 @@ msgstr "Hi coach, give me a one-line summary of where I am today and one concret
 #: apps/native/app/(drawer)/private-measurements.tsx
 #: apps/web/src/components/micronutrient-summary.tsx
 #: apps/web/src/routes/_auth/private-measurements.tsx
+#: packages/api/src/presenters/custom-foods.ts
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Hidden"
 msgstr "Hidden"
@@ -10654,6 +10667,10 @@ msgstr "Last night's sleep"
 msgid "Last reading: {0}"
 msgstr "Last reading: {0}"
 
+#: packages/api/src/presenters/mobile-sync.ts
+msgid "Last received from {provider}: {when}"
+msgstr "Last received from {provider}: {when}"
+
 #: apps/native/components/health-sync-settings.tsx
 msgid "Last sync failed. Try again."
 msgstr "Last sync failed. Try again."
@@ -11189,12 +11206,14 @@ msgstr "Loading your workspace…"
 #: apps/native/components/nutrition-trend-card.tsx
 #: apps/native/components/onboarding/steps.tsx
 #: apps/native/components/pain/pain-panel.tsx
+#: apps/native/components/phone-sync-status.tsx
 #: apps/native/components/plain-water-section.tsx
 #: apps/native/components/workout-history.tsx
 #: apps/web/src/components/exercise-library.tsx
 #: apps/web/src/components/micronutrient-summary.tsx
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
 #: apps/web/src/components/pain/pain-panel.tsx
+#: apps/web/src/components/phone-sync-status.tsx
 #: apps/web/src/routes/_auth/cycle.tsx
 #: apps/web/src/routes/_auth/records/timeline.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
@@ -13065,6 +13084,10 @@ msgstr "No record"
 msgid "No record yet"
 msgstr "No record yet"
 
+#: packages/api/src/presenters/mobile-sync.ts
+msgid "No records received from your phone yet."
+msgstr "No records received from your phone yet."
+
 #: apps/native/app/(drawer)/(tabs)/timeline.tsx
 #: apps/web/src/routes/_auth/records/timeline.tsx
 msgid "No records yet"
@@ -14627,6 +14650,7 @@ msgid "People you share your workspace with, at no extra cost"
 msgstr "People you share your workspace with, at no extra cost"
 
 #: apps/web/src/utils/food-display.ts
+#: packages/api/src/presenters/custom-foods.ts
 msgid "per {amount}"
 msgstr "per {amount}"
 
@@ -14765,6 +14789,10 @@ msgstr "Phase estimates are off because you said you use hormonal contraception 
 #: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Phone alerts, weekly email and reminders"
 msgstr "Phone alerts, weekly email and reminders"
+
+#: packages/api/src/presenters/mobile-sync.ts
+msgid "Phone sync"
+msgstr "Phone sync"
 
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 #: apps/web/src/components/log-food-sheet.tsx
@@ -16237,6 +16265,7 @@ msgstr "Retired version"
 #: apps/native/components/energy-estimate-card.tsx
 #: apps/native/components/onboarding/flow.tsx
 #: apps/native/components/pain/pain-panel.tsx
+#: apps/native/components/phone-sync-status.tsx
 #: apps/native/components/server-compatibility-gate.tsx
 #: apps/native/components/sign-in-methods.tsx
 #: apps/native/components/sign-in.tsx
@@ -16261,6 +16290,7 @@ msgstr "Retired version"
 #: apps/web/src/components/onboarding/setup-steps.tsx
 #: apps/web/src/components/onboarding/welcome-flow.tsx
 #: apps/web/src/components/pain/pain-panel.tsx
+#: apps/web/src/components/phone-sync-status.tsx
 #: apps/web/src/components/product-settings-form.tsx
 #: apps/web/src/components/profile-summary-card.tsx
 #: apps/web/src/components/reference-comparisons-card.tsx
@@ -20633,6 +20663,10 @@ msgctxt "dexa region"
 msgid "Trunk"
 msgstr "Trunk"
 
+#: packages/api/src/presenters/food-draft.ts
+msgid "Try a recent meal"
+msgstr "Try a recent meal"
+
 #: apps/native/app/(drawer)/cycle.tsx
 #: apps/native/app/(drawer)/micronutrients.tsx
 #: apps/native/app/(drawer)/private-measurements.tsx
@@ -21286,6 +21320,10 @@ msgstr "Uses sleep and steps"
 #: apps/web/src/components/coach-ideas.tsx
 msgid "Uses your sleep, activity, food and goals. Not medical advice."
 msgstr "Uses your sleep, activity, food and goals. Not medical advice."
+
+#: packages/api/src/presenters/custom-foods.ts
+msgid "Usually {amount}"
+msgstr "Usually {amount}"
 
 #: apps/native/app/(drawer)/goals/[goalId].tsx
 #: apps/native/app/(drawer)/records/labs.tsx
@@ -22835,10 +22873,17 @@ msgid "Your supplements"
 msgstr "Your supplements"
 
 #. placeholder {0}: formatTarget(energyTarget, hideNumbers, i18n)
-#. placeholder {0}: formatTarget(proteinTarget, hideNumbers, i18n)
 #: apps/web/src/routes/_auth/nutrition-targets.tsx
 msgid "Your target: {0}"
 msgstr "Your target: {0}"
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Your target: {amount}"
+msgstr "Your target: {amount}"
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Your target: {amount} ({ratio} g per kg)"
+msgstr "Your target: {amount} ({ratio} g per kg)"
 
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Your targets"

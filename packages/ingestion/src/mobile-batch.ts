@@ -1238,7 +1238,7 @@ export type MobileSyncStatus = {
 /** Safe status metadata only: ids, timestamps and job statuses. No PHI. */
 export async function getMobileSyncStatus(
   db: Database,
-  input: { organizationId: string; jobsPerDevice?: number },
+  input: { organizationId: string; userId: string; jobsPerDevice?: number },
 ): Promise<MobileSyncStatus> {
   const connections = await db
     .select({
@@ -1252,6 +1252,7 @@ export async function getMobileSyncStatus(
     .where(
       and(
         eq(providerConnection.organizationId, input.organizationId),
+        eq(providerConnection.userId, input.userId),
         inArray(providerConnection.provider, ["health_connect", "apple_health"]),
       ),
     )

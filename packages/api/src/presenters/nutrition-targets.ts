@@ -322,6 +322,33 @@ export function formatProteinReference(
   return i18n._(msg({ message: `${grams} g a day (${perKg} g per kg)`, comment: "safety" }));
 }
 
+/** The person's chosen target divided by the same recent weight as the reference. */
+export function formatProteinTarget(
+  target: Pick<NutritionTargetWire, "nutrient" | "minAmount" | "maxAmount">,
+  weightKg: number | null | undefined,
+  hideNumbers: boolean,
+  i18n: I18n,
+): string {
+  const amount = formatTarget(target, hideNumbers, i18n);
+  if (
+    hideNumbers ||
+    !weightKg ||
+    !Number.isFinite(weightKg) ||
+    weightKg <= 0 ||
+    (target.minAmount === null && target.maxAmount === null)
+  )
+    return i18n._(msg`Your target: ${amount}`);
+  const perKg = (value: number) =>
+    (value / weightKg).toLocaleString(i18n.locale, { maximumFractionDigits: 1 });
+  const min = target.minAmount;
+  const max = target.maxAmount;
+  const ratio =
+    min !== null && max !== null && min !== max
+      ? `${perKg(min)}–${perKg(max)}`
+      : perKg((min ?? max)!);
+  return i18n._(msg`Your target: ${amount} (${ratio} g per kg)`);
+}
+
 /** `"Beat Helpline (England): 0808 801 0677"`, with a detail such as an option number when present. */
 export function formatHelpline(line: HelplineWire): string {
   const parts = [line.phone, line.detail].filter(Boolean).join(", ");

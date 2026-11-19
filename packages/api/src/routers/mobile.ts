@@ -104,6 +104,9 @@ export const mobileRouter = {
     .input(z.object({}))
     .output(syncStatusOutput)
     .handler(async ({ context }) =>
-      getMobileSyncStatus(context.db, { organizationId: context.authz.activeOrganizationId }),
+      getMobileSyncStatus(context.db, {
+        organizationId: context.authz.activeOrganizationId,
+        userId: context.authz.user.id,
+      }),
     ),
 };

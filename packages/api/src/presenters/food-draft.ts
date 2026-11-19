@@ -1,14 +1,33 @@
-import type { MessageDescriptor } from "@lingui/core";
+import type { I18n, MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import type { FoodDraftFlag } from "@openvalens/nutrition/food-draft";
 
 import type {
   ParseFoodDraftOutput,
   ParsePhotoFoodDraftOutput,
+  FoodDraftMealExample,
 } from "../contracts/nutrition-food-drafts";
+import { formatAmount } from "./nutrition-diary";
+
+/** Fill the input only; the member still explicitly requests a draft and confirms foods. */
+export function foodDraftExampleText(
+  example: FoodDraftMealExample,
+  hideNumbers: boolean,
+  i18n: I18n,
+): string {
+  return example.items
+    .map((item) =>
+      item.amount === null || hideNumbers
+        ? item.name
+        : `${formatAmount(item.amount, item.unit, i18n)} ${item.name}`,
+    )
+    .join(", ")
+    .slice(0, 2000);
+}
 
 /** Copy for food drafts from a description (Issue #73); shared by web and native. */
 export const FOOD_DRAFT_COPY = Object.freeze({
+  examples: msg`Try a recent meal`,
   settingLabel: msg`Make food drafts from a spoken or typed description`,
   settingDescription: msg({
     message:

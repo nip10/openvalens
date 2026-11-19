@@ -222,11 +222,14 @@ test("viewers cannot ingest", async () => {
   expect(ingestMobileBatch).not.toHaveBeenCalled();
 });
 
-test("syncStatus requires records:read and is scoped to the session org", async () => {
+test("syncStatus requires records:read and is scoped to the session member and org", async () => {
   role = "viewer";
   expect(await mobileRouter.syncStatus.callable({ context: context() })({})).toEqual({
     devices: [],
   });
   expect(requirePermission.mock.calls[0]?.[1]).toEqual({ resource: "records", action: "read" });
-  expect(getMobileSyncStatus.mock.calls[0]?.[1]).toEqual({ organizationId: "org-a" });
+  expect(getMobileSyncStatus.mock.calls[0]?.[1]).toEqual({
+    organizationId: "org-a",
+    userId: "actor",
+  });
 });

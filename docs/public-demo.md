@@ -36,7 +36,10 @@ Add a Coolify scheduled task on `openvalens-api`:
 
 Every run atomically replaces the synthetic records, prunes expired demo
 sessions, and keeps active sessions and the account identity. Readers see a
-complete history throughout; a failed run rolls back. As with the store seed,
+complete history throughout; a failed record stage rolls back. Afterwards the
+CLI adds two labeled synthetic progress photos to configured private storage.
+This separate stage is retryable and preserves existing photos across refreshes
+(see `packages/demo-seed/assets/README.md`). As with the store seed,
 the reused fixture records `REVIEW_DEMO_SEEDED` / `REVIEW_DEMO_REFRESHED` events
 in this separate workspace. Do not run the disposable `demo:seed` command on
 production: that command resets an entire local demo database.

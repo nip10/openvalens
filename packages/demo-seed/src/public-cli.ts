@@ -2,6 +2,7 @@
 import { resolveFileSecrets } from "@openvalens/config/file-secrets";
 import { createDb } from "@openvalens/db";
 
+import { seedConfiguredDemoPhotos } from "./photos";
 import { refreshPublicDemo } from "./public";
 import { parseReviewOptions } from "./review-cli";
 
@@ -23,6 +24,7 @@ export async function main(argv: string[], env: Record<string, string | undefine
       now,
     });
     console.log(`Public read-only demo ${result.status}; synthetic data ends ${result.today}.`);
+    await seedConfiguredDemoPhotos(db, result, resolved);
   } finally {
     await db.$client.end();
   }

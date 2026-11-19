@@ -121,7 +121,14 @@ describe.skipIf(!url)("nutritionCustomFoods over HTTP against disposable Postgre
   function contextFor(headers: Headers): Context {
     const id = actorOf(headers);
     return {
-      session: { user: { id }, session: { activeOrganizationId: MEMBERS[id]!.org } },
+      session: {
+        user: { id },
+        session: {
+          id: `s-${id}`,
+          activeOrganizationId: MEMBERS[id]!.org,
+          expiresAt: new Date(Date.now() + 3_600_000),
+        },
+      },
       db,
       correlationId: "corr-81",
       cronSecret: "cron-secret-long-enough-value",
@@ -560,7 +567,7 @@ describe.skipIf(!url)("nutritionCustomFoods over HTTP against disposable Postgre
     const oats = (await create("usage-oats", { ...bread, name: "Synthetic usage oats" })).body.food;
     const never = (await create("usage-never", { ...bread, name: "Synthetic never logged" })).body
       .food;
-    const log = (localDate: string, clientMutationId: string, user = "user-a") =>
+    const log = (localDate: string, clientMutationId: string, user = "user-a", amount = 1) =>
       call<{ entry: DiaryEntry }>(
         "nutritionDiary/logEntry",
         {
@@ -569,7 +576,7 @@ describe.skipIf(!url)("nutritionCustomFoods over HTTP against disposable Postgre
           timeZone: "Europe/Lisbon",
           slot: "lunch",
           food: { kind: "custom", foodId: oats.id },
-          amount: 1,
+          amount,
           unit: "serving",
           method: "manual",
         },
@@ -601,9 +608,56 @@ describe.skipIf(!url)("nutritionCustomFoods over HTTP against disposable Postgre
     expect(byName.get("Synthetic usage oats")?.usage).toEqual({
       logCount: 2,
       lastLoggedOn: "2026-10-05",
+      usualPortion: { amount: 1, unit: "serving" },
     });
     expect(byName.get(never.name)?.usage).toEqual({ logCount: 0, lastLoggedOn: null });
     for (const food of await list("user-a2")) expect(food.usage.logCount).toBe(0);
+    await log("2026-10-10", "usage-two-a", "user-a", 2);
+    await log("2026-10-11", "usage-two-b", "user-a", 2);
+    expect((await list()).find((food) => food.id === oats.id)?.usage.usualPortion).toEqual({
+      amount: 2,
+      unit: "serving",
+    });
+    // Frequency wins over recency once one portion is logged more often.
+    await log("2026-10-02", "usage-one-more");
+    expect((await list()).find((food) => food.id === oats.id)?.usage).toEqual({
+      logCount: 5,
+      lastLoggedOn: "2026-10-11",
+      usualPortion: { amount: 1, unit: "serving" },
+    });
+  });
+
+  test("recent meal examples include only own live entries and redact quantities when hidden", async () => {
+    const own = await call<{ examples: { items: { name: string; amount: number | null }[] }[] }>(
+      "nutritionFoodDrafts/examples",
+      {},
+    );
+    expect(own.status).toBe(200);
+    expect(own.body.examples.length).toBeGreaterThan(0);
+    const other = await call<{ examples: unknown[] }>(
+      "nutritionFoodDrafts/examples",
+      {},
+      "user-a2",
+    );
+    expect(other.body.examples).toEqual([]);
+    const before = JSON.stringify(own.body);
+    expect(before).not.toContain("Another member");
+    const settings = await call<{ settings: { revision: number } }>("nutritionTargets/get", {
+      localDate: "2026-10-12",
+    });
+    const hidden = await call("nutritionTargets/updateSettings", {
+      expectedRevision: settings.body.settings.revision,
+      hideNumbers: true,
+    });
+    expect(hidden.status).toBe(200);
+    const redacted = await call<{ examples: { items: { amount: number | null }[] }[] }>(
+      "nutritionFoodDrafts/examples",
+      {},
+    );
+    expect(redacted.status).toBe(200);
+    expect(
+      redacted.body.examples.flatMap((meal) => meal.items).every((item) => item.amount === null),
+    ).toBe(true);
   });
 
   test("audit rows carry ids only, never food names or values", async () => {

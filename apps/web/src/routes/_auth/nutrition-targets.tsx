@@ -11,6 +11,7 @@ import {
   TARGET_NUTRIENTS,
   formatHelpline,
   formatProteinReference,
+  formatProteinTarget,
   formatTarget,
   parseTargetForm,
   resolveHideNumbers,
@@ -291,7 +292,12 @@ function NutritionTargetsPage() {
                 hideNumbers={hideNumbers}
                 targetLine={
                   proteinTarget
-                    ? t`Your target: ${formatTarget(proteinTarget, hideNumbers, i18n)}`
+                    ? formatProteinTarget(
+                        proteinTarget,
+                        data.proteinReference?.weightKg,
+                        hideNumbers,
+                        i18n,
+                      )
                     : i18n._(PAGE_COPY.noProteinTarget)
                 }
               />
