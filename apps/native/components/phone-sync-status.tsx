@@ -1,3 +1,4 @@
+import { authClient } from "@/lib/auth-client";
 import { useLingui } from "@lingui/react/macro";
 import {
   latestPhoneSync,
@@ -14,7 +15,15 @@ import { orpc } from "@/utils/orpc";
 
 export function PhoneSyncStatus() {
   const { i18n, t } = useLingui();
-  const status = useQuery(orpc.mobile.syncStatus.queryOptions({ input: {} }));
+  const { data: session } = authClient.useSession();
+  const userId = session?.user.id;
+  const organizationId = session?.session.activeOrganizationId;
+  const options = orpc.mobile.syncStatus.queryOptions({ input: {} });
+  const status = useQuery({
+    ...options,
+    queryKey: [...options.queryKey, organizationId, userId],
+    enabled: !!organizationId && !!userId,
+  });
   const devices = latestPhoneSync(status.data?.devices ?? []);
   return (
     <Section title={i18n._(MOBILE_SYNC_COPY.title)} icon={Smartphone} tone="signal">

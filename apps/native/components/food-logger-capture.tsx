@@ -1,3 +1,4 @@
+import { authClient } from "@/lib/auth-client";
 import type { FoodDraftCandidateWire } from "@openvalens/api/contracts/nutrition-food-drafts";
 import {
   FOOD_DRAFT_COPY,
@@ -79,10 +80,13 @@ export function FoodLoggerCapture({
     queryFn: () => client.nutritionFoodDrafts.provider({}),
     enabled: available,
   });
+  const { data: exampleSession } = authClient.useSession();
+  const exampleUserId = exampleSession?.user.id;
+  const exampleOrganizationId = exampleSession?.session.activeOrganizationId;
   const examples = useQuery({
-    queryKey: ["nutritionFoodDrafts", "examples"],
+    queryKey: ["nutritionFoodDrafts", "examples", exampleOrganizationId, exampleUserId],
     queryFn: () => client.nutritionFoodDrafts.examples({}),
-    enabled: available && mode === "describe",
+    enabled: !!exampleUserId && !!exampleOrganizationId && available && mode === "describe",
   });
   const providerId =
     provider.data?.provider && provider.data.available

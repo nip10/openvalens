@@ -1,3 +1,4 @@
+import { authClient } from "@/lib/auth-client";
 import type { FoodDraftCandidateWire } from "@openvalens/api/contracts/nutrition-food-drafts";
 import { aiAppDraftIdentity, aiAppName } from "@openvalens/api/presenters/ai-apps";
 import {
@@ -105,10 +106,13 @@ export function FoodDraftPanel({
     queryFn: () => client.nutritionFoodDrafts.provider({}),
   });
   const nutritionSettings = useNutritionSettings();
+  const { data: exampleSession } = authClient.useSession();
+  const exampleUserId = exampleSession?.user.id;
+  const exampleOrganizationId = exampleSession?.session.activeOrganizationId;
   const examples = useQuery({
-    queryKey: ["nutritionFoodDrafts", "examples"],
+    queryKey: ["nutritionFoodDrafts", "examples", exampleOrganizationId, exampleUserId],
     queryFn: () => client.nutritionFoodDrafts.examples({}),
-    enabled: view === "describe",
+    enabled: !!exampleUserId && !!exampleOrganizationId && view === "describe",
   });
   // food-draft#2: while drafts are off, say what they do and turn them on here.
   const draftsOff = nutritionSettings.settings?.voiceDraftsEnabled === false;
