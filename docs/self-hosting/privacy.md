@@ -44,11 +44,12 @@ person's clinical record as a JSON bundle, or selected sections as CSV or
 PDF. The JSON bundle is capped (200 records by default), so it is **not** a
 complete export.
 
-A complete, machine-readable export of everything a person owns (JSON and CSV
-per table, with a manifest and checksums) is implemented in the server code
-(`packages/data-rights`) but is **not offered in the app or API at 0.9.0**
-(Issue #89). If someone asks for a complete copy of their data today, you
-cannot produce it from the app.
+For a complete copy, the same page (web and mobile) has **Keep a full
+backup**: it prepares one ZIP of everything the person owns, with JSON and CSV
+per table, their stored attachments such as progress photos, and a manifest
+with row counts and SHA-256 checksums. The person prepares and downloads it
+themselves, so you don't need server access to answer a request for a full
+copy of someone's data.
 
 Nutrition goals and energy-target proposals are exported only for the member
 who recorded them, including when that member collaborates in another person's
