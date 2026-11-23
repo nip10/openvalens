@@ -698,7 +698,7 @@ document's scope.
 Related: #63. The setup-token minting path and the self-host installer
 (`deploy/setup.sh`, [self-hosting/](self-hosting/README.md)) are implemented. The
 self-host stack takes encrypted daily and pre-migrate backups and restores them
-with `deploy/setup.sh restore` ([Backups](self-hosting/backup.md)), and resource minimums still need measuring on a
-reference VPS. Editable product settings and settings-change
-auditing remain separate Issue #58 work. The admission web UI has passed its
+with `deploy/setup.sh restore` ([Backups](self-hosting/backup.md)); measured
+resource minimums are in [Install](self-hosting/install.md). Editable product
+settings and their change audit shipped with Issue #58. The admission web UI has passed its
 independent security gate; production activation requires separate authorization.

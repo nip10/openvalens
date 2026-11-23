@@ -49,6 +49,6 @@ so.
 
 ## Not covered yet
 
-- Signed, published container images; installs build from source (#129).
+- Signed, published container images; installs build from source.
 - A docs website. These Markdown pages come first; a site follows once they
   have been verified on a real install.

@@ -90,15 +90,14 @@ instance [up to date](upgrading.md).
 - **Legal duties.** You operate the instance and are responsible for the
   people whose data it holds ([Privacy and data rights](privacy.md)).
 
-## Known limitations at 0.9.0
+## Known limitations
 
 - Backups are encrypted and scheduled; they stay on the same host unless you
   configure the optional off-site copy to an S3-compatible bucket.
-- Images are built from source on your host; signed, published images are
-  #129.
+- Images are built from source on your host; there are no signed, published
+  images yet.
 - Reads of installation-wide settings are not audited yet; the existing access
   audit is per workspace.
 - The server trusts Expo development origins (`exp://`,
   `http://localhost:8081`) in addition to your domain and the app scheme
   `openvalens://`, pending the final mobile app sign-in work.
-- Resource minimums have not been measured on a reference VPS.
