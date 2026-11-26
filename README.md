@@ -11,7 +11,9 @@ every workspace is invite-only.
 > **Status.** The current version is 1.2.1
 > ([Releases](https://github.com/nip10/openvalens/releases)). Self-hosting is
 > one supported install; [OpenValens Cloud](https://app.openvalens.com) is the
-> hosted service, with sign-up on the web. The Android app is on
+> hosted service, with sign-up on the web. You can
+> [try the demo](https://app.openvalens.com/login?demo=true) without an
+> account: a read-only synthetic record, refreshed daily. The Android app is on
 > [Google Play](https://play.google.com/store/apps/details?id=com.openvalens.app);
 > iOS app 1.2.1 is waiting for App Store review. The store app connects to Cloud or to
 > your own instance.
@@ -38,18 +40,39 @@ records), never a real person's data (see [Landing site](#landing-site))._
 
 - **Dashboard:** today's sleep, steps, heart rate and weight at a glance, with
   your weight over the last 90 days.
-- **Labs:** enter lab results and keep each marker's readings together.
-- **Body and vitals:** weight, body measurements and vitals over time.
-- **Workouts and activity:** sessions with an effort rating; weekly active
-  minutes next to the WHO adult range ([activity load](docs/activity-load.md)).
+- **Labs:** enter lab results, keep each marker's readings together, group them
+  into panels, and see which readings fall above or below the lab's range.
+- **Clinical records:** consultations, cardiac exams, imaging studies and
+  family history, with family history linked to preventive care.
+- **Body and vitals:** weight, body and private measurements, a body map, and
+  vitals including HRV, SpO₂ and respiration.
+- **Workouts and activity:** sessions with an effort rating, an exercise
+  library and lifts; weekly active minutes next to the WHO adult range
+  ([activity load](docs/activity-load.md)).
 - **Meal diary:** log meals from public food catalogs (USDA FoodData Central,
   Open Food Facts) that the operator imports
-  ([food catalogs](docs/self-hosting/food-catalogs.md)), or from your own
-  foods; daily totals show which entries had a value.
-- **Sleep, supplements and a timeline** of everything you recorded.
+  ([food catalogs](docs/self-hosting/food-catalogs.md)), your own foods or
+  recipes; daily totals and micronutrients, with optional targets
+  ([nutrition targets](docs/nutrition-targets.md)).
+- **Sleep, cycle, supplements and custom trackers** (a number, a 1–5 scale,
+  yes/no or a duration; [trackers](docs/trackers.md)).
+- **Goals and scores:** goals with progress and an estimated date, and an
+  experimental readiness index ([score algorithms](docs/score-algorithm.md)).
+- **Preventive care:** what public-health authorities in your region publish
+  for your age and sex, cited and dated, with optional reminders
+  ([preventive care](docs/preventive-care.md)).
+- **A timeline** of everything you recorded, with search.
 - **Export and delete:** download your record (JSON, CSV or a printable page), or delete
   your account and everything you own ([privacy](docs/self-hosting/privacy.md)).
-- **Workspaces and sharing** with owner, admin, collaborator and viewer roles.
+- **Sharing:** invite people to a workspace as an owner or a member. Members
+  don't see your workouts, sleep or body measurements.
+- **Phone and wearables:** the mobile app reads Apple Health and Health
+  Connect; vendor cloud connections are optional
+  ([wearables](docs/wearables.md)).
+- **Connected AI apps:** point Claude, ChatGPT, Cursor or a local model at
+  your own records over MCP or a REST tool API, with OAuth or a personal API
+  key. Off by default on a self-hosted instance
+  ([AI apps](docs/ai-apps.md)).
 - **Optional AI assistant,** off by default. When an operator turns it on
   (Anthropic or any OpenAI-compatible endpoint, including a local model) and
   you consent, it can summarise your own records (the Coach screen). It is not medical advice and
@@ -69,7 +92,8 @@ records), never a real person's data (see [Landing site](#landing-site))._
 - No published container images; the install builds from source (#129).
 - iOS app 1.2.1 is waiting for App Store review; the Android
   app is on Google Play.
-- Wearable vendor connections are available but need provider configuration.
+- Wearable vendor cloud connections need your own developer app with each
+  vendor ([wearables](docs/wearables.md)); the phone path needs none.
 
 **Intended purpose.** OpenValens is a personal record-keeping and
 general-wellness app. It helps you store, organise and view your own
@@ -130,6 +154,8 @@ states the version it applies to:
 - [Licensing and trademark](docs/self-hosting/licensing.md)
 - [Connecting the mobile app](docs/self-hosting/mobile-app.md)
 - [AI providers](docs/ai-providers.md) — Anthropic or an OpenAI-compatible endpoint
+- [Connected AI apps](docs/ai-apps.md) — MCP server and REST tool API; per-app guides in [docs/help/ai-apps](docs/help/ai-apps/README.md)
+- [Integrations](docs/integrations.md) — every outside service and what turns it on
 
 ## Contributing
 
@@ -170,8 +196,12 @@ bun run dev
 ```
 
 Open [http://localhost:3001](http://localhost:3001) in your browser to see the web application.
-Use the Expo Go app to run the mobile application.
 The API is running at [http://localhost:3000](http://localhost:3000).
+
+The mobile app uses native modules, so it needs a development build rather
+than Expo Go: run `bun run --cwd apps/native ios` or `bun run --cwd apps/native android`
+once, then `bun run dev:native`. For a local account with realistic synthetic
+data, run `bun run demo:seed` (see [`packages/demo-seed`](packages/demo-seed/README.md)).
 
 ### UI customization
 
@@ -237,15 +267,24 @@ For more details, see the guide on [Deploying with Docker Compose](https://www.b
 ```
 openvalens/
 ├── apps/
-│   ├── web/         # Frontend application (React + TanStack Router)
-│   ├── native/      # Mobile application (React Native, Expo)
-│   ├── site/        # Static landing site (no third-party requests)
-│   └── server/      # Backend API (Hono, ORPC)
+│   ├── web/           # Web app (React + TanStack Router)
+│   ├── native/        # Mobile app (React Native, Expo)
+│   ├── site/          # Static landing site (no third-party requests)
+│   └── server/        # API server (Hono, oRPC)
 ├── packages/
-│   ├── ui/          # Shared shadcn/ui components and styles
-│   ├── api/         # API layer / business logic
-│   ├── auth/        # Authentication configuration & logic
-│   └── db/          # Database schema & queries
+│   ├── api/           # oRPC routers
+│   ├── auth/          # Better Auth configuration and access roles
+│   ├── db/            # Drizzle schema and migrations
+│   ├── ui/            # Shared shadcn/ui components and styles
+│   ├── i18n/          # Lingui catalogs
+│   ├── labs/, nutrition/, sleep/, vitals/, activity/, body/, clinical/,
+│   │   trackers/, plans/, …   # One package per health domain
+│   ├── mcp/           # MCP server and REST tool API for AI apps
+│   ├── ai/, coach/    # Optional AI assistant
+│   ├── integrations/  # Wearables and Telegram
+│   └── demo-seed/     # Synthetic demo, review and public-demo accounts
+├── deploy/            # Self-host Compose stack and setup.sh
+└── docs/
 ```
 
 ### Available scripts
@@ -260,6 +299,9 @@ openvalens/
 - `bun run db:generate`: Generate database client/types
 - `bun run db:studio`: Open database studio UI
 - `bun run check`: Run Oxlint and Oxfmt
+- `bun run demo:seed`: Seed a synthetic demo account into a disposable database
+- `bun run i18n:extract` / `bun run i18n:compile`: Update translation catalogs ([translations](docs/translations.md))
+- `bun run e2e:ios` / `bun run e2e:android`: Run the Maestro mobile end-to-end tests ([e2e](docs/mobile/e2e.md))
 - `bun run docker:build`: Build the Docker Compose images
 - `bun run docker:up`: Build and start the Docker Compose stack
 - `bun run docker:logs`: Tail logs from the Docker Compose stack
