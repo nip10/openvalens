@@ -62,6 +62,10 @@ records), never a real person's data (see [Landing site](#landing-site))._
   for your age and sex, cited and dated, with optional reminders
   ([preventive care](docs/preventive-care.md)).
 - **A timeline** of everything you recorded, with search.
+- **Backups (self-hosted):** encrypted, verified backups of the database and
+  stored files, daily and before every upgrade; `deploy/setup.sh restore`
+  restores one, and deleted accounts stay deleted
+  ([backups](docs/self-hosting/backup.md)).
 - **Export and delete:** download your record (JSON, CSV or a printable page), or delete
   your account and everything you own ([privacy](docs/self-hosting/privacy.md)).
 - **Sharing:** invite people to a workspace as an owner or a member. Members
@@ -83,15 +87,10 @@ records), never a real person's data (see [Landing site](#landing-site))._
 
 ## What it does not do (yet)
 
-- **Off-site backups are opt-in.** The stack takes encrypted, verified backups
-  of the database and stored files daily and before every upgrade, and
-  `deploy/setup.sh restore` restores one (deleted accounts stay deleted). They
-  stay on the host unless you configure the off-site copy to an S3-compatible
-  bucket, and keeping the backup key off the server is up to you
-  ([Backups](docs/self-hosting/backup.md)).
-- No published container images; the install builds from source (#129).
-- iOS app 1.2.1 is waiting for App Store review; the Android
-  app is on Google Play.
+- **Off-site backups are opt-in.** Backups stay on the host until you point
+  the off-site copy at an S3-compatible bucket, and keeping the backup key off
+  the server is up to you.
+- No published container images; the install builds from source.
 - Wearable vendor cloud connections need your own developer app with each
   vendor ([wearables](docs/wearables.md)); the phone path needs none.
 
