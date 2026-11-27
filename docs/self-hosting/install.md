@@ -19,10 +19,10 @@ it for a real installation.
 | Service            | Image                                                      | Network     | Published ports           |
 | ------------------ | ---------------------------------------------------------- | ----------- | ------------------------- |
 | `caddy`            | `caddy:2.11.7@sha256:…` (pinned)                           | `app`       | 80, 443 (+UDP); see below |
-| `web`              | `openvalens-web:<version>` (built locally)                 | `app`       | none                      |
-| `server`           | `openvalens-server:<version>` (built locally)              | `app`, `db` | none                      |
+| `web`              | `openvalens-web:<version>` (pulled or built)               | `app`       | none                      |
+| `server`           | `openvalens-server:<version>` (pulled or built)            | `app`, `db` | none                      |
 | `migrate`          | same image as `server`, one-shot                           | `db`        | none                      |
-| `backup`           | `openvalens-backup:<version>` (built locally), one-shot    | `db`        | none                      |
+| `backup`           | `openvalens-backup:<version>` (pulled or built), one-shot  | `db`        | none                      |
 | `backup-scheduler` | `openvalens-backup:<version>`, long-running                | `db`        | none                      |
 | `backup-tools`     | `openvalens-backup:<version>`, run by `setup.sh` only      | `db`        | none                      |
 | `backup-offsite`   | `openvalens-backup:<version>`, only with the off-site copy | `offsite`   | none                      |
