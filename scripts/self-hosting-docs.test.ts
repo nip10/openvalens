@@ -5,7 +5,8 @@
  *   resolves to a file (and heading) that exists.
  * - Every self-hosting and reference page states the version it applies to,
  *   which must be the root `package.json` version.
- * - The README links every self-hosting page.
+ * - The README points at the wiki, which publishes every self-hosting page
+ *   (the manifest coverage is checked in `build-wiki.test.ts`).
  * - The documented `deploy/.env` variables match the ones `deploy/compose.yml`
  *   actually reads.
  *
@@ -125,12 +126,10 @@ describe("self-hosting docs", () => {
     expect(stale).toEqual([]);
   });
 
-  test("the README links every self-hosting page and the env reference", () => {
-    const readmeTargets = new Set(linkTargets(read("README.md")).map((t) => t.split("#")[0]));
-    const missing = [...SELF_HOSTING_PAGES, join("docs", "reference", "env.md")].filter(
-      (page) => !readmeTargets.has(page),
-    );
-    expect(missing).toEqual([]);
+  test("the README points readers at the wiki generated from docs/", () => {
+    const readmeTargets = linkTargets(read("README.md"));
+    expect(readmeTargets).toContain("https://github.com/nip10/openvalens/wiki");
+    expect(readmeTargets).toContain("docs/");
   });
 
   test("the deploy/.env table matches the variables deploy/compose.yml reads", () => {
