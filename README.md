@@ -90,7 +90,6 @@ records), never a real person's data (see [Landing site](#landing-site))._
 - **Off-site backups are opt-in.** Backups stay on the host until you point
   the off-site copy at an S3-compatible bucket, and keeping the backup key off
   the server is up to you.
-- No published container images; the install builds from source.
 - Wearable vendor cloud connections need your own developer app with each
   vendor ([wearables](docs/wearables.md)); the phone path needs none.
 
@@ -126,9 +125,10 @@ git checkout "$(git tag -l 'v*' --sort=-v:refname | head -n 1)"  # the newest re
 deploy/setup.sh install
 ```
 
-The script generates every secret on the host, starts the stack behind Caddy
-(HTTPS) and mints a one-time setup token for the first administrator; the
-install guide covers the rest.
+The script generates every secret on the host, pulls the release's published
+images (`linux/amd64` and `linux/arm64`, from `ghcr.io/nip10`), starts the stack
+behind Caddy (HTTPS) and mints a one-time setup token for the first
+administrator; the install guide covers the rest.
 
 ## Documentation
 

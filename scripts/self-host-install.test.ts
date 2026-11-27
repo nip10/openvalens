@@ -289,6 +289,109 @@ describe("deploy/compose.yml", () => {
     expect(env.BETTER_AUTH_URL).toMatch(/^https:\/\//);
     expect(env.CORS_ORIGIN).toBe(env.BETTER_AUTH_URL!);
   });
+
+  test("the published web image gets the same API origin a local build bakes in", () => {
+    const web = services.web as Compose["services"][string] & {
+      build?: { args?: Record<string, string> };
+    };
+    expect(web.environment?.OPENVALENS_SERVER_URL).toBe(web.build!.args!.VITE_SERVER_URL!);
+    expect(web.environment?.OPENVALENS_SERVER_URL).toBe(
+      services.server!.environment!.BETTER_AUTH_URL!,
+    );
+  });
+});
+
+describe("apps/web/docker-entrypoint.d/30-server-url.sh", () => {
+  const script = join(repo, "apps", "web", "docker-entrypoint.d", "30-server-url.sh");
+  const placeholder = "https://openvalens-runtime-server-url.invalid";
+
+  function webImage(bundle: string, origin = placeholder) {
+    const root = mkdtempSync(join(tmpdir(), "ov-web-"));
+    mkdirSync(join(root, "html", "assets"), { recursive: true });
+    mkdirSync(join(root, "headers"));
+    writeFileSync(join(root, "html", "assets", "index.js"), bundle);
+    writeFileSync(
+      join(root, "headers", "security-headers.enforce.conf"),
+      `add_header Content-Security-Policy "connect-src 'self' ${origin}; report-uri ${origin}/api/security/csp-report" always;\n`,
+    );
+    return {
+      read: (path: string) => readFileSync(join(root, path), "utf8"),
+      run(serverUrl?: string) {
+        const result = Bun.spawnSync(["sh", script], {
+          env: {
+            PATH: process.env.PATH ?? "/usr/bin:/bin",
+            OPENVALENS_WEB_ROOT: join(root, "html"),
+            OPENVALENS_WEB_HEADERS: join(root, "headers"),
+            ...(serverUrl === undefined ? {} : { OPENVALENS_SERVER_URL: serverUrl }),
+          },
+        });
+        return { exitCode: result.exitCode, output: `${result.stdout}${result.stderr}` };
+      },
+      cleanup: () => rmSync(root, { recursive: true, force: true }),
+    };
+  }
+
+  test("uses the release workflow's placeholder", () => {
+    const workflow = readFileSync(join(repo, ".github", "workflows", "publish-images.yml"), "utf8");
+    expect(workflow).toContain(`WEB_SERVER_URL_PLACEHOLDER: ${placeholder}\n`);
+    expect(readFileSync(script, "utf8")).toContain(`placeholder="${placeholder}"`);
+  });
+
+  test("writes the API origin into the bundle and the security headers", () => {
+    const image = webImage("fetch(`${tr(`" + placeholder + "`)}/rpc`)");
+    try {
+      const result = image.run("https://health.example.org/");
+      expect(result).toMatchObject({ exitCode: 0 });
+      expect(image.read("html/assets/index.js")).toBe(
+        "fetch(`${tr(`https://health.example.org`)}/rpc`)",
+      );
+      const headers = image.read("headers/security-headers.enforce.conf");
+      expect(headers).toContain("connect-src 'self' https://health.example.org;");
+      expect(headers).toContain("report-uri https://health.example.org/api/security/csp-report");
+      expect(headers).not.toContain("invalid");
+    } finally {
+      image.cleanup();
+    }
+  });
+
+  test("refuses to start without an origin, or with anything but scheme, host and port", () => {
+    for (const value of [
+      undefined,
+      "",
+      "health.example.org",
+      "ftp://health.example.org",
+      "https://health.example.org/app",
+      'https://health.example.org"; add_header X 1',
+      "https://health.example.org|x",
+    ]) {
+      const image = webImage(`"${placeholder}"`);
+      try {
+        const result = image.run(value);
+        expect({ value, exitCode: result.exitCode }).toEqual({ value, exitCode: 1 });
+        expect(result.output).toContain("set OPENVALENS_SERVER_URL");
+        expect(image.read("html/assets/index.js")).toBe(`"${placeholder}"`);
+      } finally {
+        image.cleanup();
+      }
+    }
+    const image = webImage(`"${placeholder}"`);
+    try {
+      expect(image.run("http://localhost:8443")).toMatchObject({ exitCode: 0 });
+      expect(image.read("html/assets/index.js")).toBe('"http://localhost:8443"');
+    } finally {
+      image.cleanup();
+    }
+  });
+
+  test("does nothing in an image built for one domain", () => {
+    const image = webImage('"https://app.openvalens.com"', "https://app.openvalens.com");
+    try {
+      expect(image.run()).toMatchObject({ exitCode: 0, output: "" });
+      expect(image.read("html/assets/index.js")).toBe('"https://app.openvalens.com"');
+    } finally {
+      image.cleanup();
+    }
+  });
 });
 
 describe("deploy/Caddyfile", () => {
@@ -473,6 +576,8 @@ case " $* " in
   *" config --quiet "*) exit 0 ;;
   *" config "*) printf 'services:\\n  caddy:\\n    ports:\\n      - 443\\n' ;;
   *" ps -q "*) echo fake-container ;;
+  " pull -q "*) exit \${FAKE_PULL_STATUS:-0} ;;
+  " image inspect "*) printf '%s\\n' "\${FAKE_REVISION:-}" ;;
   " inspect "*) echo healthy ;;
   *" admission.sh mint "*) echo fake-setup-token ;;
   *" --entrypoint age-keygen "*) echo AGE-SECRET-KEY-1FAKESYNTHETICKEYFORTESTS ;;
@@ -1422,4 +1527,123 @@ describe("scripts/rollback-rehearsal.sh (Issue #129)", () => {
     expect(result.exitCode).toBe(1);
     expect(`${result.stdout}${result.stderr}`).toContain("non-local DOCKER_HOST");
   });
+});
+
+describe("deploy/setup.sh images", () => {
+  const install = ["install", "--non-interactive"];
+  const registry = "ghcr.io/nip10";
+
+  /** The sandbox's parent directory as a git checkout of `ref`. */
+  function checkout(box: ReturnType<typeof installSandbox>, tag?: string) {
+    const root = join(box.dir, "..");
+    const git = (...args: string[]) => {
+      const result = Bun.spawnSync(["git", "-C", root, ...args], {
+        env: {
+          PATH: process.env.PATH ?? "/usr/bin:/bin",
+          HOME: root,
+          GIT_CONFIG_NOSYSTEM: "1",
+          GIT_AUTHOR_NAME: "Synthetic",
+          GIT_AUTHOR_EMAIL: "synthetic@example.invalid",
+          GIT_COMMITTER_NAME: "Synthetic",
+          GIT_COMMITTER_EMAIL: "synthetic@example.invalid",
+        },
+      });
+      expect(result.exitCode).toBe(0);
+      return `${result.stdout}`.trim();
+    };
+    writeFileSync(join(root, ".gitignore"), "deploy/.env\ndeploy/secrets/\n*.log\n*.stdin\n");
+    git("init", "-q");
+    git("add", "-A");
+    git("commit", "-q", "-m", "synthetic");
+    if (tag) git("tag", tag);
+    return git("rev-parse", "HEAD");
+  }
+  const log = (box: ReturnType<typeof installSandbox>) =>
+    readFileSync(join(box.dir, "..", "docker.log"), "utf8");
+
+  test("on a release tag, pulls the published images and tags them locally", () => {
+    const box = installSandbox();
+    try {
+      const revision = checkout(box, "v9.8.7");
+      const result = box.run(install, { FAKE_REVISION: revision });
+      expect(result).toMatchObject({ exitCode: 0 });
+      expect(result.output).toContain("pulling the published v9.8.7 images");
+      const calls = log(box);
+      for (const name of ["server", "web", "backup"]) {
+        expect(calls).toContain(`pull -q ${registry}/openvalens-${name}:v9.8.7`);
+        expect(calls).toContain(
+          `tag ${registry}/openvalens-${name}:v9.8.7 openvalens-${name}:v9.8.7`,
+        );
+        expect(calls).toContain(`image rm ${registry}/openvalens-${name}:v9.8.7`);
+      }
+      expect(calls).not.toMatch(/ build\b/);
+      expect(valuesOf(box.readEnv(), "OPENVALENS_VERSION")).toEqual(["v9.8.7"]);
+    } finally {
+      box.cleanup();
+    }
+  }, 30_000);
+
+  test("builds instead when an image was not built from the checked-out commit", () => {
+    const box = installSandbox();
+    try {
+      checkout(box, "v9.8.7");
+      const result = box.run(install, { FAKE_REVISION: "0".repeat(40) });
+      expect(result).toMatchObject({ exitCode: 0 });
+      expect(result.output).toContain("not the checked-out");
+      expect(result.output).toContain("building them from this checkout instead");
+      const calls = log(box);
+      expect(calls).not.toContain(" openvalens-server:v9.8.7\n");
+      expect(calls).toMatch(/ build\n/);
+    } finally {
+      box.cleanup();
+    }
+  }, 30_000);
+
+  test("builds instead when the pull fails", () => {
+    const box = installSandbox();
+    try {
+      checkout(box, "v9.8.7");
+      const result = box.run(install, { FAKE_PULL_STATUS: "1" });
+      expect(result).toMatchObject({ exitCode: 0 });
+      expect(result.output).toContain(`could not pull ${registry}/openvalens-server:v9.8.7`);
+      expect(log(box)).toMatch(/ build\n/);
+    } finally {
+      box.cleanup();
+    }
+  }, 30_000);
+
+  test("builds a commit that is not a release, or with --build, without pulling", () => {
+    for (const [tag, args, reason] of [
+      [undefined, install, "is not a release tag"],
+      ["v9.8.7", [...install, "--build"], "(--build)"],
+    ] as const) {
+      const box = installSandbox();
+      try {
+        checkout(box, tag);
+        const result = box.run([...args]);
+        expect(result).toMatchObject({ exitCode: 0 });
+        expect(result.output).toContain(reason);
+        expect(log(box)).not.toContain("pull -q");
+        expect(log(box)).toMatch(/ build\n/);
+      } finally {
+        box.cleanup();
+      }
+    }
+  }, 60_000);
+
+  test("pulls from OPENVALENS_IMAGE_REGISTRY when deploy/.env sets it", () => {
+    const box = installSandbox();
+    try {
+      const revision = checkout(box, "v9.8.7");
+      expect(box.run(install, { FAKE_REVISION: revision }).exitCode).toBe(0);
+      writeFileSync(
+        box.envFile,
+        `${box.readEnv()}OPENVALENS_IMAGE_REGISTRY=registry.example.org/mirror\n`,
+      );
+      expect(box.run(install, { FAKE_REVISION: revision }).exitCode).toBe(0);
+      expect(log(box)).toContain("pull -q registry.example.org/mirror/openvalens-web:v9.8.7");
+    } finally {
+      box.cleanup();
+    }
+  }, 30_000);
 });
