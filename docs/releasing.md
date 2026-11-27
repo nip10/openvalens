@@ -261,13 +261,25 @@ bunx eas-cli init` creates the project; copy its id (a UUID).
 `scripts/eas-submit-config.ts` is what the workflow asks before submitting;
 run `bun scripts/eas-submit-config.ts all` to see what is still missing.
 
-## Later: container images per tag (#129)
+## Container images per tag
 
-Self-hosters build images on their own server today
-([release.md §2](release.md#2-build-and-pin-release-artifacts)). Published
-images would plug into `release.yml` as a second job after the version check:
-build `apps/server/Dockerfile` at the tag, push
-`ghcr.io/nip10/openvalens-server:vX.Y.Z` (`packages: write`), record the digest
-with `scripts/release-manifest.ts`, and attach the manifest to the draft
-Release. The web image is not generic yet, because `VITE_SERVER_URL` is
-compiled into it; it needs a runtime server address first.
+Pushing the tag also runs `publish-images.yml`. It builds `openvalens-server`,
+`openvalens-web` and `openvalens-backup` at the tag on native `linux/amd64` and
+`linux/arm64` runners, and pushes them to `ghcr.io/nip10` as one multi-arch
+image each, tagged `vX.Y.Z`, `X.Y.Z` and `X.Y`, plus `latest` when the tag is
+the newest release. Each image gets a signed build-provenance attestation.
+`deploy/setup.sh` pulls these on a release tag, so check that the workflow
+went green before you publish the Release. To re-run it for an existing tag,
+use **Run workflow** with the tag.
+
+The web image is built with a placeholder API origin, and the container
+replaces it at start from `OPENVALENS_SERVER_URL`
+(`apps/web/docker-entrypoint.d/30-server-url.sh`). The hosted service's
+`main` images come from `registry-images.yml` and have the Cloud origin
+compiled in, so self-hosters must not use the `main` tag.
+
+A new package on GHCR starts **private**. After the first release that pushes
+it, open the package settings
+(`https://github.com/users/nip10/packages/container/openvalens-<name>/settings`)
+and set its visibility to public, or `setup.sh` pulls fail and fall back to
+building.

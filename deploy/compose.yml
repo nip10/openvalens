@@ -8,6 +8,9 @@
 #   deploy/setup.sh install     # first install
 #   deploy/setup.sh upgrade     # backup -> migrate -> start, after a git checkout
 #
+# On a release tag, setup.sh pulls the published images and tags them with the
+# local names below; otherwise it builds them from this checkout.
+#
 # Network model:
 #   - `caddy` is the ONLY service that publishes ports (80/443, automatic HTTPS).
 #     Docker-published ports bypass host firewalls such as ufw, so nothing else
@@ -233,6 +236,10 @@ services:
       # The web document carries its own copy of the policy; keep it in step
       # with the server (docs/security-csp.md).
       CSP_MODE: ${CSP_MODE:-enforce}
+      # The published image is built for any domain and gets the API origin at
+      # start (apps/web/docker-entrypoint.d/30-server-url.sh). An image built
+      # here has it baked in from the build argument above and ignores this.
+      OPENVALENS_SERVER_URL: https://${OPENVALENS_DOMAIN:?run deploy/setup.sh first}
     networks:
       - app
     healthcheck:

@@ -19,10 +19,10 @@ it for a real installation.
 | Service            | Image                                                      | Network     | Published ports           |
 | ------------------ | ---------------------------------------------------------- | ----------- | ------------------------- |
 | `caddy`            | `caddy:2.11.7@sha256:…` (pinned)                           | `app`       | 80, 443 (+UDP); see below |
-| `web`              | `openvalens-web:<version>` (built locally)                 | `app`       | none                      |
-| `server`           | `openvalens-server:<version>` (built locally)              | `app`, `db` | none                      |
+| `web`              | `openvalens-web:<version>` (pulled or built)               | `app`       | none                      |
+| `server`           | `openvalens-server:<version>` (pulled or built)            | `app`, `db` | none                      |
 | `migrate`          | same image as `server`, one-shot                           | `db`        | none                      |
-| `backup`           | `openvalens-backup:<version>` (built locally), one-shot    | `db`        | none                      |
+| `backup`           | `openvalens-backup:<version>` (pulled or built), one-shot  | `db`        | none                      |
 | `backup-scheduler` | `openvalens-backup:<version>`, long-running                | `db`        | none                      |
 | `backup-tools`     | `openvalens-backup:<version>`, run by `setup.sh` only      | `db`        | none                      |
 | `backup-offsite`   | `openvalens-backup:<version>`, only with the off-site copy | `offsite`   | none                      |
@@ -52,8 +52,26 @@ it for a real installation.
   `/.well-known/oauth-authorization-server` (for [connected AI apps](../ai-apps.md))
   to the server, and everything else to the web app.
 - `<version>` is `git describe --tags --always --dirty` of your checkout (a
-  commit hash until a release is tagged). Images are built from your checkout;
-  there are no published registry images yet.
+  commit hash until a release is tagged).
+- **Images.** Every release tag after 1.2.1 has published images for `linux/amd64` and
+  `linux/arm64` at `ghcr.io/nip10/openvalens-server`, `-web` and `-backup`.
+  On a release tag, `setup.sh` pulls them, checks that each one's
+  `org.opencontainers.image.revision` label is the commit you checked out, and
+  tags them with the local names below. Anything else builds the images from
+  your checkout: a branch, a commit that is not a release, local changes,
+  `--build`, `VITE_SENTRY_DSN` (browser error reporting is compiled into the
+  web bundle), or a failed pull or check. To check an image's signed build
+  provenance yourself:
+
+  ```bash
+  gh attestation verify oci://ghcr.io/nip10/openvalens-server:<version> -R nip10/openvalens
+  ```
+
+  `OPENVALENS_IMAGE_REGISTRY` in `deploy/.env` (default `ghcr.io/nip10`)
+  points at a mirror or a fork's images. The web image is built for any domain
+  and gets yours at start from `OPENVALENS_SERVER_URL`, which `compose.yml`
+  sets from `OPENVALENS_DOMAIN`.
+
 - Named volumes: `postgres_data`, `backups`, `storage`, `caddy_data`,
   `caddy_config`. `storage` holds uploaded objects (today, progress photos) at `/var/lib/openvalens/storage` in the server container; see
   [Object storage](../storage.md).
@@ -89,6 +107,12 @@ it for a real installation.
 
 ### Resources
 
+These measurements are from installs that **built** the images, before
+releases had published ones. Pulling skips the build: it needs neither the
+build memory peak nor the build cache, and is limited by your download speed
+(the images are about 3.6 GB per version). The build figures still apply to
+`--build` and to any checkout that is not a release tag.
+
 Measured on 2026-10-23 on a fresh cloud VM: Ubuntu 24.04.5 LTS, x86_64 (AMD
 EPYC), 2 vCPU, 8 GB RAM, Docker 29.1.3 with Compose 2.40.3. It ran a headless
 install of `main` and two upgrades: one across three migrations, one
@@ -123,8 +147,8 @@ up and restored.
 
 Plan for:
 
-- **2 vCPU and 4 GB RAM.** Running the stack needs well under 1 GB, but
-  building the images peaks around 3.5 GB. On a 4 GB host that runs other
+- **2 vCPU and 4 GB RAM.** Running the stack needs well under 1 GB. If you
+  build the images instead of pulling them, building peaks around 3.5 GB. On a 4 GB host that runs other
   things, add swap (the second run had 4 GB) and expect an install to take
   15–20 minutes and an upgrade about 10. On a 2 GB host, add at least 2 GB of
   swap before `install` or `upgrade`, or the build may be killed. (A 2 GB
@@ -159,8 +183,9 @@ The script:
    prints one. No default or placeholder secret ships, and the server rejects
    known placeholders in production;
 4. writes the non-secret settings to `deploy/.env` (mode `0600`);
-5. builds the images and starts the stack (`postgres → backup → migrate →
-server → web → caddy`);
+5. pulls the release's published images (or builds them; see
+   [What you get](#what-you-get)) and starts the stack (`postgres → backup →
+migrate → server → web → caddy`);
 6. mints the **one-time setup token** into `deploy/secrets/setup-token`
    (mode `0600`).
 

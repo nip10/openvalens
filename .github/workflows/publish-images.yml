@@ -1,0 +1,251 @@
+name: Publish images
+
+# Self-host images for every release tag (deploy/setup.sh pulls them): server,
+# web and backup, for linux/amd64 and linux/arm64, on GitHub Container
+# Registry. Each architecture builds on its own native runner and is pushed by
+# digest; the publish job joins them into one multi-arch image per name, tagged
+# vX.Y.Z, X.Y.Z and X.Y, plus `latest` when the tag is the newest release.
+#
+# Every image carries its commit in `org.opencontainers.image.revision`, which
+# setup.sh checks against the checkout before using it, and a signed
+# build-provenance attestation:
+#   gh attestation verify oci://ghcr.io/nip10/openvalens-server:vX.Y.Z -R nip10/openvalens
+#
+# The web image is built with a placeholder API origin that the container
+# replaces at start from OPENVALENS_SERVER_URL
+# (apps/web/docker-entrypoint.d/30-server-url.sh), so one image serves any
+# domain. Browser error reporting (VITE_SENTRY_DSN) is not in these images; an
+# operator who wants it builds locally (setup.sh does so when it is set). The
+# hosted service's `main` images are separate (registry-images.yml).
+#
+# Build-time env files are synthetic, as in registry-images.yml, and the builds
+# use the plain buildx CLI for the same reason given there.
+#
+# A pull request that touches an image's recipe builds it on both
+# architectures without pushing.
+
+on:
+  push:
+    tags: ["v*.*.*"]
+  pull_request:
+    paths:
+      - ".github/workflows/publish-images.yml"
+      - "apps/server/Dockerfile"
+      - "apps/web/Dockerfile"
+      - "apps/web/nginx.conf"
+      - "apps/web/docker-entrypoint.d/**"
+      - "deploy/backup/Dockerfile"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing release tag, for example v1.3.0"
+        required: true
+        type: string
+
+concurrency:
+  group: publish-images-${{ inputs.tag || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  REGISTRY: ghcr.io/nip10
+  TAG: ${{ inputs.tag || github.ref_name }}
+  PUSH: ${{ github.event_name != 'pull_request' }}
+  # Must match apps/web/docker-entrypoint.d/30-server-url.sh.
+  WEB_SERVER_URL_PLACEHOLDER: https://openvalens-runtime-server-url.invalid
+
+jobs:
+  build:
+    name: Build ${{ matrix.image }} (${{ matrix.arch }})
+    # Official images come from the upstream repository only (TRADEMARK.md).
+    if: github.event_name == 'pull_request' || github.repository == 'nip10/openvalens'
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [server, web, backup]
+        arch: [amd64, arm64]
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - name: The tag is vMAJOR.MINOR.PATCH
+        if: env.PUSH == 'true'
+        run: |
+          if ! [[ "$TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "::error::'$TAG' is not a release tag (vMAJOR.MINOR.PATCH)."
+            exit 1
+          fi
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.PUSH == 'true' && format('refs/tags/{0}', env.TAG) || '' }}
+      - name: Write synthetic build-time env files
+        run: |
+          env_dir="$RUNNER_TEMP/openvalens-build-env"
+          mkdir -p "$env_dir"
+          cat > "$env_dir/web.env" <<EOF
+          NODE_ENV=production
+          VITE_SERVER_URL=${WEB_SERVER_URL_PLACEHOLDER}
+          EOF
+          cat > "$env_dir/server.env" <<'EOF'
+          NODE_ENV=production
+          BETTER_AUTH_SECRET=synthetic-build-only-auth-secret-000000000000
+          BETTER_AUTH_URL=http://localhost:3000
+          CORS_ORIGIN=http://localhost:3001
+          DATABASE_URL=postgres://synthetic:synthetic@127.0.0.1:5432/openvalens
+          CRON_SECRET=synthetic-build-only-cron-secret
+          TELEGRAM_WEBHOOK_SECRET=synthetic-build-only-webhook-secret
+          EMAIL_FROM=CI Smoke <ci-smoke@example.invalid>
+          EMAIL_DRY_RUN=true
+          EOF
+          chmod 0600 "$env_dir"/*.env
+          echo "OPENVALENS_BUILD_ENV=$env_dir" >> "$GITHUB_ENV"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        if: env.PUSH == 'true'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build${{ env.PUSH == 'true' && ' and push by digest' || '' }}
+        env:
+          IMAGE_NAME: ${{ matrix.image }}
+          ARCH: ${{ matrix.arch }}
+        run: |
+          image="$REGISTRY/openvalens-$IMAGE_NAME"
+          revision="$(git rev-parse HEAD)"
+          args=(
+            --platform "linux/$ARCH"
+            --label "org.opencontainers.image.revision=$revision"
+            --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}"
+            --label "org.opencontainers.image.version=$TAG"
+            --label "org.opencontainers.image.licenses=AGPL-3.0-or-later"
+            --metadata-file "$RUNNER_TEMP/metadata.json"
+          )
+          case "$IMAGE_NAME" in
+            server) args+=(-f apps/server/Dockerfile) ; context=. ;;
+            web)
+              args+=(-f apps/web/Dockerfile --build-arg "VITE_SERVER_URL=$WEB_SERVER_URL_PLACEHOLDER")
+              context=.
+              ;;
+            backup) context=deploy/backup ;;
+          esac
+          if [ "$IMAGE_NAME" != backup ]; then
+            args+=(
+              --secret "id=web_env,src=$OPENVALENS_BUILD_ENV/web.env"
+              --secret "id=server_env,src=$OPENVALENS_BUILD_ENV/server.env"
+            )
+          fi
+          if [ "$PUSH" = true ]; then
+            args+=(--output "type=image,name=$image,push-by-digest=true,name-canonical=true,push=true")
+          else
+            args+=(--output type=cacheonly)
+          fi
+          docker buildx build "${args[@]}" "$context"
+          if [ "$PUSH" = true ]; then
+            digest="$(jq -r '."containerimage.digest"' "$RUNNER_TEMP/metadata.json")"
+            [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "::error::no image digest"; exit 1; }
+            mkdir -p "$RUNNER_TEMP/digests"
+            touch "$RUNNER_TEMP/digests/${digest#sha256:}"
+          fi
+      - name: The web image starts only with a server URL, and uses it
+        if: matrix.image == 'web' && env.PUSH != 'true'
+        run: |
+          docker buildx build --platform "linux/${{ matrix.arch }}" --load -t openvalens-web:ci \
+            -f apps/web/Dockerfile --build-arg "VITE_SERVER_URL=$WEB_SERVER_URL_PLACEHOLDER" \
+            --secret "id=web_env,src=$OPENVALENS_BUILD_ENV/web.env" \
+            --secret "id=server_env,src=$OPENVALENS_BUILD_ENV/server.env" .
+          if docker run --rm -d --name web-no-url openvalens-web:ci >/dev/null; then
+            sleep 3
+            if [ "$(docker inspect -f '{{.State.Running}}' web-no-url 2>/dev/null)" = true ]; then
+              echo "::error::the web image started without OPENVALENS_SERVER_URL"
+              docker rm -f web-no-url
+              exit 1
+            fi
+          fi
+          docker run --rm -d --name web -p 8080:80 -e OPENVALENS_SERVER_URL=https://health.example.org openvalens-web:ci >/dev/null
+          for _ in $(seq 1 20); do curl -fsS -o /dev/null http://127.0.0.1:8080/ && break; sleep 1; done
+          curl -fsS -D headers.txt -o index.html http://127.0.0.1:8080/
+          grep -qi '^content-security-policy:.*https://health.example.org' headers.txt
+          if docker exec web grep -rqF openvalens-runtime-server-url.invalid /usr/share/nginx/html /etc/nginx/security-headers; then
+            echo "::error::the placeholder is still in the web image"
+            exit 1
+          fi
+          docker exec web grep -rqF https://health.example.org /usr/share/nginx/html/assets
+          docker rm -f web
+      - uses: actions/upload-artifact@v4
+        if: env.PUSH == 'true'
+        with:
+          name: digests-${{ matrix.image }}-${{ matrix.arch }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    name: Publish ${{ matrix.image }}
+    needs: build
+    if: github.event_name != 'pull_request' && github.repository == 'nip10/openvalens'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [server, web, backup]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: digests-${{ matrix.image }}-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/digests
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Tag the multi-arch image
+        id: tag
+        env:
+          IMAGE_NAME: ${{ matrix.image }}
+        run: |
+          image="$REGISTRY/openvalens-$IMAGE_NAME"
+          version="${TAG#v}"
+          names=("$TAG" "$version" "${version%.*}")
+          newest="$(git tag -l 'v*.*.*' --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n 1)"
+          if [ "$newest" = "$TAG" ]; then names+=(latest); fi
+          tags=()
+          for name in "${names[@]}"; do tags+=(-t "$image:$name"); done
+          sources=()
+          for file in "$RUNNER_TEMP"/digests/*; do sources+=("$image@sha256:$(basename "$file")"); done
+          [ "${#sources[@]}" -eq 2 ] || { echo "::error::expected 2 architectures, got ${#sources[@]}"; exit 1; }
+          docker buildx imagetools create "${tags[@]}" "${sources[@]}"
+          digest="$(docker buildx imagetools inspect "$image:$TAG" --format '{{json .Manifest}}' | jq -r .digest)"
+          echo "name=$image" >> "$GITHUB_OUTPUT"
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          {
+            echo "### $image"
+            for name in "${names[@]}"; do echo "- \`$image:$name\`"; done
+            echo "- digest \`$digest\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ${{ steps.tag.outputs.name }}
+          subject-digest: ${{ steps.tag.outputs.digest }}
+          push-to-registry: true

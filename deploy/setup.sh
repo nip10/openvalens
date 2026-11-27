@@ -2,25 +2,25 @@
 #
 # OpenValens self-host installer and upgrader (Issue #63).
 #
-#   deploy/setup.sh install    [--dry-run] [--non-interactive] [--reconfigure]
-#   deploy/setup.sh upgrade    [--dry-run]
+#   deploy/setup.sh install    [--dry-run] [--non-interactive] [--reconfigure] [--build]
+#   deploy/setup.sh upgrade    [--dry-run] [--build]
 #   deploy/setup.sh mint-token [--dry-run]
 #   deploy/setup.sh catalogs   --source fdc|fdc-branded|off|all [--dry-run] [--non-interactive]
 #   deploy/setup.sh backup     now|list|verify [<id>] [--quick] [--key-file <path>]
 #                              |export <id> <dir>|import <dir>
 #                              |pull [<id>|latest]|cleanup [--force]|undo-restore <stamp>
-#   deploy/setup.sh restore    <id> [--force] [--non-interactive] [--no-build]
+#   deploy/setup.sh restore    <id> [--force] [--non-interactive] [--build] [--no-build]
 #
 # install     Asks for the domain and email settings, generates every secret
-#             into deploy/secrets/ (never prints one), writes deploy/.env, builds
-#             the pinned images, starts the stack behind Caddy (HTTPS) and mints
+#             into deploy/secrets/ (never prints one), writes deploy/.env, gets
+#             the images (see Images below), starts the stack behind Caddy (HTTPS) and mints
 #             the one-time setup token into deploy/secrets/setup-token.
 #             Re-running it keeps existing secrets, the settings already in
 #             deploy/.env and every key you added there by hand.
 # upgrade     Run after `git checkout <new tag>`: refreshes OPENVALENS_VERSION,
 #             adds every setting install manages that deploy/.env lacks (with
 #             its default; existing values and your own lines are never
-#             changed), rebuilds the images, stops the server, then starts the
+#             changed), gets the new images, stops the server, then starts the
 #             chain postgres -> pre-migrate backup -> migrate -> server. A
 #             failed backup or migration leaves the server stopped and keeps
 #             every backup.
@@ -63,7 +63,7 @@
 #                             restore kept; the current ones are kept in turn,
 #                             the erasure ledger is re-applied (asks to
 #                             confirm; --force skips)
-# restore     Builds the checked-out version (for a rollback: check out the
+# restore     Gets the checked-out version's images (for a rollback: check out the
 #             previous version first), verifies the backup, stops the app,
 #             keeps the current database (renamed openvalens_pre_restore_<stamp>)
 #             and stored files, restores both, runs migrations, re-applies the
@@ -98,9 +98,20 @@
 #                    'backups' volume holds backups and the key file is missing.
 #                    Those backups then stay unreadable until the old key is put
 #                    back; normally restore your escrowed key instead.
+# --build            install/upgrade/restore: build the images from this
+#                    checkout instead of pulling the published ones.
 # --no-build         restore: use the images OPENVALENS_VERSION in deploy/.env
-#                    names as they are, instead of building the checked-out
-#                    version (the rollback rehearsal uses pre-built images).
+#                    names as they are, instead of getting the checked-out
+#                    version's (the rollback rehearsal uses pre-built images).
+#
+# Images: every release tag (vX.Y.Z) has published images for linux/amd64 and
+# linux/arm64 on GitHub Container Registry. On an exact release tag, install,
+# upgrade and restore pull them, check that each was built from the checked-out
+# commit, and tag them with the local names compose.yml uses. A branch, a
+# commit that is not a release, a dirty checkout, --build, or VITE_SENTRY_DSN
+# (baked into the web bundle) builds them from this checkout instead, and so
+# does a failed pull or check. OPENVALENS_IMAGE_REGISTRY in deploy/.env
+# (default ghcr.io/nip10) points at a fork's or a mirror's images.
 #
 # Secrets are written only to files on this host. Never paste a secret, the
 # setup token or deploy/.env into chat, tickets or logs.
@@ -117,6 +128,7 @@ RECONFIGURE=0
 FORCE=0
 QUICK=0
 NO_BUILD=0
+BUILD=0
 NEW_BACKUP_KEY=0
 CATALOG_SOURCES=""
 KEY_FILE=""
@@ -127,6 +139,7 @@ while [ $# -gt 0 ]; do
     --force) FORCE=1 ;;
     --quick) QUICK=1 ;;
     --no-build) NO_BUILD=1 ;;
+    --build) BUILD=1 ;;
     --new-backup-key) NEW_BACKUP_KEY=1 ;;
     --source)
       [ "$command" = catalogs ] && [ $# -gt 1 ] || {
@@ -252,6 +265,70 @@ image_version() {
   v="$(git -C "$REPO_DIR" describe --tags --always --dirty 2>/dev/null || true)"
   v="$(printf '%s' "${v:-local}" | tr -c 'A-Za-z0-9_.-' '-')"
   printf '%s' "${v:0:120}"
+}
+
+# --- images ------------------------------------------------------------------
+
+IMAGE_REGISTRY_DEFAULT="ghcr.io/nip10"
+APP_IMAGES="server web backup"
+
+release_tag() { printf '%s' "$1" | grep -Eq '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'; }
+
+# Pull the published images for <version>, check each was built from the
+# checked-out commit, and tag them openvalens-<name>:<version>. Returns 1,
+# changing no local tag, if any pull or check fails.
+pull_images() {
+  local version="$1" registry revision name remote built
+  registry="$(env_get OPENVALENS_IMAGE_REGISTRY)"
+  registry="${registry:-$IMAGE_REGISTRY_DEFAULT}"
+  if [ "$DRY_RUN" -eq 1 ]; then
+    for name in $APP_IMAGES; do
+      run docker pull "$registry/openvalens-$name:$version"
+      run docker tag "$registry/openvalens-$name:$version" "openvalens-$name:$version"
+    done
+    return 0
+  fi
+  revision="$(git -C "$REPO_DIR" rev-parse HEAD 2>/dev/null)" || return 1
+  for name in $APP_IMAGES; do
+    remote="$registry/openvalens-$name:$version"
+    docker pull -q "$remote" >/dev/null || {
+      warn "could not pull $remote"
+      return 1
+    }
+    built="$(docker image inspect -f '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$remote" 2>/dev/null || true)"
+    if [ "$built" != "$revision" ]; then
+      warn "$remote was built from ${built:-an unknown commit}, not the checked-out $revision"
+      return 1
+    fi
+  done
+  # Only the local name stays, so the cleanup in docs/self-hosting/upgrading.md
+  # finds every version.
+  for name in $APP_IMAGES; do
+    docker tag "$registry/openvalens-$name:$version" "openvalens-$name:$version"
+    docker image rm "$registry/openvalens-$name:$version" >/dev/null
+  done
+}
+
+# Make the app images for the checked-out version available locally: the
+# published ones on a release tag, otherwise built from this checkout.
+prepare_images() {
+  local version reason=""
+  version="$(image_version)"
+  if [ "$BUILD" -eq 1 ]; then
+    reason="--build"
+  elif ! release_tag "$version"; then
+    reason="$version is not a release tag"
+  elif [ -n "$(env_get VITE_SENTRY_DSN)" ]; then
+    reason="VITE_SENTRY_DSN is baked into the web image"
+  fi
+  if [ -z "$reason" ]; then
+    log "pulling the published $version images"
+    if pull_images "$version"; then return 0; fi
+    warn "not using the published $version images; building them from this checkout instead"
+  else
+    log "building images from this checkout ($reason); this can take several minutes"
+  fi
+  run compose build
 }
 
 gather_config() {
@@ -756,8 +833,7 @@ cmd_install() {
   generate_secrets
   write_env
   validate_compose
-  log "building images (this can take several minutes)"
-  run compose build
+  prepare_images
   ensure_backup_key
   start_chain
   if [ -s "$TOKEN_FILE" ] && [ "$DRY_RUN" -eq 0 ]; then
@@ -817,8 +893,7 @@ cmd_upgrade() {
   set_image_version
   add_missing_managed_keys
   validate_compose
-  log "building images for $(image_version)"
-  run compose build
+  prepare_images
   ensure_backup_key
   # Stop the old server first so it never serves a half-migrated database.
   stop_scheduler
@@ -1228,8 +1303,7 @@ cmd_restore() {
     # checked-out version: for a rollback that is the previous release.
     set_image_version
     validate_compose
-    log "building images for $(image_version)"
-    compose build || die "building the images failed; nothing was changed"
+    prepare_images || die "getting the images failed; nothing was changed"
   fi
   start_postgres
   log "verifying $id before changing anything (decrypt, checksums, scratch restore)"

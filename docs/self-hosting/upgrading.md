@@ -34,8 +34,9 @@ the new version manages that the file lacks, with its default (for example
 `OPENVALENS_BACKUP_DAILY_RETAIN` and `OPENVALENS_BACKUP_HOST_ID` on an install
 from before encrypted backups). It prints the names of the keys it added and
 never changes a value already there or your lines below the marker
-([Applying a change](configuration.md#applying-a-change)). It then rebuilds the
-images, **stops the running `caddy`, `web` and `server`** (so the server never
+([Applying a change](configuration.md#applying-a-change)). It then pulls the
+new release's published images (or builds them; see
+[What you get](install.md#what-you-get)), **stops the running `caddy`, `web` and `server`** (so the server never
 serves a half-migrated database), and starts the gated chain:
 
 1. `backup` — takes the pre-migrate backup ([Backups](backup.md)) and reads
@@ -46,12 +47,12 @@ serves a half-migrated database), and starts the gated chain:
    exited `0`.
 
 The site is unavailable from the moment the old server stops until the new one
-is healthy. The images are built before the old server stops, so with a small
+is healthy. The images are pulled or built before the old server stops, so with a small
 database that is 10–20 seconds; the pre-migrate backup and the migrations run
-in that window, so a large database takes longer. The whole `upgrade` took
+in that window, so a large database takes longer. When it built the images, the whole `upgrade` took
 about 5 minutes on the reference VM (2 vCPU, 8 GB; see
 [Resources](install.md#resources)), 48 seconds with a warm build cache, and
-9 minutes on a busy 2 vCPU / 4 GB host.
+9 minutes on a busy 2 vCPU / 4 GB host. Pulling skips the build.
 
 After the upgrade:
 
@@ -74,16 +75,16 @@ After the upgrade:
 
 ### Disk space
 
-Every upgrade builds a new set of images (about 3.6 GB: server, web and
-backup), keeps the previous version's images and adds to Docker's build cache.
-On the reference VM the build cache grew from about 12 GB to about 23 GB over
+Every upgrade adds a new set of images (about 3.6 GB: server, web and
+backup) and keeps the previous version's images. A build also adds to Docker's
+build cache; pulling does not. On the reference VM the build cache grew from about 12 GB to about 23 GB over
 two upgrades; on the 4 GB host, one install and one upgrade used 16 GB. Reclaim
 the space once the new version works.
 
 **Old OpenValens images.** Keep the previous version's images until you are
 sure you will not roll back to it (an image-only rollback,
 [below](#rolling-back-past-the-release-that-introduced-encrypted-backups),
-uses them; `restore` rebuilds whatever you check out). Then remove the
+uses them; `restore` pulls or builds whatever you check out). Then remove the
 versions you no longer need. This lists only OpenValens's images, never
 another project's:
 
