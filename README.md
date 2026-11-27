@@ -132,29 +132,29 @@ install guide covers the rest.
 
 ## Documentation
 
-### Self-hosting
+Read the guides on the [wiki](https://github.com/nip10/openvalens/wiki). Their source is the
+Markdown in [`docs/`](docs/): the wiki is regenerated from it on every push to
+`main`, so changes go through pull requests here, not wiki edits.
 
-Run your own instance with the supported Docker Compose install. Each guide
-states the version it applies to:
-
-- [Overview](docs/self-hosting/README.md) — start here; lists what is not covered yet
-- [Install](docs/self-hosting/install.md)
-- [Configuration](docs/self-hosting/configuration.md) and the generated [environment reference](docs/reference/env.md)
-- [Food catalogs](docs/self-hosting/food-catalogs.md) — empty on a new install;
-  `deploy/setup.sh catalogs` imports USDA and Open Food Facts data
-- [Upgrading](docs/self-hosting/upgrading.md)
-- [Backups](docs/self-hosting/backup.md) — encrypted daily and pre-upgrade backups of the database and files, verify, restore; keep the backup key off the server
-- [Email](docs/self-hosting/email.md) (Resend only)
-- [Single sign-on (OIDC)](docs/self-hosting/oidc.md) — one optional provider, invite-only
-- [Google and Apple sign-in](docs/self-hosting/google-apple-sign-in.md) — Continue with Google
-  and Apple; sign-up only on OpenValens Cloud
-- [Security model and reporting](docs/self-hosting/security.md)
-- [Privacy and data rights](docs/self-hosting/privacy.md)
-- [Licensing and trademark](docs/self-hosting/licensing.md)
-- [Connecting the mobile app](docs/self-hosting/mobile-app.md)
-- [AI providers](docs/ai-providers.md) — Anthropic or an OpenAI-compatible endpoint
-- [Connected AI apps](docs/ai-apps.md) — MCP server and REST tool API; per-app guides in [docs/help/ai-apps](docs/help/ai-apps/README.md)
-- [Integrations](docs/integrations.md) — every outside service and what turns it on
+- **Self-hosting:** start with the
+  [overview](https://github.com/nip10/openvalens/wiki/Self-hosting), then
+  [Install](https://github.com/nip10/openvalens/wiki/Install),
+  [Configuration](https://github.com/nip10/openvalens/wiki/Configuration),
+  [Upgrading](https://github.com/nip10/openvalens/wiki/Upgrading) and
+  [Backups](https://github.com/nip10/openvalens/wiki/Backups). Every variable is in the
+  [environment reference](https://github.com/nip10/openvalens/wiki/Environment-reference).
+- **Using OpenValens:** how
+  [scores](https://github.com/nip10/openvalens/wiki/Scores),
+  [insights](https://github.com/nip10/openvalens/wiki/Insights),
+  [nutrition targets](https://github.com/nip10/openvalens/wiki/Nutrition-targets),
+  [wearables](https://github.com/nip10/openvalens/wiki/Wearables) and the other
+  features work.
+- **Connected AI apps:**
+  [connect claude.ai, ChatGPT, Cursor or a local model](https://github.com/nip10/openvalens/wiki/Connect-an-AI-app)
+  to your own records.
+- **Reference:** [AI providers](https://github.com/nip10/openvalens/wiki/AI-providers),
+  [integrations](https://github.com/nip10/openvalens/wiki/Integrations) and
+  [object storage](https://github.com/nip10/openvalens/wiki/Object-storage).
 
 ## Contributing
 

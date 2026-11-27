@@ -1,0 +1,65 @@
+name: Wiki
+
+# Publishes the user-facing guides in docs/ to the GitHub wiki. docs/ is the
+# source of truth: the wiki is replaced with the output of
+# scripts/build-wiki.ts, so edits made on the wiki are overwritten.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - "scripts/build-wiki.ts"
+      - ".github/workflows/wiki.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: wiki
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    name: Publish docs to the wiki
+    if: github.repository == 'nip10/openvalens'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - run: bun install --frozen-lockfile
+      - name: Build the wiki pages
+        run: bun scripts/build-wiki.ts "$RUNNER_TEMP/wiki-build"
+      - name: Clone the wiki
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WIKI_REPOSITORY: ${{ github.repository }}.wiki
+        run: |
+          if ! git clone --depth 1 \
+            "https://x-access-token:${GITHUB_TOKEN}@github.com/${WIKI_REPOSITORY}.git" \
+            "$RUNNER_TEMP/wiki"; then
+            echo "::error title=Wiki repository not found::Could not clone ${WIKI_REPOSITORY}. GitHub creates the wiki's git repository only after the first page is saved: enable the wiki in the repository settings, open the Wiki tab, save any first page, then re-run this workflow."
+            exit 1
+          fi
+      - name: Replace the wiki contents
+        run: |
+          find "$RUNNER_TEMP/wiki" -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          cp -R "$RUNNER_TEMP/wiki-build/." "$RUNNER_TEMP/wiki/"
+      - name: Commit and push if changed
+        working-directory: ${{ runner.temp }}/wiki
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          git add --all
+          if git diff --cached --quiet; then
+            echo "The wiki is already up to date."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Sync from docs/ at ${SOURCE_SHA}"
+          git push origin HEAD
